@@ -75,7 +75,7 @@ mockup's `Built` label cannot be used as evidence of completion.
 
 ### F-97 · Use Codex in the existing conversation flow
 
-- Status: blocked (B-87's backend behavior is not built)
+- Status: todo (B-87 built the backend, 2026-11-09)
 - Plan: [Codex app-server, F-97](../backend/plans/2026-11-07-codex-app-server.md#f-97-use-the-existing-conversation-ui).
 - Read: harness controls spec §12.14; `web/src/app/conversation/contract.yaml`; `web/src/api/contract.yaml`; the accepted [Codex Planner request](../shared/requests/2026-11-07-codex-planner.md).
 - Touch: the exact F-97 file list in the plan: conversation picker/session/labels and their tests/contract, fake daemon fixture, frontend code map, this stages file and shared request. No new layout or local permission rules.

@@ -156,17 +156,21 @@ B-A2 (Core's scoped context contract), stopped since 2026-10-19, is in this file
 
 ### B-87 · Complete Codex choices, usage and conversation actions
 
-- Status: todo (B-86 passed)
+- Status: done (focused checks and a real signed-in daemon run, 2026-11-09)
 - Plan: [Controls](plans/2026-11-07-codex-app-server.md#b-87-complete-controls-and-enable-the-harness).
 - Owner: Agent translates reports; Harness owns choices; Projects owns allowed modes; DB owns the migration catalog.
 - Read: §12.14 and the Agent, Harness, Projects and DB contracts.
 - Touch: the exact B-87 file list in the plan. Confirm the next unused migration number before dispatch.
 - Needs: B-86; the accepted Codex Planner request.
 - Done when: configured Codex is available, per-model effort/mode rules hold, existing authority is not widened by migration, fork/Send now work, and last-request usage is neither cumulative nor counted twice on resume. Run the plan's focused checks.
+- Verified on 2026-11-09: `shadows-core --test codex_session` 16 (11 new B-87 tests), `thread_session` 2, `harness_schema` 5; `shadows-agent` lib 38 and `--test codex` 6; `core-harness --test list` 1; `core-db --test migration_checksums` 1; `shadows --test harness_choices` 13, `harness_effort` 7, `harness_observation` 5, `harness_config` 5, `openapi` 8 (no API change), `architecture` 49 and `codemap`. fmt and clippy for the changed crates with and without test support passed.
+- Migration: 0050 was free on this branch (`0050_codex_modes.sql`). The unmerged `feature/executors` branch also adds `0050_executor_sessions.sql`; whichever merges second renumbers and updates the checksum fixture.
+- Live on 2026-11-09 (native 0.167.0, dedicated home, fresh database): Codex listed available with `read-only`; a new project allowed only `read-only`. The catalog listed 8 models in order with per-model efforts. One turn called `workspace_get` and recorded context 18127/475000 (last request), with five-hour and weekly limits from the real 300/10080-minute windows. The model and effort were remembered only after that turn. Send now steered into a running turn (2 operations, not 3). A fork answered from the source's history while the source's entries stayed unchanged. No bearer text appeared in the daemon logs.
+- Found live and fixed: the opening's `account/rateLimits/read` (about 3.7 s) pushed setup to the 20 s limit, so it now runs in the background. Real `thread/start` reports no effort, so the opening now reports the model's catalog default.
 
 ### B-88 · Accept Codex in the real Planner
 
-- Status: blocked (B-87 and F-97)
+- Status: blocked (F-97)
 - Plan: [Acceptance](plans/2026-11-07-codex-app-server.md#b-88-acceptance-and-delivery).
 - Read: §12.14, the Codex plan and the evidence record.
 - Touch: Codex evidence, owner spec §12.14, the Codex plan, this stages file and `docs/frontend/stages.md`.

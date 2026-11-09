@@ -13,6 +13,7 @@ use std::collections::BTreeMap;
 pub const CLAUDE_CODE: &str = "claude-code";
 /// Codex Planner, run through native app-server when explicitly configured.
 pub const CODEX: &str = "codex";
+/// Codex's only measured mode: filesystem read-only, no approval prompts.
 pub const CODEX_READ_ONLY: &str = "read-only";
 
 /// AYLUL's brain: Claude Code on its own profile, opened without Planner setup.
@@ -124,7 +125,6 @@ pub fn is_available_with(kind: &str, aylul_configured: bool) -> bool {
 pub fn default_modes() -> BTreeMap<String, Vec<String>> {
     KNOWN
         .iter()
-        .filter(|&&kind| kind != CODEX)
         .filter(|kind| !allowed_modes(kind).is_empty())
         .map(|kind| {
             let modes = allowed_modes(kind).iter().map(|m| m.to_string()).collect();
@@ -160,5 +160,10 @@ mod tests {
         assert_eq!(unattended_mode(AYLUL), Some("auto"));
         assert_eq!(allowed_modes(CODEX), [CODEX_READ_ONLY]);
         assert_eq!(unattended_mode(CODEX), None);
+    }
+
+    #[test]
+    fn new_projects_allow_only_codex_read_only() {
+        assert_eq!(default_modes()[CODEX], [CODEX_READ_ONLY]);
     }
 }

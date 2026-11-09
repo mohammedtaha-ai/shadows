@@ -116,7 +116,14 @@ impl Rpc {
                         (Some(result), None) => Ok(result.clone()),
                         (None, Some(error)) => {
                             let code = error["code"].as_i64().unwrap_or(-32603);
-                            Err(ConnectionError::Rpc(format!("Codex RPC error {code}")))
+                            let words = error["message"]
+                                .as_str()
+                                .map(super::mapping::public_message)
+                                .filter(|words| !words.is_empty());
+                            Err(ConnectionError::Rpc(match words {
+                                Some(words) => format!("Codex: {words}"),
+                                None => format!("Codex RPC error {code}"),
+                            }))
                         }
                         _ => Err(ConnectionError::Protocol("invalid JSON-RPC response")),
                     };

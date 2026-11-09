@@ -14,6 +14,9 @@
 # known (`Projects::known_harness`, the one rule Threads also calls), every
 # mode in `policy::allowed_modes` of its harness, and each list is
 # deduplicated and sorted. A harness not named keeps its modes.
+# A new project allows every policy mode, Codex's `read-only` included
+# (codex_new_projects_use_the_declared_mode_policy); existing projects get it
+# from migration 0050 only, never a write mode.
 #
 # Trap: a `ProjectDirectory` proves the check ran when it was built, not
 # later: a directory deleted after `create` is caught when a turn opens its

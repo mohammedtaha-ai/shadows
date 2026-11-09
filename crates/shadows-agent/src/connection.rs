@@ -218,7 +218,7 @@ impl ManagedConnection {
     ) -> Result<Steer, ConnectionError> {
         match self {
             Self::Acp(connection) => Ok(connection.steer_blocks(session, blocks).await?),
-            Self::Codex(_) => Err(ConnectionError::Rpc("Codex steering is unavailable".into())),
+            Self::Codex(connection) => connection.steer_blocks(session, blocks).await,
         }
     }
 

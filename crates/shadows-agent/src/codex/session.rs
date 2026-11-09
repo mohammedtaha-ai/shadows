@@ -153,21 +153,42 @@ impl Connection {
                 params["excludeTurns"] = json!(true);
                 "thread/resume"
             }
-            SessionStart::Fork(_) => {
-                return Err(ConnectionError::Rpc("Codex fork is unavailable".into()));
+            // The source's history is copied into a new native thread; the
+            // source itself is never resumed or written by the fork.
+            SessionStart::Fork(source) => {
+                params["threadId"] = json!(source);
+                params["excludeTurns"] = json!(true);
+                "thread/fork"
             }
         };
         let opened: Value = self.rpc.request(method, params).await?;
         let thread = opened.pointer("/thread/id").and_then(Value::as_str).ok_or(
             ConnectionError::Protocol("Codex did not return a thread ID"),
         )?;
-        if let SessionStart::Resume(expected) = &how
-            && expected != thread
-        {
-            return Err(ConnectionError::Protocol(
-                "Codex resumed a different thread",
-            ));
+        match &how {
+            SessionStart::Resume(expected) if expected != thread => {
+                return Err(ConnectionError::Protocol(
+                    "Codex resumed a different thread",
+                ));
+            }
+            SessionStart::Fork(source) if source == thread => {
+                return Err(ConnectionError::Protocol(
+                    "Codex answered a fork with its source thread",
+                ));
+            }
+            _ => {}
         }
+        // Account windows are a display fact read from the provider, which
+        // takes seconds: the opening neither waits for them nor fails without.
+        let (rpc, prompts) = (self.rpc.clone(), self.prompts.clone());
+        tokio::spawn(async move {
+            if let Ok(limits) = rpc
+                .request::<Value>("account/rateLimits/read", Value::Null)
+                .await
+            {
+                prompts.first_limits(&limits["rateLimits"]);
+            }
+        });
         if opened.pointer("/sandbox/type").and_then(Value::as_str) != Some("readOnly")
             || opened["approvalPolicy"].as_str() != Some("never")
         {
@@ -180,13 +201,23 @@ impl Connection {
         let model = opened["model"].as_str().ok_or(ConnectionError::Protocol(
             "Codex did not report its selected model",
         ))?;
+        // A thread opened without an effort runs at its model's default.
+        let effort = opened["reasoningEffort"]
+            .as_str()
+            .map(str::to_owned)
+            .or_else(|| {
+                catalog
+                    .iter()
+                    .find(|entry| entry.model == model)
+                    .map(|entry| entry.default_reasoning_effort.clone())
+            });
         let selection = Selection {
             thread: thread.into(),
             catalog,
             current: TurnSettings {
                 model: model.into(),
                 mode: MODE.into(),
-                effort: opened["reasoningEffort"].as_str().map(str::to_owned),
+                effort,
             },
         };
         let options = selection.offered()?;

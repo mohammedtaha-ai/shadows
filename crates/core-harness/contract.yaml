@@ -164,7 +164,8 @@ shapes:
     # "Claude Code", "Codex", "AYLUL", or "Unknown" (`label`).
     label: String
     available: bool
-    # "Coming later" exactly when `available` is false.
+    # Exactly when `available` is false: `Sessions::unavailable_reason`,
+    # the configuration flags for codex, "Coming later" otherwise.
     reason: Option<String>
     # The last turn's model on this harness and that model's remembered
     # effort; never the mode.
@@ -299,9 +300,8 @@ functions:
       signature: "(&self) -> Result<Vec<HarnessInfo>, HarnessError>"
       # For each of `policy::KNOWN`: availability, `remembered_settings`,
       # `latest_limits`, and the modes, initial and unattended mode from policy
-      # alone. Refusals: Storage. `codex` stays listed unavailable with no
-      # modes until its choices, usage and conversation actions are complete,
-      # even when configured.
+      # alone. Refusals: Storage. `codex` is available exactly when configured
+      # and always lists its policy mode `read-only` as the initial mode.
     open_session:
       signature: "(&self, thread: &ThreadId) -> Result<SessionChoices, HarnessError>"
       # turn_context (NotFound → 404 INVALID_COMMAND) → harness_available
@@ -596,6 +596,14 @@ obligations:
     tested_by: [codex_uses_shadows_mcp, codex_resume_rotates_the_grant,
       codex_failed_setup_revokes_the_grant, codex_refuses_forbidden_authority,
       codex_stop_during_a_tool_call]
+  - rule: >
+      Configured Codex runs the existing choice, remembering, busy and mode
+      rules: catalog models in order, the selected model's efforts, only a
+      committed turn start remembers, a project without `read-only` refuses
+      the start, and fork and Send now reach the native thread.
+    tested_by: [codex_choices_follow_the_model_catalog, codex_efforts_belong_to_the_selected_model,
+      codex_project_modes_are_enforced, codex_fork_keeps_the_source_unchanged,
+      codex_steer_targets_the_active_turn]
   - rule: Actual openings project only enabled managed items; cached adapters are not reconfigured.
     tested_by: [opening_projects_only_enabled_extensions]
   - rule: Disabled cached plugins remain explicitly false; user-owned content is preserved.
@@ -911,7 +919,9 @@ tests:
   - name: the_harness_list_carries_the_policy_modes
     checks: >
       tests/list.rs: claude-code and aylul list acceptEdits then auto with
-      initial acceptEdits and unattended auto; codex lists [], null, null.
+      initial acceptEdits and unattended auto; unconfigured codex lists
+      read-only, initial read-only, no unattended mode, unavailable with
+      a reason naming --codex.
   - name: idle_choices_report_the_adapters_mode
     checks: Idle choices expose an adapter mode change without overwriting the saved pick.
   - name: picking_auto_without_sending_survives_reopen_and_core_restart

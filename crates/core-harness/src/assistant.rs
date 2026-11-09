@@ -43,6 +43,16 @@ impl Sessions {
         Ok(policy::is_available_with(kind, configured))
     }
 
+    /// What a person can do about an unavailable harness. Codex needs only
+    /// daemon configuration; the others are not yet runnable here.
+    pub(crate) fn unavailable_reason(kind: &str) -> &'static str {
+        if kind == policy::CODEX {
+            "Start Shadows with --codex and --codex-home to use Codex"
+        } else {
+            "Coming later"
+        }
+    }
+
     pub(crate) async fn check_context(&self, context: &TurnContext) -> Result<(), HarnessError> {
         if context.harness == policy::AYLUL {
             let slug = context

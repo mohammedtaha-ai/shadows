@@ -656,9 +656,10 @@ Phase B
 and a separate harness choice for each conversation. This section owns that
 extension; the earlier ACP-specific sections continue to describe Claude.
 The [implementation plan](../../backend/plans/2026-11-07-codex-app-server.md)
-names the work and its acceptance gates. Since B-86 a daemon started with
-`--codex` and `--codex-home` runs Codex Planner turns through this policy;
-the harness list still reports Codex unavailable until B-87 completes its controls.
+names the work and its acceptance gates. Since B-87 a daemon started with
+`--codex` and `--codex-home` lists Codex as available, with its catalog
+choices, usage, account limits, fork and Send now; without them it reports
+the configuration it needs. Browser acceptance (B-88) is still open.
 
 ### Scope and ownership
 

@@ -186,33 +186,34 @@ verified state and commit explicit paths.
 `crates/shadows/tests/harness_effort.rs`, `crates/shadows/tests/harness_observation.rs`,
 `docs/codebase/README.md`, the shared request, this plan/stages/spec.
 Check the next unused migration number before dispatch and record any renumbering here.
+On this branch 0050 was unused and is `0050_codex_modes.sql`; the unmerged `feature/executors` branch also adds a `0050_executor_sessions.sql`, so whichever merges second renumbers.
 
 **Interfaces:** Preserve `HarnessInfo`, `SessionChoices`, `TurnSettings` and existing API
 routes. `Harness::list` enables Codex only when configured and reports its configuration
 reason otherwise. The mode list/default must be the measured B-85 policy. Use existing
 mode/effort storage keys; introduce no second preference store or session-ID column.
 
-- [ ] Add tests `codex_choices_follow_the_model_catalog`,
+- [x] Add tests `codex_choices_follow_the_model_catalog`,
   `codex_efforts_belong_to_the_selected_model`, `codex_unavailable_model_reports_its_error`,
   and `codex_project_modes_are_enforced`. Fetch the catalog, preserve order, select only offered
   efforts, keep busy checks and remember only settings belonging to committed turn starts.
-- [ ] Add the new modes for ordinary existing projects with an explicit migration; never
+- [x] Add the new modes for ordinary existing projects with an explicit migration; never
   broaden an existing project's authority automatically. New projects use the declared policy.
   The first conversation default is the least-privileged mode proven in B-85. Cover
   `codex_modes_migrate_without_granting_write_access` and
   `codex_new_projects_use_the_declared_mode_policy` in `codex_session.rs`.
-- [ ] Cover `codex_resume_does_not_replay_entries`,
+- [x] Cover `codex_resume_does_not_replay_entries`,
   `codex_usage_is_last_request_not_cumulative`, and `codex_usage_is_not_double_charged_on_resume`.
   Pin an input with last=29130, total=54203, cached=24960 and window=665000: report
   29130/665000, not 54203 or 54090. Missing/zero windows stay unknown.
-- [ ] Map `account/rateLimits/read` and update notifications to existing account limits.
+- [x] Map `account/rateLimits/read` and update notifications to existing account limits.
   Map actual provider errors without credentials/raw config in user-facing messages.
-- [ ] Preserve the existing fork and Send now actions using `thread/fork` and `turn/steer`.
+- [x] Preserve the existing fork and Send now actions using `thread/fork` and `turn/steer`.
   Add `codex_fork_keeps_the_source_unchanged` and `codex_steer_targets_the_active_turn`.
   If a visible action cannot be supported, resolve its explicit capability contract in the
   shared request before enabling Codex; never fabricate a successful result. Images can
   remain explicitly unsupported via the existing image capability.
-- [ ] Enable the configured harness, update contracts, and run the focused checks below.
+- [x] Enable the configured harness, update contracts, and run the focused checks below.
 
 **Verification:** `cargo test -p shadows-core --test codex_session --test thread_session`,
 `cargo test -p shadows --test harness_choices --test harness_effort --test harness_observation`,
