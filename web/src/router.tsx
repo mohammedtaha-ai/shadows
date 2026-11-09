@@ -25,6 +25,7 @@ const WorkspacePage = lazyRouteComponent(() => import('./app/design/workspace-pa
 const ProjectSettings = lazyRouteComponent(() => import('./app/project-settings/project-settings'), 'ProjectSettings')
 const PlanPage = lazyRouteComponent(() => import('./app/workflows/plan-page'), 'PlanPage')
 const PlanMapPage = lazyRouteComponent(() => import('./app/workflows/plan-map'), 'PlanMapPage')
+const TaskPage = lazyRouteComponent(() => import('./app/tasks/task-page'), 'TaskPage')
 const AgreementsPage = lazyRouteComponent(() => import('./app/agreements/agreements-page'), 'AgreementsPage')
 
 const Activity = lazyRouteComponent(() => import('./app/desktop/activity'), 'Activity')
@@ -78,6 +79,12 @@ const planRoute = createRoute({
       invalidTask: search.task !== undefined && positive(search.task) === undefined || undefined }
   },
   component: PlanPage,
+})
+
+const taskRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/projects/$projectId/workflows/$workflowId/versions/$version/tasks/$task',
+  component: TaskPage,
 })
 
 const planMapRoute = createRoute({
@@ -137,6 +144,7 @@ export const router = createRouter({
     draftRoute,
     threadRoute,
     planRoute,
+    taskRoute,
     planMapRoute,
     settingsRoute,
     workspaceRoute,

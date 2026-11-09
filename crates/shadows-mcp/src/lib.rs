@@ -16,6 +16,7 @@ mod auth;
 mod code_tools;
 mod plan_tools;
 mod refusal;
+mod run_tools;
 mod server;
 mod turn_tools;
 mod workspace_tools;

@@ -297,7 +297,7 @@ functions:
   service:
     planning_context:
       signature: "(&self, thread: &ThreadId, project: &ProjectId) -> Result<Option<CarriedContext>, TurnsError>"
-      rule: Compile the index and optional anchor detail through Design and Plans; AYLUL answers None.
+      rule: Compile the index and optional anchor detail through Design and Plans; AYLUL and executor threads answer None.
     live_activity:
       signature: "(&self, thread: &ThreadId) -> Option<LiveActivity>"
       # Latest open calls and list for a registered turn on this thread.
@@ -328,6 +328,10 @@ functions:
       # check, lease Busy, or the transaction); HarnessStartFailed (open, lease
       # Closed, or the session gone while reading its offer);
       # SettingNotOffered; ModeNotAllowed; CommandConflict; TaskNotInPlan.
+      # ModeNotAllowed reads the thread's kind: a planning thread may use the
+      # modes its project allows; an executor thread `policy::EXECUTOR_MODE`
+      # and nothing else, since in any other mode its edits would not reach
+      # Shadows to be refused.
       # Once the checks up to the busy check pass, before the session is
       # opened: `Code::touch` of the thread's project (§15.6), which never
       # fails or delays the turn.
@@ -390,7 +394,7 @@ functions:
     stage_line:
       signature: "(storage: &Storage, thread: &ThreadId) -> Result<String, StorageError>"
       private: true
-      # One snapshot reads the thread and Design's stage line; AYLUL carries no line.
+      # One snapshot reads the thread and Design's stage line; AYLUL and executor threads carry no line.
     invocation_context:
       signature: "(storage: &Arc<Storage>, thread: &ThreadId, operation: &OperationId) -> InvocationContext"
       private: true
@@ -1086,7 +1090,11 @@ attachments:
 planning_context:
   modules: [planning/mod.rs, planning/block.rs, planning/budget.rs]
   dependency: Design is passed once by AppCore.
-  method: planning_context reads Design and Plans APIs; AYLUL receives none.
+  method: planning_context reads Design and Plans APIs; AYLUL and executor threads receive none.
+  executor: >
+    An executor's prompts carry no planning context and no stage line, so it reads only its
+    task. Tested by an_executors_first_turn_hears_no_planner_instructions and
+    live_an_executors_first_turn_hears_no_planner_instructions.
   sources: Only surviving content contributes source tuples to hashed text; pinned bindings read exact versions.
   budgets: Index 1500 and detail 8000 estimated tokens, explicit ordered cuts, soft overflow recorded.
   detail: Child identities survive descriptive cuts; every older rationale names its logical plan and version.

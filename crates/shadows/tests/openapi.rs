@@ -145,6 +145,7 @@ fn the_document_names_every_route() {
             "DELETE /api/projects/{id}/code/links/{linked}",
             "DELETE /api/threads/{id}",
             "DELETE /api/threads/{id}/queue/{qid}",
+            "GET /api/attempts/{id}/diff",
             "GET /api/aylul/agent-template",
             "GET /api/aylul/agents",
             "GET /api/aylul/agents/{slug}/env",
@@ -200,9 +201,12 @@ fn the_document_names_every_route() {
             "GET /api/threads/{id}/operations",
             "GET /api/threads/{id}/queue",
             "GET /api/workflows/{id}",
+            "GET /api/workflows/{workflow}/versions/{version}/tasks/{task}",
+            "GET /api/workflows/{workflow}/versions/{version}/tasks/{task}/attempts",
             "PATCH /api/me",
             "PATCH /api/projects/{id}",
             "PATCH /api/threads/{id}",
+            "POST /api/attempts/{id}/stop",
             "POST /api/aylul/agents",
             "POST /api/aylul/extensions",
             "POST /api/aylul/extensions/mcp",
@@ -235,6 +239,7 @@ fn the_document_names_every_route() {
             "POST /api/threads/{id}/turns",
             "POST /api/workflows/{id}/approve",
             "POST /api/workflows/{id}/bindings",
+            "POST /api/workflows/{workflow}/versions/{version}/tasks/{task}/attempts",
             "PUT /api/aylul/agents/{slug}",
             "PUT /api/aylul/agents/{slug}/env/{name}",
             "PUT /api/aylul/agents/{slug}/extensions/mcp/{id}/tool-rules",
@@ -251,6 +256,7 @@ fn the_document_names_every_route() {
             "PUT /api/threads/{id}/session/effort",
             "PUT /api/threads/{id}/session/mode",
             "PUT /api/threads/{id}/session/model",
+            "PUT /api/workflows/{workflow}/versions/{version}/tasks/{task}/done",
         ]
     );
 }
@@ -282,9 +288,15 @@ fn ids_errors_and_the_stream_are_described_as_clients_rely_on() {
         for (method, op) in item.as_object().unwrap() {
             for (status, response) in op["responses"].as_object().unwrap() {
                 if status.starts_with('4') || status.starts_with('5') {
+                    // The one exception: a refused run is 409 with Runs' own
+                    // code and reason, the pair a task's `start` answer carries.
+                    let expected = if status == "409" && path.contains("/tasks/{task}/") {
+                        "#/components/schemas/RunRefusal"
+                    } else {
+                        "#/components/schemas/ErrorBody"
+                    };
                     assert_eq!(
-                        response["content"]["application/json"]["schema"]["$ref"],
-                        "#/components/schemas/ErrorBody",
+                        response["content"]["application/json"]["schema"]["$ref"], expected,
                         "{method} {path} {status}"
                     );
                 }

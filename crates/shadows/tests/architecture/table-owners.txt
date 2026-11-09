@@ -41,6 +41,8 @@ harness_model_effort :: harness
 harness_preference :: harness
 harness_thread_mode :: harness
 mcp_grant :: grants
+run_attempts :: runs
+run_task_marks :: runs
 message :: messages
 message_cursor :: messages
 message_delivery :: messages

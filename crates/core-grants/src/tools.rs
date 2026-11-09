@@ -44,11 +44,21 @@ const PROJECT_TOOLS: [&str; 16] = [
     "workspace_get",
 ];
 
+/// An executor reads its task and the code it needs, and commits its work.
+const EXECUTOR_TOOLS: [&str; 5] = [
+    "task_context",
+    "where_is",
+    "who_uses",
+    "outline",
+    "task_commit",
+];
+
 impl Grants {
     pub fn tools_for(kind: GrantKind) -> &'static [&'static str] {
         match kind {
             GrantKind::Thread => &THREAD_TOOLS,
             GrantKind::Project => &PROJECT_TOOLS,
+            GrantKind::Executor => &EXECUTOR_TOOLS,
         }
     }
 }

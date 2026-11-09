@@ -41,6 +41,13 @@ groups:
   listGroupMessages: Read the log after an optional group-local sequence.
   createGroup: Create a group using the caller's command id.
   sendToGroup: Append a person message using the caller's command id.
+runs:
+  taskRunQuery: Read a task's run state; read again every two seconds while its latest attempt runs.
+  attemptsQuery: Read a task's attempts, newest first; read again every two seconds while the newest runs.
+  startAttempt: Start an attempt on a model using the caller's command id; a refusal's ApiError message is Core's reason.
+  stopAttempt: Stop an attempt.
+  markTaskDone: Mark a task done or not done using the caller's command id.
+  aliases: TaskRun, Attempt, AttemptState and Need are exported from the generated schemas; FileDiff and RunRefusal stay inside runs.ts.
 mcp_tool_rules:
   agentToolsQuery: "GET /api/aylul/agents/{slug}/extensions/mcp/{id}/tools; ['aylul-agent-mcp-tools', slug, id]"
   setToolRules: Replace one item's entire rule set with the caller's command id.

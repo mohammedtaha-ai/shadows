@@ -13,6 +13,7 @@ pub use error::HarnessError;
 mod assistant;
 mod commands;
 mod context_record;
+mod executor;
 mod extension_home;
 mod fork;
 mod live;
@@ -41,6 +42,7 @@ use shadows_agent::policy;
 use tokio::sync::broadcast;
 
 pub use assistant::AylulConfig;
+pub use executor::EXECUTOR_TOOLS;
 pub use model::{
     AylulUsageSnapshot, CarriedContext, ContextSource, Forget, HarnessInfo, HarnessMode,
     InvocationVersions, InvocationView, PlanningContextState, RememberedSettings,

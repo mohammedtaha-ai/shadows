@@ -7,6 +7,7 @@
 //! `conversation.rs` (entries, a thread's turns, starting and stopping one),
 //! `harness.rs` (the harnesses and a thread's session), `thread.rs` (changing
 //! a thread itself), `workflow.rs` (plan versions and their approval),
+//! `runs.rs` (a task's attempts: Start, Stop, diff, done marks),
 //! `grants.rs` (external agents' MCP grants), `instructions.rs` (a project's
 //! Planner instructions), `code.rs` (the code index: questions, links, settings), `roadmap.rs`
 //! (roadmap proposals),
@@ -44,6 +45,7 @@ mod planning_context;
 mod project;
 mod queue;
 mod roadmap;
+mod runs;
 mod runtime;
 mod standards;
 mod transport;
@@ -245,6 +247,11 @@ fn routes() -> OpenApiRouter<AppState> {
         .routes(routes!(workflow::get_plan_versions))
         .routes(routes!(workflow::archive_plan))
         .routes(routes!(workflow::unarchive_plan))
+        .routes(routes!(runs::task))
+        .routes(routes!(runs::attempts, runs::start))
+        .routes(routes!(runs::mark_done))
+        .routes(routes!(runs::stop))
+        .routes(routes!(runs::diff))
         .routes(routes!(grants::list_grants, grants::issue_grant))
         .routes(routes!(grants::revoke_grant))
         .routes(routes!(

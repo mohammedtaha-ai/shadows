@@ -4,6 +4,8 @@ description: Fixes one frontend failure — a failed task, a failing test, or a 
 model: opus
 effort: medium
 tools: LSP, mcp__serena__initial_instructions, mcp__serena__serena_repl, Read, Glob, Bash, Edit, Write
+skills:
+  - frontend-design:frontend-design
 ---
 
 You fix one frontend failure in the Shadows repository: in `web/` (an `F-<n>`

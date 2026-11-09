@@ -63,6 +63,8 @@ impl Writer {
                         None => super::GrantsError::GrantScope,
                     })?,
             },
+            // An executor reads its task and writes no plan.
+            super::GrantKind::Executor => return Err(super::GrantsError::GrantScope),
         })
     }
 }

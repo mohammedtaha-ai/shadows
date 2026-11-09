@@ -20,6 +20,7 @@ impl Sessions {
             allowed_tools: vec![],
             tools: None,
             setting_sources: Some(vec!["user".into()]),
+            permissions: vec![],
         }
     }
 }

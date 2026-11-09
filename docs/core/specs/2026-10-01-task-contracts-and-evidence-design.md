@@ -39,7 +39,8 @@ stage; specialized diagrams are not a prerequisite.
 **Not here:** selecting multiple executor vendors, running overlapping tasks
 in one working directory, worktree management, automatic waiting-test
 scheduling, project teams, remote execution, and general-purpose semantic
-memory. These need separate designs. In particular, parallel execution stays
+memory. These need separate designs. (Amended 2026-11-08: concurrent tasks in one folder are
+owned by the [executors design](../../backend/specs/2026-11-08-executors-design.md), D2, D3.) In particular, parallel execution stays
 off until write-scope conflict handling is designed and proven.
 
 ## 17.2 The task contract
@@ -126,7 +127,8 @@ is one of `PASS`, `PASS_WITH_NOTES`,
 `FAIL_IMPLEMENTATION`, or `FAIL_PLAN`. `FAIL_PLAN` returns control to planning;
 it does not authorize an executor to rewrite the frozen contract.
 
-The first execution stage is serial. Readiness is checked immediately before a
+The [executors design](../../backend/specs/2026-11-08-executors-design.md) supersedes "serial" below (2026-11-08): independent
+tasks with disjoint write scopes run together. The first execution stage is serial. Readiness is checked immediately before a
 run using the frozen version, current project binding, task dependencies, and
 write scope. If two tasks declare intersecting write paths, they are not
 eligible to run concurrently until a later design defines a safe conflict

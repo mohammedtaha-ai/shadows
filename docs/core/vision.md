@@ -132,7 +132,8 @@ Agreed, with three caveats that came out of Milestone 2:
    strong reviewer.
 
 So a strong model plans, takes the hard tasks, and verifies, and a cheaper
-model takes the well-specified tasks. Shadows chooses the model per task.
+model takes the well-specified tasks. The Planner suggests a model per task and the person
+chooses it (Mohammed, 2026-11-08; [executors design](../backend/specs/2026-11-08-executors-design.md) D6).
 
 **Today:** the person chooses the model per message for the Planner
 (Milestone 1). Executors do not exist yet.
@@ -245,7 +246,8 @@ can be reused across tasks; it is not a permanently running conversation.
   CLI sign-in remains CLI-owned; stored configuration holds secret references.
 - **Small, useful concurrency:** two independent tasks may eventually run
   together. File ownership, shared builds/tests and read dependencies all
-  matter. Initial execution remains serial until the conflict policy is proven.
+  matter. Independent tasks run together from the first release, in the project folder, kept
+  apart by their write scopes (Mohammed, 2026-11-08; [executors design](../backend/specs/2026-11-08-executors-design.md) D2, D3).
 
 [§19](specs/2026-10-03-agent-profiles-and-extensions-design.md)
 owns the draft profile, extension and specialist-dispatch semantics. §17 owns

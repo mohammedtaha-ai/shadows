@@ -67,10 +67,19 @@ shapes:
     created_at: String
     # `None` while live.
     revoked_at: Option<String>
+    # The task an executor grant reads; not on the wire.
+    scope: Option<TaskScope>
+  TaskScope:
+    # Opaque here: Plans interprets it, so this crate imports nothing from Plans.
+    workflow: String
+    version: i64
+    task: u32
   GrantKind:
-    # `thread` and `project` on the wire and in `mcp_grant.kind`.
+    # `thread` and `project` on the wire; `executor` in `mcp_grant.kind` only,
+    # so the OpenAPI schema names the two a client sees.
     Thread: unit
     Project: unit
+    Executor: unit
   Token:
     # `shd_` and two simple v4 UUIDs: 68 characters, 244 random bits.
     # Private field; Debug never prints it.
@@ -155,9 +164,13 @@ functions:
       # thread's session. A removed thread cannot receive a new grant.
     revoke_grant:
       signature: "(&self, ctx: &CommandContext, id: &GrantId) -> Result<Grant, StorageError>"
+    issue_executor_grant_in:
+      signature: "(conn, project: &ProjectId, thread: &ThreadId, scope: TaskScope) -> Result<(Grant, Token), StorageError>"
+      # No command: Harness' `Setups::for_executor` issues it for an executor
+      # session; the grant reads that one task and nothing else.
     revoke_thread_grant:
       signature: "(&self, id: &GrantId) -> Result<(), StorageError>"
-      # No command: Harness' `Setups::forget`.
+      # No command: Harness' `Setups::forget`. Revokes a thread or executor grant.
     revoke_all_thread_grants:
       signature: "(&self) -> Result<u64, StorageError>"
     grant_for_token:
@@ -222,6 +235,7 @@ shared_in_transaction:
   authorise_in: Approval authorization in the caller write.
   read_in: Approval provenance in the caller snapshot.
   issue_thread_grant_in: Harness issues the live session grant in its write.
+  issue_executor_grant_in: Harness issues an executor session's grant, bound to its task, in its write.
   # Map proposals use the same live Planner writer check as vision proposals.
   # Design calls check_writer for grant-scoped agreement reads and each new
   # proposal write, before replay, using the existing live/project policy.
@@ -233,6 +247,7 @@ shared_in_transaction:
 
 called_by_other_services:
   issue_thread_grant_in: "Harness (harness/setup.rs Setups::for_opening): a session's opening issues the thread's Planner grant, whose token its MCP setup carries (§13.7, §13.8)"
+  issue_executor_grant_in: "Harness (harness/setup.rs Setups::for_executor): an executor session's opening issues its task's grant, whose token its MCP setup carries"
   revoke_thread_grant: "Harness (harness/setup.rs Setups::forget): a session's opening revokes the thread's previous grant, and its closing revokes the one it held (§13.7)"
   prepare_draft: "Plans (plans/mod.rs Plans::prepare_draft): the `draft_prepare` tool asks for a new draft_ref bound to the caller's grant (§13.5)"
 
@@ -468,3 +483,6 @@ tests:
       the first.
 
 # Both tools_for allowlists include task_context, a read with no execution authority.
+# The executor allowlist is task_context, where_is, who_uses, outline and task_commit
+# (Runs::commit, which commits only inside the task's writes); startup and
+# thread removal revoke executor grants with the thread ones (executor_session tests).

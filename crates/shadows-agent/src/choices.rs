@@ -195,7 +195,8 @@ impl Offered {
                 return Some(("effort", effort.clone().unwrap_or_else(|| "none".into())));
             }
         }
-        let in_policy = policy::allowed_modes(harness).contains(&s.mode.as_str());
+        let in_policy = policy::allowed_modes(harness).contains(&s.mode.as_str())
+            || s.mode == policy::EXECUTOR_MODE;
         if !in_policy || !self.offers_mode(&s.mode) {
             return Some(("mode", s.mode.clone()));
         }

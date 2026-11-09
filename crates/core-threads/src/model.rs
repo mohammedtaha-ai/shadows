@@ -33,8 +33,37 @@ impl CreatedTitle {
     }
 }
 
+/// What a thread is for. Only planning threads are conversations a person lists.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ThreadKind {
+    Planning,
+    Executor,
+}
+
+impl ThreadKind {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Planning => "planning",
+            Self::Executor => "executor",
+        }
+    }
+
+    /// The inverse of [`Self::as_str`]; the column holds no other value.
+    pub(crate) fn from_stored(text: &str) -> Self {
+        if text == Self::Executor.as_str() {
+            Self::Executor
+        } else {
+            Self::Planning
+        }
+    }
+}
+
 #[derive(Debug, Clone, serde::Serialize, utoipa::ToSchema)]
 pub struct PlanningThread {
+    /// Not on the wire: a client lists planning threads only.
+    #[serde(skip)]
+    #[schema(ignore)]
+    pub kind: ThreadKind,
     #[schema(value_type = Option<String>, required)]
     pub profile: Option<String>,
     pub id: ThreadId,
@@ -71,6 +100,9 @@ pub struct TurnContext {
     /// For a fork that has not yet recorded a session of its own: the source's
     /// session its first opening forks.
     pub fork_session_id: Option<String>,
+    /// What the thread is for: an executor thread opens only for its attempt
+    /// and runs in the executor's mode only.
+    pub kind: ThreadKind,
 }
 
 #[derive(Debug, Clone, serde::Serialize, utoipa::ToSchema)]

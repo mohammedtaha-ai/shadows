@@ -42,6 +42,9 @@ pub struct SessionSetup {
     pub allowed_tools: Vec<String>,
     pub tools: Option<Vec<String>>,
     pub setting_sources: Option<Vec<String>>,
+    /// Claude Code permission rules allowed up front
+    /// (`_meta.claudeCode.options.settings.permissions.allow`). Empty sends none.
+    pub permissions: Vec<String>,
 }
 
 /// Transport settings. The header and environment values stay out of Debug.

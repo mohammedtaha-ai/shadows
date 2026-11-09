@@ -32,6 +32,7 @@ use core_plans::UiSignal;
 use core_project_lifecycle::ProjectLifecycle;
 use core_projects::Projects;
 use core_providers::Providers;
+use core_runs::Runs;
 use core_runtime::Runtime;
 use core_runtime::StopKind;
 use core_secrets::{KeySource, SecretKey, Secrets};
@@ -153,6 +154,10 @@ pub struct CoreParts {
          project code indexing | \
          `crates/core-code/src` | \
          `crates/core-code/contract.yaml` |"]
+#[doc = " | `Runs` | \
+         executor attempts at plan tasks | \
+         `crates/core-runs/src` | \
+         `crates/core-runs/contract.yaml` |"]
 #[doc = " | `Runtime` | \
          runtime instance lifecycle | \
          `crates/core-runtime/src` | \
@@ -181,6 +186,7 @@ pub struct AppCore {
     grants: Grants,
     operations: Operations,
     turns: Turns,
+    runs: Runs,
     harness: Arc<Harness>,
     projects: Projects,
     project_lifecycle: ProjectLifecycle,
@@ -378,6 +384,13 @@ impl AppCore {
             standards,
             projects,
         );
+        // No attempt survives its daemon: settle them before anything is served.
+        let recovered = core.runs.recover().await?;
+        tracing::info!(
+            committed = recovered.committed,
+            interrupted = recovered.interrupted,
+            "recovery.runs_settled"
+        );
         // The active set is chosen and the workers spawned; `serve`
         // waits for no scan. The index never stops the daemon.
         if let Err(error) = core.code.start(CodeConfig::default()).await {
@@ -457,6 +470,13 @@ impl AppCore {
             design.clone(),
             ui.clone(),
         );
+        let runs = Runs::new(
+            storage.clone(),
+            plans.clone(),
+            harness.clone(),
+            turns.clone(),
+            projects.clone(),
+        );
         let events = Arc::new(Events::new(
             storage.clone(),
             harness.clone(),
@@ -479,6 +499,7 @@ impl AppCore {
             plans: plans.clone(),
             grants,
             turns,
+            runs,
             operations,
             harness,
             projects,
@@ -544,6 +565,10 @@ impl AppCore {
 
     pub fn turns(&self) -> &Turns {
         &self.turns
+    }
+
+    pub fn runs(&self) -> &Runs {
+        &self.runs
     }
 
     pub fn harness(&self) -> &Harness {

@@ -31,6 +31,7 @@ struct Routers {
     every: ToolRouter<Shadows>,
     thread: ToolRouter<Shadows>,
     project: ToolRouter<Shadows>,
+    executor: ToolRouter<Shadows>,
 }
 
 impl Tools {
@@ -39,7 +40,8 @@ impl Tools {
             + Shadows::code_tool_router()
             + Shadows::turn_tool_router()
             + Shadows::agreement_tool_router()
-            + Shadows::workspace_tool_router();
+            + Shadows::workspace_tool_router()
+            + Shadows::run_tool_router();
         let only = |names: &[&str]| {
             let mut router = every.clone();
             for tool in every.list_all() {
@@ -49,14 +51,16 @@ impl Tools {
             }
             router
         };
-        let (thread, project) = (
+        let (thread, project, executor) = (
             only(shadows_core::Grants::tools_for(GrantKind::Thread)),
             only(shadows_core::Grants::tools_for(GrantKind::Project)),
+            only(shadows_core::Grants::tools_for(GrantKind::Executor)),
         );
         Self(Arc::new(Routers {
             every,
             thread,
             project,
+            executor,
         }))
     }
 
@@ -64,6 +68,7 @@ impl Tools {
         match kind {
             GrantKind::Thread => &self.0.thread,
             GrantKind::Project => &self.0.project,
+            GrantKind::Executor => &self.0.executor,
         }
     }
 }

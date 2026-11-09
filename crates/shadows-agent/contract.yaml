@@ -19,13 +19,13 @@ modules:
   codex/mapping.rs: Translation of the active turn's notifications to HarnessEvent.
   choices.rs: Parsing adapter-provided session configuration.
   claude.rs: Launch specification for the configured Claude adapter.
-  policy.rs: Supported harnesses and their allowed modes.
+  policy.rs: Supported harnesses, their allowed modes, and the executor's own mode.
   profile.rs: Explicit provider environment for a Claude invocation.
   usage.rs: Connection-local attribution of cumulative session cost to prompts.
 
 functions:
   Connection::open: Initializes ACP v1 over the managed process pipes.
-  Connection::start_session: Sends new, resume, or fork followed by resume.
+  Connection::start_session: Sends new, resume, or fork followed by resume, in the cwd it is given; the setup's permission rules travel in settings.permissions.allow.
   Connection::prompt_blocks: Sends ordered content and reports completion with optional usage.
   Connection::steer_blocks: Sends the adapter steering extension without starting an idle prompt.
   Connection::stop_task: Requests the adapter to stop one background task.

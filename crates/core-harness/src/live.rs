@@ -176,7 +176,7 @@ impl Sessions {
                     .ok_or_else(|| OpenError::Start("Codex is not configured".into()))?;
                 setup = self
                     .setups
-                    .for_opening(thread, &context.project_id)
+                    .for_opening(thread, &context.project_id, context.kind)
                     .await
                     .map_err(OpenError::Start)?;
                 match program.process_spec(&cwd, &setup) {
@@ -233,7 +233,9 @@ impl Sessions {
                 let setup = if context.harness == policy::AYLUL || is_codex {
                     setup
                 } else {
-                    self.setups.for_opening(thread, &context.project_id).await?
+                    self.setups
+                        .for_opening(thread, &context.project_id, context.kind)
+                        .await?
                 };
                 // Grant issuance must finish before a timeout can revoke its held grant.
                 tokio::time::timeout_at(deadline, async {

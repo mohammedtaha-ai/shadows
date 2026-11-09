@@ -57,6 +57,24 @@ pub async fn listening_unseeded() -> Listening {
     l
 }
 
+/// As `listening_app`, its sessions on `adapter`; the project folder is `dir`.
+pub async fn listening_on(
+    dir: &Path,
+    adapter: std::sync::Arc<shadows_agent::claude::ClaudeAdapter>,
+) -> Listening {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let base = format!("http://{}", listener.local_addr().unwrap());
+    let mcp_url = format!("{base}/mcp");
+    let config = SessionsConfig {
+        mcp_url: Some(mcp_url.clone()),
+        ..acp::test_config()
+    };
+    let app = super::app::test_app_on(dir, config, &mcp_url, adapter).await;
+    let router = app.router.clone();
+    tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
+    Listening { app, base }
+}
+
 /// As `listening_with`, on the database in `dir` (see `test_app_at`).
 pub async fn listening_at(dir: &Path, config: SessionsConfig) -> Listening {
     listen(dir, config, true).await

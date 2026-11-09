@@ -1,7 +1,7 @@
 //! Grant persistence over the shared serialized database handle.
 use sqlx::SqliteConnection;
 
-use super::model::{Grant, GrantId, GrantKind, IssuedGrant, Token};
+use super::model::{Grant, GrantId, GrantKind, IssuedGrant, TaskScope, Token};
 use super::{Grants, GrantsError, Writer};
 use core_db::{Actor, CommandContext, JournalEntry, Storage, StorageError};
 use core_projects::ProjectId;
@@ -36,7 +36,8 @@ impl GrantsStore {
                     }
                     core_projects::Projects::require_live_in(conn, &project).await?;
                     let actor = Actor::user(&ctx.principal_id);
-                    let (grant, token) = insert_grant(conn, &project, None, actor, &ts).await?;
+                    let (grant, token) =
+                        insert_grant(conn, &project, None, None, actor, &ts).await?;
                     CommandContext::record_command(
                         conn,
                         &ctx,
@@ -64,6 +65,23 @@ impl GrantsStore {
             conn,
             project,
             Some(thread),
+            None,
+            Actor::system(),
+            &Storage::now(),
+        )
+        .await
+    }
+    pub(super) async fn issue_executor_grant_in(
+        conn: &mut SqliteConnection,
+        project: &ProjectId,
+        thread: &ThreadId,
+        scope: TaskScope,
+    ) -> Result<(Grant, Token), StorageError> {
+        insert_grant(
+            conn,
+            project,
+            Some(thread),
+            Some(scope),
             Actor::system(),
             &Storage::now(),
         )
@@ -104,7 +122,7 @@ impl GrantsStore {
                 Box::pin(async move {
                     let grant = find_grant(conn, &id)
                         .await?
-                        .filter(|g| g.kind == GrantKind::Thread)
+                        .filter(|g| g.kind != GrantKind::Project)
                         .ok_or(StorageError::NotFound("thread grant"))?;
                     revoke_in(conn, &grant, Actor::system(), &ts).await
                 })
@@ -117,9 +135,11 @@ impl GrantsStore {
             .write_txn(move |conn| {
                 Box::pin(async move {
                     let live: Vec<GrantRow> = sqlx::query_as(
-                        "SELECT id, kind, project_id, thread_id, created_at, revoked_at \
+                        "SELECT id, kind, project_id, thread_id, created_at, revoked_at,
+                scope_workflow, scope_version, scope_task \
                         FROM mcp_grant\n                      \
-                        WHERE kind = 'thread' AND revoked_at IS NULL ORDER BY id",
+                        WHERE kind IN ('thread', 'executor') AND revoked_at IS NULL \
+                        ORDER BY id",
                     )
                     .fetch_all(&mut *conn)
                     .await?;
@@ -135,7 +155,8 @@ impl GrantsStore {
     }
     pub(super) async fn grant_for_token(&self, raw: &str) -> Result<Option<Grant>, StorageError> {
         let row: Option<GrantRow> = sqlx::query_as(
-            "SELECT id, kind, project_id, thread_id, created_at, revoked_at FROM mcp_grant \
+            "SELECT id, kind, project_id, thread_id, created_at, revoked_at,
+                scope_workflow, scope_version, scope_task FROM mcp_grant \
             WHERE token_hash = ? AND revoked_at IS NULL",
         )
         .bind(Token::hash_token(raw))
@@ -154,7 +175,8 @@ impl GrantsStore {
             Err(error) => return Err(error),
         }
         let rows: Vec<GrantRow> = sqlx::query_as(
-            "SELECT g.id, g.kind, g.project_id, g.thread_id, g.created_at, g.revoked_at
+            "SELECT g.id, g.kind, g.project_id, g.thread_id, g.created_at, g.revoked_at,
+                    g.scope_workflow, g.scope_version, g.scope_task
                FROM mcp_grant g
                JOIN durable_event e
                  ON e.kind = 'McpGrantIssued' AND e.project_id = g.project_id
@@ -204,15 +226,28 @@ type GrantRow = (
     Option<String>,
     String,
     Option<String>,
+    Option<String>,
+    Option<i64>,
+    Option<i64>,
 );
 
 fn into_grant(
-    (id, kind, project, thread, created_at, revoked_at): GrantRow,
+    (id, kind, project, thread, created_at, revoked_at, workflow, version, task): GrantRow,
 ) -> Result<Grant, StorageError> {
     let kind = match kind.as_str() {
         "thread" => GrantKind::Thread,
         "project" => GrantKind::Project,
+        "executor" => GrantKind::Executor,
         _ => return Err(StorageError::Constraint(format!("mcp_grant.kind {kind}"))),
+    };
+    let scope = match (workflow, version, task) {
+        (Some(workflow), Some(version), Some(task)) => Some(TaskScope {
+            workflow,
+            version,
+            task: u32::try_from(task)
+                .map_err(|_| StorageError::Constraint("mcp_grant.scope_task".into()))?,
+        }),
+        _ => None,
     };
     Ok(Grant {
         id: GrantId::from_stored(id),
@@ -221,6 +256,7 @@ fn into_grant(
         thread_id: thread.map(ThreadId::from_recorded),
         created_at,
         revoked_at,
+        scope,
     })
 }
 
@@ -229,7 +265,8 @@ async fn find_grant(
     id: &GrantId,
 ) -> Result<Option<Grant>, StorageError> {
     let row: Option<GrantRow> = sqlx::query_as(
-        "SELECT id, kind, project_id, thread_id, created_at, revoked_at FROM mcp_grant WHERE \
+        "SELECT id, kind, project_id, thread_id, created_at, revoked_at,
+                scope_workflow, scope_version, scope_task FROM mcp_grant WHERE \
         id = ?",
     )
     .bind(id.as_str())
@@ -247,17 +284,20 @@ async fn insert_grant(
     conn: &mut SqliteConnection,
     project: &ProjectId,
     thread: Option<&ThreadId>,
+    scope: Option<TaskScope>,
     actor: Actor,
     ts: &str,
 ) -> Result<(Grant, Token), StorageError> {
-    let kind = match thread {
-        Some(_) => GrantKind::Thread,
-        None => GrantKind::Project,
+    let kind = match (thread, &scope) {
+        (Some(_), Some(_)) => GrantKind::Executor,
+        (Some(_), None) => GrantKind::Thread,
+        (None, _) => GrantKind::Project,
     };
     let (id, token) = (GrantId::generate(), Token::generate());
     sqlx::query(
-        "INSERT INTO mcp_grant (id, kind, thread_id, project_id, token_hash, created_at)
-         VALUES (?,?,?,?,?,?)",
+        "INSERT INTO mcp_grant (id, kind, thread_id, project_id, token_hash, created_at,
+                                scope_workflow, scope_version, scope_task)
+         VALUES (?,?,?,?,?,?,?,?,?)",
     )
     .bind(id.as_str())
     .bind(kind.as_str())
@@ -265,6 +305,9 @@ async fn insert_grant(
     .bind(project.as_str())
     .bind(token.hash())
     .bind(ts)
+    .bind(scope.as_ref().map(|s| s.workflow.as_str()))
+    .bind(scope.as_ref().map(|s| s.version))
+    .bind(scope.as_ref().map(|s| i64::from(s.task)))
     .execute(&mut *conn)
     .await?;
     let payload = serde_json::json!({ "grant_id": id, "kind": kind.as_str() });
@@ -309,7 +352,8 @@ impl Grants {
         ts: &str,
     ) -> Result<(), StorageError> {
         let live: Vec<GrantRow> = sqlx::query_as(
-            "SELECT id, kind, project_id, thread_id, created_at, revoked_at FROM mcp_grant
+            "SELECT id, kind, project_id, thread_id, created_at, revoked_at,
+                scope_workflow, scope_version, scope_task FROM mcp_grant
           WHERE kind = 'project' AND project_id = ? AND revoked_at IS NULL ORDER BY id",
         )
         .bind(project.as_str())
@@ -327,8 +371,10 @@ impl Grants {
         ts: &str,
     ) -> Result<(), StorageError> {
         let live: Vec<GrantRow> = sqlx::query_as(
-            "SELECT id, kind, project_id, thread_id, created_at, revoked_at FROM mcp_grant
-          WHERE kind = 'thread' AND thread_id = ? AND revoked_at IS NULL ORDER BY id",
+            "SELECT id, kind, project_id, thread_id, created_at, revoked_at,
+                scope_workflow, scope_version, scope_task FROM mcp_grant
+          WHERE kind IN ('thread','executor') AND thread_id = ?
+            AND revoked_at IS NULL ORDER BY id",
         )
         .bind(thread.as_str())
         .fetch_all(&mut *conn)

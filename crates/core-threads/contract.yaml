@@ -115,6 +115,9 @@ shapes:
     # Set on a fork only; a fork's title is the source's with " (fork)",
     # and its `title_source` the source's.
     forked_from_thread: Option<ThreadId>
+    # planning or executor; not on the wire. `list` and `list_for_profile` return
+    # planning threads only.
+    kind: ThreadKind
   TurnContext:
     profile: Option<String>
     # What a turn inherits from durable state, never from its caller.
@@ -124,6 +127,8 @@ shapes:
     project_id: ProjectId
     # A fork's source session until the fork records one of its own.
     fork_session_id: Option<String>
+    # The thread's kind: Harness and Turns read what an executor thread may do from it.
+    kind: ThreadKind
   ThreadEntry:
     attachments: Vec<AttachmentRef>
     id: ThreadEntryId
@@ -337,6 +342,7 @@ shared_in_transaction:
   require_live_in: Grants and Turns refuse removed or missing threads before writes.
   turn_context_in: Harness, Turns, Design and Plans read thread facts in one snapshot.
   list_for_profile_in: Harness finds a deleted agent's live thread adapters, including hidden ones.
+  create_executor_in: Creates the executor-kind thread an executor session runs in, in the caller's transaction; no list returns it.
   create_hidden_in: Creates an AYLUL member thread for a live agent in the caller's transaction.
   card_in: Design reads an immutable entry card during proposal command replay.
   user_operations_in: Turns reads user-entry operation ids in descending ordinal order.

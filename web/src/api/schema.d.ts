@@ -4,6 +4,46 @@
  */
 
 export interface paths {
+    "/api/attempts/{id}/diff": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Each file of the attempt's commit with its counts and patch; none before
+         *     it commits. A patch longer than 2,000 lines is cut with a marker.
+         */
+        get: operations["diff"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/attempts/{id}/stop": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Stops the attempt and answers once its turn's end is confirmed. An
+         *     attempt that already ended keeps its state.
+         */
+        post: operations["stop"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/aylul/agent-template": {
         parameters: {
             query?: never;
@@ -1680,6 +1720,67 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/workflows/{workflow}/versions/{version}/tasks/{task}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The task as its page reads it: whether it was marked done, its latest
+         *     attempt, the tasks it needs, whether Start may run now and why not, and
+         *     the model to offer first.
+         */
+        get: operations["task"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/workflows/{workflow}/versions/{version}/tasks/{task}/attempts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The task's attempts, newest first. */
+        get: operations["attempts"];
+        put?: never;
+        /**
+         * Starts an attempt: an executor session on this task, on `model`. An
+         *     attempt whose session or first turn could not start is answered `failed`
+         *     with its reason. A replay of the same `command_id` and body answers the
+         *     first attempt.
+         */
+        post: operations["start"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/workflows/{workflow}/versions/{version}/tasks/{task}/done": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Marks the task done or not done; the tasks that need it wait for this. */
+        put: operations["mark_done"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1917,6 +2018,42 @@ export interface components {
             media_type: string;
             name?: string | null;
         };
+        /**
+         * @description One try at a task. `operation_id` is the operation of its turn, absent
+         *     until the turn starts.
+         */
+        Attempt: {
+            /** @description The commit's SHA once the attempt committed. */
+            commit: string | null;
+            ended_at: string | null;
+            id: components["schemas"]["AttemptId"];
+            model: string;
+            /**
+             * Format: int32
+             * @description 1 for the task's first attempt, then one more each Start.
+             */
+            number: number;
+            operation_id: null | components["schemas"]["OperationId"];
+            project_id: components["schemas"]["ProjectId"];
+            /** @description Why the attempt failed, when it did. */
+            reason: string | null;
+            started_at: string;
+            state: components["schemas"]["AttemptState"];
+            /** Format: int32 */
+            task: number;
+            /** @description The executor's thread; its entries are the attempt's run. */
+            thread_id: components["schemas"]["ThreadId"];
+            /** Format: int64 */
+            version: number;
+            workflow_id: components["schemas"]["WorkflowId"];
+        };
+        /** Format: uuid */
+        AttemptId: string;
+        /**
+         * @description Where an attempt stands. Only `Running` has no `ended_at`.
+         * @enum {string}
+         */
+        AttemptState: "running" | "committed" | "stopped" | "interrupted" | "failed";
         BaseStandards: {
             parts: components["schemas"]["PartKind"][];
             rules: components["schemas"]["StandardRule"][];
@@ -2258,6 +2395,18 @@ export interface components {
             skills: components["schemas"]["Item"][];
         };
         /**
+         * @description One file of an attempt's commit: its line counts and its patch, cut at
+         *     2,000 lines with a marker.
+         */
+        FileDiff: {
+            /** Format: int32 */
+            added: number;
+            patch: string;
+            path: string;
+            /** Format: int32 */
+            removed: number;
+        };
+        /**
          * @description The task a person points at when they send a turn: the task's id, in the
          *     plan version and at the revision they were looking at. It is checked to
          *     belong to that version and kept with their message.
@@ -2535,6 +2684,12 @@ export interface components {
             unserved?: string[];
             waivers: components["schemas"]["ProposedWaiver"][];
         };
+        /** @description What a done mark takes. */
+        MarkDone: {
+            /** @description The idempotency key, scoped to done marks. */
+            command_id: string;
+            done: boolean;
+        };
         McpInput: {
             description?: string | null;
             name: string;
@@ -2617,6 +2772,17 @@ export interface components {
             tokens_in: number;
             /** Format: int64 */
             tokens_out: number;
+        };
+        /**
+         * @description A task this one waits on through a `needs` link: a task of the same
+         *     version, or of another plan's latest version.
+         */
+        Need: {
+            /** @description Marked done by the person in the version the link reaches. */
+            done: boolean;
+            /** @description A number for a task of this version; `{ plan_id, task }` for another plan's. */
+            task: components["schemas"]["TaskParent"];
+            title: string;
         };
         /** @description The durable operation record; its thread reference is stored as plain text. */
         Operation: {
@@ -3170,6 +3336,15 @@ export interface components {
             status: components["schemas"]["ProposalStatus"];
             thread_id: components["schemas"]["ThreadId"];
         };
+        /**
+         * @description A run Core refused. `code` is Core's opaque id (`waiting`, `task_busy`,
+         *     `overlap`, `not_git`, `dirty_scope`, `not_frozen`, `superseded`,
+         *     `archived`, `bad_scope`, `command_conflict`); `reason` is the text to show.
+         */
+        RunRefusal: {
+            code: string;
+            reason: string;
+        };
         RuntimeIdentity: {
             configuration_id: string;
             runtime_id: string;
@@ -3281,6 +3456,28 @@ export interface components {
             content?: null | components["schemas"]["AgreementContent"];
             reason?: string | null;
         };
+        /**
+         * @description Whether Start may run now, by the same checks as Start, without writing.
+         *     `allowed` true means `code` and `reason` are `null`.
+         */
+        StartAnswer: {
+            allowed: boolean;
+            /**
+             * @description The refusal's opaque id, the same a refused Start answers: `waiting`,
+             *     `task_busy`, `overlap`, `not_git`, `dirty_scope`, `not_frozen`,
+             *     `superseded`, `archived` or `bad_scope`.
+             */
+            code: string | null;
+            /** @description The text to show beside Start. */
+            reason: string | null;
+        };
+        /** @description What Start takes. */
+        StartAttempt: {
+            /** @description The idempotency key: the same key and body answer the first attempt. */
+            command_id: string;
+            /** @description The executor's model, one the harness offers. */
+            model: string;
+        };
         /** @description Starts a turn as one command. */
         StartTurn: {
             attachments?: components["schemas"]["AttachmentId"][];
@@ -3328,6 +3525,25 @@ export interface components {
             number: number;
             state: string;
             title: string;
+        };
+        /**
+         * @description A task as the runs see it: marked done or not, its latest attempt, the
+         *     tasks it needs, whether Start may run now, and the model to offer first.
+         */
+        TaskRun: {
+            done: boolean;
+            done_at: string | null;
+            latest: null | components["schemas"]["Attempt"];
+            /** @description In link order. */
+            needs: components["schemas"]["Need"][];
+            start: components["schemas"]["StartAnswer"];
+            /**
+             * @description The model the plan's Planner conversation last asked for; `null`
+             *     without one.
+             */
+            suggested_model: string | null;
+            /** Format: int32 */
+            task: number;
         };
         TaskStopped: {
             stopped: boolean;
@@ -3567,6 +3783,86 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    diff: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The attempt */
+                id: components["schemas"]["AttemptId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FileDiff"][];
+                };
+            };
+            /** @description no such attempt */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description STORAGE_UNAVAILABLE */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    stop: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The attempt */
+                id: components["schemas"]["AttemptId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Attempt"];
+                };
+            };
+            /** @description no such attempt */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description the session could not be terminated */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     agent_template: {
         parameters: {
             query?: never;
@@ -9072,6 +9368,199 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    task: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The plan version */
+                workflow: components["schemas"]["WorkflowId"];
+                /** @description Its version number */
+                version: number;
+                /** @description The task's number */
+                task: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskRun"];
+                };
+            };
+            /** @description no such plan version or task */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description STORAGE_UNAVAILABLE */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    attempts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The plan version */
+                workflow: components["schemas"]["WorkflowId"];
+                /** @description Its version number */
+                version: number;
+                /** @description The task's number */
+                task: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Attempt"][];
+                };
+            };
+            /** @description STORAGE_UNAVAILABLE */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    start: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The plan version */
+                workflow: components["schemas"]["WorkflowId"];
+                /** @description Its version number */
+                version: number;
+                /** @description The task's number */
+                task: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StartAttempt"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Attempt"];
+                };
+            };
+            /** @description no such plan version or task */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Start refused, with the code a task's `start` answers: waiting, task_busy, overlap, not_git, dirty_scope, not_frozen, superseded, archived, bad_scope; or command_conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunRefusal"];
+                };
+            };
+            /** @description STORAGE_UNAVAILABLE */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    mark_done: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The plan version */
+                workflow: components["schemas"]["WorkflowId"];
+                /** @description Its version number */
+                version: number;
+                /** @description The task's number */
+                task: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MarkDone"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskRun"];
+                };
+            };
+            /** @description no such plan version or task */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description command_conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunRefusal"];
+                };
+            };
+            /** @description STORAGE_UNAVAILABLE */
             500: {
                 headers: {
                     [name: string]: unknown;

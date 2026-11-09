@@ -17,7 +17,8 @@ modules:
   turn_tools.rs: Turns service MCP translation
   agreement_tools.rs: grant scoped agreement translation
   workspace_tools.rs: workspace read translation
-  server.rs: composition of tool routers under Core grant policy
+  run_tools.rs: Runs service MCP translation
+  server.rs: composition of tool routers under Core grant policy (thread, project and executor)
   refusal.rs: stable MCP error envelope
 agreements:
   http_pairs: crates/shadows-http/src/contract.yaml
@@ -35,6 +36,10 @@ vision_propose_args: 'vision_propose names which arguments each action takes: fi
 
 layout_only: Map records contain no starter files; the stage has no Structure step or file count, and no HTTP structure-write route exists. Roadmap follows map approval.
 
+# task_commit translates { message } to Runs::commit with the caller's executor grant and
+# answers { commit, files, left }. A Runs refusal is INVALID_COMMAND with Runs' own code
+# leading its text (`link_in_scope: ...`); a grant with no attempt is GRANT_SCOPE. Tested by
+# mcp_tools::an_executor_grant_lists_its_tools_and_reads_only_its_task.
 # task_context translates workflow_id/task_number to Plans::task_context for
 # both grant kinds. Its description directs the first read before building
 # and states that it grants no execution permission. Scope and approval

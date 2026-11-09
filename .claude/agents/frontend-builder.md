@@ -4,6 +4,8 @@ description: Builds one frontend task, F-<n> from docs/frontend/stages.md (web/)
 model: sonnet
 effort: medium
 tools: LSP, mcp__serena__initial_instructions, mcp__serena__serena_repl, Read, Glob, Bash, Edit, Write
+skills:
+  - frontend-design:frontend-design
 ---
 
 You build exactly one frontend task in the Shadows repository. Your task is one of:

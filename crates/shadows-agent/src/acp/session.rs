@@ -58,6 +58,12 @@ impl SessionSetup {
         if let Some(sources) = &self.setting_sources {
             options.insert("settingSources".into(), serde_json::json!(sources));
         }
+        if !self.permissions.is_empty() {
+            options.insert(
+                "settings".into(),
+                serde_json::json!({ "permissions": { "allow": self.permissions } }),
+            );
+        }
         if !options.is_empty() {
             meta.insert(
                 "claudeCode".into(),

@@ -911,6 +911,110 @@
         ],
         "type": "object"
       },
+      "Attempt": {
+        "description": "One try at a task. `operation_id` is the operation of its turn, absent\nuntil the turn starts.",
+        "properties": {
+          "commit": {
+            "description": "The commit's SHA once the attempt committed.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "ended_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "$ref": "#/components/schemas/AttemptId"
+          },
+          "model": {
+            "type": "string"
+          },
+          "number": {
+            "description": "1 for the task's first attempt, then one more each Start.",
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "operation_id": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/OperationId"
+              }
+            ]
+          },
+          "project_id": {
+            "$ref": "#/components/schemas/ProjectId"
+          },
+          "reason": {
+            "description": "Why the attempt failed, when it did.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "started_at": {
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/AttemptState"
+          },
+          "task": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "thread_id": {
+            "$ref": "#/components/schemas/ThreadId",
+            "description": "The executor's thread; its entries are the attempt's run."
+          },
+          "version": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "workflow_id": {
+            "$ref": "#/components/schemas/WorkflowId"
+          }
+        },
+        "required": [
+          "id",
+          "project_id",
+          "workflow_id",
+          "version",
+          "task",
+          "number",
+          "thread_id",
+          "operation_id",
+          "model",
+          "state",
+          "commit",
+          "reason",
+          "started_at",
+          "ended_at"
+        ],
+        "type": "object"
+      },
+      "AttemptId": {
+        "format": "uuid",
+        "type": "string"
+      },
+      "AttemptState": {
+        "description": "Where an attempt stands. Only `Running` has no `ended_at`.",
+        "enum": [
+          "running",
+          "committed",
+          "stopped",
+          "interrupted",
+          "failed"
+        ],
+        "type": "string"
+      },
       "BaseStandards": {
         "properties": {
           "parts": {
@@ -2164,6 +2268,34 @@
         ],
         "type": "object"
       },
+      "FileDiff": {
+        "description": "One file of an attempt's commit: its line counts and its patch, cut at\n2,000 lines with a marker.",
+        "properties": {
+          "added": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "patch": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "removed": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "path",
+          "added",
+          "removed",
+          "patch"
+        ],
+        "type": "object"
+      },
       "Focus": {
         "description": "The task a person points at when they send a turn: the task's id, in the\nplan version and at the revision they were looking at. It is checked to\nbelong to that version and kept with their message.",
         "properties": {
@@ -3181,6 +3313,23 @@
         ],
         "type": "object"
       },
+      "MarkDone": {
+        "description": "What a done mark takes.",
+        "properties": {
+          "command_id": {
+            "description": "The idempotency key, scoped to done marks.",
+            "type": "string"
+          },
+          "done": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "command_id",
+          "done"
+        ],
+        "type": "object"
+      },
       "McpInput": {
         "properties": {
           "description": {
@@ -3528,6 +3677,28 @@
           "requests",
           "tokens_in",
           "tokens_out"
+        ],
+        "type": "object"
+      },
+      "Need": {
+        "description": "A task this one waits on through a `needs` link: a task of the same\nversion, or of another plan's latest version.",
+        "properties": {
+          "done": {
+            "description": "Marked done by the person in the version the link reaches.",
+            "type": "boolean"
+          },
+          "task": {
+            "$ref": "#/components/schemas/TaskParent",
+            "description": "A number for a task of this version; `{ plan_id, task }` for another plan's."
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "task",
+          "title",
+          "done"
         ],
         "type": "object"
       },
@@ -5653,6 +5824,22 @@
         ],
         "type": "object"
       },
+      "RunRefusal": {
+        "description": "A run Core refused. `code` is Core's opaque id (`waiting`, `task_busy`,\n`overlap`, `not_git`, `dirty_scope`, `not_frozen`, `superseded`,\n`archived`, `bad_scope`, `command_conflict`); `reason` is the text to show.",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "reason"
+        ],
+        "type": "object"
+      },
       "RuntimeIdentity": {
         "properties": {
           "configuration_id": {
@@ -6078,6 +6265,52 @@
         ],
         "type": "object"
       },
+      "StartAnswer": {
+        "description": "Whether Start may run now, by the same checks as Start, without writing.\n`allowed` true means `code` and `reason` are `null`.",
+        "properties": {
+          "allowed": {
+            "type": "boolean"
+          },
+          "code": {
+            "description": "The refusal's opaque id, the same a refused Start answers: `waiting`,\n`task_busy`, `overlap`, `not_git`, `dirty_scope`, `not_frozen`,\n`superseded`, `archived` or `bad_scope`.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "reason": {
+            "description": "The text to show beside Start.",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "allowed",
+          "code",
+          "reason"
+        ],
+        "type": "object"
+      },
+      "StartAttempt": {
+        "description": "What Start takes.",
+        "properties": {
+          "command_id": {
+            "description": "The idempotency key: the same key and body answer the first attempt.",
+            "type": "string"
+          },
+          "model": {
+            "description": "The executor's model, one the harness offers.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "command_id",
+          "model"
+        ],
+        "type": "object"
+      },
       "StartTurn": {
         "description": "Starts a turn as one command.",
         "properties": {
@@ -6257,6 +6490,62 @@
           "goal",
           "acceptance",
           "state"
+        ],
+        "type": "object"
+      },
+      "TaskRun": {
+        "description": "A task as the runs see it: marked done or not, its latest attempt, the\ntasks it needs, whether Start may run now, and the model to offer first.",
+        "properties": {
+          "done": {
+            "type": "boolean"
+          },
+          "done_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "latest": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Attempt"
+              }
+            ]
+          },
+          "needs": {
+            "description": "In link order.",
+            "items": {
+              "$ref": "#/components/schemas/Need"
+            },
+            "type": "array"
+          },
+          "start": {
+            "$ref": "#/components/schemas/StartAnswer"
+          },
+          "suggested_model": {
+            "description": "The model the plan's Planner conversation last asked for; `null`\nwithout one.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "task": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "task",
+          "done",
+          "done_at",
+          "latest",
+          "needs",
+          "start",
+          "suggested_model"
         ],
         "type": "object"
       },
@@ -7118,6 +7407,113 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/attempts/{id}/diff": {
+      "get": {
+        "operationId": "diff",
+        "parameters": [
+          {
+            "description": "The attempt",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/AttemptId"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/FileDiff"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "no such attempt"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          }
+        },
+        "summary": "Each file of the attempt's commit with its counts and patch; none before\nit commits. A patch longer than 2,000 lines is cut with a marker.",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/attempts/{id}/stop": {
+      "post": {
+        "operationId": "stop",
+        "parameters": [
+          {
+            "description": "The attempt",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/AttemptId"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Attempt"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "no such attempt"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "the session could not be terminated"
+          }
+        },
+        "summary": "Stops the attempt and answers once its turn's end is confirmed. An\nattempt that already ended keeps its state.",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
     "/api/aylul/agent-template": {
       "get": {
         "operationId": "agent_template",
@@ -14595,6 +14991,329 @@
           "agreements"
         ]
       }
+    },
+    "/api/workflows/{workflow}/versions/{version}/tasks/{task}": {
+      "get": {
+        "operationId": "task",
+        "parameters": [
+          {
+            "description": "The plan version",
+            "in": "path",
+            "name": "workflow",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/WorkflowId"
+            }
+          },
+          {
+            "description": "Its version number",
+            "in": "path",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "The task's number",
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskRun"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "no such plan version or task"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          }
+        },
+        "summary": "The task as its page reads it: whether it was marked done, its latest\nattempt, the tasks it needs, whether Start may run now and why not, and\nthe model to offer first.",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/workflows/{workflow}/versions/{version}/tasks/{task}/attempts": {
+      "get": {
+        "operationId": "attempts",
+        "parameters": [
+          {
+            "description": "The plan version",
+            "in": "path",
+            "name": "workflow",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/WorkflowId"
+            }
+          },
+          {
+            "description": "Its version number",
+            "in": "path",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "The task's number",
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Attempt"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          }
+        },
+        "summary": "The task's attempts, newest first.",
+        "tags": [
+          "runs"
+        ]
+      },
+      "post": {
+        "operationId": "start",
+        "parameters": [
+          {
+            "description": "The plan version",
+            "in": "path",
+            "name": "workflow",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/WorkflowId"
+            }
+          },
+          {
+            "description": "Its version number",
+            "in": "path",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "The task's number",
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartAttempt"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Attempt"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "no such plan version or task"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunRefusal"
+                }
+              }
+            },
+            "description": "Start refused, with the code a task's `start` answers: waiting, task_busy, overlap, not_git, dirty_scope, not_frozen, superseded, archived, bad_scope; or command_conflict"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          }
+        },
+        "summary": "Starts an attempt: an executor session on this task, on `model`. An\nattempt whose session or first turn could not start is answered `failed`\nwith its reason. A replay of the same `command_id` and body answers the\nfirst attempt.",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/workflows/{workflow}/versions/{version}/tasks/{task}/done": {
+      "put": {
+        "operationId": "mark_done",
+        "parameters": [
+          {
+            "description": "The plan version",
+            "in": "path",
+            "name": "workflow",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/WorkflowId"
+            }
+          },
+          {
+            "description": "Its version number",
+            "in": "path",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "The task's number",
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MarkDone"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskRun"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "no such plan version or task"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunRefusal"
+                }
+              }
+            },
+            "description": "command_conflict"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          }
+        },
+        "summary": "Marks the task done or not done; the tasks that need it wait for this.",
+        "tags": [
+          "runs"
+        ]
+      }
     }
   },
   "tags": [
@@ -14621,6 +15340,10 @@
     {
       "description": "Plan versions and a person's approval of one",
       "name": "workflows"
+    },
+    {
+      "description": "Executor attempts at a task of an approved plan version",
+      "name": "runs"
     },
     {
       "description": "External agents' access to the MCP server",

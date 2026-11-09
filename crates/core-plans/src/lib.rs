@@ -281,6 +281,7 @@ impl Plans {
         let started = match grant.kind {
             GrantKind::Thread => self.planner_draft(grant, args).await,
             GrantKind::Project => self.external_draft(grant, args).await,
+            GrantKind::Executor => Err(PlansError::OutsideGrant),
         };
         match started {
             // A request missing its reason, not an invalid plan.
@@ -307,7 +308,7 @@ impl Plans {
                     .running_for(Scope::own_thread(grant)?)
                     .await?
             }
-            GrantKind::Project => None,
+            GrantKind::Project | GrantKind::Executor => None,
         };
         let expected = args.expected_revision;
         let params = json!({ "workflow": plan.id, "expected_revision": expected, "ops": args.ops });

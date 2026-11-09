@@ -10,7 +10,7 @@ use crate::TurnsError;
 use core_db::{CommandContext, StorageError};
 use core_harness::OpenSession;
 use core_plans::Focus;
-use core_threads::{ThreadId, TurnContext};
+use core_threads::{ThreadId, ThreadKind, TurnContext};
 
 /// What the person asked for: the command and what it records.
 pub(super) struct Turn<'a> {
@@ -66,10 +66,16 @@ impl Turns {
                 detail: None,
             });
         }
-        let allowed = self
-            .projects
-            .allowed_modes(&context.project_id, &context.harness)
-            .await?;
+        // An executor's write boundary holds only in its own mode: in any mode
+        // a project allows, its edits would run without reaching Shadows.
+        let allowed = match context.kind {
+            ThreadKind::Executor => vec![shadows_agent::policy::EXECUTOR_MODE.to_string()],
+            ThreadKind::Planning => {
+                self.projects
+                    .allowed_modes(&context.project_id, &context.harness)
+                    .await?
+            }
+        };
         if !allowed.contains(&settings.mode) {
             return Err(TurnsError::ModeNotAllowed(settings.mode.clone()));
         }

@@ -177,3 +177,56 @@ B-A2 (Core's scoped context contract), stopped since 2026-10-19, is in this file
 - Needs: B-87 and F-97 merged to `main`. Not a merge blocker for `codex/codex-app-server`.
 - Done when: real daemon/browser/log acceptance covers tools, refusal, Stop, restart/continuation, model/effort controls, fork and Send now; Claude still runs. Full workspace gate stays with CI.
 - Watch during Stop: `Turns::stop` answers the operation as it stands, which may still be `Running` while the watcher writes `Cancelled` (core-turns contract, `stop`); the client takes the ending from the stream. If the browser shows a stale Running row after Stop, the follow-up is to make `stop` wait for `finished_at` as `stop_running` does.
+
+## Executors, slices 0 and 1
+
+Design: [executors](specs/2026-11-08-executors-design.md), approved 2026-11-08. Plan: [slices 0 and 1](plans/2026-11-08-executors.md). Branch
+`feature/executors`. B-85 to B-88 are reserved by the Codex plan on `codex/codex-app-server`.
+
+### B-89 · Probe the executor write boundary
+- Status: done 2026-11-08, run by the controller ([evidence](../evidence/2026-11-08-executor-write-boundary-probe.md))
+- Plan: [B-89](plans/2026-11-08-executors.md#b-89-probe-the-write-boundary-slice-0--done-2026-11-08).
+- Owner: Harness (sessions and permissions); a throwaway probe, no product source.
+- Touch: `docs/evidence/2026-11-08-executor-write-boundary-probe.md`, the design §7, this file.
+- Needs: nothing.
+- Outcome: Mohammed's ruling on the evidence: the executor is built as the Planner is, with only its task's tools and permission rules; shell commands are not policed; the commit takes only paths in `writes` (design §7).
+
+### B-90 · The executor session
+- Status: done (migration 0051_executor_sessions; 0050 belongs to the Codex branch, which merges first)
+- Plan: [B-90](plans/2026-11-08-executors.md#b-90-the-executor-session).
+- Owner: Threads (`ThreadKind`), Harness (executor setup: tools, the task's permission rules, `Refuse`), Agent (`SessionSetup.permissions`), Grants (`GrantKind::Executor`, opaque task scope, its tool list), Plans (`task_context` checks the scope), MCP (`server.rs` router for the executor kind).
+- Touch: the plan's B-90 file list. Expand callers with the LSP before dispatch.
+- Needs: nothing.
+- Done when: the plan's B-90 tests pass and the Planner's isolation, session and MCP tests still pass.
+
+### B-91 · Runs: attempts, Start, Stop and recovery
+- Status: done (migration 0052_runs)
+- Plan: [B-91](plans/2026-11-08-executors.md#b-91-runs-attempts-and-startstop).
+- Owner: Runs (`core-runs`, new, approved with the design); AppCore wiring.
+- Touch: the plan's B-91 file list; the next unused migration number at dispatch.
+- Needs: B-90 (done, 81ccae6d).
+- Carry from B-90: an executor's registration in `Setups` is never cleared, so reopening its thread rebuilds an executor setup; clear it when the attempt releases its scope. `context_before_turn` has no executor case, so an executor's first turn may compare against Planner instructions and standards; give it one, with a test.
+- Done when: the plan's B-91 tests pass, with migration, architecture, codemap and contract checks.
+
+### B-92 · Git and `task_commit`
+- Status: done (commit tests in `shadows-core/tests/runs_attempts/commit.rs`, real git; live mode test passed)
+- Plan: [B-92](plans/2026-11-08-executors.md#b-92-git-and-task_commit).
+- Owner: Runs (git through `shadows-process`); MCP (the tool).
+- Needs: B-91 (done, 8442d973).
+- Carry from B-91: the Planner's planning-context block is still added to an executor's prompts; leave it out for executor threads, with a test.
+- Carry from the B-90/B-91 review (4a5542ba): no test sends an executor turn in a mode other than `default`; add one. `ready.rs` ignores `needs` links to another plan's tasks; make them count, with a test.
+- Done when: the plan's B-92 tests pass.
+
+### B-93 · Task attempts over HTTP
+- Status: done (routes under `/api/workflows/{workflow}/versions/{version}/tasks/{task}` and `/api/attempts/{id}`, no project segment; live end-to-end over HTTP passed)
+- Plan: [B-93](plans/2026-11-08-executors.md#b-93-runs-over-http).
+- Owner: `shadows-http` (translation only).
+- Needs: B-92; `docs/shared/requests/2026-11-08-task-run-page.md` (accepted).
+- Carry from the B-90/B-91 review (4a5542ba): Stop while Start is still opening the session lets Start send the turn on an attempt already Stopped; Start must check the attempt is still Running before it sends.
+- Done when: the route tests pass and `api/openapi.json` is regenerated, not hand-edited.
+
+### B-94 · Run executors slice 1 in the browser
+- Status: todo (B-93 and F-98 are built; runs after the merge on main)
+- Plan: [B-94](plans/2026-11-08-executors.md#b-94-run-it).
+- Needs: B-93, F-98. Mohammed runs it.
+- Done when: T1 of the Laravel plan commits inside `backend/**` from its page; refusal, Stop and restart are observed in the browser and logs; evidence recorded.
