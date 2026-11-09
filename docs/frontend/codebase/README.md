@@ -62,7 +62,7 @@ boundaries do not exempt their sources from the other architecture rules.
 
 | Owner | Sources | Entry | Contract | Allowed dependencies |
 |---|---|---|---|---|
-| `composition` | `main.tsx, app-root.tsx, router.tsx, env.d.ts, app/shell.tsx, app/home.tsx, app/page-pending.tsx` | `main.tsx, app-root.tsx, router.tsx, app/shell.tsx, app/home.tsx, app/page-pending.tsx` | `-` | `api, stream, desktop, ui, shared, agents, agreements, conversation, design, desktop-ui, groups, new-project, project-settings, settings, sidebar, workflows, navigation` |
+| `composition` | `main.tsx, app-root.tsx, router.tsx, env.d.ts, app/shell.tsx, app/home.tsx, app/page-pending.tsx` | `main.tsx, app-root.tsx, router.tsx, app/shell.tsx, app/home.tsx, app/page-pending.tsx` | `-` | `api, stream, desktop, ui, shared, agents, agreements, conversation, design, desktop-ui, groups, new-project, project-settings, settings, sidebar, workflows, tasks, navigation` |
 | `navigation` | `app/navigation/**` | `app/navigation/index.ts` | `app/navigation/contract.yaml` | `-` |
 | `api` | `api/**` | `api/*` | `api/contract.yaml` | `-` |
 | `stream` | `stream/**` | `stream/index.ts` | `stream/contract.yaml` | `api` |
@@ -80,6 +80,7 @@ boundaries do not exempt their sources from the other architecture rules.
 | `sidebar` | `app/sidebar/**` | `app/sidebar/index.ts` | `app/sidebar/contract.yaml` | `api, ui, shared, desktop, stream, agents, groups, new-project, workflows, navigation, desktop-ui` |
 | `groups` | `app/groups/**` | `app/groups/index.ts, app/groups/group-page.tsx` | `app/groups/contract.yaml` | `api, ui, shared, stream, agents, conversation` |
 | `workflows` | `app/workflows/**` | `app/workflows/index.ts, app/workflows/plan-state.ts, app/workflows/plan-page.tsx, app/workflows/plan-map.tsx, app/workflows/flow-theme.ts` | `app/workflows/contract.yaml` | `api, ui, shared, stream, agreements` |
+| `tasks` | `app/tasks/**` | `app/tasks/task-page.tsx` | `app/tasks/contract.yaml` | `api, ui, shared, conversation` |
 | `test-support` | `test/**, architecture.test.ts, architecture.fixtures.ts, codemap.test.ts` | `test/**, architecture.fixtures.ts` | `-` | `composition, api, stream, desktop, ui, shared` |
 
 The two `startup.ts` entries expose only pre-readiness dependencies; their static
@@ -170,6 +171,7 @@ it is that folder's `contract.yaml`.
 | `web/src/api/sessions.ts` | Harness session server state | `web/src/api/contract.yaml` |
 | `web/src/api/threads.ts` | Thread server state | `web/src/api/contract.yaml` |
 | `web/src/api/workflows.ts` | Workflow server state | `web/src/api/contract.yaml` |
+| `web/src/api/runs.ts` | A task's runs server state | `web/src/api/contract.yaml` |
 | `web/src/api/saved-answer.ts` | A mutation's answer written to the cache over any earlier read | `web/src/api/contract.yaml` |
 | `web/src/api/schema.d.ts` | Types generated from the daemon's OpenAPI document | `web/src/api/contract.yaml` |
 | `web/src/app/agents/agent-env.tsx` | One agent's environment variables, values write-only | `web/src/app/agents/contract.yaml` |
@@ -362,6 +364,14 @@ it is that folder's `contract.yaml`.
 | `web/src/app/sidebar/workspace-switcher.tsx` | Sidebar title as the workspace menu | `web/src/app/sidebar/contract.yaml` |
 | `web/src/app/sidebar/workspace.ts` | Which workspace the sidebar shows, the page deciding before the stored choice | `web/src/app/sidebar/contract.yaml` |
 | `web/src/app/sidebar/index.ts` | Expose app/sidebar public capabilities | `web/src/app/sidebar/contract.yaml` |
+| `web/src/app/tasks/task-page.tsx` | The task page's tabs | `web/src/app/tasks/contract.yaml` |
+| `web/src/app/tasks/task-header.tsx` | The task header: state, needs, Start or Stop, mark done | `web/src/app/tasks/contract.yaml` |
+| `web/src/app/tasks/details-tab.tsx` | The Details tab | `web/src/app/tasks/contract.yaml` |
+| `web/src/app/tasks/run-tab.tsx` | The latest attempt's executor thread | `web/src/app/tasks/contract.yaml` |
+| `web/src/app/tasks/diff-tab.tsx` | The Diff tab | `web/src/app/tasks/contract.yaml` |
+| `web/src/app/tasks/report-tab.tsx` | Each attempt: state, model, times, commit, reason | `web/src/app/tasks/contract.yaml` |
+| `web/src/app/tasks/use-task-run.ts` | A task's run state kept current | `web/src/app/tasks/contract.yaml` |
+| `web/src/app/tasks/task-page.test.tsx` | Task page interaction checks | `web/src/app/tasks/contract.yaml` |
 | `web/src/app/workflows/approve-bar.tsx` | Approval control for a Draft plan, with refusals | `web/src/app/workflows/contract.yaml` |
 | `web/src/app/workflows/inspect-panel.tsx` | Panel showing one task beside the graph | `web/src/app/workflows/contract.yaml` |
 | `web/src/app/workflows/layout.ts` | Places a plan's graph with dagre | `web/src/app/workflows/contract.yaml` |

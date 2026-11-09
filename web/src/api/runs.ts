@@ -1,0 +1,104 @@
+import { queryOptions, type QueryClient } from '@tanstack/react-query'
+import { writeSaved } from './saved-answer'
+import type { components } from './schema'
+import { client, unwrap, ApiError } from './transport'
+
+export type TaskRun = components['schemas']['TaskRun']
+export type Attempt = components['schemas']['Attempt']
+export type AttemptState = components['schemas']['AttemptState']
+export type FileDiff = components['schemas']['FileDiff']
+export type Need = components['schemas']['Need']
+export type RunRefusal = components['schemas']['RunRefusal']
+
+export const runKeys = {
+  all: () => ['runs'] as const,
+  task: (workflowId: string, version: number, task: number) => ['runs', 'task', workflowId, version, task],
+  attempts: (workflowId: string, version: number, task: number) => ['runs', 'attempts', workflowId, version, task],
+  diff: (attemptId: string) => ['runs', 'diff', attemptId],
+}
+
+/** A task's run state: its marks, latest attempt, needs and whether Start may run. */
+export function taskRunQuery(workflowId: string, version: number, task: number) {
+  return queryOptions({
+    queryKey: runKeys.task(workflowId, version, task),
+    queryFn: () => getTaskRun(workflowId, version, task),
+    // A running attempt changes without the page asking: read it again until it ends.
+    refetchInterval: (query) => (query.state.data?.latest?.state === 'running' ? 2000 : false),
+  })
+}
+
+export function attemptsQuery(workflowId: string, version: number, task: number) {
+  return queryOptions({
+    queryKey: runKeys.attempts(workflowId, version, task),
+    queryFn: () => listAttempts(workflowId, version, task),
+  })
+}
+
+export function attemptDiffQuery(attemptId: string) {
+  return queryOptions({ queryKey: runKeys.diff(attemptId), queryFn: () => getAttemptDiff(attemptId) })
+}
+
+export function saveTaskRunAnswer(queryClient: QueryClient, workflowId: string, version: number, task: number, run: TaskRun) {
+  return writeSaved(queryClient, runKeys.task(workflowId, version, task), run)
+}
+
+export function invalidateRuns(queryClient: QueryClient): void {
+  void queryClient.invalidateQueries({ queryKey: runKeys.all() })
+}
+
+export function getTaskRun(workflowId: string, version: number, task: number): Promise<TaskRun> {
+  return unwrap(client.GET('/api/workflows/{workflow}/versions/{version}/tasks/{task}', {
+    params: { path: { workflow: workflowId, version, task } },
+  }))
+}
+
+/** The task's attempts, newest first. */
+export function listAttempts(workflowId: string, version: number, task: number): Promise<Attempt[]> {
+  return unwrap(client.GET('/api/workflows/{workflow}/versions/{version}/tasks/{task}/attempts', {
+    params: { path: { workflow: workflowId, version, task } },
+  }))
+}
+
+/** Starts an attempt on `model`. A refusal is an `ApiError` whose message is Core's reason. */
+export async function startAttempt(
+  workflowId: string, version: number, task: number, commandId: string, model: string,
+): Promise<Attempt> {
+  try {
+    return await unwrap(client.POST('/api/workflows/{workflow}/versions/{version}/tasks/{task}/attempts', {
+      params: { path: { workflow: workflowId, version, task } },
+      body: { command_id: commandId, model },
+    }))
+  } catch (error) {
+    throw withRefusalReason(error)
+  }
+}
+
+export function stopAttempt(attemptId: string): Promise<Attempt> {
+  return unwrap(client.POST('/api/attempts/{id}/stop', { params: { path: { id: attemptId } } }))
+}
+
+/** Marks the task done or not done. */
+export function markTaskDone(
+  workflowId: string, version: number, task: number, commandId: string, done: boolean,
+): Promise<TaskRun> {
+  return unwrap(client.PUT('/api/workflows/{workflow}/versions/{version}/tasks/{task}/done', {
+    params: { path: { workflow: workflowId, version, task } },
+    body: { command_id: commandId, done },
+  }))
+}
+
+/** Each file of the attempt's commit with its counts and patch. */
+export function getAttemptDiff(attemptId: string): Promise<FileDiff[]> {
+  return unwrap(client.GET('/api/attempts/{id}/diff', { params: { path: { id: attemptId } } }))
+}
+
+/** A refused run answers `{ code, reason }`, which is not the daemon's usual
+ * error body; the same error then says Core's reason. */
+function withRefusalReason(error: unknown): unknown {
+  if (!(error instanceof ApiError) || error.problem.kind !== 'http') return error
+  try {
+    const body = JSON.parse(error.problem.body) as Partial<RunRefusal>
+    if (typeof body.reason === 'string') return new ApiError(error.problem, body.reason, { cause: error })
+  } catch { /* not a refusal */ }
+  return error
+}

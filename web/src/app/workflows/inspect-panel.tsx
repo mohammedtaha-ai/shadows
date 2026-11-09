@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router'
 import { Circle, FileCode2, FilePenLine, X } from 'lucide-react'
 import type { ReactNode } from 'react'
 import type { Plan, PlanTask } from '@/api/workflows'
@@ -46,6 +47,13 @@ export function InspectPanel({
           <X className="size-4" />
         </Button>
       </header>
+      <Link
+        to="/projects/$projectId/workflows/$workflowId/versions/$version/tasks/$task"
+        params={{ projectId: plan.project_id, workflowId: plan.id, version: String(plan.version), task: String(task.number) }}
+        className="mb-3 inline-block text-xs text-accent-line hover:underline"
+      >
+        Open task
+      </Link>
       <Section name="Goal">
         <p dir="auto" className="text-muted-foreground leading-relaxed">
           {task.goal}

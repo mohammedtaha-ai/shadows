@@ -178,7 +178,7 @@ Design: [executors](specs/2026-11-08-executors-design.md), approved 2026-11-08. 
 - Done when: the route tests pass and `api/openapi.json` is regenerated, not hand-edited.
 
 ### B-94 · Run executors slice 1 in the browser
-- Status: blocked (B-93, F-98)
+- Status: todo (B-93 and F-98 are built; runs after the merge on main)
 - Plan: [B-94](plans/2026-11-08-executors.md#b-94-run-it).
 - Needs: B-93, F-98. Mohammed runs it.
 - Done when: T1 of the Laravel plan commits inside `backend/**` from its page; refusal, Stop and restart are observed in the browser and logs; evidence recorded.

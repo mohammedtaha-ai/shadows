@@ -75,6 +75,18 @@ export interface Overrides {
   plan?: Answer
   /** `POST /api/workflows/w1/approve` */
   approve?: Answer
+  /** `GET /api/workflows/w1/versions/1/tasks/1`; an unstarted task Start may run. */
+  taskRun?: Answer
+  /** `GET .../tasks/1/attempts`; none by default. */
+  attempts?: Answer
+  /** `POST .../tasks/1/attempts` */
+  startAttempt?: Answer
+  /** `POST /api/attempts/a1/stop` */
+  stopAttempt?: Answer
+  /** `PUT .../tasks/1/done` */
+  markDone?: Answer
+  /** `GET /api/attempts/a1/diff`; none by default. */
+  attemptDiff?: Answer
   /** The project's saved instructions; none by default. */
   instructions?: InstructionsVersion
   /** The project's grants, newest first; none by default. */
@@ -220,6 +232,15 @@ export function answers(o: Overrides = {}): Record<string, Answer> {
           revision: 3,
           frozen_at: '2026-09-25T00:00:00Z',
         })),
+    'GET /api/workflows/w1/versions/1/tasks/1': o.taskRun ?? {
+      task: 1, done: false, done_at: null, latest: null, needs: [],
+      start: { allowed: true, code: null, reason: null }, suggested_model: 'fake-large',
+    },
+    'GET /api/workflows/w1/versions/1/tasks/1/attempts': o.attempts ?? [],
+    'POST /api/workflows/w1/versions/1/tasks/1/attempts': o.startAttempt ?? { code: 'task_busy', reason: 'Another attempt is running.' },
+    'POST /api/attempts/a1/stop': o.stopAttempt ?? { code: 'task_busy', reason: 'Nothing to stop.' },
+    'PUT /api/workflows/w1/versions/1/tasks/1/done': o.markDone ?? { code: 'task_busy', reason: 'Not set.' },
+    'GET /api/attempts/a1/diff': o.attemptDiff ?? [],
     'GET /api/projects/p1/planner-instructions': () => Response.json(instructions),
     'PUT /api/projects/p1/planner-instructions': async (r: Request) => {
       const { body } = (await r.json()) as { body: string }
