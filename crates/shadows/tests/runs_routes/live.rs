@@ -84,9 +84,28 @@ fn live_adapter() -> LiveAdapter {
     }
 }
 
-/// Start over HTTP; the executor writes inside and outside its task, commits
-/// through `task_commit` over the real `/mcp`, and the commit holds only the
-/// task's path. The Diff route reads it.
+/// An approved v1 whose one task says what to do. Only `task_context` carries
+/// it to the executor: the first prompt is the production one, naming T1 alone.
+async fn approved_task(app: &App) -> WorkflowId {
+    let v1 = plan::draft(app).await.workflow_id;
+    let mut t1 = plan::task(1, "Add t1");
+    t1.goal = "Do exactly these steps, nothing else. \
+               1. Use the Write tool to create src/t1.rs containing `pub fn t1() {}`. \
+               2. Call the task_commit tool with the message `Add t1`. \
+               3. Reply DONE."
+        .into();
+    plan::edit(app, &v1, 0, &[shadows_core::PlanOp::TaskAdd { task: t1 }]).await;
+    shadows_core::AppCore::plans_for_tests(app.storage.clone())
+        .approve_plan_for_test(&app::ctx("approve-1", "PlanApprove"), &v1, 1)
+        .await
+        .unwrap();
+    v1
+}
+
+/// Start over HTTP with the production first prompt; the executor reads its
+/// task through `task_context` naming no plan version, writes, commits through
+/// `task_commit` over the real `/mcp`, and the commit holds only the task's
+/// path: the person's change outside it stays. The Diff route reads it.
 #[tokio::test]
 #[ignore = "live: needs API_KEY_MINIMAX"]
 async fn live_a_task_started_over_http_commits_only_its_writes() {
@@ -96,14 +115,9 @@ async fn live_a_task_started_over_http_commits_only_its_writes() {
     let app = &l.app;
     let root = folder(app).await;
     repository(&root);
-    let v1 = plan::approved_v1(app).await;
-    app.core.runs().set_first_prompt_for_tests(
-        "Do exactly these steps, nothing else. \
-         1. Run the Bash command `echo x > notes.txt`. \
-         2. Use the Write tool to create src/t1.rs containing `pub fn t1() {}`. \
-         3. Call the task_commit tool with the message `Add t1`. \
-         4. Reply DONE.",
-    );
+    let v1 = approved_task(app).await;
+    // The person's own change outside the task's writes.
+    std::fs::write(root.join("notes.txt"), "x\n").unwrap();
     let path = format!("{}/1/attempts", tasks(&v1));
     let (status, attempt) = post(
         app,
@@ -128,6 +142,9 @@ async fn live_a_task_started_over_http_commits_only_its_writes() {
     let commit = last["commit"].as_str().unwrap();
     let names = git(&root, &["show", "--name-only", "--format=", commit]);
     assert_eq!(names.trim(), "src/t1.rs", "{names}");
+    // Only the task, read through task_context, named this content.
+    let written = git(&root, &["show", &format!("{commit}:src/t1.rs")]);
+    assert!(written.contains("pub fn t1"), "{written}");
     let message = git(&root, &["log", "-1", "--format=%B", commit]);
     assert!(
         message.contains(&format!("Shadows-Attempt: {id}")),

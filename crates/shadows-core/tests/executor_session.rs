@@ -283,6 +283,15 @@ async fn an_executor_grant_reads_only_its_own_task() {
     assert_eq!(context.task.number, 1);
     let other = plans.task_context(&grant, Some(&workflow), 2, None).await;
     assert!(matches!(other, Err(PlansError::OutsideGrant)), "{other:?}");
+    // Naming no version reads the grant's own: an executor cannot list plans.
+    let own_version = plans.task_context(&grant, None, 1, None).await.unwrap();
+    assert_eq!(own_version.plan.workflow_id, workflow);
+    assert_eq!(own_version.task.number, 1);
+    let unnamed_other = plans.task_context(&grant, None, 2, None).await;
+    assert!(
+        matches!(unnamed_other, Err(PlansError::OutsideGrant)),
+        "{unnamed_other:?}"
+    );
 
     let (later, _) = executor_grant(&storage, own(1, 2)).await;
     let version = plans.task_context(&later, Some(&workflow), 1, None).await;

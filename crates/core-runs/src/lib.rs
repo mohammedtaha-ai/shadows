@@ -37,8 +37,10 @@ use core_projects::Projects;
 use core_turns::Turns;
 use store::RunsStore;
 
-/// What every executor is first asked to do.
-const FIRST_PROMPT: &str = "Do task T{n}. Read it with task_context first.";
+/// What every executor is first asked to do. It names only the task number:
+/// `task_context` reads the plan version from the executor's own grant.
+const FIRST_PROMPT: &str =
+    "Do task T{n}. Read it first: call task_context with task_number {n} and no workflow_id.";
 
 struct Inner {
     store: RunsStore,

@@ -358,7 +358,7 @@ functions:
     get_for: "(&self, grant: &Grant, named: Option<&WorkflowId>, project: Option<&str>) -> Result<Plan, PlansError>"
     task_context:
       signature: "(&self, grant: &Grant, workflow: Option<&WorkflowId>, task: u32, phase: Option<&PhaseId>) -> Result<TaskContext, PlansError>"
-      rule: Same-project live grant, explicitly named Frozen version, task/layout/standards/part associations read in one snapshot; grants nothing and writes nothing. An executor grant reads exactly its scope's workflow, version and task, else OutsideGrant.
+      rule: Same-project live grant, explicitly named Frozen version, task/layout/standards/part associations read in one snapshot; grants nothing and writes nothing. An executor grant reads exactly its scope's workflow, version and task, else OutsideGrant; when it names no workflow, its scope's is read (an_executor_grant_reads_only_its_own_task).
     task_for:
       signature: "(&self, grant: &Grant, named: Option<&WorkflowId>, number: u32) -> Result<PlanTask, PlansError>"
       # INVALID_COMMAND "T{n} does not exist in this plan" when the number is absent.
@@ -1002,8 +1002,10 @@ dependencies:
   design: crates/core-design/contract.yaml
   code: crates/core-code/contract.yaml
 
-# task_context is a read: same-project named Frozen version only. Scope::named
-# shares missing-workflow guidance; Grants::check_writer rechecks live authority
+# task_context is a read: same-project named Frozen version only. Scope::named_or_own
+# lets an executor grant name none (its TaskScope's version is read: it has no
+# workflow_list), and shares Scope::named's missing-workflow guidance for every
+# other grant; Grants::check_writer rechecks live authority
 # in the snapshot. Design::layout_in is the sole map reader. Plans-owned part
 # associations retain tied parts even without task paths. Distinct claims and
 # stable reads-then-writes path order are preserved; no command/event is written.

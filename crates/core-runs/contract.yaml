@@ -103,6 +103,8 @@ agreements:
 obligations:
   - rule: Start opens one Running attempt on an executor thread with the model given.
     tested_by: [start_opens_one_attempt_on_an_executor_thread]
+  - rule: The first prompt names only the task number; the executor reads its task with task_context naming no plan version, which Plans answers from its grant. The live run uses the production prompt.
+    tested_by: [live_a_task_started_over_http_commits_only_its_writes, an_executor_grant_reads_only_its_own_task]
   - rule: The same command id answers the same attempt, even once the plan could not start it; the same id with other input is a conflict.
     tested_by: [the_same_command_returns_the_same_attempt]
   - rule: A mark command is replayed, never applied again after a later mark, and its id names one mark.

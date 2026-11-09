@@ -288,4 +288,18 @@ impl Scope {
             )
         })
     }
+
+    /// The version a task read names, or, when it names none, the version an
+    /// executor grant is bound to: an executor has no `workflow_list` to learn
+    /// the id from, and its grant already says which task it may read.
+    pub(super) fn named_or_own(
+        grant: &Grant,
+        named: Option<&WorkflowId>,
+    ) -> Result<WorkflowId, PlansError> {
+        match (named, &grant.scope) {
+            (Some(named), _) => Ok(named.clone()),
+            (None, Some(own)) => Ok(WorkflowId::from_stored(own.workflow.clone())),
+            (None, None) => Self::named(None).cloned(),
+        }
+    }
 }

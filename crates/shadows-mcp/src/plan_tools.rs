@@ -43,9 +43,11 @@ struct TaskArgs {
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 struct TaskContextArgs {
+    /// The approved plan version. An executor leaves it out: its own task's is read.
     #[serde(default)]
     #[schemars(with = "Option<String>")]
     workflow_id: Option<WorkflowId>,
+    /// The task's number: 4 for T4.
     task_number: u32,
     #[serde(default)]
     #[schemars(with = "Option<String>")]
@@ -175,7 +177,8 @@ impl Shadows {
 
     #[tool(
         description = "First read before building a task: its approved content, parts, layers \
-                       and rules. This grants no permission to execute. Name workflow_id."
+                       and rules. This grants no permission to execute. Name workflow_id, \
+                       unless you are an executor reading your own task."
     )]
     async fn task_context(
         &self,
