@@ -20,6 +20,63 @@ and joins Plans' pinned obligations without making Code depend on task services.
 The local integration does not select the independent package's CI-3/runtime
 architecture. No working LSP integration is claimed until its trial passes.
 
+### Proposed ready-made server catalog
+
+Mohammed requested adding the official marketplace's LSP choices on 2026-11-09.
+This is a reviewed planning snapshot, not installed or tested runtime support.
+Source: [marketplace at 0412be76](https://github.com/anthropics/claude-plugins-official/blob/0412be76f50ab4f4f8abff3753efa9269fbbca5b/.claude-plugin/marketplace.json),
+read with the plugin READMEs on 2026-11-09. It contains 12 Anthropic LSP entries
+plus Shopify's Liquid entry. Plugin version is distinct from server version.
+
+| Language | Plugin | Upstream server invocation | Installation/toolchain entry point |
+|---|---|---|---|
+| C/C++ | clangd-lsp | `clangd --background-index` | LLVM/clangd distribution or platform package. |
+| C# | csharp-lsp | `csharp-ls` | .NET SDK; global tool `csharp-ls`. |
+| Go | gopls-lsp | `gopls` | Go toolchain; `golang.org/x/tools/gopls`. |
+| Java | jdtls-lsp | `jdtls` | Eclipse JDT.LS and a compatible JDK. |
+| Kotlin | kotlin-lsp | `kotlin-lsp --stdio` | Kotlin LSP distribution and required runtime. |
+| Liquid/theme JSON | liquid-lsp | `shopify theme language-server` | Shopify CLI package `@shopify/cli`. |
+| Lua | lua-lsp | `lua-language-server` | LuaLS release or platform package. |
+| PHP | php-lsp | `intelephense --stdio` | Node.js and package `intelephense`. |
+| Python | pyright-lsp | `pyright-langserver --stdio` | Pyright distribution; upstream npm/pip/pipx options. |
+| Ruby/ERB | ruby-lsp | `ruby-lsp` | Ruby and gem `ruby-lsp`; project Bundler when needed. |
+| Rust | rust-analyzer-lsp | `rust-analyzer` | Rust toolchain component or official distribution. |
+| Swift | swift-lsp | `sourcekit-lsp` | SourceKit-LSP from the Swift toolchain. |
+| TypeScript/JavaScript, TSX/JSX | typescript-lsp | `typescript-language-server --stdio` | Node.js, `typescript-language-server` and `typescript`. |
+
+Liquid's external [pinned .lsp.json](https://github.com/Shopify/liquid-skills/blob/ae3e4cc3f454923e388bbd841fd931f0c7bf5be4/plugins/liquid-lsp/.lsp.json)
+supplies `.liquid` and `.json`. Follow that exact source pin rather than assuming
+all entries carry inline lspServers. Import reviewed server descriptors only,
+not hooks, skills, agents or arbitrary installer scripts. Server licenses and
+free/premium capabilities are independent of the marketplace plugin license.
+
+The catalog is extensible and independent of Claude installation. A descriptor
+records source/version, languages/extensions, command/arguments, transport,
+timeout, runtime requirements, supported OS, installation guidance and observed
+capabilities. This table gives entry points; inspect the selected release's own
+requirements and license before enabling it. Dart/Flutter is absent from this
+snapshot; a separately configured server must pass the same checks.
+
+Install on demand for the selected project's languages. Detect configured
+binaries first; do not install or launch every server at project opening.
+Distinguish catalogued, missing, configured, starting, ready, unsupported and
+failed. Ready requires initialize/capability negotiation plus a real query,
+not merely a plugin/executable entry. Expose measured capabilities only.
+
+Routing considers root/toolchain and explicit configuration, not extension
+alone. Liquid cannot claim every JSON file outside a selected Shopify theme.
+Preserve source mapping case, including clangd `.c` and `.C`; Windows folding
+must not silently discard a mapping. Conflicts need explicit selection instead
+of last-loaded-wins. Use absolute executable/argument vectors and tested Windows
+npm/runtime invocation rather than accidental shell parsing. JDT.LS and Kotlin
+allow 120-second startup timeouts upstream; keep progress/cancellation responsive.
+
+Each backend needs tests for supported definition/outline/reference/diagnostic
+capabilities, changed-file freshness, same-name disambiguation, root isolation,
+out-of-scope result refusal, cancellation and crash recovery. Show capability
+and platform gaps honestly. All backends use the task-aware query contract;
+none gets a separate task authority database or product facade.
+
 ## 15.1 Scope
 
 **In Milestone 3:**

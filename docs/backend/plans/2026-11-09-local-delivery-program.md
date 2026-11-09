@@ -34,6 +34,16 @@ state, with semantic PHP/Laravel queries through a tested ready-made LSP server.
   server integration with its own installed executable, not just plugin metadata.
 - Needs: none. No independent code-intelligence workspace/cache.
 
+L1 includes the complete [13-entry upstream catalog](../../core/specs/2026-09-30-code-index-design.md#proposed-ready-made-server-catalog)
+requested by Mohammed: clangd, C#, Go, Java, Kotlin, Liquid, Lua, PHP, Python,
+Ruby, Rust, Swift and TypeScript/JavaScript. Implementation tasks cover catalog
+registration, per-project language/root selection, executable/runtime detection,
+on-demand installation guidance and per-backend handshake/query acceptance.
+PHP/Laravel, Rust and TypeScript are the first end-to-end trial; the remaining
+entries retain explicit untested/platform-unavailable states until measured.
+Do not equate adding a descriptor with working support, or require all language
+toolchains to be installed on every machine.
+
 ## L2: Planning-time preparation
 
 Result: request framework setup from planning at the agreed empty destination,

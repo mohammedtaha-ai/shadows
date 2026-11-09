@@ -134,8 +134,12 @@ Keep its separate CI-3/package decision deferred. L1 starts with a bounded
 PHP/Laravel server/client trial and the already supported Rust/TS behavior;
 choose the concrete client/server combination from measured freshness,
 same-name resolution, lifecycle, licensing and task-scope results before
-committing implementation to it. Additional languages use the same backend
-capability contract, not a new product-specific analyzer per language.
+committing implementation to it. Mohammed requested the other official catalog
+choices too; [section 15's catalog](2026-09-30-code-index-design.md#proposed-ready-made-server-catalog)
+pins all 13 entries, requirements and enablement checks. Register them as
+on-demand candidates; each backend becomes ready only after its own trial.
+Additional languages use the same backend capability contract, not a new
+product-specific analyzer per language.
 
 An executor's code question names its attempt/packet, file or qualified symbol,
 and the operation needed. Runs checks the task's allowed reads and supplies
