@@ -29,7 +29,6 @@ pub use model::{
     Attempt, AttemptId, AttemptState, CommitResult, FileDiff, Need, RecoverReport, StartAnswer,
     TaskRun,
 };
-pub use scope::Scope;
 
 use core_db::{CommandContext, Storage};
 use core_harness::Harness;

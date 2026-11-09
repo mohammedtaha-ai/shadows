@@ -6,11 +6,11 @@ import { client, unwrap, ApiError } from './transport'
 export type TaskRun = components['schemas']['TaskRun']
 export type Attempt = components['schemas']['Attempt']
 export type AttemptState = components['schemas']['AttemptState']
-export type FileDiff = components['schemas']['FileDiff']
+type FileDiff = components['schemas']['FileDiff']
 export type Need = components['schemas']['Need']
-export type RunRefusal = components['schemas']['RunRefusal']
+type RunRefusal = components['schemas']['RunRefusal']
 
-export const runKeys = {
+const runKeys = {
   all: () => ['runs'] as const,
   task: (workflowId: string, version: number, task: number) => ['runs', 'task', workflowId, version, task],
   attempts: (workflowId: string, version: number, task: number) => ['runs', 'attempts', workflowId, version, task],
@@ -27,10 +27,12 @@ export function taskRunQuery(workflowId: string, version: number, task: number) 
   })
 }
 
+/** The task's attempts, newest first, read again while the newest one runs. */
 export function attemptsQuery(workflowId: string, version: number, task: number) {
   return queryOptions({
     queryKey: runKeys.attempts(workflowId, version, task),
     queryFn: () => listAttempts(workflowId, version, task),
+    refetchInterval: (query) => (query.state.data?.[0]?.state === 'running' ? 2000 : false),
   })
 }
 
@@ -46,14 +48,14 @@ export function invalidateRuns(queryClient: QueryClient): void {
   void queryClient.invalidateQueries({ queryKey: runKeys.all() })
 }
 
-export function getTaskRun(workflowId: string, version: number, task: number): Promise<TaskRun> {
+function getTaskRun(workflowId: string, version: number, task: number): Promise<TaskRun> {
   return unwrap(client.GET('/api/workflows/{workflow}/versions/{version}/tasks/{task}', {
     params: { path: { workflow: workflowId, version, task } },
   }))
 }
 
 /** The task's attempts, newest first. */
-export function listAttempts(workflowId: string, version: number, task: number): Promise<Attempt[]> {
+function listAttempts(workflowId: string, version: number, task: number): Promise<Attempt[]> {
   return unwrap(client.GET('/api/workflows/{workflow}/versions/{version}/tasks/{task}/attempts', {
     params: { path: { workflow: workflowId, version, task } },
   }))
@@ -88,7 +90,7 @@ export function markTaskDone(
 }
 
 /** Each file of the attempt's commit with its counts and patch. */
-export function getAttemptDiff(attemptId: string): Promise<FileDiff[]> {
+function getAttemptDiff(attemptId: string): Promise<FileDiff[]> {
   return unwrap(client.GET('/api/attempts/{id}/diff', { params: { path: { id: attemptId } } }))
 }
 

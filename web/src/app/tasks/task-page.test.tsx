@@ -3,6 +3,7 @@
 import { act } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { Attempt, TaskRun } from '@/api/runs'
+import { agentEntry, runningOperation, userEntry } from '@/test/contract-fixtures'
 import { answers } from '@/test/fake-daemon'
 import { type TestApp, startApp, typeInto, until } from '@/test/test-app'
 
@@ -143,5 +144,38 @@ describe('the task page', () => {
     const sent = a.bodies.filter((b) => typeof b === 'object' && b !== null && 'model' in b) as unknown as { command_id: string }[]
     expect(sent).toHaveLength(2)
     expect(sent[1]!.command_id).toBe(sent[0]!.command_id)
+  })
+
+  it('the_report_reads_the_attempts_again_until_the_newest_ends', async () => {
+    let current = [attempt()]
+    const a = (app = await startApp(PAGE, answers({
+      taskRun: () => Response.json(taskRun({ latest: current[0]! })),
+      attempts: () => Response.json(current),
+    })))
+    await until(() => a.button('Report') !== undefined)
+    await click(a.button('Report'))
+    await until(() => a.text().includes('Attempt 1'))
+    current = [attempt({ state: 'committed', commit: 'abc123', ended_at: '2026-11-08T10:05:00Z' })]
+    await until(() => a.text().includes('abc123'))
+  })
+
+  it('the_run_keeps_reading_after_the_commit_until_the_turn_ends', async () => {
+    let ended = false
+    const routes = answers({
+      taskRun: taskRun({
+        latest: attempt({ state: 'committed', commit: 'abc123', operation_id: 'op1', ended_at: '2026-11-08T10:05:00Z' }),
+      }),
+    })
+    routes['GET /api/threads/t1/operations'] = () =>
+      Response.json([{ ...runningOperation(), finished_at: ended ? '2026-11-08T10:06:00Z' : null }])
+    routes['GET /api/threads/t1/entries'] = () => Response.json(ended
+      ? [userEntry('u1', 'Do task T1.'), agentEntry('a1', 'Committed; the T2 test waits for T2.')]
+      : [userEntry('u1', 'Do task T1.')])
+    const a = (app = await startApp(PAGE, routes))
+    await until(() => a.button('Run') !== undefined)
+    await click(a.button('Run'))
+    await until(() => a.text().includes('Do task T1.'))
+    ended = true
+    await until(() => a.text().includes('the T2 test waits for T2.'))
   })
 })

@@ -7,7 +7,7 @@ obligations:
   - Start's state and reason are `start.allowed` and `start.reason` from Core; the page holds no readiness rule.
   - The model starts on `suggested_model` and stays what the person chose through a refused send, which shows Core's reason and refetches.
   - Start and mark done keep their command id after a lost answer and make a new one after any answer.
-  - A running attempt is read again until it ends; the Run tab follows its executor thread the same way.
+  - A running attempt and the attempt list are read again until the attempt ends; the Run tab reads its executor thread until the turn's operation has ended, since a committed attempt's turn goes on to report.
 traps:
   - The Run tab shows entries as messages and one-line rows; the conversation's tool and diff cards are not public to this folder.
   - The model is free text: the API offers no list of executor models.

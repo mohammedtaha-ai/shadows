@@ -6,13 +6,13 @@
 use globset::{Glob, GlobBuilder, GlobSet, GlobSetBuilder};
 
 /// A set of patterns, compiled once.
-pub struct Scope {
+pub(crate) struct Scope {
     set: GlobSet,
 }
 
 impl Scope {
     /// An invalid pattern is an error. No patterns admit nothing.
-    pub fn new(patterns: &[String]) -> Result<Self, String> {
+    pub(crate) fn new(patterns: &[String]) -> Result<Self, String> {
         let mut set = GlobSetBuilder::new();
         for pattern in patterns {
             let glob: Glob = GlobBuilder::new(&Self::normal(pattern))
@@ -26,14 +26,14 @@ impl Scope {
     }
 
     /// Whether `path` (relative to the task's folder) is inside the patterns.
-    pub fn admits(&self, path: &str) -> bool {
+    pub(crate) fn admits(&self, path: &str) -> bool {
         self.set.is_match(Self::normal(path))
     }
 
     /// Whether some path may match a pattern of both sets. Two patterns may
     /// intersect unless their literal prefixes are disjoint; unproven means
     /// they intersect.
-    pub fn may_overlap(ours: &[String], theirs: &[String]) -> bool {
+    pub(crate) fn may_overlap(ours: &[String], theirs: &[String]) -> bool {
         ours.iter().any(|a| {
             theirs
                 .iter()

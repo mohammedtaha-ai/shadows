@@ -237,9 +237,12 @@ export function answers(o: Overrides = {}): Record<string, Answer> {
       start: { allowed: true, code: null, reason: null }, suggested_model: 'fake-large',
     },
     'GET /api/workflows/w1/versions/1/tasks/1/attempts': o.attempts ?? [],
-    'POST /api/workflows/w1/versions/1/tasks/1/attempts': o.startAttempt ?? { code: 'task_busy', reason: 'Another attempt is running.' },
-    'POST /api/attempts/a1/stop': o.stopAttempt ?? { code: 'task_busy', reason: 'Nothing to stop.' },
-    'PUT /api/workflows/w1/versions/1/tasks/1/done': o.markDone ?? { code: 'task_busy', reason: 'Not set.' },
+    'POST /api/workflows/w1/versions/1/tasks/1/attempts': o.startAttempt ??
+      (() => Response.json({ code: 'task_busy', reason: 'Another attempt is running.' }, { status: 409 })),
+    'POST /api/attempts/a1/stop': o.stopAttempt ??
+      (() => Response.json({ code: 'STORAGE_UNAVAILABLE', message: 'the session could not be terminated' }, { status: 500 })),
+    'PUT /api/workflows/w1/versions/1/tasks/1/done': o.markDone ??
+      (() => Response.json({ code: 'command_conflict', reason: 'the command id was used for another request' }, { status: 409 })),
     'GET /api/attempts/a1/diff': o.attemptDiff ?? [],
     'GET /api/projects/p1/planner-instructions': () => Response.json(instructions),
     'PUT /api/projects/p1/planner-instructions': async (r: Request) => {
