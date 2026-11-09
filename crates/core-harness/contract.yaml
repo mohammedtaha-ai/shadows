@@ -314,6 +314,10 @@ functions:
       # `latest_limits`, and the modes, initial and unattended mode from policy
       # alone. Refusals: Storage. `codex` is available exactly when configured
       # and always lists its policy mode `read-only` as the initial mode.
+    remembered_model:
+      signature: "(&self, kind: &str) -> Result<Option<String>, HarnessError>"
+      # The model of `remembered_settings(kind)`: the last turn started on that
+      # harness, so a model it offered then. Refusals: Storage.
     open_session:
       signature: "(&self, thread: &ThreadId) -> Result<SessionChoices, HarnessError>"
       # turn_context (NotFound → 404 INVALID_COMMAND) → harness_available
@@ -541,6 +545,7 @@ called_by_other_services:
   prepare_context: "Turns (spawn.rs, after compose): a turn that carried planning context records it unheard; a failed write logs planner.context_record_failed and the context stays owed."
   forget_context: "Turns (turn.rs accept, a completed compaction) and shadows-http (POST /api/threads/{id}/context/resend, with a command)."
   record_limits: "Turns (turns/turn.rs accept): a turn's watcher records the account limits the harness reports, before it publishes the usage that `limits_of` answers (§12.8)"
+  remembered_model: "Runs (lib.rs suggested_model): the executor's harness's last model, suggested when the Planner's last turn ran on another harness."
 
 
 shared_in_transaction:

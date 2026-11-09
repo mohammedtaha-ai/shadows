@@ -42,6 +42,10 @@ use store::RunsStore;
 const FIRST_PROMPT: &str =
     "Do task T{n}. Read it first: call task_context with task_number {n} and no workflow_id.";
 
+/// The harness an executor thread runs on, so the only one whose models an
+/// executor can be offered.
+const EXECUTOR_HARNESS: &str = shadows_agent::policy::CLAUDE_CODE;
+
 struct Inner {
     store: RunsStore,
     plans: Plans,
@@ -128,20 +132,40 @@ impl Runs {
         })
     }
 
-    /// The model the plan's Planner conversation last asked for: its newest
-    /// turn that recorded one. None for a plan an external agent wrote.
+    /// The model to offer the executor: the one the plan's Planner
+    /// conversation last asked for, when that turn ran on the executor's
+    /// harness. A model of another harness (a Codex Planner's) is not one the
+    /// executor is offered, so then the model last used on the executor's
+    /// harness is suggested, or none. None for a plan an external agent wrote.
     async fn suggested_model(&self, plan: &core_plans::Plan) -> Option<String> {
         let core_plans::WrittenBy::Planner { thread_id, .. } = &plan.written_by else {
             return None;
         };
-        match self.inner.turns.operations(thread_id).await {
+        let last = match self.inner.turns.operations(thread_id).await {
             Ok(operations) => operations
                 .into_iter()
-                .filter_map(|op| op.invocation.map(|i| (op.created_at, i.requested_model)))
+                .filter_map(|op| op.invocation.map(|i| (op.created_at, i)))
                 .max_by(|a, b| a.0.cmp(&b.0))
-                .map(|(_, model)| model),
+                .map(|(_, invocation)| invocation),
             Err(error) => {
                 tracing::warn!(%thread_id, %error, "runs.suggested_model_unread");
+                None
+            }
+        };
+        match last {
+            Some(invocation) if invocation.harness_kind == EXECUTOR_HARNESS => {
+                Some(invocation.requested_model)
+            }
+            _ => self.executor_harness_model().await,
+        }
+    }
+
+    /// The model last used on the executor's harness, which it offered then.
+    async fn executor_harness_model(&self) -> Option<String> {
+        match self.inner.harness.remembered_model(EXECUTOR_HARNESS).await {
+            Ok(model) => model,
+            Err(error) => {
+                tracing::warn!(%error, "runs.executor_model_unread");
                 None
             }
         }

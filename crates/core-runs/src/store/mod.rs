@@ -19,9 +19,6 @@ use core_plans::WorkflowId;
 use core_projects::ProjectId;
 use core_threads::ThreadId;
 
-/// The harness an executor thread runs on.
-const HARNESS: &str = "claude-code";
-
 type AttemptRow = (
     String,
     String,
@@ -86,7 +83,7 @@ impl RunsStore {
                         conn,
                         &new.project,
                         format!("T{}", new.task),
-                        HARNESS,
+                        crate::EXECUTOR_HARNESS,
                     )
                     .await?;
                     let number: i64 = sqlx::query_scalar(

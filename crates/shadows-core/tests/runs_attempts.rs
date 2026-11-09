@@ -294,6 +294,63 @@ impl Fixture {
     }
 }
 
+/// One recorded turn of the plan's Planner on `harness`, asking for `model`,
+/// committed by the turn command's own write and ended without an adapter.
+async fn planner_turn(f: &Fixture, id: &str, harness: &str, model: &str) {
+    use shadows_core::testing::turn::{new_turn, turn_command};
+    let thread: String = sqlx::query_scalar("SELECT written_by_thread FROM workflow WHERE id = ?")
+        .bind(SOURCE)
+        .fetch_one(f.storage.reader())
+        .await
+        .unwrap();
+    let thread = ThreadId::from_literal(thread);
+    let runtime = shadows_core::testing::Runtime::start(f.storage.clone())
+        .await
+        .unwrap();
+    let settings = shadows_agent::TurnSettings {
+        model: model.into(),
+        mode: "default".into(),
+        effort: None,
+    };
+    let mut turn = new_turn(&thread, &runtime, "plan it", &settings);
+    turn.harness_kind = harness;
+    let started = shadows_core::Turns::start_turn_for_test(
+        &f.storage,
+        &turn_command(id, &thread, "plan it", &settings),
+        turn,
+    )
+    .await
+    .unwrap();
+    shadows_core::Turns::mark_operation_failed_for_test(
+        &f.storage,
+        &started.operation_id,
+        shadows_core::testing::FailureStage::Prepare,
+        "recorded only",
+    )
+    .await
+    .unwrap();
+}
+
+/// The suggestion is a model the executor's harness offers: a Codex
+/// Planner's model is not, so the model last used on Claude is suggested.
+#[tokio::test]
+async fn the_suggested_model_is_one_the_executors_harness_offers() {
+    let f = fixture().await;
+    let suggested = |f: &Fixture| {
+        let runs = f.core.runs().clone();
+        let workflow = f.workflow.clone();
+        async move { runs.task(&workflow, 1, 1).await.unwrap().suggested_model }
+    };
+    assert_eq!(suggested(&f).await, None);
+    planner_turn(&f, "turn-1", "claude-code", "sonnet").await;
+    assert_eq!(suggested(&f).await.as_deref(), Some("sonnet"));
+    planner_turn(&f, "turn-2", "codex", "gpt-6-luna").await;
+    let after_codex = suggested(&f).await;
+    assert_ne!(after_codex.as_deref(), Some("gpt-6-luna"));
+    assert_eq!(after_codex.as_deref(), Some("sonnet"), "{after_codex:?}");
+    f.finish().await;
+}
+
 #[tokio::test]
 async fn start_opens_one_attempt_on_an_executor_thread() {
     let f = fixture().await;

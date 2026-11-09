@@ -197,6 +197,16 @@ impl Harness {
         Ok(list)
     }
 
+    /// The model of the last turn started on harness `kind`, which that
+    /// harness offered then; None when no turn ran on it.
+    pub async fn remembered_model(&self, kind: &str) -> Result<Option<String>, HarnessError> {
+        Ok(self
+            .store
+            .remembered_settings(kind)
+            .await?
+            .map(|(model, _)| model))
+    }
+
     /// Opens the thread's harness session and answers what it
     /// offers. Idempotent: an open session answers what it holds.
     pub async fn open_session(&self, thread: &ThreadId) -> Result<SessionChoices, HarnessError> {
