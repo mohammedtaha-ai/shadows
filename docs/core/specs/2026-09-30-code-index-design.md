@@ -9,6 +9,17 @@ its kind, the file, the line and the signature. It never answers with code.
 The agent opens that exact place itself if it needs to. So it does not write
 again what already exists, and it does not read the whole project to find out.
 
+## Proposed task-aware LSP extension, 2026-11-09
+
+The built index below remains current behavior. Mohammed's local-delivery
+direction is to reuse ready-made language servers alongside checked source
+and task contracts. The proposed Code gateway, ownership and reconciliation
+rules are in [17.0](2026-10-01-task-contracts-and-evidence-design.md#task-knowledge-and-ready-made-language-servers).
+Code owns semantic query/lifecycle facts; Runs applies an attempt's read scope
+and joins Plans' pinned obligations without making Code depend on task services.
+The local integration does not select the independent package's CI-3/runtime
+architecture. No working LSP integration is claimed until its trial passes.
+
 ## 15.1 Scope
 
 **In Milestone 3:**

@@ -68,8 +68,8 @@ until their implementation ships.
 
 | Existing owner | Proposed responsibility |
 |---|---|
-| Code | Inventory, refresh state, file observations and supported tags. |
-| shadows-index | PHP tags from one file, without project/database dependencies. |
+| Code | Inventory, refresh state, file observations and scoped semantic queries through mature LSP clients/servers. |
+| shadows-index | Its existing parser-only tags and explicitly labeled name-based fallback. |
 | Design | Versioned project decisions and existing shared agreements. |
 | Plans | Canonical task contracts, contract pins, dependency validation and owner-thread lookup. |
 | Runs | Preparation attempts, execution packets, leases, checks, review, acceptance and repair. |
@@ -91,8 +91,9 @@ Inventory is paged; incomplete/stale/unavailable scans remain visible. A failed
 scan does not delete unseen entries. Paths cannot escape the project through
 symlinks/reparse points. Dependency/build trees are summarized by default.
 Secret-bearing entries expose redacted metadata, not their contents. Inventory
-does not become an arbitrary host file-content API. Add PHP definitions,
-namespaces and methods in shadows-index; references remain labeled by name.
+does not become an arbitrary host file-content API. Use a ready-made PHP
+language server for PHP definitions. Preserve the existing parser/name-based
+index as a labeled fallback; a second PHP analysis engine is not a prerequisite.
 
 The Planner reads inventory and relevant manifests before detailed planning.
 Existing Laravel is adopted, not installed again. Refresh after scaffold or
@@ -110,6 +111,72 @@ partial results before doing anything. Cancellation/restart leave inspectable
 state, not automatic cleanup. Refresh inventory before detailed planning resumes.
 Only the worker's own product files enter its commit, never runtimes/installers.
 Normal package caches may be used; this is not OS-level shell containment.
+
+### Task knowledge and ready-made language servers
+
+**Mohammed's direction, 2026-11-09:** reuse mature LSP implementations alongside
+Shadows' task knowledge. Language-server results can be incomplete or wrong;
+they do not replace the approved contracts, source observations or read scope.
+
+The official Claude `php-lsp` plugin configures `intelephense --stdio`; the
+plugin does not contain that server. Intelephense documents an independent LSP
+client interface, so the same installed server can be a candidate for Shadows
+without requiring Claude. Use a maintained LSP client library, not a custom
+protocol implementation. Install/configure servers separately, detect existing
+executables explicitly, capture their versions/capabilities and test them before
+reporting availability. Do not attach to Claude's private running process or
+hard-code its plugin-cache paths. Server licensing and free/premium capability
+availability remain distinct from the Claude plugin's license.
+
+Code owns the local semantic gateway and worker lifecycle behind AppCore.
+This does not select the standalone package's runtime or release architecture.
+Keep its separate CI-3/package decision deferred. L1 starts with a bounded
+PHP/Laravel server/client trial and the already supported Rust/TS behavior;
+choose the concrete client/server combination from measured freshness,
+same-name resolution, lifecycle, licensing and task-scope results before
+committing implementation to it. Additional languages use the same backend
+capability contract, not a new product-specific analyzer per language.
+
+An executor's code question names its attempt/packet, file or qualified symbol,
+and the operation needed. Runs checks the task's allowed reads and supplies
+only authorized query scope to Code through its public API. Code returns
+semantic candidates and provenance; Runs joins them to the packet's source
+observations and Plans' pinned contracts. Keep the dependency one-way: Code
+does not acquire Plans/Runs or a second task-authority database. The planning
+read path is project-scoped under the Planner's existing grant.
+
+Three facts stay distinct in every answer:
+
+- What checked source currently contains, with file/symbol and content digest.
+- What the selected language server resolved, with backend/version, source
+  observation, capability, candidates and any stale/unsupported state.
+- What the approved task promises, including producer task and implementation
+  evidence. A planned function is not described as an existing definition.
+
+For example, a task allowed to read an account repository may ask for a named
+method before using it. Check the file scope first, resolve through LSP, verify
+the returned location/signature against source, then return the bounded relevant
+definition and its pinned contract. An out-of-scope hit does not widen the
+task; withhold its source and request scope resolution. If the method is only
+planned, identify the producer and readiness state. If LSP and checked source
+or the approved signature disagree, return the discrepancy and evidence rather
+than choosing a silent winner. A verified source lookup can be a labeled
+fallback when semantic resolution is unavailable; no result is not proof of
+absence. Name-only and semantic references never share an unlabeled result.
+
+A server may need an authorized whole-workspace view, including dependencies,
+for analysis. The executor's disclosure/read scope remains narrower and is
+enforced by Shadows on results and source excerpts. Do not claim per-file OS
+read isolation for the LSP process itself. Refresh/synchronize server document
+state for changed files and reject answers from an older workspace generation.
+Critic review still reads captured artifacts, not a live LSP answer substituted
+for the exact candidate source that was checked.
+
+Primary sources checked on 2026-11-09:
+[Claude code intelligence](https://code.claude.com/docs/en/plugins/code-intelligence),
+[official PHP configuration](https://github.com/anthropics/claude-plugins-official/blob/main/.claude-plugin/marketplace.json),
+[Intelephense integration and limitations](https://intelephense.com/docs).
+These establish the candidate integration, not executed Shadows acceptance.
 
 ### Canonical task contract
 
@@ -310,7 +377,7 @@ the controller's proposed resolutions for written-design approval:
 
 ### Delivery, builder choices and approval
 
-Eight runnable slices: L1 inventory/PHP, L2 preparation, L3 contracts/decisions,
+Eight runnable slices: L1 inventory/LSP, L2 preparation, L3 contracts/decisions,
 L4 packets/readiness, L5 checks/evidence, L6 critic/acceptance, L7 repair/pending
 checks/gates, L8 real local acceptance. L2 and L3 depend on L1; L4 needs both;
 then deliver in order. Each slice gets exact backend/frontend task plans,

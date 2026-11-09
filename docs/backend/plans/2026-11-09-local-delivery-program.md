@@ -16,16 +16,22 @@ design approval; scope confirmation does not imply that approval.
 ## L1: Repository discovery
 
 Result: the person and Planner see existing files, paths, exclusions and scan
-state, including PHP definitions needed for Laravel.
+state, with semantic PHP/Laravel queries through a tested ready-made LSP server.
 
-- Owners: Code; shadows-index for PHP; adapters; web API/project view.
-- Build on: core-code scan/watch/status/scope and current language table.
+- Owners: Code for inventory and the LSP gateway; existing shadows-index stays
+  parser-only; adapters; web API/project view.
+- Build on: core-code scan/watch/status/scope, a maintained LSP client library
+  and independently installed language servers. Do not require Claude to run.
 - Work: paged inventory independent of supported languages; safe path traversal;
-  visible excluded/stale/incomplete states; PHP extraction; Planner access;
-  repository display through current project APIs and events.
+  visible excluded/stale/incomplete states; bounded PHP/Laravel LSP trial;
+  select client/server after freshness/isolation/lifecycle and dependency review;
+  capability/configuration/status; Planner access; repository display through
+  current project APIs and events. Preserve labeled fallback results.
 - Proof: inspect a Laravel tree before planning; unsupported files are listed;
   secrets are metadata-only; incomplete scans do not invent deletions; reject
-  escapes; handle case folding and watcher loss; resolve PHP methods by path.
+  escapes; handle case folding and watcher loss; resolve PHP methods by path;
+  distinguish ambiguous/stale LSP results and same-named symbols. Verify the
+  server integration with its own installed executable, not just plugin metadata.
 - Needs: none. No independent code-intelligence workspace/cache.
 
 ## L2: Planning-time preparation
@@ -67,10 +73,13 @@ scope received by a particular attempt.
   task-context/attempt APIs; packet/readiness UI.
 - Work: canonical packet/digest; selected source observations; decision/contract
   pins; exact derived paths; read/write leases; bounded questions/usage facts;
-  capability checks; legacy version/adoption behavior.
+  task-authorized semantic questions joining Code results with Plans' contract
+  pins; capability checks; legacy version/adoption behavior.
 - Proof: stale/missing/ambiguous inputs block dispatch; unrelated changes do
   not invalidate all tasks; conflicting writes/required reads cannot overlap;
-  evidence stays attributable across retries; unknown usage stays unknown.
+  evidence stays attributable across retries; unknown usage stays unknown;
+  LSP cannot disclose outside task reads, fabricate a planned function as
+  existing, or silently replace a conflicting approved signature.
 - Needs: L2 and L3. Same folder/cache; no OS shell-containment claim.
 
 ## L5: Independent verification and evidence
@@ -160,6 +169,8 @@ Independent read-only builder check completed on 2026-11-09. After the five
 resolutions were added, the fix round reported no important unanswered
 questions. This is a design-completeness check, not automated product testing
 or Mohammed's approval of the written design.
+The subsequent LSP/task-knowledge amendment is a further design revision; its
+candidate-server trial remains planned, not a claim that LSP works in Shadows.
 
 ## Coverage of the earlier section 17
 
