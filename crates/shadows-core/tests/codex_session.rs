@@ -670,6 +670,55 @@ async fn codex_fork_keeps_the_source_unchanged() {
     w.close().await;
 }
 
+/// A Codex fork opens with Shadows' instructions as its developer
+/// instructions, as a new thread does, so its first turn sends the person's
+/// text first and does not repeat them after it.
+#[tokio::test]
+async fn codex_forks_first_turn_leads_with_the_persons_text() {
+    let w = World::start(false).await;
+    let first = w.start_turn("first", "hello").await;
+    assert_eq!(w.done(&first).await.status_kind, "Completed");
+    let at = w
+        .core
+        .threads()
+        .entries(&w.thread)
+        .await
+        .unwrap()
+        .last()
+        .unwrap()
+        .id
+        .clone();
+    let fork = w
+        .core
+        .harness()
+        .fork_thread("fork-blocks".into(), &w.thread, &at)
+        .await
+        .unwrap();
+    let op = w
+        .send(
+            &fork.id,
+            "fork-first",
+            "blocks",
+            "fixture-model",
+            Some("low"),
+        )
+        .await
+        .unwrap();
+    assert_eq!(w.settled(&fork.id, &op).await.status_kind, "Completed");
+    let written = w.written(&fork.id, &op).await;
+    let reply = written.last().expect("the fork's reply");
+    let sent: Vec<String> = serde_json::from_str(reply).expect(reply);
+    assert_eq!(sent[0], "blocks", "{sent:?}");
+    for block in &sent[1..] {
+        assert!(
+            !block.contains("[Shadows] Shadows' instructions for you:")
+                && !block.contains("[Shadows] The project's standards changed"),
+            "the opening's instructions were sent again: {sent:?}"
+        );
+    }
+    w.close().await;
+}
+
 #[tokio::test]
 async fn codex_steer_targets_the_active_turn() {
     let w = World::start(false).await;

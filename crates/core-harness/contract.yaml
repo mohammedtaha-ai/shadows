@@ -620,7 +620,7 @@ obligations:
       the start, and fork and Send now reach the native thread.
     tested_by: [codex_choices_follow_the_model_catalog, codex_efforts_belong_to_the_selected_model,
       codex_project_modes_are_enforced, codex_fork_keeps_the_source_unchanged,
-      codex_steer_targets_the_active_turn]
+      codex_steer_targets_the_active_turn, codex_forks_first_turn_leads_with_the_persons_text]
   - rule: Actual openings project only enabled managed items; cached adapters are not reconfigured.
     tested_by: [opening_projects_only_enabled_extensions]
   - rule: Disabled cached plugins remain explicitly false; user-owned content is preserved.
@@ -656,8 +656,14 @@ obligations:
       Standards::current_in supplies opening additions; Turns::standards_for_invocation_in
       resolves the recorded pin through Standards in one read snapshot.
       Effective standards reach the session at opening, then once after each
-      base or additions version change, between turns. A fork receives them
-      even before it has an invocation of its own. Every person's prompt ends
+      base or additions version change, between turns. A Claude fork keeps its
+      parent's prompt, so it receives them even before it has an invocation of
+      its own; a Codex fork's `thread/fork` takes them as its developer
+      instructions, so it heard its opening as a new thread did and its first
+      turn does not repeat them after the person's text
+      (`Harness::keeps_parent_prompt`, used by both the turn and the
+      forget/reset path; codex_forks_first_turn_leads_with_the_persons_text).
+      Every person's prompt ends
       with the stage line, including Send now.
       The Planner's standards text names each base kind with its presence
       (`required`, `waivable with a reason` or `optional`) and the base rules.

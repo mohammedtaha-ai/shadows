@@ -52,8 +52,8 @@ impl Harness {
                 )),
             },
             Forgot::Replayed => Ok(()),
-            Forgot::Written { fork } => {
-                self.sessions.setups.reset(thread, fork);
+            Forgot::Written { parent_prompt } => {
+                self.sessions.setups.reset(thread, parent_prompt);
                 Ok(())
             }
         }

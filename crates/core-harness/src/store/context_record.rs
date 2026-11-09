@@ -12,8 +12,9 @@ pub(crate) enum Forgot {
     Aylul,
     /// A request replayed with its command id; nothing written.
     Replayed,
-    /// The forget is recorded; `fork` says whether the thread's session is a fork's.
-    Written { fork: bool },
+    /// The forget is recorded; `parent_prompt` says whether the thread's
+    /// session holds its parent's prompt rather than its own opening's.
+    Written { parent_prompt: bool },
 }
 
 impl HarnessStore {
@@ -172,7 +173,10 @@ impl HarnessStore {
                         .await?;
                     }
                     Ok(Forgot::Written {
-                        fork: context.fork_session_id.is_some(),
+                        parent_prompt: crate::Harness::keeps_parent_prompt(
+                            &context.harness,
+                            context.fork_session_id.is_some(),
+                        ),
                     })
                 })
             })
