@@ -14,7 +14,10 @@ use shadows_core::ErrorCode;
 use shadows_core::StartError;
 
 mod other;
+mod runs;
 mod storage;
+
+pub use runs::{RunFailure, RunRefusal};
 
 #[cfg(test)]
 mod mapping_tests;

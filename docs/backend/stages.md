@@ -170,7 +170,7 @@ Design: [executors](specs/2026-11-08-executors-design.md), approved 2026-11-08. 
 - Done when: the plan's B-92 tests pass.
 
 ### B-93 · Task attempts over HTTP
-- Status: ready
+- Status: done (routes under `/api/workflows/{workflow}/versions/{version}/tasks/{task}` and `/api/attempts/{id}`, no project segment; live end-to-end over HTTP passed)
 - Plan: [B-93](plans/2026-11-08-executors.md#b-93-runs-over-http).
 - Owner: `shadows-http` (translation only).
 - Needs: B-92; `docs/shared/requests/2026-11-08-task-run-page.md` (accepted).

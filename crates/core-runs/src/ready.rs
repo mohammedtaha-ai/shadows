@@ -1,9 +1,62 @@
-//! One job: whether a task's `needs` links have been met.
-use crate::model::Need;
+//! One job: whether a task may start now — its `needs` links and Start's
+//! checks, answered without writing.
+use crate::model::{Need, StartAnswer};
+use crate::store::NewAttempt;
 use crate::{Runs, RunsError};
-use core_plans::{LinkKind, Plan, TaskParent};
+use core_plans::{LinkKind, Plan, TaskParent, WorkflowId};
 
 impl Runs {
+    /// Whether Start may run now, by the same checks in the same order as
+    /// Start, without writing. A refusal is an answer; a failure to read is
+    /// an error.
+    pub async fn can_start(
+        &self,
+        workflow: &WorkflowId,
+        version: i64,
+        task: u32,
+    ) -> Result<StartAnswer, RunsError> {
+        let plan = self.plan(workflow, version).await?;
+        self.start_answer(&plan, task).await
+    }
+
+    pub(crate) async fn start_answer(
+        &self,
+        plan: &Plan,
+        task: u32,
+    ) -> Result<StartAnswer, RunsError> {
+        let checked = match self.checks(plan, task).await {
+            Ok(content) => {
+                self.inner
+                    .store
+                    .check_held(&NewAttempt {
+                        command_id: String::new(),
+                        fingerprint: String::new(),
+                        project: plan.project_id.clone(),
+                        workflow: plan.id.clone(),
+                        version: plan.version,
+                        task,
+                        model: String::new(),
+                        writes: content.writes,
+                    })
+                    .await
+            }
+            Err(error) => Err(error),
+        };
+        match checked {
+            Ok(()) => Ok(StartAnswer {
+                allowed: true,
+                code: None,
+                reason: None,
+            }),
+            Err(error) if error.refuses_start() => Ok(StartAnswer {
+                allowed: false,
+                code: Some(error.code().to_string()),
+                reason: Some(error.to_string()),
+            }),
+            Err(error) => Err(error),
+        }
+    }
+
     /// The tasks `task` needs, in link order, each with whether the person
     /// marked it done. A link to another plan reads the mark of the version the
     /// link reaches, that plan's latest; one that reaches no task is never done.

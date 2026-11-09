@@ -33,6 +33,8 @@ modules:
   aylul_extensions.rs: Extensions library HTTP translation
   transport.rs: shared HTTP request execution
   sse.rs: Events stream framing through private handlers
+  runs.rs: Runs service HTTP translation
+  failure/runs.rs: run failure status mapping
 agreements:
   - between: [aylul_extensions::tools, aylul_extensions::tool_rules]
     must: Delegate per-agent MCP discovery and rule replacement to AppCore.extensions; discovery failures preserve stored rules.
@@ -86,6 +88,27 @@ planning_context:
   resend: 'Answers 200 { owed: true } after Harness::forget_context(Forget::Request); a missing thread is 404, an AYLUL thread is 422 INVALID_COMMAND, a replay with other params 409.'
   wire: Lowercase anchor kinds map to the existing DesignAnchor enum without changing its other callers.
   absent_record: 404 CONTEXT_NOT_CARRIED, with no assertion about the reason.
+
+runs:
+  module: runs.rs
+  routes:
+    - 'GET /api/workflows/{workflow}/versions/{version}/tasks/{task} -> Runs::task (TaskRun with needs, start, suggested_model)'
+    - 'GET /api/workflows/{workflow}/versions/{version}/tasks/{task}/attempts -> Runs::attempts'
+    - 'POST /api/workflows/{workflow}/versions/{version}/tasks/{task}/attempts -> Runs::start, 201, run detached'
+    - 'PUT /api/workflows/{workflow}/versions/{version}/tasks/{task}/done -> Runs::mark_done'
+    - 'POST /api/attempts/{id}/stop -> Runs::stop, run detached'
+    - 'GET /api/attempts/{id}/diff -> Runs::diff'
+  refusals: >
+    A Runs refusal is 409 RunRefusal { code, reason } with Runs' own opaque code, the same
+    codes a task's start answer carries; NotFound is 404, Storage and Unavailable 5xx
+    ErrorBody (failure/runs.rs).
+  paths: Plan versions are global ids, as /api/workflows/{id} already is; no project segment.
+  tested_by: [the_task_answers_its_needs_start_and_suggested_model,
+    start_while_waiting_is_409_with_the_waiting_tasks, a_replayed_start_returns_the_same_attempt,
+    the_attempts_are_listed_newest_first, stop_answers_the_attempt_as_it_stands,
+    the_diff_of_an_attempt_with_no_commit_is_empty, a_done_mark_frees_the_tasks_that_need_it,
+    the_folder_decides_start_not_git_and_dirty_scope,
+    live_a_task_started_over_http_commits_only_its_writes]
 
 map_refusals: 'MAP_REFUSED is HTTP 422 with the rule-prefixed domain message; shared adapter fixtures cover it.'
 

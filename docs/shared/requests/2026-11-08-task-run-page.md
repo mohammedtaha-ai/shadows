@@ -37,6 +37,14 @@ Accepted: `Runs::can_start` answers `start` with the same checks as `Runs::start
 writing; `needs` comes from the version's `needs` links and Runs' done marks. Owner `core-runs`,
 routes in `shadows-http` (B-93). No other public field is added.
 
+As built (B-93): `needs[].task` is the task's number for a task of this version, and
+`{ plan_id, task }` for a task of another plan (a `needs` link may cross plans; its `done` is
+that task's mark in the version the link reaches). The routes take no project segment, as
+`/api/workflows/{id}` does not: `/api/workflows/{workflow}/versions/{version}/tasks/{task}`
+(with `/attempts` and `/done`), and `/api/attempts/{id}/stop` and `/api/attempts/{id}/diff`.
+A refusal is 409 `{ code, reason }`; `bad_scope` (the task's `writes` are not valid patterns)
+and `command_conflict` join the codes above. `api/openapi.json` carries the exact types.
+
 ## Frontend reply
 
 Accepted by the controller for F-98: Start's state and reason come only from `start`; the page

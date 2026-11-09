@@ -37,6 +37,7 @@ use utoipa::OpenApi;
         (name = "threads", description = "Planning threads and their entries"),
         (name = "turns", description = "Starting and stopping a Planner turn"),
         (name = "workflows", description = "Plan versions and a person's approval of one"),
+        (name = "runs", description = "Executor attempts at a task of an approved plan version"),
         (name = "grants", description = "External agents' access to the MCP server"),
         (name = "code", description = "The code index: where a name is defined or used, what a \
                                        path holds, and the projects a project reads"),

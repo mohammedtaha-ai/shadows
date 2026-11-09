@@ -149,6 +149,7 @@ pattern to follow, not merely an example.
 | `crates/shadows-http/src/harness.rs` | the routes over harnesses, their sessions included | `crates/shadows-http/src/harness.rs` |
 | `crates/shadows-http/src/thread.rs` | the routes that change a planning thread itself | `crates/shadows-http/src/thread.rs` |
 | `crates/shadows-http/src/workflow.rs` | the routes over plan versions | `crates/shadows-http/src/workflow.rs` |
+| `crates/shadows-http/src/runs.rs` | the routes over a task's attempts | `crates/shadows-http/src/contract.yaml` |
 | `crates/shadows-http/src/grants.rs` | the routes over external agents' MCP grants | `crates/shadows-http/src/grants.rs` |
 | `crates/shadows-http/src/instructions.rs` | the routes over a project's Planner instructions | `crates/shadows-http/src/instructions.rs` |
 | `crates/shadows-http/src/design.rs` | the routes over a project's design workspace | `crates/shadows-http/src/design.rs` |
@@ -161,6 +162,7 @@ pattern to follow, not merely an example.
 | `crates/shadows-http/src/openapi.rs` | the OpenAPI document describing this API | `crates/shadows-http/src/openapi.rs` |
 | `crates/shadows-http/src/failure/` | the transport mapping of a failure | `crates/shadows-http/src/failure/mod.rs` |
 | `crates/shadows-http/src/failure/storage.rs` | how a storage failure becomes a status | `crates/shadows-http/src/failure/storage.rs` |
+| `crates/shadows-http/src/failure/runs.rs` | how a run's failure becomes a status | `crates/shadows-http/src/contract.yaml` |
 | `crates/shadows-http/src/failure/cases.rs` | shared transport error expectations | `crates/shadows-core/src/error.rs` |
 | `crates/shadows-http/src/failure/mapping_tests.rs` | HTTP error mapping acceptance | `crates/shadows-core/src/error.rs` |
 | `crates/shadows-http/src/failure/other.rs` | how a start, core or directory failure becomes a status | `crates/shadows-http/src/failure/other.rs` |
@@ -188,7 +190,7 @@ pattern to follow, not merely an example.
 | `crates/core-runs/src/model.rs` | attempt values | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/error.rs` | run refusals | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/scope.rs` | matching paths against a task's writes | `crates/core-runs/contract.yaml` |
-| `crates/core-runs/src/ready.rs` | the rule for needs links | `crates/core-runs/contract.yaml` |
+| `crates/core-runs/src/ready.rs` | whether a task may start now | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/start.rs` | starting an attempt | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/stop.rs` | stopping an attempt | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/git.rs` | git calls in a project folder | `crates/core-runs/contract.yaml` |

@@ -70,6 +70,13 @@ impl Runs {
                 .abandon(attempt, format!("session did not open: {error}"))
                 .await;
         }
+        // A Stop while the session opened found no turn to stop: send none,
+        // and close the session it may have closed before it existed.
+        let now = self.inner.store.get(&attempt.id).await?;
+        if now.state != AttemptState::Running {
+            self.release(&attempt.id, &attempt.thread_id).await;
+            return Ok(now);
+        }
         let sent = self
             .inner
             .turns
@@ -100,6 +107,12 @@ impl Runs {
             .store
             .set_operation(&attempt.id, &operation)
             .await?;
+        // A Stop between that check and this record saw no turn: stop it here.
+        if self.inner.store.get(&attempt.id).await?.state != AttemptState::Running
+            && let Err(error) = self.inner.turns.stop(&operation).await
+        {
+            tracing::warn!(attempt = %attempt.id, %error, "runs.late_stop_failed");
+        }
         self.watch(attempt.id.clone(), attempt.thread_id.clone(), operation);
         self.inner.store.get(&attempt.id).await
     }

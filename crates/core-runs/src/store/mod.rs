@@ -6,9 +6,9 @@ use std::sync::Arc;
 
 use sqlx::SqliteConnection;
 
+use crate::RunsError;
 use crate::model::{Attempt, AttemptId, AttemptState};
 use crate::scope::Scope;
-use crate::{RunsError, model::TaskRun};
 use core_db::{Storage, StorageError};
 use core_operations::OperationId;
 use core_plans::WorkflowId;
@@ -158,6 +158,18 @@ impl RunsStore {
             Some((id, _)) => Ok(Some(Self::load(conn, &AttemptId::from_recorded(id)).await?)),
             None => Ok(None),
         }
+    }
+
+    /// The busy and overlap checks of `begin_attempt`, read without writing:
+    /// what Start would answer now. Only `begin_attempt`'s write decides.
+    pub(crate) async fn check_held(&self, new: &NewAttempt) -> Result<(), RunsError> {
+        let mut conn = self
+            .storage
+            .reader()
+            .acquire()
+            .await
+            .map_err(StorageError::from)?;
+        Self::check_free(&mut conn, new).await
     }
 
     /// An attempt holds its scope until `released_at`, whatever its state.
@@ -384,25 +396,5 @@ impl RunsStore {
             .into_iter()
             .map(Self::into_attempt)
             .collect::<Result<_, _>>()?)
-    }
-
-    pub(crate) async fn task_run(
-        &self,
-        workflow: &WorkflowId,
-        version: i64,
-        task: u32,
-    ) -> Result<TaskRun, RunsError> {
-        let latest = self
-            .attempts(workflow, version, task)
-            .await?
-            .into_iter()
-            .next();
-        let mark = self.mark(workflow, version, task).await?;
-        Ok(TaskRun {
-            task,
-            done: mark.as_ref().is_some_and(|m| m.0),
-            done_at: mark.and_then(|m| m.1),
-            latest,
-        })
     }
 }

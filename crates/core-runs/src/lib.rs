@@ -26,7 +26,8 @@ use std::sync::{Arc, Mutex};
 
 pub use error::RunsError;
 pub use model::{
-    Attempt, AttemptId, AttemptState, CommitResult, FileDiff, Need, RecoverReport, TaskRun,
+    Attempt, AttemptId, AttemptState, CommitResult, FileDiff, Need, RecoverReport, StartAnswer,
+    TaskRun,
 };
 pub use scope::Scope;
 
@@ -97,14 +98,52 @@ impl Runs {
         }
     }
 
-    /// The task, whether it was marked done, and its latest attempt.
+    /// The task as its page reads it: whether it was marked done, its latest
+    /// attempt, the tasks it needs, Start's answer and the model to offer.
     pub async fn task(
         &self,
         workflow: &WorkflowId,
         version: i64,
         task: u32,
     ) -> Result<TaskRun, RunsError> {
-        self.inner.store.task_run(workflow, version, task).await
+        let plan = self.plan(workflow, version).await?;
+        if !plan.tasks.iter().any(|t| t.content.number == task) {
+            return Err(RunsError::NotFound);
+        }
+        let latest = self
+            .attempts(workflow, version, task)
+            .await?
+            .into_iter()
+            .next();
+        let mark = self.inner.store.mark(workflow, version, task).await?;
+        Ok(TaskRun {
+            task,
+            done: mark.as_ref().is_some_and(|m| m.0),
+            done_at: mark.and_then(|m| m.1),
+            latest,
+            needs: self.needs(&plan, task).await?,
+            start: self.start_answer(&plan, task).await?,
+            suggested_model: self.suggested_model(&plan).await,
+        })
+    }
+
+    /// The model the plan's Planner conversation last asked for: its newest
+    /// turn that recorded one. None for a plan an external agent wrote.
+    async fn suggested_model(&self, plan: &core_plans::Plan) -> Option<String> {
+        let core_plans::WrittenBy::Planner { thread_id, .. } = &plan.written_by else {
+            return None;
+        };
+        match self.inner.turns.operations(thread_id).await {
+            Ok(operations) => operations
+                .into_iter()
+                .filter_map(|op| op.invocation.map(|i| (op.created_at, i.requested_model)))
+                .max_by(|a, b| a.0.cmp(&b.0))
+                .map(|(_, model)| model),
+            Err(error) => {
+                tracing::warn!(%thread_id, %error, "runs.suggested_model_unread");
+                None
+            }
+        }
     }
 
     /// A task's attempts, newest first.

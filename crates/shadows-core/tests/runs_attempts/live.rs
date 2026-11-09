@@ -231,6 +231,58 @@ async fn live_an_executor_turn_in_another_mode_is_refused() {
     f.finish().await;
 }
 
+/// Stop while Start is still opening the real session: Start sends no turn on
+/// the stopped attempt, and no session is left open.
+#[tokio::test]
+#[ignore = "live: needs API_KEY_MINIMAX"]
+async fn live_stop_while_the_session_opens_sends_no_turn() {
+    let (f, _live) = live_fixture().await;
+    f.core
+        .runs()
+        .set_first_prompt_for_tests("Use the Write tool to create web/late.txt containing A.");
+    let core = f.core.clone();
+    let workflow = f.workflow.clone();
+    let starting = tokio::spawn(async move {
+        core.runs()
+            .start("live-open".into(), &workflow, 1, 5, PICKED.into())
+            .await
+    });
+    let attempt = loop {
+        let listed = f.core.runs().attempts(&f.workflow, 1, 5).await.unwrap();
+        if let Some(attempt) = listed.into_iter().next() {
+            break attempt;
+        }
+        tokio::time::sleep(Duration::from_millis(5)).await;
+    };
+    assert!(
+        attempt.operation_id.is_none(),
+        "the turn was sent before Stop"
+    );
+    let stopped = f.core.runs().stop(&attempt.id).await.unwrap();
+    assert_eq!(stopped.state, AttemptState::Stopped);
+    let started = starting.await.unwrap().unwrap();
+    println!(
+        "live stop while opening: {:?} {:?}",
+        started.state, started.reason
+    );
+    assert_eq!(started.state, AttemptState::Stopped);
+    assert!(
+        started.operation_id.is_none(),
+        "a turn was sent: {started:?}"
+    );
+    let operations = f.core.turns().operations(&attempt.thread_id).await.unwrap();
+    assert!(operations.is_empty(), "{operations:?}");
+    for _ in 0..100 {
+        if f.sessions.live_count().await == 0 {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+    assert_eq!(f.sessions.live_count().await, 0);
+    assert!(!f.root.join("web/late.txt").exists());
+    f.finish().await;
+}
+
 #[tokio::test]
 #[ignore = "live: needs API_KEY_MINIMAX"]
 async fn live_stop_ends_a_running_attempt_and_frees_its_scope() {

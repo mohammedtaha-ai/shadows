@@ -64,6 +64,23 @@ impl RunsError {
         }
     }
 
+    /// Whether this is a reason Start does not run now, as opposed to a
+    /// request that names nothing or a failure to read.
+    pub fn refuses_start(&self) -> bool {
+        matches!(
+            self,
+            Self::NotFrozen
+                | Self::Superseded
+                | Self::Archived
+                | Self::Waiting { .. }
+                | Self::TaskBusy
+                | Self::Overlap { .. }
+                | Self::NotGit
+                | Self::DirtyScope { .. }
+                | Self::BadScope(_)
+        )
+    }
+
     /// `T1, plan … T2`: the tasks a refusal names, as a person reads them.
     fn named(tasks: &[TaskParent]) -> String {
         tasks

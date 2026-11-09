@@ -26,7 +26,7 @@ modules:
   model.rs: attempt types
   error.rs: run refusals
   scope.rs: the pattern matcher shared by the overlap check and the commit
-  ready.rs: the rule for needs links
+  ready.rs: whether a task may start now
   git.rs: git calls in a project folder
   start.rs: starting an attempt
   stop.rs: stopping an attempt
@@ -55,6 +55,8 @@ shapes:
     operation_id: the operation of its turn; absent until the turn starts
     commit: absent until a commit exists
   Need: "{ task: TaskParent, title, done }: a task this one needs, in link order"
+  TaskRun: "{ task, done, done_at, latest, needs, start: StartAnswer, suggested_model }"
+  StartAnswer: "{ allowed, code, reason }: code and reason null when allowed"
   CommitResult: "{ attempt, files, left }: what was committed and the changed paths outside writes left in the folder"
   FileDiff: "{ path, added, removed, patch }: the patch cut at 2,000 lines with a marker"
   RunsError: [NotFrozen, Superseded, Archived, Waiting, TaskBusy, Overlap, NotGit, DirtyScope, LinkInScope, AlreadyCommitted, NothingToCommit, HeadMoved, CommandConflict, NotFound, BadScope, Unavailable, Storage]
@@ -62,11 +64,12 @@ shapes:
 
 functions:
   new: "(storage, plans, harness, turns, projects) -> Runs; AppCore constructs the service"
-  start: "(command, workflow, version, task, model) -> Attempt; a replay answers the first attempt before any check the plan's later state could fail, the same id with other input is CommandConflict; then the version, the task, its needs links, then the folder: NotGit, or DirtyScope when git lists a changed path inside writes; an attempt whose session or turn cannot start is recorded, so it is answered Failed with its reason, not refused"
+  start: "(command, workflow, version, task, model) -> Attempt; a replay answers the first attempt before any check the plan's later state could fail, the same id with other input is CommandConflict; then the version, the task, its needs links, then the folder: NotGit, or DirtyScope when git lists a changed path inside writes; an attempt whose session or turn cannot start is recorded, so it is answered Failed with its reason, not refused; once the session opened it sends the turn only if the attempt is still Running (a Stop while the session opened found no turn to stop), and a Stop between that check and the turn's record stops the turn"
+  can_start: "(workflow, version, task) -> StartAnswer; Start's checks in Start's order (the version, the task, its needs, the folder, then the busy and overlap check read without writing); a refusal is an answer with RunsError::code and its text, a failure to read is an error"
   stop: "(attempt) -> Attempt; waits for the turn's confirmed end"
   commit: "(grant, message) -> CommitResult; the executor grant's attempt must be Running (Committed is AlreadyCommitted); git status lists the changed paths git does not ignore, a rename as both ends; those matching writes are committed through a temporary index on HEAD, HEAD moves only if it did not move meanwhile (HeadMoved), and the real index is brought to the commit for those paths only; nothing inside writes is NothingToCommit; a path inside writes through a link or junction is LinkInScope and fails the attempt"
   diff: "(attempt) -> Vec<FileDiff>; each file of the attempt's commit, nothing before it commits"
-  task: "(workflow, version, task) -> TaskRun"
+  task: "(workflow, version, task) -> TaskRun; needs from the version's needs links and the done marks, start from can_start, suggested_model the model the plan's Planner conversation last asked for (none for an external writer)"
   attempts: "(workflow, version, task) -> Vec<Attempt>, newest first"
   mark_done: "(command, workflow, version, task, done) -> TaskRun; the command record keeps every mark command: a replay writes nothing, the same id with other input is CommandConflict"
   recover: "() -> RecoverReport; a Running attempt whose commit git holds becomes Committed with it, every other Interrupted; none restarted"
@@ -105,6 +108,10 @@ obligations:
     tested_by: [start_refuses_a_folder_that_is_not_git, start_refuses_uncommitted_changes_in_writes]
   - rule: Stop ends the attempt, closes its session, revokes its grant and frees its scope.
     tested_by: [stop_ends_the_attempt_and_closes_its_session, live_stop_ends_a_running_attempt_and_frees_its_scope]
+  - rule: A Stop while Start opens the session leaves the attempt Stopped with no turn sent and no session open.
+    tested_by: [live_stop_while_the_session_opens_sends_no_turn]
+  - rule: A task's read answers its needs, whether Start may run and why not, by Start's own checks, without writing.
+    tested_by: [the_task_answers_its_needs_start_and_suggested_model, a_done_mark_frees_the_tasks_that_need_it, the_folder_decides_start_not_git_and_dirty_scope]
   - rule: On the real adapter, an executor runs in mode default; a Write inside its writes runs unasked, one outside is refused and never reaches the folder or git.
     tested_by: [live_an_executor_writes_inside_its_task_in_mode_default_and_is_refused_outside]
   - rule: On a real executor session, a turn in any mode but default is refused before anything is written.
@@ -143,4 +150,6 @@ obligations:
 tests:
   shadows-core/tests/runs_attempts.rs: attempts through AppCore over the fake adapter, in a real git repository
   shadows-core/tests/runs_attempts/commit.rs: commits in a real git repository; the test plays the executor, no agent runs
+  shadows/tests/runs_routes.rs: the HTTP routes over Runs, in a real git repository, with no adapter to open
+  shadows/tests/runs_routes/live.rs: a task started over HTTP on the real adapter commits through task_commit on the real /mcp; ignored in CI
   shadows-core/tests/runs_attempts/live.rs: attempts on the real adapter against MiniMax in a real git repository; ignored in CI, run with API_KEY_MINIMAX and `-- --ignored --test-threads=1`

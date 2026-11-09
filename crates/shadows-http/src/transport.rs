@@ -27,6 +27,13 @@ impl Transport {
     pub(super) async fn detached<T: Send + 'static>(
         work: impl Future<Output = Result<T, Failure>> + Send + 'static,
     ) -> Result<T, Failure> {
+        Self::detached_as(work).await
+    }
+
+    /// As `detached`, for a route whose failure is not `Failure`.
+    pub(super) async fn detached_as<T: Send + 'static, E: Send + 'static>(
+        work: impl Future<Output = Result<T, E>> + Send + 'static,
+    ) -> Result<T, E> {
         match tokio::spawn(work.in_current_span()).await {
             Ok(answer) => answer,
             Err(error) => std::panic::resume_unwind(error.into_panic()),

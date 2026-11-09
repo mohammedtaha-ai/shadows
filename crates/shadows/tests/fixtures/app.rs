@@ -114,7 +114,28 @@ pub async fn test_app_unseeded_with(dir: &Path, config: SessionsConfig, mcp_url:
     assemble(dir, config, mcp_url, false).await
 }
 
+/// As `test_app_with`, its sessions on `adapter` instead of `fake_acp`: a
+/// missing one, or the real adapter of a live test.
+pub async fn test_app_on(
+    dir: &Path,
+    config: SessionsConfig,
+    mcp_url: &str,
+    adapter: Arc<shadows_agent::claude::ClaudeAdapter>,
+) -> App {
+    assemble_on(dir, config, mcp_url, true, adapter).await
+}
+
 async fn assemble(dir: &Path, config: SessionsConfig, mcp_url: &str, roadmap: bool) -> App {
+    assemble_on(dir, config, mcp_url, roadmap, acp::fake_adapter()).await
+}
+
+async fn assemble_on(
+    dir: &Path,
+    config: SessionsConfig,
+    mcp_url: &str,
+    roadmap: bool,
+    adapter: Arc<shadows_agent::claude::ClaudeAdapter>,
+) -> App {
     let db = dir.join("s.sqlite3");
     let storage = Arc::new(Storage::open(&db).await.unwrap());
     let (runtime, _report) = shadows_core::AppCore::runtime_for_tests(storage.clone())
@@ -162,8 +183,7 @@ async fn assemble(dir: &Path, config: SessionsConfig, mcp_url: &str, roadmap: bo
         secrets: Some(secrets.clone()),
         ..config
     };
-    let sessions =
-        shadows_core::AppCore::harness_for_tests(acp::fake_adapter(), storage.clone(), config);
+    let sessions = shadows_core::AppCore::harness_for_tests(adapter, storage.clone(), config);
     let handles = Arc::new(LiveHandles::default());
     let (bus, _) = tokio::sync::broadcast::channel(256);
     let (ui, _) = tokio::sync::broadcast::channel(64);

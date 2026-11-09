@@ -184,6 +184,21 @@ async fn no_get_route_changes_state() {
         )
         .await
         .unwrap();
+    // An attempt as Start records one, for the attempt reads.
+    sqlx::query(
+        "INSERT INTO run_attempts
+           (id, project_id, workflow_id, version, task, number, thread_id, model, state,
+            writes_json, started_at, ended_at, released_at, command_id, fingerprint)
+         VALUES ('read-attempt', ?, ?, 1, 1, 1, ?, 'fake-large', 'failed', '[\"src/t1.rs\"]',
+                 '2026-10-05T00:00:00Z', '2026-10-05T00:00:01Z', '2026-10-05T00:00:01Z',
+                 'read-attempt', 'f')",
+    )
+    .bind(a.project.as_str())
+    .bind(workflow.as_str())
+    .bind(a.thread.as_str())
+    .execute(a.storage.reader())
+    .await
+    .unwrap();
     let mut observer = shadows_core::testing::DatabaseWrites::observe(&a.storage)
         .await
         .unwrap();
@@ -229,6 +244,9 @@ async fn no_get_route_changes_state() {
                 "id" if template.starts_with("/api/plans/") => version.plan_id.to_string(),
                 "id" if template.starts_with("/api/groups/") => group.id.to_string(),
                 "id" if template.starts_with("/api/operations/") => op.to_string(),
+                "id" if template.starts_with("/api/attempts/") => "read-attempt".into(),
+                "workflow" => workflow.to_string(),
+                "version" | "task" => "1".into(),
                 "slug" if template.starts_with("/api/aylul/agents/") => "aylul".into(),
                 "agreement" => agreement["agreement_id"].as_str().unwrap().to_string(),
                 "attachment_id" => attachment.id.to_string(),
