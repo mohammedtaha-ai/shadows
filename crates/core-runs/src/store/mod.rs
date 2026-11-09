@@ -1,4 +1,8 @@
 //! Runs' private persistence: attempts and task marks.
+//!
+//! `RunsStore` is private to the crate, so its methods are `pub` only to
+//! the service; no other service's write calls into it, and nothing here is
+//! `pub(crate)` or declared under `shared_in_transaction`.
 mod marks;
 mod recover;
 
@@ -35,7 +39,7 @@ type AttemptRow = (
     Option<String>,
 );
 
-pub(crate) struct RunsStore {
+pub(super) struct RunsStore {
     storage: Arc<Storage>,
 }
 
@@ -58,13 +62,13 @@ pub(crate) struct Begun {
 }
 
 impl RunsStore {
-    pub(crate) fn with_storage(storage: Arc<Storage>) -> Self {
+    pub fn with_storage(storage: Arc<Storage>) -> Self {
         Self { storage }
     }
 
     /// The replay check, the busy check, the overlap check and the insert are
     /// one write, so two concurrent Starts cannot both pass.
-    pub(crate) async fn begin_attempt(&self, new: NewAttempt) -> Result<Begun, RunsError> {
+    pub async fn begin_attempt(&self, new: NewAttempt) -> Result<Begun, RunsError> {
         let ts = Storage::now();
         self.storage
             .write_txn_as(move |conn| {
@@ -127,7 +131,7 @@ impl RunsStore {
 
     /// The attempt `command` already started, read before any check that the
     /// plan's later state could change.
-    pub(crate) async fn replay(
+    pub async fn replay(
         &self,
         command: &str,
         fingerprint: &str,
@@ -162,7 +166,7 @@ impl RunsStore {
 
     /// The busy and overlap checks of `begin_attempt`, read without writing:
     /// what Start would answer now. Only `begin_attempt`'s write decides.
-    pub(crate) async fn check_held(&self, new: &NewAttempt) -> Result<(), RunsError> {
+    pub async fn check_held(&self, new: &NewAttempt) -> Result<(), RunsError> {
         let mut conn = self
             .storage
             .reader()
@@ -200,7 +204,7 @@ impl RunsStore {
         Ok(())
     }
 
-    pub(crate) async fn get(&self, id: &AttemptId) -> Result<Attempt, RunsError> {
+    pub async fn get(&self, id: &AttemptId) -> Result<Attempt, RunsError> {
         let mut conn = self
             .storage
             .reader()
@@ -248,7 +252,7 @@ impl RunsStore {
         })
     }
 
-    pub(crate) async fn set_operation(
+    pub async fn set_operation(
         &self,
         id: &AttemptId,
         operation: &OperationId,
@@ -270,7 +274,7 @@ impl RunsStore {
 
     /// Leaves `Running` for `state`. Answers whether this call moved it: an
     /// attempt that already left `Running` keeps the state it has.
-    pub(crate) async fn finish(
+    pub async fn finish(
         &self,
         id: &AttemptId,
         state: AttemptState,
@@ -298,7 +302,7 @@ impl RunsStore {
 
     /// The latest attempt of the task `scope` names on `thread`: the one an
     /// executor grant belongs to.
-    pub(crate) async fn executor_attempt(
+    pub async fn executor_attempt(
         &self,
         thread: &ThreadId,
         scope: &core_grants::TaskScope,
@@ -319,7 +323,7 @@ impl RunsStore {
     }
 
     /// The `writes` the attempt was started with.
-    pub(crate) async fn writes(&self, id: &AttemptId) -> Result<Vec<String>, RunsError> {
+    pub async fn writes(&self, id: &AttemptId) -> Result<Vec<String>, RunsError> {
         let writes: String =
             sqlx::query_scalar("SELECT writes_json FROM run_attempts WHERE id = ?")
                 .bind(id.as_str())
@@ -332,7 +336,7 @@ impl RunsStore {
     /// Records the commit git already holds. A `Running` attempt becomes
     /// `Committed`; one that left `Running` meanwhile keeps its state and
     /// still names its commit.
-    pub(crate) async fn record_commit(&self, id: &AttemptId, sha: &str) -> Result<(), RunsError> {
+    pub async fn record_commit(&self, id: &AttemptId, sha: &str) -> Result<(), RunsError> {
         let (id, sha, ts) = (id.clone(), sha.to_string(), Storage::now());
         self.storage
             .write_txn_as(move |conn| {
@@ -355,7 +359,7 @@ impl RunsStore {
     }
 
     /// The attempt's session cannot write any more: its scope is free.
-    pub(crate) async fn release(&self, id: &AttemptId) -> Result<(), RunsError> {
+    pub async fn release(&self, id: &AttemptId) -> Result<(), RunsError> {
         let (id, ts) = (id.clone(), Storage::now());
         self.storage
             .write_txn_as(move |conn| {
@@ -375,7 +379,7 @@ impl RunsStore {
     }
 
     /// A task's attempts, newest first.
-    pub(crate) async fn attempts(
+    pub async fn attempts(
         &self,
         workflow: &WorkflowId,
         version: i64,

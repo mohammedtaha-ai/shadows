@@ -9,7 +9,7 @@ const MARK_SCOPE: &str = "run.mark_done";
 
 impl RunsStore {
     /// `(done, done_at)`, when the task was ever marked.
-    pub(crate) async fn mark(
+    pub async fn mark(
         &self,
         workflow: &WorkflowId,
         version: i64,
@@ -30,7 +30,7 @@ impl RunsStore {
     /// A replay of the same command with the same request writes nothing, and
     /// with another request is a conflict. The command record keeps every
     /// command, so a later mark of the same task does not forget an earlier one.
-    pub(crate) async fn put_mark(
+    pub async fn put_mark(
         &self,
         command: CommandContext,
         (workflow, version, task): (&WorkflowId, i64, u32),

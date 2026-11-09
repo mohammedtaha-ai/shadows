@@ -7,7 +7,7 @@ use core_threads::ThreadId;
 
 impl RunsStore {
     /// Each project with an attempt still `Running`, once, in a stable order.
-    pub(crate) async fn running_projects(&self) -> Result<Vec<ProjectId>, RunsError> {
+    pub async fn running_projects(&self) -> Result<Vec<ProjectId>, RunsError> {
         let rows: Vec<String> = sqlx::query_scalar(
             "SELECT DISTINCT project_id FROM run_attempts
              WHERE state = 'running' ORDER BY project_id",
@@ -22,7 +22,7 @@ impl RunsStore {
     /// becomes `Interrupted`. Every attempt still holding its scope releases it,
     /// because no session of an earlier daemon is left to write. Answers how
     /// many were committed and how many interrupted.
-    pub(crate) async fn settle_running(
+    pub async fn settle_running(
         &self,
         found: Vec<(String, String)>,
     ) -> Result<(u32, u32), RunsError> {

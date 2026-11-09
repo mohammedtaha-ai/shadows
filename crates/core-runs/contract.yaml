@@ -71,6 +71,9 @@ functions:
   diff: "(attempt) -> Vec<FileDiff>; each file of the attempt's commit, nothing before it commits"
   task: "(workflow, version, task) -> TaskRun; needs from the version's needs links and the done marks, start from can_start, suggested_model the model the plan's Planner conversation last asked for (none for an external writer)"
   attempts: "(workflow, version, task) -> Vec<Attempt>, newest first"
+  attempt: "(attempt) -> Attempt; one attempt as it stands, NotFound for an unknown id"
+  set_first_prompt_for_tests: "test-support only: (prompt) scripts the first prompt of later attempts"
+  set_hooks_for_tests: "test-support only: (Hooks) sets what later commits make happen"
   mark_done: "(command, workflow, version, task, done) -> TaskRun; the command record keeps every mark command: a replay writes nothing, the same id with other input is CommandConflict"
   recover: "() -> RecoverReport; a Running attempt whose commit git holds becomes Committed with it, every other Interrupted; none restarted"
 
@@ -88,8 +91,14 @@ transitions:
 # proves nothing about whether the session can still write.
 
 agreements:
-  - rule: One matcher decides overlap at Start, the dirty check at Start and the commit.
-    where: scope.rs
+  - between: [check_free, checks, commit]
+    rule: One matcher decides overlap at Start, the dirty check at Start and the commit.
+    holds: true
+    why: >
+      `check_free` asks `Scope::may_overlap` of the held attempts' writes, `checks`
+      filters git's changed paths through `Scope::admits`, and `commit` builds its
+      paths through the same `Scope`; scope.rs is the one place a pattern is read.
+    tested_by: [overlapping_tasks_cannot_start_together, start_refuses_uncommitted_changes_in_writes, commit_takes_only_the_paths_in_writes]
 
 obligations:
   - rule: Start opens one Running attempt on an executor thread with the model given.
