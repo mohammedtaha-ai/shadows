@@ -245,6 +245,6 @@ modules:
 
 structure_removal_migrations: 0048 removes starter files from Design parts and map versions; 0049 drops structure-write bookkeeping without touching disk.
 
-runs_migration: 0051 adds run_attempts (one executor attempt at a task, with the scope it holds until released_at) and run_task_marks (a person's done marks).
+runs_migration: 0052 adds run_attempts (one executor attempt at a task, with the scope it holds until released_at) and run_task_marks (a person's done marks).
 
-executor_session_migration: 0050 gives a thread a kind (planning or executor) and rebuilds mcp_grant to allow the executor kind with a nullable task scope (workflow, version, task); every existing grant row is kept.
+executor_session_migration: 0051 gives a thread a kind (planning or executor) and rebuilds mcp_grant to allow the executor kind with a nullable task scope (workflow, version, task); every existing grant row is kept.
