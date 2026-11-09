@@ -33,8 +33,8 @@ functions:
   ManagedConnection: >
     A finite ACP or Codex enum with the same session, prompt, option, cancel,
     steering, task and permission operations. Errors are ConnectionError;
-    Codex answers steering and task stop with an Rpc refusal and holds no
-    permission requests.
+    Codex answers task stop with an Rpc refusal and holds no permission
+    requests.
   CodexProgram::new: Holds the configured executable and dedicated Codex home.
   CodexProgram::process_spec: >
     `app-server --listen stdio://` with apps, plugins, hooks, multi-agent and

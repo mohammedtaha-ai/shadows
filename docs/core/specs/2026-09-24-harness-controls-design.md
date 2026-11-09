@@ -15,8 +15,8 @@ On that connection the person chooses, per conversation, which agent CLI runs it
 and, per message, which model, mode and effort; sees how full the context is and
 how much of the account's limits are left; and can copy any message and fork
 from the last one. Model and effort lists come from the harness, so a new model
-appears without a Shadows release. Claude Code only; Codex is listed and not yet
-runnable.
+appears without a Shadows release. Claude Code runs over ACP; Codex runs over its
+own app-server when the daemon is configured for it (§12.14).
 
 ## 12.1 Scope
 
@@ -40,7 +40,7 @@ Out:
 
 | Not in this milestone | Why |
 |---|---|
-| Running Codex in Milestone 1 | Listed `available: false`. The planned direct app-server integration is owned by §12.14. |
+| Running Codex in Milestone 1 | The direct app-server integration that runs it is owned by §12.14. |
 | Claude's `plan`, `default`, `dontAsk`, `bypassPermissions` modes | Not in Shadows' policy for Claude (§12.4); decided 2026-09-24. Planning is the Planner's own job (§11.6 slice 1). |
 | Asking the person to approve a permission | Still refused for the Planner (§12.2). Built for AYLUL threads: [AYLUL agents and panel §7.8](../../aylul/specs/2026-11-01-aylul-agents-and-panel-design.md). |
 | Fork, edit, or retry from a message before the last | Needs the Context Compiler (§2.11). The fork request already names the entry (§12.9). |
@@ -242,7 +242,7 @@ reports the harness's refusal, in its own words, when a model is chosen
 | Harness | Modes Shadows allows | Default of a new conversation |
 |---|---|---|
 | Claude Code | `acceptEdits`, `auto` | `acceptEdits` |
-| Codex | §12.14 defines the first direct integration and its permission gate | — until enabled |
+| Codex | `read-only` (§12.14) | `read-only` |
 
 A mode reaches the menu only if it is in that policy, the harness lists it, and
 the project allows it (§12.5).
@@ -300,7 +300,9 @@ conversations like the model and effort above:
   conversation, removed with the conversation.
 
 **The harness list** itself — which CLIs exist, which run — is Shadows': Claude
-Code (available when its three paths are configured), Codex (not yet).
+Code (available when its three paths are configured), Codex (available when
+`--codex` and `--codex-home` are given; otherwise unavailable with a reason naming
+them, §12.14).
 
 ## 12.5 Allowed modes per project
 
@@ -652,14 +654,15 @@ Phase B
 
 ## 12.14 Codex over app-server
 
-**Status: planned, 2026-11-07.** Mohammed chose direct Codex app-server integration
-and a separate harness choice for each conversation. This section owns that
-extension; the earlier ACP-specific sections continue to describe Claude.
-The [implementation plan](../../backend/plans/2026-11-07-codex-app-server.md)
-names the work and its acceptance gates. Since B-87 a daemon started with
-`--codex` and `--codex-home` lists Codex as available, with its catalog
-choices, usage, account limits, fork and Send now; without them it reports
-the configuration it needs. Browser acceptance (B-88) is still open.
+**Status: built, 2026-11-09; browser acceptance runs on `main` after the merge.**
+Mohammed chose direct Codex app-server integration and a separate harness choice
+for each conversation. This section owns that extension; the ACP-specific
+sections describe Claude. The
+[implementation plan](../../backend/plans/2026-11-07-codex-app-server.md) names
+the work and its acceptance gates. A daemon started with `--codex` and
+`--codex-home` lists Codex as available, with its catalog choices, usage,
+account limits, fork and Send now; without them it reports the configuration it
+needs.
 
 ### Scope and ownership
 

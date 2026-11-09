@@ -52,21 +52,8 @@ async function saveFakeProvider(request: Request): Promise<Response> {
   return Response.json({ slug: 'fixture-provider', name: input.name ?? input.preset, preset: input.preset, label: input.label, base_url: input.base_url ?? 'https://example.com', models: input.models.map(model => ({ ...model, context_window: model.context_window ?? 200000 })), key_set: false, created_at: 'now', updated_at: 'now' })
 }
 
-/** Codex as Core lists it when Shadows started without `--codex`. */
-export const codexUnconfigured: HarnessInfo = {
-  ...codexHarness,
-  reason: 'Codex is not configured: start Shadows with --codex and --codex-home.',
-}
-
 /** Codex as Core lists it when configured: `read-only` is its only mode. */
-export const codexConfigured: HarnessInfo = {
-  ...codexHarness,
-  available: true,
-  reason: null,
-  modes: [{ id: 'read-only', label: 'Read only', description: 'Codex reads the project and calls Shadows tools; it cannot change files.' }],
-  initial_mode: 'read-only',
-  unattended_mode: null,
-}
+export const codexConfigured: HarnessInfo = { ...codexHarness, available: true, reason: null }
 
 export interface Overrides {
   /** `GET /api/harnesses`; Claude Code and an unconfigured Codex by default. */
@@ -164,7 +151,7 @@ export function answers(o: Overrides = {}): Record<string, Answer> {
     'PUT /api/aylul/providers/fixture-provider': saveFakeProvider,
     'PUT /api/aylul/providers/p': saveFakeProvider,
     'POST /api/aylul/providers/fixture-provider/test': { ok: true, listed: false, models: [] },
-    'GET /api/harnesses': o.harnesses ?? [claudeHarness, codexUnconfigured],
+    'GET /api/harnesses': o.harnesses ?? [claudeHarness, codexHarness],
     'GET /api/projects': () => Response.json([project]),
     'GET /api/projects/p1/threads': [threadFixture],
     'GET /api/threads/t1/anchor': { anchor: null },

@@ -164,15 +164,16 @@ B-A2 (Core's scoped context contract), stopped since 2026-10-19, is in this file
 - Needs: B-86; the accepted Codex Planner request.
 - Done when: configured Codex is available, per-model effort/mode rules hold, existing authority is not widened by migration, fork/Send now work, and last-request usage is neither cumulative nor counted twice on resume. Run the plan's focused checks.
 - Verified on 2026-11-09: `shadows-core --test codex_session` 16 (11 new B-87 tests), `thread_session` 2, `harness_schema` 5; `shadows-agent` lib 38 and `--test codex` 6; `core-harness --test list` 1; `core-db --test migration_checksums` 1; `shadows --test harness_choices` 13, `harness_effort` 7, `harness_observation` 5, `harness_config` 5, `openapi` 8 (no API change), `architecture` 49 and `codemap`. fmt and clippy for the changed crates with and without test support passed.
-- Migration: 0050 was free on this branch (`0050_codex_modes.sql`). The unmerged `feature/executors` branch also adds `0050_executor_sessions.sql`; whichever merges second renumbers and updates the checksum fixture.
+- Migration: `0050_codex_modes.sql`. This branch merges first and keeps 0050 (Mohammed, 2026-11-09); `feature/executors` renumbers its `0050_executor_sessions.sql` and updates the checksum fixture when it merges.
 - Live on 2026-11-09 (native 0.167.0, dedicated home, fresh database): Codex listed available with `read-only`; a new project allowed only `read-only`. The catalog listed 8 models in order with per-model efforts. One turn called `workspace_get` and recorded context 18127/475000 (last request), with five-hour and weekly limits from the real 300/10080-minute windows. The model and effort were remembered only after that turn. Send now steered into a running turn (2 operations, not 3). A fork answered from the source's history while the source's entries stayed unchanged. No bearer text appeared in the daemon logs.
 - Found live and fixed: the opening's `account/rateLimits/read` (about 3.7 s) pushed setup to the 20 s limit, so it now runs in the background. Real `thread/start` reports no effort, so the opening now reports the model's catalog default.
 
 ### B-88 · Accept Codex in the real Planner
 
-- Status: blocked (waits only on Mohammed's real browser run; F-97 is done)
+- Status: todo, after the merge (Mohammed, 2026-11-09: the branch merges without it; Mohammed runs it on `main`)
 - Plan: [Acceptance](plans/2026-11-07-codex-app-server.md#b-88-acceptance-and-delivery).
 - Read: §12.14, the Codex plan and the evidence record.
 - Touch: Codex evidence, owner spec §12.14, the Codex plan, this stages file and `docs/frontend/stages.md`.
-- Needs: B-87 and F-97.
-- Done when: real daemon/browser/log acceptance covers tools, refusal, Stop, restart/continuation, model/effort controls, fork and Send now; Claude still runs. Full workspace gate stays with CI. A review or PR is not started by this planning task.
+- Needs: B-87 and F-97 merged to `main`. Not a merge blocker for `codex/codex-app-server`.
+- Done when: real daemon/browser/log acceptance covers tools, refusal, Stop, restart/continuation, model/effort controls, fork and Send now; Claude still runs. Full workspace gate stays with CI.
+- Watch during Stop: `Turns::stop` answers the operation as it stands, which may still be `Running` while the watcher writes `Cancelled` (core-turns contract, `stop`); the client takes the ending from the stream. If the browser shows a stale Running row after Stop, the follow-up is to make `stop` wait for `finished_at` as `stop_running` does.

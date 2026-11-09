@@ -5,7 +5,7 @@ import { act } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { Project } from '@/api/projects'
 import { projectsQuery } from '@/api/projects'
-import { projectWithModes } from '@/test/contract-fixtures'
+import { claudeHarness, codexHarness, projectWithModes } from '@/test/contract-fixtures'
 import { answers } from '@/test/fake-daemon'
 import { type TestApp, startApp, until } from '@/test/test-app'
 
@@ -62,10 +62,17 @@ describe('allowed modes', () => {
     }
   })
 
-  it('a harness whose modes are not decided says so instead of a checklist', async () => {
+  it('lists Codex with the one mode Core gives it', async () => {
     const app = (open = await startApp('/projects/p1/settings', answers()))
-    await until(() => app.checkbox('Auto') !== undefined)
+    await until(() => app.checkbox('Read only') !== undefined)
     expect(app.text()).toContain('Codex')
-    expect(app.text()).toContain('Modes are decided when Codex is enabled')
+    expect(app.text()).not.toContain('Modes are decided')
+  })
+
+  it('a harness whose modes are not decided says so instead of a checklist', async () => {
+    const undecided = { ...codexHarness, kind: 'next-cli', label: 'Next CLI', modes: [], initial_mode: null }
+    const app = (open = await startApp('/projects/p1/settings', answers({ harnesses: [claudeHarness, undecided] })))
+    await until(() => app.checkbox('Auto') !== undefined)
+    expect(app.text()).toContain('Modes are decided when Next CLI is enabled')
   })
 })

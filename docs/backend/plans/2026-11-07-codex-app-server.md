@@ -45,7 +45,7 @@ React/TypeScript, the existing HTTP MCP server. No new product transport framewo
 | B-86 | First Core-to-Codex Planner path with lifecycle and tools | B-85 closes the spec's permission OPEN block |
 | B-87 | Models, efforts, usage and existing conversation actions | B-86 passes |
 | F-97 | Existing web flow uses the enabled Codex harness correctly | B-87 and the shared agreement are satisfied |
-| B-88 | Real daemon/browser acceptance and delivery record | F-97 passes |
+| B-88 | Real daemon/browser acceptance and delivery record | The branch has merged; runs on `main`, not a merge blocker |
 
 Keep task dependencies in stages. Do not dispatch a blocked task as though its evidence exists.
 
@@ -186,7 +186,7 @@ verified state and commit explicit paths.
 `crates/shadows/tests/harness_effort.rs`, `crates/shadows/tests/harness_observation.rs`,
 `docs/codebase/README.md`, the shared request, this plan/stages/spec.
 Check the next unused migration number before dispatch and record any renumbering here.
-On this branch 0050 was unused and is `0050_codex_modes.sql`; the unmerged `feature/executors` branch also adds a `0050_executor_sessions.sql`, so whichever merges second renumbers.
+This branch's migration is `0050_codex_modes.sql`. It merges first and keeps 0050 (Mohammed, 2026-11-09); `feature/executors` renumbers its `0050_executor_sessions.sql` when it merges.
 
 **Interfaces:** Preserve `HarnessInfo`, `SessionChoices`, `TurnSettings` and existing API
 routes. `Harness::list` enables Codex only when configured and reports its configuration
@@ -251,6 +251,9 @@ no direct provider calls, provider-specific permission inference, or hard-coded 
 
 **Files:** Existing Codex evidence record, this plan, both stages files and owner spec §12.14.
 
+**When:** after `codex/codex-app-server` merges, on `main` (Mohammed, 2026-11-09). The
+branch's PR does not wait for it.
+
 - [ ] Start `shadows serve` with the explicitly configured Codex executable. Respect the
   running process: report a locked executable instead of killing it or making another cache.
 - [ ] In the browser, select Codex, create/read a planning draft through its tools, observe a
@@ -258,6 +261,5 @@ no direct provider calls, provider-specific permission inference, or hard-coded 
   Exercise model/effort selection, same-harness fork and Send now. Inspect server logs.
 - [ ] Check a Claude conversation still runs and existing grants/session IDs remain scoped.
   Record bounded live calls, observed values, browser results and any unsupported behavior.
-- [ ] Keep the local full gate delegated to CI. Run one whole-branch review only when assigned
-  for delivery; no builder/reviewer is started by saving this plan. Mark acceptance complete
-  only after the real browser run; open a PR only when requested.
+- [ ] Keep the local full gate delegated to CI. Mark acceptance complete only after the real
+  browser run.

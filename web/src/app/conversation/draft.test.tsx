@@ -459,7 +459,7 @@ describe('a draft on Codex', () => {
     act(() => app.button('Claude Code')?.click())
     await until(() => menuItem('Codex') !== undefined)
     expect(menuItem('Codex')?.getAttribute('aria-disabled')).toBe('true')
-    expect(menuItem('Codex')?.textContent).toContain('start Shadows with --codex and --codex-home')
+    expect(menuItem('Codex')?.textContent).toContain('Start Shadows with --codex and --codex-home')
   })
 
   it('keeps the pick through the first send: the thread is created on Codex with Core’s only mode', async () => {
