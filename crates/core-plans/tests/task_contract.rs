@@ -115,7 +115,10 @@ fn a_contract_is_refused_with_every_problem_named() {
               "behavior": [] },
             { "id": "s1", "path": "app/A.php", "kind": "function", "name": "two",
               "returns": { "type_name": "int", "meaning": "x" },
-              "behavior": ["Answers two"] }
+              "behavior": ["Answers two"] },
+            { "id": "s2", "path": "app/A.php", "kind": "function", "name": "two",
+              "returns": { "type_name": "int", "meaning": "x" },
+              "behavior": ["Answers two again"] }
         ],
         "steps": [" "]
     }))
@@ -134,6 +137,7 @@ fn a_contract_is_refused_with_every_problem_named() {
         "T1 contract: `s1` needs a return type",
         "T1 contract: `s1` says no behavior",
         "T1 contract: a blank line in steps",
+        "T1 contract: `two` is described more than once in `app/A.php`",
     ] {
         assert!(
             refused.iter().any(|m| m == expected),
