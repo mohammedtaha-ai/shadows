@@ -57,3 +57,7 @@ layout_only: Map records contain no starter files; the stage has no Structure st
 # requirements remain in Plans; no adapter reads tables or grants authority.
 # Optional phase_id selects a phase through Plans. plan_edit describes
 # phases_set with retained IDs, new server identities and derived numbers.
+# plan_edit's description ends with one complete, valid ops list: a task_add whose task
+# has acceptance items and a contract with one file, symbol, produced output and use, and
+# a link_put. Its input schema is Core's PlanOp unchanged. Tested by
+# mcp_tools::the_plan_edit_example_parses_as_the_ops_it_shows.

@@ -243,16 +243,37 @@ impl Shadows {
         )
     }
 
-    #[tool(
-        description = "Edit a draft plan version at expected_revision with a list of \
-                       operations: plan_put, task_add, task_update, task_remove, link_put, \
-                       link_remove, phases_set. phases_set replaces the ordered phase list: \
-                       retain existing ids, omit ids for new phases. Numbers are server-derived. \
-                       Put changes made together in one call. A task may carry contract: its \
-                       files (path, action, purpose), its symbols (name, inputs, returns, \
-                       behavior, errors), what it produces and what it uses; task_add and \
-                       task_update carry the whole task, contract included."
-    )]
+    // The example is the schema's shape made concrete: a client that skims the
+    // `$defs` still sees every nested object once. `mcp_tools` parses it as ops.
+    #[tool(description = concat!(
+        "Edit a draft plan version at expected_revision with a list of \
+         operations: plan_put, task_add, task_update, task_remove, link_put, \
+         link_remove, phases_set. phases_set replaces the ordered phase list: \
+         retain existing ids, omit ids for new phases. Numbers are server-derived. \
+         Put changes made together in one call. A task may carry contract: its \
+         files (path, action, purpose), its symbols (id, path, kind, name, inputs, \
+         returns, behavior, errors), what it produces and what it uses; task_add and \
+         task_update carry the whole task, contract included. Each op names its \
+         object: task_add and task_update under task, link_put under link. A use \
+         names a task of this plan version (target kind local). \
+         Example ops, valid as written: ",
+        r#"[{"op": "task_add", "task": {"number": 2, "title": "Finder", "#,
+        r#""goal": "Find a customer by email", "reads": ["app/Models/**"], "#,
+        r#""writes": ["app/Services/**"], "acceptance": [{"number": 1, "#,
+        r#""text": "A known email returns its customer"}], "contract": {"#,
+        r#""files": [{"path": "app/Services/CustomerFinder.php", "action": "create", "#,
+        r#""purpose": "Looks customers up"}], "symbols": [{"id": "s1", "#,
+        r#""path": "app/Services/CustomerFinder.php", "kind": "method", "#,
+        r#""name": "findByEmail", "inputs": [{"name": "email", "type_name": "string", "#,
+        r#""meaning": "The address"}], "returns": {"type_name": "?Customer", "#,
+        r#""meaning": "The match, or null"}, "behavior": ["#,
+        r#""Returns the customer whose email matches"], "errors": []}], "#,
+        r#""produces": [{"id": "o1", "symbol_id": "s1", "acceptance": [1]}], "#,
+        r#""uses": [{"source": {"kind": "task", "target": {"kind": "local", "task": 1}, "#,
+        r#""output": "o1"}, "purpose": "Reads the customer T1 stores"}]}}}, "#,
+        r#"{"op": "link_put", "link": {"task": 2, "after": 1, "kind": "needs", "#,
+        r#""label": "the customer model"}}]"#
+    ))]
     async fn plan_edit(
         &self,
         Extension(grant): Extension<Grant>,

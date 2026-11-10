@@ -400,7 +400,7 @@ Order and rulings: [the program](plans/2026-11-09-local-delivery-program.md). Sl
 
 ### B-122 · The Planner is told the exact shape of each `plan_edit` operation
 
-- Status: todo
+- Status: done for `shadows-mcp`. The published schema already stated all six refused shapes (`task` and `link` required, `AcceptanceItem` an object, `SymbolWork` takes `path` and refuses others, `after` required, `ContractTarget` only `local`); it left none open. `plan_edit`'s description now names each op's object and ends with one valid ops list, parsed as `Vec<PlanOp>` by `mcp_tools::the_plan_edit_example_parses_as_the_ops_it_shows`. The prompt was left to B-121's open tree: its symbols line says "the file it lives in" where the field is `path`. Tests: `mcp_tools` 22, `planner_mcp` 24, `mcp_server` 6, `planner_live` 2 (live), `codemap` 1, `contract_tests` 1; `architecture` fails only on B-121's uncommitted `core-harness/src/executor.rs`.
 - Why: the same run. In a new Codex conversation (`gpt-6.1-sol`) `plan_edit` failed six times in a row before it succeeded, each time on the shape of an operation: `missing field task`, `invalid type: string ..., expected struct AcceptanceItem`, `unknown field file, expected one of id, path, kind, name, inputs, returns, behavior, errors`, `missing field link`, `missing field after`. In the conversation that already held plans it failed once per edit (`unknown field file`; `unknown variant plan, expected local`). The Planner guesses the shape and learns it from the refusals.
 - Owner: `shadows-mcp` (the tool's input schema and description), Harness (the Planner's instructions).
 - Read: `crates/shadows-mcp/src/contract.yaml`, `crates/core-plans/contract.yaml`, `crates/core-harness/contract.yaml`.

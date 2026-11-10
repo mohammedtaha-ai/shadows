@@ -892,6 +892,42 @@ fn the_planner_is_told_what_a_contract_holds() {
 }
 
 #[tokio::test]
+async fn the_plan_edit_example_parses_as_the_ops_it_shows() {
+    let l = listening_app().await;
+    let planner = thread_client(&l, &l.app.thread).await;
+    let tools = planner.list_all_tools().await.unwrap();
+    let edit = tools.iter().find(|t| t.name == "plan_edit").unwrap();
+    let description = edit.description.as_deref().unwrap();
+    let (_, example) = description
+        .split_once("Example ops, valid as written: ")
+        .unwrap();
+    // The deserializer `plan_edit` applies to its `ops` argument.
+    let ops: Vec<shadows_core::PlanOp> = serde_json::from_str(example).unwrap();
+    assert!(matches!(
+        ops.as_slice(),
+        [
+            shadows_core::PlanOp::TaskAdd { .. },
+            shadows_core::PlanOp::LinkPut { .. }
+        ]
+    ));
+    let raw: serde_json::Value = serde_json::from_str(example).unwrap();
+    let task = &raw[0]["task"];
+    assert!(task["acceptance"][0]["text"].is_string());
+    for part in ["files", "symbols", "produces", "uses"] {
+        assert_eq!(
+            task["contract"][part].as_array().unwrap().len(),
+            1,
+            "{part}"
+        );
+    }
+    l.app
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
 async fn the_planner_is_told_an_indexing_listing_is_not_complete() {
     let unfinished = "indexing means the listing is not complete yet: ask again, \
                       never conclude the folder is empty";
