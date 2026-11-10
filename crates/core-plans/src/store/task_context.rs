@@ -52,6 +52,7 @@ impl PlansStore {
             })?
             .content
             .clone();
+        let contracts = crate::task_contract::ContractRules::resolved(&plan.content(), number);
         let phase = phase_id
             .map(|id| {
                 task.phases
@@ -131,6 +132,7 @@ impl PlansStore {
                 title: plan.title,
             },
             task,
+            contracts,
             parts,
             unowned_paths,
             standards: ContextStandards {

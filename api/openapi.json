@@ -1344,6 +1344,98 @@
         ],
         "type": "object"
       },
+      "ContractSource": {
+        "description": "Where a used output comes from.",
+        "oneOf": [
+          {
+            "description": "An output another task of this plan version produces.",
+            "properties": {
+              "kind": {
+                "enum": [
+                  "task"
+                ],
+                "type": "string"
+              },
+              "output": {
+                "type": "string"
+              },
+              "target": {
+                "$ref": "#/components/schemas/ContractTarget"
+              }
+            },
+            "required": [
+              "target",
+              "output",
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "Code the project already holds. `symbol` is empty for the whole file.",
+            "properties": {
+              "kind": {
+                "enum": [
+                  "existing"
+                ],
+                "type": "string"
+              },
+              "path": {
+                "type": "string"
+              },
+              "symbol": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "path",
+              "kind"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "ContractTarget": {
+        "description": "The task that produces a used output.",
+        "oneOf": [
+          {
+            "properties": {
+              "kind": {
+                "enum": [
+                  "local"
+                ],
+                "type": "string"
+              },
+              "task": {
+                "format": "int32",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "task",
+              "kind"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "ContractUse": {
+        "additionalProperties": false,
+        "description": "Something this task relies on, and why.",
+        "properties": {
+          "purpose": {
+            "type": "string"
+          },
+          "source": {
+            "$ref": "#/components/schemas/ContractSource"
+          }
+        },
+        "required": [
+          "source",
+          "purpose"
+        ],
+        "type": "object"
+      },
       "ContractValue": {
         "additionalProperties": false,
         "description": "A parameter or a return value.",
@@ -5184,6 +5276,42 @@
         ],
         "type": "object"
       },
+      "ProducedOutput": {
+        "additionalProperties": false,
+        "description": "Something other tasks may rely on: one symbol or one file of this task.",
+        "properties": {
+          "acceptance": {
+            "description": "The task's acceptance items that prove it.",
+            "items": {
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "artifact": {
+            "description": "A file path this task creates or modifies.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "description": "Chosen by the writer, unique within the task: `o1`.",
+            "type": "string"
+          },
+          "symbol_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
       "Project": {
         "properties": {
           "allowed_modes": {
@@ -6693,6 +6821,12 @@
             },
             "type": "array"
           },
+          "produces": {
+            "items": {
+              "$ref": "#/components/schemas/ProducedOutput"
+            },
+            "type": "array"
+          },
           "steps": {
             "description": "The order of work, when it matters.",
             "items": {
@@ -6703,6 +6837,12 @@
           "symbols": {
             "items": {
               "$ref": "#/components/schemas/SymbolWork"
+            },
+            "type": "array"
+          },
+          "uses": {
+            "items": {
+              "$ref": "#/components/schemas/ContractUse"
             },
             "type": "array"
           }

@@ -555,6 +555,7 @@ file disagrees with either, they are right and this file is the defect.
 | `crates/core-design/src/store/layout.rs` | snapshot layout projection | `crates/core-design/contract.yaml` |
 | `crates/core-plans/src/task_context.rs` | approved task context boundary | `crates/core-plans/contract.yaml` |
 | `crates/core-plans/src/task_contract.rs` | task contract types with their one-task rules | `crates/core-plans/contract.yaml` |
+| `crates/core-plans/src/contract_uses.rs` | resolving a consumer's uses against its plan version's producers | `crates/core-plans/contract.yaml` |
 | `crates/core-plans/src/store/task_context.rs` | snapshot task context assembly | `crates/core-plans/contract.yaml` |
 | `crates/core-plans/src/phases.rs` | ordered phase contracts | `crates/core-plans/contract.yaml` |
 | `crates/core-plans/src/store/phase_refs.rs` | exact phase target resolution | `crates/core-plans/contract.yaml` |

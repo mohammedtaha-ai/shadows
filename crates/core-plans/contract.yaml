@@ -57,7 +57,8 @@ shapes:
     Local: "{ task: u32, phase: PhaseId }"
     Plan: "{ plan_id: PlanId, version: i64, task: u32, phase: PhaseId }"
   TaskContext:
-    note: Approved task, exact plan identity/version, selected layout parts with ownership reasons, unowned paths, effective standards numbers and map revision.
+    # contracts: Vec<ResolvedContract>, after task; omitted when empty.
+    note: Approved task, its resolved contracts, exact plan identity/version, selected layout parts with ownership reasons, unowned paths, effective standards numbers and map revision.
   TaskPart:
     part: LayoutPart
     paths: Vec<TaskPath>
@@ -241,6 +242,8 @@ shapes:
     # writes stay the scope.
     files: Vec<FileWork>         # serde default
     symbols: Vec<SymbolWork>     # serde default
+    produces: Vec<ProducedOutput>  # serde default
+    uses: Vec<ContractUse>       # serde default; references only, never the producer's text
     steps: Vec<String>           # serde default; the order of work
     invariants: Vec<String>      # serde default; what must stay true
     forbidden: Vec<String>       # serde default; what must not be changed
@@ -268,6 +271,28 @@ shapes:
     Function: unit
     Method: unit
     Class: unit
+  ProducedOutput:
+    # deny_unknown_fields. Exactly one of symbol_id and artifact.
+    id: String                   # unique within the task: o1
+    symbol_id: Option<String>    # one of the task's symbols
+    artifact: Option<String>     # a file the task creates or modifies
+    acceptance: Vec<u32>         # the task's items that prove it
+  ContractUse:
+    source: ContractSource
+    purpose: String
+  ContractSource:
+    # serde tag "kind", snake_case.
+    Task: "{ target: ContractTarget, output: String }"
+    Existing: "{ path: String, symbol: String }"   # symbol empty for the whole file
+  ContractTarget:
+    # serde tag "kind", snake_case.
+    Local: "{ task: u32 }"
+  ResolvedContract:
+    # Only task_context serializes it; the consumer never stores it.
+    reference: ContractSource
+    producer_title: Option<String>
+    symbol: Option<SymbolWork>
+    artifact: Option<String>
   ContractValue:
     name: String                 # serde default; empty for a return value
     type_name: String            # as the project's language writes the type
@@ -398,7 +423,7 @@ functions:
     get_for: "(&self, grant: &Grant, named: Option<&WorkflowId>, project: Option<&str>) -> Result<Plan, PlansError>"
     task_context:
       signature: "(&self, grant: &Grant, workflow: Option<&WorkflowId>, task: u32, phase: Option<&PhaseId>) -> Result<TaskContext, PlansError>"
-      rule: Same-project live grant, explicitly named Frozen version, task/layout/standards/part associations read in one snapshot; grants nothing and writes nothing. An executor grant reads exactly its scope's workflow, version and task, else OutsideGrant; when it names no workflow, its scope's is read (an_executor_grant_reads_only_its_own_task).
+      rule: Same-project live grant, explicitly named Frozen version, task/layout/standards/part associations read in one snapshot, and the resolved contract of each output the task uses; grants nothing and writes nothing. An executor grant reads exactly its scope's workflow, version and task, else OutsideGrant; when it names no workflow, its scope's is read (an_executor_grant_reads_only_its_own_task).
     task_for:
       signature: "(&self, grant: &Grant, named: Option<&WorkflowId>, number: u32) -> Result<PlanTask, PlansError>"
       # INVALID_COMMAND "T{n} does not exist in this plan" when the number is absent.
@@ -526,7 +551,26 @@ functions:
       # `{id}` is in `{path}`, which the task does not create or modify;
       # `{name}` is described more than once in `{path}`; an input of `{id}`
       # needs a name and a type; `{id}` needs a return type (not for a class);
-      # `{id}` says no behavior; a blank line in {steps|invariants|forbidden}.
+      # `{id}` says no behavior; a blank line in {steps|invariants|forbidden};
+      # then missing or repeated output id `{id}`; the output `{id}` names
+      # exactly one of a symbol or an artifact; ... names the symbol `{s}`,
+      # which the task does not describe; ... names `{path}`, which the task
+      # does not create or modify; ... names acceptance item {k}, which T{n}
+      # does not have; a use has no purpose; an existing path not exact; a
+      # task cannot use its own output; the same source is used more than once.
+    ContractRules::approval_problems:
+      signature: "(content: &PlanContent) -> Vec<Problem>"
+      private: true
+      # In contract_uses.rs; called from Rules::approval_problems. Per task use,
+      # the first that applies: "T{n} uses the output `{o}` of T{p}, which does
+      # not exist"; "T{n} uses the output `{o}`, which T{p} does not produce";
+      # "T{n} uses T{p}'s output `{o}` without a link to T{p}; add a needs
+      # link". A use adds no edge: the plan's own link carries order and cycles.
+    ContractRules::resolved:
+      signature: "(content: &PlanContent, task: u32) -> Vec<ResolvedContract>"
+      private: true
+      # In contract_uses.rs; the task's uses in stored order, each with its
+      # producer's title, symbol and artifact; None for an unresolved or existing use.
 
 
 enums:
@@ -747,8 +791,19 @@ obligations:
       A stored contract names exact files and whole symbols: every rule of
       ContractRules::problems holds, or the edit is PLAN_INVALID and writes nothing.
     tested_by: a_contract_is_refused_with_every_problem_named
+  - rule: >
+      One producer definition is authoritative: a consumer stores a reference,
+      and task_context resolves it.
+    tested_by: task_context_gives_the_consumer_its_producers_contract
+
+  - rule: A use without its producer, output or link blocks approval.
+    tested_by: a_use_needs_its_producer_its_output_and_a_link
 
 agreements:
+  - between: [Rules::approval_problems, ContractRules::resolved]
+    must: what approval accepts, task_context resolves
+    holds: true
+    tested_by: task_context_gives_the_consumer_its_producers_contract
   - between: [start_draft, design::require_roadmap_in]
     rule: >
       Plans asks Design, inside the write's own transaction, whether the roadmap
@@ -826,6 +881,17 @@ open_questions:
 
 
 tests:
+  - name: a_use_needs_its_producer_its_output_and_a_link
+    checks: Approval names a missing producer, a missing output, then a missing link; with the link, nothing.
+  - name: two_tasks_using_each_other_are_refused_as_a_cycle
+    checks: Mutual uses with mutual needs links are the existing cycle refusal.
+  - name: an_output_and_a_use_are_refused_with_every_problem_named
+    checks: Nine output and use problems are each named in the refusal.
+  - name: task_context_gives_the_consumer_its_producers_contract
+    checks: >
+      A draft without the link lists the blocker and is refused; once linked and
+      approved, T2's task_context resolves T1's findCustomer; T2's own task holds
+      no signature, and T1's context has no contracts key.
   - name: a_task_without_a_contract_serializes_as_before
     checks: No contract key in a legacy task's JSON or its TaskAdd op; it round-trips.
   - name: a_contract_names_files_and_a_symbol_and_round_trips
@@ -1029,6 +1095,7 @@ modules:
   phases.rs: Ordered phase contracts
   task_context.rs: Approved task context boundary
   task_contract.rs: task contract types with their one-task rules
+  contract_uses.rs: resolving a consumer's uses against its plan version's producers
   store/task_context.rs: Snapshot task context assembly
   store/event_projection.rs: identifier-only plan event projection
   agreement_review.rs: Values returned by a shared agreement impact review

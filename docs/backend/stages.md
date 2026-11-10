@@ -336,7 +336,7 @@ Order and rulings: [the program](plans/2026-11-09-local-delivery-program.md). Sl
 
 ### B-104 · A consumer uses a producer's output
 
-- Status: todo
+- Status: done. Ran: `cargo test -p core-plans` 32 passed (8 in task_contract); `cargo test -p shadows-core --test task_contract --test task_context --test phase_dependencies --test cross_plan_resolution` 2+3+3+4 passed; `cargo test -p shadows --test mcp_tools --test plan_routes` 18+7 passed; `UPDATE_OPENAPI=1 cargo test -p shadows --test openapi` 8 passed (`produces`, `uses`, four new schemas); `cargo test -p shadows --test architecture --test codemap --test contract_tests` 49+1+1 passed; fmt, both clippy runs and the line check clean.
 - Plan: [Task 4](plans/2026-11-09-slice-1-files-and-contract.md#task-4-b-104-a-consumer-uses-a-producers-output). Its Interfaces and steps are binding.
 - Owner: Plans (`crates/core-plans`).
 - Read: the plan's Global Constraints and this task's Interfaces; [§17.0](../core/specs/2026-10-01-task-contracts-and-evidence-design.md#170-approved-local-delivery-revision-2026-11-09); the [shared request](../shared/requests/2026-11-09-local-delivery.md) with its "Backend answer, slice 1"; `crates/core-plans/contract.yaml`.

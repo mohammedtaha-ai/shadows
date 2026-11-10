@@ -53,6 +53,9 @@ impl Rules {
                 problems.push(Problem::new(format!("T{n} has no acceptance item")));
             }
         }
+        problems.extend(crate::task_contract::ContractRules::approval_problems(
+            content,
+        ));
         problems
     }
 }

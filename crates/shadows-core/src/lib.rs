@@ -62,6 +62,9 @@ pub use core_plans::{
     Problem, SymbolKind, SymbolWork, TaskContent, TaskContract, TaskId, TaskParent, TaskPreview,
     VersionLine, WorkflowId, WorkflowState, WrittenBy,
 };
+pub use core_plans::{
+    ContractSource, ContractTarget, ContractUse, ProducedOutput, ResolvedContract,
+};
 pub use core_projects::{
     DirectoryEntry, DirectoryError, DirectoryListing, Project, ProjectId, Projects,
 };

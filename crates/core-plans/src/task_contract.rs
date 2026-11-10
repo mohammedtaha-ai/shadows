@@ -26,6 +26,10 @@ pub struct TaskContract {
     pub files: Vec<FileWork>,
     #[serde(default)]
     pub symbols: Vec<SymbolWork>,
+    #[serde(default)]
+    pub produces: Vec<ProducedOutput>,
+    #[serde(default)]
+    pub uses: Vec<ContractUse>,
     /// The order of work, when it matters.
     #[serde(default)]
     pub steps: Vec<String>,
@@ -143,6 +147,97 @@ pub struct ContractValue {
     pub meaning: String,
 }
 
+/// Something other tasks may rely on: one symbol or one file of this task.
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    utoipa::ToSchema,
+    schemars::JsonSchema,
+)]
+#[serde(deny_unknown_fields)]
+pub struct ProducedOutput {
+    /// Chosen by the writer, unique within the task: `o1`.
+    pub id: String,
+    #[serde(default)]
+    pub symbol_id: Option<String>,
+    /// A file path this task creates or modifies.
+    #[serde(default)]
+    pub artifact: Option<String>,
+    /// The task's acceptance items that prove it.
+    #[serde(default)]
+    pub acceptance: Vec<u32>,
+}
+
+/// Something this task relies on, and why.
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    utoipa::ToSchema,
+    schemars::JsonSchema,
+)]
+#[serde(deny_unknown_fields)]
+pub struct ContractUse {
+    pub source: ContractSource,
+    pub purpose: String,
+}
+
+/// Where a used output comes from.
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    utoipa::ToSchema,
+    schemars::JsonSchema,
+)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum ContractSource {
+    /// An output another task of this plan version produces.
+    Task {
+        target: ContractTarget,
+        output: String,
+    },
+    /// Code the project already holds. `symbol` is empty for the whole file.
+    Existing {
+        path: String,
+        #[serde(default)]
+        symbol: String,
+    },
+}
+
+/// The task that produces a used output.
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    utoipa::ToSchema,
+    schemars::JsonSchema,
+)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum ContractTarget {
+    Local { task: u32 },
+}
+
+/// A use, with what its producer promises. The consumer never stores this.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct ResolvedContract {
+    pub reference: ContractSource,
+    pub producer_title: Option<String>,
+    pub symbol: Option<SymbolWork>,
+    pub artifact: Option<String>,
+}
+
 /// The rules every stored contract holds.
 pub(super) struct ContractRules;
 
@@ -153,13 +248,14 @@ impl ContractRules {
         let mut out = Vec::new();
         for (n, task) in &content.tasks {
             if let Some(contract) = &task.contract {
-                Self::task(*n, contract, &mut out);
+                let acceptance: BTreeSet<u32> = task.acceptance.iter().map(|a| a.number).collect();
+                Self::task(*n, contract, &acceptance, &mut out);
             }
         }
         out
     }
 
-    fn task(n: u32, c: &TaskContract, out: &mut Vec<Problem>) {
+    fn task(n: u32, c: &TaskContract, acceptance: &BTreeSet<u32>, out: &mut Vec<Problem>) {
         let mut say = |m: String| out.push(Problem::new(format!("T{n} contract: {m}")));
         if c.files.is_empty() && c.symbols.is_empty() {
             say("it names no file".into());
@@ -242,6 +338,69 @@ impl ContractRules {
             if lines.iter().any(|l| l.trim().is_empty()) {
                 say(format!("a blank line in {field}"));
             }
+        }
+        let symbols: BTreeSet<&str> = c.symbols.iter().map(|s| s.id.as_str()).collect();
+        let mut outputs = BTreeSet::new();
+        let mut said = BTreeSet::new();
+        for o in &c.produces {
+            let fresh = outputs.insert(o.id.as_str());
+            if (o.id.trim().is_empty() || !fresh) && said.insert(o.id.as_str()) {
+                say(format!("missing or repeated output id `{}`", o.id));
+            }
+        }
+        for o in &c.produces {
+            let id = &o.id;
+            if o.symbol_id.is_some() == o.artifact.is_some() {
+                say(format!(
+                    "the output `{id}` names exactly one of a symbol or an artifact"
+                ));
+            }
+            if let Some(symbol) = &o.symbol_id
+                && !symbols.contains(symbol.as_str())
+            {
+                say(format!(
+                    "the output `{id}` names the symbol `{symbol}`, \
+                     which the task does not describe"
+                ));
+            }
+            if let Some(path) = &o.artifact
+                && !built.contains(path.as_str())
+            {
+                say(format!(
+                    "the output `{id}` names `{path}`, which the task does not create or modify"
+                ));
+            }
+            for k in &o.acceptance {
+                if !acceptance.contains(k) {
+                    say(format!(
+                        "the output `{id}` names acceptance item {k}, which T{n} does not have"
+                    ));
+                }
+            }
+        }
+        let mut sources: Vec<&ContractSource> = Vec::new();
+        let mut repeated = false;
+        for u in &c.uses {
+            if u.purpose.trim().is_empty() {
+                say("a use has no purpose".into());
+            }
+            match &u.source {
+                ContractSource::Existing { path, .. } if !Self::exact(path) => {
+                    say(format!("`{path}` is not an exact path inside the project"));
+                }
+                ContractSource::Task {
+                    target: ContractTarget::Local { task },
+                    ..
+                } if *task == n => say("a task cannot use its own output".into()),
+                _ => {}
+            }
+            if sources.contains(&&u.source) {
+                repeated = true;
+            }
+            sources.push(&u.source);
+        }
+        if repeated {
+            say("the same source is used more than once".into());
         }
     }
 
