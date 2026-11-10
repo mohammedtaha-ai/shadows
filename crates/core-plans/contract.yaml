@@ -225,6 +225,7 @@ shapes:
     id: TaskId
     content: TaskContent
   TaskContent:
+    # deny_unknown_fields: a misspelt key is refused, never dropped.
     # A plan-local number: `T4` is task 4 of this version only.
     number: u32
     title: String
@@ -786,6 +787,11 @@ obligations:
     tested_by: migration_0012_moves_every_version_into_a_plan
   - rule: A task without a contract serializes as before, in its JSON, its stored row and its command fingerprint.
     tested_by: [a_task_without_a_contract_serializes_as_before, a_contract_is_stored_and_read_back_and_a_legacy_row_is_untouched]
+  - rule: >
+      A task with an unknown key (`contracts` for `contract`) is refused with
+      the key named, never dropped. Stored rows read through the store's own
+      Contract and Scope structs, so no stored row passes this check.
+    tested_by: a_misspelt_key_on_a_task_is_refused_by_name
 
   - rule: >
       A stored contract names exact files and whole symbols: every rule of

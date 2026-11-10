@@ -368,7 +368,7 @@ Order and rulings: [the program](plans/2026-11-09-local-delivery-program.md). Sl
 
 ### B-120 · The Planner is told what an unfinished listing means, and a misspelt task key is refused
 
-- Status: todo
+- Status: done. All three parts built. Part 3 is safe: stored rows read through the store's own `Contract`/`Scope` structs, never `TaskContent`; fingerprints are built from parsed values; `web/src` sends no task edit; `PlanTask` flattens `TaskContent`, so its `id` is not an unknown key. Red run first: `cargo test -p core-plans --test task_contract` 8 passed, 1 failed (`a_misspelt_key_on_a_task_is_refused_by_name`). Then green: `cargo test -p core-plans` 0 + 9 + 24; `-p shadows --test plan_routes --test plan_storage --test mcp_tools --test planner_mcp --test mcp_server` 7, 16, 21, 24, 6; `-p shadows-core --test task_contract --test task_context --test design_parts --test runs_attempts` 2, 3, 46, 27 (5 ignored); `UPDATE_OPENAPI=1 cargo test -p shadows --test openapi` 8 (`api/openapi.json`: `TaskContent` gains `additionalProperties: false`); `-p shadows --test architecture --test codemap --test contract_tests` 49, 1, 1; fmt, both clippy passes and the 100-character check are clean.
 - Why: Hamoud's slice 1 review (2026-11-10) named three things a person would meet on a first real project; Mohammed asked for them as one task before he tries the slice.
 - Owner: `shadows-mcp` (one tool description), Harness (the Planner's instructions), Plans (`TaskContent`).
 - Read: `crates/core-plans/contract.yaml`, `crates/core-harness/contract.yaml`, `crates/shadows-mcp/src/contract.yaml`; [Task 2 and Task 5](plans/2026-11-09-slice-1-files-and-contract.md) for the texts as built.

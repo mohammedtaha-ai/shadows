@@ -189,6 +189,7 @@ Backend answer: accepted with the model above; same-origin/grant boundaries
 are checked in their owning services. Frontend answer: accepted for planning;
 each UI task remains blocked until its endpoint exists in generated OpenAPI.
 No HTTP source-reading endpoint is added for arbitrary host paths.
+B-120: TaskContent refuses an unknown key (`additionalProperties: false`), as TaskContract does.
 
 Regenerate api/openapi.json only in a task changing routes/serialized public
 types; regenerate web/src/api/schema.d.ts with npm run gen:api after that task.

@@ -99,7 +99,11 @@ impl Shadows {
                        folders, and what is left out with its reason (dependencies, ignored, \
                        secret, link). Give prefix for one folder, and after with a page's next \
                        for the page that follows. INVENTORY_STALE means the folder changed: \
-                       start again without after."
+                       start again without after. A page's state: ready is a complete \
+                       listing; incomplete means some entries could not be read; missing \
+                       means the project has no folder or it is not there; indexing means \
+                       the listing is not complete yet: ask again, never conclude the folder \
+                       is empty."
     )]
     async fn project_files(
         &self,

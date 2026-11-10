@@ -167,6 +167,19 @@ fn an_empty_contract_a_class_and_a_misspelt_key() {
     assert!(error.contains("unknown field `file`"), "{error}");
 }
 
+#[test]
+fn a_misspelt_key_on_a_task_is_refused_by_name() {
+    let mut sent = serde_json::to_value(task(1, "Ship")).unwrap();
+    sent["contracts"] = serde_json::to_value(find_customer()).unwrap();
+    let error = serde_json::from_value::<TaskContent>(sent.clone())
+        .unwrap_err()
+        .to_string();
+    assert!(error.contains("unknown field `contracts`"), "{error}");
+    let op = serde_json::from_value::<PlanOp>(json!({ "op": "task_update", "task": sent }));
+    let error = op.unwrap_err().to_string();
+    assert!(error.contains("unknown field `contracts`"), "{error}");
+}
+
 fn needs(task: u32, after: u32) -> Link {
     Link {
         task,

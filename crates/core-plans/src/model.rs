@@ -134,6 +134,9 @@ pub struct AcceptanceItem {
     utoipa::ToSchema,
     schemars::JsonSchema,
 )]
+// A misspelt key is refused, never dropped: a dropped `contract` would
+// leave the task with none.
+#[serde(deny_unknown_fields)]
 pub struct TaskContent {
     pub number: u32,
     pub title: String,

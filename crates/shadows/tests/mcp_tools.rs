@@ -885,7 +885,28 @@ fn the_planner_is_told_what_a_contract_holds() {
         "inputs (name, type_name, meaning)",
         "do not invent a function for it",
         "Never copy a producer's signature",
+        "A task_update sent without the task's contract leaves the task with none.",
     ] {
         assert!(prompt.contains(text), "{text}");
     }
+}
+
+#[tokio::test]
+async fn the_planner_is_told_an_indexing_listing_is_not_complete() {
+    let unfinished = "indexing means the listing is not complete yet: ask again, \
+                      never conclude the folder is empty";
+    assert!(shadows_core::testing::PROMPT.contains(unfinished), "prompt");
+    let l = listening_app().await;
+    let planner = thread_client(&l, &l.app.thread).await;
+    let tools = planner.list_all_tools().await.unwrap();
+    let files = tools.iter().find(|t| t.name == "project_files").unwrap();
+    let description = files.description.as_deref().unwrap();
+    for state in ["ready", "incomplete", "missing", unfinished] {
+        assert!(description.contains(state), "{state}");
+    }
+    l.app
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
