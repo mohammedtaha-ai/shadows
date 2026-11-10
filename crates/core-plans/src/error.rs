@@ -73,6 +73,7 @@ impl From<core_code::CodeError> for PlansError {
         match error {
             core_code::CodeError::InvalidCommand(message) => Self::InvalidCommand(message),
             core_code::CodeError::GrantScope(message) => Self::GrantScope(message),
+            core_code::CodeError::InventoryStale => Self::InvalidCommand(error.to_string()),
             core_code::CodeError::Storage(error) => Self::Storage(error),
             core_code::CodeError::Projects(error) => error.into(),
         }

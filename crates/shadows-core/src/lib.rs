@@ -111,7 +111,9 @@ pub use core_instructions::InstructionsError;
 
 pub use core_standards::StandardsError;
 
-pub use core_code::CodeError;
+pub use core_code::{
+    CodeError, InventoryEntry, InventoryKind, InventoryPage, InventoryQuery, InventoryState,
+};
 
 pub use core_threads::ThreadsError;
 

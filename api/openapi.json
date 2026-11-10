@@ -2215,6 +2215,7 @@
           "IDEMPOTENCY_KEY_REQUIRED",
           "INVALID_COMMAND",
           "INVALID_CURSOR",
+          "INVENTORY_STALE",
           "AGENT_AUTH_FAILED",
           "AGENT_UNSUPPORTED_PROFILE",
           "PATH_INVALID",

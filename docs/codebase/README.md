@@ -501,6 +501,8 @@ file disagrees with either, they are right and this file is the defect.
 | `crates/core-code/tests/recheck/` | question refresh race regression | `crates/core-code/tests/recheck/invariants.rs` |
 | `crates/core-code/src/error.rs` | index refusals | `crates/core-code/contract.yaml` |
 | `crates/core-code/src/testing.rs` | gated index inspection | `crates/core-code/contract.yaml` |
+| `crates/core-code/src/inventory.rs` | the paged file inventory of a project's folder | `crates/core-code/contract.yaml` |
+| `crates/core-code/src/store/inventory.rs` | file inventory persistence | `crates/core-code/contract.yaml` |
 
 | `crates/core-agents/assets/aylul-profile/CLAUDE.md` | bundled agent home instructions | `crates/core-agents/contract.yaml` |
 | `crates/core-agents/assets/aylul-profile/settings.json` | bundled agent home settings | `crates/core-agents/contract.yaml` |

@@ -1,7 +1,10 @@
 //! The code index SQL over the shared storage handle.
 
+mod inventory;
 mod links;
 mod reach;
+
+pub(crate) use inventory::InventoryRow;
 
 use std::sync::Arc;
 
@@ -343,6 +346,14 @@ impl Code {
             .execute(&mut *conn)
             .await?;
         sqlx::query("DELETE FROM code_file WHERE project_id = ?")
+            .bind(project.as_str())
+            .execute(&mut *conn)
+            .await?;
+        sqlx::query("DELETE FROM code_inventory WHERE project_id = ?")
+            .bind(project.as_str())
+            .execute(&mut *conn)
+            .await?;
+        sqlx::query("DELETE FROM code_inventory_scan WHERE project_id = ?")
             .bind(project.as_str())
             .execute(&mut *conn)
             .await?;

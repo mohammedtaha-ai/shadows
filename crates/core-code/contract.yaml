@@ -43,7 +43,7 @@
 # removed, the link as the command left it, dated by its command record.
 
 name: code
-version: 4
+version: 5
 status: current
 source: crates/core-code/src
 
@@ -157,6 +157,7 @@ shapes:
     Scan: unit
     Files: Vec<String>
     Recheck: "(Vec<String>, oneshot::Sender<()>)"
+    Refresh: "oneshot::Sender<()>"   # a scan, then the reply
   Seen:
     # What the watcher's thread passes on.
     Path: String
@@ -183,6 +184,42 @@ shapes:
     seen: mpsc::Sender<Seen>       # bounded, 8192; kept so it outlives a watcher
     lost: Arc<AtomicBool>
     pending: HashSet<String>
+  InventoryQuery:
+    # Built by an adapter; never deserialized. Default: "", None, 100.
+    prefix: String         # a folder relative to the project's folder; "" for all
+    after: Option<String>  # the `next` of the page before
+    limit: u16             # 1..=200
+  InventoryKind:
+    # serde snake_case.
+    Directory: unit
+    File: unit
+    Excluded: unit
+  InventoryState:
+    Missing: unit      # no stored directory, or the folder is not there
+    Indexing: unit     # no listing stored yet
+    Ready: unit
+    Incomplete: unit   # the last listing could not read an entry
+  InventoryEntry:
+    path: String                     # relative, '/', a folder without a trailing '/'
+    kind: InventoryKind
+    language: Option<String>         # language_for's name; null for any other file
+    excluded_reason: Option<String>  # dependencies | ignored | secret | link; null unless excluded
+    has_symbols: bool                # code_tag holds a tag of this file
+  InventoryPage:
+    state: InventoryState
+    generation: u64                  # 0 before the first listing
+    entries: Vec<InventoryEntry>     # by path_key
+    next: Option<String>             # "<generation>:<path_key>"; null on the last page
+    observed_at: Option<String>      # when the last listing ended (RFC 3339)
+  Listed:
+    rows: Vec<InventoryRow>
+    incomplete: bool
+  InventoryRow:
+    # What `code_inventory` holds for one path.
+    path_key: String
+    path: String
+    kind: "&'static str"
+    excluded_reason: "Option<&'static str>"
 
 
 modules:
@@ -196,6 +233,8 @@ modules:
   links.rs: active limit commands
   watch.rs: project indexing worker
   store/: private index SQL
+  inventory.rs: the paged file inventory of a project's folder
+  store/inventory.rs: file inventory persistence
 
 dependencies:
   projects: crates/core-projects/contract.yaml
@@ -286,6 +325,52 @@ functions:
       private: true
       # NoDirectory with no folder; else the worker's `state` and
       # `updated_at`; Inactive and None without a worker.
+  inventory:
+    inventory:
+      signature: "(&self, asker: Asker<'_>, query: InventoryQuery) -> Result<InventoryPage, CodeError>"
+      # The asker's own project only, never a linked one. In order: a limit
+      # outside 1..=200 is INVALID_COMMAND "limit must be 1 to 200"; the
+      # prefix through `inside` and `path_key`; Projects::get (an unknown
+      # project is its ProjectsError); `touch`; no directory, or no folder:
+      # Missing, 0, []; no scan row: Indexing, 0, []. A cursor not
+      # "<generation>:<key>" with its key at or under the prefix is
+      # INVALID_COMMAND "the cursor is not one this listing gave"; another
+      # generation than the stored one is InventoryStale. Then limit + 1 rows
+      # after the cursor's key; `next` when the extra row exists; Incomplete
+      # when the scan row says so, else Ready.
+    refresh_inventory:
+      signature: "(&self, asker: Asker<'_>) -> Result<InventoryPage, CodeError>"
+      # Projects::get, `touch`, then a `Job::Refresh` to the project's
+      # worker awaited at most 30 s (`code.refresh_timeout`, the page as it
+      # stands), or with no worker `scan` on the caller's task; then
+      # `inventory` with the default query. No CommandId: the inventory is
+      # derived from the files, as the index is.
+    cursor:
+      signature: "(after: &str, prefix: &str) -> Result<(i64, String), CodeError>"
+      private: true
+    record_inventory:
+      signature: "(&self, project: &ProjectId, dir: &Path)"
+      private: true
+      # `listed` on a blocking thread; nothing when the folder vanished;
+      # then `write_inventory` stamped Storage::now(). A failure is
+      # `code.inventory_failed`, never the scan's.
+    listed:
+      signature: "(dir: &Path) -> Listed"
+      private: true
+      # Blocking. `seen` is every key `walker(dir, false)` yields, its
+      # filter refusing a folder named .git or one `never_walked` names (a
+      # walk error sets incomplete). From `dir`, each listed folder's
+      # children by read_dir (an error sets incomplete); the first rule
+      # decides: .git is not listed; a never-walked folder is excluded
+      # dependencies; a secret name (`secret_name`) excluded secret; a link
+      # or junction excluded link; a key not in `seen` excluded ignored;
+      # none of them entered. Else a folder is a directory, entered; a
+      # regular file a file; anything else, or a name not UTF-8, not listed.
+    secret_name:
+      signature: "(name: &str) -> bool"
+      private: true
+      # Lower case: .env, .env.* not ending .example, *.pem, *.key, *.p12,
+      # *.pfx, id_rsa, id_ed25519.
   links:
     links:
       signature: "(&self, project: &ProjectId) -> Result<Vec<ProjectLink>, CodeError>"
@@ -322,14 +407,15 @@ functions:
     # Shared indexing helpers are associated Code methods; walk/names_itself are private.
     scan:
       signature: "(&self, project: &ProjectId) -> Result<(), CodeError>"
-      # pub(crate): tests reach it as `scan_for_test` (`testing`). A worker
-      # calls `scan_project` with its own `Progress`.
+      # pub(crate): tests reach it as `scan_for_test` (`testing`), and
+      # `refresh_inventory` calls it with no worker. A worker calls
+      # `scan_project` with its own `Progress`.
     scan_project:
       signature: "(&self, project: &ProjectId, progress: &Progress) -> Result<u32, CodeError>"
       # No folder, or a missing one: nothing changes. Walks on a blocking
       # thread, sets `found`, `index_file` per kept path (a failure is
       # `code.index_failed` and the walk goes on), `done` after each, and
-      # returns early once `stop` is set; then deletes the rows of every key
+      # returns early once `stop` is set; then `record_inventory`; then deletes the rows of every key
       # the walk did not see, unless the walk was incomplete or the folder
       # vanished during the scan. Logs `code.scan` { project, seen,
       # indexed, elapsed_ms }. Answers the files written or deleted.
@@ -370,11 +456,15 @@ functions:
       # Size and modified milliseconds, as `code_file` stores them.
     path_key:
       signature: "(path: &str) -> String"
+    walker:
+      signature: "(dir: &Path, hidden: bool) -> ignore::WalkBuilder"
+      private: true
+      # The settings both walks share: parents(false), git_global(false),
+      # require_git(false), follow_links(false), hidden(hidden).
     walk:
       signature: "(dir: &Path, only: Option<Arc<Only>>) -> Walked"
       private: true
-      # WalkBuilder: parents(false), git_global(false), require_git(false),
-      # follow_links(false), hidden entries skipped (its default), and a
+      # `walker(dir, true)`: hidden entries skipped, and a
       # filter_entry refusing folders named target or node_modules and,
       # with `only`, any entry outside it.
     folder_exists:
@@ -451,7 +541,8 @@ functions:
     handle:
       signature: "(&mut self, job: Job)"
       private: true
-      # Files are dropped while `paused`; Recheck replies after its files.
+      # Files are dropped while `paused`; Recheck replies after its files;
+      # Refresh after its scan.
     files:
       signature: "(&mut self, paths: Vec<String>)"
       private: true
@@ -545,7 +636,20 @@ functions:
       # ProjectUnlinked, the caller's ProjectRemoved says it.
     delete_code_index_in:
       signature: "(conn, project: &ProjectId) -> Result<(), StorageError>"
-      # Its tags, then its files, inside the caller's write.
+      # Its tags, its files, then its inventory rows and scan row, inside
+      # the caller's write.
+    write_inventory:
+      signature: "(&self, project: &ProjectId, rows: Vec<InventoryRow>, incomplete: bool, observed_at: &str) -> Result<(), StorageError>"
+      # In store/inventory.rs. One write: nothing for a removed project;
+      # new keys inserted, changed rows updated, missing keys deleted only
+      # when complete. Generation 1 on the first write, else +1 when any row
+      # changed. Upserts the scan row.
+    inventory_page:
+      signature: "(&self, project: &ProjectId, prefix_key: &str, after_key: Option<&str>, limit: i64) -> Result<Option<StoredPage>, StorageError>"
+      # One read snapshot: None without a scan row; else generation,
+      # incomplete, observed_at and at most `limit` (path_key, entry) rows
+      # at or under the prefix (the byte range `key/` to `key0`) after the
+      # key, ORDER BY path_key; has_symbols is EXISTS over code_tag.
     code_scope:
       signature: "(&self, home: &ProjectId) -> Result<Vec<ScopeRow>, StorageError>"
       # One read snapshot: Projects::get_in for the home and linked ids.
@@ -590,7 +694,7 @@ called_by_other_services:
 enums:
   CodeError:
     source: core_code::CodeError
-    values: []
+    values: [InvalidCommand, GrantScope, InventoryStale, Projects, Storage]
   StorageError:
     source: core_db::StorageError
     values: []
@@ -789,6 +893,24 @@ obligations:
       A test would link twice, unlink twice, link to itself and to a random
       id, and set the limit to 0, 21 and then 1 and see four workers stop.
 
+  - rule: Every file of the folder is listed whatever its language, and no content is.
+    tested_by: inventory_lists_every_file_whatever_its_language
+
+  - rule: >
+      A folder never walked, an ignored path, a secret name and a link are
+      each one excluded entry, never entered.
+    tested_by: inventory_lists_every_file_whatever_its_language
+    note: The link case is a_link_out_of_the_folder_is_listed_and_never_entered.
+
+  - rule: >
+      A stale cursor is refused: a cursor from another generation is
+      InventoryStale (409), and the generation moves only when a listing
+      changed the stored entries.
+    tested_by: inventory_pages_in_path_order_and_refuses_a_stale_cursor
+
+  - rule: An incomplete listing deletes nothing; a complete one removes what is gone.
+    tested_by: an_incomplete_listing_deletes_nothing
+    note: removing_a_file_removes_its_entry_and_moves_the_generation holds the complete side.
 
 agreements:
   - between: [scan_project, files, recheck]
@@ -875,6 +997,29 @@ tests:
       naming secret is 422 INVALID_COMMAND; outline "../" is refused "the
       path must be inside the project"; backend naming demo is 422
       INVALID_COMMAND (one way).
+  - name: inventory_lists_every_file_whatever_its_language
+    checks: >
+      PHP, JSON, Rust and dotfiles are listed, src/lib.rs as rust with
+      symbols; .env is excluded secret, vendor (a .gitignore) ignored,
+      node_modules dependencies, with nothing under them; .git is absent;
+      the order is the path order; no SECRET_CANARY in the JSON.
+  - name: inventory_pages_in_path_order_and_refuses_a_stale_cursor
+    checks: >
+      Five files in pages of two; an unchanged refresh keeps generation 1;
+      a new file makes it 2 and the old cursor InventoryStale; limits 0 and
+      201 and a garbage cursor are INVALID_COMMAND.
+  - name: inventory_prefix_lists_one_folder
+    checks: Prefix "app" lists app and under it, not app.php; "../x" is refused.
+  - name: inventory_is_indexing_before_its_first_listing_and_missing_without_a_folder
+    checks: Indexing with generation 0 before a listing; Missing after the folder is removed.
+  - name: removing_a_file_removes_its_entry_and_moves_the_generation
+    checks: A removed file's entry is gone after a refresh, at generation 2.
+  - name: a_link_out_of_the_folder_is_listed_and_never_entered
+    checks: A symlink (Unix) or junction (Windows) out is excluded link, nothing under it.
+  - name: an_incomplete_listing_deletes_nothing
+    checks: >
+      A unit test in inventory.rs: an incomplete write without b.txt keeps
+      it at generation 1, Incomplete; a complete one removes it, generation 2.
 
   # Startup ordering is tested in mod.rs; link snapshots in store/reach.rs;
   # transaction rollback in store/links.rs. Each test stays with its rule.

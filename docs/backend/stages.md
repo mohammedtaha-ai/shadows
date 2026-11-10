@@ -248,7 +248,7 @@ Order and rulings: [the program](plans/2026-11-09-local-delivery-program.md). Sl
 
 ### B-96 · The file inventory
 
-- Status: doing
+- Status: done. Ran: `cargo test -p core-db --test migration_checksums` 1 passed; `cargo test -p core-code` 11 passed (3 unit, 2 index, 6 inventory); `cargo test -p shadows-core --test code_index` 3 passed; `cargo test -p shadows --test project_remove` 4 passed; `UPDATE_OPENAPI=1 cargo test -p shadows --test openapi` 8 passed (`INVENTORY_STALE` the only diff); `cargo test -p shadows-http mapping` 1 passed; `cargo test -p shadows --test architecture --test codemap --test contract_tests` 49+1+1 passed; fmt, both clippy runs and the line check clean.
 - Plan: [Task 1](plans/2026-11-09-slice-1-files-and-contract.md#task-1-b-96-the-file-inventory). Its Interfaces and steps are binding.
 - Owner: Code (`crates/core-code`).
 - Read: the plan's Global Constraints and this task's Interfaces; [§17.0](../core/specs/2026-10-01-task-contracts-and-evidence-design.md#170-approved-local-delivery-revision-2026-11-09); the [shared request](../shared/requests/2026-11-09-local-delivery.md) with its "Backend answer, slice 1"; `crates/core-code/contract.yaml`, `crates/core-db/contract.yaml`.

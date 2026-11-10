@@ -44,6 +44,8 @@ pub(super) enum Job {
     /// Index these relative paths if they changed, delete the rows of those
     /// that are gone, then reply.
     Recheck(Vec<String>, oneshot::Sender<()>),
+    /// A scan, which lists the folder again, then reply.
+    Refresh(oneshot::Sender<()>),
 }
 
 /// What the watcher's thread passes on.
@@ -226,6 +228,10 @@ impl Run {
             }
             Job::Recheck(paths, reply) => {
                 self.recheck(paths).await;
+                let _ = reply.send(());
+            }
+            Job::Refresh(reply) => {
+                self.scan().await;
                 let _ = reply.send(());
             }
         }

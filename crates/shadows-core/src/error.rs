@@ -49,6 +49,8 @@ pub enum ErrorCode {
     IdempotencyKeyRequired,
     InvalidCommand,
     InvalidCursor,
+    /// The file list changed since the cursor's page; 409.
+    InventoryStale,
     AgentAuthFailed,
     AgentUnsupportedProfile,
     PathInvalid,
@@ -367,6 +369,10 @@ impl From<core_code::CodeError> for CoreError {
             CodeError::GrantScope(message) => Self::Refused {
                 code: ErrorCode::GrantScope,
                 message,
+            },
+            CodeError::InventoryStale => Self::Refused {
+                code: ErrorCode::InventoryStale,
+                message: error.to_string(),
             },
             CodeError::Projects(error) => error.into(),
             CodeError::Storage(error) => Self::Storage(error),
