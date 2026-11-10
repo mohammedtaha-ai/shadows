@@ -157,6 +157,23 @@ built as the Planner is: it has only the tools and permissions its task gives it
   `default`, set explicitly: in `auto` and `acceptEdits` no request reaches Shadows at all.
 - Shell commands are not policed. A command may still write outside `writes`; the check on the
   reported commit handles that.
+
+**The mode and the file: amended 2026-11-11 by Mohammed, after the first run of a task with a
+contract.** Evidence: in two attempts of two, the executor wrote through the shell, which
+dropped the backslashes of PHP namespaces, and the `Edit` or `Write` it then asked for on a
+path inside `writes` was refused; neither attempt committed. The attempts that committed
+before had never called `Edit` or `Write`. This replaces the first bullet above:
+
+- **The executor runs in `auto`.** Nothing it does is asked about and nothing is refused
+  while it works. The shell could already write anywhere, so the permission rules guarded
+  nothing the commit check does not; they are gone.
+- **The reported commit is the one write boundary.** `task_report` refuses a commit that
+  changes a path outside `writes`, as before.
+- **The executor is one file.** Its instructions and its tool list live in
+  `crates/core-harness/src/executor.md`: the front matter names the tools, the body is the
+  instructions. It is compiled in; a project does not change it. The instructions tell the
+  executor to change files with its file tools, never through the shell, and never to use
+  Python.
 - Containers and other processes a task starts keep running after its turn and after Stop;
   stopping them is the project's business, not the attempt's.
 
