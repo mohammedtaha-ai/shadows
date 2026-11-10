@@ -332,12 +332,12 @@ functions:
       # outside 1..=200 is INVALID_COMMAND "limit must be 1 to 200"; the
       # prefix through `inside` and `path_key`; Projects::get (an unknown
       # project is its ProjectsError); `touch`; no directory, or no folder:
-      # Missing, 0, []; no scan row: Indexing, 0, []. A cursor not
-      # "<generation>:<key>" with its key at or under the prefix is
-      # INVALID_COMMAND "the cursor is not one this listing gave"; another
-      # generation than the stored one is InventoryStale. Then limit + 1 rows
-      # after the cursor's key; `next` when the extra row exists; Incomplete
-      # when the scan row says so, else Ready.
+      # Missing, 0, []; a cursor not "<generation>:<key>" with its key at or
+      # under the prefix is INVALID_COMMAND "the cursor is not one this
+      # listing gave"; then one read of the scan row and limit + 1 rows after
+      # the cursor's key: no scan row is Indexing, 0, []; a cursor of another
+      # generation than the stored one is InventoryStale. `next` when the
+      # extra row exists; Incomplete when the scan row says so, else Ready.
     refresh_inventory:
       signature: "(&self, asker: Asker<'_>) -> Result<InventoryPage, CodeError>"
       # Projects::get, `touch`, then a `Job::Refresh` to the project's
