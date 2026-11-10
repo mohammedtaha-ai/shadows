@@ -221,10 +221,12 @@ pub async fn refresh_inventory(&self, asker: Asker<'_>) -> Result<InventoryPage,
   3. `Projects::get(asker.home())`; an unknown project is its `ProjectsError` (404 over HTTP).
   4. `touch(asker.home())`.
   5. No stored directory, or `folder_exists` false: `{ Missing, 0, [], None, None }`.
-  6. In one read snapshot: the scan row and the page. No scan row: `{ Indexing, 0, [], None, None }`.
-  7. `after`: the text `"<generation>:<path_key>"`, split at the first ':'. Not that shape, or a
-     key outside `prefix`: `InvalidCommand("the cursor is not one this listing gave")`. A
-     generation other than the stored one: `CodeError::InventoryStale`.
+  6. `after`: the text `"<generation>:<path_key>"`, split at the first ':'. Not that shape, or a
+     key that is neither `prefix` nor under it:
+     `InvalidCommand("the cursor is not one this listing gave")`. The shape is judged before
+     storage is read, so a malformed cursor is refused even before the first listing.
+  7. In one read snapshot: the scan row and the page. No scan row: `{ Indexing, 0, [], None, None }`.
+     A cursor whose generation is not the stored one: `CodeError::InventoryStale`.
   8. `limit + 1` rows after the cursor's key; `next` is `"<generation>:<key of the last entry
      answered>"` when the extra row exists. `state` is `Incomplete` when the scan row says so,
      else `Ready`.
@@ -237,8 +239,9 @@ pub async fn refresh_inventory(&self, asker: Asker<'_>) -> Result<InventoryPage,
 
 Produces, private to the crate:
 
-- `scan.rs`: `fn walker(dir: &Path, hidden: bool) -> ignore::WalkBuilder` holding the settings
-  both walks share (`parents(false)`, `git_global(false)`, `require_git(false)`,
+- `scan.rs`: `pub(super) fn walker(dir: &Path, hidden: bool) -> ignore::WalkBuilder`, an
+  associated function of `Code` beside `never_walked` (the architecture test refuses a free
+  function another module calls), holding the settings both walks share (`parents(false)`, `git_global(false)`, `require_git(false)`,
   `follow_links(false)`, `hidden(hidden)`); `walk` builds on `walker(dir, true)` and behaves as
   today. `scan_project` calls `self.record_inventory(project, &dir)` after its `index_file` loop
   and before its delete step, unless `stop` ended the loop; a failure is logged
@@ -259,8 +262,9 @@ Produces, private to the crate:
   - `inventory_page(&self, project, prefix_key: &str, after_key: Option<&str>, limit: i64)
     -> Result<Option<(i64, bool, String, Vec<(String, InventoryEntry)>)>, StorageError>`: one
     read snapshot; `None` without a scan row; else generation, incomplete, observed_at, and at
-    most `limit` `(path_key, entry)` rows `ORDER BY path_key`. "Under the prefix" is the byte
-    range `key/` to `key0`, as `code_outline`; `has_symbols` is `EXISTS` over `code_tag`;
+    most `limit` `(path_key, entry)` rows `ORDER BY path_key`. A prefix lists the folder's own
+    entry (the key equal to the prefix) and what is under it; "under" is the byte range `key/`
+    to `key0`, as `code_outline`. The empty prefix lists everything; `has_symbols` is `EXISTS` over `code_tag`;
     `language` is filled by the caller from `language_for`.
   - `Code::delete_code_index_in` (`store/mod.rs`) also deletes the project's rows of both new
     tables, so a project's removal still succeeds.
@@ -268,7 +272,7 @@ Produces, private to the crate:
 
 The listing rule (`listed`), which the signature does not determine:
 
-1. `seen` = the path keys of every entry `walker(dir, false)` yields below `dir`, its
+1. `seen` = the path keys of every entry `Code::walker(dir, false)` yields below `dir`, its
    `filter_entry` refusing a folder named `.git` or one `Code::never_walked` names. A walk error
    sets `incomplete`.
 2. From `dir`, for each folder listed as `directory`, read its children with `std::fs::read_dir`
@@ -963,8 +967,9 @@ file `docker/redis/redis.conf`, action `create`, purpose `Redis settings`, no sy
 `a_contract_is_refused_with_every_problem_named`: build the contract from JSON with: a file
 `../etc/passwd`; a file `app/*.php`; `app/A.php` twice, the second with a blank purpose; a symbol
 `s1` in `app/B.php` (not a file of the task) with kind `function`, a blank name, an input with a
-blank type_name, no `returns` and an empty `behavior`; a second symbol with id `s1`; `steps:
-[" "]`. Then:
+blank type_name, no `returns` and an empty `behavior`; a second symbol with id `s1`, in
+`app/A.php`, kind `function`, name `two`; a third symbol `s2` with the same path, kind and name;
+`steps: [" "]`. Then:
 
 ```rust
 let refused = messages(Ops::apply(&empty(), &[PlanOp::TaskAdd { task }]).unwrap_err());
@@ -976,6 +981,7 @@ for expected in [
     "T1 contract: missing or repeated symbol id `s1`",
     "T1 contract: the symbol `s1` has no name",
     "T1 contract: the symbol `s1` is in `app/B.php`, which the task does not create or modify",
+    "T1 contract: `two` is described more than once in `app/A.php`",
     "T1 contract: an input of `s1` needs a name and a type",
     "T1 contract: `s1` needs a return type",
     "T1 contract: `s1` says no behavior",
