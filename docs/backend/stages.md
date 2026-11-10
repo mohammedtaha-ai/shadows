@@ -244,17 +244,17 @@ Design: [executors](specs/2026-11-08-executors-design.md), approved 2026-11-08. 
 
 ## Approved local delivery implementation, 2026-11-09
 
-Order and rulings: [the program](plans/2026-11-09-local-delivery-program.md). Slice 1 is detailed below by Hamoud; later slices keep their draft pointers until their slice is detailed.
+Order and rulings: [the program](plans/2026-11-09-local-delivery-program.md). Slice 1 (B-96, B-99, B-103, B-104, B-106) is detailed in [its plan](plans/2026-11-09-slice-1-files-and-contract.md) and goes to one builder, in that order, one commit each, with no stop between tasks. Later slices keep their draft pointers until their slice is detailed.
 
-### B-96 · Inventory independent of parser support
+### B-96 · The file inventory
 
-- Status: todo
-- Plan: [Task 1](plans/2026-11-09-repository-discovery.md#task-1-b-96-inventory-independent-of-parser-support).
-- Owner: Code.
-- Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
-- Touch: exact Create/Modify/Test file list of Task 1; no other source paths.
-- Needs: none; accepted shared API/model agreement. 
-- Done when: all named RED/GREEN steps and focused verification commands in Task 1 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
+- Status: doing
+- Plan: [Task 1](plans/2026-11-09-slice-1-files-and-contract.md#task-1-b-96-the-file-inventory). Its Interfaces and steps are binding.
+- Owner: Code (`crates/core-code`).
+- Read: the plan's Global Constraints and this task's Interfaces; [§17.0](../core/specs/2026-10-01-task-contracts-and-evidence-design.md#170-approved-local-delivery-revision-2026-11-09); the [shared request](../shared/requests/2026-11-09-local-delivery.md) with its "Backend answer, slice 1"; `crates/core-code/contract.yaml`, `crates/core-db/contract.yaml`.
+- Touch: `crates/core-code/src/inventory.rs` (new); `crates/core-code/src/store/inventory.rs` (new); `crates/core-db/migrations/0054_code_inventory.sql` (new); `crates/core-code/tests/inventory.rs` (new); `crates/core-code/tests/inventory/invariants.rs` (new); `crates/core-code/src/lib.rs`; `crates/core-code/src/model.rs`; `crates/core-code/src/error.rs`; `crates/core-code/src/scan.rs`; `crates/core-code/src/watch.rs`; `crates/core-code/src/store/mod.rs`; `crates/core-code/contract.yaml`; `crates/core-db/tests/fixtures/base_migrations.sha384`; `crates/core-db/tests/migration_checksums.rs`; `crates/core-db/contract.yaml`; `crates/shadows/tests/architecture/table-owners.txt`; `crates/shadows-core/src/error.rs`; `crates/shadows-core/src/lib.rs`; `crates/core-plans/src/error.rs`; `crates/shadows-http/src/failure/mod.rs`; `api/openapi.json` (regenerated); `docs/codebase/README.md`; `docs/backend/stages.md` (this entry).
+- Needs: none.
+- Done when: `cargo test -p core-db --test migration_checksums` (1 test); `cargo test -p core-code` (the 7 new tests and every earlier one); `cargo test -p shadows-core --test code_index` (3 tests); `cargo test -p shadows --test project_remove`; `UPDATE_OPENAPI=1 cargo test -p shadows --test openapi`; `cargo test -p shadows-http mapping`; then `cargo test -p shadows --test architecture --test codemap --test contract_tests` and the pre-commit checks of [AGENTS.md](AGENTS.md) rule 5. One commit, `feat(backend): B-96 <goal>`.
 
 ### B-97 · Server catalog and controlled process lifecycle
 
@@ -263,7 +263,7 @@ Order and rulings: [the program](plans/2026-11-09-local-delivery-program.md). Sl
 - Owner: Code.
 - Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
 - Touch: exact Create/Modify/Test file list of Task 2; no other source paths.
-- Needs: B-96; accepted shared API/model agreement. 
+- Needs: B-96; slice 1 tried on a real Laravel project, then this slice detailed by Hamoud.
 - Done when: all named RED/GREEN steps and focused verification commands in Task 2 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
 
 ### B-98 · Verified semantic queries with bounded results
@@ -276,15 +276,23 @@ Order and rulings: [the program](plans/2026-11-09-local-delivery-program.md). Sl
 - Needs: B-97; accepted shared API/model agreement. 
 - Done when: all named RED/GREEN steps and focused verification commands in Task 3 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
 
-### B-99 · Repository and LSP APIs reach the Planner
+### B-99 · The inventory reaches HTTP and the Planner
 
-- Status: blocked (prerequisites below must ship first)
-- Plan: [Task 4](plans/2026-11-09-repository-discovery.md#task-4-b-99-repository-and-lsp-apis-reach-the-planner).
+- Status: todo
+- Plan: [Task 2](plans/2026-11-09-slice-1-files-and-contract.md#task-2-b-99-the-inventory-reaches-http-and-the-planner). Its Interfaces and steps are binding.
+- Owner: `shadows-http` and `shadows-mcp` (translation), Grants (the Planner's tool list), Harness (the Planner's instructions).
+- Read: the plan's Global Constraints and this task's Interfaces; [§17.0](../core/specs/2026-10-01-task-contracts-and-evidence-design.md#170-approved-local-delivery-revision-2026-11-09); the [shared request](../shared/requests/2026-11-09-local-delivery.md) with its "Backend answer, slice 1"; the contracts of `shadows-http`, `shadows-mcp`, `core-grants` and `core-harness`.
+- Touch: `crates/shadows/tests/fixtures/live.rs` (new); `crates/shadows/tests/planner_live.rs` (new); `crates/shadows-http/src/code.rs`; `crates/shadows-http/src/lib.rs`; `crates/shadows-http/src/contract.yaml`; `crates/shadows-mcp/src/code_tools.rs`; `crates/shadows-mcp/src/contract.yaml`; `crates/core-grants/src/tools.rs`; `crates/core-grants/contract.yaml`; `crates/core-harness/src/prompt.txt`; `crates/core-harness/contract.yaml`; `crates/shadows/tests/code_scope.rs`; `crates/shadows/tests/mcp_server.rs`; `api/openapi.json` (regenerated); `docs/codebase/README.md` (only if `codemap` asks for a row); `docs/backend/stages.md` (this entry).
+- Needs: B-96. Only `project_files` and `project_refresh`; the language-server routes are B-119.
+- Done when: `cargo test -p shadows --test code_scope --test mcp_server --test mcp_tools`; `cargo test -p shadows --test planner_mcp`; `cargo test -p shadows-core --test codex_session --test executor_session`; `UPDATE_OPENAPI=1 cargo test -p shadows --test openapi`; live, where `API_KEY_MINIMAX` is present: `cargo test -p shadows --test planner_live live_the_planner_lists_the_real_files -- --ignored --test-threads=1`, its reply line recorded here; then `cargo test -p shadows --test architecture --test codemap --test contract_tests` and the pre-commit checks of [AGENTS.md](AGENTS.md) rule 5. One commit, `feat(backend): B-99 <goal>`.
+
+### B-119 · Language-server status and question routes reach the Planner
+
+- Status: blocked (slice 2; prerequisites below must ship first)
+- Plan: draft, the language-server part of [Task 4](plans/2026-11-09-repository-discovery.md#task-4-b-99-repository-and-lsp-apis-reach-the-planner), which B-99 no longer carries.
 - Owner: Code, Grants and adapters.
-- Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
-- Touch: exact Create/Modify/Test file list of Task 4; no other source paths.
-- Needs: B-98; accepted shared API/model agreement. 
-- Done when: all named RED/GREEN steps and focused verification commands in Task 4 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
+- Read, Touch, Done when: written when slice 2 is detailed.
+- Needs: B-98, B-99.
 
 ### B-100 · Preparation request, scope and persistence
 
@@ -293,7 +301,7 @@ Order and rulings: [the program](plans/2026-11-09-local-delivery-program.md). Sl
 - Owner: Runs and Grants.
 - Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
 - Touch: exact Create/Modify/Test file list of Task 1; no other source paths.
-- Needs: B-99; accepted shared API/model agreement. 
+- Needs: B-99; accepted shared API/model agreement.
 - Done when: all named RED/GREEN steps and focused verification commands in Task 1 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
 
 ### B-101 · Bounded preparation worker and refreshed result
@@ -316,45 +324,45 @@ Order and rulings: [the program](plans/2026-11-09-local-delivery-program.md). Sl
 - Needs: B-101; accepted shared API/model agreement. 
 - Done when: all named RED/GREEN steps and focused verification commands in Task 3 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
 
-### B-103 · Persist typed file/symbol work
+### B-103 · A task carries its file work and symbol work
 
-- Status: blocked (prerequisites below must ship first)
-- Plan: [Task 1](plans/2026-11-09-detailed-task-contracts.md#task-1-b-103-persist-typed-filesymbol-work).
-- Owner: Plans.
-- Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
-- Touch: exact Create/Modify/Test file list of Task 1; no other source paths.
-- Needs: B-96; accepted shared API/model agreement. 
-- Done when: all named RED/GREEN steps and focused verification commands in Task 1 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
+- Status: todo
+- Plan: [Task 3](plans/2026-11-09-slice-1-files-and-contract.md#task-3-b-103-a-task-carries-its-file-work-and-symbol-work). Its Interfaces and steps are binding.
+- Owner: Plans (`crates/core-plans`).
+- Read: the plan's Global Constraints and this task's Interfaces; [§17.0](../core/specs/2026-10-01-task-contracts-and-evidence-design.md#170-approved-local-delivery-revision-2026-11-09); the [shared request](../shared/requests/2026-11-09-local-delivery.md) with its "Backend answer, slice 1"; `crates/core-plans/contract.yaml`.
+- Touch: `crates/core-plans/src/task_contract.rs` (new); `crates/core-plans/tests/task_contract.rs` (new); `crates/shadows-core/tests/task_contract.rs` (new); `crates/core-plans/src/lib.rs`; `crates/core-plans/src/model.rs`; `crates/core-plans/src/rules.rs`; `crates/core-plans/src/store/task.rs`; `crates/core-plans/contract.yaml`; `crates/shadows-core/src/lib.rs`; `crates/core-plans/tests/workflow_rules.rs`; `crates/shadows-core/tests/runs_attempts.rs`; `crates/shadows-core/tests/design_outcomes.rs`; `crates/shadows-core/tests/design_parts.rs`; `crates/shadows-core/tests/design_parts/roadmap_gate.rs`; `crates/shadows-core/tests/fixtures/cross_plan.rs`; `crates/shadows/tests/fixtures/plan.rs`; `api/openapi.json` (regenerated); `docs/codebase/README.md`; `docs/backend/stages.md` (this entry).
+- Needs: none in code; it runs after B-99 because every task of the slice writes `stages.md`, the code map and `api/openapi.json`.
+- Done when: `cargo test -p core-plans` (the 5 new tests and all 24 of `workflow_rules`); `cargo test -p shadows-core --test task_contract --test task_context --test design_parts --test design_outcomes --test runs_attempts`; `cargo test -p shadows --test plan_routes --test plan_storage --test mcp_tools`; `UPDATE_OPENAPI=1 cargo test -p shadows --test openapi`; then `cargo test -p shadows --test architecture --test codemap --test contract_tests` and the pre-commit checks of [AGENTS.md](AGENTS.md) rule 5. One commit, `feat(backend): B-103 <goal>`.
 
-### B-104 · Resolve producers and consumers in the existing graph
+### B-104 · A consumer uses a producer's output
 
-- Status: blocked (prerequisites below must ship first)
-- Plan: [Task 2](plans/2026-11-09-detailed-task-contracts.md#task-2-b-104-resolve-producers-and-consumers-in-the-existing-graph).
-- Owner: Plans.
-- Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
-- Touch: exact Create/Modify/Test file list of Task 2; no other source paths.
-- Needs: B-103; accepted shared API/model agreement. 
-- Done when: all named RED/GREEN steps and focused verification commands in Task 2 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
+- Status: todo
+- Plan: [Task 4](plans/2026-11-09-slice-1-files-and-contract.md#task-4-b-104-a-consumer-uses-a-producers-output). Its Interfaces and steps are binding.
+- Owner: Plans (`crates/core-plans`).
+- Read: the plan's Global Constraints and this task's Interfaces; [§17.0](../core/specs/2026-10-01-task-contracts-and-evidence-design.md#170-approved-local-delivery-revision-2026-11-09); the [shared request](../shared/requests/2026-11-09-local-delivery.md) with its "Backend answer, slice 1"; `crates/core-plans/contract.yaml`.
+- Touch: `crates/core-plans/src/contract_uses.rs` (new); `crates/core-plans/src/task_contract.rs`; `crates/core-plans/src/rules.rs`; `crates/core-plans/src/task_context.rs`; `crates/core-plans/src/store/task_context.rs`; `crates/core-plans/src/lib.rs`; `crates/core-plans/contract.yaml`; `crates/shadows-core/src/lib.rs`; `crates/core-plans/tests/task_contract.rs`; `crates/shadows-core/tests/task_contract.rs`; `api/openapi.json` (regenerated); `docs/codebase/README.md`; `docs/backend/stages.md` (this entry).
+- Needs: B-103.
+- Done when: `cargo test -p core-plans` (8 tests in `task_contract`); `cargo test -p shadows-core --test task_contract --test task_context --test phase_dependencies --test cross_plan_resolution`; `cargo test -p shadows --test mcp_tools --test plan_routes`; `UPDATE_OPENAPI=1 cargo test -p shadows --test openapi`; then `cargo test -p shadows --test architecture --test codemap --test contract_tests` and the pre-commit checks of [AGENTS.md](AGENTS.md) rule 5. One commit, `feat(backend): B-104 <goal>`.
 
 ### B-105 · Minimal accepted decision revisions
 
-- Status: blocked (prerequisites below must ship first)
+- Status: blocked (deferred by the program until a task needs project decision revisions; no slice holds it)
 - Plan: [Task 3](plans/2026-11-09-detailed-task-contracts.md#task-3-b-105-minimal-accepted-decision-revisions).
 - Owner: Design.
 - Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
 - Touch: exact Create/Modify/Test file list of Task 3; no other source paths.
-- Needs: B-104; accepted shared API/model agreement. 
+- Needs: B-104; a task that needs a decision revision.
 - Done when: all named RED/GREEN steps and focused verification commands in Task 3 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
 
-### B-106 · Expose contract editing, context and decisions
+### B-106 · The contract reaches the Planner, the person and the executor
 
-- Status: blocked (prerequisites below must ship first)
-- Plan: [Task 4](plans/2026-11-09-detailed-task-contracts.md#task-4-b-106-expose-contract-editing-context-and-decisions).
-- Owner: Plans/Design adapters.
-- Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
-- Touch: exact Create/Modify/Test file list of Task 4; no other source paths.
-- Needs: B-105; accepted shared API/model agreement. 
-- Done when: all named RED/GREEN steps and focused verification commands in Task 4 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
+- Status: todo
+- Plan: [Task 5](plans/2026-11-09-slice-1-files-and-contract.md#task-5-b-106-the-contract-reaches-the-planner-the-person-and-the-executor). Its Interfaces and steps are binding.
+- Owner: `shadows-mcp` (two tool descriptions), Harness (both instruction texts). No new route.
+- Read: the plan's Global Constraints and this task's Interfaces; [§17.0](../core/specs/2026-10-01-task-contracts-and-evidence-design.md#170-approved-local-delivery-revision-2026-11-09); the [shared request](../shared/requests/2026-11-09-local-delivery.md) with its "Backend answer, slice 1"; the contracts of `shadows-mcp`, `core-harness` and `shadows-http`.
+- Touch: `crates/shadows-mcp/src/plan_tools.rs`; `crates/shadows-mcp/src/contract.yaml`; `crates/core-harness/src/prompt.txt`; `crates/core-harness/src/executor.txt`; `crates/core-harness/contract.yaml`; `crates/shadows-http/src/contract.yaml`; `crates/shadows/tests/mcp_tools.rs`; `crates/shadows/tests/planner_live.rs`; `crates/shadows/tests/runs_routes/live.rs`; `docs/backend/stages.md` (this entry).
+- Needs: B-99, B-104. Decisions are not exposed here; they wait for B-105.
+- Done when: `cargo test -p shadows --test mcp_tools --test planner_mcp --test plan_routes`; `cargo test -p shadows-core --test executor_session --test runs_attempts`; `cargo test -p shadows --test openapi` with no change to `api/`; live, where `API_KEY_MINIMAX` is present: `cargo test -p shadows --test planner_live live_the_planner_writes_a_contract -- --ignored --test-threads=1` and `cargo test -p shadows --test runs_routes live_an_executor_builds_the_function -- --ignored --test-threads=1`, their printed lines recorded here; then `cargo test -p shadows --test architecture --test codemap --test contract_tests` and the pre-commit checks of [AGENTS.md](AGENTS.md) rule 5. One commit, `feat(backend): B-106 <goal>`.
 
 ### B-107 · Store a simple brief on each attempt
 
