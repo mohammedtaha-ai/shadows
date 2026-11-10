@@ -47,3 +47,43 @@ async fn live_the_planner_lists_the_real_files() {
     assert!(reply.contains("app/Models/Customer.php"), "{reply}");
     assert!(reply.contains("routes/web.php"), "{reply}");
 }
+
+/// The Planner writes a task's contract with plan_edit: the file, the
+/// function's inputs and return type, and its behavior as sentences, not code.
+#[tokio::test]
+#[ignore = "live: needs API_KEY_MINIMAX"]
+async fn live_the_planner_writes_a_contract_without_a_function_body() {
+    let live = live::live_adapter();
+    let tmp = tempfile::tempdir().unwrap();
+    let l = listening::listening_on(tmp.path(), live.adapter.clone()).await;
+    let workflow = plan::draft(&l.app).await.workflow_id;
+    let prompt = format!(
+        "Edit the draft plan {workflow} (it is at revision 0). Add task T1, 'Cart total': it \
+         creates src/cart.rs with one function, cart_total_cents, which takes the item prices in \
+         cents and returns their sum. Its one acceptance item: an empty cart totals 0. Write it \
+         with plan_edit, with its contract."
+    );
+    let done = live::planner_turn(&l.app, "live-contract", &prompt).await;
+    assert_eq!(done.status_kind, "Completed", "{done:?}");
+    let (_, read) = app::call(&l.app, "GET", &format!("/api/workflows/{workflow}"), None).await;
+    let contract = &read["tasks"][0]["contract"];
+    println!("live contract: {contract}");
+    assert_eq!(contract["files"][0]["path"], "src/cart.rs", "{read}");
+    let symbol = &contract["symbols"][0];
+    assert_eq!(symbol["name"], "cart_total_cents");
+    assert!(!symbol["inputs"].as_array().unwrap().is_empty());
+    assert!(
+        symbol["returns"]["type_name"]
+            .as_str()
+            .is_some_and(|t| !t.is_empty())
+    );
+    let behavior = symbol["behavior"].as_array().unwrap();
+    assert!(!behavior.is_empty());
+    // Sentences, not code.
+    assert!(
+        behavior
+            .iter()
+            .all(|line| !line.as_str().unwrap().contains('{')),
+        "{behavior:?}"
+    );
+}

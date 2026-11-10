@@ -176,8 +176,9 @@ impl Shadows {
     }
 
     #[tool(
-        description = "First read before building a task: its approved content, parts, layers \
-                       and rules. This grants no permission to execute. Name workflow_id, \
+        description = "First read before building a task: its approved content with its \
+                       contract, the contracts of the outputs it uses, its parts, layers and \
+                       rules. This grants no permission to execute. Name workflow_id, \
                        unless you are an executor reading your own task."
     )]
     async fn task_context(
@@ -247,7 +248,10 @@ impl Shadows {
                        operations: plan_put, task_add, task_update, task_remove, link_put, \
                        link_remove, phases_set. phases_set replaces the ordered phase list: \
                        retain existing ids, omit ids for new phases. Numbers are server-derived. \
-                       Put changes made together in one call."
+                       Put changes made together in one call. A task may carry contract: its \
+                       files (path, action, purpose), its symbols (name, inputs, returns, \
+                       behavior, errors), what it produces and what it uses; task_add and \
+                       task_update carry the whole task, contract included."
     )]
     async fn plan_edit(
         &self,

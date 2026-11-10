@@ -356,7 +356,7 @@ Order and rulings: [the program](plans/2026-11-09-local-delivery-program.md). Sl
 
 ### B-106 · The contract reaches the Planner, the person and the executor
 
-- Status: todo
+- Status: done. Ran: `cargo test -p shadows --test mcp_tools --test planner_mcp --test plan_routes` 20+24+7 passed; `cargo test -p shadows-core --test executor_session --test runs_attempts` 8+27 passed, 5 live ignored (no executor.txt sentence pinned); `cargo test -p shadows --test openapi` 8 passed, `api/` unchanged; `cargo test -p shadows --test planner_live --test runs_routes` builds, 8 passed, 4 live ignored; `cargo test -p shadows --test architecture --test codemap --test contract_tests` 49+1+1 passed; fmt, both clippy runs and the line check clean. Live `live_the_planner_writes_a_contract_without_a_function_body` and `live_an_executor_builds_the_function_its_contract_names` not run: no `API_KEY_MINIMAX` in this environment, so no `live contract:` line is recorded.
 - Plan: [Task 5](plans/2026-11-09-slice-1-files-and-contract.md#task-5-b-106-the-contract-reaches-the-planner-the-person-and-the-executor). Its Interfaces and steps are binding.
 - Owner: `shadows-mcp` (two tool descriptions), Harness (both instruction texts). No new route.
 - Read: the plan's Global Constraints and this task's Interfaces; [§17.0](../core/specs/2026-10-01-task-contracts-and-evidence-design.md#170-approved-local-delivery-revision-2026-11-09); the [shared request](../shared/requests/2026-11-09-local-delivery.md) with its "Backend answer, slice 1"; the contracts of `shadows-mcp`, `core-harness` and `shadows-http`.

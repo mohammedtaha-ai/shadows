@@ -781,3 +781,111 @@ async fn an_executor_grant_lists_its_tools_and_reads_only_its_task() {
         .await
         .unwrap();
 }
+
+#[tokio::test]
+async fn a_contract_written_over_mcp_is_read_the_same_over_http() {
+    let l = listening_app().await;
+    let workflow = draft(&l.app).await.workflow_id;
+    let planner = thread_client(&l, &l.app.thread).await;
+    let tools = planner.list_all_tools().await.unwrap();
+    let describes = |name: &str, text: &str| {
+        let tool = tools.iter().find(|t| t.name == name).unwrap();
+        assert!(
+            tool.description.as_deref().unwrap().contains(text),
+            "{name}"
+        );
+    };
+    describes("plan_edit", "A task may carry contract");
+    describes("task_context", "the contracts of the outputs it uses");
+    let finder = json!({
+        "number": 1, "title": "Finder", "goal": "Find a customer", "reads": [],
+        "writes": ["app/**"], "acceptance": [{ "number": 1, "text": "A known email is found" }],
+        "contract": {
+            "files": [{ "path": "app/Services/CustomerFinder.php", "action": "create",
+                        "purpose": "Looks customers up" }],
+            "symbols": [{ "id": "s1", "path": "app/Services/CustomerFinder.php", "kind": "method",
+                "name": "findCustomer",
+                "inputs": [{ "name": "email", "type_name": "string", "meaning": "The address" }],
+                "returns": { "type_name": "?Customer", "meaning": "The match, or null" },
+                "behavior": ["Returns the customer whose email matches"] }],
+            "produces": [{ "id": "o1", "symbol_id": "s1", "acceptance": [1] }]
+        }
+    });
+    let redis = json!({
+        "number": 2, "title": "Redis", "goal": "Configure Redis", "reads": [],
+        "writes": ["docker/**"], "acceptance": [{ "number": 1, "text": "Redis starts" }],
+        "contract": {
+            "files": [{ "path": "docker/redis/redis.conf", "action": "create",
+                        "purpose": "Redis settings" }],
+            "uses": [{ "source": { "kind": "task", "target": { "kind": "local", "task": 1 },
+                                   "output": "o1" }, "purpose": "Caches lookups" }]
+        }
+    });
+    let ops = json!([
+        { "op": "task_add", "task": finder }, { "op": "task_add", "task": redis },
+        { "op": "task_add", "task": task(3, "legacy") },
+        { "op": "link_put", "link": { "task": 2, "after": 1, "kind": "needs", "label": "finder" } }
+    ]);
+    let edit = json!({ "workflow_id": workflow, "expected_revision": 0, "ops": ops });
+    ok(&planner, "plan_edit", edit).await;
+    let mcp = ok(&planner, "workflow_get", json!({ "workflow_id": workflow })).await;
+    let (status, http) =
+        app::call(&l.app, "GET", &format!("/api/workflows/{workflow}"), None).await;
+    assert_eq!(status, 200);
+    assert_eq!(http["tasks"][0]["contract"], mcp["tasks"][0]["contract"]);
+    assert_eq!(
+        http["tasks"][0]["contract"]["symbols"][0]["name"],
+        "findCustomer"
+    );
+    // A file task needs no function, and a legacy task has no contract key.
+    assert_eq!(http["tasks"][1]["contract"]["symbols"], json!([]));
+    assert!(http["tasks"][2].get("contract").is_none());
+    assert_eq!(http["blockers"], json!([]));
+    // A broken contract is refused with the plan's own code and the rule's words.
+    let mut bad = finder.clone();
+    bad["number"] = json!(4);
+    bad["contract"]["files"][0]["path"] = json!("../x.php");
+    let edit = json!({ "workflow_id": workflow, "expected_revision": 1,
+                       "ops": [{ "op": "task_add", "task": bad }] });
+    let refusal = refused(&planner, "plan_edit", edit).await;
+    assert!(
+        refusal.starts_with("WORKFLOW_VALIDATION_FAILED"),
+        "{refusal}"
+    );
+    assert!(
+        refusal.contains("T4 contract: `../x.php` is not an exact path"),
+        "{refusal}"
+    );
+    // Approved, the consumer reads its producer's contract.
+    plan::tie_to_part(&l.app, &workflow).await;
+    l.app
+        .core
+        .plans()
+        .approve("contract-approve".into(), &workflow, 1)
+        .await
+        .unwrap();
+    let args = json!({ "workflow_id": workflow, "task_number": 2 });
+    let context = ok(&planner, "task_context", args).await;
+    assert_eq!(context["contracts"][0]["symbol"]["name"], "findCustomer");
+    assert_eq!(context["contracts"][0]["producer_title"], "Finder");
+
+    l.app
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+}
+
+#[test]
+fn the_planner_is_told_what_a_contract_holds() {
+    let prompt = shadows_core::testing::PROMPT;
+    for text in [
+        "it says what to build, never how",
+        "Do not write function bodies or finished code in it",
+        "inputs (name, type_name, meaning)",
+        "do not invent a function for it",
+        "Never copy a producer's signature",
+    ] {
+        assert!(prompt.contains(text), "{text}");
+    }
+}

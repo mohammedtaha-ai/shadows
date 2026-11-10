@@ -85,6 +85,8 @@ layer_catalog: 'Planner standards text lists every kind presence and its layers 
 # and close serialize against that write. A failed write leaves the request waiting.
 # §23.5 prompt names stable vision item ids, proposal cards and person-only approval.
 # §13.8 prompt: the Planner talks in the person's language and stores everything in English.
+# The prompt's "The task contract" section is held by mcp_tools::the_planner_is_told_what_a_contract_holds and, live, planner_live::live_the_planner_writes_a_contract_without_a_function_body.
+# executor.txt's contract bullets are held, live, by runs_routes::live_an_executor_builds_the_function_its_contract_names.
 # The prompt's "Look before you write a path" section is held by code_scope::the_planner_is_told_to_look_at_the_real_files.
 # The actual appended prompt is checked by a_session_opens_with_shadows_mcp_instructions_and_the_pre_approval.
 version: 1

@@ -161,3 +161,71 @@ async fn live_an_executor_commits_its_own_work_and_reports_it() {
         .await
         .unwrap();
 }
+
+/// A task whose goal names no function, and whose contract does: the executor
+/// reads the contract through `task_context` and builds the function it names,
+/// with its signature, committing only that file.
+#[tokio::test]
+#[ignore = "live: needs API_KEY_MINIMAX"]
+async fn live_an_executor_builds_the_function_its_contract_names() {
+    let live = live_adapter();
+    let tmp = tempfile::tempdir().unwrap();
+    let l = listening::listening_on(tmp.path(), live.adapter.clone()).await;
+    let app = &l.app;
+    let root = folder(app).await;
+    repository(&root);
+    let v1 = plan::draft(app).await.workflow_id;
+    let mut t1 = plan::task(1, "Cart total");
+    t1.goal = "Add the cart total.".into();
+    t1.writes = vec!["src/**".into()];
+    t1.contract = Some(
+        serde_json::from_value(json!({
+            "files": [{ "path": "src/cart.rs", "action": "create", "purpose": "The cart's total" }],
+            "symbols": [{ "id": "s1", "path": "src/cart.rs", "kind": "function",
+                "name": "cart_total_cents",
+                "inputs": [{ "name": "prices", "type_name": "&[u32]",
+                             "meaning": "Item prices in cents" }],
+                "returns": { "type_name": "u32", "meaning": "Their sum" },
+                "behavior": ["Returns the sum of prices", "Returns 0 for an empty slice"] }]
+        }))
+        .unwrap(),
+    );
+    plan::edit(app, &v1, 0, &[shadows_core::PlanOp::TaskAdd { task: t1 }]).await;
+    shadows_core::AppCore::plans_for_tests(app.storage.clone())
+        .approve_plan_for_test(&app::ctx("approve-cart", "PlanApprove"), &v1, 1)
+        .await
+        .unwrap();
+    let path = format!("{}/1/attempts", tasks(&v1));
+    let (status, attempt) = post(
+        app,
+        &path,
+        json!({ "command_id": "live-cart", "model": PICKED }),
+    )
+    .await;
+    assert_eq!(status, 201, "{attempt}");
+    let mut last = Value::Null;
+    for _ in 0..1800 {
+        let (_, t1) = call(app, "GET", &format!("{}/1", tasks(&v1)), None).await;
+        last = t1["latest"].clone();
+        if last["state"] != "running" {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+    println!("live attempt: {last}");
+    assert_eq!(last["state"], "committed", "{last}");
+    let commit = last["commit"].as_str().unwrap();
+    let names = git(&root, &["show", "--name-only", "--format=", commit]);
+    assert_eq!(names.trim(), "src/cart.rs", "{names}");
+    // The goal names no function: only the contract, read through task_context, did.
+    let written = git(&root, &["show", &format!("{commit}:src/cart.rs")]);
+    assert!(written.contains("fn cart_total_cents"), "{written}");
+    assert!(
+        written.contains("&[u32]") && written.contains("u32"),
+        "{written}"
+    );
+    app.core
+        .shut_down(Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+}

@@ -49,7 +49,9 @@ agreements:
   - between: [plans::get, plans::get_for]
     must: Preserve stored values within scope; grant reads independently enforce project reach.
     tested_by: [plan_adapter_pairs_keep_their_authorization_boundaries,
-      incoming_previews_obey_the_grants_one_way_project_reach]
+      incoming_previews_obey_the_grants_one_way_project_reach,
+      a_contract_written_over_mcp_is_read_the_same_over_http]
+    # GET /api/workflows/{id} carries each task's contract at tasks[i].contract, from TaskContent.
   - between: [plans::approve, plans::approve_as_planner]
     must: >
       Both end in approve_plan_with. Person approval and Planner approval keep
