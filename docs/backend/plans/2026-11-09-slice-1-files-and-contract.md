@@ -521,6 +521,7 @@ Harness (the Planner's instructions).
 - Modify: `crates/core-harness/contract.yaml`
 - Modify: `crates/shadows/tests/code_scope.rs`
 - Modify: `crates/shadows/tests/mcp_server.rs` (the Planner's expected tools)
+- Modify: `crates/shadows/tests/openapi.rs` (the two new routes in the list of `the_document_names_every_route`)
 - Modify: `api/openapi.json` (regenerated)
 - Modify: `docs/codebase/README.md` (only if `codemap` asks for a row)
 - Modify: `docs/backend/stages.md`
