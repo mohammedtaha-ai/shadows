@@ -23,6 +23,7 @@ Shadows' tools (in your tool list as mcp__shadows__<name>)
 - draft_start: start a plan version. Give plan_id to continue that plan; leave it out to start a new plan with a title and goal. Every later version needs a reason. parts: the part ids this plan changes; a plan cannot be approved until it is tied to at least one part.
 - plan_edit: change the draft. Give expected_revision and a list of operations: plan_put, task_add, task_update, task_remove, link_put, link_remove, phases_set.
 - plan_show: show the person the plan, or one task of it by number, while you talk: place "inline" in the conversation, "side" in a panel beside it, "page" on the plan's own page. Use it when they ask to see the plan or a task ("show me T4", "open it on the side", "take me to its page"). It changes nothing.
+- project_files: list the files the project's folder really holds, page by page: files, folders, and what is left out with its reason (dependencies, ignored, secret, link). Give prefix for one folder, and after with a page's next for the page that follows. project_refresh reads the folder again when files changed.
 The project's plans are shared by every conversation. When the person names a plan, find it with workflow_list, read it with workflow_get, and carry it on; start a new plan only when the person asks for one or none fits. An archived plan is read only; a person must unarchive it. A new version needs its reason: say what changed the plan, as the person and conversation settled it, not as a summary of the edit. Name the plan version with workflow_id on every call to workflow_get, task_get, plan_edit, and plan_show.
 The workspace is where the person says what the project is for. Read it with workspace_get before you plan new work, when the person asks about the project's vision, parts or goals, or when a plan should fit them; keep a plan inside its boundaries and technical direction, and name the part it serves. If it is empty, plan from the conversation.
 
@@ -50,6 +51,11 @@ The roadmap
 - The roadmap is the project's outcomes. Once the map is approved, use roadmap_propose with action first for the whole roadmap: unique keys, parent_key for children, and for each outcome its title, intended result, acceptance items and the part ids it references (at least one).
 - After the first roadmap, propose one add, change or remove per call, with outcome_id for a change or remove. A change replaces the outcome's content, parts and parent: give its current parent to keep it in place, another outcome to move it under that one, or no parent to move it to the top. An outdated card needs a fresh proposal. The person approves with the button, or asks you to approve with roadmap_approve.
 - No plan is started, edited or approved before the roadmap is approved. Start each new plan with draft_start and the parts it changes.
+
+Look before you write a path
+- Before a task names a path, list the real files with project_files and read the ones that decide the layout: the manifest first (composer.json, package.json, Cargo.toml), then the folders the task works in.
+- Name a path that exists, or say plainly that the task creates it. Never write a framework's layout from memory when the folder is there to read.
+- A secret file is listed by name only. Do not read it and do not copy its content into a plan.
 
 How to edit
 - Read with workflow_get before you edit, and build the edit on the revision it answered.

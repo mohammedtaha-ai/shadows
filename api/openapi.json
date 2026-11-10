@@ -2707,6 +2707,105 @@
         ],
         "type": "object"
       },
+      "InventoryEntry": {
+        "description": "One path of a project's folder.",
+        "properties": {
+          "excluded_reason": {
+            "description": "`dependencies`, `ignored`, `secret` or `link`; null unless `kind` is `excluded`.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "has_symbols": {
+            "description": "The code index holds at least one tag of this file.",
+            "type": "boolean"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/InventoryKind"
+          },
+          "language": {
+            "description": "The name `shadows-index` gives the file's extension; null for any other file.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "path": {
+            "description": "Relative to the project's folder, with '/'. A folder has no trailing '/'.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "kind",
+          "language",
+          "excluded_reason",
+          "has_symbols"
+        ],
+        "type": "object"
+      },
+      "InventoryKind": {
+        "description": "What one listed path is.",
+        "enum": [
+          "directory",
+          "file",
+          "excluded"
+        ],
+        "type": "string"
+      },
+      "InventoryPage": {
+        "description": "One page of a project's file list, in path order.",
+        "properties": {
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/InventoryEntry"
+            },
+            "type": "array"
+          },
+          "generation": {
+            "description": "Moves by one each time a listing changed the stored entries; 0 before the first.",
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "next": {
+            "description": "What to pass as `after` for the following page; null on the last.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "observed_at": {
+            "description": "When the last listing ended (RFC 3339); null before the first.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "state": {
+            "$ref": "#/components/schemas/InventoryState"
+          }
+        },
+        "required": [
+          "state",
+          "generation",
+          "entries",
+          "next",
+          "observed_at"
+        ],
+        "type": "object"
+      },
+      "InventoryState": {
+        "description": "How a project's file list stands.",
+        "enum": [
+          "missing",
+          "indexing",
+          "ready",
+          "incomplete"
+        ],
+        "type": "string"
+      },
       "InvocationView": {
         "description": "What a turn asked for and what the harness reported.\nAnything not reported is `None`, never estimated.\nPlanning context is heard after normal completion, prepared while unconfirmed, or null without a record.\n",
         "properties": {
@@ -11173,6 +11272,107 @@
         ]
       }
     },
+    "/api/projects/{id}/code/files": {
+      "get": {
+        "operationId": "files",
+        "parameters": [
+          {
+            "description": "The project",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ProjectId"
+            }
+          },
+          {
+            "description": "A folder relative to the project's folder; none for all of it.",
+            "in": "query",
+            "name": "prefix",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "The `next` of the page before this one.",
+            "in": "query",
+            "name": "after",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "1 to 200; 100 when absent.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InventoryPage"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "INVALID_COMMAND: no such project"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "INVENTORY_STALE: the file list changed since the cursor's page"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "INVALID_COMMAND: a limit outside 1 to 200, a path outside the project, or a cursor this listing did not give"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          }
+        },
+        "summary": "One page of the files the project's folder holds, in path order: files,\nfolders, and what is left out with its reason. A file's content is never\nread.",
+        "tags": [
+          "code"
+        ]
+      }
+    },
     "/api/projects/{id}/code/links": {
       "get": {
         "operationId": "links",
@@ -11565,6 +11765,58 @@
           }
         },
         "summary": "Where a name is used, matched by name only: every hit says\n`matched_by: \"name\"`.",
+        "tags": [
+          "code"
+        ]
+      }
+    },
+    "/api/projects/{id}/code/refresh": {
+      "post": {
+        "operationId": "refresh",
+        "parameters": [
+          {
+            "description": "The project",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ProjectId"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InventoryPage"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "INVALID_COMMAND: no such project"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          }
+        },
+        "summary": "Lists the project's folder again now, and answers the first page.",
         "tags": [
           "code"
         ]

@@ -36,6 +36,11 @@ vision_propose_args: 'vision_propose names which arguments each action takes: fi
 
 layout_only: Map records contain no starter files; the stage has no Structure step or file count, and no HTTP structure-write route exists. Roadmap follows map approval.
 
+# project_files translates { prefix, after, limit } to Code::inventory and project_refresh
+# (no arguments) to Code::refresh_inventory, both with Asker::Grant(grant.project_id), and
+# answer the InventoryPage as JSON. A stale cursor is INVENTORY_STALE; only the Planner's
+# grant lists them (Grants::tools_for). Tested by
+# code_scope::the_person_and_the_planner_see_the_same_files.
 # task_report translates { commit, report } to Runs::report with the caller's executor grant
 # and answers { attempt, state, commit }. A Runs refusal is INVALID_COMMAND with Runs' own code
 # leading its text (`outside_writes: ...`); a grant with no attempt is GRANT_SCOPE. Tested by

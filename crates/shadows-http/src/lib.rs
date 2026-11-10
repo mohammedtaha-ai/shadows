@@ -262,6 +262,8 @@ fn routes() -> OpenApiRouter<AppState> {
         .routes(routes!(code::references))
         .routes(routes!(code::outline))
         .routes(routes!(code::status))
+        .routes(routes!(code::files))
+        .routes(routes!(code::refresh))
         .routes(routes!(code::links))
         .routes(routes!(code::put_link, code::remove_link))
         .routes(routes!(code::get_settings, code::put_settings))

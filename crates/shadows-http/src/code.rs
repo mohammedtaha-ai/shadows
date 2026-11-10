@@ -1,5 +1,5 @@
 //! One job: the routes over the code index — a project's three
-//! questions, its index status, its links, and the active limit.
+//! questions, its index status, its file list, its links, and the active limit.
 //!
 //! A person asks over HTTP, so a question is `Asker::Person`: a project
 //! outside the scope is refused INVALID_COMMAND, never GRANT_SCOPE. Every
@@ -11,7 +11,10 @@ use axum::http::StatusCode;
 
 use super::failure::ErrorBody;
 use super::{AppState, Failure};
-use shadows_core::{Answer, Asker, CodeSettings, ProjectId, ProjectLink, ProjectStatus};
+use shadows_core::{
+    Answer, Asker, CodeSettings, InventoryPage, InventoryQuery, ProjectId, ProjectLink,
+    ProjectStatus,
+};
 
 #[derive(serde::Deserialize, utoipa::IntoParams)]
 #[into_params(parameter_in = Query)]
@@ -137,6 +140,77 @@ pub(super) async fn status(
     Path(project): Path<ProjectId>,
 ) -> Result<Json<ProjectStatus>, Failure> {
     Ok(Json(s.core.code().status(&project).await?))
+}
+
+#[derive(serde::Deserialize, utoipa::IntoParams)]
+#[into_params(parameter_in = Query)]
+pub(super) struct FilesQuery {
+    /// A folder relative to the project's folder; none for all of it.
+    prefix: Option<String>,
+    /// The `next` of the page before this one.
+    after: Option<String>,
+    /// 1 to 200; 100 when absent.
+    limit: Option<u16>,
+}
+
+/// One page of the files the project's folder holds, in path order: files,
+/// folders, and what is left out with its reason. A file's content is never
+/// read.
+#[utoipa::path(
+    get,
+    path = "/api/projects/{id}/code/files",
+    tag = "code",
+    params(("id" = ProjectId, Path, description = "The project"), FilesQuery),
+    responses(
+        (status = 200, body = InventoryPage),
+        (status = 404, description = "INVALID_COMMAND: no such project", body = ErrorBody),
+        (
+            status = 409,
+            description = "INVENTORY_STALE: the file list changed since the cursor's page",
+            body = ErrorBody,
+        ),
+        (
+            status = 422,
+            description = "INVALID_COMMAND: a limit outside 1 to 200, a path outside the \
+                           project, or a cursor this listing did not give",
+            body = ErrorBody,
+        ),
+        (status = 500, description = "STORAGE_UNAVAILABLE", body = ErrorBody),
+    )
+)]
+pub(super) async fn files(
+    State(s): State<AppState>,
+    Path(project): Path<ProjectId>,
+    Query(q): Query<FilesQuery>,
+) -> Result<Json<InventoryPage>, Failure> {
+    let default = InventoryQuery::default();
+    let query = InventoryQuery {
+        prefix: q.prefix.unwrap_or(default.prefix),
+        after: q.after,
+        limit: q.limit.unwrap_or(default.limit),
+    };
+    let asker = Asker::Person(&project);
+    Ok(Json(s.core.code().inventory(asker, query).await?))
+}
+
+/// Lists the project's folder again now, and answers the first page.
+#[utoipa::path(
+    post,
+    path = "/api/projects/{id}/code/refresh",
+    tag = "code",
+    params(("id" = ProjectId, Path, description = "The project")),
+    responses(
+        (status = 200, body = InventoryPage),
+        (status = 404, description = "INVALID_COMMAND: no such project", body = ErrorBody),
+        (status = 500, description = "STORAGE_UNAVAILABLE", body = ErrorBody),
+    )
+)]
+pub(super) async fn refresh(
+    State(s): State<AppState>,
+    Path(project): Path<ProjectId>,
+) -> Result<Json<InventoryPage>, Failure> {
+    let asker = Asker::Person(&project);
+    Ok(Json(s.core.code().refresh_inventory(asker).await?))
 }
 
 /// The projects this project reads, by slug.
