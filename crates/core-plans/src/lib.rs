@@ -29,8 +29,12 @@ pub use phases::{LinkedPhase, Phase, PhaseEndpoint, PhaseId, PhaseInput, PhaseRe
 mod ops;
 mod rules;
 mod task_context;
+mod task_contract;
 pub use task_context::{
     ContextPlan, ContextStandards, PhaseDependency, TaskContext, TaskPart, TaskPath,
+};
+pub use task_contract::{
+    ContractValue, FileAction, FileWork, SymbolKind, SymbolWork, TaskContract,
 };
 mod scope;
 mod signal;

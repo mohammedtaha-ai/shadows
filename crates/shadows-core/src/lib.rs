@@ -55,11 +55,12 @@ pub use core_person::{Person, PersonPatch, PersonSettings, Theme};
 pub use core_plans::UiSignal;
 pub use core_plans::{
     AcceptanceItem, AgreementBinding, AgreementParticipantImpact, AgreementPartyReview,
-    AgreementReview, Approved, BindingParticipant, DesignOp, DraftStart, DraftStarted, EditOutcome,
-    Focus, LastEdit, Link, LinkKind, LinkedTask, MapLink, MapPlan, OutcomeView, PartView, Place,
-    Plan, PlanContent, PlanEdit, PlanId, PlanListing, PlanMap, PlanOp, PlanShow, PlanShown,
-    PlanState, PlanTask, PlanVersions, Plans, Problem, TaskContent, TaskId, TaskParent,
-    TaskPreview, VersionLine, WorkflowId, WorkflowState, WrittenBy,
+    AgreementReview, Approved, BindingParticipant, ContractValue, DesignOp, DraftStart,
+    DraftStarted, EditOutcome, FileAction, FileWork, Focus, LastEdit, Link, LinkKind, LinkedTask,
+    MapLink, MapPlan, OutcomeView, PartView, Place, Plan, PlanContent, PlanEdit, PlanId,
+    PlanListing, PlanMap, PlanOp, PlanShow, PlanShown, PlanState, PlanTask, PlanVersions, Plans,
+    Problem, SymbolKind, SymbolWork, TaskContent, TaskContract, TaskId, TaskParent, TaskPreview,
+    VersionLine, WorkflowId, WorkflowState, WrittenBy,
 };
 pub use core_projects::{
     DirectoryEntry, DirectoryError, DirectoryListing, Project, ProjectId, Projects,

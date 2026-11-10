@@ -232,6 +232,46 @@ shapes:
     writes: Vec<String>
     acceptance: Vec<AcceptanceItem>
     phases: Vec<Phase> # serde default, omitted when empty
+    # serde default, omitted when None: a task with no contract has no
+    # `contract` key in its JSON, its stored contract_json or its fingerprint.
+    contract: Option<TaskContract>
+  TaskContract:
+    # The executor's brief beside the goal; deny_unknown_fields, so a
+    # misspelt key is refused, never dropped. Not a permission: reads and
+    # writes stay the scope.
+    files: Vec<FileWork>         # serde default
+    symbols: Vec<SymbolWork>     # serde default
+    steps: Vec<String>           # serde default; the order of work
+    invariants: Vec<String>      # serde default; what must stay true
+    forbidden: Vec<String>       # serde default; what must not be changed
+  FileWork:
+    path: String                 # one exact file, relative, '/'; never a pattern
+    action: FileAction
+    purpose: String
+  FileAction:
+    # snake_case.
+    Read: unit
+    Create: unit
+    Modify: unit
+    Delete: unit
+  SymbolWork:
+    id: String                   # unique within the task: s1
+    path: String                 # a file of the task it creates or modifies
+    kind: SymbolKind
+    name: String
+    inputs: Vec<ContractValue>   # serde default
+    returns: Option<ContractValue>  # serde default; null for a class
+    behavior: Vec<String>        # short sentences, never code
+    errors: Vec<String>          # serde default
+  SymbolKind:
+    # snake_case.
+    Function: unit
+    Method: unit
+    Class: unit
+  ContractValue:
+    name: String                 # serde default; empty for a return value
+    type_name: String            # as the project's language writes the type
+    meaning: String
   AcceptanceItem:
     number: u32
     text: String
@@ -472,6 +512,21 @@ functions:
     apply: "(current: &PlanContent, ops: &[PlanOp]) -> Result<Applied, Vec<Problem>>"
     edit_problems: "(content: &PlanContent) -> Vec<Problem>"
     approval_problems: "(content: &PlanContent) -> Vec<Problem>"
+  task_contract:
+    ContractRules::problems:
+      signature: "(content: &PlanContent) -> Vec<Problem>"
+      private: true
+      # Called once, from Rules::edit_problems_after_removing after
+      # PhaseRules::problems. Tasks ascending; a task with no contract yields
+      # nothing. Messages, each "T{n} contract: ...": it names no file; `{path}`
+      # is not an exact path inside the project (empty, leading or trailing
+      # '/', '\\', ':', '*', '?', '[' or a '..' component); the file `{path}` is
+      # named more than once; the file `{path}` has no purpose; missing or
+      # repeated symbol id `{id}`; the symbol `{id}` has no name; the symbol
+      # `{id}` is in `{path}`, which the task does not create or modify;
+      # `{name}` is described more than once in `{path}`; an input of `{id}`
+      # needs a name and a type; `{id}` needs a return type (not for a class);
+      # `{id}` says no behavior; a blank line in {steps|invariants|forbidden}.
 
 
 enums:
@@ -685,6 +740,13 @@ obligations:
       and `task_parent` rows with "a frozen plan version never changes".
       Freezing, the update from Draft, is allowed.
     tested_by: migration_0012_moves_every_version_into_a_plan
+  - rule: A task without a contract serializes as before, in its JSON, its stored row and its command fingerprint.
+    tested_by: [a_task_without_a_contract_serializes_as_before, a_contract_is_stored_and_read_back_and_a_legacy_row_is_untouched]
+
+  - rule: >
+      A stored contract names exact files and whole symbols: every rule of
+      ContractRules::problems holds, or the edit is PLAN_INVALID and writes nothing.
+    tested_by: a_contract_is_refused_with_every_problem_named
 
 agreements:
   - between: [start_draft, design::require_roadmap_in]
@@ -754,6 +816,9 @@ not_the_caller's:
 
 open_questions:
   - >
+      Named work is not checked against reads/writes here: the glob matcher is
+      Runs' (crates/core-runs/src/scope.rs), and Plans never depends on Runs (B-108).
+  - >
       `show` reads the running turn from `Operations::running_for` before its
       write; whether a turn that ends between that read and `show_plan`'s
       transaction can still receive a card anchored to it is decided by the
@@ -761,6 +826,20 @@ open_questions:
 
 
 tests:
+  - name: a_task_without_a_contract_serializes_as_before
+    checks: No contract key in a legacy task's JSON or its TaskAdd op; it round-trips.
+  - name: a_contract_names_files_and_a_symbol_and_round_trips
+    checks: A contract with two files and one method applies under writes app/** and round-trips.
+  - name: named_work_and_a_glob_scope_coexist
+    checks: One exact file under a docker/** write scope applies.
+  - name: a_contract_is_refused_with_every_problem_named
+    checks: Eleven distinct contract problems are each named in the refusal.
+  - name: an_empty_contract_a_class_and_a_misspelt_key
+    checks: An empty contract names no file; a class needs no returns; an unknown key is a serde error.
+  - name: a_contract_is_stored_and_read_back_and_a_legacy_row_is_untouched
+    checks: >
+      Through real storage: the legacy row's contract_json has no contract key,
+      the contract reads back equal, and a refused one is PLAN_INVALID at revision 1.
   - name: the_planner_approves_a_map_without_waivers_and_a_plan
     checks: Planner freezes a blocker-free draft with attributed conversation entry.
   - name: bindings_are_exact_version_plan_content_and_task_removal_cleans_them
@@ -949,6 +1028,7 @@ modules:
   store/phase_projection.rs: Pinned foreign-phase previews
   phases.rs: Ordered phase contracts
   task_context.rs: Approved task context boundary
+  task_contract.rs: task contract types with their one-task rules
   store/task_context.rs: Snapshot task context assembly
   store/event_projection.rs: identifier-only plan event projection
   agreement_review.rs: Values returned by a shared agreement impact review

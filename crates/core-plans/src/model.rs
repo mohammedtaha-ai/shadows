@@ -145,6 +145,8 @@ pub struct TaskContent {
     pub acceptance: Vec<AcceptanceItem>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub phases: Vec<crate::Phase>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub contract: Option<crate::TaskContract>,
 }
 
 /// `task` waits for `after`.

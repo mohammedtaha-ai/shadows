@@ -22,6 +22,7 @@ pub fn task(number: u32) -> PlanOp {
     PlanOp::TaskAdd {
         task: TaskContent {
             phases: Vec::new(),
+            contract: None,
             number,
             title: format!("Task {number}"),
             goal: "A usable result".into(),

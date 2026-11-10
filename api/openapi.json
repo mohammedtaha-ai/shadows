@@ -1344,6 +1344,28 @@
         ],
         "type": "object"
       },
+      "ContractValue": {
+        "additionalProperties": false,
+        "description": "A parameter or a return value.",
+        "properties": {
+          "meaning": {
+            "type": "string"
+          },
+          "name": {
+            "description": "The parameter's name; empty for a return value.",
+            "type": "string"
+          },
+          "type_name": {
+            "description": "As the project's language writes the type.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type_name",
+          "meaning"
+        ],
+        "type": "object"
+      },
       "CreateDir": {
         "properties": {
           "name": {
@@ -2277,6 +2299,16 @@
         ],
         "type": "object"
       },
+      "FileAction": {
+        "description": "What the task does to a file.",
+        "enum": [
+          "read",
+          "create",
+          "modify",
+          "delete"
+        ],
+        "type": "string"
+      },
       "FileDiff": {
         "description": "One file of an attempt's commit: its line counts and its patch, cut at\n2,000 lines with a marker.",
         "properties": {
@@ -2302,6 +2334,28 @@
           "added",
           "removed",
           "patch"
+        ],
+        "type": "object"
+      },
+      "FileWork": {
+        "additionalProperties": false,
+        "description": "One file the task works on, and why.",
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/FileAction"
+          },
+          "path": {
+            "description": "One exact file, relative to the project's folder, with '/'. Never a pattern.",
+            "type": "string"
+          },
+          "purpose": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "action",
+          "purpose"
         ],
         "type": "object"
       },
@@ -6487,6 +6541,73 @@
         ],
         "type": "object"
       },
+      "SymbolKind": {
+        "description": "What kind of symbol a task builds.",
+        "enum": [
+          "function",
+          "method",
+          "class"
+        ],
+        "type": "string"
+      },
+      "SymbolWork": {
+        "additionalProperties": false,
+        "description": "One function, method or class the task builds, described by its behavior.",
+        "properties": {
+          "behavior": {
+            "description": "Short sentences saying what it does, never its code.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "errors": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "id": {
+            "description": "Chosen by the writer, unique within the task: `s1`.",
+            "type": "string"
+          },
+          "inputs": {
+            "items": {
+              "$ref": "#/components/schemas/ContractValue"
+            },
+            "type": "array"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/SymbolKind"
+          },
+          "name": {
+            "type": "string"
+          },
+          "path": {
+            "description": "One of the task's files that it creates or modifies.",
+            "type": "string"
+          },
+          "returns": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ContractValue",
+                "description": "What it answers; null for a class."
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "path",
+          "kind",
+          "name",
+          "behavior"
+        ],
+        "type": "object"
+      },
       "TaskContent": {
         "description": "A task as the plan holds it, shown as `T{number}`.",
         "properties": {
@@ -6495,6 +6616,16 @@
               "$ref": "#/components/schemas/AcceptanceItem"
             },
             "type": "array"
+          },
+          "contract": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TaskContract"
+              }
+            ]
           },
           "goal": {
             "type": "string"
@@ -6536,6 +6667,46 @@
           "writes",
           "acceptance"
         ],
+        "type": "object"
+      },
+      "TaskContract": {
+        "additionalProperties": false,
+        "description": "What a task builds, named exactly: the executor's brief beside the goal.",
+        "properties": {
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/FileWork"
+            },
+            "type": "array"
+          },
+          "forbidden": {
+            "description": "What must not be changed.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "invariants": {
+            "description": "What must stay true.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "steps": {
+            "description": "The order of work, when it matters.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "symbols": {
+            "items": {
+              "$ref": "#/components/schemas/SymbolWork"
+            },
+            "type": "array"
+          }
+        },
         "type": "object"
       },
       "TaskId": {

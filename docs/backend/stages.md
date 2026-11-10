@@ -326,7 +326,7 @@ Order and rulings: [the program](plans/2026-11-09-local-delivery-program.md). Sl
 
 ### B-103 · A task carries its file work and symbol work
 
-- Status: todo
+- Status: done. Ran: `cargo test -p core-plans` 29 passed (5 new, 24 workflow_rules); `cargo test -p shadows-core --test task_contract --test task_context --test design_parts --test design_outcomes --test runs_attempts` 1+3+46+3+27 passed, 5 live ignored (no API_KEY_MINIMAX); `cargo test -p shadows --test plan_routes --test plan_storage --test mcp_tools` 7+16+18 passed; `UPDATE_OPENAPI=1 cargo test -p shadows --test openapi` 8 passed (`TaskContent.contract` optional, six new schemas); `cargo test -p shadows --test architecture --test codemap --test contract_tests` 49+1+1 passed; fmt, both clippy runs and the line check clean.
 - Plan: [Task 3](plans/2026-11-09-slice-1-files-and-contract.md#task-3-b-103-a-task-carries-its-file-work-and-symbol-work). Its Interfaces and steps are binding.
 - Owner: Plans (`crates/core-plans`).
 - Read: the plan's Global Constraints and this task's Interfaces; [§17.0](../core/specs/2026-10-01-task-contracts-and-evidence-design.md#170-approved-local-delivery-revision-2026-11-09); the [shared request](../shared/requests/2026-11-09-local-delivery.md) with its "Backend answer, slice 1"; `crates/core-plans/contract.yaml`.

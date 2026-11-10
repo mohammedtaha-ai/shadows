@@ -4,6 +4,7 @@ use core_plans::{AcceptanceItem, Link, LinkKind, PlanContent, PlanOp, Problem, T
 fn task(n: u32, title: &str) -> TaskContent {
     TaskContent {
         phases: Vec::new(),
+        contract: None,
         number: n,
         title: title.into(),
         goal: format!("goal {n}"),
