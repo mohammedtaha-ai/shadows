@@ -110,6 +110,16 @@ impl Git {
         self.commit("HEAD").await
     }
 
+    /// Reads only a blob at a validated commit and repository path, never the working tree.
+    pub(crate) async fn blob(&self, commit: &str, path: &str) -> Result<Option<Vec<u8>>, String> {
+        let object = format!("{commit}:{path}");
+        let kind = self.run(&["cat-file", "-t", &object]).await;
+        if !kind.is_ok_and(|kind| kind == b"blob\n") {
+            return Ok(None);
+        }
+        self.run(&["cat-file", "blob", &object]).await.map(Some)
+    }
+
     /// The full SHA of the commit `name` names, or `None` when it names none.
     pub(crate) async fn commit(&self, name: &str) -> Option<String> {
         let out = self

@@ -112,6 +112,17 @@ mod tests {
     use super::{FILE, parse};
 
     #[test]
+    fn the_executor_reports_commands_and_leaves_its_writes_clean() {
+        for text in [
+            "you ran (tests, build, lint) with its exit code",
+            "Do not paste file contents",
+            "not even a change of line endings",
+        ] {
+            assert!(FILE.contains(text), "{text}");
+        }
+    }
+
+    #[test]
     fn the_executor_file_parses_and_names_its_eight_tools() {
         let (tools, body) = parse(FILE).expect("executor.md parses");
         assert_eq!(

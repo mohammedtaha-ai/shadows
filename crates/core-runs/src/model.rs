@@ -153,6 +153,14 @@ pub struct FileDiff {
     pub patch: String,
 }
 
+/// One file as an attempt's commit holds it; deleted or binary files have no text.
+#[derive(Debug, Clone, serde::Serialize, utoipa::ToSchema)]
+pub struct AttemptFile {
+    pub path: String,
+    pub text: Option<String>,
+    pub cut: bool,
+}
+
 /// The record a task leaves when it stops on the cap: the chain of attempts
 /// from its Start, the commands its executor ran, and the Planner's account
 /// of what stopped the work. The two Planner fields are `null` until it

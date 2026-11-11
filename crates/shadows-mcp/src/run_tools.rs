@@ -45,6 +45,26 @@ struct TaskDoneArgs {
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
+struct TaskDiffArgs {
+    /// The approved plan version.
+    #[schemars(with = "String")]
+    workflow_id: WorkflowId,
+    /// The task's number: 4 for T4.
+    task_number: u32,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+struct TaskFileArgs {
+    /// The approved plan version.
+    #[schemars(with = "String")]
+    workflow_id: WorkflowId,
+    /// The task's number: 4 for T4.
+    task_number: u32,
+    /// A path inside the task's writes, as task_diff names it.
+    path: String,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 struct TaskAmendArgs {
     /// The approved plan version.
     #[schemars(with = "String")]
@@ -72,6 +92,48 @@ struct TaskLessonsArgs {
 
 #[tool_router(router = run_tool_router, vis = "pub(super)")]
 impl Shadows {
+    #[tool(
+        description = "Read what a task's latest committed attempt changed: each file with its \
+                       added and removed line counts and its patch. Read it before you judge \
+                       an attempt; \
+                       never ask the executor for file contents. After an addition it shows only \
+                       that attempt's change. Patches past 2,000 lines in all are not shown: read \
+                       those files with task_file."
+    )]
+    async fn task_diff(
+        &self,
+        Extension(grant): Extension<Grant>,
+        Parameters(args): Parameters<TaskDiffArgs>,
+    ) -> CallToolResult {
+        answer(
+            self.core
+                .runs()
+                .diff_for(&grant, &args.workflow_id, args.task_number)
+                .await
+                .map_err(Refusal::from),
+        )
+    }
+
+    #[tool(
+        description = "Read one file of a task as its latest committed attempt left it, whole: \
+                       any path inside the task's writes, changed by that attempt or not. text \
+                       is null for a deleted or binary file; cut is true when Shadows shortened \
+                       a long file."
+    )]
+    async fn task_file(
+        &self,
+        Extension(grant): Extension<Grant>,
+        Parameters(args): Parameters<TaskFileArgs>,
+    ) -> CallToolResult {
+        answer(
+            self.core
+                .runs()
+                .file_for(&grant, &args.workflow_id, args.task_number, &args.path)
+                .await
+                .map_err(Refusal::from),
+        )
+    }
+
     #[tool(
         description = "Report your task's work after you committed it yourself with git. \
                        Shadows accepts the commit only if it is on the checked-out branch, \

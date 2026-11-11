@@ -9,6 +9,163 @@ use shadows_core::testing::TaskScope;
 /// T3 writes `backend/app/**`, T5 `web/**`.
 const WRITES: [(u32, &str); 2] = [(3, "backend/app/**"), (5, "web/**")];
 
+#[tokio::test]
+async fn a_file_is_read_whole_at_the_attempts_commit() {
+    let f = fixture().await;
+    f.put("backend/app/a.php", "one\n");
+    f.put("backend/app/c.php", "c\n");
+    f.commit(&["backend/app/a.php", "backend/app/c.php"], "seed");
+    let (attempt, grant) = f.begin(3).await;
+    f.put("backend/app/a.php", "one\ntwo\n");
+    f.put("backend/app/b.php", "b\n");
+    let sha = f.commit(&["backend/app/a.php", "backend/app/b.php"], "change");
+    f.report(&grant, &sha).await.unwrap();
+    f.put("backend/app/a.php", "the person's edit\n");
+    let runs = f.core.runs();
+    let a = runs.file(&attempt, "backend/app/a.php").await.unwrap();
+    assert_eq!((a.text.as_deref(), a.cut), (Some("one\ntwo\n"), false));
+    let b = runs.file(&attempt, " backend\\app\\b.php ").await.unwrap();
+    assert_eq!(b.text.as_deref(), Some("b\n"));
+    assert_eq!(b.path, "backend/app/b.php");
+    let c = runs.file(&attempt, "backend/app/c.php").await.unwrap();
+    assert_eq!(c.text.as_deref(), Some("c\n"));
+    f.finish().await;
+}
+
+#[tokio::test]
+async fn a_file_outside_writes_or_not_at_the_commit_is_refused() {
+    let f = fixture().await;
+    f.put("notes.txt", "notes\n");
+    f.put("backend/app/c.php", "c\n");
+    f.commit(&["notes.txt", "backend/app/c.php"], "seed");
+    let (attempt, grant) = f.begin(3).await;
+    f.git(&["rm", "backend/app/c.php"]);
+    f.put("backend/app/a.php", "a\n");
+    let sha = f.commit(&["backend/app/a.php"], "change");
+    f.report(&grant, &sha).await.unwrap();
+    let runs = f.core.runs();
+    for path in ["notes.txt", "backend/app/../../notes.txt"] {
+        let refused = runs.file(&attempt, path).await;
+        assert!(
+            matches!(&refused, Err(RunsError::OutsideWrites { paths }) if paths == &[path]),
+            "{refused:?}"
+        );
+    }
+    assert!(matches!(
+        runs.file(&attempt, "backend/app/none.php").await,
+        Err(RunsError::NotFound)
+    ));
+    let deleted = runs.file(&attempt, "backend/app/c.php").await.unwrap();
+    assert_eq!((deleted.text, deleted.cut), (None, false));
+    let (running, _) = f.begin(5).await;
+    for id in [running, AttemptId::from_recorded("unknown".into())] {
+        assert!(matches!(
+            runs.file(&id, "web/x.js").await,
+            Err(RunsError::NotFound)
+        ));
+    }
+    f.finish().await;
+}
+
+#[tokio::test]
+async fn a_long_or_binary_file_is_cut_or_has_no_text() {
+    let f = fixture().await;
+    f.put("backend/app/logo.bin", "");
+    std::fs::write(f.root.join("backend/app/logo.bin"), [0u8, 1, 2]).unwrap();
+    f.put("backend/app/invalid.txt", "");
+    std::fs::write(f.root.join("backend/app/invalid.txt"), [0xffu8]).unwrap();
+    f.commit(&["backend/app/logo.bin", "backend/app/invalid.txt"], "seed");
+    let (attempt, grant) = f.begin(3).await;
+    let long: String = (1..=2500).map(|n| format!("line {n}\n")).collect();
+    f.put("backend/app/long.txt", &long);
+    f.put(
+        "backend/app/bytes.txt",
+        &format!("{}\nend\n", "é".repeat(100_001)),
+    );
+    let sha = f.commit(&["backend/app/long.txt", "backend/app/bytes.txt"], "long");
+    f.report(&grant, &sha).await.unwrap();
+    let runs = f.core.runs();
+    let long = runs.file(&attempt, "backend/app/long.txt").await.unwrap();
+    assert!(long.cut);
+    let text = long.text.unwrap();
+    assert_eq!(text.lines().count(), 2000);
+    assert!(text.ends_with("line 2000\n"));
+    let bytes = runs.file(&attempt, "backend/app/bytes.txt").await.unwrap();
+    assert!(bytes.cut);
+    assert_eq!(bytes.text.as_deref(), Some(""));
+    for path in ["backend/app/logo.bin", "backend/app/invalid.txt"] {
+        let binary = runs.file(&attempt, path).await.unwrap();
+        assert_eq!((binary.text, binary.cut), (None, false));
+    }
+    f.finish().await;
+}
+
+#[tokio::test]
+async fn the_planner_reads_the_same_change_the_diff_route_serves() {
+    let f = fixture().await;
+    let (attempt, grant) = f.begin(3).await;
+    f.put("backend/app/a.php", "a\n");
+    let sha = f.commit(&["backend/app/a.php"], "change");
+    f.report(&grant, &sha).await.unwrap();
+    let planner = planner_grant(&f).await;
+    let runs = f.core.runs();
+    assert_eq!(
+        serde_json::to_value(runs.diff_for(&planner, &f.workflow, 3).await.unwrap()).unwrap(),
+        serde_json::to_value(runs.diff(&attempt).await.unwrap()).unwrap()
+    );
+    let path = "backend/app/a.php";
+    assert_eq!(
+        serde_json::to_value(runs.file_for(&planner, &f.workflow, 3, path).await.unwrap()).unwrap(),
+        serde_json::to_value(runs.file(&attempt, path).await.unwrap()).unwrap()
+    );
+    let executor = super::planner::executor_grant(&f);
+    assert!(matches!(
+        runs.diff_for(&executor, &f.workflow, 3).await,
+        Err(RunsError::NotFound)
+    ));
+    assert!(matches!(
+        runs.file_for(&executor, &f.workflow, 3, path).await,
+        Err(RunsError::NotFound)
+    ));
+    assert!(matches!(
+        runs.diff_for(&planner, &f.workflow, 5).await,
+        Err(RunsError::NotFound)
+    ));
+    f.finish().await;
+}
+
+#[tokio::test]
+async fn the_planners_diff_shows_patches_up_to_its_bound() {
+    let f = fixture().await;
+    let (attempt, grant) = f.begin(3).await;
+    let paths = [
+        "backend/app/f1.txt",
+        "backend/app/f2.txt",
+        "backend/app/f3.txt",
+    ];
+    let text: String = (1..=900).map(|n| format!("line {n}\n")).collect();
+    for path in paths {
+        f.put(path, &text);
+    }
+    let sha = f.commit(&paths, "three files");
+    f.report(&grant, &sha).await.unwrap();
+    let grant = planner_grant(&f).await;
+    let runs = f.core.runs();
+    let diff = runs.diff_for(&grant, &f.workflow, 3).await.unwrap();
+    assert_eq!(diff.len(), 3);
+    for file in &diff[..2] {
+        assert!(file.patch.contains("+line 900"), "{file:?}");
+    }
+    assert_eq!(diff[2].patch, "[not shown: read it with task_file]");
+    assert_eq!((diff[2].added, diff[2].removed), (900, 0));
+    assert!(
+        runs.diff(&attempt).await.unwrap()[2]
+            .patch
+            .contains("+line 900")
+    );
+    f.finish().await;
+}
+
 impl Fixture {
     /// An attempt at `task` as Start leaves it once its session is open:
     /// `Running`, on an executor thread, holding its task's grant, with the

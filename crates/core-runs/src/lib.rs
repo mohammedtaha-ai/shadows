@@ -36,8 +36,8 @@ use std::sync::{Arc, Mutex};
 
 pub use error::RunsError;
 pub use model::{
-    Attempt, AttemptId, AttemptState, DoneMark, FileDiff, LessonAttempt, LessonCommand, Need,
-    RecoverReport, StartAnswer, TaskLesson, TaskRun,
+    Attempt, AttemptFile, AttemptId, AttemptState, DoneMark, FileDiff, LessonAttempt,
+    LessonCommand, Need, RecoverReport, StartAnswer, TaskLesson, TaskRun,
 };
 
 use core_db::{CommandContext, Storage};

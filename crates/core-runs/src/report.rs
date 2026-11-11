@@ -87,11 +87,7 @@ impl Runs {
         // A path outside the project folder is outside every pattern.
         let outside: Vec<String> = changes
             .iter()
-            .filter(|c| {
-                !c.path
-                    .strip_prefix(prefix.as_str())
-                    .is_some_and(|inside| matcher.admits(inside))
-            })
+            .filter(|c| !matcher.admits_under(&prefix, &c.path))
             .map(|c| c.path.clone())
             .collect();
         if !outside.is_empty() {

@@ -43,6 +43,58 @@ async fn repository(app: &app::App) -> PathBuf {
 
 const T1_GOAL: &str = "Create src/t1.rs containing `pub fn t1() {}` with the Write tool.";
 
+/// The Planner reads the committed change with its own tools before judging it.
+#[tokio::test]
+#[ignore = "live: needs the signed-in Claude Code subscription"]
+async fn live_the_planner_reads_the_commit_before_it_judges() {
+    let live = live::subscription_adapter();
+    let tmp = tempfile::tempdir().unwrap();
+    let l = listening::listening_on(tmp.path(), live.adapter.clone()).await;
+    let app = &l.app;
+    repository(app).await;
+    let v1 = approved_task(app).await;
+    let prompt = format!(
+        "Run T1 of plan version {v1} with task_start, model sonnet. When Shadows tells you \
+         T1's attempt committed, judge it as your instructions say: task_done, or task_amend."
+    );
+    let first = live::planner_turn_on(app, "live-review", &prompt, live::SUBSCRIPTION_MODEL).await;
+    assert_eq!(first.status_kind, "Completed", "{first:?}");
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(900);
+    let (t1, attempts) = loop {
+        let t1 = app.core.runs().task(&v1, 1, 1).await.unwrap();
+        let attempts = app.core.runs().attempts(&v1, 1, 1).await.unwrap();
+        if t1.done || attempts.len() > 1 {
+            break (t1, attempts);
+        }
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "no judgment: {attempts:?}"
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    };
+    let notice = planner_entry(app, &["attempt 1 committed", "task_diff"]).await;
+    let entries = app::entries(app).await;
+    let ordinal = entries
+        .iter()
+        .find(|entry| entry.body == notice)
+        .unwrap()
+        .ordinal;
+    assert!(
+        entries.iter().any(|entry| {
+            let text = format!("{entry:?}");
+            entry.ordinal > ordinal
+                && entry.kind == ThreadEntryKind::ToolCall
+                && (text.contains("task_diff") || text.contains("task_file"))
+        }),
+        "the Planner did not read the commit: {entries:?}"
+    );
+    println!("live review: done={} attempts={}", t1.done, attempts.len());
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+}
+
 /// An approved v1 whose T1 writes `src/**`.
 async fn approved_task(app: &app::App) -> shadows_core::WorkflowId {
     approved_task_with(app, T1_GOAL).await

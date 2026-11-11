@@ -957,6 +957,9 @@ fn the_planner_is_told_how_to_run_and_judge_tasks() {
         "start the task task_done names as next at once with task_start, \
          without waiting for the person",
         "count anything the report says was skipped or could not run as not done",
+        "first read what it changed with task_diff",
+        "never ask the executor for file contents",
+        "After an addition, task_diff shows only that attempt's change",
         "otherwise send task_amend with what is missing or must be extended.",
         "A task takes at most three additions after its Start",
         "call task_lessons once",
@@ -964,4 +967,26 @@ fn the_planner_is_told_how_to_run_and_judge_tasks() {
     for text in texts {
         assert!(prompt.contains(text), "{text}");
     }
+}
+
+#[tokio::test]
+async fn the_planner_reads_a_commit_with_its_own_tools() {
+    let l = listening_app().await;
+    let planner = thread_client(&l, &l.app.thread).await;
+    let tools = planner.list_all_tools().await.unwrap();
+    for (name, text) in [
+        ("task_diff", "never ask the executor for file contents"),
+        ("task_file", "inside the task's writes"),
+    ] {
+        let tool = tools.iter().find(|t| t.name == name).unwrap();
+        assert!(
+            tool.description.as_deref().unwrap().contains(text),
+            "{name}"
+        );
+    }
+    l.app
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }

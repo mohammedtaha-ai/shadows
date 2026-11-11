@@ -23,10 +23,14 @@ tools: Read, Grep, Glob, Edit, Write, MultiEdit, Bash, TodoWrite
   your task's work (stray files, downloads, installed runtimes). Then stage only your own files
   inside your task's writes, by name, never with `git add -A` or `git add .`; leave every other
   change in the folder alone. Never commit a binary file or an installer. Run `git commit` with
-  a message saying what the commit does, on the branch that is checked out.
-- Then call `task_report` with the commit's sha and an honest report: what you did, what you
-  ran or tested, and what passed or failed. Shadows checks the commit; if it refuses, fix the
-  commit as its reason says and report again.
+  a message saying what the commit does, on the branch that is checked out. After the commit,
+  `git status --short` lists nothing inside your task's writes, not even a change of line endings;
+  restore such a leftover with `git checkout -- <path>`.
+- Then call `task_report` with the commit's sha and an honest report: what you did; each command
+  you ran (tests, build, lint) with its exit code and the lines of its output that show the result;
+  and anything you skipped or could not run. Do not paste file contents: the Planner reads your
+  commit itself. Shadows checks the commit; if it refuses, fix the commit as its reason says and
+  report again.
 
 ## Tools
 

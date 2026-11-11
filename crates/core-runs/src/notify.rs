@@ -82,8 +82,8 @@ impl Runs {
                 };
                 format!(
                     "{head} committed {}.\nFiles: {files}\nThe executor's report:\n{report}\n\
-                     {last}Judge this commit against T{}'s acceptance items before you mark it \
-                     done.",
+                     {last}Read its change with task_diff and task_file, then judge it against \
+                     T{}'s acceptance items before you mark it done.",
                     attempt.commit.as_deref().unwrap_or_default(),
                     attempt.task
                 )
