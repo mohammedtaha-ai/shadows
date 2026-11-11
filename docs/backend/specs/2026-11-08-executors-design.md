@@ -155,7 +155,10 @@ diagram above, §8 "The Planner on a failure", §12.4, §10 slice 3). D7 and D9 
   commit, or fails without one, Runs puts a message in the plan's own conversation
   (`written_by`'s thread) naming the task, the commit, the files it changed and the executor's
   report, or the failure. It is a waiting message: a busy Planner reads it when its turn ends,
-  and a restart does not lose it.
+  and a restart does not lose it. It is marked as Shadows' (Mohammed, 2026-11-11): its entry
+  stays the turn's `UserMessage`, written by `Shadows`/`runs` with a card of its facts (task,
+  attempt, outcome, commit, the full report), so the page draws it inside the Planner's
+  activity, never as the person's message; the model reads the same text as before.
 - **A committed attempt waits for the judgment.** Its session stays open and its `writes` stay
   held until the task is marked done or the attempt is stopped. This replaces "a committed
   attempt holds its scope until its turn has ended".
