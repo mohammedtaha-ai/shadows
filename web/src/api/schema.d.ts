@@ -787,6 +787,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/projects/{id}/code/files": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * One page of the files the project's folder holds, in path order: files,
+         *     folders, and what is left out with its reason. A file's content is never
+         *     read.
+         */
+        get: operations["files"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/projects/{id}/code/links": {
         parameters: {
             query?: never;
@@ -859,6 +880,23 @@ export interface paths {
         get: operations["references"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{id}/code/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Lists the project's folder again now, and answers the first page. */
+        post: operations["refresh"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2023,6 +2061,11 @@ export interface components {
          *     until the turn starts.
          */
         Attempt: {
+            /**
+             * @description The Planner's addition this attempt carried on with, in the session of
+             *     the attempt before it; null for an attempt Start began.
+             */
+            addition: string | null;
             /** @description The SHA of the commit the executor made and reported, once accepted. */
             commit: string | null;
             ended_at: string | null;
@@ -2157,6 +2200,38 @@ export interface components {
         ContractHead: {
             header: string;
             rules: string[];
+        };
+        /** @description Where a used output comes from. */
+        ContractSource: {
+            /** @enum {string} */
+            kind: "task";
+            output: string;
+            target: components["schemas"]["ContractTarget"];
+        } | {
+            /** @enum {string} */
+            kind: "existing";
+            path: string;
+            symbol?: string;
+        };
+        /** @description The task that produces a used output. */
+        ContractTarget: {
+            /** @enum {string} */
+            kind: "local";
+            /** Format: int32 */
+            task: number;
+        };
+        /** @description Something this task relies on, and why. */
+        ContractUse: {
+            purpose: string;
+            source: components["schemas"]["ContractSource"];
+        };
+        /** @description A parameter or a return value. */
+        ContractValue: {
+            meaning: string;
+            /** @description The parameter's name; empty for a return value. */
+            name?: string;
+            /** @description As the project's language writes the type. */
+            type_name: string;
         };
         CreateDir: {
             /** @description One new path component that Windows would accept. */
@@ -2391,7 +2466,7 @@ export interface components {
          *     `Blocked`/`Rejected` are domain outcomes and never appear here.
          * @enum {string}
          */
-        ErrorCode: "CONTEXT_NOT_CARRIED" | "MAP_REFUSED" | "PERMISSION_NOT_FOUND" | "PERMISSION_SETTLED" | "PERMISSION_OPTION_NOT_OFFERED" | "EXTENSION_NOT_FOUND" | "EXTENSION_NAME_CONFLICT" | "RUNTIME_NOT_CONFIGURED" | "AYLUL_PROFILE_NOT_FOUND" | "AYLUL_PROVIDER_NOT_FOUND" | "PROVIDER_IN_USE" | "PROFILE_INVALID" | "SECRET_NAME_RESERVED" | "SECRET_NAME_INVALID" | "SECRET_VALUE_INVALID" | "SECRET_UNREADABLE" | "SECRETS_UNAVAILABLE" | "AYLUL_KEY_MISSING" | "AYLUL_NOT_CONFIGURED" | "STAGE_BLOCKED" | "HARNESS_START_FAILED" | "PROCESS_SPAWN_FAILED" | "PROCESS_TERMINATED" | "PROCESS_TERMINATION_FAILED" | "RUNTIME_STOPPING" | "STORAGE_UNAVAILABLE" | "STORAGE_MIGRATION_FAILED" | "STORAGE_CONSTRAINT_VIOLATION" | "COMMAND_CONFLICT" | "IDEMPOTENCY_KEY_REQUIRED" | "INVALID_COMMAND" | "INVALID_CURSOR" | "AGENT_AUTH_FAILED" | "AGENT_UNSUPPORTED_PROFILE" | "PATH_INVALID" | "PATH_NOT_FOUND" | "PATH_NOT_A_DIRECTORY" | "PATH_ACCESS_DENIED" | "PATH_ALREADY_EXISTS" | "PATH_UNAVAILABLE" | "ORIGIN_REFUSED" | "HARNESS_UNAVAILABLE" | "SETTING_NOT_OFFERED" | "MODE_NOT_ALLOWED" | "HARNESS_LOCKED" | "THREAD_BUSY" | "QUEUED_MESSAGE_GONE" | "FORK_POINT_NOT_SUPPORTED" | "WORKFLOW_FROZEN_IMMUTABLE" | "WORKFLOW_VALIDATION_FAILED" | "REVISION_CONFLICT" | "PROJECT_HAS_THREADS" | "GRANT_SCOPE" | "GRANT_INVALID";
+        ErrorCode: "CONTEXT_NOT_CARRIED" | "MAP_REFUSED" | "PERMISSION_NOT_FOUND" | "PERMISSION_SETTLED" | "PERMISSION_OPTION_NOT_OFFERED" | "EXTENSION_NOT_FOUND" | "EXTENSION_NAME_CONFLICT" | "RUNTIME_NOT_CONFIGURED" | "AYLUL_PROFILE_NOT_FOUND" | "AYLUL_PROVIDER_NOT_FOUND" | "PROVIDER_IN_USE" | "PROFILE_INVALID" | "SECRET_NAME_RESERVED" | "SECRET_NAME_INVALID" | "SECRET_VALUE_INVALID" | "SECRET_UNREADABLE" | "SECRETS_UNAVAILABLE" | "AYLUL_KEY_MISSING" | "AYLUL_NOT_CONFIGURED" | "STAGE_BLOCKED" | "HARNESS_START_FAILED" | "PROCESS_SPAWN_FAILED" | "PROCESS_TERMINATED" | "PROCESS_TERMINATION_FAILED" | "RUNTIME_STOPPING" | "STORAGE_UNAVAILABLE" | "STORAGE_MIGRATION_FAILED" | "STORAGE_CONSTRAINT_VIOLATION" | "COMMAND_CONFLICT" | "IDEMPOTENCY_KEY_REQUIRED" | "INVALID_COMMAND" | "INVALID_CURSOR" | "INVENTORY_STALE" | "AGENT_AUTH_FAILED" | "AGENT_UNSUPPORTED_PROFILE" | "PATH_INVALID" | "PATH_NOT_FOUND" | "PATH_NOT_A_DIRECTORY" | "PATH_ACCESS_DENIED" | "PATH_ALREADY_EXISTS" | "PATH_UNAVAILABLE" | "ORIGIN_REFUSED" | "HARNESS_UNAVAILABLE" | "SETTING_NOT_OFFERED" | "MODE_NOT_ALLOWED" | "HARNESS_LOCKED" | "THREAD_BUSY" | "QUEUED_MESSAGE_GONE" | "FORK_POINT_NOT_SUPPORTED" | "WORKFLOW_FROZEN_IMMUTABLE" | "WORKFLOW_VALIDATION_FAILED" | "REVISION_CONFLICT" | "PROJECT_HAS_THREADS" | "GRANT_SCOPE" | "GRANT_INVALID";
         /** @enum {string} */
         ExtensionKind: "plugin" | "skill" | "mcp";
         ExtensionLibrary: {
@@ -2399,6 +2474,11 @@ export interface components {
             plugins: components["schemas"]["Item"][];
             skills: components["schemas"]["Item"][];
         };
+        /**
+         * @description What the task does to a file.
+         * @enum {string}
+         */
+        FileAction: "read" | "create" | "modify" | "delete";
         /**
          * @description One file of an attempt's commit: its line counts and its patch, cut at
          *     2,000 lines with a marker.
@@ -2410,6 +2490,13 @@ export interface components {
             path: string;
             /** Format: int32 */
             removed: number;
+        };
+        /** @description One file the task works on, and why. */
+        FileWork: {
+            action: components["schemas"]["FileAction"];
+            /** @description One exact file, relative to the project's folder, with '/'. Never a pattern. */
+            path: string;
+            purpose: string;
         };
         /**
          * @description The task a person points at when they send a turn: the task's id, in the
@@ -2534,6 +2621,42 @@ export interface components {
              */
             number: number;
         };
+        /** @description One path of a project's folder. */
+        InventoryEntry: {
+            /** @description `dependencies`, `ignored`, `secret` or `link`; null unless `kind` is `excluded`. */
+            excluded_reason: string | null;
+            /** @description The code index holds at least one tag of this file. */
+            has_symbols: boolean;
+            kind: components["schemas"]["InventoryKind"];
+            /** @description The name `shadows-index` gives the file's extension; null for any other file. */
+            language: string | null;
+            /** @description Relative to the project's folder, with '/'. A folder has no trailing '/'. */
+            path: string;
+        };
+        /**
+         * @description What one listed path is.
+         * @enum {string}
+         */
+        InventoryKind: "directory" | "file" | "excluded";
+        /** @description One page of a project's file list, in path order. */
+        InventoryPage: {
+            entries: components["schemas"]["InventoryEntry"][];
+            /**
+             * Format: int64
+             * @description Moves by one each time a listing changed the stored entries; 0 before the first.
+             */
+            generation: number;
+            /** @description What to pass as `after` for the following page; null on the last. */
+            next: string | null;
+            /** @description When the last listing ended (RFC 3339); null before the first. */
+            observed_at: string | null;
+            state: components["schemas"]["InventoryState"];
+        };
+        /**
+         * @description How a project's file list stands.
+         * @enum {string}
+         */
+        InventoryState: "missing" | "indexing" | "ready" | "incomplete";
         /**
          * @description What a turn asked for and what the harness reported.
          *     Anything not reported is `None`, never estimated.
@@ -3126,6 +3249,16 @@ export interface components {
         Problem: {
             message: string;
         };
+        /** @description Something other tasks may rely on: one symbol or one file of this task. */
+        ProducedOutput: {
+            /** @description The task's acceptance items that prove it. */
+            acceptance?: number[];
+            /** @description A file path this task creates or modifies. */
+            artifact?: string | null;
+            /** @description Chosen by the writer, unique within the task: `o1`. */
+            id: string;
+            symbol_id?: string | null;
+        };
         Project: {
             /**
              * @description Per harness kind, the modes this project's turns may use.
@@ -3502,9 +3635,29 @@ export interface components {
             plan?: null | components["schemas"]["PlanId"];
             prompt: string;
         };
+        /**
+         * @description What kind of symbol a task builds.
+         * @enum {string}
+         */
+        SymbolKind: "function" | "method" | "class";
+        /** @description One function, method or class the task builds, described by its behavior. */
+        SymbolWork: {
+            /** @description Short sentences saying what it does, never its code. */
+            behavior: string[];
+            errors?: string[];
+            /** @description Chosen by the writer, unique within the task: `s1`. */
+            id: string;
+            inputs?: components["schemas"]["ContractValue"][];
+            kind: components["schemas"]["SymbolKind"];
+            name: string;
+            /** @description One of the task's files that it creates or modifies. */
+            path: string;
+            returns?: null | components["schemas"]["ContractValue"];
+        };
         /** @description A task as the plan holds it, shown as `T{number}`. */
         TaskContent: {
             acceptance: components["schemas"]["AcceptanceItem"][];
+            contract?: null | components["schemas"]["TaskContract"];
             goal: string;
             /** Format: int32 */
             number: number;
@@ -3514,6 +3667,19 @@ export interface components {
             title: string;
             /** @description Paths the task may change (its declared scope). */
             writes: string[];
+        };
+        /** @description What a task builds, named exactly: the executor's brief beside the goal. */
+        TaskContract: {
+            files?: components["schemas"]["FileWork"][];
+            /** @description What must not be changed. */
+            forbidden?: string[];
+            /** @description What must stay true. */
+            invariants?: string[];
+            produces?: components["schemas"]["ProducedOutput"][];
+            /** @description The order of work, when it matters. */
+            steps?: string[];
+            symbols?: components["schemas"]["SymbolWork"][];
+            uses?: components["schemas"]["ContractUse"][];
         };
         /** Format: uuid */
         TaskId: string;
@@ -6606,6 +6772,71 @@ export interface operations {
             };
         };
     };
+    files: {
+        parameters: {
+            query?: {
+                /** @description A folder relative to the project's folder; none for all of it. */
+                prefix?: string;
+                /** @description The `next` of the page before this one. */
+                after?: string;
+                /** @description 1 to 200; 100 when absent. */
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                /** @description The project */
+                id: components["schemas"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InventoryPage"];
+                };
+            };
+            /** @description INVALID_COMMAND: no such project */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description INVENTORY_STALE: the file list changed since the cursor's page */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description INVALID_COMMAND: a limit outside 1 to 200, a path outside the project, or a cursor this listing did not give */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description STORAGE_UNAVAILABLE */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     links: {
         parameters: {
             query?: never;
@@ -6875,6 +7106,46 @@ export interface operations {
             };
             /** @description INVALID_COMMAND: the project named is not linked */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description STORAGE_UNAVAILABLE */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    refresh: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The project */
+                id: components["schemas"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InventoryPage"];
+                };
+            };
+            /** @description INVALID_COMMAND: no such project */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

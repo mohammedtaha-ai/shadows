@@ -199,7 +199,7 @@ Its Global constraints bind every task here.
 
 ### F-108 · An attempt's addition on the Report tab
 
-- Status: blocked (B-126 not built; `Attempt.addition` is not in `api/openapi.json`)
+- Status: done. B-126 built at `cecdc0ca`; `npm run gen:api` passed (1 generation). From `web/`: `npx vitest run src/app/tasks src/codemap.test.ts src/architecture` passed (105 tests, 3 files), including the plain-text addition test and cap header checks; `npm run typecheck`, `npm run lint` and `npm run build` passed (1 run each; build transformed 3819 modules, with the chunk-size warning). Automated fixture checks only; no live browser acceptance run.
 - Plan: [F-108](plans/2026-11-11-task-page-review-and-diff.md#f-108--an-attempts-addition-on-the-report-tab-blocked-on-b-126)
 - Read: `web/src/app/tasks/contract.yaml`; [the planner review request](../shared/requests/2026-11-11-planner-review.md), its backend answer for the cap of 3.
 - Touch: `web/src/api/schema.d.ts` (only through `npm run gen:api`), `web/src/app/tasks/report-tab.tsx`, `web/src/app/tasks/task-page.test.tsx`, `web/src/app/tasks/contract.yaml`, this stages file. The cap needs no field: a task whose latest attempt is committed, carries an `addition`, is not done and whose `start.allowed` is true shows "Stopped after the Planner's third addition; back to you" in the header (one function in `web/src/api/runs.ts`, beside `awaitingJudgment`; add `web/src/app/tasks/task-header.tsx` and `web/src/api/contract.yaml` to this list).

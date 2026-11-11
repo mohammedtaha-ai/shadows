@@ -43,6 +43,11 @@ export function awaitingJudgment(run: TaskRun): boolean {
   return run.latest !== null && run.latest.state === 'committed' && !run.done && run.start.code === 'task_busy'
 }
 
+/** Core frees Start when the latest committed addition stops on the Planner's cap. */
+export function stoppedOnAdditionCap(run: TaskRun): boolean {
+  return run.latest !== null && run.latest.state === 'committed' && run.latest.addition !== null && !run.done && run.start.allowed
+}
+
 /** The task's attempts, newest first, read again while the newest one runs. */
 export function attemptsQuery(workflowId: string, version: number, task: number) {
   return queryOptions({

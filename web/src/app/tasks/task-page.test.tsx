@@ -20,7 +20,7 @@ function attempt(extra: Partial<Attempt> = {}): Attempt {
   return {
     id: 'a1', project_id: 'p1', workflow_id: 'w1', version: 1, task: 1, number: 1, thread_id: 't1',
     operation_id: null, model: 'fake-large', state: 'running', started_at: '2026-11-08T10:00:00Z',
-    ended_at: null, commit: null, reason: null, report: null, ...extra,
+    ended_at: null, commit: null, reason: null, report: null, addition: null, ...extra,
   }
 }
 
@@ -148,13 +148,15 @@ describe('the task page', () => {
     const a = (app = await startApp(PAGE, answers({
       taskRun: () => {
         reads += 1
-        return Response.json(taskRun({ latest: attempt({ state: 'committed', commit: 'abc123' }) }))
+        return Response.json(taskRun({ latest: attempt({ state: 'committed', commit: 'abc123', addition: 'Finish the checks.' }) }))
       },
     })))
     await until(() => a.text().includes('Committed'))
     const before = reads
     await act(async () => { await new Promise((resolve) => setTimeout(resolve, 2500)) })
     expect(a.text()).not.toContain("Waiting for the Planner's judgment")
+    expect(a.text()).toContain("Stopped after the Planner's third addition; back to you")
+    expect(a.button('Start')?.disabled).toBe(false)
     expect(reads).toBe(before)
   })
 
@@ -164,6 +166,21 @@ describe('the task page', () => {
     })))
     await until(() => a.text().includes('Committed'))
     expect(a.text()).not.toContain("Waiting for the Planner's judgment")
+  })
+
+  it.each([
+    ['no attempt', { latest: null }],
+    ['an attempt from Start', { latest: attempt({ state: 'committed' }) }],
+    ['a running addition', { latest: attempt({ addition: 'Continue.' }) }],
+    ['a stopped addition', { latest: attempt({ state: 'stopped', addition: 'Continue.' }) }],
+    ['a done task', { done: true }],
+    ['Start refused', { start: { allowed: false, code: 'task_busy', reason: 'the Planner is judging' } }],
+  ] satisfies [string, Partial<TaskRun>][] )('the_cap_message_is_absent_with_%s', async (_name, extra) => {
+    const a = (app = await startApp(PAGE, answers({
+      taskRun: taskRun({ latest: attempt({ state: 'committed', addition: 'Continue.' }), ...extra }),
+    })))
+    await until(() => modelInput() !== null)
+    expect(a.text()).not.toContain("Stopped after the Planner's third addition; back to you")
   })
 
   it('mark_done_updates_the_header', async () => {
@@ -224,6 +241,29 @@ describe('the task page', () => {
     const shown = document.querySelector<HTMLElement>('[aria-label="Executor report"]')
     expect(shown?.textContent).toBe(report)
     expect(shown?.querySelector('b')).toBeNull()
+  })
+
+  it('the_report_shows_the_planners_addition_as_plain_text', async () => {
+    const addition = 'Finish the checks.\n  <b>x</b>\nThen report.'
+    const first = attempt({ state: 'committed', commit: 'abc123' })
+    const second = attempt({ id: 'a2', number: 2, state: 'committed', commit: 'def456', addition })
+    const a = (app = await startApp(PAGE, answers({
+      taskRun: taskRun({ latest: second }),
+      attempts: [second, first],
+    })))
+    await until(() => a.button('Report') !== undefined)
+    await click(a.button('Report'))
+    await until(() => a.text().includes('Attempt 2'))
+    const cards = document.querySelectorAll('[aria-label="Attempts"] > li')
+    expect(cards).toHaveLength(2)
+    expect(cards[0]?.textContent).toContain("Carried on with the Planner's addition")
+    const shown = cards[0]?.querySelector<HTMLElement>('[aria-label="Planner\'s addition"]')
+    expect(shown?.textContent).toBe(addition)
+    expect(shown?.dir).toBe('auto')
+    expect(shown?.classList.contains('whitespace-pre-wrap')).toBe(true)
+    expect(shown?.querySelector('b')).toBeNull()
+    expect(cards[1]?.textContent).toContain('Began from Start')
+    expect(cards[1]?.querySelector('[aria-label="Planner\'s addition"]')).toBeNull()
   })
 
   it('the_report_shows_nothing_extra_without_a_report', async () => {

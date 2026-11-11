@@ -13,6 +13,12 @@ export function ReportTab({ attempts }: { attempts: readonly Attempt[] }) {
             <span>{attemptLabel(a)}</span>
             <span className="font-mono">{a.model}</span>
           </div>
+          <p className="mt-1 text-muted-foreground">
+            {a.addition === null ? 'Began from Start' : "Carried on with the Planner's addition"}
+          </p>
+          {a.addition !== null && (
+            <p dir="auto" aria-label="Planner's addition" className="mt-1 whitespace-pre-wrap break-words">{a.addition}</p>
+          )}
           <div className="text-muted-foreground">
             {a.started_at}{a.ended_at !== null && ` → ${a.ended_at}`}
           </div>
