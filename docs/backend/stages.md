@@ -527,6 +527,7 @@ Two rulings of Mohammed after the same trial: the Planner reads the code before 
 - Verified (2026-11-11): `cargo test -p shadows --test mcp_tools`: 25 passed (red first: 24 passed, 1 failed); `cargo test -p shadows --test planner_mcp --test mcp_server`: 24 + 6 passed; `cargo test -p shadows-core --test codex_session`: 17 passed, 1 ignored.
 - Live (once, real signed-in Codex, catalog default; both SHADOWS_CODEX_PATH and SHADOWS_CODEX_HOME set in the same shell command, RUST_TEST_NOCAPTURE=1): `cargo test -p shadows-core --test codex_session live_a_codex_planner_reads -- --ignored --test-threads=1`: 1 passed, 17 filtered out. Printed: `live codex read: 42791ef0 1 tool entries`.
 - Checks: `cargo test -p shadows --test architecture --test codemap --test contract_tests`: 49 + 1 + 1 passed (contract discovery first failed on the multiline ignore attribute; attribute order fixed inside the allowed live test). `cargo fmt --all`; `cargo fmt --all --check`; `cargo clippy -p core-harness -p shadows-core -p shadows --all-targets --features shadows/test-support -- -D warnings`; `cargo clippy -p core-harness -p shadows-core -p shadows -- -D warnings`: passed. Rust files under crates checked: no line over 100 columns. No full gate run.
+- Review (2026-11-11): the live test counted every tool entry of the thread, so a Shadows MCP call would have passed as a read; it now requires a completed shell command (`CallKind::Execute`) in the read turn, checks `notes/word.txt` is unchanged, and prints the write turn's tool entries. Its start shares `start_in`'s body (`start_with`) and waits with `settled_within`. Re-run live: `live codex read: eb9a023e 1 tool entries`, `live codex write: 0 tool entries, 0 failed, made.txt absent` (the first run timed out in Codex's workspace routing discovery; the retry passed). The write turn ran no command, so the test proves no write happened, not that the sandbox refused one; that refusal rests on §12.14's measurement.
 - Then Mohammed plans a task on `testing3` with the Planner on Codex: the conversation shows it reading the manifest, the composition root and the files the task modifies before `plan_edit`.
 
 ### B-133 · An executor's commit must change something
@@ -546,6 +547,8 @@ Two rulings of Mohammed after the same trial: the Planner reads the code before 
 live notice: [Shadows] T1 "Add t1" of plan version 61ee6ffc-186d-4a1d-b87d-af00e046d4a6: attempt 1 failed: ended without a commit
 live last message: T1 needs no work. Its goal says to change no file, make no commit, and stop, so I did none of those and did not call `task_report`.
 ```
+
+- Review (2026-11-11): `prompt.txt` now tells the Planner a failed notice carries the executor's last message (pinned in `the_planner_is_told_how_to_run_and_judge_tasks`); `task_report`'s description string joined onto one line. Left, outside Touch: Runs' `FIRST_PROMPT` (`crates/core-runs/src/lib.rs`) still says only "run git commit yourself, then call task_report" and does not say to commit nothing when nothing needs to change; `executor.md` and the refusal text carry it.
 
 ### B-107 · Store a simple brief on each attempt
 

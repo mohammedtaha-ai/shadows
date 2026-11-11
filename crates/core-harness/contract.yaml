@@ -601,6 +601,7 @@ obligations:
       shows; the Planner reads that through task_diff and task_file. An executor with
       nothing to change ends with a last message explaining why, without a commit;
       Shadows refuses an empty commit. The report still names commands and their results.
+      The Planner is told a failed attempt's notice carries the executor's last message.
     tested_by: [the_planner_is_told_how_to_run_and_judge_tasks,
       the_executor_reports_commands_and_leaves_its_writes_clean]
   - rule: >
@@ -609,6 +610,9 @@ obligations:
       Read, Grep and Glob, and on Codex with read-only shell commands in the project folder.
       Commands that write, install, build, start servers or reach the network are forbidden;
       Shadows tools are its only writes. File names alone do not make a plan ready.
+      The live test proves a Codex Planner's completed shell command reads a file whose
+      word is in no prompt or name, and that a request to write leaves no file; it does not
+      prove the sandbox refused a write, since the model may decline before trying.
     tested_by: [the_planner_reads_the_code_before_it_plans,
       live_a_codex_planner_reads_a_file_and_writes_none]
   - rule: invocation_in and invocations_in read planning_context from the turn's context record (LEFT JOIN invocation_context), heard if acknowledged, prepared if unconfirmed, null without a record.

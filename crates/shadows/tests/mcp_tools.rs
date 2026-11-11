@@ -974,6 +974,7 @@ fn the_planner_is_told_how_to_run_and_judge_tasks() {
         "A task takes at most three additions after its Start",
         "call task_lessons once",
         "An addition asks for a change to the task's files",
+        "or why it failed and the executor's last message",
     ];
     for text in texts {
         assert!(prompt.contains(text), "{text}");
