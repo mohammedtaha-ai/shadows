@@ -295,15 +295,16 @@ Order and rulings: [the program](plans/2026-11-09-local-delivery-program.md). Sl
 - Read, Touch, Done when: written when slice 2 is detailed.
 - Needs: B-98, B-99.
 
-### B-128 · `project_git_init`'s first commit takes the files the folder holds
+### B-128 · `project_git_init`'s first commit takes the folder's files, never its secrets or dependencies
 
-- Status: todo (slice 3, first; a fix of the built B-123, Mohammed 2026-11-11)
-- Plan: [Task B-128](plans/2026-11-11-slice-3-setup-first.md#task-b-128-project_git_inits-first-commit-takes-the-files-the-folder-holds).
-- Owner: Runs (`init_git`, git calls in a project folder); `shadows-mcp` and Harness (texts).
-- Read: `crates/core-runs/contract.yaml`, `crates/shadows-mcp/src/contract.yaml`, `crates/core-harness/contract.yaml`; §5.2.
-- Touch: `crates/core-runs/src/git.rs`; `crates/core-runs/src/init.rs`; `crates/core-runs/contract.yaml`; `crates/shadows-mcp/src/run_tools.rs`; `crates/shadows-mcp/src/contract.yaml`; `crates/core-harness/src/prompt.txt`; `crates/core-harness/contract.yaml`; `crates/shadows-core/tests/runs_attempts/init.rs`; `crates/shadows/tests/mcp_tools.rs`; `docs/backend/stages.md` (this entry).
+- Status: todo (slice 3, first; a fix of the built B-123, Mohammed 2026-11-11; secrets and dependencies left out, Mohammed 2026-11-12)
+- Plan: [Task B-128](plans/2026-11-11-slice-3-setup-first.md#task-b-128-project_git_inits-first-commit-takes-the-folders-files-never-its-secrets-or-dependencies).
+- Owner: Runs (`init_git`, git calls in a project folder; it now reads the project's file inventory through Code, which AppCore passes to `Runs::new`); AppCore (the `Runs::new` call); `shadows-mcp` and Harness (texts). Code does not change.
+- Read: `crates/core-runs/contract.yaml`, `crates/core-code/contract.yaml` (`inventory`, `refresh_inventory`, `InventoryEntry.excluded_reason`), `crates/shadows-mcp/src/contract.yaml`, `crates/core-harness/contract.yaml`; §5.2.
+- Touch: `crates/core-runs/Cargo.toml`; `crates/core-runs/src/lib.rs`; `crates/core-runs/src/git.rs`; `crates/core-runs/src/init.rs`; `crates/core-runs/src/error.rs`; `crates/core-runs/contract.yaml`; `crates/shadows-core/src/app.rs` (the `Runs::new` call only); `crates/shadows-mcp/src/run_tools.rs`; `crates/shadows-mcp/src/refusal.rs` (only if it lists Runs refusals by variant); `crates/shadows-mcp/src/contract.yaml`; `crates/core-harness/src/prompt.txt`; `crates/core-harness/contract.yaml`; `crates/shadows-core/tests/runs_attempts/init.rs`; `crates/shadows/tests/mcp_tools.rs`; `docs/codebase/README.md` (only if `codemap` asks); `docs/backend/stages.md` (this entry).
+- Afterwards: the `.env`, `node_modules` and other files left out stay in the folder, untracked; their paths are written to `.git/info/exclude`, so `git status` and Start's and B-136's dirty checks do not see them.
 - Needs: B-135 (B-129 to B-135 go first; the slice was re-read against them on 2026-11-12, see the plan's "Re-read against the code").
-- Done when: `cargo test -p shadows-core --test runs_attempts` (the changed test and two new ones among them); `cargo test -p shadows --test mcp_tools --test mcp_server --test planner_mcp`; `cargo test -p shadows --test architecture --test codemap --test contract_tests`; rule 5's checks. One commit, `fix(backend): B-128 <goal>`.
+- Done when: `cargo test -p shadows-core --test runs_attempts` (`git_init_leaves_out_secrets_and_dependencies`, `git_init_takes_the_files_the_folder_holds`, `git_init_in_an_empty_folder_makes_an_empty_commit` and the changed `the_planner_initialises_git_in_a_folder_without_one` among them); `cargo test -p shadows --test mcp_tools --test mcp_server --test planner_mcp`; `cargo test -p shadows --test architecture --test codemap --test contract_tests`; rule 5's checks. One commit, `fix(backend): B-128 <goal>`.
 
 ### B-136 · A report leaves nothing uncommitted inside the task's writes
 

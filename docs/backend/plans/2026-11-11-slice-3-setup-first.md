@@ -54,7 +54,10 @@ Since this plan was written, B-129 to B-135 landed. Checked against each, and am
   the Setup plan itself (B-101's test approves it as the person; a notice turn could not).
 - **B-128 still fits `project_git_init`:** `Git::commit_empty` (`git.rs`) is called only by
   `init_git` (`init.rs`), and the three `init.rs` tests are as the task expects. The prompt's
-  line still says "an empty first commit". One question for Mohammed, below the task.
+  line still says "an empty first commit". Mohammed ruled on 2026-11-12 that the first commit
+  leaves out secret and dependency files, through Code's inventory (task below).
+- **B-136's cost is accepted** (Mohammed, 2026-11-12): an edit the person makes inside a running
+  task's `writes` blocks its report until it is committed or removed.
 - **Two items left from the trials now belong here** as B-136, before B-100: a report is refused
   while the task's `writes` hold uncommitted changes, and `FIRST_PROMPT` says to commit nothing
   when nothing changes. A setup's scaffold is exactly where leftovers appear, and a Claude
@@ -77,7 +80,9 @@ Since this plan was written, B-129 to B-135 landed. Checked against each, and am
    files that exist.
 3. **A folder that already holds the person's files**: B-128's first commit takes them, so
    Start finds nothing uncommitted inside a setup task's `writes`. Held by
-   `git_init_takes_the_files_the_folder_holds`.
+   `git_init_takes_the_files_the_folder_holds`. A `.env` or a `node_modules` in it, with no
+   `.gitignore`, is left out and stays untracked and locally ignored. Held by
+   `git_init_leaves_out_secrets_and_dependencies`.
 4. **A binary file in a task that is not a setup task** is still refused. Held by the existing
    `a_commit_with_a_binary_file_is_refused`, whose plan is titled `Web`.
 5. **A setup task that only runs something** (start the containers) changes no file and fails
@@ -86,62 +91,94 @@ Since this plan was written, B-129 to B-135 landed. Checked against each, and am
 
 ---
 
-## Task B-128: `project_git_init`'s first commit takes the files the folder holds
+## Task B-128: `project_git_init`'s first commit takes the folder's files, never its secrets or dependencies
+
+**Ruling (Mohammed, 2026-11-12):** the first commit leaves out what Code's inventory classes as
+secret or dependency. Runs reads the inventory through Code, which AppCore now passes to it. The
+files left out stay in the folder, untracked.
 
 **Files:**
-- Modify: `crates/core-runs/src/git.rs`, `crates/core-runs/src/init.rs`,
+- Modify: `crates/core-runs/Cargo.toml` (`core-code`), `crates/core-runs/src/lib.rs`
+  (`Runs::new` takes `code: Code`; the field), `crates/core-runs/src/git.rs`,
+  `crates/core-runs/src/init.rs`, `crates/core-runs/src/error.rs` (`NotListed`),
   `crates/core-runs/contract.yaml`
-- Modify: `crates/shadows-mcp/src/run_tools.rs`, `crates/shadows-mcp/src/contract.yaml`,
+- Modify: `crates/shadows-core/src/app.rs` (the `Runs::new` call only)
+- Modify: `crates/shadows-mcp/src/run_tools.rs`, `crates/shadows-mcp/src/refusal.rs` (only if
+  it lists Runs refusals by variant), `crates/shadows-mcp/src/contract.yaml`,
   `crates/core-harness/src/prompt.txt`, `crates/core-harness/contract.yaml`
+- Modify: `docs/codebase/README.md` (only if `codemap` asks)
 - Test: `crates/shadows-core/tests/runs_attempts/init.rs`, `crates/shadows/tests/mcp_tools.rs`
 
 **Interfaces:**
+- `Runs::new(storage, plans, harness, turns, projects, threads, code)`; `core-runs`' contract
+  gains the dependency "code: Code lists the project's files, to leave secret and dependency
+  files out of the first commit". Runs calls only `Code::refresh_inventory` and
+  `Code::inventory`, with `Asker::Grant(&grant.project_id)`.
+- `init.rs`, `init_git`, in order:
+  1. The grant, the folder and `AlreadyGit` checks as today.
+  2. `Code::refresh_inventory`, then `Code::inventory` page by page (`prefix ""`, `limit 200`,
+     `after` the page's `next`). It collects every entry whose `excluded_reason` is `secret` or
+     `dependencies`. A page whose `state` is `Indexing` or `Missing`, or an `InventoryStale`
+     page after one fresh start from the first page, is
+     `RunsError::NotListed` (code `not_listed`, text "the folder's file listing is not complete
+     yet; call project_git_init again"). Nothing is written before this step ends.
+  3. `git.init()`.
+  4. `git.exclude(&paths)`: it appends one line per path to `.git/info/exclude`: `/` + the path
+     with `\`, `*`, `?`, `[`, `]`, `!` and `#` escaped by `\`, and a trailing `/` for a
+     folder (`InventoryKind::Directory`). This is git's own local ignore list inside `.git`,
+     not a project file: the folder's files do not change, and the files left out stay
+     untracked and out of `git status`, so neither Start's dirty check nor B-136's sees them.
+  5. `git.commit_all("Initial commit")`.
+  6. Logs `runs.git_initialised` with the commit and the number of paths left out.
 - `git.rs`: `commit_empty` becomes
-  `pub(crate) async fn commit_all(&self, message: &str) -> Result<String, String>`: runs
+  `pub(crate) async fn commit_all(&self, message: &str) -> Result<String, String>`. It runs
   `git add -A`, then the same Shadows-identity commit with `--allow-empty` (so an empty folder
-  still gets its first commit), and answers HEAD. What `.gitignore` excludes stays out; nothing
-  else is left out.
-- `init.rs`: `init_git` calls `commit_all("Initial commit")`. Its checks and refusals do not
-  change. Its doc and the module doc say the first commit takes the folder's files.
+  still gets its first commit), and answers HEAD. New:
+  `pub(crate) async fn exclude(&self, paths: &[(String, bool)]) -> Result<(), String>`, where
+  each path is paired with `true` for a folder. It appends to `<root>/.git/info/exclude`,
+  creating `info/` when git did not.
 - `project_git_init`'s description: "Make this project's folder a git repository when Start
   says it is not one: git init and a first commit, made in Shadows' name, of the files the
-  folder already holds (none in an empty folder), leaving out what git ignores. Refused when
-  the folder is already inside a repository. It writes no file; starter files are a task's
-  work."
+  folder already holds (none in an empty folder). It leaves out what git ignores and the
+  secret and dependency files project_files lists as left out; those stay in the folder,
+  untracked. Refused when the folder is already inside a repository. It writes no project
+  file; starter files are a task's work."
 - `prompt.txt`, the `project_git_init` line becomes:
-  `- project_git_init: when Start is refused because the project folder is not a git repository, make it one with project_git_init: git init and a first commit of the files the folder already holds (none in an empty folder). It is refused inside an existing repository and writes no file; starter files are a task's work.`
+  `- project_git_init: when Start is refused because the project folder is not a git repository, make it one with project_git_init: git init and a first commit of the files the folder already holds (none in an empty folder), leaving out secret and dependency files, which stay in the folder untracked. It is refused inside an existing repository and writes no project file; starter files are a task's work.`
 
 - [ ] **Step 1: Change and write the tests** in `runs_attempts/init.rs`:
   - `the_planner_initialises_git_in_a_folder_without_one` now expects `README.md` in the first
     commit (`git ls-tree -r --name-only HEAD` is `README.md`) and `git status --porcelain`
-    empty, instead of an empty tree and `?? README.md`; the rest stays.
-  - `git_init_takes_the_files_the_folder_holds`: remove `.git`; write `.gitignore` with
-    `secret.txt`, `secret.txt`, `src/main.go` and a binary `assets/icon.ico` (bytes with NULs);
-    `init_git` answers a sha whose tree (`git ls-tree -r --name-only HEAD`) is exactly
-    `.gitignore`, `README.md`, `assets/icon.ico`, `src/main.go`; `secret.txt` is not in it and
-    still on disk; the author is `Shadows`; `task(&f.workflow, 1, 3).start.allowed` is true.
-  - `git_init_in_an_empty_folder_makes_an_empty_commit`: remove `.git` and `README.md`;
+    empty, instead of an empty tree and `?? README.md`. The rest stays.
+  - `git_init_takes_the_files_the_folder_holds`: remove `.git`. Write a `.gitignore` naming
+    `notes.txt`, then `notes.txt`, `src/main.go` and a binary `assets/icon.ico` (bytes with
+    NULs). `init_git` answers a sha whose tree (`git ls-tree -r --name-only HEAD`) is exactly
+    `.gitignore`, `README.md`, `assets/icon.ico`, `src/main.go`. `notes.txt` is not in it and is
+    still on disk. The author is `Shadows`. `task(&f.workflow, 1, 3).start.allowed` is true.
+  - `git_init_leaves_out_secrets_and_dependencies`: remove `.git`. With no `.gitignore`, write
+    `.env` (`KEY=x`), `node_modules/pkg/index.js` and `src/main.go`. `init_git` answers a sha
+    whose tree is exactly `README.md`, `src/main.go`. `.env` and `node_modules/pkg/index.js` are
+    still on disk with their content. `git status --porcelain --ignored` lists them as ignored
+    (`!! .env`, `!! node_modules/`), and `git status --porcelain` is empty. `.git/info/exclude`
+    holds the lines `/.env` and `/node_modules/`.
+  - `git_init_in_an_empty_folder_makes_an_empty_commit`: remove `.git` and `README.md`.
     `init_git` answers a sha; `git ls-tree -r HEAD` is empty.
   - `the_planner_is_told_how_to_run_and_judge_tasks` asserts
-    `"a first commit of the files the folder already holds"` in place of B-123's sentence if
-    that one changed.
+    `"leaving out secret and dependency files, which stay in the folder untracked"`; its
+    `"project_git_init: when Start is refused"` text stays.
 - [ ] **Step 2: Run and see them fail:** `cargo test -p shadows-core --test runs_attempts git_init`.
-- [ ] **Step 3: Implement** the Interfaces.
+- [ ] **Step 3: Implement** the Interfaces, wiring `code.clone()` into `Runs::new` in `app.rs`.
 - [ ] **Step 4: Run** `cargo test -p shadows-core --test runs_attempts`;
   `cargo test -p shadows --test mcp_tools --test mcp_server --test planner_mcp`;
   `cargo test -p shadows --test architecture --test codemap --test contract_tests`.
-- [ ] **Step 5: Contracts.** `core-runs`: `functions.init_git` and its obligation name the
-  first commit of the folder's files and the new tests; `shadows-mcp` and `core-harness`: the
-  texts.
-- [ ] **Step 6: Commit** `fix(backend): B-128 project_git_init's first commit takes the files the folder holds`.
+- [ ] **Step 5: Contracts.** `core-runs`: the `code` dependency; `NotListed` in `RunsError`;
+  `functions.new` and `functions.init_git` in the order above; the obligation names the first
+  commit of the folder's files without its secret and dependency files, which stay untracked,
+  with the new tests. `shadows-mcp` and `core-harness`: the texts.
+- [ ] **Step 6: Commit** `fix(backend): B-128 project_git_init's first commit takes the folder's files, never its secrets or dependencies`.
 
-**For Mohammed (2026-11-12):** `git add -A` takes every file git does not ignore. In a folder
-with no `.gitignore`, that includes a `.env` with its keys and a dependency folder
-(`node_modules`, `vendor`). Code's inventory already classes secret and dependency files
-(`project_files` reports them as left out), but Runs does not depend on Code. Built as written,
-the person's `.gitignore` is the only filter. The alternative is that `init_git` leaves out what
-the inventory classes as secret or dependency, which makes Runs depend on Code (AppCore wiring)
-and adds one test. Build as written unless he rules otherwise.
+`NotListed` has no test of its own. Making the listing stay `Indexing` past `refresh_inventory`'s
+30-second wait cannot be done deterministically without a fake. The review reads it.
 
 ## Task B-136: A report leaves nothing uncommitted inside the task's writes
 

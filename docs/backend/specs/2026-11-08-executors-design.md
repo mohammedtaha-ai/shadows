@@ -193,8 +193,10 @@ diagram above, §8 "The Planner on a failure", §12.4, §10 slice 3). D7 and D9 
   done marks of a frozen version.
 - **The Planner can make the folder a git repository** (`project_git_init`): `git init` and a
   first commit made in Shadows' name, refused when the folder is already inside one. The first
-  commit takes the files the folder already holds, leaving out only what git ignores (an empty
-  folder gets an empty commit; Mohammed, 2026-11-11). It writes no file; starter files stay a
+  commit takes the files the folder already holds, leaving out what git ignores (an empty
+  folder gets an empty commit; Mohammed, 2026-11-11) and what Code's inventory classes as
+  secret or dependency (Mohammed, 2026-11-12): those stay in the folder untracked, listed in
+  `.git/info/exclude`. Runs reads the inventory through Code. It writes no file; starter files stay a
   task's work. Git belongs to Runs (§12.2).
 
 - **Three additions per task start** (Mohammed, 2026-11-11). A fourth is refused: Runs stops
@@ -285,7 +287,9 @@ before had never called `Edit` or `Write`. This replaces the first bullet above:
   changes a path outside `writes`, as before. It also refuses one while `writes` still hold
   uncommitted changes (`dirty_scope`, the same read Start makes; planned as B-136,
   2026-11-12): what an attempt leaves inside its task's paths is either committed or removed,
-  so the next Start is not refused for it.
+  so the next Start is not refused for it. A person's edit inside a running task's `writes`
+  blocks its report the same way until it is committed or removed (accepted, Mohammed,
+  2026-11-12).
 - **The executor is one file.** Its instructions and its tool list live in
   `crates/core-harness/src/executor.md`: the front matter names the tools, the body is the
   instructions. It is compiled in; a project does not change it. The instructions tell the
