@@ -588,6 +588,13 @@ queries_and_mutations:
 
 obligations:
   - rule: >
+      A finished Planner turn's notice, tool groups and in-between text fold into one box with a
+      one-line summary; the prompt stays above it, the final answer (all text after the turn's
+      last notice or tool call) and the cards the person acts on stay visible under it; a running
+      turn's box is open. AYLUL conversations draw no box.
+    tested_by: [a_finished_turn_folds_its_notice_tools_and_text_and_keeps_its_final_answer, a_turn_with_no_activity_has_no_box, a_proposal_card_stays_outside_the_box, the_person_prompt_stays_above_the_box, a_finished_turn_shows_one_summary_line_and_opens_on_click, a_running_turn_is_open_and_folds_when_it_ends]
+
+  - rule: >
       An entry whose author is an Executor draws as a notice item of the turn's activity, never
       as the person's bubble; its header comes from its card, its report is drawn whole as
       markdown and cut only in height. An old notice recorded under the person stays a bubble.

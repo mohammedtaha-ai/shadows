@@ -238,6 +238,8 @@ describe('the plan in the conversation', () => {
       entryOfKind('ap', 'PlanApproved', 'Plan v1 approved', null),
     ])
     await until(() => a.text().includes('Plan v1 approved'))
+    // The finished turn's tool lines are folded into one box: open it.
+    await act(async () => a.button('Ran 4 tools')?.click())
 
     const text = a.container.textContent ?? ''
     expect(text).toContain('Plan started')
@@ -247,7 +249,7 @@ describe('the plan in the conversation', () => {
     expect(text).not.toContain('mcp__shadows')
     expect(text).toContain('Read notes.md')
     // `plan_show` adds no line of its own: its card is the entry.
-    const lines = [...a.container.querySelectorAll('ol > li')].map((li) => li.textContent ?? '')
+    const lines = [...a.container.querySelectorAll('ol > li[data-entry-kind="tool"]')].map((li) => li.textContent ?? '')
     expect(
       lines.filter(
         (l) =>
