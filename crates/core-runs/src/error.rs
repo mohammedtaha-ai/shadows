@@ -58,6 +58,8 @@ pub enum RunsError {
     AlreadyGit,
     #[error("the project has no folder")]
     NoFolder,
+    #[error("the folder's file listing is not complete yet; call project_git_init again")]
+    NotListed,
     #[error(
         "no model to run the executor on: name one the executor's harness (claude-code) offers"
     )]
@@ -109,6 +111,7 @@ impl RunsError {
             Self::BinaryFiles { .. } => "binary_files",
             Self::AlreadyGit => "already_git",
             Self::NoFolder => "no_folder",
+            Self::NotListed => "not_listed",
             Self::NoModel => "no_model",
             Self::NotAwaiting { .. } => "not_awaiting",
             Self::EmptyAddition => "empty_addition",

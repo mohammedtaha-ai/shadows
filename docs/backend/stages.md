@@ -297,7 +297,7 @@ Order and rulings: [the program](plans/2026-11-09-local-delivery-program.md). Sl
 
 ### B-128 · `project_git_init`'s first commit takes the folder's files, never its secrets or dependencies
 
-- Status: todo (slice 3, first; a fix of the built B-123, Mohammed 2026-11-11; secrets and dependencies left out, Mohammed 2026-11-12)
+- Status: done (slice 3, first; a fix of the built B-123, Mohammed 2026-11-11; secrets and dependencies left out, Mohammed 2026-11-12)
 - Plan: [Task B-128](plans/2026-11-11-slice-3-setup-first.md#task-b-128-project_git_inits-first-commit-takes-the-folders-files-never-its-secrets-or-dependencies).
 - Owner: Runs (`init_git`, git calls in a project folder; it now reads the project's file inventory through Code, which AppCore passes to `Runs::new`); AppCore (the `Runs::new` call); `shadows-mcp` and Harness (texts). Code does not change.
 - Read: `crates/core-runs/contract.yaml`, `crates/core-code/contract.yaml` (`inventory`, `refresh_inventory`, `InventoryEntry.excluded_reason`), `crates/shadows-mcp/src/contract.yaml`, `crates/core-harness/contract.yaml`; §5.2.

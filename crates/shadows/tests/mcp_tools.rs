@@ -964,6 +964,7 @@ fn the_planner_is_told_how_to_run_and_judge_tasks() {
     let prompt = shadows_core::testing::PROMPT;
     let texts: &[&str] = &[
         "project_git_init: when Start is refused",
+        "leaving out secret and dependency files, which stay in the folder untracked",
         "start the task task_done names as next at once with task_start, \
          without waiting for the person",
         "count anything the report says was skipped or could not run as not done",

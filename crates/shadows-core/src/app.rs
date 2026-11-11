@@ -473,6 +473,7 @@ impl AppCore {
             turns.clone(),
             projects.clone(),
             threads.clone(),
+            code.clone(),
         );
         let events = Arc::new(Events::new(
             storage.clone(),

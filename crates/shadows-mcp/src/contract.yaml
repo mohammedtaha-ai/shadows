@@ -53,8 +53,10 @@ layout_only: Map records contain no starter files; the stage has no Structure st
 # mcp_tools::an_executor_grant_lists_its_tools_and_reads_only_its_task.
 # project_git_init (no arguments) calls Runs::init_git with the caller's grant and answers
 # { commit }; only the Planner's grant lists it. Its description says it is for a folder Start
-# refuses as not git, is refused inside a repository, and writes no file. A Runs refusal
-# (already_git, no_folder) leads its text. Tested by mcp_server::the_tool_list_depends_on_the_grant_kind
+# refuses as not git, commits the files the folder holds without what git ignores and the
+# secret and dependency files project_files leaves out (those stay untracked), is refused
+# inside a repository, and writes no project file. A Runs refusal
+# (already_git, no_folder, not_listed) leads its text. Tested by mcp_server::the_tool_list_depends_on_the_grant_kind
 # and, in Runs, runs_attempts::init.
 # task_start { workflow_id, task_number, model? } calls Runs::start_for and answers the Attempt;
 # task_done { workflow_id, task_number, done } calls Runs::mark_done_for and answers the

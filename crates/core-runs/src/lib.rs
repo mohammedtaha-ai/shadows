@@ -40,6 +40,7 @@ pub use model::{
     LessonAttempt, LessonCommand, Need, RecoverReport, StartAnswer, TaskLesson, TaskRun,
 };
 
+use core_code::Code;
 use core_db::{CommandContext, Storage};
 use core_harness::Harness;
 use core_plans::{Plans, PlansError, WorkflowId};
@@ -68,6 +69,9 @@ struct Inner {
     projects: Projects,
     /// Read for the commands an executor ran, in a lessons record.
     threads: Arc<Threads>,
+    /// Lists a project's files, so a first commit leaves out secrets and
+    /// dependencies.
+    code: Code,
     /// Replaces the first prompt, so a test can script the fake adapter.
     prompt: Mutex<Option<String>>,
 }
@@ -86,6 +90,7 @@ impl Runs {
         turns: Turns,
         projects: Projects,
         threads: Arc<Threads>,
+        code: Code,
     ) -> Self {
         Self {
             inner: Arc::new(Inner {
@@ -95,6 +100,7 @@ impl Runs {
                 turns,
                 projects,
                 threads,
+                code,
                 prompt: Mutex::new(None),
             }),
         }
