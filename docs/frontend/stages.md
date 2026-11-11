@@ -208,7 +208,7 @@ Its Global constraints bind every task here.
 
 ### F-109 · The whole file with its changes in the Diff tab
 
-- Status: blocked (B-131 not built)
+- Status: done
 - Plan: [F-109](plans/2026-11-11-task-page-review-and-diff.md#f-109--the-whole-file-with-its-changes)
 - Read: `docs/shared/requests/2026-11-11-attempt-file-content.md` (accepted); `web/src/app/tasks/contract.yaml`; the `runs:` block of `web/src/api/contract.yaml`; the `tasks` rows of `docs/frontend/codebase/README.md`.
 - Touch: `web/src/api/schema.d.ts` (only through `npm run gen:api`), `web/src/api/runs.ts`, `web/src/api/contract.yaml`, `web/src/app/tasks/diff-tab.tsx`, `web/src/app/tasks/file-view.tsx` (new), `web/src/app/tasks/file-patch.tsx` (deleted), `web/src/app/tasks/task-page.test.tsx`, `web/src/app/tasks/contract.yaml`, `docs/frontend/codebase/README.md`, this stages file.

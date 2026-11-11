@@ -24,6 +24,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/attempts/{id}/files": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * One file of the task as the attempt's commit holds it, changed by it or
+         *     not; text is null for a deleted or binary file, and cut is true when a
+         *     long file was shortened.
+         */
+        get: operations["file"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/attempts/{id}/stop": {
         parameters: {
             query?: never;
@@ -2095,8 +2116,38 @@ export interface components {
             version: number;
             workflow_id: components["schemas"]["WorkflowId"];
         };
+        /** @description One file as an attempt's commit holds it; deleted or binary files have no text. */
+        AttemptFile: {
+            cut: boolean;
+            path: string;
+            text?: string | null;
+        };
         /** Format: uuid */
         AttemptId: string;
+        /**
+         * @description The facts of an executor's notice to its Planner, the card the
+         *     conversation draws: which task and attempt, on which model, how it ended,
+         *     and the executor's report (its last message when it failed).
+         */
+        AttemptNotice: {
+            /** Format: int32 */
+            attempt: number;
+            attempt_id: components["schemas"]["AttemptId"];
+            commit?: string | null;
+            /** @description The attempt carried the task's third and last addition. */
+            last_addition: boolean;
+            model: string;
+            outcome: components["schemas"]["AttemptState"];
+            reason?: string | null;
+            report?: string | null;
+            /** Format: int32 */
+            task: number;
+            /** @description The task's title, or `T{task}` when it has none. */
+            title: string;
+            /** Format: int64 */
+            version: number;
+            workflow_id: components["schemas"]["WorkflowId"];
+        };
         /**
          * @description Where an attempt stands. Only `Running` has no `ended_at`.
          * @enum {string}
@@ -2466,7 +2517,7 @@ export interface components {
          *     `Blocked`/`Rejected` are domain outcomes and never appear here.
          * @enum {string}
          */
-        ErrorCode: "CONTEXT_NOT_CARRIED" | "MAP_REFUSED" | "PERMISSION_NOT_FOUND" | "PERMISSION_SETTLED" | "PERMISSION_OPTION_NOT_OFFERED" | "EXTENSION_NOT_FOUND" | "EXTENSION_NAME_CONFLICT" | "RUNTIME_NOT_CONFIGURED" | "AYLUL_PROFILE_NOT_FOUND" | "AYLUL_PROVIDER_NOT_FOUND" | "PROVIDER_IN_USE" | "PROFILE_INVALID" | "SECRET_NAME_RESERVED" | "SECRET_NAME_INVALID" | "SECRET_VALUE_INVALID" | "SECRET_UNREADABLE" | "SECRETS_UNAVAILABLE" | "AYLUL_KEY_MISSING" | "AYLUL_NOT_CONFIGURED" | "STAGE_BLOCKED" | "HARNESS_START_FAILED" | "PROCESS_SPAWN_FAILED" | "PROCESS_TERMINATED" | "PROCESS_TERMINATION_FAILED" | "RUNTIME_STOPPING" | "STORAGE_UNAVAILABLE" | "STORAGE_MIGRATION_FAILED" | "STORAGE_CONSTRAINT_VIOLATION" | "COMMAND_CONFLICT" | "IDEMPOTENCY_KEY_REQUIRED" | "INVALID_COMMAND" | "INVALID_CURSOR" | "INVENTORY_STALE" | "AGENT_AUTH_FAILED" | "AGENT_UNSUPPORTED_PROFILE" | "PATH_INVALID" | "PATH_NOT_FOUND" | "PATH_NOT_A_DIRECTORY" | "PATH_ACCESS_DENIED" | "PATH_ALREADY_EXISTS" | "PATH_UNAVAILABLE" | "ORIGIN_REFUSED" | "HARNESS_UNAVAILABLE" | "SETTING_NOT_OFFERED" | "MODE_NOT_ALLOWED" | "HARNESS_LOCKED" | "THREAD_BUSY" | "QUEUED_MESSAGE_GONE" | "FORK_POINT_NOT_SUPPORTED" | "WORKFLOW_FROZEN_IMMUTABLE" | "WORKFLOW_VALIDATION_FAILED" | "REVISION_CONFLICT" | "PROJECT_HAS_THREADS" | "GRANT_SCOPE" | "GRANT_INVALID";
+        ErrorCode: "CONTEXT_NOT_CARRIED" | "MAP_REFUSED" | "PERMISSION_NOT_FOUND" | "PERMISSION_SETTLED" | "PERMISSION_OPTION_NOT_OFFERED" | "EXTENSION_NOT_FOUND" | "EXTENSION_NAME_CONFLICT" | "RUNTIME_NOT_CONFIGURED" | "AYLUL_PROFILE_NOT_FOUND" | "AYLUL_PROVIDER_NOT_FOUND" | "PROVIDER_IN_USE" | "PROFILE_INVALID" | "SECRET_NAME_RESERVED" | "SECRET_NAME_INVALID" | "SECRET_VALUE_INVALID" | "SECRET_UNREADABLE" | "SECRETS_UNAVAILABLE" | "AYLUL_KEY_MISSING" | "AYLUL_NOT_CONFIGURED" | "STAGE_BLOCKED" | "HARNESS_START_FAILED" | "PROCESS_SPAWN_FAILED" | "PROCESS_TERMINATED" | "PROCESS_TERMINATION_FAILED" | "RUNTIME_STOPPING" | "STORAGE_UNAVAILABLE" | "STORAGE_MIGRATION_FAILED" | "STORAGE_CONSTRAINT_VIOLATION" | "COMMAND_CONFLICT" | "IDEMPOTENCY_KEY_REQUIRED" | "INVALID_COMMAND" | "INVALID_CURSOR" | "INVENTORY_STALE" | "AGENT_AUTH_FAILED" | "AGENT_UNSUPPORTED_PROFILE" | "PATH_INVALID" | "PATH_NOT_FOUND" | "PATH_NOT_A_DIRECTORY" | "PATH_ACCESS_DENIED" | "PATH_ALREADY_EXISTS" | "PATH_UNAVAILABLE" | "ORIGIN_REFUSED" | "HARNESS_UNAVAILABLE" | "SETTING_NOT_OFFERED" | "MODE_NOT_ALLOWED" | "HARNESS_LOCKED" | "THREAD_BUSY" | "QUEUED_MESSAGE_GONE" | "QUEUED_NOTICE_KEPT" | "FORK_POINT_NOT_SUPPORTED" | "WORKFLOW_FROZEN_IMMUTABLE" | "WORKFLOW_VALIDATION_FAILED" | "REVISION_CONFLICT" | "PROJECT_HAS_THREADS" | "GRANT_SCOPE" | "GRANT_INVALID";
         /** @enum {string} */
         ExtensionKind: "plugin" | "skill" | "mcp";
         ExtensionLibrary: {
@@ -2480,12 +2531,14 @@ export interface components {
          */
         FileAction: "read" | "create" | "modify" | "delete";
         /**
-         * @description One file of an attempt's commit: its line counts and its patch, cut at
-         *     2,000 lines with a marker.
+         * @description One file of an attempt's commit: its line counts, its patch cut at 2,000
+         *     lines with a marker, and the same patch read into hunks (none for a binary
+         *     file), whose lines stop at 2,000 in all.
          */
         FileDiff: {
             /** Format: int32 */
             added: number;
+            hunks: components["schemas"]["DiffHunk"][];
             patch: string;
             path: string;
             /** Format: int32 */
@@ -2911,6 +2964,16 @@ export interface components {
             /** @description A number for a task of this version; `{ plan_id, task }` for another plan's. */
             task: components["schemas"]["TaskParent"];
             title: string;
+        };
+        /**
+         * @description A message an executor's attempt sends the Planner through Shadows: the
+         *     turn it starts is recorded in the executor's name, with its card.
+         */
+        Notice: {
+            /** @description The facts the conversation draws, as the sender shaped them. */
+            card: Record<string, never>;
+            /** @description The executor's thread, its identity. */
+            executor: components["schemas"]["ThreadId"];
         };
         /** @description The durable operation record; its thread reference is stored as plain text. */
         Operation: {
@@ -3437,6 +3500,7 @@ export interface components {
             last_error?: string | null;
             mode: string;
             model: string;
+            notice?: null | components["schemas"]["Notice"];
             plan?: null | components["schemas"]["PlanId"];
             /**
              * Format: int64
@@ -3981,6 +4045,58 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description STORAGE_UNAVAILABLE */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    file: {
+        parameters: {
+            query: {
+                /** @description A path inside the task's writes, as the diff names it. */
+                path: string;
+            };
+            header?: never;
+            path: {
+                /** @description The attempt */
+                id: components["schemas"]["AttemptId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttemptFile"];
+                };
+            };
+            /** @description no such attempt, no commit yet, or no such file at its commit */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description outside_writes */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunRefusal"];
                 };
             };
             /** @description STORAGE_UNAVAILABLE */

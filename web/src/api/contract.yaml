@@ -49,7 +49,8 @@ runs:
   startAttempt: Start an attempt on a model using the caller's command id; a refusal's ApiError message is Core's reason.
   stopAttempt: Stop an attempt.
   markTaskDone: Mark a task done or not done using the caller's command id.
-  aliases: TaskRun, Attempt, AttemptState and Need are exported from the generated schemas; FileDiff and RunRefusal stay inside runs.ts.
+  attemptFileQuery: Read one file as an attempt's commit holds it (GET /api/attempts/{id}/files?path=); ['runs', 'file', attemptId, path]; a refusal's ApiError message is Core's.
+  aliases: TaskRun, Attempt, AttemptState, Need, AttemptFile and DiffHunk are exported from the generated schemas; FileDiff and RunRefusal stay inside runs.ts.
 mcp_tool_rules:
   agentToolsQuery: "GET /api/aylul/agents/{slug}/extensions/mcp/{id}/tools; ['aylul-agent-mcp-tools', slug, id]"
   setToolRules: Replace one item's entire rule set with the caller's command id.

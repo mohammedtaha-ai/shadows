@@ -369,7 +369,7 @@ it is that folder's `contract.yaml`.
 | `web/src/app/tasks/details-tab.tsx` | The Details tab | `web/src/app/tasks/contract.yaml` |
 | `web/src/app/tasks/run-tab.tsx` | The latest attempt's executor thread | `web/src/app/tasks/contract.yaml` |
 | `web/src/app/tasks/diff-tab.tsx` | The Diff tab: the open file above, the changed files below | `web/src/app/tasks/contract.yaml` |
-| `web/src/app/tasks/file-patch.tsx` | One file's patch drawn with line numbers | `web/src/app/tasks/contract.yaml` |
+| `web/src/app/tasks/file-view.tsx` | One file at the attempt's commit with its changes marked | `web/src/app/tasks/contract.yaml` |
 | `web/src/app/tasks/report-tab.tsx` | Each attempt: state, model, times, commit, reason | `web/src/app/tasks/contract.yaml` |
 | `web/src/app/tasks/use-task-run.ts` | A task's run state kept current | `web/src/app/tasks/contract.yaml` |
 | `web/src/app/tasks/task-page.test.tsx` | Task page interaction checks | `web/src/app/tasks/contract.yaml` |

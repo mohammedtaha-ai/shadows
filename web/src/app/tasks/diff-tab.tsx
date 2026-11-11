@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
-import { type Attempt, attemptDiffQuery } from '@/api/runs'
+import { type Attempt, type DiffHunk, attemptDiffQuery, attemptFileQuery } from '@/api/runs'
 import { ErrorLine } from '../error-line'
-import { FilePatch } from './file-patch'
+import { FileView } from './file-view'
 
 /** The attempt's commit: the open file above, the changed files in a box below. */
 export function DiffTab({ attempt }: { attempt: Attempt | null }) {
@@ -10,6 +10,13 @@ export function DiffTab({ attempt }: { attempt: Attempt | null }) {
     return <p className="px-6 py-4 text-sm text-faint-foreground">Nothing committed yet.</p>
   }
   return <Files attemptId={attempt.id} />
+}
+
+function OpenFile({ attemptId, path, hunks }: { attemptId: string; path: string; hunks: readonly DiffHunk[] }) {
+  const file = useQuery(attemptFileQuery(attemptId, path))
+  if (file.isError) return <div className="px-3 py-2"><ErrorLine error={file.error} /></div>
+  if (file.data === undefined) return <p className="px-3 py-2 text-muted-foreground">Reading the file…</p>
+  return <FileView file={file.data} hunks={hunks} />
 }
 
 function Files({ attemptId }: { attemptId: string }) {
@@ -31,7 +38,7 @@ function Files({ attemptId }: { attemptId: string }) {
               <span>+{open.added}</span>
               <span>-{open.removed}</span>
             </div>
-            <div className="min-h-0 flex-1 overflow-y-auto"><FilePatch patch={open.patch} /></div>
+            <div className="min-h-0 flex-1 overflow-y-auto"><OpenFile attemptId={attemptId} path={open.path} hunks={open.hunks} /></div>
           </>
         )}
       </div>

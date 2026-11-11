@@ -7,6 +7,8 @@ export type TaskRun = components['schemas']['TaskRun']
 export type Attempt = components['schemas']['Attempt']
 export type AttemptState = components['schemas']['AttemptState']
 type FileDiff = components['schemas']['FileDiff']
+export type AttemptFile = components['schemas']['AttemptFile']
+export type DiffHunk = components['schemas']['DiffHunk']
 export type Need = components['schemas']['Need']
 type RunRefusal = components['schemas']['RunRefusal']
 
@@ -15,6 +17,7 @@ const runKeys = {
   task: (workflowId: string, version: number, task: number) => ['runs', 'task', workflowId, version, task],
   attempts: (workflowId: string, version: number, task: number) => ['runs', 'attempts', workflowId, version, task],
   diff: (attemptId: string) => ['runs', 'diff', attemptId],
+  file: (attemptId: string, path: string) => ['runs', 'file', attemptId, path],
 }
 
 /** Core's answer, even a refusal such as a task it cannot find, is final; only a lost call is tried again. */
@@ -60,6 +63,10 @@ export function attemptsQuery(workflowId: string, version: number, task: number)
 
 export function attemptDiffQuery(attemptId: string) {
   return queryOptions({ queryKey: runKeys.diff(attemptId), queryFn: () => getAttemptDiff(attemptId) })
+}
+
+export function attemptFileQuery(attemptId: string, path: string) {
+  return queryOptions({ queryKey: runKeys.file(attemptId, path), queryFn: () => getAttemptFile(attemptId, path) })
 }
 
 export function saveTaskRunAnswer(queryClient: QueryClient, workflowId: string, version: number, task: number, run: TaskRun) {
@@ -114,6 +121,11 @@ export function markTaskDone(
 /** Each file of the attempt's commit with its counts and patch. */
 function getAttemptDiff(attemptId: string): Promise<FileDiff[]> {
   return unwrap(client.GET('/api/attempts/{id}/diff', { params: { path: { id: attemptId } } }))
+}
+
+/** One file as the attempt's commit holds it. */
+function getAttemptFile(attemptId: string, path: string): Promise<AttemptFile> {
+  return unwrap(client.GET('/api/attempts/{id}/files', { params: { path: { id: attemptId }, query: { path } } }))
 }
 
 /** A refused run answers `{ code, reason }`, which is not the daemon's usual

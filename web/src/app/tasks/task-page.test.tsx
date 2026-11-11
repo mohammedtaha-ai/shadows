@@ -101,34 +101,107 @@ describe('the task page', () => {
     await until(() => reads > 1)
   })
 
-  it('diff_opens_the_first_file_and_switches_on_click', async () => {
-    const a = (app = await startApp(PAGE, answers({
-      taskRun: taskRun({ latest: attempt({ state: 'committed', commit: 'abc123' }) }),
-      attemptDiff: [
-        { path: 'backend/a.php', added: 1, removed: 1, patch: '@@ -4,2 +4,2 @@\n context\n-old line\n+new line' },
-        { path: 'web/b.ts', added: 1, removed: 0, patch: '@@ -1 +1,2 @@\n keep\n+second file line' },
-      ],
-    })))
+  type Hunk = { path: string; old_start: number | null; new_start: number | null; lines: { op: string; text: string }[] }
+
+  function diffPage(
+    files: { path: string; added: number; removed: number; hunks: Hunk[] }[],
+    file: (path: string) => Response,
+  ) {
+    return startApp(PAGE, {
+      ...answers({
+        taskRun: taskRun({ latest: attempt({ state: 'committed', commit: 'abc123' }) }),
+        attemptDiff: files.map((f) => ({ ...f, patch: '' })),
+      }),
+      'GET /api/attempts/a1/files': (request: Request) => file(new URL(request.url).searchParams.get('path') ?? ''),
+    })
+  }
+
+  async function openDiff(a: TestApp): Promise<void> {
     await until(() => a.button('Diff') !== undefined)
     await click(a.button('Diff'))
-    await until(() => a.text().includes('new line'))
-    expect(a.text()).toContain('old line')
+  }
+
+  it('diff_opens_the_first_file_and_switches_on_click', async () => {
+    const a = (app = await diffPage(
+      [
+        { path: 'backend/a.php', added: 1, removed: 0, hunks: [] },
+        { path: 'web/b.ts', added: 1, removed: 0, hunks: [] },
+      ],
+      (path) => Response.json({ path, text: path === 'web/b.ts' ? 'second file line\n' : 'first file line\n', cut: false }),
+    ))
+    await openDiff(a)
+    await until(() => a.text().includes('first file line'))
     expect(a.text()).not.toContain('second file line')
     await click(a.button('web/b.ts+1-0'))
     await until(() => a.text().includes('second file line'))
-    expect(a.text()).not.toContain('new line')
+    expect(a.text()).not.toContain('first file line')
   })
 
-  it('diff_shows_a_cut_marker_as_plain_text', async () => {
-    const a = (app = await startApp(PAGE, answers({
-      taskRun: taskRun({ latest: attempt({ state: 'committed', commit: 'abc123' }) }),
-      attemptDiff: [{ path: 'big.txt', added: 1, removed: 0, patch: '@@ -1 +1,2 @@\n keep\n+<b>x</b>\n… patch cut at 1000 lines' }],
-    })))
-    await until(() => a.button('Diff') !== undefined)
-    await click(a.button('Diff'))
-    await until(() => a.text().includes('… patch cut at 1000 lines'))
-    expect(a.text()).toContain('<b>x</b>')
-    expect(document.querySelector('b')).toBeNull()
+  it('diff_shows_the_whole_file_with_its_changes_marked', async () => {
+    const a = (app = await diffPage(
+      [{
+        path: 'a.txt', added: 1, removed: 1,
+        hunks: [{
+          path: 'a.txt', old_start: 2, new_start: 2,
+          lines: [
+            { op: 'context', text: 'two' },
+            { op: 'remove', text: 'old three' },
+            { op: 'add', text: 'new three' },
+            { op: 'context', text: 'four' },
+          ],
+        }],
+      }],
+      (path) => Response.json({ path, text: 'one\ntwo\nnew three\nfour\nfive\n', cut: false }),
+    ))
+    await openDiff(a)
+    await until(() => a.text().includes('five'))
+    const rows = [...document.querySelectorAll('[data-diff], div.flex.min-w-max')]
+    const lines = rows.map((row) => [...row.children].map((c) => c.textContent))
+    expect(lines).toEqual([
+      ['1', '', 'one'], ['2', '', 'two'], ['', '-', 'old three'],
+      ['3', '+', 'new three'], ['4', '', 'four'], ['5', '', 'five'],
+    ])
+    expect(document.querySelector('[data-diff="add"]')?.textContent).toContain('new three')
+    expect(document.querySelector('[data-diff="remove"]')?.textContent).toContain('old three')
+  })
+
+  it('diff_shows_no_text_for_a_deleted_file_with_its_hunks', async () => {
+    const a = (app = await diffPage(
+      [{
+        path: 'gone.txt', added: 0, removed: 2,
+        hunks: [{ path: 'gone.txt', old_start: 1, new_start: 0, lines: [{ op: 'remove', text: 'first gone' }, { op: 'remove', text: 'second gone' }] }],
+      }],
+      (path) => Response.json({ path, text: null, cut: false }),
+    ))
+    await openDiff(a)
+    await until(() => a.text().includes('No text to show'))
+    expect(document.querySelectorAll('[data-diff="remove"]')).toHaveLength(2)
+    expect(a.text()).toContain('first gone')
+    expect(a.text()).toContain('second gone')
+  })
+
+  it('diff_says_when_core_shortened_the_file', async () => {
+    const a = (app = await diffPage(
+      [{ path: 'big.txt', added: 0, removed: 0, hunks: [] }],
+      (path) => Response.json({ path, text: 'keep\n', cut: true }),
+    ))
+    await openDiff(a)
+    await until(() => a.text().includes('Core shortened this file; the rest is not shown.'))
+    expect(a.text()).toContain('keep')
+  })
+
+  it('diff_shows_cores_refusal_in_the_file_area', async () => {
+    const a = (app = await diffPage(
+      [
+        { path: 'a.txt', added: 0, removed: 0, hunks: [] },
+        { path: 'b.txt', added: 0, removed: 0, hunks: [] },
+      ],
+      () => Response.json({ code: 'NOT_FOUND', message: 'No such file at that commit.' }, { status: 404 }),
+    ))
+    await openDiff(a)
+    await until(() => a.text().includes('No such file at that commit.'))
+    expect(a.button('a.txt+0-0')).toBeDefined()
+    expect(a.button('b.txt+0-0')).toBeDefined()
   })
 
   it('a_committed_task_waits_for_the_planners_judgment', async () => {
