@@ -101,18 +101,34 @@ describe('the task page', () => {
     await until(() => reads > 1)
   })
 
-  it('diff_lists_files_and_opens_a_patch', async () => {
+  it('diff_opens_the_first_file_and_switches_on_click', async () => {
     const a = (app = await startApp(PAGE, answers({
       taskRun: taskRun({ latest: attempt({ state: 'committed', commit: 'abc123' }) }),
-      attemptDiff: [{ path: 'backend/a.php', added: 3, removed: 1, patch: '@@ -1 +1,3 @@\n+<?php' }],
+      attemptDiff: [
+        { path: 'backend/a.php', added: 1, removed: 1, patch: '@@ -4,2 +4,2 @@\n context\n-old line\n+new line' },
+        { path: 'web/b.ts', added: 1, removed: 0, patch: '@@ -1 +1,2 @@\n keep\n+second file line' },
+      ],
     })))
     await until(() => a.button('Diff') !== undefined)
     await click(a.button('Diff'))
-    await until(() => a.text().includes('backend/a.php'))
-    expect(a.text()).toContain('+3')
-    expect(a.text()).not.toContain('<?php')
-    await click(a.button('backend/a.php+3-1'))
-    expect(a.text()).toContain('<?php')
+    await until(() => a.text().includes('new line'))
+    expect(a.text()).toContain('old line')
+    expect(a.text()).not.toContain('second file line')
+    await click(a.button('web/b.ts+1-0'))
+    await until(() => a.text().includes('second file line'))
+    expect(a.text()).not.toContain('new line')
+  })
+
+  it('diff_shows_a_cut_marker_as_plain_text', async () => {
+    const a = (app = await startApp(PAGE, answers({
+      taskRun: taskRun({ latest: attempt({ state: 'committed', commit: 'abc123' }) }),
+      attemptDiff: [{ path: 'big.txt', added: 1, removed: 0, patch: '@@ -1 +1,2 @@\n keep\n+<b>x</b>\n… patch cut at 1000 lines' }],
+    })))
+    await until(() => a.button('Diff') !== undefined)
+    await click(a.button('Diff'))
+    await until(() => a.text().includes('… patch cut at 1000 lines'))
+    expect(a.text()).toContain('<b>x</b>')
+    expect(document.querySelector('b')).toBeNull()
   })
 
   it('a_committed_task_waits_for_the_planners_judgment', async () => {
