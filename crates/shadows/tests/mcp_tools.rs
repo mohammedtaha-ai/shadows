@@ -740,10 +740,20 @@ async fn an_executor_grant_lists_its_tools_and_reads_only_its_task() {
         .await
         .unwrap();
     let executor = listening::mcp_client(&l.base, token.as_str()).await;
-    let mut names: Vec<String> = executor
-        .list_all_tools()
-        .await
-        .unwrap()
+    let tools = executor.list_all_tools().await.unwrap();
+    let report = tools
+        .iter()
+        .find(|tool| tool.name == "task_report")
+        .unwrap();
+    assert!(
+        report
+            .description
+            .as_deref()
+            .unwrap()
+            .contains("changes at least one file"),
+        "task_report must require a nonempty commit"
+    );
+    let mut names: Vec<String> = tools
         .into_iter()
         .map(|tool| tool.name.to_string())
         .collect();
@@ -963,6 +973,7 @@ fn the_planner_is_told_how_to_run_and_judge_tasks() {
         "otherwise send task_amend with what is missing or must be extended.",
         "A task takes at most three additions after its Start",
         "call task_lessons once",
+        "An addition asks for a change to the task's files",
     ];
     for text in texts {
         assert!(prompt.contains(text), "{text}");

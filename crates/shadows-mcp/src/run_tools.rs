@@ -138,7 +138,8 @@ impl Shadows {
         description = "Report your task's work after you committed it yourself with git. \
                        Shadows accepts the commit only if it is on the checked-out branch, \
                        made after your task started, changes only paths inside your task's \
-                       writes and adds no binary file; a refusal says what to fix, then \
+                       writes, changes at least one file and adds no binary file; a refusal \
+                       says what to fix, then \
                        report again. One accepted report per attempt."
     )]
     async fn task_report(

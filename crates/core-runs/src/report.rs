@@ -16,7 +16,8 @@ impl Runs {
     /// Accepts the commit `commit` as the work of the attempt `grant` belongs
     /// to, with `report`, the executor's account of it. The commit must be
     /// on the checked-out branch, new since Start, change only paths inside
-    /// `writes`, and bring no binary file. One accepted report per attempt.
+    /// `writes`, change at least one file, and bring no binary file.
+    /// One accepted report per attempt.
     pub async fn report(
         &self,
         grant: &Grant,
@@ -84,6 +85,9 @@ impl Runs {
         let writes = self.inner.store.writes(&attempt.id).await?;
         let matcher = Scope::new(&writes).map_err(RunsError::BadScope)?;
         let changes = git.changes(&sha).await.map_err(RunsError::Unavailable)?;
+        if changes.is_empty() {
+            return Err(RunsError::EmptyCommit { commit: sha });
+        }
         // A path outside the project folder is outside every pattern.
         let outside: Vec<String> = changes
             .iter()

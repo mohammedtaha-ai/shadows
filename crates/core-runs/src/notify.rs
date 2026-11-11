@@ -10,6 +10,7 @@ use crate::Runs;
 use crate::amend::ADDITIONS;
 use crate::model::{Attempt, AttemptState};
 use core_plans::WrittenBy;
+use core_threads::ThreadEntryKind;
 use core_turns::SendTurn;
 
 impl Runs {
@@ -88,10 +89,13 @@ impl Runs {
                     attempt.task
                 )
             }
-            _ => format!(
-                "{head} failed: {}\nTell the person; start it again only if they ask.",
-                attempt.reason.as_deref().unwrap_or_default()
-            ),
+            _ => {
+                let last = self.failed_message(attempt).await;
+                format!(
+                    "{head} failed: {}\n{last}Tell the person; start it again only if they ask.",
+                    attempt.reason.as_deref().unwrap_or_default()
+                )
+            }
         };
         let turn = SendTurn {
             command_id: format!("notify-{}", attempt.id),
@@ -107,5 +111,33 @@ impl Runs {
         if let Err(error) = self.inner.turns.queue(thread_id.clone(), turn).await {
             tracing::warn!(attempt = %attempt.id, %error, "runs.notify_failed");
         }
+    }
+
+    /// Keeps the executor's answer when no commit carries a report to the Planner.
+    async fn failed_message(&self, attempt: &Attempt) -> String {
+        let Some(operation) = &attempt.operation_id else {
+            tracing::warn!(attempt = %attempt.id, "runs.notify_no_message");
+            return String::new();
+        };
+        let entries = match self.inner.threads.entries(&attempt.thread_id).await {
+            Ok(entries) => entries,
+            Err(error) => {
+                tracing::warn!(attempt = %attempt.id, %error, "runs.notify_no_message");
+                return String::new();
+            }
+        };
+        let Some(entry) = entries.into_iter().rev().find(|entry| {
+            entry.kind == ThreadEntryKind::AgentMessage
+                && entry.operation_id.as_deref() == Some(operation.as_str())
+        }) else {
+            tracing::warn!(attempt = %attempt.id, "runs.notify_no_message");
+            return String::new();
+        };
+        let mut chars = entry.body.chars();
+        let mut text: String = chars.by_ref().take(4_000).collect();
+        if chars.next().is_some() {
+            text.push_str("[cut]");
+        }
+        format!("The executor's last message:\n{text}\n")
     }
 }

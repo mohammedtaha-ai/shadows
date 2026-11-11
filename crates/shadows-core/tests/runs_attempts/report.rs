@@ -422,3 +422,33 @@ async fn diff_returns_each_files_counts_and_patch() {
     assert_eq!(diff.len(), 2);
     f.finish().await;
 }
+
+#[tokio::test]
+async fn an_empty_commit_is_refused_until_it_changes_something() {
+    let f = fixture().await;
+    let (attempt, grant) = f.begin(3).await;
+    f.git(&["commit", "-q", "--allow-empty", "-m", "Nothing"]);
+    let empty = f.head();
+    let refused = f.report(&grant, &empty[..12]).await.unwrap_err();
+    assert!(
+        matches!(&refused, RunsError::EmptyCommit { commit } if commit == &empty),
+        "{refused:?}"
+    );
+    assert_eq!(refused.code(), "empty_commit");
+    assert_eq!(
+        refused.to_string(),
+        format!(
+            "the commit {empty} changes no file: commit only work; if nothing needs to change, \
+             do not commit, and say why in your last message"
+        )
+    );
+    f.still_running(&attempt).await;
+
+    f.put("backend/app/a.php", "<?php echo 1;\n");
+    let sha = f.commit(&["backend/app/a.php"], "Echo one");
+    let done = f.report(&grant, &sha).await.unwrap();
+    assert_eq!(done.id, attempt);
+    assert_eq!(done.state, AttemptState::Committed);
+    assert_eq!(done.commit.as_deref(), Some(sha.as_str()));
+    f.finish().await;
+}

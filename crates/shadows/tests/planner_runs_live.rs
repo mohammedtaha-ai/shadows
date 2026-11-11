@@ -344,8 +344,43 @@ async fn live_an_attempt_without_a_commit_reaches_its_planner() {
     let now = app.core.runs().attempt(&attempt.id).await.unwrap();
     assert_eq!(now.state, shadows_core::AttemptState::Failed, "{now:?}");
     assert_eq!(now.reason.as_deref(), Some("ended without a commit"));
-    let notice = planner_entry(app, &["attempt 1 failed: ended without a commit"]).await;
+    let notice = planner_entry(
+        app,
+        &[
+            "attempt 1 failed: ended without a commit",
+            "The executor's last message:",
+        ],
+    )
+    .await;
+    let (_, message) = notice
+        .split_once("The executor's last message:\n")
+        .expect("the failed notice carries the executor's last message");
+    let entries = app.core.threads().entries(&now.thread_id).await.unwrap();
+    let last = entries
+        .iter()
+        .rev()
+        .find(|entry| {
+            entry.kind == ThreadEntryKind::AgentMessage
+                && entry.operation_id.as_deref() == now.operation_id.as_ref().map(|id| id.as_str())
+        })
+        .expect("the executor's last message for this attempt");
+    assert!(
+        !last.body.trim().is_empty(),
+        "the executor must leave an answer"
+    );
+    let mut expected: String = last.body.chars().take(4_000).collect();
+    if last.body.chars().count() > 4_000 {
+        expected.push_str("[cut]");
+    }
+    assert!(
+        message.starts_with(&format!("{expected}\n")),
+        "the notice must carry this attempt's last message: {notice}"
+    );
     println!("live notice: {}", notice.lines().next().unwrap_or_default());
+    println!(
+        "live last message: {}",
+        message.lines().next().unwrap_or_default()
+    );
     let t1 = app.core.runs().task(&v1, 1, 1).await.unwrap();
     assert!(t1.start.allowed, "{:?}", t1.start);
     app.core

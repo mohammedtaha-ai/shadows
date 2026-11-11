@@ -38,6 +38,11 @@ pub enum RunsError {
     )]
     NotNew { commit: String },
     #[error(
+        "the commit {commit} changes no file: commit only work; if nothing needs to change, \
+         do not commit, and say why in your last message"
+    )]
+    EmptyCommit { commit: String },
+    #[error(
         "the commit changes paths outside the task's writes: {}; take them out of the \
          commit and report again",
         paths.join(", ")
@@ -99,6 +104,7 @@ impl RunsError {
             Self::UnknownCommit { .. } => "unknown_commit",
             Self::NotOnBranch { .. } => "not_on_branch",
             Self::NotNew { .. } => "not_new",
+            Self::EmptyCommit { .. } => "empty_commit",
             Self::OutsideWrites { .. } => "outside_writes",
             Self::BinaryFiles { .. } => "binary_files",
             Self::AlreadyGit => "already_git",

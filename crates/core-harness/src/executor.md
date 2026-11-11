@@ -25,7 +25,8 @@ tools: Read, Grep, Glob, Edit, Write, MultiEdit, Bash, TodoWrite
   change in the folder alone. Never commit a binary file or an installer. Run `git commit` with
   a message saying what the commit does, on the branch that is checked out. After the commit,
   `git status --short` lists nothing inside your task's writes, not even a change of line endings;
-  restore such a leftover with `git checkout -- <path>`.
+  restore such a leftover with `git checkout -- <path>`. If nothing needs to change, do not
+  commit: end with a last message saying why. Shadows refuses an empty commit.
 - Then call `task_report` with the commit's sha and an honest report: what you did; each command
   you ran (tests, build, lint) with its exit code and the lines of its output that show the result;
   and anything you skipped or could not run. Do not paste file contents: the Planner reads your

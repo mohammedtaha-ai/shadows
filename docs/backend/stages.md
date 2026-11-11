@@ -531,13 +531,21 @@ Two rulings of Mohammed after the same trial: the Planner reads the code before 
 
 ### B-133 · An executor's commit must change something
 
-- Status: todo
+- Status: done
 - Plan: [Task B-133](plans/2026-11-11-planner-reads-code-and-real-commits.md#task-b-133-an-executors-commit-must-change-something).
 - Owner: Runs (`report` refuses `EmptyCommit`; `notify` adds the executor's last message to a failed notice, read through Threads); `shadows-mcp` (`task_report`'s description); Harness (executor and Planner texts). `project_git_init`'s empty first commit is not a report and does not change.
 - Read: `crates/core-runs/contract.yaml`, `crates/shadows-mcp/src/contract.yaml`, `crates/core-harness/contract.yaml`, `crates/core-threads/contract.yaml` (`entries`).
 - Touch: `crates/core-runs/src/report.rs`; `crates/core-runs/src/error.rs`; `crates/core-runs/src/notify.rs`; `crates/core-runs/contract.yaml`; `crates/shadows-mcp/src/run_tools.rs`; `crates/shadows-mcp/src/refusal.rs` (only if it lists Runs refusals by variant); `crates/shadows-mcp/src/contract.yaml`; `crates/core-harness/src/executor.md`; `crates/core-harness/src/executor.rs` (its test module only); `crates/core-harness/src/prompt.txt`; `crates/core-harness/contract.yaml`; `crates/shadows-core/tests/runs_attempts/report.rs`; `crates/shadows/tests/mcp_tools.rs`; `crates/shadows/tests/planner_runs_live.rs`; `docs/backend/stages.md` (this entry).
 - Needs: B-132.
 - Done when: `cargo test -p shadows-core --test runs_attempts` (`an_empty_commit_is_refused_until_it_changes_something` among them, every earlier report test unchanged); `cargo test -p core-harness`; `cargo test -p shadows --test mcp_tools --test mcp_server --test planner_mcp --test runs_routes`; `cargo test -p shadows --test openapi` with no change to `api/`; signed in to Claude Code: `cargo test -p shadows --test planner_runs_live live_an_attempt_without_a_commit -- --ignored --test-threads=1`, its printed lines recorded here; `cargo test -p shadows --test architecture --test codemap --test contract_tests`; rule 5's checks. One commit, `feat(backend): B-133 <goal>`.
+- Verified (2026-11-11): `cargo test -p shadows-core --test runs_attempts`: 46 passed, 6 ignored (red first: missing EmptyCommit failed compilation); `cargo test -p core-harness`: 6 passed (3 unit + commands 1 + list 1 + tasks 1); `cargo test -p shadows --test mcp_tools --test mcp_server --test planner_mcp --test runs_routes`: 25 + 6 + 24 + 8 passed, 2 ignored in runs_routes.
+- Checks: `cargo test -p shadows --test openapi`: 8 passed; `git diff --exit-code -- api/`: unchanged. `cargo test -p shadows --test architecture --test codemap --test contract_tests`: 49 + 1 + 1 passed. `cargo fmt --all`; `cargo fmt --all --check`; `cargo clippy -p core-runs -p core-harness -p shadows-mcp -p shadows-core -p shadows --all-targets --features shadows/test-support -- -D warnings`; `cargo clippy -p core-runs -p core-harness -p shadows-mcp -p shadows-core -p shadows -- -D warnings`: passed. Rust files under crates checked: no line over 100 columns. The generic MCP refusal mapping already preserves empty_commit; refusal.rs needed no change. No full gate run.
+- Live (once, real adapter on the signed-in Claude Code subscription; RUST_TEST_NOCAPTURE=1): `cargo test -p shadows --test planner_runs_live live_an_attempt_without_a_commit -- --ignored --test-threads=1`: 1 passed, 4 filtered out. Printed lines:
+
+```text
+live notice: [Shadows] T1 "Add t1" of plan version 61ee6ffc-186d-4a1d-b87d-af00e046d4a6: attempt 1 failed: ended without a commit
+live last message: T1 needs no work. Its goal says to change no file, make no commit, and stop, so I did none of those and did not call `task_report`.
+```
 
 ### B-107 · Store a simple brief on each attempt
 

@@ -117,6 +117,7 @@ mod tests {
             "you ran (tests, build, lint) with its exit code",
             "Do not paste file contents",
             "not even a change of line endings",
+            "Shadows refuses an empty commit",
         ] {
             assert!(FILE.contains(text), "{text}");
         }

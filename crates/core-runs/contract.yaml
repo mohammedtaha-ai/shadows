@@ -59,7 +59,7 @@ dependencies:
   plans: Plans reads the frozen version, its tasks, its links and the tasks other plans' links reach.
   harness: Harness opens the executor session in its project's folder, releases it, and names the model last used on the executor's harness.
   turns: Turns sends the first turn and stops it, and queues the Planner's notice (Turns::queue).
-  threads: Threads creates the executor thread inside the Start write, and reads the executor's entries for a lessons record.
+  threads: Threads creates the executor thread inside the Start write, and reads the executor's entries for a lessons record and a failed notice's last message.
   grants: Grants revokes an interrupted attempt's grant at startup; an executor grant names the attempt's task.
   projects: Projects names the folder git runs in.
 
@@ -83,9 +83,10 @@ shapes:
   TaskLesson: "{ workflow_id, version, task, title, attempts: [LessonAttempt], commands: [LessonCommand], stopped_by, plan_should_have_said, recorded_at }: the record a task leaves when it stops on the cap, stored as run_lessons.record_json; the two Planner fields null until it writes them. No route serves it"
   LessonAttempt: "{ number, addition, commit, report }: the chain from the Start to the stopped attempt, oldest first; addition is what was missing"
   LessonCommand: "{ command, status, error }: a ToolCall entry of kind execute on the executor's thread: its title, its card's status as its wire text and its error; no output is stored"
-  RunsError: [NotFrozen, Superseded, Archived, Waiting, TaskBusy, Overlap, NotGit, DirtyScope, AlreadyCommitted, UnknownCommit, NotOnBranch, NotNew, OutsideWrites, BinaryFiles, AlreadyGit, NoFolder, NoModel, NotAwaiting, EmptyAddition, AdditionsSpent, NoLesson, EmptyLesson, CommandConflict, NotFound, BadScope, Unavailable, Storage]
+  RunsError: [NotFrozen, Superseded, Archived, Waiting, TaskBusy, Overlap, NotGit, DirtyScope, AlreadyCommitted, UnknownCommit, NotOnBranch, NotNew, EmptyCommit, OutsideWrites, BinaryFiles, AlreadyGit, NoFolder, NoModel, NotAwaiting, EmptyAddition, AdditionsSpent, NoLesson, EmptyLesson, CommandConflict, NotFound, BadScope, Unavailable, Storage]
   # RunsError::code is the opaque id clients match on: not_frozen, waiting, task_busy, ...
   # AlreadyGit (already_git) and NoFolder (no_folder) are init_git's refusals, not Start's.
+  # EmptyCommit (empty_commit): a reported commit changes no file; the attempt stays Running.
   # NoModel (no_model): start_for found no model given and none to suggest.
   # NotAwaiting (not_awaiting), EmptyAddition (empty_addition) and AdditionsSpent
   # (additions_spent) are amend's refusals; AdditionsSpent's text asks for task_lessons.
@@ -96,7 +97,7 @@ functions:
   start: "(command, workflow, version, task, model) -> Attempt; a replay answers the first attempt before any check the plan's later state could fail, the same id with other input is CommandConflict; then the version, the task, its needs links, then the folder: NotGit, or DirtyScope when git lists a changed path inside writes; the attempt records the commit HEAD names then (start_head); an attempt whose session or turn cannot start is recorded, so it is answered Failed with its reason, not refused; once the session opened it sends the turn only if the attempt is still Running (a Stop while the session opened found no turn to stop), and a Stop between that check and the turn's record stops the turn"
   can_start: "(workflow, version, task) -> StartAnswer; Start's checks in Start's order (the version, the task, its needs, the folder, then the busy and overlap check read without writing); a refusal is an answer with RunsError::code and its text, a failure to read is an error"
   stop: "(attempt) -> Attempt; waits for the turn's confirmed end"
-  report: "(grant, commit, report) -> Attempt; the executor grant's attempt must be Running (Committed is AlreadyCommitted); then, in order: commit is a hex SHA git resolves to a commit (UnknownCommit), reachable from HEAD (NotOnBranch), not reachable from start_head (NotNew); every path it changes against its first parent (a root commit against nothing, a rename as both ends) lies inside writes, a path outside the project folder outside them (OutsideWrites, all listed); none it adds or modifies is binary by git's numstat (BinaryFiles, all listed). A refusal leaves the attempt Running. On acceptance the attempt becomes Committed with the full sha and the trimmed report; only a Running attempt moves"
+  report: "(grant, commit, report) -> Attempt; the executor grant's attempt must be Running (Committed is AlreadyCommitted); then, in order: commit is a hex SHA git resolves to a commit (UnknownCommit), reachable from HEAD (NotOnBranch), not reachable from start_head (NotNew); changes at least one file (EmptyCommit with its full sha when Git::changes is empty); every path it changes against its first parent (a root commit against nothing, a rename as both ends) lies inside writes, a path outside the project folder outside them (OutsideWrites, all listed); none it adds or modifies is binary by git's numstat (BinaryFiles, all listed). A refusal leaves the attempt Running. On acceptance the attempt becomes Committed with the full sha and the trimmed report; only a Running attempt moves"
   init_git: "(grant) -> String; a Thread (Planner) grant only, else NotFound; the folder from Projects (NoFolder when none); a folder inside any work tree, its own or a parent's, is AlreadyGit; then git init and one empty commit `Initial commit` as Shadows <shadows@localhost>, a git failure Unavailable; answers the full sha, writes no file, logs runs.git_initialised"
   start_for: "(grant, workflow, task, model?) -> Attempt; the Planner's grant checked (a Thread grant of the plan's project, else NotFound), then start with the trimmed model, else the task's suggested model, else NoModel; the command id is fresh"
   mark_done_for: "(grant, workflow, task, done) -> DoneMark; the Planner's grant checked as start_for, then mark_done; a done mark answers next from next_ready, which the Planner starts on its own (Mohammed, 2026-11-11)"
@@ -116,7 +117,8 @@ functions:
   attempt: "(attempt) -> Attempt; one attempt as it stands, NotFound for an unknown id"
   set_first_prompt_for_tests: "test-support only: (prompt) scripts the first prompt of later attempts"
   mark_done: "(command, workflow, version, task, done) -> TaskRun; the command record keeps every mark command: a replay writes nothing, the same id with other input is CommandConflict; a done mark releases the task's latest attempt when it is Committed and still holds its scope (closes its session, frees its scope); a not-done mark releases nothing"
-  notify: "private: (attempt) queues on the plan's Planner thread (WrittenBy::Planner, not removed) a [Shadows] notice with the settings of that thread's last turn and command id notify-<attempt>: committed with its sha, files (path +added -removed) and report, or failed with its reason; a committed notice says to read with task_diff and task_file before judging, and one whose attempt carried the task's third addition says it was the last; any failure is logged, never fails the watcher"
+  notify: "private: (attempt) queues on the plan's Planner thread (WrittenBy::Planner, not removed) a [Shadows] notice with the settings of that thread's last turn and command id notify-<attempt>: committed with its sha, files (path +added -removed) and report, or failed with its reason and its operation's last AgentMessage from Threads::entries, cut at 4,000 chars with [cut] appended when cut; an absent message or unreadable entries adds nothing and logs runs.notify_no_message; a committed notice says to read with task_diff and task_file before judging, and one whose attempt carried the task's third addition says it was the last; any failure is logged, never fails the watcher"
+  failed_message: "private: (attempt) -> String; the failed notice's last AgentMessage for attempt.operation_id, through Threads::entries in ordinal order; no operation, no message or a read failure logs runs.notify_no_message and answers empty; text cut after 4,000 chars with [cut] when cut"
   recover: "() -> RecoverReport; every Running attempt becomes Interrupted, its grant revoked and its scope freed; every other held scope is freed except a Committed attempt's, which keeps waiting for its judgment; none restarted, git not read"
 
 transitions:
@@ -171,6 +173,8 @@ agreements:
     tested_by: [live_an_addition_continues_the_executor_in_its_session]
 
 obligations:
+  - rule: A reported commit that changes no file is refused with EmptyCommit (empty_commit); the attempt stays Running, and a real commit is accepted.
+    tested_by: [an_empty_commit_is_refused_until_it_changes_something]
   - rule: A file is read at the commit even after a person's edit, including unchanged files in writes.
     tested_by: [a_file_is_read_whole_at_the_attempts_commit]
   - rule: Paths outside writes or climbing out are refused; missing paths and uncommitted attempts are NotFound; deleted files have no text.
@@ -247,7 +251,7 @@ obligations:
     tested_by: [recovery_keeps_a_committed_attempt_waiting_for_its_judgment]
   - rule: On the real adapter, a committed attempt's end reaches its Planner as a waiting message with its sha, and the done mark frees its scope and closes its session.
     tested_by: [live_a_committed_attempt_reaches_its_planner_and_waits_for_its_judgment]
-  - rule: On the real adapter, an attempt that ends without a commit reaches its Planner as failed, and its scope is freed.
+  - rule: On the real adapter, an attempt that ends without a commit reaches its Planner as failed with the executor's last message from that operation, and its scope is freed.
     tested_by: [live_an_attempt_without_a_commit_reaches_its_planner]
   - rule: A released executor thread opens again neither as an executor nor as a Planner, and an executor's first turn hears no Planner instructions, planning context or stage line.
     tested_by: [a_released_executor_thread_does_not_open_again, an_executors_first_turn_hears_no_planner_instructions, live_an_executors_first_turn_hears_no_planner_instructions]
