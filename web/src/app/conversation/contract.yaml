@@ -588,6 +588,12 @@ queries_and_mutations:
 
 obligations:
   - rule: >
+      An entry whose author is an Executor draws as a notice item of the turn's activity, never
+      as the person's bubble; its header comes from its card, its report is drawn whole as
+      markdown and cut only in height. An old notice recorded under the person stays a bubble.
+    tested_by: [a_notice_draws_as_an_activity_item_not_a_bubble, a_failed_notice_shows_its_reason_and_report, a_long_report_is_cut_with_show_more, a_notice_without_a_readable_card_shows_its_body_under_executor, the_header_closes_and_reopens_the_report, an_old_notice_from_the_person_stays_a_bubble]
+
+  - rule: >
       A draft under an agent keeps the model chosen before the first send: the thread is
       created with the agent, the session opened, the chosen model applied, and only then
       the turn sent with it.

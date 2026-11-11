@@ -1,7 +1,8 @@
 // Distinguish entries by kind rather than text so tool output cannot masquerade as a card.
 
+import type { AttemptNotice } from '@/api/runs'
 import type { ThreadEntry } from '@/api/threads'
-import { type SubagentCard, readSubagentCard } from '@/stream'
+import { type SubagentCard, readAttemptNotice, readSubagentCard } from '@/stream'
 
 /** Suppress plan_show's tool line because its plan card already represents the result. */
 const SENTENCES: Readonly<Record<string, string | null>> = {
@@ -48,6 +49,13 @@ export function subagentOf(entry: ThreadEntry): SubagentCard | null {
   }
 }
 
+/** An executor's notice: a message whose author is an Executor, never decided from its text.
+ * `card` is null when the entry has none or it cannot be read. */
+export function noticeOf(entry: ThreadEntry): { card: AttemptNotice | null } | null {
+  if (entry.kind !== 'UserMessage' || entry.author.kind !== 'Executor') return null
+  return { card: readAttemptNotice(entry.card) }
+}
+
 /** An entry that adds no line: a tool call whose result is another entry. */
 export function silent(entry: ThreadEntry): boolean {
   return entry.kind === 'ToolCall' && toolText(entry.body) === null
@@ -56,6 +64,8 @@ export function silent(entry: ThreadEntry): boolean {
 /** What an entry's Copy puts on the clipboard: the text as it reads, not its wrapping. A tool
  * call is never an entry row; its group copies its steps' lines. */
 export function copyText(entry: ThreadEntry): string {
+  const notice = noticeOf(entry)
+  if (notice !== null) return notice.card?.report ?? notice.card?.reason ?? entry.body
   const card = subagentOf(entry)
   return card === null ? entry.body : (card.report ?? card.title)
 }

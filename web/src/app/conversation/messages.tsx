@@ -22,7 +22,7 @@ import { type Row, activityRows, liveSteps, withLiveSteps } from './activity-row
 import { ToolGroup } from './tool-group'
 import type { Cut, ShownReply } from './reply'
 import { SubagentCardView } from './subagent-card'
-import { copyText, silent, subagentOf } from './tool-text'
+import { copyText, noticeOf, silent, subagentOf } from './tool-text'
 import { labelOf } from './turn-settings'
 
 const NO_ENTRIES: readonly ThreadEntry[] = []
@@ -325,6 +325,7 @@ const EntryRow = memo(function EntryRow({
       ? undefined
       : { projectId: forkProjectId, threadId: forkThreadId, entryId: forkEntryId }
   const operationId = entry.operation_id
+  const fromPerson = entry.kind === 'UserMessage' && noticeOf(entry) === null
   return (
     <motion.li
       id={`entry-${entry.ordinal}`}
@@ -342,8 +343,8 @@ const EntryRow = memo(function EntryRow({
         onOpenSubagent={onOpenSubagent}
       />
       {answered !== undefined && <p className="text-xs text-faint-foreground">{answered}</p>}
-      <div className={cn(entry.kind === 'UserMessage' && 'flex flex-wrap items-center justify-end gap-2')}>
-        {entry.kind === 'UserMessage' && planningContext !== null && operationId != null &&
+      <div className={cn(fromPerson && 'flex flex-wrap items-center justify-end gap-2')}>
+        {fromPerson && planningContext !== null && operationId != null &&
           <ContextMark state={planningContext} onOpen={() => onOpenContext(operationId)} />}
         <MessageActions text={copyText(entry)} forkPoint={forkPoint} />
       </div>
