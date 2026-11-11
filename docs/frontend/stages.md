@@ -227,14 +227,23 @@ constraints bind both tasks. Backend: B-134 on
 - Plan: [F-111](plans/2026-11-11-shadows-notices.md#f-111--a-shadows-notice-draws-as-an-item-of-the-planners-activity)
 - Read: the plan's "What Core gives" and "Where the item sits"; `web/src/app/conversation/contract.yaml`; `web/src/stream/contract.yaml`; the `runs:` block of `web/src/api/contract.yaml`; `Entry` in `entry.tsx`, `EntryRow` in `messages.tsx`, `subagentOf` and `copyText` in `tool-text.ts`, `readSubagentCard` in `web/src/stream/frames.ts`, `ToolGroup` in `tool-group.tsx` (the look to match).
 - Touch: `web/src/api/schema.d.ts` (only through `npm run gen:api`), `web/src/api/runs.ts`, `web/src/api/contract.yaml`, `web/src/stream/frames.ts`, `web/src/stream/contract.yaml`, `web/src/app/conversation/tool-text.ts`, `web/src/app/conversation/notice-item.tsx` (new), `web/src/app/conversation/notice-item.test.tsx` (new), `web/src/app/conversation/reply-text.tsx` (the `compact` prop only), `web/src/app/conversation/entry.tsx`, `web/src/app/conversation/messages.tsx` (`EntryRow` footer only), `web/src/app/conversation/contract.yaml`, `docs/frontend/codebase/README.md`, this stages file.
-- Needs: B-134 committed (`api/openapi.json` holds `AttemptNotice`, `Notice` and `QueuedMessage.notice`).
+- Needs: B-134 committed (`api/openapi.json` holds `AttemptNotice`, `Notice` and `QueuedMessage.notice`); the request's executor name field (ruling 1, Hamoud names it in the request).
 - Done when: `npx vitest run src/app/conversation/notice-item.test.tsx src/app/conversation/todo-card.test.tsx src/app/conversation/reply-text.test.tsx` passes, with `a_notice_draws_as_an_activity_item_not_a_bubble`, `a_failed_notice_shows_its_reason_and_report`, `a_long_report_is_cut_with_show_more`, `a_notice_without_a_readable_card_shows_its_body_under_shadows`, `the_header_closes_and_reopens_the_report` and `an_old_notice_from_the_person_stays_a_bubble`; typecheck, lint, build, `npx vitest run src/codemap.test.ts src/architecture` pass. One commit, `feat(web): F-111 <goal>`.
 
 ### F-112 · A waiting notice is not drawn as the person's waiting message
 
-- Status: blocked (B-134 not built; Mohammed's answer on removing a waiting notice)
+- Status: blocked (B-134 not built)
 - Plan: [F-112](plans/2026-11-11-shadows-notices.md#f-112--a-waiting-notice-is-not-drawn-as-the-persons-waiting-message)
 - Read: `web/src/app/conversation/contract.yaml`; `WaitingMessages` in `waiting-messages.tsx`; `noticeTitle` in `notice-item.tsx`; `readAttemptNotice` in `web/src/stream/frames.ts`.
 - Touch: `web/src/app/conversation/waiting-messages.tsx`, `web/src/app/conversation/waiting-messages.test.tsx`, `web/src/app/conversation/contract.yaml`, this stages file.
-- Needs: F-111; B-134; Mohammed's answer to "may the person remove a waiting notice" (the plan says what changes if he says yes).
+- Needs: F-111; B-134 (Mohammed ruled 2026-11-11: Core refuses removing a notice, the web shows no Remove).
 - Done when: `npx vitest run src/app/conversation/waiting-messages.test.tsx` passes with `a_waiting_notice_is_not_drawn_as_the_persons_message` and the existing queue test; typecheck, lint, build, `npx vitest run src/codemap.test.ts src/architecture` pass. One commit, `feat(web): F-112 <goal>`.
+
+### F-113 · Each Planner turn is one collapsible box
+
+- Status: blocked (F-111 first)
+- Plan: [F-113](plans/2026-11-11-shadows-notices.md#f-113--each-planner-turn-is-one-collapsible-box)
+- Read: the plan's F-113; `web/src/app/conversation/contract.yaml`; `Messages`, `ToolRow` and `EntryRow` in `messages.tsx`; `Row`, `activityRows` and `withLiveSteps` in `activity-rows.ts`; `ToolGroup` in `tool-group.tsx` (the open/fold behaviour to match); `noticeOf` in `tool-text.ts`.
+- Touch: `web/src/app/conversation/turn-blocks.ts` (new), `web/src/app/conversation/turn-blocks.test.ts` (new), `web/src/app/conversation/turn-box.tsx` (new), `web/src/app/conversation/turn-box.test.tsx` (new), `web/src/app/conversation/messages.tsx`, `web/src/app/conversation/conversation.test.tsx`, `web/src/app/conversation/streamed-reply.test.tsx`, `web/src/app/conversation/tool-group.test.tsx`, `web/src/app/conversation/plan-in-conversation.test.tsx` (these four only to open a finished turn's box before reading inside it), `web/src/app/conversation/contract.yaml`, `docs/frontend/codebase/README.md`, this stages file.
+- Needs: F-111. Nothing from Core: entries carry `operation_id`; no shared request.
+- Done when: `npx vitest run src/app/conversation` passes, with `a_finished_turn_folds_its_notice_tools_and_text_and_keeps_its_final_answer`, `a_turn_with_no_activity_has_no_box`, `a_proposal_card_stays_outside_the_box`, `the_person_prompt_stays_above_the_box`, `a_finished_turn_shows_one_summary_line_and_opens_on_click` and `a_running_turn_is_open_and_folds_when_it_ends`; typecheck, lint, build, `npx vitest run src/codemap.test.ts src/architecture` pass. One commit, `feat(web): F-113 <goal>`.

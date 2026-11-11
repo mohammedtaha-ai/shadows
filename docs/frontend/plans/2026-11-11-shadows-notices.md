@@ -8,6 +8,15 @@ subagent <name>": an item of the turn's activity, beside its tool calls, with a 
 with Show more when long. Never a user bubble, and never the person's waiting message while it
 waits in the queue.
 
+**Mohammed's rulings, 2026-11-11:**
+1. The notice arrives **in the executor's name**, not the person's and not a plain "Shadows":
+   the header names the executor (`<executor> · T2 · attempt 3 committed`). Which field holds
+   the name is Hamoud's answer in [the request](../../shared/requests/2026-11-11-shadows-notices.md);
+   this plan calls it **the executor name field** and the builder takes it from there. Core
+   refuses approvals from anyone but the person; the web needs nothing for that.
+2. Core refuses removing a waiting notice; the web shows no Remove on it (F-112).
+3. Each Planner turn is one collapsible box, as in Claude (F-113, after F-111).
+
 Backend shape: [the shadows notices request](../../shared/requests/2026-11-11-shadows-notices.md)
 (accepted), built by B-134 ([its plan](../../backend/plans/2026-11-11-marked-shadows-notices.md)).
 
@@ -15,7 +24,9 @@ Backend shape: [the shadows notices request](../../shared/requests/2026-11-11-sh
 
 - A notice entry is a `UserMessage` whose `author` is `{ kind: "Shadows", id: "runs" }`. The
   person's messages stay `User`/`local` with `card: null`. **The marker is `author.kind ===
-  "Shadows"`**; the page never reads the body's text to decide.
+  "Shadows"`**; the page never reads the body's text to decide. If Hamoud's update to the
+  request (ruling 1) changes the author's kind, the marker is what the request then states.
+- The executor's name: the executor name field the request names after ruling 1.
 - Its `card` is an `AttemptNotice`: `{ workflow_id, version, task, title, attempt, attempt_id,
   outcome: "committed" | "failed", commit, report, reason, last_addition }`. `ThreadEntry.card`
   stays an open object in the schema, so the page reads it with a checked reader.
@@ -35,8 +46,7 @@ above the turn's first tool group. The notice item takes the tool group's look (
 item of the turn's activity, not as a message. A notice steered into a running turn (Send now)
 is that turn's steering entry, so it sits among that turn's calls, where it arrived.
 
-If Mohammed wants one collapsible block holding a whole turn's activity (notice, every tool
-group and the text between them), that is a redesign of `Messages` and is not planned here.
+F-113 then folds the whole turn, the notice item included, into one box (ruling 3).
 
 ## Global constraints
 
@@ -69,8 +79,10 @@ group and the text between them), that is a redesign of `Messages` and is not pl
   missing or unreadable). `copyText` copies a notice's `report`, else its `reason`, else its body.
 
 **The item.** New file `web/src/app/conversation/notice-item.tsx`:
-- `noticeTitle(card: AttemptNotice | null): string`: `Shadows · T{task} · attempt {attempt}
-  {outcome}`, or `Shadows` when the card is null. Exported: F-112 uses it.
+- `noticeTitle(card: AttemptNotice | null): string`: `{executor} · T{task} · attempt {attempt}
+  {outcome}`, where `{executor}` is the executor name field; `Shadows` when the card is null
+  or the name is missing. Exported: F-112 uses it. `readAttemptNotice` reads the name field as
+  a string or null.
 - `NoticeItem({ body, card })`: a left-aligned `surface-panel rounded-xl p-3` block, like a
   tool group of several steps.
   - Header: a `button` with `aria-expanded`, a chevron (rotates when open), an icon
@@ -101,8 +113,8 @@ group and the text between them), that is a redesign of `Messages` and is not pl
 **Tests**, new file `web/src/app/conversation/notice-item.test.tsx`, drawing `Entry` as
 `todo-card.test.tsx` does:
 - `a_notice_draws_as_an_activity_item_not_a_bubble`: a `Shadows` entry with a committed card
-  (task 2, attempt 3, a report holding `**done**` and a list): the header reads `Shadows · T2 ·
-  attempt 3 committed`; the task title shows; `done` is drawn inside a `strong`; the body's
+  (task 2, attempt 3, a report holding `**done**` and a list): the card's executor name is
+  `Codex`, and the header reads `Codex · T2 · attempt 3 committed`; the task title shows; `done` is drawn inside a `strong`; the body's
   instruction text is not on the page; no element carries the bubble's `surface-glow` class.
 - `a_failed_notice_shows_its_reason_and_report`: outcome `failed`, `reason` and `report` set:
   both show; the header reads `attempt 1 failed`.
@@ -129,18 +141,80 @@ notice, not as the person's message:
 - one line: the icon of `NoticeItem`, `noticeTitle(readAttemptNotice(m.notice.card))`, and
   `Waiting for the Planner` muted; the `prompt` text is **not** shown (it is the model's text);
 - `Send now` / `Send` stays as for every row (Core steers it with its author and card);
-- **no `Remove` button** (the queue question below); `last_error`, when set, shows as for
+- **no `Remove` button** (ruling 2: Core refuses removing a notice); `last_error`, when set, shows as for
   every row.
 A row whose `notice` is null is drawn exactly as today.
 
 **Tests**, in `web/src/app/conversation/waiting-messages.test.tsx`:
 - `a_waiting_notice_is_not_drawn_as_the_persons_message`: the queue answers a notice row
-  (task 2, attempt 3, committed) then the person's row. The notice row shows `Shadows · T2 ·
-  attempt 3 committed` and `Waiting for the Planner`, not its prompt text, offers `Send now`
+  (task 2, attempt 3, committed) then the person's row. The notice row shows `Codex · T2 ·
+  attempt 3 committed` (the card's executor name) and `Waiting for the Planner`, not its prompt text, offers `Send now`
   and no `Remove`; the person's row shows its text with `Send now` and `Remove`, as today.
 
 **Contract.** `web/src/app/conversation/contract.yaml`: the waiting messages line says a
 notice waits as a notice line, with no Remove (`a_waiting_notice_is_not_drawn_as_the_persons_message`).
 
-**If Mohammed rules that the person may remove a waiting notice** (the request's second open
-question), the `Remove` button stays on the notice row and the test checks it is there.
+## F-113 · Each Planner turn is one collapsible box
+
+Ruling 3. Like Claude: every Planner turn's activity folds into one box.
+
+**Needs from Core: nothing.** Every entry carries `operation_id` (its turn), and the person's
+prompt is the turn's `UserMessage`. The streamed rows of the running turn belong to the newest
+turn while `running` is true. No shared request.
+
+**What goes where, per turn** (entries with the same `operation_id`; entries with none are
+drawn as today, outside any box):
+- **Above the box:** the person's prompt bubble (a `UserMessage` that is not a notice).
+- **In the box, in order:** the notice item (F-111), every tool group, the text between them,
+  and the permission answered/refused lines.
+- **Under the box, visible:** the turn's **final answer**, meaning its text after the last item
+  the box holds (its last `AgentMessage` entries or streamed text after the last tool group or
+  notice). Cards the person reads or acts on (`PermissionAsked`, the vision, map and roadmap
+  proposals, `PlanView`, `PlanApproved`, `Subagent`, `TodoList`) also stay outside the box, in
+  their order, so an approval or a question is never folded away.
+- A turn whose box would hold nothing (no notice, no tool, no in-between text) draws no box.
+
+**The box.** New file `web/src/app/conversation/turn-box.tsx`, `TurnBox({ summary, live,
+children })`: left-aligned `surface-panel rounded-xl p-3`, a header `button` with
+`aria-expanded`, a chevron, and the summary line. **Open while its turn runs** (the newest
+turn while `running`), **folded once it ends**; the person's click wins over both, as
+`ToolGroup` does (`chosen ?? live`). A link to an entry inside (`#entry-<ordinal>`) opens it.
+- The summary line: the parts that apply, joined by ", ", first letter capital: `received a
+  notice from <executor>` (from the notice's card, F-111's executor name; `received a notice`
+  without one), `ran N tools` (`ran 1 tool`), `wrote N notes` for the in-between text blocks
+  when there are any. Example: "Received a notice from Codex, ran 5 tools". While it runs, a
+  spinner replaces the icon, as `ToolGroup` does.
+
+**The grouping.** New file `web/src/app/conversation/turn-blocks.ts`:
+`turnBlocks(rows: readonly Row[], runningOp: string | null): Block[]`, a pure function over
+the `activityRows`/`withLiveSteps` output. `Block` is `{ kind: 'row', row }` for a row drawn as
+today, or `{ kind: 'turn', op, key, inside: Row[], summary parts, live }`. A row's turn is its
+entry's `operation_id`, a tool row's steps' operation, and a streamed text row's the newest
+turn while `running`. The final answer rows and the outside cards come after the turn block as
+`row` blocks. `messages.tsx` maps the blocks: a `turn` block draws `TurnBox` with its inside
+rows drawn exactly as `Messages` draws them today (`ToolRow`, `EntryRow`, `ReplyText`); the
+reply tail, live lists, subagent cards, Thinking and the operational label stay where they are.
+Applies to Planner conversations only: `Messages` skips the boxes when `harness ===
+AYLUL_HARNESS`.
+
+**Tests:**
+- `web/src/app/conversation/turn-blocks.test.ts` (new):
+  `a_finished_turn_folds_its_notice_tools_and_text_and_keeps_its_final_answer` (notice, text,
+  2 tool rows, text, final text: one turn block holding the first five rows before the final
+  text, the final text outside); `a_turn_with_no_activity_has_no_box`;
+  `a_proposal_card_stays_outside_the_box`; `the_person_prompt_stays_above_the_box`.
+- `web/src/app/conversation/turn-box.test.tsx` (new):
+  `a_finished_turn_shows_one_summary_line_and_opens_on_click` (folded: "Received a notice from
+  Codex, ran 5 tools", tool rows absent; after a click, present);
+  `a_running_turn_is_open_and_folds_when_it_ends`.
+- Existing tests that read a finished turn's tool rows or in-between text now open its box
+  first: `conversation.test.tsx`, `streamed-reply.test.tsx`, `tool-group.test.tsx`,
+  `plan-in-conversation.test.tsx`. If another test file breaks, stop and report it: Masada
+  widens the task.
+
+**Contracts and map.** `web/src/app/conversation/contract.yaml`: one obligation, "A finished
+Planner turn's notice, tool groups and in-between text fold into one box with a one-line
+summary; the prompt stays above it, the final answer and the cards the person acts on stay
+visible under it; a running turn's box is open (turn-blocks.test.ts, turn-box.test.tsx)".
+`docs/frontend/codebase/README.md`: rows for `turn-blocks.ts` ("Groups a turn's activity rows
+into one box") and `turn-box.tsx` ("One Planner turn's activity as one collapsible box").
