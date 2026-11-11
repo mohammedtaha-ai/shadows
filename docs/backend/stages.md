@@ -328,11 +328,12 @@ Order and rulings: [the program](plans/2026-11-09-local-delivery-program.md). Sl
 
 ### B-101 · A setup runs end to end on an empty folder
 
-- Status: blocked (slice 3; 2026-11-12: the live test's app seeds its roadmap with `seed_roadmap_for_tests`, which Shadows reports as stage "idea" with no outcomes and an empty vision, so the Planner refuses to write the Setup plan in 3 of 5 runs. A truly approved roadmap needs `crates/shadows/tests/fixtures/app.rs` (or the Design seed), which is not in Touch. In the one run that got past this, the Setup plan ran end to end: T1 and T2 committed and marked done, then turn 3 hit `ThreadBusy` while the Planner's last turn was still ending)
+- Status: done (slice 3; 2026-11-12, the test's project given an approved vision, map and roadmap through `Plans::edit_design`; live run printed `live setup: 1efdbf5ed9dea01dc0f1222d68f5ab0645797932 fe86957a7ba99bc810d33258727fd9890f533e65`)
 - Plan: [Task B-101](plans/2026-11-11-slice-3-setup-first.md#task-b-101-a-setup-runs-end-to-end-on-an-empty-folder).
 - Owner: none new: the slice's acceptance through Runs, Plans and the Planner.
 - Read: §5.2; `crates/core-runs/contract.yaml`; B-124's live fixtures.
-- Touch: `crates/shadows/tests/planner_runs_live.rs`; `crates/core-runs/contract.yaml` (one obligation); `docs/backend/stages.md` (this entry). If the run fails on Shadows' side, stop and report the refusal; widen no rule.
+- Ruling (controller, Mohammed's go-ahead, 2026-11-12): the live test's project must hold an approved roadmap (a vision, outcomes, a part with a kind, a stage past "idea"), reached through the public API in the test itself where it can be; only if it cannot, `crates/shadows/tests/fixtures/app.rs` may gain an opt-in for it, and every existing caller of `listening_on` keeps its seed unchanged.
+- Touch: `crates/shadows/tests/planner_runs_live.rs`; `crates/shadows/tests/fixtures/app.rs` (the opt-in above only); `crates/core-runs/contract.yaml` (one obligation); `docs/backend/stages.md` (this entry). If the run fails on Shadows' side, stop and report the refusal; widen no rule.
 - Needs: B-100. Signed in to Claude Code, with Docker running.
 - Done when: `cargo test -p shadows --test planner_runs_live live_the_planner_sets_up -- --ignored --test-threads=1` passes, its printed line recorded here; `cargo test -p shadows --test contract_tests`. One commit, `test(backend): B-101 <goal>`. Then Mohammed sets up a new project from the browser.
 

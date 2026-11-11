@@ -215,6 +215,8 @@ obligations:
     tested_by: [start_refuses_a_folder_that_is_not_git, start_refuses_uncommitted_changes_in_writes]
   - rule: The Planner makes a folder without git a repository with a first commit in Shadows' name of the files the folder holds, without what git ignores and Code's secret and dependency files, which stay in the folder untracked and out of git status; an empty folder gets an empty commit; no project file is written, and Start may run after; a folder inside a repository and a grant that is not a Planner's are refused.
     tested_by: [the_planner_initialises_git_in_a_folder_without_one, git_init_takes_the_files_the_folder_holds, git_init_leaves_out_secrets_and_dependencies, git_init_in_an_empty_folder_makes_an_empty_commit, git_init_is_refused_inside_a_repository, git_init_is_refused_to_an_executor_grant]
+  - rule: On the real adapter, the Planner sets an empty folder up through a setup plan whose tasks land as reported commits, then plans on the files that appeared.
+    tested_by: [live_the_planner_sets_up_an_empty_folder]
   - rule: The Planner marks a task done or not done; a done mark names the next task to start on its own, the lowest-numbered one that never ran and Start allows now, never a failed or a done one.
     tested_by: [the_planner_marks_a_task_done_and_not_done, the_next_task_is_one_that_never_ran]
   - rule: The Planner's Start with no model given and none to suggest is NoModel, and writes nothing.
