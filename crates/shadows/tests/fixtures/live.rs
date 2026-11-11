@@ -1,5 +1,6 @@
-//! The real Claude adapter on MiniMax, for this crate's live tests. CI skips
-//! them; run one with `API_KEY_MINIMAX` set and `-- --ignored --test-threads=1`.
+//! The real Claude adapter, on MiniMax or on the person's signed-in Claude
+//! Code, for this crate's live tests. CI skips them; run one with
+//! `API_KEY_MINIMAX` set (or signed in) and `-- --ignored --test-threads=1`.
 
 #![allow(dead_code)]
 
@@ -53,9 +54,33 @@ pub fn live_adapter() -> LiveAdapter {
         .map(|(name, value)| (name.to_string(), value.to_string()))
         .to_vec(),
     );
-    let env: serde_json::Map<String, Value> = profile
-        .spawn_env_with(&[], Some(&key))
-        .unwrap()
+    let env = profile.spawn_env_with(&[], Some(&key)).unwrap();
+    launched(dir, env)
+}
+
+/// The model picked on the subscription.
+pub const SUBSCRIPTION_MODEL: &str = "sonnet";
+
+/// The real adapter on the person's signed-in Claude Code, with no provider
+/// override: `auto`'s safety check runs on Anthropic's server, which MiniMax
+/// does not pass through, so there `auto` refuses every `Bash` call. The
+/// launcher hands the adapter this process's environment, without any
+/// `ANTHROPIC_` name or `CLAUDE_CONFIG_DIR`, so Claude Code reads its own
+/// sign-in from the user's home.
+pub fn subscription_adapter() -> LiveAdapter {
+    let env = std::env::vars()
+        .filter(|(name, _)| {
+            !name.starts_with("ANTHROPIC_")
+                && !name.starts_with("API_KEY_")
+                && name != "CLAUDE_CONFIG_DIR"
+        })
+        .collect();
+    launched(tempfile::tempdir().unwrap(), env)
+}
+
+/// The pinned adapter run by a launcher in `dir` that first sets `env`.
+fn launched(dir: tempfile::TempDir, env: Vec<(String, String)>) -> LiveAdapter {
+    let env: serde_json::Map<String, Value> = env
         .into_iter()
         .map(|(name, value)| (name, Value::from(value)))
         .collect();
@@ -93,11 +118,16 @@ pub fn live_adapter() -> LiveAdapter {
 /// Sends `prompt` on the app's Planner thread through the real adapter and
 /// waits up to three minutes for the turn to end; answers the operation.
 pub async fn planner_turn(app: &App, command: &str, prompt: &str) -> Operation {
+    planner_turn_on(app, command, prompt, PICKED).await
+}
+
+/// `planner_turn` asking for `model`.
+pub async fn planner_turn_on(app: &App, command: &str, prompt: &str, model: &str) -> Operation {
     let turn = SendTurn {
         command_id: command.into(),
         prompt: prompt.into(),
         attachments: vec![],
-        model: PICKED.into(),
+        model: model.into(),
         mode: "acceptEdits".into(),
         effort: None,
         focus: None,

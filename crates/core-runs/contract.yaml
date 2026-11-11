@@ -30,6 +30,7 @@ modules:
   ready.rs: whether a task may start now
   git.rs: git calls in a project folder
   init.rs: giving a project folder its repository
+  planner.rs: the Planner's calls on its project's tasks
   start.rs: starting an attempt
   stop.rs: stopping an attempt
   report.rs: accepting an attempt's reported commit
@@ -60,11 +61,13 @@ shapes:
   Need: "{ task: TaskParent, title, done }: a task this one needs, in link order"
   TaskRun: "{ task, done, done_at, latest, needs, start: StartAnswer, suggested_model }"
   StartAnswer: "{ allowed, code, reason }: code and reason null when allowed"
+  DoneMark: "{ task: TaskRun, next }: what the Planner's mark answers; next is next_ready's task for a done mark, else null. MCP only, no route serves it"
   FileDiff: "{ path, added, removed, patch }: the patch cut at 2,000 lines with a marker"
   RecoverReport: "{ interrupted }"
-  RunsError: [NotFrozen, Superseded, Archived, Waiting, TaskBusy, Overlap, NotGit, DirtyScope, AlreadyCommitted, UnknownCommit, NotOnBranch, NotNew, OutsideWrites, BinaryFiles, AlreadyGit, NoFolder, CommandConflict, NotFound, BadScope, Unavailable, Storage]
+  RunsError: [NotFrozen, Superseded, Archived, Waiting, TaskBusy, Overlap, NotGit, DirtyScope, AlreadyCommitted, UnknownCommit, NotOnBranch, NotNew, OutsideWrites, BinaryFiles, AlreadyGit, NoFolder, NoModel, CommandConflict, NotFound, BadScope, Unavailable, Storage]
   # RunsError::code is the opaque id clients match on: not_frozen, waiting, task_busy, ...
   # AlreadyGit (already_git) and NoFolder (no_folder) are init_git's refusals, not Start's.
+  # NoModel (no_model): start_for found no model given and none to suggest.
 
 functions:
   new: "(storage, plans, harness, turns, projects) -> Runs; AppCore constructs the service"
@@ -73,6 +76,9 @@ functions:
   stop: "(attempt) -> Attempt; waits for the turn's confirmed end"
   report: "(grant, commit, report) -> Attempt; the executor grant's attempt must be Running (Committed is AlreadyCommitted); then, in order: commit is a hex SHA git resolves to a commit (UnknownCommit), reachable from HEAD (NotOnBranch), not reachable from start_head (NotNew); every path it changes against its first parent (a root commit against nothing, a rename as both ends) lies inside writes, a path outside the project folder outside them (OutsideWrites, all listed); none it adds or modifies is binary by git's numstat (BinaryFiles, all listed). A refusal leaves the attempt Running. On acceptance the attempt becomes Committed with the full sha and the trimmed report; only a Running attempt moves"
   init_git: "(grant) -> String; a Thread (Planner) grant only, else NotFound; the folder from Projects (NoFolder when none); a folder inside any work tree, its own or a parent's, is AlreadyGit; then git init and one empty commit `Initial commit` as Shadows <shadows@localhost>, a git failure Unavailable; answers the full sha, writes no file, logs runs.git_initialised"
+  start_for: "(grant, workflow, task, model?) -> Attempt; the Planner's grant checked (a Thread grant of the plan's project, else NotFound), then start with the trimmed model, else the task's suggested model, else NoModel; the command id is fresh"
+  mark_done_for: "(grant, workflow, task, done) -> DoneMark; the Planner's grant checked as start_for, then mark_done; a done mark answers next from next_ready, which the Planner starts on its own (Mohammed, 2026-11-11)"
+  next_ready: "private: the lowest-numbered task never run (no done mark, no attempt at all) that Start allows now"
   diff: "(attempt) -> Vec<FileDiff>; each file of the attempt's commit, nothing before it commits"
   task: "(workflow, version, task) -> TaskRun; needs from the version's needs links and the done marks, start from can_start, suggested_model one the executor's harness (claude-code) offers: the model the plan's Planner conversation last asked for when that turn ran on claude-code, else the model last used on claude-code (Harness::remembered_model), else none; none for an external writer"
   attempts: "(workflow, version, task) -> Vec<Attempt>, newest first"
@@ -102,6 +108,13 @@ agreements:
       filters git's changed paths through `Scope::admits`, and `report` checks the
       commit's paths through the same `Scope`; scope.rs is the one place a pattern is read.
     tested_by: [overlapping_tasks_cannot_start_together, start_refuses_uncommitted_changes_in_writes, a_commit_with_paths_outside_writes_is_refused_until_fixed]
+  - between: [start, start_for]
+    rule: HTTP Start and the Planner's task_start run one method.
+    holds: true
+    why: >
+      `start_for` checks only the Planner's grant and the model, then calls `start`; every
+      check and answer of Start is Start's own.
+    tested_by: [the_planner_tools_refuse_a_grant_that_is_not_a_planners, live_the_planner_starts_the_task_it_was_asked_to_run]
 
 obligations:
   - rule: Start opens one Running attempt on an executor thread with the model given, recording the HEAD it saw.
@@ -122,6 +135,12 @@ obligations:
     tested_by: [start_refuses_a_folder_that_is_not_git, start_refuses_uncommitted_changes_in_writes]
   - rule: The Planner makes a folder without git a repository with one empty commit in Shadows' name and no file, after which Start may run; a folder inside a repository and a grant that is not a Planner's are refused.
     tested_by: [the_planner_initialises_git_in_a_folder_without_one, git_init_is_refused_inside_a_repository, git_init_is_refused_to_an_executor_grant]
+  - rule: The Planner marks a task done or not done; a done mark names the next task to start on its own, the lowest-numbered one that never ran and Start allows now, never a failed or a done one.
+    tested_by: [the_planner_marks_a_task_done_and_not_done, the_next_task_is_one_that_never_ran]
+  - rule: The Planner's Start with no model given and none to suggest is NoModel, and writes nothing.
+    tested_by: [the_planner_start_needs_a_model]
+  - rule: Only a Planner's grant of the plan's project may start or mark a task through start_for and mark_done_for.
+    tested_by: [the_planner_tools_refuse_a_grant_that_is_not_a_planners]
   - rule: Stop ends the attempt, closes its session, revokes its grant and frees its scope.
     tested_by: [stop_ends_the_attempt_and_closes_its_session, live_stop_ends_a_running_attempt_and_frees_its_scope]
   - rule: A Stop while Start opens the session leaves the attempt Stopped with no turn sent and no session open.
@@ -166,6 +185,8 @@ obligations:
 tests:
   shadows-core/tests/runs_attempts.rs: attempts through AppCore over the fake adapter, in a real git repository
   shadows-core/tests/runs_attempts/init.rs: a folder's first repository in real git; no agent runs
+  shadows-core/tests/runs_attempts/planner.rs: the Planner's start and done marks; no agent runs
+  shadows/tests/planner_runs_live.rs: the Planner starting its executors on the real adapter, on the signed-in Claude Code subscription; ignored in CI
   shadows-core/tests/runs_attempts/report.rs: reported commits in a real git repository; the test plays the executor, no agent runs
   shadows/tests/runs_routes.rs: the HTTP routes over Runs, in a real git repository, with no adapter to open
   shadows/tests/runs_routes/live.rs: a task started over HTTP on the real adapter commits its own file and reports it through task_report on the real /mcp; ignored in CI

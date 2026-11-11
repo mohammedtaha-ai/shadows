@@ -104,6 +104,15 @@ pub struct TaskRun {
     pub suggested_model: Option<String>,
 }
 
+/// What the Planner's done mark answers: the task as it now stands, and, for
+/// a done mark, the lowest-numbered task that never ran and may start now.
+/// MCP only; no route serves it.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct DoneMark {
+    pub task: TaskRun,
+    pub next: Option<u32>,
+}
+
 /// Whether Start may run now, by the same checks as Start, without writing.
 /// `allowed` true means `code` and `reason` are `null`.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, utoipa::ToSchema)]

@@ -6,7 +6,7 @@
 //! is closed; Start refuses a task whose `writes` may meet a held scope.
 //! `model` holds the types, `store` the SQL, `scope` the pattern matcher,
 //! `ready` the rule for links, `git` the git calls, `init` a folder's first
-//! repository, `start`, `stop`, `report`,
+//! repository, `planner` the Planner's calls on its tasks, `start`, `stop`, `report`,
 //! `watch` and `recover` the transitions, `diff` the reading of a commit.
 
 mod diff;
@@ -14,6 +14,7 @@ mod error;
 mod git;
 mod init;
 mod model;
+mod planner;
 mod ready;
 mod recover;
 mod report;
@@ -28,7 +29,7 @@ use std::sync::{Arc, Mutex};
 
 pub use error::RunsError;
 pub use model::{
-    Attempt, AttemptId, AttemptState, FileDiff, Need, RecoverReport, StartAnswer, TaskRun,
+    Attempt, AttemptId, AttemptState, DoneMark, FileDiff, Need, RecoverReport, StartAnswer, TaskRun,
 };
 
 use core_db::{CommandContext, Storage};
@@ -197,21 +198,25 @@ impl Runs {
         self.task(workflow, version, task).await
     }
 
-    /// The plan version `workflow`, which must be version `version`.
-    async fn plan(
-        &self,
-        workflow: &WorkflowId,
-        version: i64,
-    ) -> Result<core_plans::Plan, RunsError> {
-        let plan = self
-            .inner
+    /// The plan version `workflow`.
+    async fn read_plan(&self, workflow: &WorkflowId) -> Result<core_plans::Plan, RunsError> {
+        self.inner
             .plans
             .get(workflow)
             .await
             .map_err(|error| match error {
                 PlansError::Storage(core_db::StorageError::NotFound(_)) => RunsError::NotFound,
                 other => RunsError::Unavailable(other.to_string()),
-            })?;
+            })
+    }
+
+    /// The plan version `workflow`, which must be version `version`.
+    async fn plan(
+        &self,
+        workflow: &WorkflowId,
+        version: i64,
+    ) -> Result<core_plans::Plan, RunsError> {
+        let plan = self.read_plan(workflow).await?;
         if plan.version != version {
             return Err(RunsError::NotFound);
         }

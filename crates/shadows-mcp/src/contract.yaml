@@ -53,6 +53,12 @@ layout_only: Map records contain no starter files; the stage has no Structure st
 # refuses as not git, is refused inside a repository, and writes no file. A Runs refusal
 # (already_git, no_folder) leads its text. Tested by mcp_server::the_tool_list_depends_on_the_grant_kind
 # and, in Runs, runs_attempts::init.
+# task_start { workflow_id, task_number, model? } calls Runs::start_for and answers the Attempt;
+# task_done { workflow_id, task_number, done } calls Runs::mark_done_for and answers the
+# DoneMark { task, next }. Only the Planner's grant lists them. Runs' NotFound reads "not found:
+# no such plan version or task in this project, or no running attempt holds this grant's task".
+# Tested by mcp_server::the_tool_list_depends_on_the_grant_kind, runs_attempts::planner and,
+# live, planner_runs_live::live_the_planner_starts_the_task_it_was_asked_to_run.
 # A task's contract rides inside task_add and task_update; the schema comes from Core's
 # TaskContent; task_context answers `contracts`. Tested by
 # mcp_tools::a_contract_written_over_mcp_is_read_the_same_over_http.

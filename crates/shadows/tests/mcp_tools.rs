@@ -952,7 +952,11 @@ async fn the_planner_is_told_an_indexing_listing_is_not_complete() {
 #[test]
 fn the_planner_is_told_how_to_run_and_judge_tasks() {
     let prompt = shadows_core::testing::PROMPT;
-    let texts: &[&str] = &["project_git_init: when Start is refused"];
+    let texts: &[&str] = &[
+        "project_git_init: when Start is refused",
+        "start the task task_done names as next at once with task_start, \
+         without waiting for the person",
+    ];
     for text in texts {
         assert!(prompt.contains(text), "{text}");
     }

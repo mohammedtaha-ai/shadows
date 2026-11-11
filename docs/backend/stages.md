@@ -432,7 +432,7 @@ Mohammed's rulings after slice 1 ran on a real Go project: [executors design §5
 
 ### B-124 · The Planner starts a task and marks it done or not done
 
-- Status: todo
+- Status: done. `Runs::start_for`, `mark_done_for` (with `DoneMark.next`), `NoModel`; tools `task_start` and `task_done` (25 Planner tools); the "Running tasks" prompt paragraph. Tests: `runs_attempts` 34 (5 ignored; four new `planner` tests), `mcp_server` 6, `mcp_tools` 23, `planner_mcp` 24, `runs_routes` 8 (2 ignored), `planner_live` and `planner_runs_live` build; signed in (`sonnet`): `planner_runs_live live_the_planner_starts` passed, printing `live start: Stopped`; `architecture` 49, `codemap` 1, `contract_tests` 1; rule 5's checks.
 - Plan: [Task B-124](plans/2026-11-11-slice-1b-planner-runs-tasks.md#task-b-124-the-planner-starts-a-task-and-marks-it-done-or-not-done).
 - Owner: Runs (`start_for` and `mark_done_for`: the Planner's grant checked, then the same `start` and `mark_done` the HTTP routes call; a done mark answers `next`, which the Planner starts on its own, Mohammed 2026-11-11); `shadows-mcp`; Grants; Harness.
 - Read: as B-123, and `crates/shadows-http/src/contract.yaml` (the Start route, unchanged).

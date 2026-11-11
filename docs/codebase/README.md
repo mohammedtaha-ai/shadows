@@ -195,6 +195,7 @@ pattern to follow, not merely an example.
 | `crates/core-runs/src/stop.rs` | stopping an attempt | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/git.rs` | git calls in a project folder | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/init.rs` | giving a project folder its repository | `crates/core-runs/contract.yaml` |
+| `crates/core-runs/src/planner.rs` | the Planner's calls on its project's tasks | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/report.rs` | accepting an attempt's reported commit | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/diff.rs` | reading an attempt's commit | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/watch.rs` | following a turn to its end | `crates/core-runs/contract.yaml` |

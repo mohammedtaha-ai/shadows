@@ -53,6 +53,10 @@ pub enum RunsError {
     AlreadyGit,
     #[error("the project has no folder")]
     NoFolder,
+    #[error(
+        "no model to run the executor on: name one the executor's harness (claude-code) offers"
+    )]
+    NoModel,
     #[error("the command id was used for another request")]
     CommandConflict,
     #[error("not found")]
@@ -85,6 +89,7 @@ impl RunsError {
             Self::BinaryFiles { .. } => "binary_files",
             Self::AlreadyGit => "already_git",
             Self::NoFolder => "no_folder",
+            Self::NoModel => "no_model",
             Self::CommandConflict => "command_conflict",
             Self::NotFound => "not_found",
             Self::BadScope(_) => "bad_scope",

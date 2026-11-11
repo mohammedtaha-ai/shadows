@@ -10,6 +10,8 @@ mod cross_plan;
 mod init;
 #[path = "runs_attempts/live.rs"]
 mod live;
+#[path = "runs_attempts/planner.rs"]
+mod planner;
 #[path = "runs_attempts/report.rs"]
 mod report;
 
