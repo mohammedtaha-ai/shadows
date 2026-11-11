@@ -224,7 +224,7 @@ Built by `frontend-builder`.
 
 ### F-111 · An executor's notice draws as an item of the Planner's activity
 
-- Status: blocked (B-134 not built)
+- Status: blocked (B-134 is built; `web/src/stream/index.ts` is missing from Touch: it must export `readAttemptNotice` and `type AttemptNotice`-reader for `tool-text.ts` and `waiting-messages.tsx`, since the architecture check allows a module to reach `stream` only through that entry)
 - Plan: [F-111](plans/2026-11-11-shadows-notices.md#f-111--an-executors-notice-draws-as-an-item-of-the-planners-activity)
 - Read: the plan's "What Core gives" and "Where the item sits"; `web/src/app/conversation/contract.yaml`; `web/src/stream/contract.yaml`; the `runs:` block of `web/src/api/contract.yaml`; `Entry` in `entry.tsx`, `EntryRow` in `messages.tsx`, `subagentOf` and `copyText` in `tool-text.ts`, `readSubagentCard` in `web/src/stream/frames.ts`, `ToolGroup` in `tool-group.tsx` (the look to match).
 - Touch: `web/src/api/schema.d.ts` (only through `npm run gen:api`), `web/src/api/runs.ts`, `web/src/api/contract.yaml`, `web/src/stream/frames.ts`, `web/src/stream/contract.yaml`, `web/src/app/conversation/tool-text.ts`, `web/src/app/conversation/notice-item.tsx` (new), `web/src/app/conversation/notice-item.test.tsx` (new), `web/src/app/conversation/reply-text.tsx` (the `compact` prop only), `web/src/app/conversation/entry.tsx`, `web/src/app/conversation/messages.tsx` (`EntryRow` footer only), `web/src/app/conversation/contract.yaml`, `docs/frontend/codebase/README.md`, this stages file.
@@ -233,7 +233,7 @@ Built by `frontend-builder`.
 
 ### F-112 · A waiting notice is not drawn as the person's waiting message
 
-- Status: blocked (B-134 not built)
+- Status: blocked (F-111 first)
 - Plan: [F-112](plans/2026-11-11-shadows-notices.md#f-112--a-waiting-notice-is-not-drawn-as-the-persons-waiting-message)
 - Read: `web/src/app/conversation/contract.yaml`; `WaitingMessages` in `waiting-messages.tsx`; `noticeTitle` in `notice-item.tsx`; `readAttemptNotice` in `web/src/stream/frames.ts`.
 - Touch: `web/src/app/conversation/waiting-messages.tsx`, `web/src/app/conversation/waiting-messages.test.tsx`, `web/src/app/conversation/contract.yaml`, this stages file.
