@@ -25,7 +25,7 @@ impl CodeStore {
     /// One write: the listing's rows are inserted or updated; the keys it
     /// lacks are deleted only when it is complete. The generation moves by
     /// one when any row changed, and is 1 on the first write.
-    pub(crate) async fn write_inventory(
+    pub(in super::super) async fn write_inventory(
         &self,
         project: &ProjectId,
         rows: Vec<InventoryRow>,
@@ -128,7 +128,7 @@ impl CodeStore {
     /// and at most `limit` rows at `prefix_key` or under it, after
     /// `after_key`, by key. "Under" is the byte range `key/` up to `key0`, as
     /// in `code_outline`. `language` is left for the caller.
-    pub(crate) async fn inventory_page(
+    pub(in super::super) async fn inventory_page(
         &self,
         project: &ProjectId,
         prefix_key: &str,

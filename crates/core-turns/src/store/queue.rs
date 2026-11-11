@@ -123,7 +123,7 @@ impl super::TurnsStore {
 
     /// `queue_message` for an executor's notice: its row is written even on
     /// an idle thread, answered `true` with it so the caller starts it.
-    pub(crate) async fn queue_notice_message(
+    pub(in super::super) async fn queue_notice_message(
         &self,
         ctx: &CommandContext,
         thread: &ThreadId,

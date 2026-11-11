@@ -539,10 +539,10 @@ functions:
     edit_problems: "(content: &PlanContent) -> Vec<Problem>"
     approval_problems: "(content: &PlanContent) -> Vec<Problem>"
   task_contract:
-    ContractRules::problems:
+    problems:
       signature: "(content: &PlanContent) -> Vec<Problem>"
       private: true
-      # Called once, from Rules::edit_problems_after_removing after
+      # On `ContractRules`. Called once, from Rules::edit_problems_after_removing after
       # PhaseRules::problems. Tasks ascending; a task with no contract yields
       # nothing. Messages, each "T{n} contract: ...": it names no file; `{path}`
       # is not an exact path inside the project (empty, leading or trailing
@@ -559,18 +559,18 @@ functions:
       # does not create or modify; ... names acceptance item {k}, which T{n}
       # does not have; a use has no purpose; an existing path not exact; a
       # task cannot use its own output; the same source is used more than once.
-    ContractRules::approval_problems:
+    approval_problems:
       signature: "(content: &PlanContent) -> Vec<Problem>"
       private: true
-      # In contract_uses.rs; called from Rules::approval_problems. Per task use,
+      # On `ContractRules`, in contract_uses.rs; called from Rules::approval_problems. Per task use,
       # the first that applies: "T{n} uses the output `{o}` of T{p}, which does
       # not exist"; "T{n} uses the output `{o}`, which T{p} does not produce";
       # "T{n} uses T{p}'s output `{o}` without a link to T{p}; add a needs
       # link". A use adds no edge: the plan's own link carries order and cycles.
-    ContractRules::resolved:
+    resolved:
       signature: "(content: &PlanContent, task: u32) -> Vec<ResolvedContract>"
       private: true
-      # In contract_uses.rs; the task's uses in stored order, each with its
+      # On `ContractRules`, in contract_uses.rs; the task's uses in stored order, each with its
       # producer's title, symbol and artifact; None for an unresolved or existing use.
 
 
@@ -806,7 +806,7 @@ obligations:
     tested_by: a_use_needs_its_producer_its_output_and_a_link
 
 agreements:
-  - between: [Rules::approval_problems, ContractRules::resolved]
+  - between: [approval_problems, resolved]
     must: what approval accepts, task_context resolves
     holds: true
     tested_by: task_context_gives_the_consumer_its_producers_contract
