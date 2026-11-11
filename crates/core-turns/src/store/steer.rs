@@ -39,16 +39,21 @@ impl super::TurnsStore {
                         return Ok(ThreadEntryId::from_recorded(id.to_owned()));
                     }
                     Threads::attachment_refs_in(conn, &thread, &attachments).await?;
-                    Self::take_queued_in(conn, &thread, &row).await?;
+                    // A steered notice keeps its executor and card.
+                    let notice = Self::take_queued_in(conn, &thread, &row).await?;
+                    let author = match &notice {
+                        Some(notice) => notice.actor(),
+                        None => Actor::user(&ctx.principal_id),
+                    };
                     let entry = Threads::append_entry_with_attachments_in(
                         conn,
                         &thread,
                         NewThreadEntry {
                             kind: ThreadEntryKind::UserMessage,
-                            author: Actor::user(&ctx.principal_id),
+                            author,
                             body: &prompt,
                             refs: &[],
-                            card: None,
+                            card: notice.as_ref().map(|n| &n.card),
                             operation_id: Some(op.as_str()),
                         },
                         &attachments,

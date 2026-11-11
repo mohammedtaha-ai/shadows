@@ -80,7 +80,7 @@ pub use core_threads::{
     WorkflowRef,
 };
 pub use core_turns::{
-    InvocationView, Operation, Queued, QueuedMessage, QueuedMessageId, SendTurn, SentNow,
+    InvocationView, Notice, Operation, Queued, QueuedMessage, QueuedMessageId, SendTurn, SentNow,
     StartError, Turns,
 };
 pub use core_usage::{ModelUsage, ProviderUsage, Usage, UsageReport};
@@ -140,4 +140,4 @@ pub use core_plans::{LinkedPhase, PhaseEndpoint};
 pub use core_plans::{Phase, PhaseId, PhaseInput, PhaseRef};
 
 pub use core_runs::{Attempt, AttemptId, AttemptState, RecoverReport, Runs, RunsError, TaskRun};
-pub use core_runs::{AttemptFile, FileDiff, Need, StartAnswer};
+pub use core_runs::{AttemptFile, AttemptNotice, FileDiff, Need, StartAnswer};

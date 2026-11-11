@@ -169,6 +169,7 @@ impl Failure {
                     StatusCode::NOT_FOUND
                 }
                 ErrorCode::ThreadBusy
+                | ErrorCode::QueuedNoticeKept
                 | ErrorCode::HarnessLocked
                 | ErrorCode::ProjectHasThreads
                 | ErrorCode::StageBlocked

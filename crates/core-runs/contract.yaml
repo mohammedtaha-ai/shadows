@@ -78,6 +78,7 @@ shapes:
   StartAnswer: "{ allowed, code, reason }: code and reason null when allowed"
   DoneMark: "{ task: TaskRun, next }: what the Planner's mark answers; next is next_ready's task for a done mark, else null. MCP only, no route serves it"
   FileDiff: "{ path, added, removed, patch, hunks }: the patch cut at 2,000 lines with a marker; hunks (shadows-agent DiffHunk) read from the same patch before the cut, lines stopping at 2,000 in all, none for a binary file"
+  AttemptNotice: "{ workflow_id, version, task, title, attempt, attempt_id, model, outcome, commit, report, reason, last_addition }: the card of an executor's notice; title is the task's or T{task}; report is the executor's report when committed, its last message (cut at 4,000 chars) when failed, else null"
   AttemptFile: "{ path, text, cut }: a file at an attempt's commit; text null for deleted, binary or non-UTF-8 files; text cut on a line and char boundary at 2,000 lines or 200,000 bytes, whichever comes first"
   RecoverReport: "{ interrupted }"
   TaskLesson: "{ workflow_id, version, task, title, attempts: [LessonAttempt], commands: [LessonCommand], stopped_by, plan_should_have_said, recorded_at }: the record a task leaves when it stops on the cap, stored as run_lessons.record_json; the two Planner fields null until it writes them. No route serves it"
@@ -117,7 +118,7 @@ functions:
   attempt: "(attempt) -> Attempt; one attempt as it stands, NotFound for an unknown id"
   set_first_prompt_for_tests: "test-support only: (prompt) scripts the first prompt of later attempts"
   mark_done: "(command, workflow, version, task, done) -> TaskRun; the command record keeps every mark command: a replay writes nothing, the same id with other input is CommandConflict; a done mark releases the task's latest attempt when it is Committed and still holds its scope (closes its session, frees its scope); a not-done mark releases nothing"
-  notify: "private: (attempt) queues on the plan's Planner thread (WrittenBy::Planner, not removed) a [Shadows] notice with the settings of that thread's last turn and command id notify-<attempt>: committed with its sha, files (path +added -removed) and report, or failed with its reason and its operation's last AgentMessage from Threads::entries, cut at 4,000 chars with [cut] appended when cut; an absent message or unreadable entries adds nothing and logs runs.notify_no_message; a committed notice says to read with task_diff and task_file before judging, and one whose attempt carried the task's third addition says it was the last; any failure is logged, never fails the watcher"
+  notify: "private: (attempt) queues with Turns::queue_notice, as Notice { executor: the attempt's thread, card: its AttemptNotice }, on the plan's Planner thread (WrittenBy::Planner, not removed) a [Shadows] notice with the settings of that thread's last turn and command id notify-<attempt>: committed with its sha, files (path +added -removed) and report, or failed with its reason and its operation's last AgentMessage from Threads::entries, cut at 4,000 chars with [cut] appended when cut; an absent message or unreadable entries adds nothing and logs runs.notify_no_message; a committed notice says to read with task_diff and task_file before judging, and one whose attempt carried the task's third addition says it was the last; any failure is logged, never fails the watcher"
   failed_message: "private: (attempt) -> String; the failed notice's last AgentMessage for attempt.operation_id, through Threads::entries in ordinal order; no operation, no message or a read failure logs runs.notify_no_message and answers empty; text cut after 4,000 chars with [cut] when cut"
   recover: "() -> RecoverReport; every Running attempt becomes Interrupted, its grant revoked and its scope freed; every other held scope is freed except a Committed attempt's, which keeps waiting for its judgment; none restarted, git not read"
 
@@ -173,6 +174,8 @@ agreements:
     tested_by: [live_an_addition_continues_the_executor_in_its_session]
 
 obligations:
+  - rule: A notice reaches the Planner as the executor's message with its AttemptNotice card, committed with its commit and report, failed with its reason.
+    tested_by: [live_a_committed_attempt_reaches_its_planner_and_waits_for_its_judgment, live_an_attempt_without_a_commit_reaches_its_planner]
   - rule: A reported commit that changes no file is refused with EmptyCommit (empty_commit); the attempt stays Running, and a real commit is accepted.
     tested_by: [an_empty_commit_is_refused_until_it_changes_something]
   - rule: A file is read at the commit even after a person's edit, including unchanged files in writes.

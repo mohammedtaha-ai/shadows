@@ -67,6 +67,7 @@ refuses a vision, map, roadmap or plan approval in a turn that holds no message 
 changes: F-111 and F-112 read `author.kind == "Executor"` instead of `"Shadows"`, name the
 header from `card.model`, read `QueuedMessage.notice.executor` instead of `from`, and draw no
 Remove on a notice row.
+- Built: B-134 (the notice in the executor's name, its card, `QUEUED_NOTICE_KEPT`).
 
 ## Frontend reply
 

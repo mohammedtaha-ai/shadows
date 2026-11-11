@@ -1042,6 +1042,75 @@
         "format": "uuid",
         "type": "string"
       },
+      "AttemptNotice": {
+        "description": "The facts of an executor's notice to its Planner, the card the\nconversation draws: which task and attempt, on which model, how it ended,\nand the executor's report (its last message when it failed).",
+        "properties": {
+          "attempt": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "attempt_id": {
+            "$ref": "#/components/schemas/AttemptId"
+          },
+          "commit": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "last_addition": {
+            "description": "The attempt carried the task's third and last addition.",
+            "type": "boolean"
+          },
+          "model": {
+            "type": "string"
+          },
+          "outcome": {
+            "$ref": "#/components/schemas/AttemptState"
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "report": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "task": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "title": {
+            "description": "The task's title, or `T{task}` when it has none.",
+            "type": "string"
+          },
+          "version": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "workflow_id": {
+            "$ref": "#/components/schemas/WorkflowId"
+          }
+        },
+        "required": [
+          "workflow_id",
+          "version",
+          "task",
+          "title",
+          "attempt",
+          "attempt_id",
+          "model",
+          "outcome",
+          "last_addition"
+        ],
+        "type": "object"
+      },
       "AttemptState": {
         "description": "Where an attempt stands. Only `Running` has no `ended_at`.",
         "enum": [
@@ -2375,6 +2444,7 @@
           "HARNESS_LOCKED",
           "THREAD_BUSY",
           "QUEUED_MESSAGE_GONE",
+          "QUEUED_NOTICE_KEPT",
           "FORK_POINT_NOT_SUPPORTED",
           "WORKFLOW_FROZEN_IMMUTABLE",
           "WORKFLOW_VALIDATION_FAILED",
@@ -3990,6 +4060,24 @@
           "task",
           "title",
           "done"
+        ],
+        "type": "object"
+      },
+      "Notice": {
+        "description": "A message an executor's attempt sends the Planner through Shadows: the\nturn it starts is recorded in the executor's name, with its card.",
+        "properties": {
+          "card": {
+            "description": "The facts the conversation draws, as the sender shaped them.",
+            "type": "object"
+          },
+          "executor": {
+            "$ref": "#/components/schemas/ThreadId",
+            "description": "The executor's thread, its identity."
+          }
+        },
+        "required": [
+          "executor",
+          "card"
         ],
         "type": "object"
       },
@@ -5984,6 +6072,17 @@
           },
           "model": {
             "type": "string"
+          },
+          "notice": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Notice",
+                "description": "The executor's notice this message is; `null` for the person's."
+              }
+            ]
           },
           "plan": {
             "oneOf": [

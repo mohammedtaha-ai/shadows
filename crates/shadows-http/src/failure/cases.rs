@@ -318,6 +318,7 @@ impl Case {
         for code in [
             E::ThreadBusy,
             E::QueuedMessageGone,
+            E::QueuedNoticeKept,
             E::HarnessLocked,
             E::StageBlocked,
             E::WorkflowFrozenImmutable,
@@ -327,9 +328,11 @@ impl Case {
         ] {
             let status = match code {
                 E::QueuedMessageGone => 404,
-                E::ThreadBusy | E::HarnessLocked | E::StageBlocked | E::WorkflowFrozenImmutable => {
-                    409
-                }
+                E::ThreadBusy
+                | E::QueuedNoticeKept
+                | E::HarnessLocked
+                | E::StageBlocked
+                | E::WorkflowFrozenImmutable => 409,
                 _ => 422,
             };
             let case = Self::same(

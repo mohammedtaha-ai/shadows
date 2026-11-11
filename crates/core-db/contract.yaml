@@ -251,5 +251,6 @@ attempt_report_migration: 0053 gives run_attempts start_head (the commit HEAD na
 code_inventory_migration: 0054 adds code_inventory (one row per listed path of a project folder, kind directory, file or excluded with its reason) and code_inventory_scan (one row per project, its generation, whether the last listing was incomplete, and when it ended); derived data, no command or journal row.
 attempt_addition_migration: 0055 gives run_attempts addition (the Planner's addition an attempt carried on with, in the session of the attempt before it); nullable, NULL for an attempt Start began, no row changes.
 run_lessons_migration: 0056 adds run_lessons (one row per attempt a task was stopped at on the cap of additions, keyed by attempt_id, with project, workflow, version, task, the record as JSON and its created and updated times) and an index on (workflow_id, version, task); owned by Runs.
+queued_notice_migration: 0057 gives queued_message notice_json (the executor thread and card of a notice an attempt sends the Planner); nullable, NULL for the person's messages, no row changes; owned by Turns.
 
 executor_session_migration: 0051 gives a thread a kind (planning or executor) and rebuilds mcp_grant to allow the executor kind with a nullable task scope (workflow, version, task); every existing grant row is kept.

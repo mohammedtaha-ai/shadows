@@ -6,6 +6,8 @@ pub enum TurnsError {
     ThreadBusy,
     #[error("the waiting message was already sent or removed")]
     QueuedMessageGone,
+    #[error("An executor's notice stays queued: the Planner must hear it.")]
+    QueuedNoticeKept,
     #[error("the daemon is stopping")]
     RuntimeStopping,
     #[error("the turn's process tree could not be terminated")]

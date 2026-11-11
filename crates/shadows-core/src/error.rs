@@ -73,6 +73,8 @@ pub enum ErrorCode {
     ThreadBusy,
     /// The waiting message was already sent or removed; 404.
     QueuedMessageGone,
+    /// An executor's notice is not removed from the queue; 409.
+    QueuedNoticeKept,
     /// Fork from anything but the last completed entry.
     ForkPointNotSupported,
     /// A change to a frozen plan version; 409.
@@ -594,6 +596,10 @@ impl From<core_turns::TurnsError> for CoreError {
             },
             TurnsError::QueuedMessageGone => Self::Refused {
                 code: ErrorCode::QueuedMessageGone,
+                message,
+            },
+            TurnsError::QueuedNoticeKept => Self::Refused {
+                code: ErrorCode::QueuedNoticeKept,
                 message,
             },
             TurnsError::RuntimeStopping => Self::RuntimeStopping,

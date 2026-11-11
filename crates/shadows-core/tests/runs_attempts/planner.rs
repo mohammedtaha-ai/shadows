@@ -355,3 +355,101 @@ async fn recovery_keeps_a_committed_attempt_waiting_for_its_judgment() {
     );
     f.finish().await;
 }
+
+#[tokio::test]
+async fn a_notice_waits_on_a_busy_planner_in_the_executors_name() {
+    let f = fixture().await;
+    let planner: String = sqlx::query_scalar("SELECT written_by_thread FROM workflow WHERE id = ?")
+        .bind(SOURCE)
+        .fetch_one(f.storage.reader())
+        .await
+        .unwrap();
+    let planner = ThreadId::from_literal(planner);
+    let runtime = shadows_core::testing::Runtime::start(f.storage.clone())
+        .await
+        .unwrap();
+    shadows_core::Turns::create_pending_operation_for_test(
+        &f.storage,
+        &planner,
+        runtime.instance_id(),
+    )
+    .await
+    .unwrap();
+    let executor = f.executor_thread(3).await;
+    let turn = |command: &str, prompt: &str| shadows_core::SendTurn {
+        command_id: command.into(),
+        prompt: prompt.into(),
+        attachments: vec![],
+        model: "fake-large".into(),
+        mode: "default".into(),
+        effort: None,
+        focus: None,
+        plan: None,
+        client_tab: None,
+    };
+    let notice = shadows_core::Notice {
+        executor: executor.clone(),
+        card: serde_json::json!({ "task": 3, "attempt": 1, "outcome": "committed" }),
+    };
+    let turns = f.core.turns();
+    let waiting = |queued| match queued {
+        shadows_core::Queued::Waiting { message } => message,
+        other => panic!("a busy Planner keeps it waiting: {other:?}"),
+    };
+    let first = turns
+        .queue_notice(
+            planner.clone(),
+            turn("n1", "[Shadows] T3 ..."),
+            notice.clone(),
+        )
+        .await
+        .unwrap();
+    let first = waiting(first);
+    assert_eq!(first.notice.as_ref(), Some(&notice));
+    let own = waiting(
+        turns
+            .queue(planner.clone(), turn("o1", "my own words"))
+            .await
+            .unwrap(),
+    );
+    assert_eq!(own.notice, None);
+    let queued = turns.queued(&planner).await.unwrap();
+    let listed: Vec<_> = queued
+        .iter()
+        .map(|m| (m.id.clone(), m.notice.clone()))
+        .collect();
+    assert_eq!(
+        listed,
+        [
+            (first.id.clone(), Some(notice.clone())),
+            (own.id.clone(), None)
+        ]
+    );
+    for _ in 0..2 {
+        let kept = turns.unqueue(&planner, &first.id, "u1".into()).await;
+        assert!(
+            matches!(kept, Err(shadows_core::TurnsError::QueuedNoticeKept)),
+            "{kept:?}"
+        );
+    }
+    turns.unqueue(&planner, &own.id, "u2".into()).await.unwrap();
+    let left: Vec<_> = turns
+        .queued(&planner)
+        .await
+        .unwrap()
+        .into_iter()
+        .map(|m| m.id)
+        .collect();
+    assert_eq!(left, std::slice::from_ref(&first.id));
+    let principal: (String, String) = sqlx::query_as(
+        "SELECT principal_kind, principal_id FROM command_record WHERE command_id = 'n1'",
+    )
+    .fetch_one(f.storage.reader())
+    .await
+    .unwrap();
+    assert_eq!(
+        principal,
+        ("Executor".into(), executor.as_str().to_string())
+    );
+    f.finish().await;
+}

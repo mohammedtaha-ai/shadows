@@ -208,17 +208,52 @@ async fn settled(app: &app::App, attempt: &shadows_core::Attempt, seconds: u64) 
 /// The Planner's entry whose body holds every one of `texts`, waited for up
 /// to three minutes.
 async fn planner_entry(app: &app::App, texts: &[&str]) -> String {
+    planner_notice(app, texts).await.body
+}
+
+/// `planner_entry`, the whole entry.
+async fn planner_notice(app: &app::App, texts: &[&str]) -> shadows_core::ThreadEntry {
     for _ in 0..1800 {
         let entries = app::entries(app).await;
         if let Some(entry) = entries
-            .iter()
+            .into_iter()
             .find(|e| texts.iter().all(|t| e.body.contains(t)))
         {
-            return entry.body.clone();
+            return entry;
         }
         tokio::time::sleep(std::time::Duration::from_millis(100)).await;
     }
     panic!("the Planner was not told: {texts:?}");
+}
+
+/// The notice is the executor's message of the attempt, with its card; the
+/// card is printed and answered.
+fn notice_card(
+    notice: &shadows_core::ThreadEntry,
+    attempt: &shadows_core::Attempt,
+    outcome: &str,
+) -> serde_json::Value {
+    assert_eq!(notice.kind, ThreadEntryKind::UserMessage);
+    assert_eq!(notice.author.kind, "Executor");
+    assert_eq!(notice.author.id, attempt.thread_id.as_str());
+    let card = notice.card.clone().expect("the notice carries its card");
+    assert_eq!(
+        (
+            &card["task"],
+            &card["attempt"],
+            &card["model"],
+            &card["outcome"]
+        ),
+        (
+            &serde_json::json!(1),
+            &serde_json::json!(1),
+            &serde_json::json!("sonnet"),
+            &serde_json::json!(outcome)
+        ),
+        "{card}"
+    );
+    println!("live notice card: {card}");
+    card
 }
 
 /// The executor commits and reports; its turn ends and the attempt keeps its
@@ -240,7 +275,14 @@ async fn live_a_committed_attempt_reaches_its_planner_and_waits_for_its_judgment
         "{:?}",
         t1.start
     );
-    let notice = planner_entry(app, &[&sha, "attempt 1 committed"]).await;
+    let entry = planner_notice(app, &[&sha, "attempt 1 committed"]).await;
+    let card = notice_card(&entry, &now, "committed");
+    assert_eq!(card["commit"], sha.as_str());
+    assert!(
+        !card["report"].as_str().unwrap_or_default().is_empty(),
+        "{card}"
+    );
+    let notice = entry.body;
     println!("live notice: {}", notice.lines().next().unwrap_or_default());
     app.core
         .runs()
@@ -344,7 +386,7 @@ async fn live_an_attempt_without_a_commit_reaches_its_planner() {
     let now = app.core.runs().attempt(&attempt.id).await.unwrap();
     assert_eq!(now.state, shadows_core::AttemptState::Failed, "{now:?}");
     assert_eq!(now.reason.as_deref(), Some("ended without a commit"));
-    let notice = planner_entry(
+    let entry = planner_notice(
         app,
         &[
             "attempt 1 failed: ended without a commit",
@@ -352,6 +394,12 @@ async fn live_an_attempt_without_a_commit_reaches_its_planner() {
         ],
     )
     .await;
+    let card = notice_card(&entry, &now, "failed");
+    assert!(
+        !card["reason"].as_str().unwrap_or_default().is_empty(),
+        "{card}"
+    );
+    let notice = entry.body;
     let (_, message) = notice
         .split_once("The executor's last message:\n")
         .expect("the failed notice carries the executor's last message");

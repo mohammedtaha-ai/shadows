@@ -155,6 +155,27 @@ pub struct FileDiff {
     pub hunks: Vec<shadows_agent::events::DiffHunk>,
 }
 
+/// The facts of an executor's notice to its Planner, the card the
+/// conversation draws: which task and attempt, on which model, how it ended,
+/// and the executor's report (its last message when it failed).
+#[derive(Debug, Clone, serde::Serialize, utoipa::ToSchema)]
+pub struct AttemptNotice {
+    pub workflow_id: WorkflowId,
+    pub version: i64,
+    pub task: u32,
+    /// The task's title, or `T{task}` when it has none.
+    pub title: String,
+    pub attempt: u32,
+    pub attempt_id: AttemptId,
+    pub model: String,
+    pub outcome: AttemptState,
+    pub commit: Option<String>,
+    pub report: Option<String>,
+    pub reason: Option<String>,
+    /// The attempt carried the task's third and last addition.
+    pub last_addition: bool,
+}
+
 /// One file as an attempt's commit holds it; deleted or binary files have no text.
 #[derive(Debug, Clone, serde::Serialize, utoipa::ToSchema)]
 pub struct AttemptFile {

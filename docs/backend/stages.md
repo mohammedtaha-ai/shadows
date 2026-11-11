@@ -556,7 +556,7 @@ Mohammed's wish: each `[Shadows]` notice is drawn as an item of the Planner's ac
 
 ### B-134 · An executor's notice is recorded in its name, with its facts, and stays queued
 
-- Status: todo
+- Status: done. Live (2026-11-12): `live notice card: {..."task":1,"title":"Add t1","attempt":1,"model":"sonnet","outcome":"committed","commit":"1b9a69cd...","report":"Created src/t1.rs ...","reason":null,"last_addition":false}`; `live notice card: {..."task":1,"attempt":1,"model":"sonnet","outcome":"failed","commit":null,"report":"T1 has nothing to do ...","reason":"ended without a commit","last_addition":false}`. An idle Planner gets the notice as a row sent at once (so its turn carries the executor and card); `crates/shadows-http/src/failure/mapping_tests.rs` count 63 to 64.
 - Plan: [Task B-134](plans/2026-11-11-marked-shadows-notices.md#task-b-134-an-executors-notice-is-recorded-in-its-name-with-its-facts-and-stays-queued).
 - Owner: Runs (the notice and its card, `AttemptNotice`, in `notify`); Turns (`Turns::queue_notice`: the executor and the card on the waiting row and on the turn's prompt entry, the commands under the executor's principal, Send now keeps them, `unqueue` refuses `QueuedNoticeKept`); core-db (migration 0057); `shadows-core` and `shadows-http` (the error code, 409). Threads does not change.
 - Read: `crates/core-turns/contract.yaml` (`queue`, `unqueue`, `send_queued`, `send_now`, the turn's prompt entry), `crates/core-runs/contract.yaml` (`notify`), `crates/core-threads/contract.yaml` (`append_entry`), `crates/core-db/contract.yaml`; the request.

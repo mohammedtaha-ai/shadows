@@ -1,17 +1,18 @@
 //! One job: telling a plan's Planner how an attempt ended.
 //!
 //! The notice is a waiting message on the plan's own conversation, sent
-//! through `Turns::queue` with the settings of that conversation's last turn:
+//! through `Turns::queue_notice` in the executor's name, with its card (an
+//! `AttemptNotice`) and the settings of that conversation's last turn:
 //! a busy Planner hears it when its turn ends, an idle one at once, and a
 //! restart does not lose it. Its command id names the attempt, so a repeat is
 //! a replay. A notice that cannot be sent is logged and never fails the
 //! attempt.
 use crate::Runs;
 use crate::amend::ADDITIONS;
-use crate::model::{Attempt, AttemptState};
+use crate::model::{Attempt, AttemptNotice, AttemptState};
 use core_plans::WrittenBy;
 use core_threads::ThreadEntryKind;
-use core_turns::SendTurn;
+use core_turns::{Notice, SendTurn};
 
 impl Runs {
     /// Queues, on the plan's Planner conversation, the notice that `attempt`
@@ -42,7 +43,21 @@ impl Runs {
             .iter()
             .find(|t| t.content.number == attempt.task)
             .map(|t| t.content.title.clone())
-            .unwrap_or_default();
+            .unwrap_or_else(|| format!("T{}", attempt.task));
+        let mut card = AttemptNotice {
+            workflow_id: attempt.workflow_id.clone(),
+            version: attempt.version,
+            task: attempt.task,
+            title: title.clone(),
+            attempt: attempt.number,
+            attempt_id: attempt.id.clone(),
+            model: attempt.model.clone(),
+            outcome: attempt.state,
+            commit: attempt.commit.clone(),
+            report: None,
+            reason: attempt.reason.clone(),
+            last_addition: false,
+        };
         let head = format!(
             "[Shadows] T{} \"{title}\" of plan version {}: attempt {}",
             attempt.task, attempt.workflow_id, attempt.number
@@ -61,17 +76,15 @@ impl Runs {
                         "none".to_string()
                     }
                 };
-                let report = attempt
-                    .report
-                    .clone()
-                    .filter(|r| !r.trim().is_empty())
-                    .unwrap_or_else(|| "(none)".to_string());
+                card.report = attempt.report.clone().filter(|r| !r.trim().is_empty());
+                let report = card.report.clone().unwrap_or_else(|| "(none)".to_string());
                 let last = self
                     .inner
                     .store
                     .additions_since_start(&attempt.workflow_id, attempt.version, attempt.task)
                     .await
                     .is_ok_and(|spent| spent >= ADDITIONS);
+                card.last_addition = last;
                 let last = if last {
                     format!(
                         "This attempt carried T{}'s third and last addition: mark it done, or \
@@ -90,7 +103,12 @@ impl Runs {
                 )
             }
             _ => {
-                let last = self.failed_message(attempt).await;
+                card.report = self.failed_message(attempt).await;
+                let last = card
+                    .report
+                    .as_ref()
+                    .map(|text| format!("The executor's last message:\n{text}\n"))
+                    .unwrap_or_default();
                 format!(
                     "{head} failed: {}\n{last}Tell the person; start it again only if they ask.",
                     attempt.reason.as_deref().unwrap_or_default()
@@ -108,22 +126,38 @@ impl Runs {
             plan: None,
             client_tab: None,
         };
-        if let Err(error) = self.inner.turns.queue(thread_id.clone(), turn).await {
+        let card = match serde_json::to_value(&card) {
+            Ok(card) => card,
+            Err(error) => {
+                tracing::warn!(attempt = %attempt.id, %error, "runs.notify_failed");
+                return;
+            }
+        };
+        let notice = Notice {
+            executor: attempt.thread_id.clone(),
+            card,
+        };
+        let queued = self
+            .inner
+            .turns
+            .queue_notice(thread_id.clone(), turn, notice);
+        if let Err(error) = queued.await {
             tracing::warn!(attempt = %attempt.id, %error, "runs.notify_failed");
         }
     }
 
-    /// Keeps the executor's answer when no commit carries a report to the Planner.
-    async fn failed_message(&self, attempt: &Attempt) -> String {
+    /// Keeps the executor's answer, cut at 4,000 chars, when no commit
+    /// carries a report to the Planner.
+    async fn failed_message(&self, attempt: &Attempt) -> Option<String> {
         let Some(operation) = &attempt.operation_id else {
             tracing::warn!(attempt = %attempt.id, "runs.notify_no_message");
-            return String::new();
+            return None;
         };
         let entries = match self.inner.threads.entries(&attempt.thread_id).await {
             Ok(entries) => entries,
             Err(error) => {
                 tracing::warn!(attempt = %attempt.id, %error, "runs.notify_no_message");
-                return String::new();
+                return None;
             }
         };
         let Some(entry) = entries.into_iter().rev().find(|entry| {
@@ -131,13 +165,13 @@ impl Runs {
                 && entry.operation_id.as_deref() == Some(operation.as_str())
         }) else {
             tracing::warn!(attempt = %attempt.id, "runs.notify_no_message");
-            return String::new();
+            return None;
         };
         let mut chars = entry.body.chars();
         let mut text: String = chars.by_ref().take(4_000).collect();
         if chars.next().is_some() {
             text.push_str("[cut]");
         }
-        format!("The executor's last message:\n{text}\n")
+        Some(text)
     }
 }

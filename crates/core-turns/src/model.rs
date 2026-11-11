@@ -28,6 +28,30 @@ pub struct QueuedMessage {
     /// Why the last attempt to send it failed, if one did.
     pub last_error: Option<String>,
     pub created_at: String,
+    /// The executor's notice this message is; `null` for the person's.
+    #[serde(default)]
+    pub notice: Option<Notice>,
+}
+
+/// A message an executor's attempt sends the Planner through Shadows: the
+/// turn it starts is recorded in the executor's name, with its card.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+pub struct Notice {
+    /// The executor's thread, its identity.
+    pub executor: ThreadId,
+    /// The facts the conversation draws, as the sender shaped them.
+    #[schema(value_type = Object)]
+    pub card: serde_json::Value,
+}
+
+impl Notice {
+    /// The author of the entries and the principal of the commands it makes.
+    pub(crate) fn actor(&self) -> core_db::Actor {
+        core_db::Actor {
+            kind: "Executor".into(),
+            id: self.executor.as_str().to_string(),
+        }
+    }
 }
 
 /// What queueing answers.
