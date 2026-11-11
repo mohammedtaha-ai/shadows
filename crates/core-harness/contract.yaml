@@ -694,7 +694,7 @@ obligations:
       first through a plan titled "Setup" whose every task writes files and leaves nothing
       uncommitted, then read the new files as "Look before you write a path" says; only a
       Setup task may commit binary files. The prompt names no Agent Mode.
-    tested_by: mcp_tools::the_planner_sets_the_project_up_first
+    tested_by: the_planner_sets_the_project_up_first
   - rule: >
       Standards::current_in supplies opening additions; Turns::standards_for_invocation_in
       resolves the recorded pin through Standards in one read snapshot.
