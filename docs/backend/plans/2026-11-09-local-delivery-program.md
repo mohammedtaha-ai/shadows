@@ -3,7 +3,8 @@
 - Approved with review corrections by Mohammed on 2026-11-09; reordered into
   slices the same day, after his review of the first plans.
 - Planning branch: `codex/local-delivery-plans`, based on `e63002ad`.
-- Implementation has not started.
+- Slice 1 is built (with B-120 to B-122 from its first real runs); slice 1b is detailed
+  (2026-11-11).
 - Owner: [approved 17.0](../../core/specs/2026-10-01-task-contracts-and-evidence-design.md#170-approved-local-delivery-revision-2026-11-09).
 - [API/model agreement](../../shared/requests/2026-11-09-local-delivery.md).
 
@@ -38,11 +39,12 @@ is detailed.
 | Slice | Backend tasks | Runnable outcome | Web tasks | Draft material |
 |---|---|---|---|---|
 | 1. Real files and the task contract | B-96, B-99, B-103, B-104, B-106 | The Planner and the person see the files the project really holds. A task names file work and function behavior, and the executor reads that through `task_context`. | F-99 (files view), F-101 | [discovery](2026-11-09-repository-discovery.md), [contracts](2026-11-09-detailed-task-contracts.md) |
-| 2. A real PHP language server | B-97, B-98, B-119 | `Code` answers definition and reference questions from Intelephense, beside the existing name index. | F-99 (server status) | [discovery](2026-11-09-repository-discovery.md) |
+| 1b. The Planner runs and judges tasks | B-123 to B-126 | The Planner makes the folder a git repository, starts a task, hears how its attempt ended, judges the commit, and marks the task done or sends an addition the executor carries on with in its own session. | per [request](../../shared/requests/2026-11-11-planner-review.md) (Masada numbers it) | [slice 1b](2026-11-11-slice-1b-planner-runs-tasks.md) (detailed) |
+| 2. Real language servers for the project's languages | B-97, B-98, B-119 | `Code` answers definition and reference questions from the servers its files' languages need, beside the existing name index; a server not installed shows "not installed" with its install command. | F-99 (server status) | [discovery](2026-11-09-repository-discovery.md) |
 | 3. Framework preparation from planning | B-100 to B-102 | The Planner prepares an agreed empty destination and plans on the files that appear. | F-100 | [preparation](2026-11-09-project-preparation.md) |
 | 4. The attempt brief and task questions | B-107 to B-109 | The executor receives one brief per attempt and asks about code beside its task's obligations. | F-102 | [briefs](2026-11-09-execution-briefs.md) |
-| 5. Checks and the critic | B-110 to B-114 | A task is accepted on recorded checks and a critic that read the exact commit. | F-103 | [checks](2026-11-09-checks-and-critic.md) |
-| 6. Bounded repair and full acceptance | B-115 to B-118 | Failures reach the Planner, retries stay bounded, and the whole journey survives interruption. | F-104, F-105 | [repair](2026-11-09-repair-and-acceptance.md) |
+| 5. Checks | B-111, B-113 (re-scoped), B-114 | A task's required checks run and are recorded, so the Planner judges on evidence. | F-103 | [checks](2026-11-09-checks-and-critic.md) |
+| 6. Stopping obsolete plans and full acceptance | B-117, B-118 | A new Draft stops its plan's attempts, and the whole journey survives interruption. | F-104, F-105 | [repair](2026-11-09-repair-and-acceptance.md) |
 
 The [frontend plan](../../frontend/plans/2026-11-09-local-delivery-ui.md)
 holds F-99 to F-105. A web task waits for its backend API.
@@ -54,6 +56,39 @@ Slice 1 changes two tasks from the draft:
   routes become **B-119** in slice 2.
 - **B-106** exposes the contract without decisions, and updates the executor's
   instructions so the contract is part of its brief.
+
+**Slice 1b comes before slice 2** (Mohammed, 2026-11-11, after trying slice 1 on a real Go
+project; [executors design §5.1](../specs/2026-11-08-executors-design.md#51-the-planner-judges-mohammed-2026-11-11)).
+The Planner is the reviewer, and an addition replaces a retry. What it does to the later
+slices:
+
+- **Absorbed:** B-115 (retry in the same live session with a fresh attempt identity) is B-126:
+  an addition is a new attempt on the same executor thread.
+- **Replaced:** B-116 (find the actual Planner, the three-attempt ladder) by B-125: the
+  Planner is the plan version's `written_by` thread, the notice is a waiting message through
+  `Turns::queue`, and there is no ladder (an OPEN block in §5.1 holds the cap question).
+  B-112 (the critic session) by the Planner's judgment, and B-110 (source at the reported SHA),
+  whose only reader was the critic, with it; both come back only if §5.1's critic OPEN closes
+  that way.
+- **Re-scoped:** B-113 keeps evidence-backed outputs; its "honest task acceptance" is the
+  Planner's done mark from B-124 and B-125. B-114 exposes checks without a critic. Both are
+  re-read when slice 5 is detailed.
+- **Left as they are:** B-111 (required checks), B-117 (a new Draft stops its plan's
+  attempts), B-118 (the full journey).
+
+**Slice 2 changes** (Mohammed, 2026-11-11), applied to B-97 when the slice is detailed:
+
+- **The server catalog is the twelve `lspServers` definitions** of
+  [claude-plugins-official](https://github.com/anthropics/claude-plugins-official/tree/main/plugins)
+  (`*-lsp/.claude-plugin/plugin.json`: `command`, `args`, `extensionToLanguage`; Apache-2.0):
+  clangd, csharp, gopls, jdtls, kotlin, lua, php, pyright, ruby, rust-analyzer, swift and
+  typescript, copied as one data file with its licence notice.
+- **A project's servers are chosen from its files' extensions** in the B-96 inventory, as
+  Serena does; no person picks them.
+- **A server that is not installed** shows "not installed" with its install command; nothing
+  installs it.
+- The slice is no longer PHP-only: Intelephense is the PHP entry of the catalog, not the
+  slice's subject.
 
 ## Rulings on the draft
 
@@ -86,9 +121,11 @@ detailed.
   ([executors design](../specs/2026-11-08-executors-design.md), section 7), so
   the refusal is examined before it is built. `where_is`, `who_uses` and
   `outline` stay with the executor until then.
-- **Slices 5 and 6:** the critic and the attempt ladder are also described in
-  the [executors design](../specs/2026-11-08-executors-design.md), phases 2
-  and 3. One of the two documents keeps the decision and the other links to it.
+- **Slices 5 and 6:** the critic and the attempt ladder were replaced by the
+  Planner's judgment on 2026-11-11; the [executors design
+  §5.1](../specs/2026-11-08-executors-design.md#51-the-planner-judges-mohammed-2026-11-11)
+  keeps the decision, and the draft plan files' critic and ladder tasks are
+  history.
 - **Deferred until a task needs them:** project decision revisions (B-105),
   accepting one output while another item is pending, pending rechecks, and the
   before/after baseline.
@@ -109,6 +146,7 @@ migration or Frozen task is rewritten.
 - One producer contract with explicit consumers; no schema fingerprints.
 - One stored brief per attempt; no hashed packet compiler or source snapshots.
 - The existing write-overlap check and one project check slot; no lease manager.
-- The critic reads the exact Git SHA and path.
+- The Planner judges a commit by reading what it changed (the critic is replaced, §5.1).
 - Plan state and the Runs watcher stop obsolete attempts; no hold/ack protocol.
-- 13 server descriptors as data; a server is ready only after a real trial.
+- 12 server descriptors as data, from the plugins' `lspServers`; a server is ready only after
+  a real trial.

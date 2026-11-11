@@ -3,7 +3,9 @@
 - Date: 2026-11-08
 - Status: **approved** by Mohammed on 2026-11-08, in conversation, after a brainstorm with the
   controller; `core-runs` (§9) and the controller's calls (§12) approved with it. Amended
-  2026-11-09 by Mohammed: the executor makes its own commit and reports it (§7).
+  2026-11-09 by Mohammed: the executor makes its own commit and reports it (§7). Amended
+  2026-11-11 by Mohammed: the executor runs in `auto` from one file (§7); the Planner starts,
+  judges and continues tasks in place of the critic and the ladder (§5.1).
 - Builds on, and does not replace:
   - Core vision §2 (bounded executors who ask Shadows), §3 (a failing test that belongs to
     another task), §5 (the escalation ladder), §6 (executors and critics) — `docs/core/vision.md`;
@@ -127,6 +129,53 @@ confirms it with this spec.
 **Stop.** Mohammed may Stop at any time. Stop cancels the running turn and confirms it ended,
 as the Planner's Stop does today. An attempt stopped before its commit has no commit; its
 working-tree changes stay in the folder and are named in the Report.
+
+### 5.1 The Planner judges (Mohammed, 2026-11-11)
+
+Evidence: the first run of slice 1 on a real Go project. T1 committed and said its Compose file
+starts PostgreSQL and Redis, but only ran `docker-compose config -q`. T2 committed with a report
+saying its pool test skipped, so two of its three acceptance items were never checked. Nobody
+read either report and acted. The folder was not a git repository, so Start was refused until
+Mohammed ran `git init` by hand.
+
+This replaces the critic (§8 "Critic session", §10 slice 2's critic) and the ladder (D8, the
+diagram above, §8 "The Planner on a failure", §12.4, §10 slice 3). D7 and D9 stand.
+
+- **The Planner starts a task** with `task_start`, which calls the method the Start button
+  calls; only the Planner of the plan's project may. It starts a task when the person asks it
+  to run one.
+- **After a done mark the Planner moves on by itself** (Mohammed, 2026-11-11). Marking a task
+  done answers `next`: the lowest-numbered task of that version that has never run and that
+  Start allows now (its needs links done, no overlap, a clean folder). The Planner starts it at
+  once without waiting for the person. A task that already ran, done or failed, is never
+  offered; a failure goes to the person.
+- **The Planner hears how each attempt ended.** When an attempt's turn ends with an accepted
+  commit, or fails without one, Runs puts a message in the plan's own conversation
+  (`written_by`'s thread) naming the task, the commit, the files it changed and the executor's
+  report, or the failure. It is a waiting message: a busy Planner reads it when its turn ends,
+  and a restart does not lose it.
+- **A committed attempt waits for the judgment.** Its session stays open and its `writes` stay
+  held until the task is marked done or the attempt is stopped. This replaces "a committed
+  attempt holds its scope until its turn has ended".
+- **The Planner judges** the commit against the task's acceptance items by reading what it
+  changed. It marks the task done (`task_done`), which closes the session and frees the scope;
+  or it sends an **addition** (`task_amend`): what is missing or must be extended. The Planner
+  may also take a done mark back.
+- **An addition continues the executor in its session.** It is a new attempt on the same
+  executor thread, carrying the addition's text; the attempt before it keeps its commit and
+  report. The addition is recorded on the task through its attempts. There is no new plan
+  version and no approval: the frozen version does not change. Runs owns it, as it owns the
+  done marks of a frozen version.
+- **The Planner can make the folder a git repository** (`project_git_init`): `git init` and an
+  empty first commit made in Shadows' name, refused when the folder is already inside one. It
+  writes no file; starter files stay a task's work. Git belongs to Runs (§12.2).
+
+> **OPEN: is there a cap on additions?** There is none: every addition is shown to the person
+> as a message in the conversation and on the task, and Stop ends it. Closed when a real run
+> shows the Planner looping, or Mohammed sets a number.
+
+> **OPEN: does the critic come back?** The Planner's judgment replaces it. Closed when a real
+> run shows the Planner marking done work that does not hold, which is the critic's case.
 
 ## 6. Running together in one folder (D2, D3)
 

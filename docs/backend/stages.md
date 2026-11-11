@@ -260,7 +260,7 @@ Order and rulings: [the program](plans/2026-11-09-local-delivery-program.md). Sl
 ### B-97 · Server catalog and controlled process lifecycle
 
 - Status: blocked (prerequisites below must ship first)
-- Plan: [Task 2](plans/2026-11-09-repository-discovery.md#task-2-b-97-server-catalog-and-controlled-process-lifecycle).
+- Plan: [Task 2](plans/2026-11-09-repository-discovery.md#task-2-b-97-server-catalog-and-controlled-process-lifecycle), changed by the [program's slice 2 changes](plans/2026-11-09-local-delivery-program.md) (Mohammed, 2026-11-11): the catalog is the twelve `lspServers` of claude-plugins-official (`*-lsp/.claude-plugin/plugin.json`: command, args, extensionToLanguage; Apache-2.0) copied as one data file; a project's servers are chosen from its files' extensions in the B-96 inventory; a server not installed shows "not installed" with its install command. Not PHP-only.
 - Owner: Code.
 - Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
 - Touch: exact Create/Modify/Test file list of Task 2; no other source paths.
@@ -393,7 +393,10 @@ Order and rulings: [the program](plans/2026-11-09-local-delivery-program.md). Sl
   2. **The instructions.** The body keeps today's text and gains a "Tools" section with two rules: never use Python (`python`, `py`, `pip`), for anything; create and change files with `Write`, `Edit` and `MultiEdit`, never with a heredoc, `sed` or a script. The shell is for running things: tests, git, generators.
   3. **The mode.** `EXECUTOR_MODE` in `crates/shadows-agent/src/policy.rs` becomes `auto`. The per-`writes` `Edit`/`Write`/`MultiEdit` permission rules go, with whatever only they needed. Keep what still decides something (an executor thread runs in this mode and no other); delete what `auto` makes dead. `Runs::report`'s `OutsideWrites` check does not change.
   4. **The tests.** `an_executor_session_opens_with_its_instructions_tools_and_rules` holds the new opening. `live_an_executor_writes_inside_its_task_in_mode_default_and_is_refused_outside` becomes a live test, renamed for what it now holds, in which the executor changes a file that already exists in a subfolder with `Edit` and its commit is accepted; the refusal of a commit outside `writes` stays held by `a_commit_with_paths_outside_writes_is_refused_until_fixed`. No new fake-acp test.
-- Touch: `crates/core-harness/src/executor.md` (new); `crates/core-harness/src/executor.txt` (deleted); `crates/core-harness/src/executor.rs`; `crates/core-harness/src/setup.rs`; `crates/core-harness/src/lib.rs`; `crates/core-harness/contract.yaml`; `crates/shadows-agent/src/policy.rs`; `crates/shadows-agent/src/choices.rs`; `crates/shadows-agent/contract.yaml`; `crates/core-runs/src/start.rs`; `crates/core-runs/contract.yaml`; `crates/core-turns/src/record.rs`; `crates/core-turns/contract.yaml`; `crates/core-grants/src/tools.rs` (only a comment or name that cites the old file); `crates/shadows-core/tests/executor_session.rs`; `crates/shadows-core/tests/runs_attempts/live.rs`; `crates/shadows/tests/runs_routes/live.rs` (only where it cites `executor.txt`); `docs/codebase/README.md`; `docs/backend/stages.md` (this entry). If the change needs another source file, stop and say which and why.
+  5. **The live test runs on the Claude subscription** (Mohammed, 2026-11-11). On MiniMax, `auto` refuses every `Bash` call ("Auto mode is unavailable: its safety check does not run for this session"), so an executor there cannot commit. An executor live test that needs `auto` opens the real adapter on the person's signed-in Claude Code, with no provider override and model `sonnet`; its `#[ignore]` reason says so. The other live tests stay on MiniMax.
+  6. **The fake attempts ask for a model that takes `auto`.** fake-acp accepts `auto` on `fake-large` only; the `start` helper of `crates/shadows-core/tests/runs_attempts.rs` and the assertion that names its model use it.
+  7. **The Planner's prompt names a symbol's field as the schema does** (left over from B-122, which could not touch this crate while this task's tree was open). In `crates/core-harness/src/prompt.txt`, the symbols line says "its path (the file it lives in)" where it says "the file it lives in", and "How to edit" gains: "plan_edit's description ends with one complete, valid edit; copy its shape." The test that pins the prompt's contract section holds both. Its own commit, after this task's: `fix(backend): B-122 the prompt names a symbol's path`.
+- Touch: `crates/core-harness/src/executor.md` (new); `crates/core-harness/src/executor.txt` (deleted); `crates/core-harness/src/executor.rs`; `crates/core-harness/src/setup.rs`; `crates/core-harness/src/lib.rs`; `crates/core-harness/contract.yaml`; `crates/shadows-agent/src/policy.rs`; `crates/shadows-agent/src/choices.rs`; `crates/shadows-agent/contract.yaml`; `crates/core-runs/src/start.rs`; `crates/core-runs/contract.yaml`; `crates/core-turns/src/record.rs`; `crates/core-turns/contract.yaml`; `crates/core-grants/src/tools.rs` (only a comment or name that cites the old file); `crates/shadows-core/tests/executor_session.rs`; `crates/shadows-core/tests/runs_attempts.rs` (part 6 only); `crates/shadows-core/tests/runs_attempts/live.rs` and the live fixture it uses (part 5); `crates/core-harness/src/prompt.txt` and `crates/shadows/tests/mcp_tools.rs` (part 7 only); `crates/shadows/tests/runs_routes/live.rs` (only where it cites `executor.txt`, or to run its executor on the subscription); `docs/codebase/README.md`; `docs/backend/stages.md` (this entry). If the change needs another source file, stop and say which and why.
 - Needs: B-120.
 - Done when: `cargo test -p core-harness`; `cargo test -p shadows-core --test executor_session --test runs_attempts`; with `API_KEY_MINIMAX` set, the renamed live test and `cargo test -p shadows --test runs_routes live_an_executor_builds_the_function -- --ignored --test-threads=1` pass; `cargo test -p shadows --test architecture --test codemap --test contract_tests`; the pre-commit checks of [AGENTS.md](AGENTS.md) rule 5. One commit, `fix(backend): B-121 <goal>`.
 - Not in this task: a per-project executor file, any policing of shell commands, the executor's environment (`LOCALAPPDATA`), cleaning up after a failed attempt.
@@ -412,6 +415,51 @@ Order and rulings: [the program](plans/2026-11-09-local-delivery-program.md). Sl
 - Needs: B-120.
 - Done when: the new test passes; `cargo test -p shadows --test mcp_tools --test planner_mcp --test mcp_server`; with `API_KEY_MINIMAX` set, `cargo test -p shadows --test planner_live -- --ignored --test-threads=1`; `cargo test -p shadows --test architecture --test codemap --test contract_tests`; the pre-commit checks of [AGENTS.md](AGENTS.md) rule 5. One commit, `fix(backend): B-122 <goal>`.
 - Not in this task: a contract `uses` that names another plan's output, done marks carried to a new version, one line for a folder whose files are all ignored. Mohammed's run found all three; they wait for a ruling.
+
+## Slice 1b: the Planner runs and judges tasks (2026-11-11)
+
+Mohammed's rulings after slice 1 ran on a real Go project: [executors design §5.1](specs/2026-11-08-executors-design.md#51-the-planner-judges-mohammed-2026-11-11). Plan: [slice 1b](plans/2026-11-11-slice-1b-planner-runs-tasks.md); each task's Interfaces and steps there are binding. It comes before slice 2. One builder, B-123 to B-125 in order, one commit each; B-126 waits for its shared request. Every task: new tests are live (the real adapter, real git) or run no agent, never a new fake-acp test; symbols through the LSP; only the tests named, with `-p` and the target, never `--workspace`; one build cache in `target/`, no `CARGO_TARGET_DIR`, `cargo clean` or `--release`; no `crates/**/*.rs` line over 100 columns.
+
+### B-123 · The Planner initialises git in a folder that has none
+
+- Status: todo
+- Plan: [Task B-123](plans/2026-11-11-slice-1b-planner-runs-tasks.md#task-b-123-the-planner-initialises-git-in-a-folder-that-has-none).
+- Owner: Runs (git calls in a project folder; Start's `NotGit` is its refusal); `shadows-mcp` (the tool); Grants (the Planner's tool list); Harness (the Planner's instructions).
+- Read: `crates/core-runs/contract.yaml`, `crates/shadows-mcp/src/contract.yaml`, `crates/core-grants/contract.yaml`, `crates/core-harness/contract.yaml`; §5.1.
+- Touch: `crates/core-runs/src/init.rs` (new); `crates/core-runs/src/git.rs`; `crates/core-runs/src/lib.rs`; `crates/core-runs/src/error.rs`; `crates/core-runs/contract.yaml`; `crates/shadows-mcp/src/run_tools.rs`; `crates/shadows-mcp/src/contract.yaml`; `crates/core-grants/src/tools.rs`; `crates/core-grants/contract.yaml`; `crates/core-harness/src/prompt.txt`; `crates/core-harness/contract.yaml`; `crates/shadows-core/tests/runs_attempts.rs` (the module line and `planner_grant`); `crates/shadows-core/tests/runs_attempts/init.rs` (new); `crates/shadows/tests/mcp_server.rs`; `crates/shadows/tests/mcp_tools.rs`; `docs/codebase/README.md`; `docs/backend/stages.md` (this entry).
+- Needs: B-121 and B-122's prompt part committed (they hold `prompt.txt`, `core-runs/contract.yaml` and `runs_attempts.rs` open in the tree).
+- Done when: `cargo test -p shadows-core --test runs_attempts` (the three new tests among them); `cargo test -p shadows --test mcp_server --test mcp_tools --test planner_mcp`; `cargo test -p shadows --test architecture --test codemap --test contract_tests`; the pre-commit checks of [AGENTS.md](AGENTS.md) rule 5. One commit, `feat(backend): B-123 <goal>`.
+
+### B-124 · The Planner starts a task and marks it done or not done
+
+- Status: todo
+- Plan: [Task B-124](plans/2026-11-11-slice-1b-planner-runs-tasks.md#task-b-124-the-planner-starts-a-task-and-marks-it-done-or-not-done).
+- Owner: Runs (`start_for` and `mark_done_for`: the Planner's grant checked, then the same `start` and `mark_done` the HTTP routes call; a done mark answers `next`, which the Planner starts on its own, Mohammed 2026-11-11); `shadows-mcp`; Grants; Harness.
+- Read: as B-123, and `crates/shadows-http/src/contract.yaml` (the Start route, unchanged).
+- Touch: `crates/core-runs/src/planner.rs` (new); `crates/core-runs/src/lib.rs`; `crates/core-runs/src/error.rs`; `crates/core-runs/src/model.rs`; `crates/core-runs/contract.yaml`; `crates/shadows-mcp/src/run_tools.rs`; `crates/shadows-mcp/src/refusal.rs`; `crates/shadows-mcp/src/contract.yaml`; `crates/core-grants/src/tools.rs`; `crates/core-grants/contract.yaml`; `crates/core-harness/src/prompt.txt`; `crates/core-harness/contract.yaml`; `crates/shadows-core/tests/runs_attempts.rs` (module line); `crates/shadows-core/tests/runs_attempts/planner.rs` (new); `crates/shadows/tests/fixtures/live.rs`; `crates/shadows/tests/planner_runs_live.rs` (new); `crates/shadows/tests/mcp_server.rs`; `crates/shadows/tests/mcp_tools.rs`; `docs/codebase/README.md`; `docs/backend/stages.md` (this entry).
+- Needs: B-123.
+- Done when: `cargo test -p shadows-core --test runs_attempts`; `cargo test -p shadows --test mcp_server --test mcp_tools --test planner_mcp --test runs_routes`; `cargo test -p shadows --test planner_live --test planner_runs_live` builds; signed in to Claude Code: `cargo test -p shadows --test planner_runs_live live_the_planner_starts -- --ignored --test-threads=1`, its printed line recorded here; architecture, codemap, contract_tests; rule 5's checks. One commit, `feat(backend): B-124 <goal>`.
+
+### B-125 · A finished attempt reaches its Planner, and a committed one waits for its judgment
+
+- Status: todo
+- Plan: [Task B-125](plans/2026-11-11-slice-1b-planner-runs-tasks.md#task-b-125-a-finished-attempt-reaches-its-planner-a-committed-one-waits-for-its-judgment).
+- Owner: Runs (the watcher, the notice, the release on a done mark); Turns is used through `Turns::queue` only; `shadows-mcp` and Harness (texts).
+- Read: `crates/core-runs/contract.yaml`, `crates/core-turns/contract.yaml` (`queue`), `crates/shadows-mcp/src/contract.yaml`, `crates/core-harness/contract.yaml`; §5.1.
+- Touch: `crates/core-runs/src/notify.rs` (new); `crates/core-runs/src/lib.rs`; `crates/core-runs/src/watch.rs`; `crates/core-runs/src/store/mod.rs`; `crates/core-runs/contract.yaml`; `crates/shadows-mcp/src/run_tools.rs`; `crates/shadows-mcp/src/contract.yaml`; `crates/core-harness/src/prompt.txt`; `crates/core-harness/contract.yaml`; `crates/shadows-core/tests/runs_attempts.rs` (the renamed test); `crates/shadows-core/tests/runs_attempts/planner.rs`; `crates/shadows/tests/planner_runs_live.rs`; `crates/shadows/tests/mcp_tools.rs`; `crates/shadows/tests/runs_routes.rs` and `crates/shadows/tests/runs_routes/live.rs` (only an expectation that a committed attempt's scope is freed at its turn's end); `docs/codebase/README.md`; `docs/backend/stages.md` (this entry).
+- Needs: B-124.
+- Done when: `cargo test -p shadows-core --test runs_attempts`; `cargo test -p shadows --test runs_routes --test mcp_tools --test mcp_server`; signed in: the two live tests of the task with `-- --ignored --test-threads=1`, their printed lines recorded here; architecture, codemap, contract_tests; rule 5's checks. One commit, `feat(backend): B-125 <goal>`.
+
+### B-126 · An addition continues the executor in its session, recorded on the task
+
+- Status: blocked (its shared request is not accepted yet)
+- Plan: [Task B-126](plans/2026-11-11-slice-1b-planner-runs-tasks.md#task-b-126-an-addition-continues-the-executor-in-its-session-recorded-on-the-task).
+- Owner: Runs (the amendment is a new attempt on the same thread with its addition; `run_turn` is Start's tail, shared); core-db (migration 0055); `shadows-mcp`; Grants; Harness.
+- Read: `crates/core-runs/contract.yaml`, `crates/core-db/contract.yaml`, `crates/core-harness/contract.yaml` (`open_executor`), `crates/shadows-mcp/src/contract.yaml`; §5.1; [the request](../shared/requests/2026-11-11-planner-review.md).
+- Touch: `crates/core-runs/src/amend.rs` (new); `crates/core-db/migrations/0055_attempt_addition.sql` (new); `crates/core-runs/src/start.rs`; `crates/core-runs/src/lib.rs`; `crates/core-runs/src/model.rs`; `crates/core-runs/src/error.rs`; `crates/core-runs/src/store/mod.rs`; `crates/core-runs/contract.yaml`; `crates/core-db/tests/fixtures/base_migrations.sha384` and `crates/core-db/tests/migration_checksums.rs` (if the checksum test asks); `crates/core-db/contract.yaml` (if it lists migrations); `crates/shadows-mcp/src/run_tools.rs`; `crates/shadows-mcp/src/contract.yaml`; `crates/core-grants/src/tools.rs`; `crates/core-grants/contract.yaml`; `crates/core-harness/src/prompt.txt`; `crates/core-harness/contract.yaml`; `crates/shadows-core/tests/runs_attempts/planner.rs`; `crates/shadows-core/tests/runs_attempts/live.rs`; `crates/shadows/tests/planner_runs_live.rs`; `crates/shadows/tests/mcp_server.rs`; `crates/shadows/tests/mcp_tools.rs`; `crates/shadows/tests/runs_routes.rs` (only an `Attempt` read that must now name `addition`); `api/openapi.json` (regenerated); `docs/shared/requests/2026-11-11-planner-review.md` (one line in the backend answer: built); `docs/codebase/README.md`; `docs/backend/stages.md` (this entry).
+- Needs: B-125; `docs/shared/requests/2026-11-11-planner-review.md` accepted.
+- Done when: `cargo test -p core-db --test migration_checksums`; `cargo test -p shadows-core --test runs_attempts`; `cargo test -p shadows --test runs_routes --test mcp_server --test mcp_tools --test planner_mcp`; `UPDATE_OPENAPI=1 cargo test -p shadows --test openapi` (only `Attempt.addition` changes); signed in: `cargo test -p shadows-core --test runs_attempts live_an_addition -- --ignored --test-threads=1` and `cargo test -p shadows --test planner_runs_live live_the_planner_runs_judges -- --ignored --test-threads=1` (the slice's acceptance), their printed lines recorded here; architecture, codemap, contract_tests; rule 5's checks. One commit, `feat(backend): B-126 <goal>`.
+- Then Mohammed runs the slice on the Go project from the browser: the Planner starts T1, judges it, and sends an addition or marks it done.
 
 ### B-107 · Store a simple brief on each attempt
 
@@ -445,7 +493,7 @@ Order and rulings: [the program](plans/2026-11-09-local-delivery-program.md). Sl
 
 ### B-110 · Bounded source from the reported Git SHA
 
-- Status: blocked (prerequisites below must ship first)
+- Status: dropped with the critic (2026-11-11, slice 1b): its only reader was the critic; it returns only if §5.1's critic OPEN closes that way.
 - Plan: [Task 1](plans/2026-11-09-checks-and-critic.md#task-1-b-110-bounded-source-from-the-reported-git-sha).
 - Owner: Runs.
 - Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
@@ -460,12 +508,12 @@ Order and rulings: [the program](plans/2026-11-09-local-delivery-program.md). Sl
 - Owner: Runs.
 - Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
 - Touch: exact Create/Modify/Test file list of Task 2; no other source paths.
-- Needs: B-110; accepted shared API/model agreement. 
+- Needs: B-109; accepted shared API/model agreement (B-110 dropped with the critic).
 - Done when: all named RED/GREEN steps and focused verification commands in Task 2 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
 
 ### B-112 · Read-only critic session and one review per result
 
-- Status: blocked (prerequisites below must ship first)
+- Status: replaced by the Planner's judgment (2026-11-11, B-124 and B-125; [§5.1](specs/2026-11-08-executors-design.md#51-the-planner-judges-mohammed-2026-11-11)).
 - Plan: [Task 3](plans/2026-11-09-checks-and-critic.md#task-3-b-112-read-only-critic-session-and-one-review-per-result).
 - Owner: Runs, Harness and Grants.
 - Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
@@ -475,12 +523,12 @@ Order and rulings: [the program](plans/2026-11-09-local-delivery-program.md). Sl
 
 ### B-113 · Evidence-backed outputs and honest task acceptance
 
-- Status: blocked (prerequisites below must ship first)
+- Status: blocked; re-scoped when slice 5 is detailed: honest task acceptance is the Planner's done mark (B-124, B-125); evidence-backed outputs remain, with no critic review as input.
 - Plan: [Task 4](plans/2026-11-09-checks-and-critic.md#task-4-b-113-evidence-backed-outputs-and-honest-task-acceptance).
 - Owner: Runs.
 - Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
 - Touch: exact Create/Modify/Test file list of Task 4; no other source paths.
-- Needs: B-112; accepted shared API/model agreement. 
+- Needs: B-111; accepted shared API/model agreement (B-112 replaced).
 - Done when: all named RED/GREEN steps and focused verification commands in Task 4 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
 
 ### B-114 · Expose checks, critic and result detail
@@ -495,7 +543,7 @@ Order and rulings: [the program](plans/2026-11-09-local-delivery-program.md). Sl
 
 ### B-115 · Retry in the same live session with fresh attempt identity
 
-- Status: blocked (prerequisites below must ship first)
+- Status: absorbed by B-126 (2026-11-11): an addition is a new attempt on the same executor thread.
 - Plan: [Task 1](plans/2026-11-09-repair-and-acceptance.md#task-1-b-115-retry-in-the-same-live-session-with-fresh-attempt-identity).
 - Owner: Runs and Harness.
 - Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
@@ -505,7 +553,7 @@ Order and rulings: [the program](plans/2026-11-09-local-delivery-program.md). Sl
 
 ### B-116 · Find the actual Planner and enforce the three-attempt ladder
 
-- Status: blocked (prerequisites below must ship first)
+- Status: replaced by B-125 (2026-11-11): the Planner is the version's `written_by` thread, the notice waits through `Turns::queue`, and there is no ladder (§5.1's cap OPEN).
 - Plan: [Task 2](plans/2026-11-09-repair-and-acceptance.md#task-2-b-116-find-the-actual-planner-and-enforce-the-three-attempt-ladder).
 - Owner: Plans and Runs.
 - Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
@@ -520,7 +568,7 @@ Order and rulings: [the program](plans/2026-11-09-local-delivery-program.md). Sl
 - Owner: Runs with Plans.
 - Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
 - Touch: exact Create/Modify/Test file list of Task 3; no other source paths.
-- Needs: B-116; accepted shared API/model agreement. 
+- Needs: B-126; accepted shared API/model agreement (B-115 absorbed, B-116 replaced).
 - Done when: all named RED/GREEN steps and focused verification commands in Task 3 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
 
 ### B-118 · Disposable full journey and branch delivery evidence
