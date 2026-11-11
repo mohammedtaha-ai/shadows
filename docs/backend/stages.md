@@ -328,7 +328,7 @@ Order and rulings: [the program](plans/2026-11-09-local-delivery-program.md). Sl
 
 ### B-101 · A setup runs end to end on an empty folder
 
-- Status: todo (slice 3)
+- Status: blocked (slice 3; 2026-11-12: the live test's app seeds its roadmap with `seed_roadmap_for_tests`, which Shadows reports as stage "idea" with no outcomes and an empty vision, so the Planner refuses to write the Setup plan in 3 of 5 runs. A truly approved roadmap needs `crates/shadows/tests/fixtures/app.rs` (or the Design seed), which is not in Touch. In the one run that got past this, the Setup plan ran end to end: T1 and T2 committed and marked done, then turn 3 hit `ThreadBusy` while the Planner's last turn was still ending)
 - Plan: [Task B-101](plans/2026-11-11-slice-3-setup-first.md#task-b-101-a-setup-runs-end-to-end-on-an-empty-folder).
 - Owner: none new: the slice's acceptance through Runs, Plans and the Planner.
 - Read: §5.2; `crates/core-runs/contract.yaml`; B-124's live fixtures.
