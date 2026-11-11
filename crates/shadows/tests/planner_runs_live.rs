@@ -209,6 +209,77 @@ async fn live_a_committed_attempt_reaches_its_planner_and_waits_for_its_judgment
         .unwrap();
 }
 
+/// The slice's acceptance: the Planner starts T1, hears it committed, sends
+/// an addition the executor carries on with in its own session, hears the
+/// second commit, judges it and marks T1 done.
+#[tokio::test]
+#[ignore = "live: needs the signed-in Claude Code subscription"]
+async fn live_the_planner_runs_judges_and_amends_a_task() {
+    let live = live::subscription_adapter();
+    let tmp = tempfile::tempdir().unwrap();
+    let l = listening::listening_on(tmp.path(), live.adapter.clone()).await;
+    let app = &l.app;
+    let root = repository(app).await;
+    let v1 = approved_task(app).await;
+    let prompt = format!(
+        "Run T1 of plan version {v1} with task_start, model sonnet. When Shadows tells you \
+         T1's attempt 1 committed, call task_amend for T1 with the addition: add the line \
+         `// two` at the end of src/t1.rs. When Shadows tells you T1's attempt 2 committed, \
+         read src/t1.rs and call task_done for T1 with done true."
+    );
+    let first = live::planner_turn_on(app, "live-journey", &prompt, live::SUBSCRIPTION_MODEL).await;
+    assert_eq!(first.status_kind, "Completed", "{first:?}");
+    let mut done = false;
+    for _ in 0..9000 {
+        if app.core.runs().task(&v1, 1, 1).await.unwrap().done {
+            done = true;
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    }
+    let attempts = app.core.runs().attempts(&v1, 1, 1).await.unwrap();
+    assert!(done, "T1 was not marked done: {attempts:?}");
+    assert_eq!(attempts.len(), 2, "{attempts:?}");
+    let (second, first) = (&attempts[0], &attempts[1]);
+    for attempt in [first, second] {
+        assert_eq!(
+            attempt.state,
+            shadows_core::AttemptState::Committed,
+            "{attempt:?}"
+        );
+    }
+    assert_eq!(first.thread_id, second.thread_id);
+    assert!(
+        second
+            .addition
+            .as_deref()
+            .unwrap_or_default()
+            .contains("// two"),
+        "{second:?}"
+    );
+    let (sha1, sha2) = (
+        first.commit.clone().unwrap(),
+        second.commit.clone().unwrap(),
+    );
+    let written = git(&root, &["show", &format!("{sha2}:src/t1.rs")]);
+    assert!(
+        written.contains("pub fn t1") && written.contains("// two"),
+        "{written}"
+    );
+    let entries = app::entries(app).await;
+    for tool in ["task_start", "task_amend", "task_done"] {
+        let called = entries
+            .iter()
+            .any(|e| e.kind == ThreadEntryKind::ToolCall && format!("{e:?}").contains(tool));
+        assert!(called, "{tool} was not called");
+    }
+    println!("live journey: {sha1} {sha2}");
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+}
+
 /// The executor makes no commit: the attempt fails, its scope is freed, and
 /// the Planner hears why.
 #[tokio::test]

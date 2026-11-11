@@ -60,6 +60,12 @@ layout_only: Map records contain no starter files; the stage has no Structure st
 # no such plan version or task in this project, or no running attempt holds this grant's task".
 # Tested by mcp_server::the_tool_list_depends_on_the_grant_kind, runs_attempts::planner and,
 # live, planner_runs_live::live_the_planner_starts_the_task_it_was_asked_to_run.
+# task_start's description names the tasks it starts: one the person asked for, or the task
+# task_done named as next.
+# task_amend { workflow_id, task_number, addition } calls Runs::amend and answers the new
+# Attempt; only the Planner's grant lists it. A Runs refusal (not_awaiting, empty_addition,
+# additions_spent) leads its text. Tested by mcp_server::the_tool_list_depends_on_the_grant_kind,
+# runs_attempts::planner and, live, planner_runs_live::live_the_planner_runs_judges_and_amends_a_task.
 # A task's contract rides inside task_add and task_update; the schema comes from Core's
 # TaskContent; task_context answers `contracts`. Tested by
 # mcp_tools::a_contract_written_over_mcp_is_read_the_same_over_http.

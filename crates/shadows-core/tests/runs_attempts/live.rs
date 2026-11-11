@@ -144,6 +144,44 @@ impl Fixture {
         panic!("the live attempt stayed running");
     }
 
+    /// Waits up to three minutes for HEAD to move past `from`.
+    async fn head_after(&self, from: &str) -> String {
+        for _ in 0..1800 {
+            let head = git(&self.root, &["rev-parse", "HEAD"]).trim().to_string();
+            if head != from {
+                return head;
+            }
+            tokio::time::sleep(Duration::from_millis(100)).await;
+        }
+        panic!("the executor made no commit after {from}");
+    }
+
+    /// Waits up to three minutes for the attempt's turn to end.
+    async fn turn_ended(&self, attempt: &Attempt) {
+        let operation = loop {
+            if let Some(op) = self.state_of(attempt).await.operation_id {
+                break op;
+            }
+            tokio::time::sleep(Duration::from_millis(100)).await;
+        };
+        for _ in 0..1800 {
+            let operations = self
+                .core
+                .turns()
+                .operations(&attempt.thread_id)
+                .await
+                .unwrap();
+            if operations
+                .iter()
+                .any(|op| op.id == operation && op.finished_at.is_some())
+            {
+                return;
+            }
+            tokio::time::sleep(Duration::from_millis(100)).await;
+        }
+        panic!("the live turn never ended");
+    }
+
     async fn entries_of(&self, thread: &ThreadId) -> Vec<shadows_core::ThreadEntry> {
         shadows_core::Threads::list_thread_entries_for_test(&self.storage, thread)
             .await
@@ -239,6 +277,103 @@ async fn live_an_executor_edits_a_file_in_a_subfolder_in_mode_auto_and_its_commi
         !kinds.contains(&ThreadEntryKind::PermissionRefused),
         "a refusal in `auto`: {kinds:?}"
     );
+    f.finish().await;
+}
+
+/// The Planner's addition carries the executor on in its own session: a new
+/// attempt on the same thread, with the addition recorded, whose commit
+/// builds on the first. No `/mcp` is bound, so the test reports each commit
+/// as the session's grant would.
+#[tokio::test]
+#[ignore = "live: needs the signed-in Claude Code subscription"]
+async fn live_an_addition_continues_the_executor_in_its_session() {
+    let (f, _live) = subscription_fixture().await;
+    let path = "backend/app/note.txt";
+    let base = git(&f.root, &["rev-parse", "HEAD"]).trim().to_string();
+    let first = f
+        .start_live_on(
+            SUBSCRIPTION_MODEL,
+            "live-add",
+            3,
+            &format!(
+                "Use the Write tool to create {path} containing the single line A. Then \
+                 commit only that file with git: `git add {path}`, then \
+                 `git commit -m \"Add the note\"`. Then stop."
+            ),
+        )
+        .await;
+    let grant = shadows_core::Grant {
+        id: shadows_core::GrantId::generate(),
+        kind: shadows_core::GrantKind::Executor,
+        project_id: f.project.clone(),
+        thread_id: Some(first.thread_id.clone()),
+        created_at: "2026-11-11T00:00:00Z".into(),
+        revoked_at: None,
+        scope: Some(shadows_core::testing::TaskScope {
+            workflow: SOURCE.into(),
+            version: 1,
+            task: 3,
+        }),
+    };
+    let sha1 = f.head_after(&base).await;
+    f.core
+        .runs()
+        .report(&grant, &sha1, "Added A.".into())
+        .await
+        .unwrap();
+    f.turn_ended(&first).await;
+    let addition = "Add a second line with the word B to the file you created in this task.";
+    let planner = planner_grant(&f).await;
+    let second = f
+        .core
+        .runs()
+        .amend(&planner, &f.workflow, 3, addition.into())
+        .await
+        .unwrap();
+    assert_eq!(second.number, 2);
+    assert_eq!(second.thread_id, first.thread_id);
+    assert_eq!(second.addition.as_deref(), Some(addition));
+    assert_eq!(second.state, AttemptState::Running, "{:?}", second.reason);
+    let sha2 = f.head_after(&sha1).await;
+    f.core
+        .runs()
+        .report(&grant, &sha2, "Added B.".into())
+        .await
+        .unwrap();
+    f.turn_ended(&second).await;
+    let first = f.state_of(&first).await;
+    assert_eq!(first.state, AttemptState::Committed);
+    assert_eq!(first.commit.as_deref(), Some(sha1.as_str()));
+    let second = f.state_of(&second).await;
+    assert_eq!(second.state, AttemptState::Committed);
+    assert_eq!(second.commit.as_deref(), Some(sha2.as_str()));
+    let written = git(&f.root, &["show", &format!("{sha2}:{path}")]);
+    assert!(written.contains('A') && written.contains('B'), "{written}");
+    let numbers: Vec<u32> = f
+        .core
+        .runs()
+        .attempts(&f.workflow, 1, 3)
+        .await
+        .unwrap()
+        .iter()
+        .map(|a| a.number)
+        .collect();
+    assert_eq!(numbers, vec![2, 1]);
+    f.core
+        .runs()
+        .mark_done("live-add-m".into(), &f.workflow, 1, 3, true)
+        .await
+        .unwrap();
+    let after = f
+        .core
+        .runs()
+        .amend(&planner, &f.workflow, 3, "more".into())
+        .await;
+    assert!(
+        matches!(after, Err(RunsError::NotAwaiting { task: 3 })),
+        "{after:?}"
+    );
+    println!("live addition: {sha2}");
     f.finish().await;
 }
 

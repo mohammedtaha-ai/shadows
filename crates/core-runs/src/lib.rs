@@ -8,9 +8,11 @@
 //! `model` holds the types, `store` the SQL, `scope` the pattern matcher,
 //! `ready` the rule for links, `git` the git calls, `init` a folder's first
 //! repository, `planner` the Planner's calls on its tasks, `notify` the
-//! Planner's notice of an ended attempt, `start`, `stop`, `report`, `watch`
-//! and `recover` the transitions, `diff` the reading of a commit.
+//! Planner's notice of an ended attempt, `amend` the Planner's addition,
+//! `start`, `stop`, `report`, `watch` and `recover` the transitions, `diff`
+//! the reading of a commit.
 
+mod amend;
 mod diff;
 mod error;
 mod git;

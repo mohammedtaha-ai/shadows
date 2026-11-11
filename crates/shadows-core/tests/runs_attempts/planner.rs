@@ -64,6 +64,75 @@ impl Fixture {
         core_runs::AttemptId::from_recorded(id)
     }
 
+    /// A new executor thread for T`task`, for a chain of attempts to share.
+    pub(crate) async fn executor_thread(&self, task: u32) -> ThreadId {
+        let project = self.project.clone();
+        self.storage
+            .write_txn(move |conn| {
+                Box::pin(async move {
+                    shadows_core::Threads::create_executor_in(
+                        conn,
+                        &project,
+                        format!("T{task}"),
+                        "claude-code",
+                    )
+                    .await
+                })
+            })
+            .await
+            .unwrap()
+    }
+
+    /// Attempt `number` at `task` on `thread` in `state` (ended unless
+    /// running), carrying `addition`, released when `released`.
+    pub(crate) async fn chain_attempt(
+        &self,
+        thread: &ThreadId,
+        task: u32,
+        number: u32,
+        state: &'static str,
+        addition: Option<&'static str>,
+        released: bool,
+    ) -> core_runs::AttemptId {
+        let (project, workflow) = (self.project.clone(), self.workflow.clone());
+        let id = format!("chain-{task}-{number}");
+        let (row, thread) = (id.clone(), thread.clone());
+        let ended = (state != "running").then_some("2026-10-05T00:01:00Z");
+        let released = released.then_some("2026-10-05T00:01:00Z");
+        self.storage
+            .write_txn(move |conn| {
+                Box::pin(async move {
+                    sqlx::query(
+                        "INSERT INTO run_attempts
+                           (id, project_id, workflow_id, version, task, number, thread_id,
+                            model, state, commit_sha, writes_json, started_at, ended_at,
+                            released_at, command_id, fingerprint, addition)
+                         VALUES (?, ?, ?, 1, ?, ?, ?, 'fake-large', ?, ?,
+                                 '[\"backend/app/**\"]', '2026-10-05T00:00:00Z',
+                                 ?, ?, ?, 'f', ?)",
+                    )
+                    .bind(&row)
+                    .bind(project.as_str())
+                    .bind(workflow.as_str())
+                    .bind(i64::from(task))
+                    .bind(i64::from(number))
+                    .bind(thread.as_str())
+                    .bind(state)
+                    .bind(format!("{number:040x}"))
+                    .bind(ended)
+                    .bind(released)
+                    .bind(&row)
+                    .bind(addition)
+                    .execute(&mut *conn)
+                    .await?;
+                    Ok(())
+                })
+            })
+            .await
+            .unwrap();
+        core_runs::AttemptId::from_recorded(id)
+    }
+
     /// How many turns the plan's Planner conversation has.
     async fn planner_turns(&self) -> usize {
         let thread: String =
@@ -82,7 +151,7 @@ impl Fixture {
 }
 
 /// An executor's grant on T3, as an executor session holds one.
-fn executor_grant(f: &Fixture) -> shadows_core::Grant {
+pub(crate) fn executor_grant(f: &Fixture) -> shadows_core::Grant {
     shadows_core::Grant {
         id: shadows_core::GrantId::generate(),
         kind: shadows_core::GrantKind::Executor,
@@ -198,6 +267,75 @@ async fn stopping_a_committed_attempt_frees_its_scope() {
     let t3 = runs.task(&f.workflow, 1, 3).await.unwrap();
     assert!(t3.start.allowed, "{:?}", t3.start);
     assert_eq!(f.planner_turns().await, turns, "the Planner was told again");
+    f.finish().await;
+}
+
+#[tokio::test]
+async fn an_addition_needs_a_committed_attempt_waiting() {
+    let f = fixture().await;
+    let grant = planner_grant(&f).await;
+    let runs = f.core.runs();
+    let refused = runs.amend(&grant, &f.workflow, 3, "x".into()).await;
+    assert!(
+        matches!(refused, Err(RunsError::NotAwaiting { task: 3 })),
+        "{refused:?}"
+    );
+    let thread = f.executor_thread(3).await;
+    f.chain_attempt(&thread, 3, 1, "running", None, false).await;
+    let refused = runs.amend(&grant, &f.workflow, 3, "x".into()).await;
+    assert!(
+        matches!(refused, Err(RunsError::NotAwaiting { task: 3 })),
+        "a running attempt takes no addition: {refused:?}"
+    );
+    let empty = runs.amend(&grant, &f.workflow, 3, "   ".into()).await;
+    assert!(matches!(empty, Err(RunsError::EmptyAddition)), "{empty:?}");
+    let other = runs
+        .amend(&executor_grant(&f), &f.workflow, 3, "x".into())
+        .await;
+    assert!(matches!(other, Err(RunsError::NotFound)), "{other:?}");
+    assert_eq!(runs.attempts(&f.workflow, 1, 3).await.unwrap().len(), 1);
+    f.finish().await;
+}
+
+#[tokio::test]
+async fn the_fourth_addition_stops_the_task() {
+    let f = fixture().await;
+    let grant = planner_grant(&f).await;
+    let runs = f.core.runs();
+    let thread = f.executor_thread(3).await;
+    f.chain_attempt(&thread, 3, 1, "committed", None, true)
+        .await;
+    for number in 2..=3 {
+        f.chain_attempt(&thread, 3, number, "committed", Some("more"), true)
+            .await;
+    }
+    let fourth = f
+        .chain_attempt(&thread, 3, 4, "committed", Some("more"), false)
+        .await;
+    let refused = runs.amend(&grant, &f.workflow, 3, "more".into()).await;
+    assert!(
+        matches!(refused, Err(RunsError::AdditionsSpent { task: 3 })),
+        "{refused:?}"
+    );
+    assert_eq!(
+        runs.attempt(&fourth).await.unwrap().state,
+        AttemptState::Committed
+    );
+    let t3 = runs.task(&f.workflow, 1, 3).await.unwrap();
+    assert!(t3.start.allowed, "{:?}", t3.start);
+    assert_eq!(runs.attempts(&f.workflow, 1, 3).await.unwrap().len(), 4);
+    let thread = f.executor_thread(3).await;
+    f.chain_attempt(&thread, 3, 5, "committed", None, true)
+        .await;
+    f.chain_attempt(&thread, 3, 6, "committed", Some("more"), false)
+        .await;
+    let other = runs
+        .amend(&executor_grant(&f), &f.workflow, 3, "more".into())
+        .await;
+    assert!(
+        matches!(other, Err(RunsError::NotFound)),
+        "the cap does not open the tool to others: {other:?}"
+    );
     f.finish().await;
 }
 

@@ -35,6 +35,7 @@ type AttemptRow = (
     String,
     Option<String>,
     Option<String>,
+    Option<String>,
 );
 
 pub(super) struct RunsStore {
@@ -52,6 +53,13 @@ pub(crate) struct NewAttempt {
     pub(crate) model: String,
     pub(crate) writes: Vec<String>,
     /// The commit HEAD named at Start; `None` on a branch with no commit.
+    pub(crate) start_head: Option<String>,
+}
+
+/// What an addition asks the store to record on the attempt it begins.
+pub(crate) struct Continued {
+    pub(crate) addition: String,
+    /// The commit HEAD named when the addition was sent.
     pub(crate) start_head: Option<String>,
 }
 
@@ -220,7 +228,7 @@ impl RunsStore {
         let row: Option<AttemptRow> = sqlx::query_as(
             "SELECT id, project_id, workflow_id, version, task, number, thread_id,
                     operation_id, model, state, commit_sha, reason, started_at, ended_at,
-                    report
+                    report, addition
                  FROM run_attempts WHERE id = ?",
         )
         .bind(id.as_str())
@@ -253,6 +261,7 @@ impl RunsStore {
             started_at: row.12,
             ended_at: row.13,
             report: row.14,
+            addition: row.15,
         })
     }
 
@@ -425,6 +434,84 @@ impl RunsStore {
         })
     }
 
+    /// How many of the task's attempts, from the newest down, carry an
+    /// addition before the first that does not (the one a Start began).
+    pub async fn additions_since_start(
+        &self,
+        workflow: &WorkflowId,
+        version: i64,
+        task: u32,
+    ) -> Result<u32, RunsError> {
+        let additions: Vec<Option<String>> = sqlx::query_scalar(
+            "SELECT addition FROM run_attempts
+             WHERE workflow_id = ? AND version = ? AND task = ? ORDER BY number DESC",
+        )
+        .bind(workflow.as_str())
+        .bind(version)
+        .bind(i64::from(task))
+        .fetch_all(self.storage.reader())
+        .await?;
+        let count = additions.iter().take_while(|a| a.is_some()).count();
+        Ok(u32::try_from(count).unwrap_or(u32::MAX))
+    }
+
+    /// One write: `previous`, committed and still holding its scope, is
+    /// released into a new `Running` attempt on the same thread carrying the
+    /// addition. Any other `previous` is `NotAwaiting`.
+    pub async fn continue_attempt(
+        &self,
+        previous: &AttemptId,
+        next: Continued,
+    ) -> Result<Attempt, RunsError> {
+        let (previous, ts) = (previous.clone(), Storage::now());
+        self.storage
+            .write_txn_as(move |conn| {
+                Box::pin(async move {
+                    let row: Option<(i64, String, Option<String>)> = sqlx::query_as(
+                        "SELECT task, state, released_at FROM run_attempts WHERE id = ?",
+                    )
+                    .bind(previous.as_str())
+                    .fetch_optional(&mut *conn)
+                    .await?;
+                    let (task, state, released) = row.ok_or(RunsError::NotFound)?;
+                    if state != AttemptState::Committed.as_str() || released.is_some() {
+                        return Err(RunsError::NotAwaiting {
+                            task: u32::try_from(task).unwrap_or(0),
+                        });
+                    }
+                    sqlx::query("UPDATE run_attempts SET released_at = ? WHERE id = ?")
+                        .bind(&ts)
+                        .bind(previous.as_str())
+                        .execute(&mut *conn)
+                        .await?;
+                    let id = AttemptId::generate();
+                    sqlx::query(
+                        "INSERT INTO run_attempts
+                           (id, project_id, workflow_id, version, task, number, thread_id,
+                            model, state, writes_json, started_at, command_id, fingerprint,
+                            start_head, addition)
+                         SELECT ?, p.project_id, p.workflow_id, p.version, p.task,
+                                (SELECT MAX(o.number) + 1 FROM run_attempts o
+                                 WHERE o.workflow_id = p.workflow_id
+                                   AND o.version = p.version AND o.task = p.task),
+                                p.thread_id, p.model, 'running', p.writes_json, ?, ?,
+                                'amend', ?, ?
+                         FROM run_attempts p WHERE p.id = ?",
+                    )
+                    .bind(id.as_str())
+                    .bind(&ts)
+                    .bind(format!("amend-{id}"))
+                    .bind(&next.start_head)
+                    .bind(&next.addition)
+                    .bind(previous.as_str())
+                    .execute(&mut *conn)
+                    .await?;
+                    Self::load(conn, &id).await
+                })
+            })
+            .await
+    }
+
     /// A task's attempts, newest first.
     pub async fn attempts(
         &self,
@@ -435,7 +522,7 @@ impl RunsStore {
         let rows: Vec<AttemptRow> = sqlx::query_as(
             "SELECT id, project_id, workflow_id, version, task, number, thread_id,
                     operation_id, model, state, commit_sha, reason, started_at, ended_at,
-                    report
+                    report, addition
              FROM run_attempts
              WHERE workflow_id = ? AND version = ? AND task = ? ORDER BY number DESC",
         )

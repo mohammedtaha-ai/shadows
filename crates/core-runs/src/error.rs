@@ -57,6 +57,15 @@ pub enum RunsError {
         "no model to run the executor on: name one the executor's harness (claude-code) offers"
     )]
     NoModel,
+    #[error("T{task} has no committed attempt waiting for your judgment")]
+    NotAwaiting { task: u32 },
+    #[error("an addition says what is missing or must be extended; it cannot be empty")]
+    EmptyAddition,
+    #[error(
+        "T{task} had its 3 additions: it is stopped and goes back to the person; tell them \
+         what is still missing"
+    )]
+    AdditionsSpent { task: u32 },
     #[error("the command id was used for another request")]
     CommandConflict,
     #[error("not found")]
@@ -90,6 +99,9 @@ impl RunsError {
             Self::AlreadyGit => "already_git",
             Self::NoFolder => "no_folder",
             Self::NoModel => "no_model",
+            Self::NotAwaiting { .. } => "not_awaiting",
+            Self::EmptyAddition => "empty_addition",
+            Self::AdditionsSpent { .. } => "additions_spent",
             Self::CommandConflict => "command_conflict",
             Self::NotFound => "not_found",
             Self::BadScope(_) => "bad_scope",

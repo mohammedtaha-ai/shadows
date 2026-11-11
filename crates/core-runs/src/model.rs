@@ -77,6 +77,10 @@ pub struct Attempt {
     /// with its accepted commit.
     #[schema(required)]
     pub report: Option<String>,
+    /// The Planner's addition this attempt carried on with, in the session of
+    /// the attempt before it; null for an attempt Start began.
+    #[schema(required)]
+    pub addition: Option<String>,
     /// Why the attempt failed, when it did.
     #[schema(required)]
     pub reason: Option<String>,

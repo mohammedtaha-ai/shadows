@@ -7,6 +7,7 @@
 //! a replay. A notice that cannot be sent is logged and never fails the
 //! attempt.
 use crate::Runs;
+use crate::amend::ADDITIONS;
 use crate::model::{Attempt, AttemptState};
 use core_plans::WrittenBy;
 use core_turns::SendTurn;
@@ -64,9 +65,25 @@ impl Runs {
                     .clone()
                     .filter(|r| !r.trim().is_empty())
                     .unwrap_or_else(|| "(none)".to_string());
+                let last = self
+                    .inner
+                    .store
+                    .additions_since_start(&attempt.workflow_id, attempt.version, attempt.task)
+                    .await
+                    .is_ok_and(|spent| spent >= ADDITIONS);
+                let last = if last {
+                    format!(
+                        "This attempt carried T{}'s third and last addition: mark it done, or \
+                         the task stops and goes back to the person.\n",
+                        attempt.task
+                    )
+                } else {
+                    String::new()
+                };
                 format!(
                     "{head} committed {}.\nFiles: {files}\nThe executor's report:\n{report}\n\
-                     Judge this commit against T{}'s acceptance items before you mark it done.",
+                     {last}Judge this commit against T{}'s acceptance items before you mark it \
+                     done.",
                     attempt.commit.as_deref().unwrap_or_default(),
                     attempt.task
                 )

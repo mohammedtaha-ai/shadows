@@ -10,7 +10,11 @@ use core_plans::{Plan, WorkflowId};
 
 impl Runs {
     /// The plan version `workflow`, when `grant` is a Planner's of its project.
-    async fn planner_plan(&self, grant: &Grant, workflow: &WorkflowId) -> Result<Plan, RunsError> {
+    pub(crate) async fn planner_plan(
+        &self,
+        grant: &Grant,
+        workflow: &WorkflowId,
+    ) -> Result<Plan, RunsError> {
         if grant.kind != GrantKind::Thread {
             return Err(RunsError::NotFound);
         }

@@ -57,11 +57,22 @@ impl Runs {
         if begun.replayed {
             return Ok(begun.attempt);
         }
-        let attempt = begun.attempt;
+        self.run_turn(begun.attempt, self.first_prompt(task)).await
+    }
+
+    /// Opens the attempt's executor session, live, closed or gone after a
+    /// restart, sends it `prompt` as one turn and watches the turn. Start and
+    /// an addition both end here: one way to run an attempt's turn.
+    pub(crate) async fn run_turn(
+        &self,
+        attempt: Attempt,
+        prompt: String,
+    ) -> Result<Attempt, RunsError> {
+        let model = attempt.model.clone();
         let scope = TaskScope {
-            workflow: workflow.as_str().to_string(),
-            version,
-            task,
+            workflow: attempt.workflow_id.as_str().to_string(),
+            version: attempt.version,
+            task: attempt.task,
         };
         if let Err(error) = self
             .inner
@@ -87,7 +98,7 @@ impl Runs {
                 attempt.thread_id.clone(),
                 SendTurn {
                     command_id: format!("run-{}", attempt.id),
-                    prompt: self.first_prompt(task),
+                    prompt,
                     attachments: vec![],
                     model,
                     mode: MODE.into(),

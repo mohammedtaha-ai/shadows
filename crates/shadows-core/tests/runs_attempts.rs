@@ -693,6 +693,8 @@ async fn a_committed_attempt_holds_its_scope_until_it_is_marked_done() {
         tokio::time::sleep(Duration::from_millis(25)).await;
     }
     assert!(ended, "the turn never ended");
+    // Twenty of the watcher's 25 ms polls: a release it made would show now.
+    tokio::time::sleep(Duration::from_millis(500)).await;
     let held = f.start("s3", 4).await;
     assert!(
         matches!(held, Err(RunsError::Overlap { task: 3 })),

@@ -914,6 +914,13 @@
       "Attempt": {
         "description": "One try at a task. `operation_id` is the operation of its turn, absent\nuntil the turn starts.",
         "properties": {
+          "addition": {
+            "description": "The Planner's addition this attempt carried on with, in the session of\nthe attempt before it; null for an attempt Start began.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "commit": {
             "description": "The SHA of the commit the executor made and reported, once accepted.",
             "type": [
@@ -1002,6 +1009,7 @@
           "state",
           "commit",
           "report",
+          "addition",
           "reason",
           "started_at",
           "ended_at"

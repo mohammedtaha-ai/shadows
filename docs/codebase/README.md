@@ -192,6 +192,7 @@ pattern to follow, not merely an example.
 | `crates/core-runs/src/scope.rs` | matching paths against a task's writes | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/ready.rs` | whether a task may start now | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/start.rs` | starting an attempt | `crates/core-runs/contract.yaml` |
+| `crates/core-runs/src/amend.rs` | carrying an attempt on with the Planner's addition | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/stop.rs` | stopping an attempt | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/git.rs` | git calls in a project folder | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/init.rs` | giving a project folder its repository | `crates/core-runs/contract.yaml` |

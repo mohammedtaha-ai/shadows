@@ -15,6 +15,15 @@
 # The executor commits its own files with git and reports that commit with its account of
 # what it did (Mohammed, 2026-11-09). Runs checks the reported commit and records it; Runs
 # writes no commit. A Running attempt with no accepted report at startup is Interrupted.
+#
+# One review path: an attempt's end reaches its judge by one road only. `watch` sees the turn
+# end, `notify` hands the attempt on, the Planner judges, then `task_done` (`mark_done`) or
+# `task_amend` (`amend`). Nothing else marks or continues a task. `notify` is the one place a
+# reviewer would be added; no trait, hook or field is built for it now.
+#
+# An addition is a new attempt on the same executor thread, carrying the Planner's text; the
+# frozen plan version never changes. A task takes three additions after its Start (Mohammed,
+# 2026-11-11); a fourth stops the waiting attempt and the task goes back to the person.
 
 name: runs
 version: 1
@@ -33,6 +42,7 @@ modules:
   init.rs: giving a project folder its repository
   planner.rs: the Planner's calls on its project's tasks
   start.rs: starting an attempt
+  amend.rs: carrying an attempt on with the Planner's addition
   stop.rs: stopping an attempt
   report.rs: accepting an attempt's reported commit
   diff.rs: reading an attempt's commit
@@ -59,6 +69,7 @@ shapes:
     operation_id: the operation of its turn; absent until the turn starts
     commit: absent until a reported commit is accepted
     report: the executor's account of what it did, ran and found; stored with the accepted commit
+    addition: the Planner's addition this attempt carried on with, in the session of the attempt before it; null for an attempt Start began
   # start_head, the commit HEAD named at Start (none on a branch with no commit), is stored, not served.
   Need: "{ task: TaskParent, title, done }: a task this one needs, in link order"
   TaskRun: "{ task, done, done_at, latest, needs, start: StartAnswer, suggested_model }"
@@ -66,10 +77,12 @@ shapes:
   DoneMark: "{ task: TaskRun, next }: what the Planner's mark answers; next is next_ready's task for a done mark, else null. MCP only, no route serves it"
   FileDiff: "{ path, added, removed, patch }: the patch cut at 2,000 lines with a marker"
   RecoverReport: "{ interrupted }"
-  RunsError: [NotFrozen, Superseded, Archived, Waiting, TaskBusy, Overlap, NotGit, DirtyScope, AlreadyCommitted, UnknownCommit, NotOnBranch, NotNew, OutsideWrites, BinaryFiles, AlreadyGit, NoFolder, NoModel, CommandConflict, NotFound, BadScope, Unavailable, Storage]
+  RunsError: [NotFrozen, Superseded, Archived, Waiting, TaskBusy, Overlap, NotGit, DirtyScope, AlreadyCommitted, UnknownCommit, NotOnBranch, NotNew, OutsideWrites, BinaryFiles, AlreadyGit, NoFolder, NoModel, NotAwaiting, EmptyAddition, AdditionsSpent, CommandConflict, NotFound, BadScope, Unavailable, Storage]
   # RunsError::code is the opaque id clients match on: not_frozen, waiting, task_busy, ...
   # AlreadyGit (already_git) and NoFolder (no_folder) are init_git's refusals, not Start's.
   # NoModel (no_model): start_for found no model given and none to suggest.
+  # NotAwaiting (not_awaiting), EmptyAddition (empty_addition) and AdditionsSpent
+  # (additions_spent) are amend's refusals.
 
 functions:
   new: "(storage, plans, harness, turns, projects) -> Runs; AppCore constructs the service"
@@ -80,6 +93,9 @@ functions:
   init_git: "(grant) -> String; a Thread (Planner) grant only, else NotFound; the folder from Projects (NoFolder when none); a folder inside any work tree, its own or a parent's, is AlreadyGit; then git init and one empty commit `Initial commit` as Shadows <shadows@localhost>, a git failure Unavailable; answers the full sha, writes no file, logs runs.git_initialised"
   start_for: "(grant, workflow, task, model?) -> Attempt; the Planner's grant checked (a Thread grant of the plan's project, else NotFound), then start with the trimmed model, else the task's suggested model, else NoModel; the command id is fresh"
   mark_done_for: "(grant, workflow, task, done) -> DoneMark; the Planner's grant checked as start_for, then mark_done; a done mark answers next from next_ready, which the Planner starts on its own (Mohammed, 2026-11-11)"
+  amend: "(grant, workflow, task, addition) -> Attempt; the Planner's grant checked as start_for; an empty trimmed addition is EmptyAddition; no committed attempt still holding its scope is NotAwaiting; when additions_since_start is already 3, the waiting attempt is stopped (it keeps its commit and state Committed, its session closes, its scope is freed) and AdditionsSpent, nothing else written; else continue_attempt in one write (the waiting attempt released, a Running attempt with the next number on the same thread, model and writes, recording the HEAD now and the addition), then run_turn with the addition's prompt"
+  run_turn: "private: (attempt, prompt) -> Attempt; open_executor with the attempt's TaskScope and model, reopening the thread whether its session is live, closed or gone (a failure abandons it `session did not open: ...`), the still-Running check, the turn in mode auto, set_operation, the late Stop, watch. Start and amend both end here"
+  additions_since_start: "private: how many of the task's attempts, newest first, carry an addition before the first that does not (the one a Start began); a new Start begins a new count"
   next_ready: "private: the lowest-numbered task never run (no done mark, no attempt at all) that Start allows now"
   diff: "(attempt) -> Vec<FileDiff>; each file of the attempt's commit, nothing before it commits"
   task: "(workflow, version, task) -> TaskRun; needs from the version's needs links and the done marks, start from can_start, suggested_model one the executor's harness (claude-code) offers: the model the plan's Planner conversation last asked for when that turn ran on claude-code, else the model last used on claude-code (Harness::remembered_model), else none; none for an external writer"
@@ -87,7 +103,7 @@ functions:
   attempt: "(attempt) -> Attempt; one attempt as it stands, NotFound for an unknown id"
   set_first_prompt_for_tests: "test-support only: (prompt) scripts the first prompt of later attempts"
   mark_done: "(command, workflow, version, task, done) -> TaskRun; the command record keeps every mark command: a replay writes nothing, the same id with other input is CommandConflict; a done mark releases the task's latest attempt when it is Committed and still holds its scope (closes its session, frees its scope); a not-done mark releases nothing"
-  notify: "private: (attempt) queues on the plan's Planner thread (WrittenBy::Planner, not removed) a [Shadows] notice with the settings of that thread's last turn and command id notify-<attempt>: committed with its sha, files (path +added -removed) and report, or failed with its reason; any failure is logged, never fails the watcher"
+  notify: "private: (attempt) queues on the plan's Planner thread (WrittenBy::Planner, not removed) a [Shadows] notice with the settings of that thread's last turn and command id notify-<attempt>: committed with its sha, files (path +added -removed) and report, or failed with its reason; a committed notice whose attempt carried the task's third addition says it was the last; any failure is logged, never fails the watcher"
   recover: "() -> RecoverReport; every Running attempt becomes Interrupted, its grant revoked and its scope freed; every other held scope is freed except a Committed attempt's, which keeps waiting for its judgment; none restarted, git not read"
 
 transitions:
@@ -102,6 +118,8 @@ transitions:
   - "turn ends after an accepted report: stays Committed, holds its scope, the Planner is told"
   - "turn ends without a commit: Failed, scope freed, the Planner is told"
   - "marked done: the awaiting attempt's session closes and its scope is freed"
+  - "an addition: the waiting attempt is released into a new Running attempt on the same thread"
+  - "a fourth addition: the waiting attempt is stopped, the task goes back to the person"
 # A turn whose end cannot be read keeps its scope held and is read again: an unread end
 # proves nothing about whether the session can still write.
 
@@ -121,6 +139,13 @@ agreements:
       `start_for` checks only the Planner's grant and the model, then calls `start`; every
       check and answer of Start is Start's own.
     tested_by: [the_planner_tools_refuse_a_grant_that_is_not_a_planners, live_the_planner_starts_the_task_it_was_asked_to_run]
+  - between: [start, amend]
+    rule: One run_turn opens the session and sends the turn.
+    holds: true
+    why: >
+      `start` and `amend` each record their attempt, then call `run_turn`, which opens the
+      executor's session, sends the turn and watches it; neither sends a turn itself.
+    tested_by: [live_an_addition_continues_the_executor_in_its_session]
 
 obligations:
   - rule: Start opens one Running attempt on an executor thread with the model given, recording the HEAD it saw.
@@ -147,6 +172,12 @@ obligations:
     tested_by: [the_planner_start_needs_a_model]
   - rule: Only a Planner's grant of the plan's project may start or mark a task through start_for and mark_done_for.
     tested_by: [the_planner_tools_refuse_a_grant_that_is_not_a_planners]
+  - rule: An addition needs a committed attempt waiting for judgment and a non-empty text, from a Planner's grant; a refused one writes no row.
+    tested_by: [an_addition_needs_a_committed_attempt_waiting]
+  - rule: A task takes three additions after its Start; the fourth stops the waiting attempt, which keeps its commit, frees its scope and writes no row; the cap opens the tool to no other grant.
+    tested_by: [the_fourth_addition_stops_the_task]
+  - rule: On the real adapter, an addition carries the executor on in its session as a new attempt on the same thread whose commit builds on the first; the Planner runs, judges and amends a task end to end.
+    tested_by: [live_an_addition_continues_the_executor_in_its_session, live_the_planner_runs_judges_and_amends_a_task]
   - rule: Stop ends the attempt, closes its session, revokes its grant and frees its scope.
     tested_by: [stop_ends_the_attempt_and_closes_its_session, live_stop_ends_a_running_attempt_and_frees_its_scope]
   - rule: A Stop while Start opens the session leaves the attempt Stopped with no turn sent and no session open.

@@ -44,6 +44,17 @@ struct TaskDoneArgs {
     done: bool,
 }
 
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+struct TaskAmendArgs {
+    /// The approved plan version.
+    #[schemars(with = "String")]
+    workflow_id: WorkflowId,
+    /// The task's number: 4 for T4.
+    task_number: u32,
+    /// What is missing or must be extended, as the executor should act on it.
+    addition: String,
+}
+
 #[tool_router(router = run_tool_router, vis = "pub(super)")]
 impl Shadows {
     #[tool(
@@ -86,8 +97,9 @@ impl Shadows {
     }
 
     #[tool(
-        description = "Start an executor on one task of an approved plan version, only when \
-                       the person asked you to run it. Shadows checks the task as the Start \
+        description = "Start an executor on one task of an approved plan version: one the \
+                       person asked you to run, or the task task_done named as next. Shadows \
+                       checks the task as the Start \
                        button does (an approved version, its needs links done, a git folder, \
                        no overlapping task running) and answers the attempt, or the refusal \
                        with its code. The executor works on its own; Shadows tells you in \
@@ -124,6 +136,28 @@ impl Shadows {
             self.core
                 .runs()
                 .mark_done_for(&grant, &args.workflow_id, args.task_number, args.done)
+                .await
+                .map_err(Refusal::from),
+        )
+    }
+
+    #[tool(
+        description = "Send the executor of a task you judged what is missing or must be \
+                       extended. The task's committed attempt must be waiting for your \
+                       judgment (not marked done). The executor carries on in its own session \
+                       as a new attempt, and the addition is recorded on the task; the plan \
+                       version does not change and needs no approval. Shadows tells you again \
+                       when it ends."
+    )]
+    async fn task_amend(
+        &self,
+        Extension(grant): Extension<Grant>,
+        Parameters(args): Parameters<TaskAmendArgs>,
+    ) -> CallToolResult {
+        answer(
+            self.core
+                .runs()
+                .amend(&grant, &args.workflow_id, args.task_number, args.addition)
                 .await
                 .map_err(Refusal::from),
         )

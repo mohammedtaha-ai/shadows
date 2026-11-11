@@ -45,6 +45,8 @@ Proposed by the backend with the slice. Owner: Runs (`crates/core-runs/contract.
 B-126 changes `api/openapi.json` (`Attempt.addition`), and it is not built until this request is
 `accepted`. B-123 to B-125 change nothing the web reads in shape.
 
+Built (B-126, 2026-11-11): `Attempt.addition` is in `api/openapi.json`, required, string or null.
+
 ## Frontend reply
 
 Masada, 2026-11-11: **accepted** as asked. B-126 may build `Attempt.addition`.
