@@ -1,6 +1,6 @@
 # A changed file's content at an attempt's commit
 
-- Status: asked
+- Status: answered
 - Asked by: Masada, 2026-11-11
 - Screen: the task page's Diff tab, [plan](../../frontend/plans/2026-11-11-task-page-review-and-diff.md#f-109-the-whole-file-with-its-changes)
 
@@ -30,8 +30,27 @@ changed lines without reading git's patch format.
 
 ## Backend answer
 
-<Hamoud: as asked / with a change / not possible, and why. Name the service
-and contract it touches.>
+As asked, with one widening. Hamoud, 2026-11-11. Service: Runs
+(`crates/core-runs/contract.yaml`); route in `shadows-http`.
+
+- **`GET /api/attempts/{id}/files?path=<path>`** answers `AttemptFile { path, text: string | null,
+  cut: boolean }`: the file as the attempt's commit holds it, never the working tree. It calls
+  `Runs::file`, the same method the Planner's new `task_file` tool calls (B-129), so the page
+  and the Planner read one answer.
+- **The widening:** `path` may be any path inside the task's `writes`, not only one in the
+  attempt's diff. The page sends diff paths, so nothing changes for it; the Planner needs the
+  rest after an addition, whose diff holds only the addition's change.
+- `text` is null for a binary file and for a file the commit deleted. `cut` is true when the
+  file passed 2,000 lines or 200,000 bytes; the text is shortened with no marker in it.
+- **Errors:** 404 for an unknown attempt, an attempt with no commit, or a path not at its
+  commit; 409 `{ code: "outside_writes", reason }` for a path outside the task's `writes` (the
+  run refusal shape every run route uses).
+- **`FileDiff` gains `hunks`**, the `DiffHunk` shape the edit cards read: `{ path, old_start,
+  new_start, lines: [{ op, text }] }`, `op` one of `context`, `add`, `remove`. Read from the
+  same git patch, so they match `patch`; they stop where a long patch is cut (2,000 lines); a
+  binary file has none. `old_start` is 0 for a new file.
+- Built by B-131 once this is `accepted`. B-129 (the Planner's side) builds `Runs::file` first
+  and changes nothing the page sees.
 
 ## Frontend reply
 

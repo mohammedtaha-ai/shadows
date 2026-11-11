@@ -160,7 +160,13 @@ diagram above, §8 "The Planner on a failure", §12.4, §10 slice 3). D7 and D9 
   held until the task is marked done or the attempt is stopped. This replaces "a committed
   attempt holds its scope until its turn has ended".
 - **The Planner judges** the commit against the task's acceptance items by reading what it
-  changed. It marks the task done (`task_done`), which closes the session and frees the scope;
+  changed, with its own tools (Mohammed, 2026-11-11): `task_diff`, the latest committed
+  attempt's files with their patches, and `task_file`, any file inside the task's `writes` as
+  that commit holds it. They call Runs' `diff` and `file`, the methods the task page's Diff tab
+  reads. The Planner never asks the executor for file contents, and the executor's report
+  carries what the commit cannot show: the commands it ran and their results. Evidence: the
+  slice 1b trial on `testing3` spent two of T2's three additions asking for the committed
+  files. It marks the task done (`task_done`), which closes the session and frees the scope;
   or it sends an **addition** (`task_amend`): what is missing or must be extended. The Planner
   may also take a done mark back.
 - **An addition continues the executor in its session.** It is a new attempt on the same

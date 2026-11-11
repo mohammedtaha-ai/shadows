@@ -302,7 +302,7 @@ Order and rulings: [the program](plans/2026-11-09-local-delivery-program.md). Sl
 - Owner: Runs (`init_git`, git calls in a project folder); `shadows-mcp` and Harness (texts).
 - Read: `crates/core-runs/contract.yaml`, `crates/shadows-mcp/src/contract.yaml`, `crates/core-harness/contract.yaml`; §5.2.
 - Touch: `crates/core-runs/src/git.rs`; `crates/core-runs/src/init.rs`; `crates/core-runs/contract.yaml`; `crates/shadows-mcp/src/run_tools.rs`; `crates/shadows-mcp/src/contract.yaml`; `crates/core-harness/src/prompt.txt`; `crates/core-harness/contract.yaml`; `crates/shadows-core/tests/runs_attempts/init.rs`; `crates/shadows/tests/mcp_tools.rs`; `docs/backend/stages.md` (this entry).
-- Needs: B-127.
+- Needs: B-130 (the Planner reads commits goes first, Mohammed 2026-11-11).
 - Done when: `cargo test -p shadows-core --test runs_attempts` (the changed test and two new ones among them); `cargo test -p shadows --test mcp_tools --test mcp_server --test planner_mcp`; `cargo test -p shadows --test architecture --test codemap --test contract_tests`; rule 5's checks. One commit, `fix(backend): B-128 <goal>`.
 
 ### B-100 · The Planner sets the project up first, through a setup plan
@@ -422,7 +422,7 @@ Order and rulings: [the program](plans/2026-11-09-local-delivery-program.md). Sl
 
 ## Slice 1b: the Planner runs and judges tasks (2026-11-11)
 
-Mohammed's rulings after slice 1 ran on a real Go project: [executors design §5.1](specs/2026-11-08-executors-design.md#51-the-planner-judges-mohammed-2026-11-11). Plan: [slice 1b](plans/2026-11-11-slice-1b-planner-runs-tasks.md); each task's Interfaces and steps there are binding. It comes before slice 2. One builder, B-123 to B-125 in order, one commit each (built); B-126 waits for its shared request, then B-127, then slice 3 (B-128, B-100, B-101). Every task: new tests are live (the real adapter, real git) or run no agent, never a new fake-acp test; symbols through the LSP; only the tests named, with `-p` and the target, never `--workspace`; one build cache in `target/`, no `CARGO_TARGET_DIR`, `cargo clean` or `--release`; no `crates/**/*.rs` line over 100 columns.
+Mohammed's rulings after slice 1 ran on a real Go project: [executors design §5.1](specs/2026-11-08-executors-design.md#51-the-planner-judges-mohammed-2026-11-11). Plan: [slice 1b](plans/2026-11-11-slice-1b-planner-runs-tasks.md); each task's Interfaces and steps there are binding. It comes before slice 2. One builder, B-123 to B-125 in order, one commit each (built); B-126 waits for its shared request, then B-127, then B-129 and B-130 (the Planner reads commits, below), then slice 3 (B-128, B-100, B-101). Every task: new tests are live (the real adapter, real git) or run no agent, never a new fake-acp test; symbols through the LSP; only the tests named, with `-p` and the target, never `--workspace`; one build cache in `target/`, no `CARGO_TARGET_DIR`, `cargo clean` or `--release`; no `crates/**/*.rs` line over 100 columns.
 
 ### B-123 · The Planner initialises git in a folder that has none
 
@@ -475,6 +475,41 @@ Mohammed's rulings after slice 1 ran on a real Go project: [executors design §5
 - Touch: `crates/core-runs/src/lessons.rs` (new); `crates/core-runs/src/store/lessons.rs` (new); `crates/core-db/migrations/0056_run_lessons.sql` (new); `crates/core-runs/src/lib.rs`; `crates/core-runs/src/model.rs`; `crates/core-runs/src/error.rs`; `crates/core-runs/src/amend.rs`; `crates/core-runs/src/store/mod.rs`; `crates/core-runs/Cargo.toml` (only if a type needs a dependency it does not list); `crates/core-runs/contract.yaml`; `crates/shadows-core/src/app.rs` (the `Runs::new` call only); `crates/core-db/tests/fixtures/base_migrations.sha384` and `crates/core-db/tests/migration_checksums.rs` (if asked); `crates/core-db/contract.yaml` (if it lists migrations); `crates/shadows/tests/architecture/table-owners.txt`; `crates/shadows-mcp/src/run_tools.rs`; `crates/shadows-mcp/src/contract.yaml`; `crates/core-grants/src/tools.rs`; `crates/core-grants/contract.yaml`; `crates/core-harness/src/prompt.txt`; `crates/core-harness/contract.yaml`; `crates/shadows-core/tests/runs_attempts.rs` (module line); `crates/shadows-core/tests/runs_attempts/lessons.rs` (new); `crates/shadows/tests/mcp_server.rs`; `crates/shadows/tests/mcp_tools.rs`; `docs/codebase/README.md`; `docs/backend/stages.md` (this entry).
 - Needs: B-126.
 - Done when: `cargo test -p core-db --test migration_checksums`; `cargo test -p shadows-core --test runs_attempts` (the two new tests among them); `cargo test -p shadows --test mcp_server --test mcp_tools --test planner_mcp --test openapi` (no change to `api/`); `cargo test -p shadows --test architecture --test codemap --test contract_tests`; rule 5's checks. One commit, `feat(backend): B-127 <goal>`.
+
+## The Planner reads what an attempt committed (2026-11-11)
+
+The live trial of slice 1b (`testing3`, Planner on Codex, executor on `sonnet`) spent two of T2's three additions asking the executor for the files it had committed: no Planner tool reads a file at a commit. Plan: [the Planner reads commits](plans/2026-11-11-planner-reads-commits.md); each task's Interfaces, Rules and steps there are binding. Order: B-129, B-130, then slice 3. B-131 waits for its shared request. Slice 1b's constraints hold.
+
+### B-129 · The Planner reads what an attempt committed
+
+- Status: todo
+- Plan: [Task B-129](plans/2026-11-11-planner-reads-commits.md#task-b-129-the-planner-reads-what-an-attempt-committed).
+- Owner: Runs (`file`, a file at an attempt's commit; `diff_for` and `file_for`, the Planner's grant then the same `diff` and `file` the routes call; `Scope::admits_under`, the one writes check `report` and `file` share); `shadows-mcp` (tools `task_diff`, `task_file`); Grants (the Planner's tool list, 29); Harness (the Planner's "Running tasks", the executor's report and clean-tree lines).
+- Read: `crates/core-runs/contract.yaml`, `crates/shadows-mcp/src/contract.yaml`, `crates/core-grants/contract.yaml`, `crates/core-harness/contract.yaml`; [§5.1](specs/2026-11-08-executors-design.md#51-the-planner-judges-mohammed-2026-11-11) "The Planner judges".
+- Touch: `crates/core-runs/src/model.rs`; `crates/core-runs/src/lib.rs`; `crates/core-runs/src/scope.rs`; `crates/core-runs/src/report.rs` (`verify` calls `admits_under` only); `crates/core-runs/src/git.rs`; `crates/core-runs/src/diff.rs`; `crates/core-runs/src/planner.rs`; `crates/core-runs/src/notify.rs` (one sentence); `crates/core-runs/contract.yaml`; `crates/shadows-mcp/src/run_tools.rs`; `crates/shadows-mcp/src/contract.yaml`; `crates/core-grants/src/tools.rs`; `crates/core-grants/contract.yaml`; `crates/core-harness/src/prompt.txt`; `crates/core-harness/src/executor.md`; `crates/core-harness/src/executor.rs` (its test module only); `crates/core-harness/contract.yaml`; `crates/shadows-core/tests/runs_attempts/report.rs`; `crates/shadows/tests/mcp_server.rs` (the count); `crates/shadows/tests/mcp_tools.rs`; `crates/shadows/tests/planner_runs_live.rs`; `docs/backend/stages.md` (this entry). If the work needs another file, stop and say which and why.
+- Needs: B-127.
+- Done when: `cargo test -p core-runs` (the scope test among them); `cargo test -p core-harness`; `cargo test -p shadows-core --test runs_attempts` (the five new `report.rs` tests among them, every earlier one unchanged); `cargo test -p shadows --test mcp_tools --test mcp_server --test planner_mcp --test runs_routes`; `cargo test -p shadows --test openapi` with no change to `api/`; signed in to Claude Code: `cargo test -p shadows --test planner_runs_live live_the_planner_reads_the_commit -- --ignored --test-threads=1`, its printed line recorded here; `cargo test -p shadows --test architecture --test codemap --test contract_tests`; rule 5's checks. One commit, `feat(backend): B-129 <goal>`.
+- Then Mohammed reruns the Go trial from the browser with the Planner on Codex: no addition asks for file contents.
+
+### B-130 · An executor's Windows environment keeps `LOCALAPPDATA`
+
+- Status: todo
+- Plan: [Task B-130](plans/2026-11-11-planner-reads-commits.md#task-b-130-an-executors-windows-environment-keeps-localappdata).
+- Owner: `shadows-process` (a child's explicit environment, `Launch::command`).
+- Read: the code-map rows of `crates/shadows-process/src/launch.rs` and `lib.rs` in `docs/codebase/README.md`.
+- Touch: `crates/shadows-process/src/launch.rs` (one entry in `WINDOWS_ESSENTIAL_ENV`); `crates/shadows-process/tests/environment.rs` (new); `docs/backend/stages.md` (this entry).
+- Needs: B-129 (one commit at a time on this branch; no code dependency).
+- Done when: `cargo test -p shadows-process` (the new Windows test and every earlier one); rule 5's checks. One commit, `fix(backend): B-130 <goal>`.
+
+### B-131 · The web reads a file at an attempt's commit, and each file's hunks
+
+- Status: blocked (on `docs/shared/requests/2026-11-11-attempt-file-content.md` being `accepted`; F-109 waits on it)
+- Plan: [Task B-131](plans/2026-11-11-planner-reads-commits.md#task-b-131-the-web-reads-a-file-at-an-attempts-commit-and-each-files-hunks).
+- Owner: Runs (`FileDiff.hunks`, read from the patch `diff` already runs); `shadows-http` (route `GET /api/attempts/{id}/files?path=` calling `Runs::file`, translation only).
+- Read: `crates/core-runs/contract.yaml`, `crates/shadows-http/src/contract.yaml`; the request and its backend answer.
+- Touch: `crates/core-runs/src/model.rs`; `crates/core-runs/src/diff.rs`; `crates/core-runs/contract.yaml`; `crates/shadows-core/src/lib.rs` (the `AttemptFile` re-export); `crates/shadows-http/src/runs.rs`; `crates/shadows-http/src/lib.rs`; `crates/shadows-http/src/openapi.rs` (only if the schema must be listed); `crates/shadows-http/src/contract.yaml`; `crates/shadows-core/tests/runs_attempts/report.rs`; `crates/shadows/tests/runs_routes.rs`; `crates/shadows/tests/openapi.rs` (the route list); `api/openapi.json` (regenerated); `docs/shared/requests/2026-11-11-attempt-file-content.md` (one line in the backend answer: built); `docs/backend/stages.md` (this entry).
+- Needs: B-129; the request `accepted`.
+- Done when: `cargo test -p shadows-core --test runs_attempts` (`diff_answers_each_files_hunks` among them); `cargo test -p shadows --test runs_routes` (`a_file_at_an_attempts_commit_is_served` among them); `UPDATE_OPENAPI=1 cargo test -p shadows --test openapi` (only the new route, `AttemptFile` and `FileDiff.hunks` change); `cargo test -p shadows --test architecture --test codemap --test contract_tests`; rule 5's checks. One commit, `feat(backend): B-131 <goal>`.
 
 ### B-107 · Store a simple brief on each attempt
 
