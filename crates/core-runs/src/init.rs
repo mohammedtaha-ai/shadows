@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 
 use crate::git::Git;
 use crate::{Runs, RunsError};
-use core_code::{Asker, CodeError, InventoryKind, InventoryQuery, InventoryState};
+use core_code::{Asker, CodeError, InventoryQuery, InventoryState};
 use core_grants::{Grant, GrantKind};
 use core_projects::ProjectId;
 
@@ -99,11 +99,13 @@ impl Runs {
             for entry in page.entries {
                 let reason = entry.excluded_reason.as_deref();
                 if matches!(reason, Some("secret" | "dependencies")) {
-                    let is_dir = entry.kind == InventoryKind::Directory
-                        || reason == Some("dependencies")
-                        || tokio::fs::metadata(folder.join(&entry.path))
-                            .await
-                            .is_ok_and(|m| m.is_dir());
+                    // A left-out entry is listed as `Excluded`, never as a
+                    // folder, so the disk says which it is. A link is not
+                    // followed: git tracks it as a file, which a folder's
+                    // trailing `/` would not match.
+                    let is_dir = tokio::fs::symlink_metadata(folder.join(&entry.path))
+                        .await
+                        .is_ok_and(|m| m.is_dir());
                     paths.push((entry.path, is_dir));
                 }
             }

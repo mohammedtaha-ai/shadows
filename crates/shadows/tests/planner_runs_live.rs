@@ -469,9 +469,8 @@ fn layers(kind: &str, at: &str) -> Vec<shadows_core::PartLayer> {
 /// Gives the app's project what a person approves before plans: a whole
 /// vision, a map whose parts have kinds (the Go backend under internal/ of a
 /// module at the folder's root, its PostgreSQL database), and one roadmap
-/// outcome over both, as the
-/// person's own design edit writes them. The app's seed already approved the
-/// map and roadmap revisions.
+/// outcome over both, as the person's own design edit writes them. The app's
+/// seed already approved the map and roadmap revisions.
 async fn approved_roadmap(app: &app::App) {
     use shadows_core::{DesignOp, OutcomeContent, OutcomeId, PartContent, PartId, VisionField};
     let backend = app.part.clone().expect("the app seeds a part");
@@ -690,47 +689,42 @@ async fn live_the_planner_sets_up_an_empty_folder() {
         .lines()
         .filter_map(|l| l.trim().rsplit_once('/').map(|(d, _)| format!("{d}/")))
         .collect();
+    fn files(task: &shadows_core::PlanTask) -> Vec<&shadows_core::FileWork> {
+        task.content
+            .contract
+            .iter()
+            .flat_map(|c| c.files.iter())
+            .collect()
+    }
+    let creates = |f: &&shadows_core::FileWork| f.action == shadows_core::FileAction::Create;
     // A path some task of the plan creates may be read by a later one.
-    let created: Vec<String> = feature
+    let created: Vec<&str> = feature
         .tasks
         .iter()
-        .flat_map(|t| t.content.contract.iter().flat_map(|c| c.files.iter()))
-        .filter(|f| {
-            let action = serde_json::to_value(f.action).unwrap();
-            action
-                .as_str()
-                .is_some_and(|a| a.eq_ignore_ascii_case("create"))
-        })
-        .map(|f| f.path.clone())
+        .flat_map(files)
+        .filter(creates)
+        .map(|f| f.path.as_str())
         .collect();
     let mut on_setup = false;
     for task in &feature.tasks {
-        let value = serde_json::to_value(&task.content).unwrap();
         let mut named: Vec<String> = task.content.reads.clone();
         named.extend(task.content.writes.iter().cloned());
         on_setup |= named.iter().any(|p| {
             p.trim_start_matches("./") == "go.mod"
                 || created_dirs.iter().any(|d| p.starts_with(d.as_str()))
         });
-        let files = value["contract"]["files"]
-            .as_array()
-            .cloned()
-            .unwrap_or_default();
-        let is_create = |f: &&serde_json::Value| {
-            f["action"]
-                .as_str()
-                .is_some_and(|a| a.eq_ignore_ascii_case("create"))
-        };
-        let changed = files
+        let task_files = files(task);
+        let changed = task_files
             .iter()
-            .filter(|f| !is_create(f))
-            .filter_map(|f| f["path"].as_str());
+            .filter(|f| !creates(f))
+            .map(|f| f.path.as_str());
         let exact = task.content.reads.iter().map(String::as_str).chain(changed);
         for path in exact.filter(|p| !p.contains(['*', '?', '['])) {
             assert!(
-                root.join(path).exists() || created.iter().any(|c| c == path),
-                "T{} names {path}, which neither exists nor is created: {value}",
-                task.content.number
+                root.join(path).exists() || created.contains(&path),
+                "T{} names {path}, which neither exists nor is created: {:?}",
+                task.content.number,
+                task.content
             );
         }
     }
