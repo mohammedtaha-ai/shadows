@@ -113,7 +113,7 @@ impl Shadows {
                        back. A done task frees the tasks whose needs links wait for it. With \
                        done true it answers next: the lowest-numbered task of this version \
                        that has never run and can start now, or null; start it with \
-                       task_start."
+                       task_start. Marking it done also closes the executor's session."
     )]
     async fn task_done(
         &self,

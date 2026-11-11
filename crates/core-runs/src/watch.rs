@@ -1,4 +1,5 @@
-//! One job: noticing that an attempt's turn ended, and freeing its scope.
+//! One job: settling an attempt when its turn ends. A committed attempt keeps
+//! its scope until its task is judged.
 use std::time::Duration;
 
 use crate::Runs;
@@ -50,16 +51,41 @@ impl Runs {
             ),
             _ => None,
         };
-        if let Some(reason) = outcome
-            && let Err(error) = self
+        let told = outcome.is_some();
+        let mut failed_here = false;
+        if let Some(reason) = outcome {
+            match self
                 .inner
                 .store
                 .finish(&attempt, AttemptState::Failed, Some(reason))
                 .await
-        {
-            tracing::error!(%attempt, %error, "runs.finish_failed");
+            {
+                Ok(moved) => failed_here = moved,
+                Err(error) => tracing::error!(%attempt, %error, "runs.finish_failed"),
+            }
         }
-        self.release(&attempt, &thread).await;
+        let now = match self.inner.store.get(&attempt).await {
+            Ok(now) => now,
+            Err(error) => {
+                tracing::error!(%attempt, %error, "runs.watch_read_failed");
+                self.release(&attempt, &thread).await;
+                return;
+            }
+        };
+        match now.state {
+            // A committed attempt waits, holding its scope, for the Planner's
+            // judgment; a cancelled turn was Stop's, which released it.
+            AttemptState::Committed => {
+                if told {
+                    self.notify(&now).await;
+                }
+            }
+            AttemptState::Failed if failed_here => {
+                self.release(&attempt, &thread).await;
+                self.notify(&now).await;
+            }
+            _ => self.release(&attempt, &thread).await,
+        }
     }
 
     /// The session cannot write any more: close it, and free the scope.

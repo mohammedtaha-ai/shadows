@@ -7,9 +7,10 @@ use core_threads::ThreadId;
 impl RunsStore {
     /// Every `Running` attempt's grant is revoked and the attempt becomes
     /// `Interrupted`: an accepted report is the only way to `Committed`, and
-    /// none came. Every attempt still holding its scope releases it, because
-    /// no session of an earlier daemon is left to write. Answers how many
-    /// were interrupted.
+    /// none came. Every other attempt still holding its scope releases it,
+    /// because no session of an earlier daemon is left to write, except a
+    /// committed one: it keeps its scope while it waits for the Planner's
+    /// judgment. Answers how many were interrupted.
     pub async fn settle_running(&self) -> Result<u32, RunsError> {
         let ts = Storage::now();
         self.storage
@@ -38,7 +39,8 @@ impl RunsStore {
                     .execute(&mut *conn)
                     .await?;
                     sqlx::query(
-                        "UPDATE run_attempts SET released_at = ? WHERE released_at IS NULL",
+                        "UPDATE run_attempts SET released_at = ?
+                         WHERE released_at IS NULL AND state <> 'committed'",
                     )
                     .bind(&ts)
                     .execute(&mut *conn)

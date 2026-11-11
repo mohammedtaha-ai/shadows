@@ -956,6 +956,7 @@ fn the_planner_is_told_how_to_run_and_judge_tasks() {
         "project_git_init: when Start is refused",
         "start the task task_done names as next at once with task_start, \
          without waiting for the person",
+        "count anything the report says was skipped or could not run as not done",
     ];
     for text in texts {
         assert!(prompt.contains(text), "{text}");

@@ -55,7 +55,8 @@ layout_only: Map records contain no starter files; the stage has no Structure st
 # and, in Runs, runs_attempts::init.
 # task_start { workflow_id, task_number, model? } calls Runs::start_for and answers the Attempt;
 # task_done { workflow_id, task_number, done } calls Runs::mark_done_for and answers the
-# DoneMark { task, next }. Only the Planner's grant lists them. Runs' NotFound reads "not found:
+# DoneMark { task, next }; its description says a done mark also closes the executor's
+# session. Only the Planner's grant lists them. Runs' NotFound reads "not found:
 # no such plan version or task in this project, or no running attempt holds this grant's task".
 # Tested by mcp_server::the_tool_list_depends_on_the_grant_kind, runs_attempts::planner and,
 # live, planner_runs_live::live_the_planner_starts_the_task_it_was_asked_to_run.

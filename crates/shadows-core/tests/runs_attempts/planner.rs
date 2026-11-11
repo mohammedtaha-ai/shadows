@@ -7,7 +7,26 @@ impl Fixture {
     /// A `failed` attempt at `task` that ended and freed its scope, as a turn
     /// that ended without a commit leaves one.
     async fn failed_attempt(&self, task: u32) {
+        self.ended_attempt(task, "failed", Some("2026-10-05T00:01:00Z"))
+            .await;
+    }
+
+    /// A `committed` attempt at T3 whose turn has ended and which still holds
+    /// its scope, waiting for the Planner's judgment. It has no operation.
+    async fn committed_attempt(&self) -> core_runs::AttemptId {
+        self.ended_attempt(3, "committed", None).await
+    }
+
+    /// An attempt at `task` in `state`, ended, released at `released`.
+    async fn ended_attempt(
+        &self,
+        task: u32,
+        state: &'static str,
+        released: Option<&'static str>,
+    ) -> core_runs::AttemptId {
         let (project, workflow) = (self.project.clone(), self.workflow.clone());
+        let id = format!("{state}-{task}");
+        let row = id.clone();
         self.storage
             .write_txn(move |conn| {
                 Box::pin(async move {
@@ -18,22 +37,23 @@ impl Fixture {
                         "claude-code",
                     )
                     .await?;
-                    let id = format!("failed-{task}");
                     sqlx::query(
                         "INSERT INTO run_attempts
                            (id, project_id, workflow_id, version, task, number, thread_id,
                             model, state, reason, writes_json, started_at, ended_at,
                             released_at, command_id, fingerprint)
-                         VALUES (?, ?, ?, 1, ?, 1, ?, 'fake-large', 'failed',
-                                 'ended without a commit', '[]', '2026-10-05T00:00:00Z',
-                                 '2026-10-05T00:01:00Z', '2026-10-05T00:01:00Z', ?, 'f')",
+                         VALUES (?, ?, ?, 1, ?, 1, ?, 'fake-large', ?, NULL,
+                                 '[\"backend/app/**\"]', '2026-10-05T00:00:00Z',
+                                 '2026-10-05T00:01:00Z', ?, ?, 'f')",
                     )
-                    .bind(&id)
+                    .bind(&row)
                     .bind(project.as_str())
                     .bind(workflow.as_str())
                     .bind(i64::from(task))
                     .bind(thread.as_str())
-                    .bind(&id)
+                    .bind(state)
+                    .bind(released)
+                    .bind(&row)
                     .execute(&mut *conn)
                     .await?;
                     Ok(())
@@ -41,6 +61,23 @@ impl Fixture {
             })
             .await
             .unwrap();
+        core_runs::AttemptId::from_recorded(id)
+    }
+
+    /// How many turns the plan's Planner conversation has.
+    async fn planner_turns(&self) -> usize {
+        let thread: String =
+            sqlx::query_scalar("SELECT written_by_thread FROM workflow WHERE id = ?")
+                .bind(SOURCE)
+                .fetch_one(self.storage.reader())
+                .await
+                .unwrap();
+        self.core
+            .turns()
+            .operations(&ThreadId::from_literal(thread))
+            .await
+            .unwrap()
+            .len()
     }
 }
 
@@ -140,5 +177,43 @@ async fn the_planner_tools_refuse_a_grant_that_is_not_a_planners() {
     }
     assert!(!runs.task(&f.workflow, 1, 1).await.unwrap().done);
     assert!(runs.attempts(&f.workflow, 1, 3).await.unwrap().is_empty());
+    f.finish().await;
+}
+
+#[tokio::test]
+async fn stopping_a_committed_attempt_frees_its_scope() {
+    let f = fixture().await;
+    let id = f.committed_attempt().await;
+    let runs = f.core.runs();
+    let t3 = runs.task(&f.workflow, 1, 3).await.unwrap();
+    assert_eq!(
+        t3.start.code.as_deref(),
+        Some("task_busy"),
+        "{:?}",
+        t3.start
+    );
+    let turns = f.planner_turns().await;
+    let stopped = runs.stop(&id).await.unwrap();
+    assert_eq!(stopped.state, AttemptState::Committed);
+    let t3 = runs.task(&f.workflow, 1, 3).await.unwrap();
+    assert!(t3.start.allowed, "{:?}", t3.start);
+    assert_eq!(f.planner_turns().await, turns, "the Planner was told again");
+    f.finish().await;
+}
+
+#[tokio::test]
+async fn recovery_keeps_a_committed_attempt_waiting_for_its_judgment() {
+    let f = fixture().await;
+    f.committed_attempt().await;
+    let runs = f.core.runs();
+    let report = runs.recover().await.unwrap();
+    assert_eq!(report.interrupted, 0);
+    let t3 = runs.task(&f.workflow, 1, 3).await.unwrap();
+    assert_eq!(
+        t3.start.code.as_deref(),
+        Some("task_busy"),
+        "{:?}",
+        t3.start
+    );
     f.finish().await;
 }

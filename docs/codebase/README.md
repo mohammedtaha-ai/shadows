@@ -198,7 +198,8 @@ pattern to follow, not merely an example.
 | `crates/core-runs/src/planner.rs` | the Planner's calls on its project's tasks | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/report.rs` | accepting an attempt's reported commit | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/diff.rs` | reading an attempt's commit | `crates/core-runs/contract.yaml` |
-| `crates/core-runs/src/watch.rs` | following a turn to its end | `crates/core-runs/contract.yaml` |
+| `crates/core-runs/src/watch.rs` | settling an attempt when its turn ends | `crates/core-runs/contract.yaml` |
+| `crates/core-runs/src/notify.rs` | telling a plan's Planner how an attempt ended | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/recover.rs` | settling attempts at startup | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/store/` | run persistence | `crates/core-runs/contract.yaml` |
 | `crates/core-runtime/src/` | the runtime instance's lifecycle | `crates/core-runtime/src/lib.rs` |

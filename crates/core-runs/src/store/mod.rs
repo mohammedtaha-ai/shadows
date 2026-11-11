@@ -398,6 +398,33 @@ impl RunsStore {
             .await
     }
 
+    /// The task's latest attempt when it is committed and still holds its
+    /// scope: the one waiting for the Planner's judgment.
+    pub async fn awaiting(
+        &self,
+        workflow: &WorkflowId,
+        version: i64,
+        task: u32,
+    ) -> Result<Option<(AttemptId, ThreadId)>, RunsError> {
+        let row: Option<(String, String, String, Option<String>)> = sqlx::query_as(
+            "SELECT id, state, thread_id, released_at FROM run_attempts
+             WHERE workflow_id = ? AND version = ? AND task = ?
+             ORDER BY number DESC LIMIT 1",
+        )
+        .bind(workflow.as_str())
+        .bind(version)
+        .bind(i64::from(task))
+        .fetch_optional(self.storage.reader())
+        .await?;
+        Ok(match row {
+            Some((id, state, thread, None)) if state == AttemptState::Committed.as_str() => Some((
+                AttemptId::from_recorded(id),
+                ThreadId::from_recorded(thread),
+            )),
+            _ => None,
+        })
+    }
+
     /// A task's attempts, newest first.
     pub async fn attempts(
         &self,

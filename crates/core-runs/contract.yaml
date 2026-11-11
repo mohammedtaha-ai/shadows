@@ -7,8 +7,9 @@
 # the scope an attempt holds while its session can still write, the person's done marks that
 # `needs` links wait for, and what a restart does with attempts it finds running.
 #
-# An attempt holds its scope, the `writes` of its task, from Start until its turn has ended
-# and its session is closed (`released_at`), whatever its state. Start refuses a task whose
+# An attempt holds its scope, the `writes` of its task, from Start until its task is judged
+# (marked done) or it is stopped, and for an attempt without a commit until its turn has
+# ended; release closes its session (`released_at`). Start refuses a task whose
 # `writes` may meet a held scope; the check and the insert are one write.
 #
 # The executor commits its own files with git and reports that commit with its account of
@@ -35,7 +36,8 @@ modules:
   stop.rs: stopping an attempt
   report.rs: accepting an attempt's reported commit
   diff.rs: reading an attempt's commit
-  watch.rs: following a turn to its end and freeing the scope
+  watch.rs: settling an attempt when its turn ends
+  notify.rs: telling a plan's Planner how an attempt ended
   recover.rs: settling attempts at startup
   store/mod.rs: run SQL
   store/marks.rs: done marks SQL
@@ -44,7 +46,7 @@ modules:
 dependencies:
   plans: Plans reads the frozen version, its tasks, its links and the tasks other plans' links reach.
   harness: Harness opens the executor session in its project's folder, releases it, and names the model last used on the executor's harness.
-  turns: Turns sends the first turn and stops it.
+  turns: Turns sends the first turn and stops it, and queues the Planner's notice (Turns::queue).
   threads: Threads creates the executor thread inside the Start write.
   grants: Grants revokes an interrupted attempt's grant at startup; an executor grant names the attempt's task.
   projects: Projects names the folder git runs in.
@@ -84,8 +86,9 @@ functions:
   attempts: "(workflow, version, task) -> Vec<Attempt>, newest first"
   attempt: "(attempt) -> Attempt; one attempt as it stands, NotFound for an unknown id"
   set_first_prompt_for_tests: "test-support only: (prompt) scripts the first prompt of later attempts"
-  mark_done: "(command, workflow, version, task, done) -> TaskRun; the command record keeps every mark command: a replay writes nothing, the same id with other input is CommandConflict"
-  recover: "() -> RecoverReport; every Running attempt becomes Interrupted, its grant revoked and its scope freed; none restarted, git not read"
+  mark_done: "(command, workflow, version, task, done) -> TaskRun; the command record keeps every mark command: a replay writes nothing, the same id with other input is CommandConflict; a done mark releases the task's latest attempt when it is Committed and still holds its scope (closes its session, frees its scope); a not-done mark releases nothing"
+  notify: "private: (attempt) queues on the plan's Planner thread (WrittenBy::Planner, not removed) a [Shadows] notice with the settings of that thread's last turn and command id notify-<attempt>: committed with its sha, files (path +added -removed) and report, or failed with its reason; any failure is logged, never fails the watcher"
+  recover: "() -> RecoverReport; every Running attempt becomes Interrupted, its grant revoked and its scope freed; every other held scope is freed except a Committed attempt's, which keeps waiting for its judgment; none restarted, git not read"
 
 transitions:
   - "Start accepted: Running"
@@ -96,6 +99,9 @@ transitions:
   - "turn fails: Failed with the turn's failure"
   - "Stop confirmed: Stopped"
   - "found Running at startup: Interrupted"
+  - "turn ends after an accepted report: stays Committed, holds its scope, the Planner is told"
+  - "turn ends without a commit: Failed, scope freed, the Planner is told"
+  - "marked done: the awaiting attempt's session closes and its scope is freed"
 # A turn whose end cannot be read keeps its scope held and is read again: an unread end
 # proves nothing about whether the session can still write.
 
@@ -161,8 +167,16 @@ obligations:
     tested_by: [recover_interrupts_running_attempts_without_restarting_them]
   - rule: Tasks whose writes may meet cannot run together; disjoint ones can; two concurrent Starts admit one.
     tested_by: [overlapping_tasks_cannot_start_together, disjoint_tasks_start_together, two_concurrent_starts_of_overlapping_tasks_admit_one]
-  - rule: A committed attempt holds its scope until its turn has ended.
-    tested_by: [a_committed_attempt_holds_its_scope_until_its_turn_ends]
+  - rule: A committed attempt holds its scope after its turn has ended, until its task is marked done.
+    tested_by: [a_committed_attempt_holds_its_scope_until_it_is_marked_done]
+  - rule: Stopping a committed attempt waiting for its judgment frees its scope and tells the Planner nothing new.
+    tested_by: [stopping_a_committed_attempt_frees_its_scope]
+  - rule: A restart keeps a committed attempt waiting for its judgment, its scope held.
+    tested_by: [recovery_keeps_a_committed_attempt_waiting_for_its_judgment]
+  - rule: On the real adapter, a committed attempt's end reaches its Planner as a waiting message with its sha, and the done mark frees its scope and closes its session.
+    tested_by: [live_a_committed_attempt_reaches_its_planner_and_waits_for_its_judgment]
+  - rule: On the real adapter, an attempt that ends without a commit reaches its Planner as failed, and its scope is freed.
+    tested_by: [live_an_attempt_without_a_commit_reaches_its_planner]
   - rule: A released executor thread opens again neither as an executor nor as a Planner, and an executor's first turn hears no Planner instructions, planning context or stage line.
     tested_by: [a_released_executor_thread_does_not_open_again, an_executors_first_turn_hears_no_planner_instructions, live_an_executors_first_turn_hears_no_planner_instructions]
   - rule: A reported commit inside writes is accepted with its sha and report; the person's file outside it stays untracked; a second report is AlreadyCommitted.

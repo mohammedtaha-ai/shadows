@@ -2,18 +2,21 @@
 //! stop, reported commit, release of scope and recovery. The `Runs` service.
 //!
 //! An attempt is one executor session on one task. It holds its scope, the
-//! `writes` it may change, from Start until its turn has ended and its session
-//! is closed; Start refuses a task whose `writes` may meet a held scope.
+//! `writes` it may change, from Start until its task is judged (marked done)
+//! or it is stopped, and for an attempt without a commit until its turn has
+//! ended; Start refuses a task whose `writes` may meet a held scope.
 //! `model` holds the types, `store` the SQL, `scope` the pattern matcher,
 //! `ready` the rule for links, `git` the git calls, `init` a folder's first
-//! repository, `planner` the Planner's calls on its tasks, `start`, `stop`, `report`,
-//! `watch` and `recover` the transitions, `diff` the reading of a commit.
+//! repository, `planner` the Planner's calls on its tasks, `notify` the
+//! Planner's notice of an ended attempt, `start`, `stop`, `report`, `watch`
+//! and `recover` the transitions, `diff` the reading of a commit.
 
 mod diff;
 mod error;
 mod git;
 mod init;
 mod model;
+mod notify;
 mod planner;
 mod ready;
 mod recover;
@@ -36,6 +39,7 @@ use core_db::{CommandContext, Storage};
 use core_harness::Harness;
 use core_plans::{Plans, PlansError, WorkflowId};
 use core_projects::{ProjectId, Projects};
+use core_threads::ThreadId;
 use core_turns::Turns;
 use store::RunsStore;
 
@@ -125,22 +129,27 @@ impl Runs {
         let core_plans::WrittenBy::Planner { thread_id, .. } = &plan.written_by else {
             return None;
         };
-        let last = match self.inner.turns.operations(thread_id).await {
+        match self.last_invocation(thread_id).await {
+            Some(invocation) if invocation.harness_kind == EXECUTOR_HARNESS => {
+                Some(invocation.requested_model)
+            }
+            _ => self.executor_harness_model().await,
+        }
+    }
+
+    /// The invocation of `thread`'s latest turn by its creation, or `None`
+    /// when it has none or its turns cannot be read.
+    async fn last_invocation(&self, thread: &ThreadId) -> Option<core_turns::InvocationView> {
+        match self.inner.turns.operations(thread).await {
             Ok(operations) => operations
                 .into_iter()
                 .filter_map(|op| op.invocation.map(|i| (op.created_at, i)))
                 .max_by(|a, b| a.0.cmp(&b.0))
                 .map(|(_, invocation)| invocation),
             Err(error) => {
-                tracing::warn!(%thread_id, %error, "runs.suggested_model_unread");
+                tracing::warn!(%thread, %error, "runs.planner_unread");
                 None
             }
-        };
-        match last {
-            Some(invocation) if invocation.harness_kind == EXECUTOR_HARNESS => {
-                Some(invocation.requested_model)
-            }
-            _ => self.executor_harness_model().await,
         }
     }
 
@@ -195,6 +204,14 @@ impl Runs {
             .store
             .put_mark(command, (workflow, version, task), done)
             .await?;
+        // The judged commit's executor can write no more: close its session
+        // and free its scope. Release is idempotent, so a replay is harmless.
+        if done
+            && let Some((attempt, thread)) =
+                self.inner.store.awaiting(workflow, version, task).await?
+        {
+            self.release(&attempt, &thread).await;
+        }
         self.task(workflow, version, task).await
     }
 

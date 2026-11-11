@@ -663,7 +663,7 @@ async fn disjoint_tasks_start_together() {
 }
 
 #[tokio::test]
-async fn a_committed_attempt_holds_its_scope_until_its_turn_ends() {
+async fn a_committed_attempt_holds_its_scope_until_it_is_marked_done() {
     let f = fixture().await;
     f.hold();
     let attempt = f.start("s1", 3).await.unwrap();
@@ -679,14 +679,32 @@ async fn a_committed_attempt_holds_its_scope_until_its_turn_ends() {
         "{held:?}"
     );
     f.release();
-    for n in 0..400 {
-        match f.start(&format!("retry-{n}"), 4).await {
-            Ok(_) => return f.finish().await,
-            Err(RunsError::Overlap { .. }) => tokio::time::sleep(Duration::from_millis(25)).await,
-            Err(other) => panic!("{other:?}"),
+    let operation = attempt.operation_id.clone().unwrap();
+    let mut ended = false;
+    for _ in 0..400 {
+        let operations = f.core.turns().operations(&attempt.thread_id).await.unwrap();
+        if operations
+            .iter()
+            .any(|op| op.id == operation && op.finished_at.is_some())
+        {
+            ended = true;
+            break;
         }
+        tokio::time::sleep(Duration::from_millis(25)).await;
     }
-    panic!("the scope was never released");
+    assert!(ended, "the turn never ended");
+    let held = f.start("s3", 4).await;
+    assert!(
+        matches!(held, Err(RunsError::Overlap { task: 3 })),
+        "{held:?}"
+    );
+    f.core
+        .runs()
+        .mark_done("m1".into(), &f.workflow, 1, 3, true)
+        .await
+        .unwrap();
+    f.start("s4", 4).await.unwrap();
+    f.finish().await;
 }
 
 #[tokio::test]
