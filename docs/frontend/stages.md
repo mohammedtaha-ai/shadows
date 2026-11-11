@@ -242,7 +242,7 @@ Built by `frontend-builder`.
 
 ### F-113 · Each Planner turn is one collapsible box
 
-- Status: blocked (F-111 first)
+- Status: blocked (F-111 is done; `web/src/app/conversation/message-actions.test.tsx` is missing from Touch: its tests `a tool call reads as a tool line, not as bracketed text` and `Copy on a tool line copies its title` read a lone finished tool call, which the box now folds; they must open the box first, like the four files named below)
 - Plan: [F-113](plans/2026-11-11-shadows-notices.md#f-113--each-planner-turn-is-one-collapsible-box)
 - Read: the plan's F-113; `web/src/app/conversation/contract.yaml`; `Messages`, `ToolRow` and `EntryRow` in `messages.tsx`; `Row`, `activityRows` and `withLiveSteps` in `activity-rows.ts`; `ToolGroup` in `tool-group.tsx` (the open/fold behaviour to match); `noticeOf` in `tool-text.ts`; `noticeName` in `notice-item.tsx` (the summary's name).
 - Touch: `web/src/app/conversation/turn-blocks.ts` (new), `web/src/app/conversation/turn-blocks.test.ts` (new), `web/src/app/conversation/turn-box.tsx` (new), `web/src/app/conversation/turn-box.test.tsx` (new), `web/src/app/conversation/messages.tsx`, `web/src/app/conversation/conversation.test.tsx`, `web/src/app/conversation/streamed-reply.test.tsx`, `web/src/app/conversation/tool-group.test.tsx`, `web/src/app/conversation/plan-in-conversation.test.tsx` (these four only to open a finished turn's box before reading inside it), `web/src/app/conversation/contract.yaml`, `docs/frontend/codebase/README.md`, this stages file.
