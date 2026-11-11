@@ -1,6 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import { Check } from 'lucide-react'
-import type { Need, TaskRun } from '@/api/runs'
+import { awaitingJudgment, type Need, type TaskRun } from '@/api/runs'
 import { Button } from '@/components/ui/button'
 import { ErrorLine } from '../error-line'
 import { attemptLabel } from './use-task-run'
@@ -35,6 +35,11 @@ export function TaskHeader({ projectId, workflowId, planTitle, task, title, run,
         <span className="rounded bg-accent-line/15 px-1.5 py-0.5 text-2xs text-accent-line">
           {attemptLabel(run.latest)}
         </span>
+        {awaitingJudgment(run) && (
+          <span className="rounded bg-muted px-1.5 py-0.5 text-2xs text-muted-foreground">
+            Waiting for the Planner's judgment
+          </span>
+        )}
         {run.done && <span className="text-xs text-muted-foreground">Done</span>}
       </div>
       {run.needs.length > 0 && (

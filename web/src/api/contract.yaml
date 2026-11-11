@@ -42,7 +42,8 @@ groups:
   createGroup: Create a group using the caller's command id.
   sendToGroup: Append a person message using the caller's command id.
 runs:
-  taskRunQuery: Read a task's run state; read again every two seconds while its latest attempt runs; retry only a lost call (up to 3), never Core's answer.
+  awaitingJudgment: True when the task's latest attempt is committed and the task is not done (the planner review request's reading); the only place the web reads it.
+  taskRunQuery: Read a task's run state; read again every two seconds while its latest attempt runs or awaitingJudgment holds; retry only a lost call (up to 3), never Core's answer.
   attemptsQuery: Read a task's attempts, newest first; read again every two seconds while the newest runs; retry only a lost call (up to 3), never Core's answer.
   startAttempt: Start an attempt on a model using the caller's command id; a refusal's ApiError message is Core's reason.
   stopAttempt: Stop an attempt.

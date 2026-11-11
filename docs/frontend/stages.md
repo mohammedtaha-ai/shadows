@@ -172,7 +172,7 @@ Its Global constraints bind every task here.
 
 ### F-106 · The task page says when the task waits for the Planner's judgment
 
-- Status: todo
+- Status: done
 - Plan: [F-106](plans/2026-11-11-task-page-review-and-diff.md#f-106--the-task-page-says-when-the-task-waits-for-the-planners-judgment)
 - Read: `web/src/app/tasks/contract.yaml`; the `runs:` block of `web/src/api/contract.yaml`; [the planner review request](../shared/requests/2026-11-11-planner-review.md) "What the page can derive".
 - Touch: `web/src/api/runs.ts`, `web/src/api/contract.yaml`, `web/src/app/tasks/use-task-run.ts`, `web/src/app/tasks/task-header.tsx`, `web/src/app/tasks/task-page.test.tsx`, `web/src/app/tasks/contract.yaml`, this stages file.

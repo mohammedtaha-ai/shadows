@@ -28,9 +28,18 @@ export function taskRunQuery(workflowId: string, version: number, task: number) 
     queryKey: runKeys.task(workflowId, version, task),
     queryFn: () => getTaskRun(workflowId, version, task),
     retry: retryLost,
-    // A running attempt changes without the page asking: read it again until it ends.
-    refetchInterval: (query) => (query.state.data?.latest?.state === 'running' ? 2000 : false),
+    // A running attempt, or a committed one the Planner has not judged, changes without the page asking.
+    refetchInterval: (query) => {
+      const run = query.state.data
+      return run !== undefined && (run.latest?.state === 'running' || awaitingJudgment(run)) ? 2000 : false
+    },
   })
+}
+
+/** Whether the task waits for the Planner's judgment: its latest attempt is committed and the task is not marked done.
+ * Read as the planner review request states it (docs/shared/requests/2026-11-11-planner-review.md). */
+export function awaitingJudgment(run: TaskRun): boolean {
+  return run.latest !== null && run.latest.state === 'committed' && !run.done
 }
 
 /** The task's attempts, newest first, read again while the newest one runs. */

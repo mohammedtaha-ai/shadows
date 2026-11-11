@@ -2,7 +2,7 @@
 // person does to it (Start, Stop, mark done), each retried under its own key.
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import { type Attempt, type AttemptState, type TaskRun, attemptsQuery, invalidateRuns, markTaskDone, saveTaskRunAnswer,
   startAttempt, stopAttempt, taskRunQuery } from '@/api/runs'
 import { ApiError } from '@/api/error'
@@ -30,6 +30,15 @@ export function useTaskRun(workflowId: string, version: number, task: number) {
   const doneCommand = useRef<Command | null>(null)
 
   const refresh = () => { invalidateRuns(queryClient) }
+
+  // The Planner can start a new attempt without the page asking: when the latest one changes, read the list again.
+  const latestKey = run.data?.latest ? `${run.data.latest.id}:${run.data.latest.state}` : null
+  const seenKey = useRef(latestKey)
+  useEffect(() => {
+    if (seenKey.current === latestKey) return
+    seenKey.current = latestKey
+    void queryClient.invalidateQueries({ queryKey: attemptsQuery(workflowId, version, task).queryKey })
+  }, [latestKey, queryClient, workflowId, version, task])
 
   const start = useMutation<Attempt, Error, string>({
     mutationFn: (model) => {
