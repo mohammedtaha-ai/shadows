@@ -9,14 +9,16 @@
 //! `ready` the rule for links, `git` the git calls, `init` a folder's first
 //! repository, `planner` the Planner's calls on its tasks, `notify` the
 //! Planner's notice of an ended attempt, `amend` the Planner's addition,
-//! `start`, `stop`, `report`, `watch` and `recover` the transitions, `diff`
-//! the reading of a commit.
+//! `lessons` the record a task leaves when it stops on the cap, `start`,
+//! `stop`, `report`, `watch` and `recover` the transitions, `diff` the
+//! reading of a commit.
 
 mod amend;
 mod diff;
 mod error;
 mod git;
 mod init;
+mod lessons;
 mod model;
 mod notify;
 mod planner;
@@ -34,14 +36,15 @@ use std::sync::{Arc, Mutex};
 
 pub use error::RunsError;
 pub use model::{
-    Attempt, AttemptId, AttemptState, DoneMark, FileDiff, Need, RecoverReport, StartAnswer, TaskRun,
+    Attempt, AttemptId, AttemptState, DoneMark, FileDiff, LessonAttempt, LessonCommand, Need,
+    RecoverReport, StartAnswer, TaskLesson, TaskRun,
 };
 
 use core_db::{CommandContext, Storage};
 use core_harness::Harness;
 use core_plans::{Plans, PlansError, WorkflowId};
 use core_projects::{ProjectId, Projects};
-use core_threads::ThreadId;
+use core_threads::{ThreadId, Threads};
 use core_turns::Turns;
 use store::RunsStore;
 
@@ -63,6 +66,8 @@ struct Inner {
     harness: Arc<Harness>,
     turns: Turns,
     projects: Projects,
+    /// Read for the commands an executor ran, in a lessons record.
+    threads: Arc<Threads>,
     /// Replaces the first prompt, so a test can script the fake adapter.
     prompt: Mutex<Option<String>>,
 }
@@ -80,6 +85,7 @@ impl Runs {
         harness: Arc<Harness>,
         turns: Turns,
         projects: Projects,
+        threads: Arc<Threads>,
     ) -> Self {
         Self {
             inner: Arc::new(Inner {
@@ -88,6 +94,7 @@ impl Runs {
                 harness,
                 turns,
                 projects,
+                threads,
                 prompt: Mutex::new(None),
             }),
         }

@@ -63,9 +63,14 @@ pub enum RunsError {
     EmptyAddition,
     #[error(
         "T{task} had its 3 additions: it is stopped and goes back to the person; tell them \
-         what is still missing"
+         what is still missing; then call task_lessons with what stopped the work and what \
+         the plan should have said"
     )]
     AdditionsSpent { task: u32 },
+    #[error("T{task} has no record of a stop on the cap")]
+    NoLesson { task: u32 },
+    #[error("stopped_by and plan_should_have_said must both say something")]
+    EmptyLesson,
     #[error("the command id was used for another request")]
     CommandConflict,
     #[error("not found")]
@@ -102,6 +107,8 @@ impl RunsError {
             Self::NotAwaiting { .. } => "not_awaiting",
             Self::EmptyAddition => "empty_addition",
             Self::AdditionsSpent { .. } => "additions_spent",
+            Self::NoLesson { .. } => "no_lesson",
+            Self::EmptyLesson => "empty_lesson",
             Self::CommandConflict => "command_conflict",
             Self::NotFound => "not_found",
             Self::BadScope(_) => "bad_scope",

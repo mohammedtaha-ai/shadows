@@ -50,8 +50,9 @@ impl Runs {
             .additions_since_start(workflow, plan.version, task)
             .await?;
         if spent >= ADDITIONS {
-            self.stop(&awaiting).await?;
+            let stopped = self.stop(&awaiting).await?;
             tracing::info!(%workflow, task, "runs.additions_spent");
+            self.record_lesson(&plan, &stopped).await;
             return Err(RunsError::AdditionsSpent { task });
         }
         let previous = self.inner.store.get(&awaiting).await?;

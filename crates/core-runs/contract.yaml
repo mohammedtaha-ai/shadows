@@ -30,7 +30,7 @@ version: 1
 status: current
 source: crates/core-runs/src
 
-owns_tables: [run_attempts, run_task_marks]
+owns_tables: [run_attempts, run_task_marks, run_lessons]
 
 modules:
   lib.rs: the Runs service, its queries and done marks
@@ -43,6 +43,7 @@ modules:
   planner.rs: the Planner's calls on its project's tasks
   start.rs: starting an attempt
   amend.rs: carrying an attempt on with the Planner's addition
+  lessons.rs: the record a task leaves when it stops on the cap
   stop.rs: stopping an attempt
   report.rs: accepting an attempt's reported commit
   diff.rs: reading an attempt's commit
@@ -51,13 +52,14 @@ modules:
   recover.rs: settling attempts at startup
   store/mod.rs: run SQL
   store/marks.rs: done marks SQL
+  store/lessons.rs: lessons records SQL
   store/recover.rs: startup SQL
 
 dependencies:
   plans: Plans reads the frozen version, its tasks, its links and the tasks other plans' links reach.
   harness: Harness opens the executor session in its project's folder, releases it, and names the model last used on the executor's harness.
   turns: Turns sends the first turn and stops it, and queues the Planner's notice (Turns::queue).
-  threads: Threads creates the executor thread inside the Start write.
+  threads: Threads creates the executor thread inside the Start write, and reads the executor's entries for a lessons record.
   grants: Grants revokes an interrupted attempt's grant at startup; an executor grant names the attempt's task.
   projects: Projects names the folder git runs in.
 
@@ -77,15 +79,19 @@ shapes:
   DoneMark: "{ task: TaskRun, next }: what the Planner's mark answers; next is next_ready's task for a done mark, else null. MCP only, no route serves it"
   FileDiff: "{ path, added, removed, patch }: the patch cut at 2,000 lines with a marker"
   RecoverReport: "{ interrupted }"
-  RunsError: [NotFrozen, Superseded, Archived, Waiting, TaskBusy, Overlap, NotGit, DirtyScope, AlreadyCommitted, UnknownCommit, NotOnBranch, NotNew, OutsideWrites, BinaryFiles, AlreadyGit, NoFolder, NoModel, NotAwaiting, EmptyAddition, AdditionsSpent, CommandConflict, NotFound, BadScope, Unavailable, Storage]
+  TaskLesson: "{ workflow_id, version, task, title, attempts: [LessonAttempt], commands: [LessonCommand], stopped_by, plan_should_have_said, recorded_at }: the record a task leaves when it stops on the cap, stored as run_lessons.record_json; the two Planner fields null until it writes them. No route serves it"
+  LessonAttempt: "{ number, addition, commit, report }: the chain from the Start to the stopped attempt, oldest first; addition is what was missing"
+  LessonCommand: "{ command, status, error }: a ToolCall entry of kind execute on the executor's thread: its title, its card's status as its wire text and its error; no output is stored"
+  RunsError: [NotFrozen, Superseded, Archived, Waiting, TaskBusy, Overlap, NotGit, DirtyScope, AlreadyCommitted, UnknownCommit, NotOnBranch, NotNew, OutsideWrites, BinaryFiles, AlreadyGit, NoFolder, NoModel, NotAwaiting, EmptyAddition, AdditionsSpent, NoLesson, EmptyLesson, CommandConflict, NotFound, BadScope, Unavailable, Storage]
   # RunsError::code is the opaque id clients match on: not_frozen, waiting, task_busy, ...
   # AlreadyGit (already_git) and NoFolder (no_folder) are init_git's refusals, not Start's.
   # NoModel (no_model): start_for found no model given and none to suggest.
   # NotAwaiting (not_awaiting), EmptyAddition (empty_addition) and AdditionsSpent
-  # (additions_spent) are amend's refusals.
+  # (additions_spent) are amend's refusals; AdditionsSpent's text asks for task_lessons.
+  # NoLesson (no_lesson) and EmptyLesson (empty_lesson) are write_lesson's.
 
 functions:
-  new: "(storage, plans, harness, turns, projects) -> Runs; AppCore constructs the service"
+  new: "(storage, plans, harness, turns, projects, threads) -> Runs; AppCore constructs the service"
   start: "(command, workflow, version, task, model) -> Attempt; a replay answers the first attempt before any check the plan's later state could fail, the same id with other input is CommandConflict; then the version, the task, its needs links, then the folder: NotGit, or DirtyScope when git lists a changed path inside writes; the attempt records the commit HEAD names then (start_head); an attempt whose session or turn cannot start is recorded, so it is answered Failed with its reason, not refused; once the session opened it sends the turn only if the attempt is still Running (a Stop while the session opened found no turn to stop), and a Stop between that check and the turn's record stops the turn"
   can_start: "(workflow, version, task) -> StartAnswer; Start's checks in Start's order (the version, the task, its needs, the folder, then the busy and overlap check read without writing); a refusal is an answer with RunsError::code and its text, a failure to read is an error"
   stop: "(attempt) -> Attempt; waits for the turn's confirmed end"
@@ -93,9 +99,11 @@ functions:
   init_git: "(grant) -> String; a Thread (Planner) grant only, else NotFound; the folder from Projects (NoFolder when none); a folder inside any work tree, its own or a parent's, is AlreadyGit; then git init and one empty commit `Initial commit` as Shadows <shadows@localhost>, a git failure Unavailable; answers the full sha, writes no file, logs runs.git_initialised"
   start_for: "(grant, workflow, task, model?) -> Attempt; the Planner's grant checked (a Thread grant of the plan's project, else NotFound), then start with the trimmed model, else the task's suggested model, else NoModel; the command id is fresh"
   mark_done_for: "(grant, workflow, task, done) -> DoneMark; the Planner's grant checked as start_for, then mark_done; a done mark answers next from next_ready, which the Planner starts on its own (Mohammed, 2026-11-11)"
-  amend: "(grant, workflow, task, addition) -> Attempt; the Planner's grant checked as start_for; an empty trimmed addition is EmptyAddition; no committed attempt still holding its scope is NotAwaiting; when additions_since_start is already 3, the waiting attempt is stopped (it keeps its commit and state Committed, its session closes, its scope is freed) and AdditionsSpent, nothing else written; else continue_attempt in one write (the waiting attempt released, a Running attempt with the next number on the same thread, model and writes, recording the HEAD now and the addition), then run_turn with the addition's prompt"
+  amend: "(grant, workflow, task, addition) -> Attempt; the Planner's grant checked as start_for; an empty trimmed addition is EmptyAddition; no committed attempt still holding its scope is NotAwaiting; when additions_since_start is already 3, the waiting attempt is stopped (it keeps its commit and state Committed, its session closes, its scope is freed), record_lesson keeps its record, and AdditionsSpent, nothing else written; else continue_attempt in one write (the waiting attempt released, a Running attempt with the next number on the same thread, model and writes, recording the HEAD now and the addition), then run_turn with the addition's prompt"
   run_turn: "private: (attempt, prompt) -> Attempt; open_executor with the attempt's TaskScope and model, reopening the thread whether its session is live, closed or gone (a failure abandons it `session did not open: ...`), the still-Running check, the turn in mode auto, set_operation, the late Stop, watch. Start and amend both end here"
   additions_since_start: "private: how many of the task's attempts, newest first, carry an addition before the first that does not (the one a Start began); a new Start begins a new count"
+  record_lesson: "private: (plan, stopped) puts the task's TaskLesson in run_lessons keyed by the stopped attempt: the chain from the newest attempt down to the one a Start began, oldest first, the execute calls from Threads::entries of its thread in ordinal order, the task's title, both Planner fields null; a failure is logged runs.lesson_failed and never changes the cap's answer, success logs runs.lesson_recorded"
+  write_lesson: "(grant, workflow, task, stopped_by, plan_should_have_said) -> TaskLesson; the Planner's grant checked as start_for; both trimmed and non-empty, else EmptyLesson; the task's latest record (by created_at, then attempt_id), else NoLesson; sets the two fields and stores it; writing again replaces them. No read method, route or tool lists the records: the main session reads run_lessons.record_json"
   next_ready: "private: the lowest-numbered task never run (no done mark, no attempt at all) that Start allows now"
   diff: "(attempt) -> Vec<FileDiff>; each file of the attempt's commit, nothing before it commits"
   task: "(workflow, version, task) -> TaskRun; needs from the version's needs links and the done marks, start from can_start, suggested_model one the executor's harness (claude-code) offers: the model the plan's Planner conversation last asked for when that turn ran on claude-code, else the model last used on claude-code (Harness::remembered_model), else none; none for an external writer"
@@ -176,6 +184,10 @@ obligations:
     tested_by: [an_addition_needs_a_committed_attempt_waiting]
   - rule: A task takes three additions after its Start; the fourth stops the waiting attempt, which keeps its commit, frees its scope and writes no row; the cap opens the tool to no other grant.
     tested_by: [the_fourth_addition_stops_the_task]
+  - rule: A task stopped on the cap leaves one record with its chain of attempts and additions from its Start and its executor's shell calls in order, the Planner's fields empty.
+    tested_by: [a_task_stopped_on_the_cap_leaves_a_record]
+  - rule: The Planner writes what stopped the work and what the plan should have said into the task's record; both must say something, a task with no record is NoLesson, and only a Planner's grant may write it.
+    tested_by: [the_planner_writes_what_the_plan_should_have_said]
   - rule: On the real adapter, an addition carries the executor on in its session as a new attempt on the same thread whose commit builds on the first; the Planner runs, judges and amends a task end to end.
     tested_by: [live_an_addition_continues_the_executor_in_its_session, live_the_planner_runs_judges_and_amends_a_task]
   - rule: Stop ends the attempt, closes its session, revokes its grant and frees its scope.

@@ -959,6 +959,7 @@ fn the_planner_is_told_how_to_run_and_judge_tasks() {
         "count anything the report says was skipped or could not run as not done",
         "otherwise send task_amend with what is missing or must be extended.",
         "A task takes at most three additions after its Start",
+        "call task_lessons once",
     ];
     for text in texts {
         assert!(prompt.contains(text), "{text}");

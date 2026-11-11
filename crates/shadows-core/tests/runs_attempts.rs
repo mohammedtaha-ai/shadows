@@ -8,6 +8,8 @@
 mod cross_plan;
 #[path = "runs_attempts/init.rs"]
 mod init;
+#[path = "runs_attempts/lessons.rs"]
+mod lessons;
 #[path = "runs_attempts/live.rs"]
 mod live;
 #[path = "runs_attempts/planner.rs"]

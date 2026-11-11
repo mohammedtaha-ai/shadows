@@ -66,6 +66,10 @@ layout_only: Map records contain no starter files; the stage has no Structure st
 # Attempt; only the Planner's grant lists it. A Runs refusal (not_awaiting, empty_addition,
 # additions_spent) leads its text. Tested by mcp_server::the_tool_list_depends_on_the_grant_kind,
 # runs_attempts::planner and, live, planner_runs_live::live_the_planner_runs_judges_and_amends_a_task.
+# task_lessons { workflow_id, task_number, stopped_by, plan_should_have_said } calls
+# Runs::write_lesson and answers the TaskLesson; only the Planner's grant lists it. A Runs
+# refusal (no_lesson, empty_lesson) leads its text. Tested by
+# mcp_server::the_tool_list_depends_on_the_grant_kind and runs_attempts::lessons.
 # A task's contract rides inside task_add and task_update; the schema comes from Core's
 # TaskContent; task_context answers `contracts`. Tested by
 # mcp_tools::a_contract_written_over_mcp_is_read_the_same_over_http.

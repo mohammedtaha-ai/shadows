@@ -1,8 +1,9 @@
-//! Runs' private persistence: attempts and task marks.
+//! Runs' private persistence: attempts, task marks and lessons records.
 //!
 //! `RunsStore` is private to the crate, so its methods are `pub` only to
 //! the service; no other service's write calls into it, and nothing here is
 //! `pub(crate)` or declared under `shared_in_transaction`.
+mod lessons;
 mod marks;
 mod recover;
 

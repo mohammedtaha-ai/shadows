@@ -55,6 +55,21 @@ struct TaskAmendArgs {
     addition: String,
 }
 
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+struct TaskLessonsArgs {
+    /// The approved plan version.
+    #[schemars(with = "String")]
+    workflow_id: WorkflowId,
+    /// The task's number: 4 for T4.
+    task_number: u32,
+    /// What kept the work from being done, in a few sentences: the cause, not the
+    /// additions again.
+    stopped_by: String,
+    /// What the task should have said so the executor would not have needed an
+    /// addition: its acceptance, contract, setup or reads.
+    plan_should_have_said: String,
+}
+
 #[tool_router(router = run_tool_router, vis = "pub(super)")]
 impl Shadows {
     #[tool(
@@ -158,6 +173,32 @@ impl Shadows {
             self.core
                 .runs()
                 .amend(&grant, &args.workflow_id, args.task_number, args.addition)
+                .await
+                .map_err(Refusal::from),
+        )
+    }
+
+    #[tool(
+        description = "After a task was stopped on its three additions, record what stopped \
+                       the work and what the plan should have said. Shadows keeps it with the \
+                       task's additions and the commands the executor ran, to improve how \
+                       plans are written."
+    )]
+    async fn task_lessons(
+        &self,
+        Extension(grant): Extension<Grant>,
+        Parameters(args): Parameters<TaskLessonsArgs>,
+    ) -> CallToolResult {
+        answer(
+            self.core
+                .runs()
+                .write_lesson(
+                    &grant,
+                    &args.workflow_id,
+                    args.task_number,
+                    args.stopped_by,
+                    args.plan_should_have_said,
+                )
                 .await
                 .map_err(Refusal::from),
         )

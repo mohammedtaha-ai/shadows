@@ -114,8 +114,9 @@ functions:
   reads:
     tools_for:
       signature: "(kind: GrantKind) -> &'static [&'static str]"
-      # The Planner's (Thread) list holds 26 tools; only it holds project_files,
-      # project_refresh, project_git_init, task_start, task_done and task_amend. The project
+      # The Planner's (Thread) list holds 27 tools; only it holds project_files,
+      # project_refresh, project_git_init, task_start, task_done, task_amend and
+      # task_lessons. The project
       # and executor lists do not change.
     read_in:
       signature: "(conn, principal, agent, request) -> Result<Option<ApprovedBy>, StorageError>"

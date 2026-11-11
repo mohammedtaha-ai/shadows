@@ -153,6 +153,40 @@ pub struct FileDiff {
     pub patch: String,
 }
 
+/// The record a task leaves when it stops on the cap: the chain of attempts
+/// from its Start, the commands its executor ran, and the Planner's account
+/// of what stopped the work. The two Planner fields are `null` until it
+/// writes them. No route serves it.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct TaskLesson {
+    pub workflow_id: WorkflowId,
+    pub version: i64,
+    pub task: u32,
+    pub title: String,
+    pub attempts: Vec<LessonAttempt>,
+    pub commands: Vec<LessonCommand>,
+    pub stopped_by: Option<String>,
+    pub plan_should_have_said: Option<String>,
+    pub recorded_at: String,
+}
+
+/// One attempt of the chain, oldest first; `addition` is what was missing.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct LessonAttempt {
+    pub number: u32,
+    pub addition: Option<String>,
+    pub commit: Option<String>,
+    pub report: Option<String>,
+}
+
+/// One shell call the executor ran: its title, status and error, no output.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct LessonCommand {
+    pub command: String,
+    pub status: String,
+    pub error: Option<String>,
+}
+
 /// What startup recovery found: how many running attempts it interrupted.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct RecoverReport {

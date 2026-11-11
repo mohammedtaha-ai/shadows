@@ -468,7 +468,7 @@ Mohammed's rulings after slice 1 ran on a real Go project: [executors design §5
 
 ### B-127 · A task stopped on the cap leaves a lessons record
 
-- Status: todo (after B-126)
+- Status: done. `run_lessons` (migration 0056, owned by Runs), `TaskLesson`/`LessonAttempt`/`LessonCommand`, `record_lesson` on the cap, `Runs::write_lesson`, `NoLesson`/`EmptyLesson`, tool `task_lessons` (27 Planner tools); `Runs::new` takes `Arc<Threads>`. Tests: `migration_checksums` 1, `runs_attempts` 40 (6 ignored; the two new `lessons` tests), `mcp_server` 6 (discover count 27), `mcp_tools` 23, `planner_mcp` 24, `openapi` 8 (no change to `api/`), `architecture` 49, `codemap` 1, `contract_tests` 1; rule 5's checks clean. The test helpers `executor_thread`, `chain_attempt` and `executor_grant` live in `runs_attempts/planner.rs` (made `pub(crate)` in B-126) and `lessons.rs` uses them.
 - Plan: [Task B-127](plans/2026-11-11-slice-1b-planner-runs-tasks.md#task-b-127-a-task-stopped-on-the-cap-leaves-a-lessons-record).
 - Owner: Runs (it owns the attempts, their additions and the cap; a new table `run_lessons`); it reads the executor's entries through Threads, which `AppCore` now passes to `Runs::new`; `shadows-mcp`; Grants; Harness.
 - Read: `crates/core-runs/contract.yaml`, `crates/core-threads/contract.yaml` (`entries`), `crates/core-db/contract.yaml`, `crates/shadows-mcp/src/contract.yaml`; §5.1.
