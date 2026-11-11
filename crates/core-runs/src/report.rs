@@ -16,7 +16,8 @@ impl Runs {
     /// Accepts the commit `commit` as the work of the attempt `grant` belongs
     /// to, with `report`, the executor's account of it. The commit must be
     /// on the checked-out branch, new since Start, change only paths inside
-    /// `writes`, change at least one file, and bring no binary file.
+    /// `writes`, change at least one file, bring no binary file, and leave
+    /// nothing uncommitted inside `writes`.
     /// One accepted report per attempt.
     pub async fn report(
         &self,
@@ -104,6 +105,12 @@ impl Runs {
             .collect();
         if !binary.is_empty() {
             return Err(RunsError::BinaryFiles { paths: binary });
+        }
+        // Left over, such a change would refuse the next Start of a task
+        // with these writes.
+        let dirty = self.dirty(git, &prefix, &matcher).await?;
+        if !dirty.is_empty() {
+            return Err(RunsError::DirtyScope { paths: dirty });
         }
         Ok(sha)
     }

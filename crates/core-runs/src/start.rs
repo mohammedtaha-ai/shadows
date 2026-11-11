@@ -159,17 +159,28 @@ impl Runs {
         }
         let git = Git::at(&self.folder(&plan.project_id).await?);
         let prefix = git.prefix().await.ok_or(RunsError::NotGit)?;
-        let dirty: Vec<String> = git
-            .changed(&prefix)
-            .await
-            .map_err(RunsError::Unavailable)?
-            .into_iter()
-            .filter(|path| matcher.admits(path))
-            .collect();
+        let dirty = self.dirty(&git, &prefix, &matcher).await?;
         if !dirty.is_empty() {
             return Err(RunsError::DirtyScope { paths: dirty });
         }
         Ok(content)
+    }
+
+    /// Every uncommitted path inside the folder that `matcher` admits: the
+    /// one read Start's and a report's dirty checks both make.
+    pub(crate) async fn dirty(
+        &self,
+        git: &Git,
+        prefix: &str,
+        matcher: &Scope,
+    ) -> Result<Vec<String>, RunsError> {
+        Ok(git
+            .changed(prefix)
+            .await
+            .map_err(RunsError::Unavailable)?
+            .into_iter()
+            .filter(|path| matcher.admits(path))
+            .collect())
     }
 
     /// The attempt cannot go on: it fails with `reason` and frees its scope.

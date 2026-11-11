@@ -54,8 +54,10 @@ use store::RunsStore;
 /// says how the work ends, because the executor makes its own commit.
 const FIRST_PROMPT: &str = "Do task T{n}. Read it first: call task_context with task_number {n} \
     and no workflow_id. When the work is done, stage only your own files inside the task's \
-    writes (never a binary or an installer) and run git commit yourself, then call task_report \
-    with the commit's sha and an honest report of what you did, ran and found.";
+    writes (never a binary or an installer), run git commit yourself, and leave nothing \
+    uncommitted inside the task's writes; then call task_report with the commit's sha and an \
+    honest report of what you did, ran and found. If nothing needs to change, commit nothing \
+    and end with a last message saying why.";
 
 /// The harness an executor thread runs on, so the only one whose models an
 /// executor can be offered.
@@ -286,5 +288,20 @@ impl Runs {
             .unwrap_or_else(|poisoned| poisoned.into_inner())
             .clone()
             .unwrap_or_else(|| FIRST_PROMPT.replace("{n}", &task.to_string()))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::FIRST_PROMPT;
+
+    #[test]
+    fn the_first_prompt_says_how_an_attempt_ends() {
+        for text in [
+            "leave nothing uncommitted inside the task's writes",
+            "If nothing needs to change, commit nothing",
+        ] {
+            assert!(FIRST_PROMPT.contains(text), "{text}");
+        }
     }
 }

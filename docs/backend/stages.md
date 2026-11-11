@@ -308,7 +308,7 @@ Order and rulings: [the program](plans/2026-11-09-local-delivery-program.md). Sl
 
 ### B-136 · A report leaves nothing uncommitted inside the task's writes
 
-- Status: todo (slice 3, after B-128; two items left from the `testing3` trial, folded in on 2026-11-12)
+- Status: done (slice 3, after B-128; two items left from the `testing3` trial, folded in on 2026-11-12)
 - Plan: [Task B-136](plans/2026-11-11-slice-3-setup-first.md#task-b-136-a-report-leaves-nothing-uncommitted-inside-the-tasks-writes).
 - Owner: Runs (`report` refuses `DirtyScope` while the task's `writes` hold uncommitted changes, through the same read Start's dirty check makes, moved into one private `dirty` method; `FIRST_PROMPT` says to leave nothing uncommitted and to commit nothing when nothing changes).
 - Read: `crates/core-runs/contract.yaml` (`report`, `start`, the `check_free, checks, report` agreement).

@@ -100,7 +100,7 @@ functions:
   start: "(command, workflow, version, task, model) -> Attempt; a replay answers the first attempt before any check the plan's later state could fail, the same id with other input is CommandConflict; then the version, the task, its needs links, then the folder: NotGit, or DirtyScope when git lists a changed path inside writes; the attempt records the commit HEAD names then (start_head); an attempt whose session or turn cannot start is recorded, so it is answered Failed with its reason, not refused; once the session opened it sends the turn only if the attempt is still Running (a Stop while the session opened found no turn to stop), and a Stop between that check and the turn's record stops the turn"
   can_start: "(workflow, version, task) -> StartAnswer; Start's checks in Start's order (the version, the task, its needs, the folder, then the busy and overlap check read without writing); a refusal is an answer with RunsError::code and its text, a failure to read is an error"
   stop: "(attempt) -> Attempt; waits for the turn's confirmed end"
-  report: "(grant, commit, report) -> Attempt; the executor grant's attempt must be Running (Committed is AlreadyCommitted); then, in order: commit is a hex SHA git resolves to a commit (UnknownCommit), reachable from HEAD (NotOnBranch), not reachable from start_head (NotNew); changes at least one file (EmptyCommit with its full sha when Git::changes is empty); every path it changes against its first parent (a root commit against nothing, a rename as both ends) lies inside writes, a path outside the project folder outside them (OutsideWrites, all listed); none it adds or modifies is binary by git's numstat (BinaryFiles, all listed). A refusal leaves the attempt Running. On acceptance the attempt becomes Committed with the full sha and the trimmed report; only a Running attempt moves"
+  report: "(grant, commit, report) -> Attempt; the executor grant's attempt must be Running (Committed is AlreadyCommitted); then, in order: commit is a hex SHA git resolves to a commit (UnknownCommit), reachable from HEAD (NotOnBranch), not reachable from start_head (NotNew); changes at least one file (EmptyCommit with its full sha when Git::changes is empty); every path it changes against its first parent (a root commit against nothing, a rename as both ends) lies inside writes, a path outside the project folder outside them (OutsideWrites, all listed); none it adds or modifies is binary by git's numstat (BinaryFiles, all listed); last, dirty finds nothing uncommitted inside writes (DirtyScope, all listed; a change outside writes does not refuse it). A refusal leaves the attempt Running. On acceptance the attempt becomes Committed with the full sha and the trimmed report; only a Running attempt moves"
   init_git: "(grant) -> String; a Thread (Planner) grant only, else NotFound; the folder from Projects (NoFolder when none); a folder inside any work tree, its own or a parent's, is AlreadyGit; then Code::refresh_inventory and Code::inventory page by page (prefix empty, limit 200, after the page's next), collecting every entry whose excluded_reason is secret or dependencies; a page Indexing or Missing, or InventoryStale after one fresh start from the first page, is NotListed, nothing written yet; then git init; Git::exclude appends one line per collected path to .git/info/exclude (`/` + the path, its backslash, star, question mark, brackets, bang and hash escaped by a backslash, a trailing `/` for a folder); then Git::commit_all, git add -A and one commit `Initial commit` as Shadows <shadows@localhost> with --allow-empty, so an empty folder gets one; a git failure Unavailable; answers the full sha, writes no project file, logs runs.git_initialised with the commit and the number of paths left out"
   start_for: "(grant, workflow, task, model?) -> Attempt; the Planner's grant checked (a Thread grant of the plan's project, else NotFound), then start with the trimmed model, else the task's suggested model, else NoModel; the command id is fresh"
   mark_done_for: "(grant, workflow, task, done) -> DoneMark; the Planner's grant checked as start_for, then mark_done; a done mark answers next from next_ready, which the Planner starts on its own (Mohammed, 2026-11-11)"
@@ -143,13 +143,14 @@ transitions:
 
 agreements:
   - between: [check_free, checks, report, file]
-    rule: One matcher decides overlap at Start, the dirty check at Start, the report check and file reach.
+    rule: One matcher decides overlap at Start, the dirty checks at Start and at report, the report check and file reach.
     holds: true
     why: >
-      `check_free` asks `Scope::may_overlap` of the held attempts' writes, `checks`
-      filters git's changed paths through `Scope::admits`, and `report` checks the
-      commit's paths through Scope::admits_under, as file does; scope.rs owns the patterns.
-    tested_by: [overlapping_tasks_cannot_start_together, start_refuses_uncommitted_changes_in_writes, a_commit_with_paths_outside_writes_is_refused_until_fixed, a_path_under_the_folder_is_admitted_and_one_that_climbs_is_not]
+      `check_free` asks `Scope::may_overlap` of the held attempts' writes; `dirty`, the one
+      read Start's `checks` and `report` both make, filters git's changed paths through
+      `Scope::admits`; `report` checks the commit's paths through Scope::admits_under, as
+      file does; scope.rs owns the patterns.
+    tested_by: [overlapping_tasks_cannot_start_together, start_refuses_uncommitted_changes_in_writes, a_report_is_refused_while_writes_hold_uncommitted_changes, a_commit_with_paths_outside_writes_is_refused_until_fixed, a_path_under_the_folder_is_admitted_and_one_that_climbs_is_not]
   - between: [diff, diff_for]
     rule: The Planner's tools and the routes run one method.
     holds: true
@@ -196,8 +197,10 @@ obligations:
     tested_by: [live_the_planner_reads_the_commit_before_it_judges]
   - rule: Start opens one Running attempt on an executor thread with the model given, recording the HEAD it saw.
     tested_by: [start_opens_one_attempt_on_an_executor_thread]
-  - rule: The first prompt names only the task number and says how the work ends (commit your own files, then task_report); the executor reads its task with task_context naming no plan version, which Plans answers from its grant. The live run uses the production prompt.
-    tested_by: [live_an_executor_commits_its_own_work_and_reports_it, an_executor_grant_reads_only_its_own_task]
+  - rule: A report is refused with DirtyScope while the task's writes hold uncommitted changes; the attempt stays Running, and a change outside writes does not refuse it.
+    tested_by: [a_report_is_refused_while_writes_hold_uncommitted_changes]
+  - rule: The first prompt names only the task number and says how the work ends (commit your own files, leave nothing uncommitted inside the task's writes, then task_report; if nothing needs to change, commit nothing and say why in a last message); the executor reads its task with task_context naming no plan version, which Plans answers from its grant. The live run uses the production prompt.
+    tested_by: [the_first_prompt_says_how_an_attempt_ends, live_an_executor_commits_its_own_work_and_reports_it, an_executor_grant_reads_only_its_own_task]
   - rule: The same command id answers the same attempt, even once the plan could not start it; the same id with other input is a conflict.
     tested_by: [the_same_command_returns_the_same_attempt]
   - rule: A mark command is replayed, never applied again after a later mark, and its id names one mark.
