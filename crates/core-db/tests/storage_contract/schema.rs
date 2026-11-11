@@ -48,6 +48,8 @@ async fn fresh_database_migrates_and_applies_the_connection_policy() {
             "aylul_provider",
             "aylul_usage",
             "code_file",
+            "code_inventory",
+            "code_inventory_scan",
             "code_setting",
             "code_tag",
             "command_record",
@@ -88,6 +90,7 @@ async fn fresh_database_migrates_and_applies_the_connection_policy() {
             "project_mode",
             "queued_message",
             "run_attempts",
+            "run_lessons",
             "run_task_marks",
             "runtime_instance",
             "secret_env",
@@ -111,7 +114,8 @@ async fn fresh_database_migrates_and_applies_the_connection_policy() {
          0033 the person, 0034 usage, 0035 the extension library and its per-agent switches, \
          0036 the remembered conversation mode, \
          0039 the MCP library, its per-agent switches and declined bundled names, \
-         0040 the per-agent MCP tool rules, 0042 agent groups and their delivery journal)"
+         0040 the per-agent MCP tool rules, 0042 agent groups and their delivery journal, \
+         0054 the project's file inventory, 0056 the lessons record)"
     );
 
     storage.close().await.unwrap();
