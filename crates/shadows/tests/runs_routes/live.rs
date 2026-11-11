@@ -1,55 +1,20 @@
-//! A task run end to end over HTTP on the real Claude adapter, against
-//! MiniMax through a Claude profile, with the executor reaching Shadows'
-//! `/mcp` on a real port, or on the person's signed-in Claude Code where the
-//! executor needs `auto`. CI skips it; run it with `API_KEY_MINIMAX` set, signed
-//! in, and `-- --ignored --test-threads=1`.
+//! A task run end to end over HTTP on the real Claude adapter, on the
+//! person's signed-in Claude Code subscription (the executor runs in `auto`),
+//! with the executor reaching Shadows' `/mcp` on a real port. CI skips it;
+//! run it signed in, with `-- --ignored --test-threads=1`.
 use super::*;
 use shadows_agent::claude::ClaudeAdapter;
-use shadows_agent::profile::ClaudeProfile;
 use std::sync::Arc;
 use std::time::Duration;
 
 const ADAPTER_VERSION: &str = "0.101.0";
 const CLAUDE_VERSION: &str = "2.1.319";
-const MINIMAX_URL: &str = "https://api.minimax.io/anthropic";
-const MODEL: &str = "MiniMax-M3";
-/// What the person picks: the adapter's own alias, which the profile maps to `MODEL`.
-const PICKED: &str = "default";
 
-/// The real adapter on MiniMax, started through a launcher that sets the
-/// profile's environment; the key stays in `dir`, which the test deletes.
+/// The real adapter, started through a launcher that sets its environment;
+/// the launcher stays in `dir`, which the test deletes.
 struct LiveAdapter {
     adapter: Arc<ClaudeAdapter>,
     _dir: tempfile::TempDir,
-}
-
-fn live_adapter() -> LiveAdapter {
-    let key = std::env::var("API_KEY_MINIMAX").expect("API_KEY_MINIMAX is required");
-    let dir = tempfile::tempdir().unwrap();
-    let home = dir.path().join("home");
-    std::fs::create_dir_all(&home).unwrap();
-    std::fs::write(
-        home.join(".claude.json"),
-        r#"{"hasCompletedOnboarding":true}"#,
-    )
-    .unwrap();
-    let profile = ClaudeProfile::new(
-        "executor-routes-live".into(),
-        home,
-        [
-            ("ANTHROPIC_BASE_URL", MINIMAX_URL),
-            ("ANTHROPIC_MODEL", MODEL),
-            ("ANTHROPIC_DEFAULT_HAIKU_MODEL", MODEL),
-            ("ANTHROPIC_DEFAULT_SONNET_MODEL", MODEL),
-            ("ANTHROPIC_DEFAULT_OPUS_MODEL", MODEL),
-            ("CLAUDE_CODE_MAX_OUTPUT_TOKENS", "2048"),
-            ("CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC", "1"),
-        ]
-        .map(|(name, value)| (name.to_string(), value.to_string()))
-        .to_vec(),
-    );
-    let env = profile.spawn_env_with(&[], Some(&key)).unwrap();
-    launched(dir, env)
 }
 
 /// The model picked on the subscription.
@@ -132,9 +97,9 @@ async fn approved_task(app: &App) -> WorkflowId {
 /// the report; the commit holds only the task's path, and the person's file
 /// outside it stays untracked. The Diff route reads it.
 #[tokio::test]
-#[ignore = "live: needs API_KEY_MINIMAX"]
+#[ignore = "live: needs the signed-in Claude Code subscription"]
 async fn live_an_executor_commits_its_own_work_and_reports_it() {
-    let live = live_adapter();
+    let live = subscription_adapter();
     let tmp = tempfile::tempdir().unwrap();
     let l = listening::listening_on(tmp.path(), live.adapter.clone()).await;
     let app = &l.app;
@@ -147,7 +112,7 @@ async fn live_an_executor_commits_its_own_work_and_reports_it() {
     let (status, attempt) = post(
         app,
         &path,
-        json!({ "command_id": "live-1", "model": PICKED }),
+        json!({ "command_id": "live-1", "model": SUBSCRIPTION_MODEL }),
     )
     .await;
     assert_eq!(status, 201, "{attempt}");
