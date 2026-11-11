@@ -461,3 +461,93 @@ async fn a_sessions_grant_reaches_a_subscriber_live() {
         .await
         .unwrap();
 }
+
+#[tokio::test]
+async fn an_approval_needs_a_message_from_the_person_in_its_turn() {
+    use shadows_core::{Actor, Approver, Grants, GrantsError, ThreadEntryKind, Threads};
+    let app = test_app().await;
+    let (grant, _) = Grants::issue_thread_grant_for_test(&app.storage, &app.thread)
+        .await
+        .unwrap();
+    let writer = Writer::from_grant(&grant, None).unwrap();
+    let (thread, project) = (app.thread.clone(), app.project.clone());
+    let executor = app
+        .storage
+        .write_txn(move |conn| {
+            Box::pin(async move {
+                Threads::create_executor_in(conn, &project, "T1".into(), "claude-code").await
+            })
+        })
+        .await
+        .unwrap();
+    let op = shadows_core::Turns::create_pending_operation_for_test(
+        &app.storage,
+        &app.thread,
+        app.runtime.instance_id(),
+    )
+    .await
+    .unwrap()
+    .as_str()
+    .to_string();
+    // Writes one UserMessage of the turn by `author`, then asks for the approval.
+    let step = |author: Actor| {
+        let (thread, project, writer) = (thread.clone(), app.project.clone(), writer.clone());
+        let op = op.clone();
+        let storage = app.storage.clone();
+        async move {
+            storage
+                .write_txn(move |conn| {
+                    Box::pin(async move {
+                        let entry = Threads::append_entry_in(
+                            conn,
+                            &thread,
+                            shadows_core::testing::NewThreadEntry {
+                                kind: ThreadEntryKind::UserMessage,
+                                author,
+                                body: "words",
+                                refs: &[],
+                                card: None,
+                                operation_id: Some(&op),
+                            },
+                            "2026-11-12T00:00:00Z",
+                        )
+                        .await?;
+                        let harness = Threads::harness_in(conn, &thread, &project).await?;
+                        let approver = Approver::Planner {
+                            writer,
+                            turn: op.clone(),
+                            harness,
+                        };
+                        Ok((
+                            entry.id,
+                            Grants::authorise_in(conn, &approver, &project).await,
+                        ))
+                    })
+                })
+                .await
+                .unwrap()
+        }
+    };
+    let by_executor = Actor {
+        kind: "Executor".into(),
+        id: executor.as_str().to_string(),
+    };
+    let (_, refused) = step(by_executor.clone()).await;
+    assert!(
+        matches!(&refused, Err(GrantsError::GrantScopeMessage(m))
+            if m.starts_with("Only the person approves")),
+        "{refused:?}"
+    );
+    let (person, allowed) = step(Actor::user("local")).await;
+    assert_eq!(allowed.unwrap(), Some(person.clone()));
+    let (_, still) = step(by_executor).await;
+    assert_eq!(
+        still.unwrap(),
+        Some(person),
+        "the person's latest message is the request"
+    );
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+}

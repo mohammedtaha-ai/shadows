@@ -566,7 +566,7 @@ Mohammed's wish: each `[Shadows]` notice is drawn as an item of the Planner's ac
 
 ### B-135 · Only the person's message in a turn lets the Planner approve
 
-- Status: todo
+- Status: done
 - Plan: [Task B-135](plans/2026-11-11-marked-shadows-notices.md#task-b-135-only-the-persons-message-in-a-turn-lets-the-planner-approve).
 - Owner: Grants (`authorise_in`, the approval authority all four approvals call: vision, map, roadmap, plan); Threads (`request_entry_in` reads only the person's message, its one caller Grants).
 - Read: `crates/core-grants/contract.yaml` (`authorise_in`), `crates/core-threads/contract.yaml` (`request_entry_in`).

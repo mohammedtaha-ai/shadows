@@ -134,6 +134,10 @@ functions:
     authorise_in:
       signature: "(conn, approver: &Approver, project: &ProjectId) -> Result<Option<ThreadEntryId>, GrantsError>"
       # Callers check the running turn between the writer check and this provenance check.
+      # The request is the person's latest message in the turn (Threads::request_entry_in);
+      # none (a turn a notice started, with nothing steered in by the person) is
+      # GrantScopeMessage("Only the person approves: this turn holds no message from the person.").
+      # Vision, map, roadmap and plan approvals all reach it.
     issue:
       signature: "(&self, command_id: String, project: &ProjectId) -> Result<IssuedView, GrantsError>"
       # "McpGrantIssue", params { project }, principal User/local, scope
@@ -257,6 +261,8 @@ called_by_other_services:
 
 
 obligations:
+  - rule: Only the person's message in a turn lets the Planner approve; an executor's message is never the request.
+    tested_by: [an_approval_needs_a_message_from_the_person_in_its_turn]
   - rule: >
       Only the token's hash is stored. `mcp_grant.token_hash` holds
       `hash_token(token)`; no table cell holds the raw token; no durable

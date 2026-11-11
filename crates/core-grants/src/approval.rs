@@ -29,11 +29,14 @@ impl Grants {
         if actual != *harness {
             return Err(GrantsError::GrantScope);
         }
-        Ok(Some(
-            Threads::request_entry_in(conn, thread, turn)
-                .await?
-                .ok_or(StorageError::NotFound("request message"))?,
-        ))
+        // Only the person approves: a turn a notice started holds no message
+        // from them until they steer one in.
+        let request = Threads::request_entry_in(conn, thread, turn).await?;
+        Ok(Some(request.ok_or_else(|| {
+            GrantsError::GrantScopeMessage(
+                "Only the person approves: this turn holds no message from the person.".into(),
+            )
+        })?))
     }
 
     pub async fn read_in(
