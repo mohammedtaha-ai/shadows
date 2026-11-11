@@ -164,3 +164,44 @@ These tasks are blocked until their named backend API exists; no component imple
 - Touch: exact Create/Modify/Test file list of Task 7; no other source paths.
 - Needs: B-118, F-104; accepted shared API/model agreement. Backend must expose its generated API before this task starts.
 - Done when: all named RED/GREEN steps and focused verification commands in Task 7 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
+
+## Task page: the Planner's review and the Diff tab, 2026-11-11
+
+Plan: [2026-11-11-task-page-review-and-diff.md](plans/2026-11-11-task-page-review-and-diff.md).
+Its Global constraints bind every task here.
+
+### F-106 · The task page says when the task waits for the Planner's judgment
+
+- Status: todo
+- Plan: [F-106](plans/2026-11-11-task-page-review-and-diff.md#f-106--the-task-page-says-when-the-task-waits-for-the-planners-judgment)
+- Read: `web/src/app/tasks/contract.yaml`; the `runs:` block of `web/src/api/contract.yaml`; [the planner review request](../shared/requests/2026-11-11-planner-review.md) "What the page can derive".
+- Touch: `web/src/api/runs.ts`, `web/src/api/contract.yaml`, `web/src/app/tasks/use-task-run.ts`, `web/src/app/tasks/task-header.tsx`, `web/src/app/tasks/task-page.test.tsx`, `web/src/app/tasks/contract.yaml`, this stages file.
+- Needs: none (B-125 is built; no new field).
+- Done when: `npx vitest run src/app/tasks` passes with `a_committed_task_waits_for_the_planners_judgment` and `a_task_marked_done_does_not_wait`; typecheck, lint, build, `npx vitest run src/codemap.test.ts src/architecture` pass. One commit, `feat(web): F-106 <goal>`.
+
+### F-107 · The Diff tab: the chosen file above, the changed files in a small box below
+
+- Status: todo
+- Plan: [F-107](plans/2026-11-11-task-page-review-and-diff.md#f-107--the-diff-tab-the-chosen-file-above-the-changed-files-in-a-small-box-below)
+- Read: `web/src/app/tasks/contract.yaml`; the `tasks` rows of `docs/frontend/codebase/README.md`; `attemptDiffQuery` in `web/src/api/runs.ts`.
+- Touch: `web/src/app/tasks/diff-tab.tsx`, `web/src/app/tasks/file-patch.tsx` (new), `web/src/app/tasks/task-page.test.tsx`, `web/src/app/tasks/contract.yaml`, `docs/frontend/codebase/README.md`, this stages file.
+- Needs: none (`GET /api/attempts/{id}/diff` as it is).
+- Done when: `npx vitest run src/app/tasks` passes with `diff_opens_the_first_file_and_switches_on_click` and `diff_shows_a_cut_marker_as_plain_text`; typecheck, lint, build, `npx vitest run src/codemap.test.ts src/architecture` pass. One commit, `feat(web): F-107 <goal>`.
+
+### F-108 · An attempt's addition on the Report tab
+
+- Status: blocked (B-126 not built; `Attempt.addition` is not in `api/openapi.json`)
+- Plan: [F-108](plans/2026-11-11-task-page-review-and-diff.md#f-108--an-attempts-addition-on-the-report-tab-blocked-on-b-126)
+- Read: `web/src/app/tasks/contract.yaml`; [the planner review request](../shared/requests/2026-11-11-planner-review.md), its backend answer for the cap of 3.
+- Touch: `web/src/api/schema.d.ts` (only through `npm run gen:api`), `web/src/app/tasks/report-tab.tsx`, `web/src/app/tasks/task-page.test.tsx`, `web/src/app/tasks/contract.yaml`, this stages file. Masada amends it with the cap's field before it runs.
+- Needs: B-126; `docs/shared/requests/2026-11-11-planner-review.md` (accepted).
+- Done when: `npx vitest run src/app/tasks` passes with `the_report_shows_the_planners_addition_as_plain_text`; typecheck, lint, build, codemap and architecture pass. One commit.
+
+### F-109 · The whole file with its changes in the Diff tab
+
+- Status: blocked (request asked, not answered)
+- Plan: [F-109](plans/2026-11-11-task-page-review-and-diff.md#f-109--the-whole-file-with-its-changes-blocked-on-a-request)
+- Read: `docs/shared/requests/2026-11-11-attempt-file-content.md`.
+- Touch: written by Masada once the backend answer names the route and fields.
+- Needs: `docs/shared/requests/2026-11-11-attempt-file-content.md` accepted and built; F-107.
+- Done when: written with its Touch list.
