@@ -493,7 +493,7 @@ The live trial of slice 1b (`testing3`, Planner on Codex, executor on `sonnet`) 
 
 ### B-130 · An executor's Windows environment keeps `LOCALAPPDATA`
 
-- Status: todo
+- Status: done. `WINDOWS_ESSENTIAL_ENV` keeps `LOCALAPPDATA` after `APPDATA`; the new real Windows child test uses an empty explicit environment and confirms the inherited cache location. RED: `cargo test -p shadows-process` passed 8 containment tests, then the new environment test failed with literal `%LOCALAPPDATA%`. GREEN: `cargo test -p shadows-process`: 14 passed (8 containment, 1 environment, 5 persistent), 0 failed or ignored. `cargo clippy -p shadows-process --all-targets -- -D warnings` and `cargo clippy -p shadows-process -- -D warnings`: clean; fake-acp features do not apply to this crate. `cargo test -p shadows --test architecture --test codemap`: 49 + 1 passed. `cargo fmt --all` and `cargo fmt --all --check`: clean; Rust width check: 644 files, 0 lines over 100 columns. No full gate.
 - Plan: [Task B-130](plans/2026-11-11-planner-reads-commits.md#task-b-130-an-executors-windows-environment-keeps-localappdata).
 - Owner: `shadows-process` (a child's explicit environment, `Launch::command`).
 - Read: the code-map rows of `crates/shadows-process/src/launch.rs` and `lib.rs` in `docs/codebase/README.md`.
