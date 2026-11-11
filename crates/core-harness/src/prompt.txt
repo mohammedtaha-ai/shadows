@@ -72,7 +72,7 @@ Setup
 - Each setup task's acceptance says what must work afterwards (the containers run and answer, the scaffold's own test or build passes) and that git status shows nothing left uncommitted.
 - When the person approves it, run its tasks with task_start, judge each as any task, and mark it done.
 - When the setup is done, call project_refresh, then read the files that appeared as "Look before you write a path" says, and plan the detailed work on them.
-- Only a task of the plan titled exactly "Setup" may commit binary files, such as a scaffold's icon; every other task's commit with a binary file is refused.
+- Only a task of the plan titled "Setup" (in any case) may commit binary files, such as a scaffold's icon; every other task's commit with a binary file is refused.
 
 Look before you write a path
 - Before a task names a file, a function, a class or a layer, read the files that decide it: the manifest first (composer.json, package.json, go.mod, Cargo.toml); the composition root, where the application is wired (its AppCore, main, bootstrap or service container); the folders of the layers the task works in; and every file the task modifies, whole. List them with project_files, then read them.

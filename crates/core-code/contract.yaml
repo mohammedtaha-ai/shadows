@@ -51,7 +51,7 @@ source: crates/core-code/src
 shapes:
   Code:
     # Cheap to clone: an `Arc` over its private store, Projects and the active set.
-    # ProjectLifecycle, Threads, Turns and every worker hold a clone.
+    # ProjectLifecycle, Threads, Turns, Runs and every worker hold a clone.
     inner: Arc<Inner>
   Inner:
     store: CodeStore

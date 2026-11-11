@@ -967,7 +967,7 @@ fn the_planner_sets_the_project_up_first() {
         "Every setup task writes files.",
         "git status shows nothing left uncommitted",
         "read the files that appeared as \"Look before you write a path\" says",
-        "Only a task of the plan titled exactly \"Setup\" may commit binary files",
+        "Only a task of the plan titled \"Setup\" (in any case) may commit binary files",
     ];
     for text in texts {
         assert!(prompt.contains(text), "{text}");

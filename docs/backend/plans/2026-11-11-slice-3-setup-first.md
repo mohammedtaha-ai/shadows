@@ -258,7 +258,7 @@ async fn a_report_is_refused_while_writes_hold_uncommitted_changes() {
   `- Each setup task's acceptance says what must work afterwards (the containers run and answer, the scaffold's own test or build passes) and that git status shows nothing left uncommitted.`
   `- When the person approves it, run its tasks with task_start, judge each as any task, and mark it done.`
   `- When the setup is done, call project_refresh, then read the files that appeared as "Look before you write a path" says, and plan the detailed work on them.`
-  `- Only a task of the plan titled exactly "Setup" may commit binary files, such as a scaffold's icon; every other task's commit with a binary file is refused.`
+  `- Only a task of the plan titled "Setup" (in any case) may commit binary files, such as a scaffold's icon; every other task's commit with a binary file is refused.`
 - `core-harness`' contract: the prompt's section list gains `Setup`, and the Agent Mode
   phrase it repeats goes (line 65's "explicitly requested action in Agent Mode").
 - **The binary rule in Runs** (`crates/core-runs/src/report.rs`): `verify` skips the
@@ -274,7 +274,7 @@ async fn a_report_is_refused_while_writes_hold_uncommitted_changes() {
     `shadows_core::testing::PROMPT` contains `"set the project up before you plan anything in
     detail"`, `"Every setup task writes files."`, `"git status shows nothing left
     uncommitted"`, `"read the files that appeared as \"Look before you write a path\" says"` and
-    `"Only a task of the plan titled exactly \"Setup\" may commit binary files"`, and does not
+    `"Only a task of the plan titled \"Setup\" (in any case) may commit binary files"`, and does not
     contain `"Agent Mode"`.
   - In `crates/shadows-core/tests/runs_attempts.rs`, `fixture_with` takes the source plan's
     title through a new `fixture_titled(title: &str)` that it and the other helpers call with

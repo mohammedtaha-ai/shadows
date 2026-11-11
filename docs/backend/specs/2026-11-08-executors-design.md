@@ -285,8 +285,8 @@ before had never called `Edit` or `Write`. This replaces the first bullet above:
   nothing the commit check does not; they are gone.
 - **The reported commit is the one write boundary.** `task_report` refuses a commit that
   changes a path outside `writes`, as before. It also refuses one while `writes` still hold
-  uncommitted changes (`dirty_scope`, the same read Start makes; planned as B-136,
-  2026-11-12): what an attempt leaves inside its task's paths is either committed or removed,
+  uncommitted changes (`dirty_scope`, the same read Start makes):
+  what an attempt leaves inside its task's paths is either committed or removed,
   so the next Start is not refused for it. A person's edit inside a running task's `writes`
   blocks its report the same way until it is committed or removed (accepted, Mohammed,
   2026-11-12).
