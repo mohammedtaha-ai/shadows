@@ -190,10 +190,10 @@ Its Global constraints bind every task here.
 
 ### F-110 · A task stopped on the cap does not wait for the Planner's judgment
 
-- Status: todo
+- Status: done
 - Plan: main session's ruling, 2026-11-11 (B-126 as planned in `2d48930c`: a fourth `task_amend` stops the waiting attempt, frees its scope, and Start is allowed again). "Waiting for the Planner's judgment" holds only when `run.latest` is committed, `run.done` is false **and** `run.start.code === 'task_busy'`. No new Core field. A capped task (committed, not done, Start allowed) shows nothing extra until F-108, and is not read again every two seconds.
 - Read: `awaitingJudgment` in `web/src/api/runs.ts`; the `runs:` block of `web/src/api/contract.yaml`; `web/src/app/tasks/contract.yaml`.
-- Touch: `web/src/api/runs.ts` (`awaitingJudgment` and its doc comment), `web/src/api/contract.yaml`, `web/src/app/tasks/task-page.test.tsx` (the F-106 waiting test's fixture gets `start: { allowed: false, code: 'task_busy', reason: ... }`; one new test), `web/src/app/tasks/contract.yaml` (the waiting obligation names the `task_busy` condition and the new test), this stages file.
+- Touch: `web/src/api/runs.ts` (`awaitingJudgment` and its doc comment), `web/src/api/contract.yaml`, `web/src/app/tasks/task-page.test.tsx` (the F-106 waiting test's fixture gets `start: { allowed: false, code: 'task_busy', reason: ... }`; one new test), `web/src/app/tasks/contract.yaml` (the waiting obligation names the `task_busy` condition and the new test; also delete the duplicated Diff tab obligation F-107 committed twice), this stages file.
 - Needs: F-106.
 - Done when: `npx vitest run src/app/tasks` passes, with `a_task_stopped_on_the_cap_does_not_wait` (latest committed, `done: false`, `start.allowed: true`, codes null: no badge, and the task is not read again after two seconds) and the existing waiting tests; typecheck, lint, build, `npx vitest run src/codemap.test.ts src/architecture` pass. One commit, `fix(web): F-110 <goal>`.
 

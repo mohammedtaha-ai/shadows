@@ -132,12 +132,30 @@ describe('the task page', () => {
   })
 
   it('a_committed_task_waits_for_the_planners_judgment', async () => {
-    let current = taskRun({ latest: attempt({ state: 'committed', commit: 'abc123' }) })
+    let current = taskRun({
+      latest: attempt({ state: 'committed', commit: 'abc123' }),
+      start: { allowed: false, code: 'task_busy', reason: 'the Planner is judging' },
+    })
     const a = (app = await startApp(PAGE, answers({ taskRun: () => Response.json(current) })))
     await until(() => a.text().includes("Waiting for the Planner's judgment"))
     current = { ...current, done: true, done_at: '2026-11-11T10:00:00Z' }
     await until(() => !a.text().includes("Waiting for the Planner's judgment"))
     expect(a.text()).toContain('Done')
+  })
+
+  it('a_task_stopped_on_the_cap_does_not_wait', async () => {
+    let reads = 0
+    const a = (app = await startApp(PAGE, answers({
+      taskRun: () => {
+        reads += 1
+        return Response.json(taskRun({ latest: attempt({ state: 'committed', commit: 'abc123' }) }))
+      },
+    })))
+    await until(() => a.text().includes('Committed'))
+    const before = reads
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 2500)) })
+    expect(a.text()).not.toContain("Waiting for the Planner's judgment")
+    expect(reads).toBe(before)
   })
 
   it('a_task_marked_done_does_not_wait', async () => {
