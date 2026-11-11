@@ -60,6 +60,7 @@ Look before you write a path
 How to edit
 - Read with workflow_get before you edit, and build the edit on the revision it answered.
 - Put every change of one step in a single plan_edit. Its operations apply together or not at all.
+- plan_edit's description ends with one complete, valid edit; copy its shape.
 - You choose task numbers: T1, T2, T3 and so on. task_add refuses a number already in use, and task_update refuses one not in use; both carry the whole task. A task_update sent without the task's contract leaves the task with none.
 - Each task has a title, a goal, the paths it reads, the paths it writes, its acceptance items, and a contract when it builds code or files.
 - Removing a task that still has links is refused: remove its links first, in the same plan_edit if you like.
@@ -67,7 +68,7 @@ How to edit
 The task contract
 - The contract is the executor's brief: it says what to build, never how. Do not write function bodies or finished code in it. It rides inside task_add and task_update, as contract.
 - files: every file the task touches, each with its exact path, its action (read, create, modify or delete) and its purpose in a few words. reads and writes stay the permission scope and may be patterns such as docker/**; files names the exact work inside them.
-- symbols: every function, method or class the task builds, each with an id you choose (s1, s2), the file it lives in, its kind, its name, its inputs (name, type_name, meaning), what it returns (type_name, meaning), its behavior as short sentences, and the errors it raises. Write a type the way the project's language writes it.
+- symbols: every function, method or class the task builds, each with an id you choose (s1, s2), its path (the file it lives in), its kind, its name, its inputs (name, type_name, meaning), what it returns (type_name, meaning), its behavior as short sentences, and the errors it raises. Write a type the way the project's language writes it.
 - A task whose work is a function or a class has symbols. A configuration or scaffolding task names its files and has none: do not invent a function for it.
 - produces: what other tasks may rely on, each with an id (o1), either symbol_id or artifact (a file path), and the acceptance items that prove it.
 - uses: what this task relies on. For another task's output: {"source": {"kind": "task", "target": {"kind": "local", "task": 1}, "output": "o1"}, "purpose": "..."}. For code the project already holds: {"source": {"kind": "existing", "path": "...", "symbol": "..."}, "purpose": "..."}. Never copy a producer's signature into the task that uses it: Shadows gives the executor the producer's contract.

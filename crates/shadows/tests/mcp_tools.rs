@@ -886,6 +886,8 @@ fn the_planner_is_told_what_a_contract_holds() {
         "do not invent a function for it",
         "Never copy a producer's signature",
         "A task_update sent without the task's contract leaves the task with none.",
+        "its path (the file it lives in)",
+        "plan_edit's description ends with one complete, valid edit; copy its shape.",
     ] {
         assert!(prompt.contains(text), "{text}");
     }
