@@ -990,3 +990,18 @@ async fn the_planner_reads_a_commit_with_its_own_tools() {
         .await
         .unwrap();
 }
+
+#[test]
+fn the_planner_reads_the_code_before_it_plans() {
+    let prompt = shadows_core::testing::PROMPT;
+    assert!(!prompt.contains("you cannot run commands"));
+    for text in [
+        "on Codex with read-only shell commands in the project's folder",
+        "Never run a command that writes, installs, builds, starts a server or reaches the network",
+        "the composition root, where the application is wired",
+        "and every file the task modifies, whole",
+        "A plan written from file names alone is not ready.",
+    ] {
+        assert!(prompt.contains(text), "{text}");
+    }
+}

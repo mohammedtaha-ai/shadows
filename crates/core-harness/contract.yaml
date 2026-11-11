@@ -596,6 +596,14 @@ shared_in_transaction:
 
 
 obligations:
+  - rule: >
+      The Planner reads the manifest, composition root, relevant layers and every modified
+      file whole before naming files or symbols in a task. It reads on Claude Code with
+      Read, Grep and Glob, and on Codex with read-only shell commands in the project folder.
+      Commands that write, install, build, start servers or reach the network are forbidden;
+      Shadows tools are its only writes. File names alone do not make a plan ready.
+    tested_by: [the_planner_reads_the_code_before_it_plans,
+      live_a_codex_planner_reads_a_file_and_writes_none]
   - rule: invocation_in and invocations_in read planning_context from the turn's context record (LEFT JOIN invocation_context), heard if acknowledged, prepared if unconfirmed, null without a record.
     tested_by: ["integration: an_invocation_without_a_record_has_no_planning_context", "integration: a_prepared_record_reads_prepared", "integration: a_heard_record_reads_heard"]
     note: The tests live in crates/shadows/tests/context_record.rs and read through the operations list and Turns get_operation.

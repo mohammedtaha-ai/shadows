@@ -517,13 +517,16 @@ Two rulings of Mohammed after the same trial: the Planner reads the code before 
 
 ### B-132 · The Planner reads the code before it plans, on every harness
 
-- Status: todo
+- Status: done
 - Plan: [Task B-132](plans/2026-11-11-planner-reads-code-and-real-commits.md#task-b-132-the-planner-reads-the-code-before-it-plans-on-every-harness).
 - Owner: Harness (the Planner's instructions). The Codex session's sandbox (`shadows-agent`, `codex/session.rs`) does not change: `read-only` with `approvalPolicy: never` already runs read commands (§12.14); the instructions forbade them.
 - Read: `crates/core-harness/contract.yaml`; [§12.14](../core/specs/2026-09-24-harness-controls-design.md#1214-codex-over-app-server) "First permission and tool gate"; the fixture of `crates/shadows-core/tests/codex_session.rs`.
 - Touch: `crates/core-harness/src/prompt.txt`; `crates/core-harness/contract.yaml`; `crates/shadows/tests/mcp_tools.rs`; `crates/shadows-core/tests/codex_session.rs` (the live test and the start it needs); `docs/backend/stages.md` (this entry). If a read is refused under the real sandbox, stop and report the refusal; change no sandbox setting.
 - Needs: B-130.
 - Done when: `cargo test -p shadows --test mcp_tools` (`the_planner_reads_the_code_before_it_plans` and every earlier prompt pin); `cargo test -p shadows --test planner_mcp --test mcp_server`; `cargo test -p shadows-core --test codex_session` (fixture tests unchanged); with codex signed in to a dedicated home: `SHADOWS_CODEX_PATH=<codex> SHADOWS_CODEX_HOME=<home> cargo test -p shadows-core --test codex_session live_a_codex_planner_reads -- --ignored --test-threads=1`, its printed line recorded here; `cargo test -p shadows --test architecture --test codemap --test contract_tests`; rule 5's checks. One commit, `feat(backend): B-132 <goal>`.
+- Verified (2026-11-11): `cargo test -p shadows --test mcp_tools`: 25 passed (red first: 24 passed, 1 failed); `cargo test -p shadows --test planner_mcp --test mcp_server`: 24 + 6 passed; `cargo test -p shadows-core --test codex_session`: 17 passed, 1 ignored.
+- Live (once, real signed-in Codex, catalog default; both SHADOWS_CODEX_PATH and SHADOWS_CODEX_HOME set in the same shell command, RUST_TEST_NOCAPTURE=1): `cargo test -p shadows-core --test codex_session live_a_codex_planner_reads -- --ignored --test-threads=1`: 1 passed, 17 filtered out. Printed: `live codex read: 42791ef0 1 tool entries`.
+- Checks: `cargo test -p shadows --test architecture --test codemap --test contract_tests`: 49 + 1 + 1 passed (contract discovery first failed on the multiline ignore attribute; attribute order fixed inside the allowed live test). `cargo fmt --all`; `cargo fmt --all --check`; `cargo clippy -p core-harness -p shadows-core -p shadows --all-targets --features shadows/test-support -- -D warnings`; `cargo clippy -p core-harness -p shadows-core -p shadows -- -D warnings`: passed. Rust files under crates checked: no line over 100 columns. No full gate run.
 - Then Mohammed plans a task on `testing3` with the Planner on Codex: the conversation shows it reading the manifest, the composition root and the files the task modifies before `plan_edit`.
 
 ### B-133 · An executor's commit must change something

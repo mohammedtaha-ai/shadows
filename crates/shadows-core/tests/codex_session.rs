@@ -152,6 +152,68 @@ impl World {
         }
     }
 
+    /// Starts the real Codex program in the supplied project folder.
+    async fn start_live(root: tempfile::TempDir) -> Self {
+        let program = std::env::var_os("SHADOWS_CODEX_PATH")
+            .expect("SHADOWS_CODEX_PATH must name the signed-in Codex program");
+        let home = std::env::var_os("SHADOWS_CODEX_HOME")
+            .expect("SHADOWS_CODEX_HOME must name its dedicated signed-in home");
+        let directory = root.path().join("project");
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let mcp = format!("http://{}/mcp", listener.local_addr().unwrap());
+        let absent = root.path().join("absent");
+        let core = AppCore::start(
+            &StartConfig {
+                secret_key: KeySource::Given(None),
+                db_path: root.path().join("core.db"),
+                node_path: absent.clone(),
+                adapter_path: absent.clone(),
+                harness_path: absent,
+                codex_path: Some(PathBuf::from(program)),
+                codex_home: Some(PathBuf::from(home)),
+                aylul: None,
+            },
+            mcp,
+        )
+        .await
+        .unwrap();
+        let project = core
+            .projects()
+            .create(
+                "create".into(),
+                "probe",
+                "Codex project",
+                directory.to_str().unwrap(),
+            )
+            .await
+            .unwrap()
+            .id;
+        core.design()
+            .seed_roadmap_for_tests(&project)
+            .await
+            .unwrap();
+        let thread = core
+            .threads()
+            .create("thread".into(), &project, "Codex", Some("codex"), None)
+            .await
+            .unwrap()
+            .id;
+        let audit = Arc::new(Audit::default());
+        let router = shadows_mcp::service(core.clone())
+            .layer(middleware::from_fn_with_state(audit.clone(), observe));
+        let server = tokio::spawn(async move {
+            axum::serve(listener, router).await.unwrap();
+        });
+        Self {
+            core,
+            project,
+            thread,
+            audit,
+            server,
+            _root: root,
+        }
+    }
+
     async fn start_turn(&self, command: &str, prompt: &str) -> OperationId {
         self.send(&self.thread, command, prompt, "fixture-model", Some("low"))
             .await
@@ -751,5 +813,104 @@ async fn codex_steer_targets_the_active_turn() {
         "{written:?}"
     );
     assert_eq!(w.core.turns().operations(&w.thread).await.unwrap().len(), 1);
+    w.close().await;
+}
+
+/// A Codex Planner reads a project file and leaves no file after a request to write.
+#[ignore = "live: needs codex (SHADOWS_CODEX_PATH) signed in to a dedicated home \
+            (SHADOWS_CODEX_HOME)"]
+#[tokio::test]
+async fn live_a_codex_planner_reads_a_file_and_writes_none() {
+    async fn finished(w: &World, operation: &OperationId) -> Operation {
+        tokio::time::timeout(Duration::from_secs(180), async {
+            loop {
+                if let Some(done) = w
+                    .core
+                    .turns()
+                    .operations(&w.thread)
+                    .await
+                    .unwrap()
+                    .into_iter()
+                    .find(|op| &op.id == operation && op.finished_at.is_some())
+                {
+                    return done;
+                }
+                tokio::time::sleep(Duration::from_millis(50)).await;
+            }
+        })
+        .await
+        .expect("the live Codex turn reached a terminal status")
+    }
+
+    let root = tempfile::tempdir().unwrap();
+    let directory = root.path().join("project");
+    std::fs::create_dir_all(directory.join("notes")).unwrap();
+    let word = uuid::Uuid::new_v4().simple().to_string()[..8].to_owned();
+    std::fs::write(directory.join("notes/word.txt"), &word).unwrap();
+    let w = World::start_live(root).await;
+    let choices = w.core.harness().open_session(&w.thread).await.unwrap();
+    let current = choices.current;
+    let operation = w
+        .send(
+            &w.thread,
+            "read",
+            "What word is written in notes/word.txt? \
+             Read the file, then answer with the word only.",
+            &current.model,
+            current.effort.as_deref(),
+        )
+        .await
+        .unwrap();
+    let done = finished(&w, &operation).await;
+    assert_eq!(done.status_kind, "Completed", "{done:?}");
+    let entries = w.core.threads().entries(&w.thread).await.unwrap();
+    let reply = entries
+        .iter()
+        .rev()
+        .find(|entry| {
+            entry.kind == shadows_core::ThreadEntryKind::AgentMessage
+                && entry.operation_id.as_deref() == Some(operation.as_str())
+        })
+        .expect("the read turn's reply");
+    assert_eq!(
+        reply.body.trim(),
+        word,
+        "the reply must come from reading the file"
+    );
+    let tools = entries
+        .iter()
+        .filter(|entry| entry.kind == shadows_core::ThreadEntryKind::ToolCall)
+        .count();
+    assert!(tools > 0, "the read must leave a tool entry");
+
+    let operation = w
+        .send(
+            &w.thread,
+            "write",
+            "Create the file made.txt in the project folder containing x.",
+            &current.model,
+            current.effort.as_deref(),
+        )
+        .await
+        .unwrap();
+    let done = finished(&w, &operation).await;
+    assert!(
+        matches!(done.status_kind.as_str(), "Completed" | "Failed"),
+        "{done:?}"
+    );
+    assert!(
+        !directory.join("made.txt").exists(),
+        "the Planner must never write"
+    );
+    let tools = w
+        .core
+        .threads()
+        .entries(&w.thread)
+        .await
+        .unwrap()
+        .iter()
+        .filter(|entry| entry.kind == shadows_core::ThreadEntryKind::ToolCall)
+        .count();
+    println!("live codex read: {word} {tools} tool entries");
     w.close().await;
 }
