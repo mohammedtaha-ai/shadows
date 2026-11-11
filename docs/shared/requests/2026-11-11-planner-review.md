@@ -26,6 +26,9 @@ What the page can derive, with no new field:
   While it waits, Start answers `task_busy` (its scope is held) and the run's session stays open.
 - **Judged:** `done` true. The Planner's mark and the person's mark are the same mark.
 - **Additions on the task:** the attempts with a non-null `addition`, in `number` order.
+- **Stopped on the cap** (three additions per Start, Mohammed 2026-11-11): the latest attempt
+  is `committed`, carries an `addition`, `done` is false and Start is allowed again (its scope
+  was freed by the stop). The task is back with the person; Start begins a new count.
 
 The conversation also shows the Planner's notices: a message on the plan's conversation whose
 text starts with `[Shadows] T<n> "<title>"`, written as the person's side of a turn. Styling it

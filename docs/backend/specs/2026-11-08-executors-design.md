@@ -5,7 +5,9 @@
   controller; `core-runs` (§9) and the controller's calls (§12) approved with it. Amended
   2026-11-09 by Mohammed: the executor makes its own commit and reports it (§7). Amended
   2026-11-11 by Mohammed: the executor runs in `auto` from one file (§7); the Planner starts,
-  judges and continues tasks in place of the critic and the ladder (§5.1).
+  judges and continues tasks in place of the critic and the ladder (§5.1), with three
+  additions per task, a lessons record and one review path; setup comes first, as a plan the
+  Planner runs (§5.2).
 - Builds on, and does not replace:
   - Core vision §2 (bounded executors who ask Shadows), §3 (a failing test that belongs to
     another task), §5 (the escalation ladder), §6 (executors and critics) — `docs/core/vision.md`;
@@ -170,12 +172,45 @@ diagram above, §8 "The Planner on a failure", §12.4, §10 slice 3). D7 and D9 
   empty first commit made in Shadows' name, refused when the folder is already inside one. It
   writes no file; starter files stay a task's work. Git belongs to Runs (§12.2).
 
-> **OPEN: is there a cap on additions?** There is none: every addition is shown to the person
-> as a message in the conversation and on the task, and Stop ends it. Closed when a real run
-> shows the Planner looping, or Mohammed sets a number.
+- **Three additions per task start** (Mohammed, 2026-11-11). A fourth is refused: Runs stops
+  the waiting attempt (its commit stays; its session closes and its scope is freed) and the
+  task goes back to the person. A new Start begins a new count.
+- **A task stopped on the cap leaves a lessons record** (Mohammed, 2026-11-11), a JSON record
+  Runs keeps to improve Shadows: the plan version and task, each attempt of the chain with its
+  addition (what was missing), commit and report, the shell commands the executor ran (their
+  titles, status and error, from the executor thread's tool-call entries; their output is not
+  stored), and two texts the Planner writes with `task_lessons`: what stopped the work, and
+  what the plan should have said so the executor need not have come back.
+
+**One review path** (Mohammed, 2026-11-11). An attempt's end reaches a judgment by one road:
+Runs' watcher sees the turn end → `Runs::notify` hands the attempt on → the Planner judges →
+`task_done` (`mark_done`, which the person's done mark also calls) or `task_amend` (`amend`).
+Nothing else marks a task done or continues it. **A reviewer plugs in at `notify`:** a critic
+(or any third agent) would be started there on the attempt's commit, and its findings would
+join the same notice, so the Planner still decides and nothing after `notify` changes. No
+hook, trait or field exists for it until that reviewer is built.
 
 > **OPEN: does the critic come back?** The Planner's judgment replaces it. Closed when a real
-> run shows the Planner marking done work that does not hold, which is the critic's case.
+> run shows the Planner marking done work that does not hold, which is the critic's case; it
+> then plugs in at `notify` as above.
+
+### 5.2 Setup before detailed planning (Mohammed, 2026-11-11)
+
+Setup belongs to the Planner and comes first: once the roadmap is approved, the Planner makes
+the folder a git repository if it is not one, then writes and runs a **setup plan** that
+brings the environment (database and service containers) and the initial structure (the
+framework's scaffold, in each runnable part's folder as the map places it). Only when it is
+done does the Planner refresh the file listing and plan the detailed work on the files that
+appeared. Executors then build features.
+
+The setup is an ordinary plan run through §5.1: its tasks are executor attempts the Planner
+starts and judges, and **each lands as a reported commit**, so no file appears in the folder
+without a commit as its source. The Planner itself writes no file. This replaces the separate
+preparation worker the local delivery draft planned (its B-100 to B-102).
+
+> **OPEN: is "setup first" enforced?** Only the Planner's instructions order it; nothing
+> refuses a detailed plan while the setup plan is not done. Closed when a real run shows the
+> Planner planning in detail before its setup is done.
 
 ## 6. Running together in one folder (D2, D3)
 

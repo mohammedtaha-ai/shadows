@@ -39,9 +39,9 @@ is detailed.
 | Slice | Backend tasks | Runnable outcome | Web tasks | Draft material |
 |---|---|---|---|---|
 | 1. Real files and the task contract | B-96, B-99, B-103, B-104, B-106 | The Planner and the person see the files the project really holds. A task names file work and function behavior, and the executor reads that through `task_context`. | F-99 (files view), F-101 | [discovery](2026-11-09-repository-discovery.md), [contracts](2026-11-09-detailed-task-contracts.md) |
-| 1b. The Planner runs and judges tasks | B-123 to B-126 | The Planner makes the folder a git repository, starts a task, hears how its attempt ended, judges the commit, and marks the task done or sends an addition the executor carries on with in its own session. | per [request](../../shared/requests/2026-11-11-planner-review.md) (Masada numbers it) | [slice 1b](2026-11-11-slice-1b-planner-runs-tasks.md) (detailed) |
+| 1b. The Planner runs and judges tasks | B-123 to B-127 | The Planner makes the folder a git repository, starts a task, hears how its attempt ended, judges the commit, and marks the task done or sends an addition (three at most) the executor carries on with in its own session; a task stopped on the cap leaves a lessons record. | per [request](../../shared/requests/2026-11-11-planner-review.md) (Masada numbers it) | [slice 1b](2026-11-11-slice-1b-planner-runs-tasks.md) (detailed) |
+| 3. Setup first, through the Planner | B-100, B-101 (B-102 dropped) | Before planning in detail, the Planner sets the project up (git, containers, the framework's scaffold) as a setup plan whose tasks land as recorded commits, then plans on the files that appeared. | none (F-100's preparation view is not needed) | [slice 3](2026-11-11-slice-3-setup-first.md) (detailed) |
 | 2. Real language servers for the project's languages | B-97, B-98, B-119 | `Code` answers definition and reference questions from the servers its files' languages need, beside the existing name index; a server not installed shows "not installed" with its install command. | F-99 (server status) | [discovery](2026-11-09-repository-discovery.md) |
-| 3. Framework preparation from planning | B-100 to B-102 | The Planner prepares an agreed empty destination and plans on the files that appear. | F-100 | [preparation](2026-11-09-project-preparation.md) |
 | 4. The attempt brief and task questions | B-107 to B-109 | The executor receives one brief per attempt and asks about code beside its task's obligations. | F-102 | [briefs](2026-11-09-execution-briefs.md) |
 | 5. Checks | B-111, B-113 (re-scoped), B-114 | A task's required checks run and are recorded, so the Planner judges on evidence. | F-103 | [checks](2026-11-09-checks-and-critic.md) |
 | 6. Stopping obsolete plans and full acceptance | B-117, B-118 | A new Draft stops its plan's attempts, and the whole journey survives interruption. | F-104, F-105 | [repair](2026-11-09-repair-and-acceptance.md) |
@@ -57,6 +57,13 @@ Slice 1 changes two tasks from the draft:
 - **B-106** exposes the contract without decisions, and updates the executor's
   instructions so the contract is part of its brief.
 
+**The order is 1, 1b, 3, 2, 4, 5, 6** (Mohammed, 2026-11-11). Slices keep their numbers so
+earlier references stay true. Slice 3 moves up because setup belongs to the Planner before
+detailed planning ([§5.2](../specs/2026-11-08-executors-design.md#52-setup-before-detailed-planning-mohammed-2026-11-11)).
+It no longer builds the draft's preparation worker, grant kind, thread kind, table and routes:
+the setup is a plan whose tasks are ordinary attempts, so each lands as a recorded commit.
+B-102 is dropped, and the web's preparation view (F-100) is not needed.
+
 **Slice 1b comes before slice 2** (Mohammed, 2026-11-11, after trying slice 1 on a real Go
 project; [executors design §5.1](../specs/2026-11-08-executors-design.md#51-the-planner-judges-mohammed-2026-11-11)).
 The Planner is the reviewer, and an addition replaces a retry. What it does to the later
@@ -66,7 +73,7 @@ slices:
   an addition is a new attempt on the same executor thread.
 - **Replaced:** B-116 (find the actual Planner, the three-attempt ladder) by B-125: the
   Planner is the plan version's `written_by` thread, the notice is a waiting message through
-  `Turns::queue`, and there is no ladder (an OPEN block in §5.1 holds the cap question).
+  `Turns::queue`, and the ladder becomes a cap of three additions per task start (B-126).
   B-112 (the critic session) by the Planner's judgment, and B-110 (source at the reported SHA),
   whose only reader was the critic, with it; both come back only if §5.1's critic OPEN closes
   that way.
@@ -113,9 +120,9 @@ detailed.
 
 ## Corrections to examine when their slice is detailed
 
-- **Slice 3:** whether preparation can be an ordinary executor attempt with the
-  destination as its write scope, in place of a new worker, grant kind, thread
-  kind and table.
+- **Slice 3:** settled 2026-11-11: preparation is an ordinary setup plan run
+  through the Planner's tools, in place of a new worker, grant kind, thread kind
+  and table.
 - **Slice 4:** `task_question` refuses a file outside the task's reads while
   the executor's own Read and Bash are not limited. The boundary is the commit
   ([executors design](../specs/2026-11-08-executors-design.md), section 7), so

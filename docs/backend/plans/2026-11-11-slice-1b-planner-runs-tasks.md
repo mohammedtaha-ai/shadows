@@ -302,7 +302,10 @@ Web request: [planner review](../../shared/requests/2026-11-11-planner-review.md
 - `task_done`'s description adds: "Marking it done also closes the executor's session."
 - `prompt.txt`, `Running tasks` gains:
   `- When an executor's attempt ends, Shadows tells you in a message that starts with [Shadows]: the commit, the files it changed and the executor's report, or why it failed. Judge a commit yourself against the task's acceptance items: read the files it changed, and count anything the report says was skipped or could not run as not done. Mark the task done with task_done only when every item holds; otherwise tell the person what is missing.`
-- Recovery does not change: a committed attempt keeps its scope across a restart.
+- Recovery keeps a committed attempt's scope across a restart: `RunsStore::settle_running`
+  (`store/recover.rs`) frees every other held scope but not a `committed` one's. (Corrected
+  2026-11-11 during the build: the first text said recovery did not change, and it released
+  them.)
 
 - [ ] **Step 1: Change and write the tests.**
   - Rename `a_committed_attempt_holds_its_scope_until_its_turn_ends` to
@@ -363,7 +366,9 @@ Web request: [planner review](../../shared/requests/2026-11-11-planner-review.md
 - Create: `crates/core-db/migrations/0055_attempt_addition.sql`
 - Modify: `crates/core-runs/src/start.rs`, `crates/core-runs/src/lib.rs`,
   `crates/core-runs/src/model.rs`, `crates/core-runs/src/error.rs`,
-  `crates/core-runs/src/store/mod.rs`, `crates/core-runs/contract.yaml`
+  `crates/core-runs/src/store/mod.rs`, `crates/core-runs/src/notify.rs` (the last-addition
+  line), `crates/core-runs/contract.yaml`
+- Modify: `crates/shadows-core/tests/runs_attempts.rs` (review fix R-125-2 only)
 - Modify: `crates/core-db/tests/fixtures/base_migrations.sha384` and
   `crates/core-db/tests/migration_checksums.rs` (as B-96 did, if the checksum test asks),
   `crates/core-db/contract.yaml` (if it lists migrations)
@@ -383,8 +388,16 @@ Web request: [planner review](../../shared/requests/2026-11-11-planner-review.md
   `/// The Planner's addition this attempt carried on with, in the session of the attempt before it; null for an attempt Start began.`
   `#[schema(required)] pub addition: Option<String>`. `load` reads it.
 - `error.rs`: `NotAwaiting { task: u32 }` (text "T{task} has no committed attempt waiting for
-  your judgment", code `not_awaiting`) and `EmptyAddition` (text "an addition says what is
-  missing or must be extended; it cannot be empty", code `empty_addition`).
+  your judgment", code `not_awaiting`), `EmptyAddition` (text "an addition says what is
+  missing or must be extended; it cannot be empty", code `empty_addition`) and
+  `AdditionsSpent { task: u32 }` (text "T{task} had its 3 additions: it is stopped and goes
+  back to the person; tell them what is still missing", code `additions_spent`).
+- **The cap (Mohammed, 2026-11-11): three additions per task start.** `amend.rs` holds
+  `const ADDITIONS: u32 = 3;`. `store/mod.rs` gains
+  `pub async fn additions_since_start(&self, workflow: &WorkflowId, version: i64, task: u32) -> Result<u32, RunsError>`:
+  how many of the task's attempts, counted from the highest `number` down, carry an
+  `addition` before the first that does not (the one a Start began). A new Start by the
+  person or the Planner begins a new count.
 - `store/mod.rs`: `pub(crate) struct Continued { pub(crate) addition: String, pub(crate) start_head: Option<String> }`
   and `pub async fn continue_attempt(&self, previous: &AttemptId, next: Continued) -> Result<Attempt, RunsError>`,
   one write: `previous` must be `committed` with `released_at IS NULL`, else
@@ -399,10 +412,29 @@ Web request: [planner review](../../shared/requests/2026-11-11-planner-review.md
   calls it with `self.first_prompt(task)`. One rule, one place, for both.
 - `amend.rs`: `pub async fn amend(&self, grant: &Grant, workflow: &WorkflowId, task: u32, addition: String) -> Result<Attempt, RunsError>`:
   `planner_plan`; trimmed `addition` empty → `EmptyAddition`; `store.awaiting(workflow,
-  plan.version, task)` `None` → `NotAwaiting { task }`; the previous attempt; `start_head` =
-  `Git::at(folder).head()`; `continue_attempt`; then
-  `run_turn(next, ADDITION.replace(..))`. `open_executor` reopens the thread whether its
-  session is live, closed for idleness or gone after a restart.
+  plan.version, task)` `None` → `NotAwaiting { task }`; when `additions_since_start` is
+  already `ADDITIONS`, `self.stop(&awaiting)` (the attempt keeps its commit and state
+  `Committed`; its session closes and its scope is freed) and `AdditionsSpent { task }`, with
+  nothing else written; else the previous attempt; `start_head` = `Git::at(folder).head()`;
+  `continue_attempt`; then `run_turn(next, ADDITION.replace(..))`. `open_executor` reopens the
+  thread whether its session is live, closed for idleness or gone after a restart.
+- `notify.rs`: a committed notice for an attempt whose `additions_since_start` is
+  `ADDITIONS` gains, before its last line, exactly: `This attempt carried T{n}'s third and
+  last addition: mark it done, or the task stops and goes back to the person.`
+- **One review path.** An attempt's end reaches its judge by one road only: `watch` sees the
+  turn end → `notify` hands the attempt on → the Planner judges → `task_done` (`mark_done`)
+  or `task_amend` (`amend`). Nothing else marks or continues a task. `core-runs`' contract
+  says so in its header, and names `notify` as the one place a reviewer would be added. No
+  trait, hook or field is built for it now.
+- Review fixes carried here (Hamoud's review of B-123 to B-125, 2026-11-11):
+  - **R-125-1:** `task_start`'s description says "only when the person asked you to run it",
+    which contradicts the done-mark rule. It becomes: "Start an executor on one task of an
+    approved plan version: one the person asked you to run, or the task task_done named as
+    next." The rest of the description stays.
+  - **R-125-2:** `a_committed_attempt_holds_its_scope_until_it_is_marked_done` checks the
+    held scope as soon as the turn's operation has `finished_at`, before the watcher has
+    necessarily acted, so the check would pass even if the watcher still released it. Before
+    `f.start("s3", 4)`, sleep 500 ms (twenty of the watcher's 25 ms polls).
   `ADDITION`, exactly:
   ```text
   The Planner reviewed your commit {sha} for task T{n} and asks for more:
@@ -421,13 +453,21 @@ Web request: [planner review](../../shared/requests/2026-11-11-planner-review.md
 - `THREAD_TOOLS` gains `"task_amend"` (26 tools).
 - `prompt.txt`: in B-125's line, "otherwise tell the person what is missing." becomes
   "otherwise send task_amend with what is missing or must be extended." and `Running tasks`
-  gains: `- task_amend: the executor carries on in its own session; the addition is recorded on the task, and the plan version does not change.`
+  gains: `- task_amend: the executor carries on in its own session; the addition is recorded on the task, and the plan version does not change. A task takes at most three additions after its Start; a fourth is refused, the task is stopped, and it goes back to the person.`
+  The prompt test also asserts `"A task takes at most three additions after its Start"`.
 
 - [ ] **Step 1: Write the failing tests.**
   - `runs_attempts/planner.rs`, `an_addition_needs_a_committed_attempt_waiting` (no agent):
     with no attempt, `amend(&grant, &f.workflow, 3, "x".into())` is `NotAwaiting { task: 3 }`;
     with a `running` row, the same; `amend(.., "   ".into())` is `EmptyAddition`; with an
     executor grant, `NotFound`; no row was added (`attempts` length unchanged).
+  - `runs_attempts/planner.rs`, `the_fourth_addition_stops_the_task` (no agent): rows for T3
+    numbered 1 to 4, as `report.rs`'s `begin` inserts them: 1 with no `addition`, 2 to 4 each
+    with one, all `committed` with `ended_at`, 1 to 3 released, 4 not. `amend(.., "more".into())`
+    is `AdditionsSpent { task: 3 }`; attempt 4 is still `Committed`; `task(.., 3).start.allowed`
+    is true; `attempts(.., 3)` still has 4 rows. Then a row 5 with no `addition` and a row 6
+    with one, `committed`, not released: `additions_since_start` is 1, and `amend` with an
+    executor grant is still `NotFound` (the cap does not open the tool to others).
   - `runs_attempts/live.rs`, `live_an_addition_continues_the_executor_in_its_session`
     (subscription): as B-125's committed test up to the commit's report and the turn's end; then
     `amend(&planner_grant, &f.workflow, 3, "Add a second line with the word B to the file you created in this task.".into())`
@@ -460,8 +500,128 @@ Web request: [planner review](../../shared/requests/2026-11-11-planner-review.md
   and `cargo test -p shadows --test planner_runs_live live_the_planner_runs_judges -- --ignored --test-threads=1`,
   printed lines recorded; then architecture, codemap, contract_tests.
 - [ ] **Step 5: Contracts and map.** `core-runs`: `modules.amend.rs`, `functions.amend` and
-  `run_turn`, `Attempt.addition`, the two errors, a transition "an addition: the waiting
-  attempt is released into a new Running attempt on the same thread", an agreement
+  `run_turn`, `additions_since_start`, `Attempt.addition`, the three errors, a transition
+  "an addition: the waiting attempt is released into a new Running attempt on the same
+  thread" and "a fourth addition: the waiting attempt is stopped, the task goes back to the
+  person", obligations for the two no-agent tests, the one-review-path header note, an
+  agreement
   `[start, amend]` "one `run_turn` opens the session and sends the turn" tested by the live
   addition test; `core-db`: 0055; the tool lists; code-map row for `amend.rs`.
 - [ ] **Step 6: Commit** `feat(backend): B-126 an addition continues the executor in its session, recorded on the task`.
+
+## Task B-127: A task stopped on the cap leaves a lessons record
+
+Mohammed, 2026-11-11: when a task stops on the cap, Shadows keeps a JSON record that can be
+read to improve Shadows: the plan and version, the task, each addition's text (what was
+missing), what stopped the work, what the plan should have said so the executor need not have
+come back, and the commands the executor ran.
+
+**Owner:** Runs. It owns the attempts, their additions and the cap; the record is about one
+task's run, as the done marks are. It reads the executor's entries through Threads, which
+`Runs::new` now receives from `AppCore` (a service gets the services it calls through its
+constructor).
+
+**What Shadows has for the commands.** Every tool the executor ran is a `ToolCall` entry on its
+executor thread (`Threads::entries`, in ordinal order): `body` is the title the adapter gave the
+call, and `card` is a `ToolCallCard` with `kind`, `status` and `error`. For a shell call
+(`kind` `execute`) the title is the command line as Claude Code shows it. The raw input and the
+output are not stored, so the record holds each shell call's title, status and error, and no
+output. All of a chain's attempts share one thread, so the commands are the thread's, in order,
+not split by attempt.
+
+**Files:**
+- Create: `crates/core-runs/src/lessons.rs` (one job: the record a task leaves when it stops on
+  the cap), `crates/core-runs/src/store/lessons.rs`,
+  `crates/core-db/migrations/0056_run_lessons.sql`
+- Modify: `crates/core-runs/src/lib.rs` (`Inner.threads`, `Runs::new`),
+  `crates/core-runs/src/model.rs`, `crates/core-runs/src/error.rs`,
+  `crates/core-runs/src/amend.rs`, `crates/core-runs/src/store/mod.rs`,
+  `crates/core-runs/Cargo.toml` (only if the entry or card type needs a dependency it does not
+  list), `crates/core-runs/contract.yaml`
+- Modify: `crates/shadows-core/src/app.rs` (pass `threads.clone()` to `Runs::new`)
+- Modify: `crates/core-db/tests/fixtures/base_migrations.sha384`,
+  `crates/core-db/tests/migration_checksums.rs` (if asked), `crates/core-db/contract.yaml` (if it
+  lists migrations), `crates/shadows/tests/architecture/table-owners.txt` (`run_lessons`, runs)
+- Modify: `crates/shadows-mcp/src/run_tools.rs`, `crates/shadows-mcp/src/contract.yaml`,
+  `crates/core-grants/src/tools.rs`, `crates/core-grants/contract.yaml`,
+  `crates/core-harness/src/prompt.txt`, `crates/core-harness/contract.yaml`
+- Test: `crates/shadows-core/tests/runs_attempts/lessons.rs` (new module),
+  `crates/shadows-core/tests/runs_attempts.rs` (module line),
+  `crates/shadows/tests/mcp_server.rs`, `crates/shadows/tests/mcp_tools.rs`
+
+**Interfaces:**
+- Migration `0056_run_lessons.sql`, with a comment saying one row is the record a task left
+  when it stopped on the cap, keyed by the attempt that was stopped:
+  `CREATE TABLE run_lessons (attempt_id TEXT PRIMARY KEY, project_id TEXT NOT NULL, workflow_id TEXT NOT NULL, version INTEGER NOT NULL, task INTEGER NOT NULL, record_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);`
+  and an index on `(workflow_id, version, task)`.
+- `model.rs`, all `#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]`,
+  no `utoipa` (no route serves them):
+  - `pub struct TaskLesson { pub workflow_id: WorkflowId, pub version: i64, pub task: u32, pub title: String, pub attempts: Vec<LessonAttempt>, pub commands: Vec<LessonCommand>, pub stopped_by: Option<String>, pub plan_should_have_said: Option<String>, pub recorded_at: String }`;
+    the two Planner fields are `null` until it writes them.
+  - `pub struct LessonAttempt { pub number: u32, pub addition: Option<String>, pub commit: Option<String>, pub report: Option<String> }`:
+    the chain from the Start to the stopped attempt, oldest first; `addition` is what was missing.
+  - `pub struct LessonCommand { pub command: String, pub status: String, pub error: Option<String> }`.
+- `error.rs`: `NoLesson { task: u32 }` (text "T{task} has no record of a stop on the cap",
+  code `no_lesson`) and `EmptyLesson` (text "stopped_by and plan_should_have_said must both say
+  something", code `empty_lesson`).
+- `store/lessons.rs`:
+  `put_lesson(&self, attempt: &AttemptId, project: &ProjectId, lesson: &TaskLesson) -> Result<(), RunsError>`
+  (insert, or replace the row of the same attempt);
+  `latest_lesson(&self, workflow: &WorkflowId, version: i64, task: u32) -> Result<Option<(AttemptId, ProjectId, TaskLesson)>, RunsError>`
+  (by `created_at`, then `attempt_id`);
+  `lessons(&self, project: &ProjectId) -> Result<Vec<TaskLesson>, RunsError>` (by `created_at`).
+- `lessons.rs`:
+  - `pub(crate) async fn record_lesson(&self, plan: &Plan, stopped: &Attempt)`: the chain
+    (the task's attempts from the newest down to and including the first with no `addition`,
+    then oldest first), the commands from `self.inner.threads.entries(&stopped.thread_id)`
+    (each `ToolCall` whose card's `kind` is `execute`; `command` the entry's body, `status` the
+    card's status as its wire text, `error` the card's), `title` from the plan, both Planner
+    fields `None`, `recorded_at` now. A failure is logged `runs.lesson_failed` and never
+    changes the cap's answer; success logs `runs.lesson_recorded` with the task.
+  - `pub async fn write_lesson(&self, grant: &Grant, workflow: &WorkflowId, task: u32, stopped_by: String, plan_should_have_said: String) -> Result<TaskLesson, RunsError>`:
+    `planner_plan`; both trimmed and non-empty, else `EmptyLesson`; `latest_lesson`, else
+    `NoLesson { task }`; sets the two fields, stores, answers the record. Writing again
+    replaces the two fields.
+  - `pub async fn lessons(&self, project: &ProjectId) -> Result<Vec<TaskLesson>, RunsError>`:
+    every record of the project, for reading; no route or tool serves it yet.
+- `amend.rs`: on the cap, after `self.stop(..)`, `self.record_lesson(&plan, &stopped)` before
+  answering `AdditionsSpent`; that error's text gains "; then call task_lessons with what
+  stopped the work and what the plan should have said".
+- `run_tools.rs`: `task_lessons { workflow_id: WorkflowId, task_number: u32, stopped_by: String, plan_should_have_said: String }`.
+  Docs: `stopped_by` "What kept the work from being done, in a few sentences: the cause, not
+  the additions again."; `plan_should_have_said` "What the task should have said so the
+  executor would not have needed an addition: its acceptance, contract, setup or reads."
+  Description: "After a task was stopped on its three additions, record what stopped the work
+  and what the plan should have said. Shadows keeps it with the task's additions and the
+  commands the executor ran, to improve how plans are written." Answers the `TaskLesson`.
+- `THREAD_TOOLS` gains `"task_lessons"` (27 tools).
+- `prompt.txt`, `Running tasks` gains: `- task_lessons: when task_amend is refused because the task had its three additions, call task_lessons once: what stopped the work, and what the plan should have said so the executor would not have needed an addition. Then tell the person.`
+
+- [ ] **Step 1: Write the failing tests** in `runs_attempts/lessons.rs` (no agent; attempt rows
+  as in B-126's cap test, on one executor thread made with `Threads::create_executor_in`;
+  entries appended with `Threads::append_thread_entry`, the test-only write: two `ToolCall`
+  entries with cards of kind `execute`, `go test ./...` completed and `docker compose up -d`
+  failed with error `docker: not found`, and one of kind `edit`):
+  - `a_task_stopped_on_the_cap_leaves_a_record`: the fourth `amend` is `AdditionsSpent`; then
+    `lessons(&f.project)` has one record for T3: `attempts` numbered 1 to 4 with the additions
+    as inserted (`None` for 1); `commands` exactly the two `execute` calls in order, the second
+    with its error; both Planner fields `None`.
+  - `the_planner_writes_what_the_plan_should_have_said`: then `write_lesson(&grant, .., 3,
+    "Docker is not installed here.", "T3 needs Docker; the setup plan should install or check it.")`
+    answers the record with both fields; `lessons` reads them back; `write_lesson` with `"  "`
+    is `EmptyLesson`; for T4 (no record) `NoLesson { task: 4 }`; with an executor grant,
+    `NotFound`.
+  - The prompt test also asserts `"call task_lessons once"`.
+- [ ] **Step 2: Run them and see them fail:** `cargo test -p shadows-core --test runs_attempts lesson`.
+- [ ] **Step 3: Implement** the migration, the Interfaces, the wiring in `app.rs` and the tool;
+  add it to `mcp_server.rs`'s lists.
+- [ ] **Step 4: Run** `cargo test -p core-db --test migration_checksums`;
+  `cargo test -p shadows-core --test runs_attempts`;
+  `cargo test -p shadows --test mcp_server --test mcp_tools --test planner_mcp --test openapi`
+  (no change to `api/`); `cargo test -p shadows --test architecture --test codemap --test contract_tests`.
+- [ ] **Step 5: Contracts and map.** `core-runs`: `owns_tables` gains `run_lessons`;
+  `dependencies.threads` adds "reads the executor's entries for a lessons record"; `new` takes
+  `threads`; `modules.lessons.rs` and `store/lessons.rs`; the functions and shapes above;
+  obligations for the two tests. `core-db`: 0056. The tool lists. Code-map rows for both new
+  files.
+- [ ] **Step 6: Commit** `feat(backend): B-127 a task stopped on the cap leaves a lessons record`.

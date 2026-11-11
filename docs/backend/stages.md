@@ -295,35 +295,29 @@ Order and rulings: [the program](plans/2026-11-09-local-delivery-program.md). Sl
 - Read, Touch, Done when: written when slice 2 is detailed.
 - Needs: B-98, B-99.
 
-### B-100 · Preparation request, scope and persistence
+### B-100 · The Planner sets the project up first, through a setup plan
 
-- Status: blocked (prerequisites below must ship first)
-- Plan: [Task 1](plans/2026-11-09-project-preparation.md#task-1-b-100-preparation-request-scope-and-persistence).
-- Owner: Runs and Grants.
-- Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
-- Touch: exact Create/Modify/Test file list of Task 1; no other source paths.
-- Needs: B-99; accepted shared API/model agreement.
-- Done when: all named RED/GREEN steps and focused verification commands in Task 1 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
+- Status: todo (slice 3, after slice 1b; Mohammed, 2026-11-11, [§5.2](specs/2026-11-08-executors-design.md#52-setup-before-detailed-planning-mohammed-2026-11-11)). Replaces the draft's preparation request, scope and persistence: no new worker, grant kind, thread kind, table or route.
+- Plan: [Task B-100](plans/2026-11-11-slice-3-setup-first.md#task-b-100-the-planner-sets-the-project-up-first-through-a-setup-plan).
+- Owner: Harness (the Planner's instructions).
+- Read: `crates/core-harness/contract.yaml`; §5.2; slice 1b's Global Constraints.
+- Touch: `crates/core-harness/src/prompt.txt`; `crates/core-harness/contract.yaml`; `crates/shadows/tests/mcp_tools.rs`; `docs/backend/stages.md` (this entry).
+- Needs: B-127.
+- Done when: `cargo test -p shadows --test mcp_tools --test planner_mcp`; `cargo test -p core-harness`; `cargo test -p shadows --test architecture --test codemap --test contract_tests`; rule 5's checks. One commit, `feat(backend): B-100 <goal>`.
 
-### B-101 · Bounded preparation worker and refreshed result
+### B-101 · A setup runs end to end on an empty folder
 
-- Status: blocked (prerequisites below must ship first)
-- Plan: [Task 2](plans/2026-11-09-project-preparation.md#task-2-b-101-bounded-preparation-worker-and-refreshed-result).
-- Owner: Runs and Harness.
-- Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
-- Touch: exact Create/Modify/Test file list of Task 2; no other source paths.
-- Needs: B-100; accepted shared API/model agreement. 
-- Done when: all named RED/GREEN steps and focused verification commands in Task 2 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
+- Status: todo (slice 3)
+- Plan: [Task B-101](plans/2026-11-11-slice-3-setup-first.md#task-b-101-a-setup-runs-end-to-end-on-an-empty-folder).
+- Owner: none new: the slice's acceptance through Runs, Plans and the Planner.
+- Read: §5.2; `crates/core-runs/contract.yaml`; B-124's live fixtures.
+- Touch: `crates/shadows/tests/planner_runs_live.rs`; `crates/core-runs/contract.yaml` (one obligation); `docs/backend/stages.md` (this entry). If the run fails on Shadows' side, stop and report the refusal; widen no rule.
+- Needs: B-100. Signed in to Claude Code, with Docker running.
+- Done when: `cargo test -p shadows --test planner_runs_live live_the_planner_sets_up -- --ignored --test-threads=1` passes, its printed line recorded here; `cargo test -p shadows --test contract_tests`. One commit, `test(backend): B-101 <goal>`. Then Mohammed sets up a new project from the browser.
 
 ### B-102 · Preparation HTTP/MCP and observable status
 
-- Status: blocked (prerequisites below must ship first)
-- Plan: [Task 3](plans/2026-11-09-project-preparation.md#task-3-b-102-preparation-httpmcp-and-observable-status).
-- Owner: Runs adapters.
-- Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
-- Touch: exact Create/Modify/Test file list of Task 3; no other source paths.
-- Needs: B-101; accepted shared API/model agreement. 
-- Done when: all named RED/GREEN steps and focused verification commands in Task 3 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
+- Status: dropped (2026-11-11): the setup plan is read through the plan and task routes that exist; nothing is left for it to carry.
 
 ### B-103 · A task carries its file work and symbol work
 
@@ -418,7 +412,7 @@ Order and rulings: [the program](plans/2026-11-09-local-delivery-program.md). Sl
 
 ## Slice 1b: the Planner runs and judges tasks (2026-11-11)
 
-Mohammed's rulings after slice 1 ran on a real Go project: [executors design §5.1](specs/2026-11-08-executors-design.md#51-the-planner-judges-mohammed-2026-11-11). Plan: [slice 1b](plans/2026-11-11-slice-1b-planner-runs-tasks.md); each task's Interfaces and steps there are binding. It comes before slice 2. One builder, B-123 to B-125 in order, one commit each; B-126 waits for its shared request. Every task: new tests are live (the real adapter, real git) or run no agent, never a new fake-acp test; symbols through the LSP; only the tests named, with `-p` and the target, never `--workspace`; one build cache in `target/`, no `CARGO_TARGET_DIR`, `cargo clean` or `--release`; no `crates/**/*.rs` line over 100 columns.
+Mohammed's rulings after slice 1 ran on a real Go project: [executors design §5.1](specs/2026-11-08-executors-design.md#51-the-planner-judges-mohammed-2026-11-11). Plan: [slice 1b](plans/2026-11-11-slice-1b-planner-runs-tasks.md); each task's Interfaces and steps there are binding. It comes before slice 2. One builder, B-123 to B-125 in order, one commit each (built); B-126 waits for its shared request, then B-127, then slice 3 (B-100, B-101). Every task: new tests are live (the real adapter, real git) or run no agent, never a new fake-acp test; symbols through the LSP; only the tests named, with `-p` and the target, never `--workspace`; one build cache in `target/`, no `CARGO_TARGET_DIR`, `cargo clean` or `--release`; no `crates/**/*.rs` line over 100 columns.
 
 ### B-123 · The Planner initialises git in a folder that has none
 
@@ -449,17 +443,28 @@ Mohammed's rulings after slice 1 ran on a real Go project: [executors design §5
 - Touch: `crates/core-runs/src/notify.rs` (new); `crates/core-runs/src/lib.rs`; `crates/core-runs/src/watch.rs`; `crates/core-runs/src/store/mod.rs`; `crates/core-runs/src/store/recover.rs` (Mohammed, 2026-11-11: "Recovery does not change" was wrong; recovery must keep a committed attempt's scope held while it waits for the Planner's judgment); `crates/core-runs/contract.yaml`; `crates/shadows-mcp/src/run_tools.rs`; `crates/shadows-mcp/src/contract.yaml`; `crates/core-harness/src/prompt.txt`; `crates/core-harness/contract.yaml`; `crates/shadows-core/tests/runs_attempts.rs` (the renamed test); `crates/shadows-core/tests/runs_attempts/planner.rs`; `crates/shadows/tests/planner_runs_live.rs`; `crates/shadows/tests/mcp_tools.rs`; `crates/shadows/tests/runs_routes.rs` and `crates/shadows/tests/runs_routes/live.rs` (only an expectation that a committed attempt's scope is freed at its turn's end); `docs/codebase/README.md`; `docs/backend/stages.md` (this entry).
 - Needs: B-124.
 - Done when: `cargo test -p shadows-core --test runs_attempts`; `cargo test -p shadows --test runs_routes --test mcp_tools --test mcp_server`; signed in: the two live tests of the task with `-- --ignored --test-threads=1`, their printed lines recorded here; architecture, codemap, contract_tests; rule 5's checks. One commit, `feat(backend): B-125 <goal>`.
+- Review (Hamoud, 2026-11-11, `d4f88da1..ad1bd062`): B-121 to B-125 match their entries; the `recover.rs` change is right and the plan's text is corrected. Two findings, both carried into B-126: **R-125-1**, `task_start`'s description still says "only when the person asked you to run it", against the done-mark rule; **R-125-2**, the renamed scope test checks the held scope before the watcher has surely acted. Known and left: a committed attempt whose turn ends `Cancelled` other than by `Runs::stop` (daemon shutdown, Stop pressed in the executor's conversation) keeps its scope and the Planner is never told; the person marks it done or stops it.
 
 ### B-126 · An addition continues the executor in its session, recorded on the task
 
 - Status: blocked (its shared request is not accepted yet)
 - Plan: [Task B-126](plans/2026-11-11-slice-1b-planner-runs-tasks.md#task-b-126-an-addition-continues-the-executor-in-its-session-recorded-on-the-task).
-- Owner: Runs (the amendment is a new attempt on the same thread with its addition; `run_turn` is Start's tail, shared); core-db (migration 0055); `shadows-mcp`; Grants; Harness.
+- Owner: Runs (the amendment is a new attempt on the same thread with its addition; `run_turn` is Start's tail, shared; three additions per task start, then Stop and back to the person, Mohammed 2026-11-11; the one review path written in its contract); core-db (migration 0055); `shadows-mcp`; Grants; Harness. Carries review fixes R-125-1 and R-125-2.
 - Read: `crates/core-runs/contract.yaml`, `crates/core-db/contract.yaml`, `crates/core-harness/contract.yaml` (`open_executor`), `crates/shadows-mcp/src/contract.yaml`; §5.1; [the request](../shared/requests/2026-11-11-planner-review.md).
-- Touch: `crates/core-runs/src/amend.rs` (new); `crates/core-db/migrations/0055_attempt_addition.sql` (new); `crates/core-runs/src/start.rs`; `crates/core-runs/src/lib.rs`; `crates/core-runs/src/model.rs`; `crates/core-runs/src/error.rs`; `crates/core-runs/src/store/mod.rs`; `crates/core-runs/contract.yaml`; `crates/core-db/tests/fixtures/base_migrations.sha384` and `crates/core-db/tests/migration_checksums.rs` (if the checksum test asks); `crates/core-db/contract.yaml` (if it lists migrations); `crates/shadows-mcp/src/run_tools.rs`; `crates/shadows-mcp/src/contract.yaml`; `crates/core-grants/src/tools.rs`; `crates/core-grants/contract.yaml`; `crates/core-harness/src/prompt.txt`; `crates/core-harness/contract.yaml`; `crates/shadows-core/tests/runs_attempts/planner.rs`; `crates/shadows-core/tests/runs_attempts/live.rs`; `crates/shadows/tests/planner_runs_live.rs`; `crates/shadows/tests/mcp_server.rs`; `crates/shadows/tests/mcp_tools.rs`; `crates/shadows/tests/runs_routes.rs` (only an `Attempt` read that must now name `addition`); `api/openapi.json` (regenerated); `docs/shared/requests/2026-11-11-planner-review.md` (one line in the backend answer: built); `docs/codebase/README.md`; `docs/backend/stages.md` (this entry).
+- Touch: `crates/core-runs/src/amend.rs` (new); `crates/core-db/migrations/0055_attempt_addition.sql` (new); `crates/core-runs/src/start.rs`; `crates/core-runs/src/lib.rs`; `crates/core-runs/src/model.rs`; `crates/core-runs/src/error.rs`; `crates/core-runs/src/store/mod.rs`; `crates/core-runs/src/notify.rs` (the last-addition line); `crates/core-runs/contract.yaml`; `crates/shadows-core/tests/runs_attempts.rs` (R-125-2 only); `crates/core-db/tests/fixtures/base_migrations.sha384` and `crates/core-db/tests/migration_checksums.rs` (if the checksum test asks); `crates/core-db/contract.yaml` (if it lists migrations); `crates/shadows-mcp/src/run_tools.rs`; `crates/shadows-mcp/src/contract.yaml`; `crates/core-grants/src/tools.rs`; `crates/core-grants/contract.yaml`; `crates/core-harness/src/prompt.txt`; `crates/core-harness/contract.yaml`; `crates/shadows-core/tests/runs_attempts/planner.rs`; `crates/shadows-core/tests/runs_attempts/live.rs`; `crates/shadows/tests/planner_runs_live.rs`; `crates/shadows/tests/mcp_server.rs`; `crates/shadows/tests/mcp_tools.rs`; `crates/shadows/tests/runs_routes.rs` (only an `Attempt` read that must now name `addition`); `api/openapi.json` (regenerated); `docs/shared/requests/2026-11-11-planner-review.md` (one line in the backend answer: built); `docs/codebase/README.md`; `docs/backend/stages.md` (this entry).
 - Needs: B-125; `docs/shared/requests/2026-11-11-planner-review.md` accepted.
 - Done when: `cargo test -p core-db --test migration_checksums`; `cargo test -p shadows-core --test runs_attempts`; `cargo test -p shadows --test runs_routes --test mcp_server --test mcp_tools --test planner_mcp`; `UPDATE_OPENAPI=1 cargo test -p shadows --test openapi` (only `Attempt.addition` changes); signed in: `cargo test -p shadows-core --test runs_attempts live_an_addition -- --ignored --test-threads=1` and `cargo test -p shadows --test planner_runs_live live_the_planner_runs_judges -- --ignored --test-threads=1` (the slice's acceptance), their printed lines recorded here; architecture, codemap, contract_tests; rule 5's checks. One commit, `feat(backend): B-126 <goal>`.
 - Then Mohammed runs the slice on the Go project from the browser: the Planner starts T1, judges it, and sends an addition or marks it done.
+
+### B-127 · A task stopped on the cap leaves a lessons record
+
+- Status: todo (after B-126)
+- Plan: [Task B-127](plans/2026-11-11-slice-1b-planner-runs-tasks.md#task-b-127-a-task-stopped-on-the-cap-leaves-a-lessons-record).
+- Owner: Runs (it owns the attempts, their additions and the cap; a new table `run_lessons`); it reads the executor's entries through Threads, which `AppCore` now passes to `Runs::new`; `shadows-mcp`; Grants; Harness.
+- Read: `crates/core-runs/contract.yaml`, `crates/core-threads/contract.yaml` (`entries`), `crates/core-db/contract.yaml`, `crates/shadows-mcp/src/contract.yaml`; §5.1.
+- Touch: `crates/core-runs/src/lessons.rs` (new); `crates/core-runs/src/store/lessons.rs` (new); `crates/core-db/migrations/0056_run_lessons.sql` (new); `crates/core-runs/src/lib.rs`; `crates/core-runs/src/model.rs`; `crates/core-runs/src/error.rs`; `crates/core-runs/src/amend.rs`; `crates/core-runs/src/store/mod.rs`; `crates/core-runs/Cargo.toml` (only if a type needs a dependency it does not list); `crates/core-runs/contract.yaml`; `crates/shadows-core/src/app.rs` (the `Runs::new` call only); `crates/core-db/tests/fixtures/base_migrations.sha384` and `crates/core-db/tests/migration_checksums.rs` (if asked); `crates/core-db/contract.yaml` (if it lists migrations); `crates/shadows/tests/architecture/table-owners.txt`; `crates/shadows-mcp/src/run_tools.rs`; `crates/shadows-mcp/src/contract.yaml`; `crates/core-grants/src/tools.rs`; `crates/core-grants/contract.yaml`; `crates/core-harness/src/prompt.txt`; `crates/core-harness/contract.yaml`; `crates/shadows-core/tests/runs_attempts.rs` (module line); `crates/shadows-core/tests/runs_attempts/lessons.rs` (new); `crates/shadows/tests/mcp_server.rs`; `crates/shadows/tests/mcp_tools.rs`; `docs/codebase/README.md`; `docs/backend/stages.md` (this entry).
+- Needs: B-126.
+- Done when: `cargo test -p core-db --test migration_checksums`; `cargo test -p shadows-core --test runs_attempts` (the two new tests among them); `cargo test -p shadows --test mcp_server --test mcp_tools --test planner_mcp --test openapi` (no change to `api/`); `cargo test -p shadows --test architecture --test codemap --test contract_tests`; rule 5's checks. One commit, `feat(backend): B-127 <goal>`.
 
 ### B-107 · Store a simple brief on each attempt
 
@@ -468,7 +473,7 @@ Mohammed's rulings after slice 1 ran on a real Go project: [executors design §5
 - Owner: Runs.
 - Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
 - Touch: exact Create/Modify/Test file list of Task 1; no other source paths.
-- Needs: B-102, B-106; accepted shared API/model agreement. 
+- Needs: B-101, B-106; accepted shared API/model agreement (B-102 dropped).
 - Done when: all named RED/GREEN steps and focused verification commands in Task 1 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
 
 ### B-108 · Readiness from real inputs and current plan state

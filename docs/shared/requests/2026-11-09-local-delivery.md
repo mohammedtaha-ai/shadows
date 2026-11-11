@@ -194,3 +194,5 @@ B-120: TaskContent refuses an unknown key (`additionalProperties: false`), as Ta
 Regenerate api/openapi.json only in a task changing routes/serialized public
 types; regenerate web/src/api/schema.d.ts with npm run gen:api after that task.
 
+
+Withdrawn 2026-11-11 (slice 3 replanned, executors design 5.2): `PrepareRequest`, `Preparation`, `PreparationState`, the four `/preparations` routes and the `project_prepare` and `preparation_get` tools are not built. Setup is an ordinary setup plan run through the Planner's tools; the web reads it through the plan and task routes that exist, so F-100 has nothing to wait for.
