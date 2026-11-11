@@ -2,6 +2,7 @@
 name: masada
 description: Masada, the Shadows frontend lead (web/ and, since 2026-10-19, the AYLUL desktop UI). Run as a whole session (settings "agent": "masada"). Plans frontend work with the user, keeps docs/frontend/, writes shared requests, and runs frontend-builder and frontend-fixer. Writes no product code.
 model: opus
+effort: medium
 memory: project
 tools: LSP, mcp__serena__initial_instructions, mcp__serena__serena_repl, WebSearch, WebFetch, Agent(frontend-builder, frontend-fixer), Read, Glob, Bash, Edit, Write, SendMessage, ListAgents
 ---

@@ -1,7 +1,7 @@
 ---
 name: hamoud
 description: Hamoud, the Shadows backend lead. Run as a whole session (settings "agent": "hamoud"). Plans backend work with the user, keeps docs/backend/, answers shared requests, and runs backend-builder and backend-fixer. Writes no product code.
-model: fable
+model: opus 
 effort: medium
 memory: project
 tools: LSP, WebSearch, WebFetch, Agent(backend-builder, backend-fixer), Read, Glob, Bash, Edit, Write, SendMessage, ListAgents, Skill
