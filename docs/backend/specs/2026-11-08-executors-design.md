@@ -282,7 +282,10 @@ before had never called `Edit` or `Write`. This replaces the first bullet above:
   while it works. The shell could already write anywhere, so the permission rules guarded
   nothing the commit check does not; they are gone.
 - **The reported commit is the one write boundary.** `task_report` refuses a commit that
-  changes a path outside `writes`, as before.
+  changes a path outside `writes`, as before. It also refuses one while `writes` still hold
+  uncommitted changes (`dirty_scope`, the same read Start makes; planned as B-136,
+  2026-11-12): what an attempt leaves inside its task's paths is either committed or removed,
+  so the next Start is not refused for it.
 - **The executor is one file.** Its instructions and its tool list live in
   `crates/core-harness/src/executor.md`: the front matter names the tools, the body is the
   instructions. It is compiled in; a project does not change it. The instructions tell the

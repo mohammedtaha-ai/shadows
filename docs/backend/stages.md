@@ -302,17 +302,27 @@ Order and rulings: [the program](plans/2026-11-09-local-delivery-program.md). Sl
 - Owner: Runs (`init_git`, git calls in a project folder); `shadows-mcp` and Harness (texts).
 - Read: `crates/core-runs/contract.yaml`, `crates/shadows-mcp/src/contract.yaml`, `crates/core-harness/contract.yaml`; §5.2.
 - Touch: `crates/core-runs/src/git.rs`; `crates/core-runs/src/init.rs`; `crates/core-runs/contract.yaml`; `crates/shadows-mcp/src/run_tools.rs`; `crates/shadows-mcp/src/contract.yaml`; `crates/core-harness/src/prompt.txt`; `crates/core-harness/contract.yaml`; `crates/shadows-core/tests/runs_attempts/init.rs`; `crates/shadows/tests/mcp_tools.rs`; `docs/backend/stages.md` (this entry).
-- Needs: B-133 (the Planner reads commits and code, and empty commits are refused, go first; Mohammed 2026-11-11).
+- Needs: B-135 (B-129 to B-135 go first; the slice was re-read against them on 2026-11-12, see the plan's "Re-read against the code").
 - Done when: `cargo test -p shadows-core --test runs_attempts` (the changed test and two new ones among them); `cargo test -p shadows --test mcp_tools --test mcp_server --test planner_mcp`; `cargo test -p shadows --test architecture --test codemap --test contract_tests`; rule 5's checks. One commit, `fix(backend): B-128 <goal>`.
+
+### B-136 · A report leaves nothing uncommitted inside the task's writes
+
+- Status: todo (slice 3, after B-128; two items left from the `testing3` trial, folded in on 2026-11-12)
+- Plan: [Task B-136](plans/2026-11-11-slice-3-setup-first.md#task-b-136-a-report-leaves-nothing-uncommitted-inside-the-tasks-writes).
+- Owner: Runs (`report` refuses `DirtyScope` while the task's `writes` hold uncommitted changes, through the same read Start's dirty check makes, moved into one private `dirty` method; `FIRST_PROMPT` says to leave nothing uncommitted and to commit nothing when nothing changes).
+- Read: `crates/core-runs/contract.yaml` (`report`, `start`, the `check_free, checks, report` agreement).
+- Touch: `crates/core-runs/src/start.rs`; `crates/core-runs/src/report.rs`; `crates/core-runs/src/lib.rs`; `crates/core-runs/contract.yaml`; `crates/shadows-core/tests/runs_attempts/report.rs`; `docs/backend/stages.md` (this entry). If a test outside this list leaves an uncommitted file inside `writes` before a report, stop and name it.
+- Needs: B-128.
+- Done when: `cargo test -p core-runs` (`the_first_prompt_says_how_an_attempt_ends` among them); `cargo test -p shadows-core --test runs_attempts` (`a_report_is_refused_while_writes_hold_uncommitted_changes` among them, every earlier report test passing); `cargo test -p shadows --test runs_routes`; `cargo test -p shadows --test architecture --test codemap --test contract_tests`; rule 5's checks. One commit, `fix(backend): B-136 <goal>`.
 
 ### B-100 · The Planner sets the project up first, through a setup plan
 
-- Status: todo (slice 3, after B-128; Mohammed, 2026-11-11, [§5.2](specs/2026-11-08-executors-design.md#52-setup-before-detailed-planning-mohammed-2026-11-11)). Replaces the draft's preparation request, scope and persistence: no new worker, grant kind, thread kind, table or route.
+- Status: todo (slice 3, after B-136; Mohammed, 2026-11-11, [§5.2](specs/2026-11-08-executors-design.md#52-setup-before-detailed-planning-mohammed-2026-11-11)). Replaces the draft's preparation request, scope and persistence: no new worker, grant kind, thread kind, table or route.
 - Plan: [Task B-100](plans/2026-11-11-slice-3-setup-first.md#task-b-100-the-planner-sets-the-project-up-first-through-a-setup-plan).
 - Owner: Harness (the Planner's instructions); Runs (`report` lets a task of the plan version titled `Setup` commit binary files, Mohammed 2026-11-11; every other task still refuses them).
-- Read: `crates/core-harness/contract.yaml`, `crates/core-runs/contract.yaml`; §5.2; slice 1b's Global Constraints.
+- Read: `crates/core-harness/contract.yaml`, `crates/core-runs/contract.yaml`; §5.2; slice 1b's Global Constraints; the prompt's "Look before you write a path" section as B-132 left it (the Setup section points at it, never restates it).
 - Touch: `crates/core-harness/src/prompt.txt`; `crates/core-harness/contract.yaml`; `crates/core-runs/src/report.rs`; `crates/core-runs/contract.yaml`; `crates/shadows/tests/mcp_tools.rs`; `crates/shadows-core/tests/runs_attempts.rs` (the `fixture_titled` helper); `crates/shadows-core/tests/runs_attempts/report.rs`; `docs/backend/stages.md` (this entry).
-- Needs: B-128.
+- Needs: B-136.
 - Done when: `cargo test -p shadows --test mcp_tools --test planner_mcp`; `cargo test -p core-harness`; `cargo test -p shadows-core --test runs_attempts` (`a_setup_task_may_commit_a_binary_file` and the unchanged `a_commit_with_a_binary_file_is_refused` among them); `cargo test -p shadows --test architecture --test codemap --test contract_tests`; rule 5's checks. One commit, `feat(backend): B-100 <goal>`.
 
 ### B-101 · A setup runs end to end on an empty folder
@@ -422,7 +432,7 @@ Order and rulings: [the program](plans/2026-11-09-local-delivery-program.md). Sl
 
 ## Slice 1b: the Planner runs and judges tasks (2026-11-11)
 
-Mohammed's rulings after slice 1 ran on a real Go project: [executors design §5.1](specs/2026-11-08-executors-design.md#51-the-planner-judges-mohammed-2026-11-11). Plan: [slice 1b](plans/2026-11-11-slice-1b-planner-runs-tasks.md); each task's Interfaces and steps there are binding. It comes before slice 2. One builder, B-123 to B-125 in order, one commit each (built); B-126 waits for its shared request, then B-127, then B-129 and B-130 (the Planner reads commits, below), then B-132 and B-133 (the Planner reads the code; no empty commit), then slice 3 (B-128, B-100, B-101). Every task: new tests are live (the real adapter, real git) or run no agent, never a new fake-acp test; symbols through the LSP; only the tests named, with `-p` and the target, never `--workspace`; one build cache in `target/`, no `CARGO_TARGET_DIR`, `cargo clean` or `--release`; no `crates/**/*.rs` line over 100 columns.
+Mohammed's rulings after slice 1 ran on a real Go project: [executors design §5.1](specs/2026-11-08-executors-design.md#51-the-planner-judges-mohammed-2026-11-11). Plan: [slice 1b](plans/2026-11-11-slice-1b-planner-runs-tasks.md); each task's Interfaces and steps there are binding. It comes before slice 2. One builder, B-123 to B-125 in order, one commit each (built); B-126 waits for its shared request, then B-127, then B-129 and B-130 (the Planner reads commits, below), then B-132 and B-133 (the Planner reads the code; no empty commit), then slice 3 (B-128, B-136, B-100, B-101). Every task: new tests are live (the real adapter, real git) or run no agent, never a new fake-acp test; symbols through the LSP; only the tests named, with `-p` and the target, never `--workspace`; one build cache in `target/`, no `CARGO_TARGET_DIR`, `cargo clean` or `--release`; no `crates/**/*.rs` line over 100 columns.
 
 ### B-123 · The Planner initialises git in a folder that has none
 

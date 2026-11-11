@@ -36,17 +36,42 @@ commit, like an executor's", is what an attempt already does.
 
 **Spec:** [executors design §5.2](../specs/2026-11-08-executors-design.md#52-setup-before-detailed-planning-mohammed-2026-11-11).
 
+## Re-read against the code, 2026-11-12
+
+Since this plan was written, B-129 to B-135 landed. Checked against each, and amended in place:
+
+- **B-133 (an executor's commit must change something).** No conflict for a task that writes
+  files. But a setup task that only *runs* something (start the containers, run a migration)
+  changes no file, so its attempt would end without a commit and fail. B-100's Setup section
+  now says every setup task writes files, and running them belongs to the acceptance of the
+  task that writes them.
+- **B-132 (the Planner reads before it plans).** "Look before you write a path" already holds
+  the reading rule and "Name a path that exists, or say plainly that the task creates it". B-100's
+  last Setup lines repeated the second and only *listed* the new files; they now point at that
+  section instead of restating it (one rule, one place).
+- **B-134 and B-135 (executor notices; only the person approves).** No change: setup attempts
+  reach the Planner like any attempt, in the executor's name, and the Planner never approves
+  the Setup plan itself (B-101's test approves it as the person; a notice turn could not).
+- **B-128 still fits `project_git_init`:** `Git::commit_empty` (`git.rs`) is called only by
+  `init_git` (`init.rs`), and the three `init.rs` tests are as the task expects. The prompt's
+  line still says "an empty first commit". One question for Mohammed, below the task.
+- **Two items left from the trials now belong here** as B-136, before B-100: a report is refused
+  while the task's `writes` hold uncommitted changes, and `FIRST_PROMPT` says to commit nothing
+  when nothing changes. A setup's scaffold is exactly where leftovers appear, and a Claude
+  Planner has no shell to run `git status` itself.
+
 ## Global Constraints
 
 - The same as [slice 1b](2026-11-11-slice-1b-planner-runs-tasks.md#global-constraints).
-- Needs B-123 to B-127 built: the setup uses every Planner tool of slice 1b. Order inside
-  the slice: B-128, B-100, B-101.
+- Needs B-123 to B-135 built. Order inside the slice: B-128, B-136, B-100, B-101.
 
 ## Review Focus
 
-1. **A file in the folder that no commit made** (a scaffold's leftover, a stray download): the
-   setup task's acceptance says `git status` shows nothing uncommitted, and the Planner judges
-   it. Held by the live test's assertion on `git status --porcelain`.
+1. **A file in the folder that no commit made** (a scaffold's leftover, a stray download):
+   inside the task's `writes`, B-136 refuses the report until it is committed or removed;
+   outside them, the setup task's acceptance says `git status` shows nothing uncommitted and
+   the Planner judges it. Held by `a_report_is_refused_while_writes_hold_uncommitted_changes`
+   and the live test's assertion on `git status --porcelain`.
 2. **The Planner plans in detail before the setup is done.** The prompt orders it; nothing
    refuses it (§5.2's OPEN). The live test's second turn checks that the detailed plan names
    files that exist.
@@ -55,6 +80,9 @@ commit, like an executor's", is what an attempt already does.
    `git_init_takes_the_files_the_folder_holds`.
 4. **A binary file in a task that is not a setup task** is still refused. Held by the existing
    `a_commit_with_a_binary_file_is_refused`, whose plan is titled `Web`.
+5. **A setup task that only runs something** (start the containers) changes no file and fails
+   on B-133's rule. The Setup section forbids such a task; the live test shows whether the
+   Planner follows it.
 
 ---
 
@@ -107,6 +135,73 @@ commit, like an executor's", is what an attempt already does.
   texts.
 - [ ] **Step 6: Commit** `fix(backend): B-128 project_git_init's first commit takes the files the folder holds`.
 
+**For Mohammed (2026-11-12):** `git add -A` takes every file git does not ignore. In a folder
+with no `.gitignore`, that includes a `.env` with its keys and a dependency folder
+(`node_modules`, `vendor`). Code's inventory already classes secret and dependency files
+(`project_files` reports them as left out), but Runs does not depend on Code. Built as written,
+the person's `.gitignore` is the only filter. The alternative is that `init_git` leaves out what
+the inventory classes as secret or dependency, which makes Runs depend on Code (AppCore wiring)
+and adds one test. Build as written unless he rules otherwise.
+
+## Task B-136: A report leaves nothing uncommitted inside the task's writes
+
+**Why:** the `testing3` trial. An executor left a line-ending-only change in
+`backend/internal/domain/health.go` after its commit, and the next Start was refused with
+`dirty_scope`. B-129 only tells the executor. A setup's scaffold leaves such files too, and a
+Claude Planner cannot run `git status`. Separately, `FIRST_PROMPT` (`crates/core-runs/src/lib.rs`)
+still tells every executor to commit, though B-133 refuses an empty commit.
+
+**Files:**
+- Modify: `crates/core-runs/src/start.rs` (the dirty read becomes one private method)
+- Modify: `crates/core-runs/src/report.rs` (`verify` calls it last)
+- Modify: `crates/core-runs/src/lib.rs` (`FIRST_PROMPT`; its unit test)
+- Modify: `crates/core-runs/contract.yaml`
+- Test: `crates/shadows-core/tests/runs_attempts/report.rs`
+
+**Interfaces:**
+- `start.rs`: `checks`' inline read becomes
+  `async fn dirty(&self, git: &Git, prefix: &str, matcher: &Scope) -> Result<Vec<String>, RunsError>`
+  (`pub(crate)`): `git.changed(prefix)` filtered by `matcher.admits`, the read Start already
+  makes. `checks` calls it and answers `DirtyScope` as today.
+- `report.rs`, `verify`: after the `BinaryFiles` check, `dirty` with the attempt's `writes`; a
+  non-empty answer is `RunsError::DirtyScope { paths }` (existing variant, code `dirty_scope`,
+  text "uncommitted changes inside the task's writes: ..."). A refusal leaves the attempt
+  Running, as every report refusal does. A change outside `writes` (the person's file) does not
+  refuse it.
+- `FIRST_PROMPT` becomes, exactly: "Do task T{n}. Read it first: call task_context with
+  task_number {n} and no workflow_id. When the work is done, stage only your own files inside
+  the task's writes (never a binary or an installer), run git commit yourself, and leave
+  nothing uncommitted inside the task's writes; then call task_report with the commit's sha
+  and an honest report of what you did, ran and found. If nothing needs to change, commit
+  nothing and end with a last message saying why."
+
+- [ ] **Step 1: The failing tests.** In `runs_attempts/report.rs`:
+
+```rust
+#[tokio::test]
+async fn a_report_is_refused_while_writes_hold_uncommitted_changes() {
+    // begin(3); put backend/app/a.php and backend/app/b.php; put notes.txt (outside writes);
+    // commit only a.php; report -> Err(RunsError::DirtyScope { paths }) with
+    //   paths == ["backend/app/b.php"]; f.still_running(&attempt).
+    // Remove b.php from disk; report the same sha -> Ok, Committed; notes.txt still untracked.
+}
+```
+
+  In `crates/core-runs/src/lib.rs`'s test module (new if it has none),
+  `the_first_prompt_says_how_an_attempt_ends`: `FIRST_PROMPT` contains "leave nothing
+  uncommitted inside the task's writes" and "If nothing needs to change, commit nothing".
+  Run `cargo test -p shadows-core --test runs_attempts uncommitted` and
+  `cargo test -p core-runs first_prompt`: both fail.
+- [ ] **Step 2: Implement** the Interfaces. Every earlier report test must pass unchanged; if
+  one left an uncommitted file inside `writes` before its report, it now commits or removes
+  it, and the builder names each such test in the report.
+- [ ] **Step 3: Contract.** `core-runs`: `functions.report` names the dirty check last in its
+  order; the `check_free, checks, report` agreement names `dirty` as Start's and report's one
+  read; an obligation "A report is refused while the task's writes hold uncommitted changes;
+  the attempt stays Running" tested by the new test; the first prompt's obligation names the
+  two sentences.
+- [ ] **Step 4:** run what the entry names; commit `fix(backend): B-136 <goal>`.
+
 ## Task B-100: The Planner sets the project up first, through a setup plan
 
 **Files:**
@@ -122,9 +217,10 @@ commit, like an executor's", is what an attempt already does.
   `- Once the roadmap is approved, set the project up before you plan anything in detail. The setup is the project's first plan; call it "Setup".`
   `- If Start says the folder is not a git repository, run project_git_init first.`
   `- Its tasks bring what the work needs before any feature: the environment (database and other service containers, an example environment file) and the initial structure, built with the framework's own scaffold command in each runnable part's folder, as the approved map places it.`
+  `- Every setup task writes files. Running something (starting the containers, running a migration) is part of the acceptance of the task that writes what it runs, never a task of its own: a task that changes no file ends without a commit.`
   `- Each setup task's acceptance says what must work afterwards (the containers run and answer, the scaffold's own test or build passes) and that git status shows nothing left uncommitted.`
   `- When the person approves it, run its tasks with task_start, judge each as any task, and mark it done.`
-  `- When the setup is done, call project_refresh, read the files that appeared with project_files, and plan the detailed work on them. Name only paths that exist or that a task says it creates.`
+  `- When the setup is done, call project_refresh, then read the files that appeared as "Look before you write a path" says, and plan the detailed work on them.`
   `- Only a task of the plan titled exactly "Setup" may commit binary files, such as a scaffold's icon; every other task's commit with a binary file is refused.`
 - `core-harness`' contract: the prompt's section list gains `Setup`, and the Agent Mode
   phrase it repeats goes (line 65's "explicitly requested action in Agent Mode").
@@ -139,7 +235,8 @@ commit, like an executor's", is what an attempt already does.
 - [ ] **Step 1: Write the failing tests:**
   - In `mcp_tools.rs`, `the_planner_sets_the_project_up_first` asserts
     `shadows_core::testing::PROMPT` contains `"set the project up before you plan anything in
-    detail"`, `"git status shows nothing left uncommitted"`, `"call project_refresh"` and
+    detail"`, `"Every setup task writes files."`, `"git status shows nothing left
+    uncommitted"`, `"read the files that appeared as \"Look before you write a path\" says"` and
     `"Only a task of the plan titled exactly \"Setup\" may commit binary files"`, and does not
     contain `"Agent Mode"`.
   - In `crates/shadows-core/tests/runs_attempts.rs`, `fixture_with` takes the source plan's
