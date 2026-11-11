@@ -5,12 +5,14 @@
 //! `writes` it may change, from Start until its turn has ended and its session
 //! is closed; Start refuses a task whose `writes` may meet a held scope.
 //! `model` holds the types, `store` the SQL, `scope` the pattern matcher,
-//! `ready` the rule for links, `git` the git calls, `start`, `stop`, `report`,
+//! `ready` the rule for links, `git` the git calls, `init` a folder's first
+//! repository, `start`, `stop`, `report`,
 //! `watch` and `recover` the transitions, `diff` the reading of a commit.
 
 mod diff;
 mod error;
 mod git;
+mod init;
 mod model;
 mod ready;
 mod recover;

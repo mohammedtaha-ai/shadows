@@ -948,3 +948,12 @@ async fn the_planner_is_told_an_indexing_listing_is_not_complete() {
         .await
         .unwrap();
 }
+
+#[test]
+fn the_planner_is_told_how_to_run_and_judge_tasks() {
+    let prompt = shadows_core::testing::PROMPT;
+    let texts: &[&str] = &["project_git_init: when Start is refused"];
+    for text in texts {
+        assert!(prompt.contains(text), "{text}");
+    }
+}

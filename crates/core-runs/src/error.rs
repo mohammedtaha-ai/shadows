@@ -49,6 +49,10 @@ pub enum RunsError {
         paths.join(", ")
     )]
     BinaryFiles { paths: Vec<String> },
+    #[error("the project folder is already inside a git repository")]
+    AlreadyGit,
+    #[error("the project has no folder")]
+    NoFolder,
     #[error("the command id was used for another request")]
     CommandConflict,
     #[error("not found")]
@@ -79,6 +83,8 @@ impl RunsError {
             Self::NotNew { .. } => "not_new",
             Self::OutsideWrites { .. } => "outside_writes",
             Self::BinaryFiles { .. } => "binary_files",
+            Self::AlreadyGit => "already_git",
+            Self::NoFolder => "no_folder",
             Self::CommandConflict => "command_conflict",
             Self::NotFound => "not_found",
             Self::BadScope(_) => "bad_scope",

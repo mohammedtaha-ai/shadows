@@ -79,6 +79,32 @@ impl Git {
         Some(String::from_utf8_lossy(&prefix).trim().to_string())
     }
 
+    /// Makes the folder a git repository.
+    pub(crate) async fn init(&self) -> Result<(), String> {
+        self.run(&["init", "-q"]).await.map(|_| ())
+    }
+
+    /// Records an empty commit and answers its full SHA. The identity is
+    /// fixed, so the commit does not depend on the person's git configuration
+    /// and says who made it.
+    pub(crate) async fn commit_empty(&self, message: &str) -> Result<String, String> {
+        self.run(&[
+            "-c",
+            "user.name=Shadows",
+            "-c",
+            "user.email=shadows@localhost",
+            "commit",
+            "-q",
+            "--allow-empty",
+            "-m",
+            message,
+        ])
+        .await?;
+        self.head()
+            .await
+            .ok_or_else(|| "the first commit was not recorded".to_string())
+    }
+
     /// The commit HEAD names, or `None` on a branch with no commit yet.
     pub(crate) async fn head(&self) -> Option<String> {
         self.commit("HEAD").await

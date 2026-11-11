@@ -6,6 +6,8 @@
 #[allow(dead_code)]
 #[path = "fixtures/cross_plan.rs"]
 mod cross_plan;
+#[path = "runs_attempts/init.rs"]
+mod init;
 #[path = "runs_attempts/live.rs"]
 mod live;
 #[path = "runs_attempts/report.rs"]
@@ -293,6 +295,20 @@ impl Fixture {
         self.sessions.close_all().await.unwrap();
         self.storage.close().await.unwrap();
     }
+}
+
+/// The grant of the plan's Planner, the thread that wrote it.
+async fn planner_grant(f: &Fixture) -> shadows_core::Grant {
+    let thread: String = sqlx::query_scalar("SELECT written_by_thread FROM workflow WHERE id = ?")
+        .bind(SOURCE)
+        .fetch_one(f.storage.reader())
+        .await
+        .unwrap();
+    let thread = ThreadId::from_literal(thread);
+    shadows_core::Grants::issue_thread_grant_for_test(&f.storage, &thread)
+        .await
+        .unwrap()
+        .0
 }
 
 /// One recorded turn of the plan's Planner on `harness`, asking for `model`,

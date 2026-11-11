@@ -422,7 +422,7 @@ Mohammed's rulings after slice 1 ran on a real Go project: [executors design §5
 
 ### B-123 · The Planner initialises git in a folder that has none
 
-- Status: todo
+- Status: done. `Runs::init_git` and the `project_git_init` tool (23 Planner tools). Tests: `runs_attempts` 30 (5 ignored; the three `init` tests among them), `mcp_server` 6, `mcp_tools` 23, `planner_mcp` 24, `architecture` 49, `codemap` 1, `contract_tests` 1; rule 5's checks clean. `mcp_server::the_discover_lifecycle_works_without_a_session` counts the Planner's tools too (22 to 23).
 - Plan: [Task B-123](plans/2026-11-11-slice-1b-planner-runs-tasks.md#task-b-123-the-planner-initialises-git-in-a-folder-that-has-none).
 - Owner: Runs (git calls in a project folder; Start's `NotGit` is its refusal); `shadows-mcp` (the tool); Grants (the Planner's tool list); Harness (the Planner's instructions).
 - Read: `crates/core-runs/contract.yaml`, `crates/shadows-mcp/src/contract.yaml`, `crates/core-grants/contract.yaml`, `crates/core-harness/contract.yaml`; §5.1.

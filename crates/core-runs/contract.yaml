@@ -29,6 +29,7 @@ modules:
   scope.rs: the pattern matcher shared by the overlap check and the report check
   ready.rs: whether a task may start now
   git.rs: git calls in a project folder
+  init.rs: giving a project folder its repository
   start.rs: starting an attempt
   stop.rs: stopping an attempt
   report.rs: accepting an attempt's reported commit
@@ -61,8 +62,9 @@ shapes:
   StartAnswer: "{ allowed, code, reason }: code and reason null when allowed"
   FileDiff: "{ path, added, removed, patch }: the patch cut at 2,000 lines with a marker"
   RecoverReport: "{ interrupted }"
-  RunsError: [NotFrozen, Superseded, Archived, Waiting, TaskBusy, Overlap, NotGit, DirtyScope, AlreadyCommitted, UnknownCommit, NotOnBranch, NotNew, OutsideWrites, BinaryFiles, CommandConflict, NotFound, BadScope, Unavailable, Storage]
+  RunsError: [NotFrozen, Superseded, Archived, Waiting, TaskBusy, Overlap, NotGit, DirtyScope, AlreadyCommitted, UnknownCommit, NotOnBranch, NotNew, OutsideWrites, BinaryFiles, AlreadyGit, NoFolder, CommandConflict, NotFound, BadScope, Unavailable, Storage]
   # RunsError::code is the opaque id clients match on: not_frozen, waiting, task_busy, ...
+  # AlreadyGit (already_git) and NoFolder (no_folder) are init_git's refusals, not Start's.
 
 functions:
   new: "(storage, plans, harness, turns, projects) -> Runs; AppCore constructs the service"
@@ -70,6 +72,7 @@ functions:
   can_start: "(workflow, version, task) -> StartAnswer; Start's checks in Start's order (the version, the task, its needs, the folder, then the busy and overlap check read without writing); a refusal is an answer with RunsError::code and its text, a failure to read is an error"
   stop: "(attempt) -> Attempt; waits for the turn's confirmed end"
   report: "(grant, commit, report) -> Attempt; the executor grant's attempt must be Running (Committed is AlreadyCommitted); then, in order: commit is a hex SHA git resolves to a commit (UnknownCommit), reachable from HEAD (NotOnBranch), not reachable from start_head (NotNew); every path it changes against its first parent (a root commit against nothing, a rename as both ends) lies inside writes, a path outside the project folder outside them (OutsideWrites, all listed); none it adds or modifies is binary by git's numstat (BinaryFiles, all listed). A refusal leaves the attempt Running. On acceptance the attempt becomes Committed with the full sha and the trimmed report; only a Running attempt moves"
+  init_git: "(grant) -> String; a Thread (Planner) grant only, else NotFound; the folder from Projects (NoFolder when none); a folder inside any work tree, its own or a parent's, is AlreadyGit; then git init and one empty commit `Initial commit` as Shadows <shadows@localhost>, a git failure Unavailable; answers the full sha, writes no file, logs runs.git_initialised"
   diff: "(attempt) -> Vec<FileDiff>; each file of the attempt's commit, nothing before it commits"
   task: "(workflow, version, task) -> TaskRun; needs from the version's needs links and the done marks, start from can_start, suggested_model one the executor's harness (claude-code) offers: the model the plan's Planner conversation last asked for when that turn ran on claude-code, else the model last used on claude-code (Harness::remembered_model), else none; none for an external writer"
   attempts: "(workflow, version, task) -> Vec<Attempt>, newest first"
@@ -117,6 +120,8 @@ obligations:
     tested_by: [start_refuses_a_draft, start_refuses_a_superseded_version, start_refuses_an_archived_plan]
   - rule: A folder that is not git, or that has uncommitted changes inside the task's writes, cannot start.
     tested_by: [start_refuses_a_folder_that_is_not_git, start_refuses_uncommitted_changes_in_writes]
+  - rule: The Planner makes a folder without git a repository with one empty commit in Shadows' name and no file, after which Start may run; a folder inside a repository and a grant that is not a Planner's are refused.
+    tested_by: [the_planner_initialises_git_in_a_folder_without_one, git_init_is_refused_inside_a_repository, git_init_is_refused_to_an_executor_grant]
   - rule: Stop ends the attempt, closes its session, revokes its grant and frees its scope.
     tested_by: [stop_ends_the_attempt_and_closes_its_session, live_stop_ends_a_running_attempt_and_frees_its_scope]
   - rule: A Stop while Start opens the session leaves the attempt Stopped with no turn sent and no session open.
@@ -160,6 +165,7 @@ obligations:
 
 tests:
   shadows-core/tests/runs_attempts.rs: attempts through AppCore over the fake adapter, in a real git repository
+  shadows-core/tests/runs_attempts/init.rs: a folder's first repository in real git; no agent runs
   shadows-core/tests/runs_attempts/report.rs: reported commits in a real git repository; the test plays the executor, no agent runs
   shadows/tests/runs_routes.rs: the HTTP routes over Runs, in a real git repository, with no adapter to open
   shadows/tests/runs_routes/live.rs: a task started over HTTP on the real adapter commits its own file and reports it through task_report on the real /mcp; ignored in CI
