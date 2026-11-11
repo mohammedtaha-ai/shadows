@@ -123,6 +123,15 @@ async fn fixture() -> Fixture {
 }
 
 async fn fixture_with(approve: bool, adapter: Option<Arc<ClaudeAdapter>>) -> Fixture {
+    fixture_full(approve, adapter, "Web").await
+}
+
+/// The approved fixture whose source plan is titled `title`.
+async fn fixture_titled(title: &str) -> Fixture {
+    fixture_full(true, None, title).await
+}
+
+async fn fixture_full(approve: bool, adapter: Option<Arc<ClaudeAdapter>>, title: &str) -> Fixture {
     let tmp = tempfile::tempdir().unwrap();
     let storage = Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
     let root = tmp.path().join("project");
@@ -170,10 +179,11 @@ async fn fixture_with(approve: bool, adapter: Option<Arc<ClaudeAdapter>>) -> Fix
         "INSERT INTO workflow
            (id, plan_id, state, version, revision, title, goal, written_by_thread,
             created_at, updated_at)
-         VALUES (?, 'source-plan', 'Draft', 1, 0, 'Web', 'A usable web app', ?,
+         VALUES (?, 'source-plan', 'Draft', 1, 0, ?, 'A usable web app', ?,
            '2026-10-04T00:00:00Z', '2026-10-04T00:00:00Z')",
     )
     .bind(SOURCE)
+    .bind(title)
     .bind(thread_id)
     .execute(storage.reader())
     .await

@@ -61,8 +61,8 @@
 name: harness
 layer_catalog: 'Planner standards text lists every kind presence and its layers with required/optional roles and allowed dependencies. The prompt explains places, module patterns, not-used reasons and grouping parts. Tested by planner_mcp::the_standards_text_lists_backend_layers.'
 # Planner instructions map responsibilities into the chosen framework's layout.
-# Map approval opens Roadmap; framework scaffolding is a building task or an
-# explicitly requested action in Agent Mode, never a structure-writing command.
+# Map approval opens Roadmap; framework scaffolding is a task of the Setup plan,
+# never a structure-writing command.
 # Every new, resumed or forked Planner session sends its Shadows HTTP MCP server
 # in the ACP server list; AYLUL sends only its enabled MCP items. HTTP headers and stdio
 # environment values are omitted from MCP setup Debug output.
@@ -689,6 +689,12 @@ obligations:
       come after the roadmap, and that draft_start takes the parts a plan changes.
       The Planner's tools stay the one mcp__shadows__* pattern (§24.2).
     tested_by: a_session_opens_with_shadows_mcp_instructions_and_the_pre_approval
+  - rule: >
+      The prompt's Setup section, after The roadmap, has the Planner set the project up
+      first through a plan titled "Setup" whose every task writes files and leaves nothing
+      uncommitted, then read the new files as "Look before you write a path" says; only a
+      Setup task may commit binary files. The prompt names no Agent Mode.
+    tested_by: mcp_tools::the_planner_sets_the_project_up_first
   - rule: >
       Standards::current_in supplies opening additions; Turns::standards_for_invocation_in
       resolves the recorded pin through Standards in one read snapshot.

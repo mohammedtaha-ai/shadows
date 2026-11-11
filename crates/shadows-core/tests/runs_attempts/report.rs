@@ -337,6 +337,26 @@ async fn a_commit_with_paths_outside_writes_is_refused_until_fixed() {
 }
 
 #[tokio::test]
+async fn a_setup_task_may_commit_a_binary_file() {
+    let f = fixture_titled("Setup").await;
+    let (attempt, grant) = f.begin(3).await;
+    f.put("backend/app/a.php", "<?php\n");
+    std::fs::write(
+        f.root.join("backend/app/favicon.ico"),
+        b"\0\0\x01\0\0\xff\0",
+    )
+    .unwrap();
+    let sha = f.commit(
+        &["backend/app/a.php", "backend/app/favicon.ico"],
+        "Scaffold with its icon",
+    );
+    let done = f.report(&grant, &sha).await.unwrap();
+    assert_eq!(done.id, attempt);
+    assert_eq!(done.state, AttemptState::Committed);
+    f.finish().await;
+}
+
+#[tokio::test]
 async fn a_commit_with_a_binary_file_is_refused() {
     let f = fixture().await;
     let (attempt, grant) = f.begin(3).await;

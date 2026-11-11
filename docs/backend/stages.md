@@ -318,7 +318,7 @@ Order and rulings: [the program](plans/2026-11-09-local-delivery-program.md). Sl
 
 ### B-100 · The Planner sets the project up first, through a setup plan
 
-- Status: todo (slice 3, after B-136; Mohammed, 2026-11-11, [§5.2](specs/2026-11-08-executors-design.md#52-setup-before-detailed-planning-mohammed-2026-11-11)). Replaces the draft's preparation request, scope and persistence: no new worker, grant kind, thread kind, table or route.
+- Status: done (slice 3, after B-136; Mohammed, 2026-11-11, [§5.2](specs/2026-11-08-executors-design.md#52-setup-before-detailed-planning-mohammed-2026-11-11)). Replaces the draft's preparation request, scope and persistence: no new worker, grant kind, thread kind, table or route.
 - Plan: [Task B-100](plans/2026-11-11-slice-3-setup-first.md#task-b-100-the-planner-sets-the-project-up-first-through-a-setup-plan).
 - Owner: Harness (the Planner's instructions); Runs (`report` lets a task of the plan version titled `Setup` commit binary files, Mohammed 2026-11-11; every other task still refuses them).
 - Read: `crates/core-harness/contract.yaml`, `crates/core-runs/contract.yaml`; §5.2; slice 1b's Global Constraints; the prompt's "Look before you write a path" section as B-132 left it (the Setup section points at it, never restates it).

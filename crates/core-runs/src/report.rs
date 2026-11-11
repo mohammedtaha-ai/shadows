@@ -16,8 +16,8 @@ impl Runs {
     /// Accepts the commit `commit` as the work of the attempt `grant` belongs
     /// to, with `report`, the executor's account of it. The commit must be
     /// on the checked-out branch, new since Start, change only paths inside
-    /// `writes`, change at least one file, bring no binary file, and leave
-    /// nothing uncommitted inside `writes`.
+    /// `writes`, change at least one file, bring no binary file (unless its
+    /// plan is the setup plan), and leave nothing uncommitted inside `writes`.
     /// One accepted report per attempt.
     pub async fn report(
         &self,
@@ -103,7 +103,8 @@ impl Runs {
             .filter(|c| c.binary)
             .map(|c| c.path)
             .collect();
-        if !binary.is_empty() {
+        // A setup brings a scaffold, whose icons and images are binary.
+        if !binary.is_empty() && !Self::is_setup(&self.read_plan(&attempt.workflow_id).await?) {
             return Err(RunsError::BinaryFiles { paths: binary });
         }
         // Left over, such a change would refuse the next Start of a task
@@ -113,5 +114,10 @@ impl Runs {
             return Err(RunsError::DirtyScope { paths: dirty });
         }
         Ok(sha)
+    }
+
+    /// Whether `plan` is the project's setup plan, the one titled "Setup".
+    fn is_setup(plan: &core_plans::Plan) -> bool {
+        plan.title.trim().eq_ignore_ascii_case("Setup")
     }
 }
