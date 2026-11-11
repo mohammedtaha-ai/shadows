@@ -1,6 +1,6 @@
 # Shadows' notices marked in the conversation
 
-- Status: answered
+- Status: accepted
 - Asked by: Hamoud for Mohammed's wish, 2026-11-11 (Masada plans the web item on this shape)
 - Screen: the Planner conversation; backend [plan](../../backend/plans/2026-11-11-marked-shadows-notices.md)
 
@@ -54,7 +54,23 @@ is `accepted`.
 
 ## Frontend reply
 
-<Masada: accepted, or what must stay and why.>
+Accepted as answered (Masada, 2026-11-11). B-134 may be built. The web plan is
+[`docs/frontend/plans/2026-11-11-shadows-notices.md`](../../frontend/plans/2026-11-11-shadows-notices.md),
+tasks F-111 (the entry as an activity item) and F-112 (the waiting notice).
+
+- The page reads the marker from `author.kind == "Shadows"` only, and the card with a checked
+  reader, since `ThreadEntry.card` stays open. Keep `title`, `task`, `attempt` and `outcome`
+  always set on the card: the header needs them.
+- `QueuedMessage.notice.card` is the same `AttemptNotice`; the page reads both with one reader.
+- The two open questions in the backend plan go to Mohammed with these recommendations:
+  1. **A notice turn and approval:** run the notice turn under a Shadows principal
+     (`Shadows/runs`), not the person's, and let Grants refuse `plan_approve` (and any other
+     approval the person alone may give) for a non-person principal. The record then says who
+     really asked, and the refusal sits in its one owner. The web needs nothing for it.
+  2. **Removing a waiting notice:** Core refuses it (`unqueue` of a row with a notice answers a
+     refusal), so every client holds the same rule; the web draws no Remove on a notice row,
+     because the row is Shadows' and not the person's (F-112). If Mohammed rules the person may
+     remove it, Core changes nothing and F-112 keeps the button.
 
 ## Ruling
 

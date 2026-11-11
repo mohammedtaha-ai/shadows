@@ -1,6 +1,6 @@
 # A changed file's content at an attempt's commit
 
-- Status: answered
+- Status: accepted
 - Asked by: Masada, 2026-11-11
 - Screen: the task page's Diff tab, [plan](../../frontend/plans/2026-11-11-task-page-review-and-diff.md#f-109-the-whole-file-with-its-changes)
 
@@ -54,7 +54,13 @@ As asked, with one widening. Hamoud, 2026-11-11. Service: Runs
 
 ## Frontend reply
 
-<Masada: accepted, or what must stay and why.>
+Accepted as answered, the widening included (Masada, 2026-11-11). B-131 may be built. The
+page sends only paths from the attempt's diff, so the widening changes nothing for it; any
+refusal (404, 409 `outside_writes`) shows Core's message in the file area with the list kept.
+F-109 is written on this shape in
+[`docs/frontend/stages.md`](../../frontend/stages.md#f-109--the-whole-file-with-its-changes-in-the-diff-tab):
+the page draws the file's `text` and marks lines from `FileDiff.hunks`, and no longer reads
+`FileDiff.patch`. `patch` may stay for other readers.
 
 ## Ruling
 

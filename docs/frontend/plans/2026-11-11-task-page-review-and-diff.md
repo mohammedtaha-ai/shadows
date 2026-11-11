@@ -102,9 +102,73 @@ Needs B-126 built and `api/openapi.json` showing `Attempt.addition`; first step 
   `<b>x</b>` shows the literal text and "Carried on…"; attempt 1 with `addition: null` shows
   "Began from Start".
 
-## F-109 · The whole file with its changes (blocked on a request)
+## F-109 · The whole file with its changes
 
 Needs [the attempt file content request](../../shared/requests/2026-11-11-attempt-file-content.md)
-accepted and built. The file area shows the whole file at the attempt's commit, with the
-changed lines marked from Core's hunks; `FilePatch`'s text reading is removed. Masada writes
-the exact file list once the backend answer names the route and fields.
+(accepted 2026-11-11), built by B-131. Run `npm run gen:api` first, once B-131 is committed
+(`api/openapi.json` holds `AttemptFile`, the `/api/attempts/{id}/files` route and
+`FileDiff.hunks`).
+
+What Core gives:
+- `GET /api/attempts/{id}/files?path=<path>` answers `AttemptFile { path, text: string | null,
+  cut: boolean }`: the file as the attempt's commit holds it. `text` is null for a binary file
+  and a file the commit deleted; `cut` is true when Core shortened a long file (no marker in
+  the text). 404 for an unknown attempt, no commit, or a path not at the commit; 409
+  `outside_writes` for a path outside the task's writes (the page sends diff paths only).
+- `FileDiff.hunks: DiffHunk[]` (`{ path, old_start, new_start, lines: [{ op, text }] }`, `op`
+  one of `context`, `add`, `remove`), read from the same patch; they stop where a long patch is
+  cut; a binary file has none; `old_start` is 0 for a new file.
+
+**The read.** `web/src/api/runs.ts`: `runKeys.file(attemptId, path)`;
+`attemptFileQuery(attemptId: string, path: string)` over a private `getAttemptFile` that calls
+`client.GET('/api/attempts/{id}/files', { params: { path: { id }, query: { path } } })`; export
+`type AttemptFile`. Lines in the `runs:` block of `web/src/api/contract.yaml`.
+
+**The file area.** `web/src/app/tasks/file-patch.tsx` is deleted (it read git's patch text);
+new file `web/src/app/tasks/file-view.tsx`:
+- `fileRows(text: string, hunks: readonly DiffHunk[])`: one row per line of `text` (a final
+  empty piece after a trailing newline is not a line), numbered from 1. Walk each hunk from
+  `new_start` (n): `context` moves n on; `add` marks line n added and moves n on; `remove`
+  puts that removed text before line n, and does not move n. Removed text before line
+  `lines + 1` shows after the last line. A mark that falls past the text's end (a cut file) is
+  dropped. A hunk with `new_start` null is skipped. This joins Core's two answers for drawing;
+  it decides nothing about the change.
+- `FileView({ file, hunks })` where `file` is the `AttemptFile`:
+  - `text` set: the rows above, one line each, mono `text-2xs`, `dir="ltr"`,
+    `whitespace-pre` with horizontal scroll: a line number column (empty for a removed row), a
+    mark column (`+` added, `-` removed, blank otherwise), the text. Added rows tint
+    `bg-success/15`, removed rows `bg-destructive/15`, as F-107 did. `data-diff="add"` /
+    `"remove"` on the marked rows.
+  - `cut` true: a last muted row, "Core shortened this file; the rest is not shown."
+  - `text` null: "No text to show" (muted), then, when `hunks` is not empty, each hunk drawn
+    alone: a muted separator row, then its lines with their mark and tint and the new line
+    number (old number for a removed line). A deleted file reads as all its lines removed.
+- `web/src/app/tasks/diff-tab.tsx`, `Files`: the open file's area reads
+  `useQuery(attemptFileQuery(attemptId, open.path))`. While it reads: "Reading the file…"
+  (muted). On a refused read: `ErrorLine` with Core's message **inside the file area**; the
+  header line and the changed files box stay. Then `<FileView file={...} hunks={open.hunks} />`.
+  The header line (path, `+added`, `-removed`) and the box are unchanged. `open.patch` is no
+  longer read by the page.
+- `docs/frontend/codebase/README.md`: the `file-patch.tsx` row becomes
+  `web/src/app/tasks/file-view.tsx`, "One file at the attempt's commit with its changes marked".
+- `web/src/app/tasks/contract.yaml`: the Diff tab obligation now reads: "The Diff tab opens the
+  first changed file above, whole as the attempt's commit holds it, with Core's added and
+  removed lines marked, and lists every changed file in a box below; a click opens that file. A
+  refused file read shows Core's message in the file area and keeps the list
+  (diff_opens_the_first_file_and_switches_on_click, diff_shows_the_whole_file_with_its_changes_marked,
+  diff_shows_cores_refusal_in_the_file_area)." Remove the obligation that names
+  `diff_shows_a_cut_marker_as_plain_text`.
+
+**Tests** in `web/src/app/tasks/task-page.test.tsx` (the fake daemon answers the file route):
+- `diff_opens_the_first_file_and_switches_on_click` stays, with the file route answered for
+  both files; the second file's text shows after the click.
+- `diff_shows_the_whole_file_with_its_changes_marked`: text of 5 lines; one hunk from
+  `new_start` 2: context line 2, remove `old three`, add line 3 (`new three`), context line 4.
+  All 5 lines show with numbers 1 to 5; line 3 is marked added; `old three` shows just above it,
+  marked removed, with no number.
+- `diff_shows_no_text_for_a_deleted_file_with_its_hunks`: `text` null, one hunk of two removed
+  lines: "No text to show" and both lines marked removed.
+- `diff_says_when_core_shortened_the_file`: `cut: true`: the last row says so.
+- `diff_shows_cores_refusal_in_the_file_area`: the file route answers 404 with Core's message:
+  the message shows, and the changed files box still lists every file.
+- `diff_shows_a_cut_marker_as_plain_text` is deleted: the page no longer reads patch text.

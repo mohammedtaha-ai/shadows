@@ -208,9 +208,33 @@ Its Global constraints bind every task here.
 
 ### F-109 · The whole file with its changes in the Diff tab
 
-- Status: blocked (request asked, not answered)
-- Plan: [F-109](plans/2026-11-11-task-page-review-and-diff.md#f-109--the-whole-file-with-its-changes-blocked-on-a-request)
-- Read: `docs/shared/requests/2026-11-11-attempt-file-content.md`.
-- Touch: written by Masada once the backend answer names the route and fields.
-- Needs: `docs/shared/requests/2026-11-11-attempt-file-content.md` accepted and built; F-107.
-- Done when: written with its Touch list.
+- Status: blocked (B-131 not built)
+- Plan: [F-109](plans/2026-11-11-task-page-review-and-diff.md#f-109--the-whole-file-with-its-changes)
+- Read: `docs/shared/requests/2026-11-11-attempt-file-content.md` (accepted); `web/src/app/tasks/contract.yaml`; the `runs:` block of `web/src/api/contract.yaml`; the `tasks` rows of `docs/frontend/codebase/README.md`.
+- Touch: `web/src/api/schema.d.ts` (only through `npm run gen:api`), `web/src/api/runs.ts`, `web/src/api/contract.yaml`, `web/src/app/tasks/diff-tab.tsx`, `web/src/app/tasks/file-view.tsx` (new), `web/src/app/tasks/file-patch.tsx` (deleted), `web/src/app/tasks/task-page.test.tsx`, `web/src/app/tasks/contract.yaml`, `docs/frontend/codebase/README.md`, this stages file.
+- Needs: B-131 committed (`api/openapi.json` holds `AttemptFile`, `GET /api/attempts/{id}/files` and `FileDiff.hunks`); F-107.
+- Done when: `npx vitest run src/app/tasks` passes with `diff_opens_the_first_file_and_switches_on_click`, `diff_shows_the_whole_file_with_its_changes_marked`, `diff_shows_no_text_for_a_deleted_file_with_its_hunks`, `diff_says_when_core_shortened_the_file` and `diff_shows_cores_refusal_in_the_file_area`; typecheck, lint, build, `npx vitest run src/codemap.test.ts src/architecture` pass. One commit, `feat(web): F-109 <goal>`.
+
+## Shadows' notices as the Planner's activity, 2026-11-11
+
+Plan: [2026-11-11-shadows-notices.md](plans/2026-11-11-shadows-notices.md). Its Global
+constraints bind both tasks. Backend: B-134 on
+[the shadows notices request](../shared/requests/2026-11-11-shadows-notices.md) (accepted).
+
+### F-111 · A Shadows notice draws as an item of the Planner's activity
+
+- Status: blocked (B-134 not built)
+- Plan: [F-111](plans/2026-11-11-shadows-notices.md#f-111--a-shadows-notice-draws-as-an-item-of-the-planners-activity)
+- Read: the plan's "What Core gives" and "Where the item sits"; `web/src/app/conversation/contract.yaml`; `web/src/stream/contract.yaml`; the `runs:` block of `web/src/api/contract.yaml`; `Entry` in `entry.tsx`, `EntryRow` in `messages.tsx`, `subagentOf` and `copyText` in `tool-text.ts`, `readSubagentCard` in `web/src/stream/frames.ts`, `ToolGroup` in `tool-group.tsx` (the look to match).
+- Touch: `web/src/api/schema.d.ts` (only through `npm run gen:api`), `web/src/api/runs.ts`, `web/src/api/contract.yaml`, `web/src/stream/frames.ts`, `web/src/stream/contract.yaml`, `web/src/app/conversation/tool-text.ts`, `web/src/app/conversation/notice-item.tsx` (new), `web/src/app/conversation/notice-item.test.tsx` (new), `web/src/app/conversation/reply-text.tsx` (the `compact` prop only), `web/src/app/conversation/entry.tsx`, `web/src/app/conversation/messages.tsx` (`EntryRow` footer only), `web/src/app/conversation/contract.yaml`, `docs/frontend/codebase/README.md`, this stages file.
+- Needs: B-134 committed (`api/openapi.json` holds `AttemptNotice`, `Notice` and `QueuedMessage.notice`).
+- Done when: `npx vitest run src/app/conversation/notice-item.test.tsx src/app/conversation/todo-card.test.tsx src/app/conversation/reply-text.test.tsx` passes, with `a_notice_draws_as_an_activity_item_not_a_bubble`, `a_failed_notice_shows_its_reason_and_report`, `a_long_report_is_cut_with_show_more`, `a_notice_without_a_readable_card_shows_its_body_under_shadows`, `the_header_closes_and_reopens_the_report` and `an_old_notice_from_the_person_stays_a_bubble`; typecheck, lint, build, `npx vitest run src/codemap.test.ts src/architecture` pass. One commit, `feat(web): F-111 <goal>`.
+
+### F-112 · A waiting notice is not drawn as the person's waiting message
+
+- Status: blocked (B-134 not built; Mohammed's answer on removing a waiting notice)
+- Plan: [F-112](plans/2026-11-11-shadows-notices.md#f-112--a-waiting-notice-is-not-drawn-as-the-persons-waiting-message)
+- Read: `web/src/app/conversation/contract.yaml`; `WaitingMessages` in `waiting-messages.tsx`; `noticeTitle` in `notice-item.tsx`; `readAttemptNotice` in `web/src/stream/frames.ts`.
+- Touch: `web/src/app/conversation/waiting-messages.tsx`, `web/src/app/conversation/waiting-messages.test.tsx`, `web/src/app/conversation/contract.yaml`, this stages file.
+- Needs: F-111; B-134; Mohammed's answer to "may the person remove a waiting notice" (the plan says what changes if he says yes).
+- Done when: `npx vitest run src/app/conversation/waiting-messages.test.tsx` passes with `a_waiting_notice_is_not_drawn_as_the_persons_message` and the existing queue test; typecheck, lint, build, `npx vitest run src/codemap.test.ts src/architecture` pass. One commit, `feat(web): F-112 <goal>`.
