@@ -61,6 +61,34 @@ it('queues on Enter while a turn runs, and offers Send now and Remove', async ()
   await until(() => a.calls.includes('DELETE /api/threads/t1/queue/q1'))
 })
 
+it('a_waiting_notice_is_not_drawn_as_the_persons_message', async () => {
+  const noticeRow = {
+    ...waiting,
+    id: 'q0',
+    position: 0,
+    prompt: '[Shadows] the model text',
+    notice: {
+      executor: 'x1',
+      card: {
+        workflow_id: 'w1', version: 1, task: 2, title: 'Login', attempt: 3, attempt_id: 'a3',
+        model: 'sonnet', outcome: 'committed', commit: null, report: null, reason: null, last_addition: false,
+      },
+    },
+  }
+  const a = (app = await startApp('/projects/p1/threads/t1', {
+    ...DAEMON,
+    'GET /api/threads/t1/queue': [noticeRow, waiting],
+  }))
+  await until(() => a.text().includes('And the tests too'))
+  const [notice, person] = [...a.container.querySelectorAll('ul[aria-label="Waiting messages"] > li')]
+  expect(notice?.textContent).toContain('Executor (sonnet) · T2 · attempt 3 committed')
+  expect(notice?.textContent).toContain('Waiting for the Planner')
+  expect(notice?.textContent).not.toContain('the model text')
+  const names = (row: Element | undefined) => [...(row?.querySelectorAll('button') ?? [])].map((b) => b.textContent)
+  expect(names(notice)).toEqual(['Send now'])
+  expect(names(person)).toEqual(['Send now', 'Remove'])
+})
+
 it.each(['INVALID_COMMAND', 'COMMAND_CONFLICT'] as const)('Send now preserves queued images and retries %s with the correct command', async code => {
   const requests: { command_id: string }[] = []
   const a = app = await startApp('/projects/p1/threads/t1', {

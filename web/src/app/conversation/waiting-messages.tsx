@@ -1,6 +1,9 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Bell } from 'lucide-react'
 import { useRef } from 'react'
+import { readAttemptNotice } from '@/stream'
+import { noticeTitle } from './notice-item'
 import { attachmentUrl, sendQueuedNow, unqueueMessage } from '@/api/threads'
 import { ApiError } from '@/api/error'
 import { queuedQuery } from '@/api/threads'
@@ -35,7 +38,29 @@ export function WaitingMessages({ threadId, running }: { threadId: string; runni
   return (
     <div className="mx-auto w-full max-w-3xl space-y-2 px-6 pb-2">
       <ul className="space-y-2" aria-label="Waiting messages">
-        {waiting.map((m) => (
+        {waiting.map((m) => m.notice != null ? (
+          <li key={m.id} className="surface-panel rounded-xl p-3 opacity-70">
+            <div className="flex items-center gap-2.5 text-xs">
+              <Bell aria-hidden className="size-3.5 shrink-0 text-accent-line/85" />
+              <span dir="auto" className="font-medium text-foreground">
+                {noticeTitle(readAttemptNotice(m.notice.card))}
+              </span>
+              <span className="text-muted-foreground">Waiting for the Planner</span>
+              {m.last_error != null && (
+                <span className="text-destructive-foreground">{m.last_error}</span>
+              )}
+              <Button
+                size="sm"
+                variant="ghost"
+                className="ms-auto"
+                onClick={() => sendNow.mutate(m.id)}
+                disabled={sendNow.isPending}
+              >
+                {running ? 'Send now' : 'Send'}
+              </Button>
+            </div>
+          </li>
+        ) : (
           <li
             key={m.id}
             className="ml-auto max-w-[80%] rounded-xl border border-border/60 bg-muted/40 px-3 py-2 opacity-70"

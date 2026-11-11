@@ -233,7 +233,7 @@ Built by `frontend-builder`.
 
 ### F-112 · A waiting notice is not drawn as the person's waiting message
 
-- Status: blocked (F-111 first)
+- Status: done
 - Plan: [F-112](plans/2026-11-11-shadows-notices.md#f-112--a-waiting-notice-is-not-drawn-as-the-persons-waiting-message)
 - Read: `web/src/app/conversation/contract.yaml`; `WaitingMessages` in `waiting-messages.tsx`; `noticeTitle` in `notice-item.tsx`; `readAttemptNotice` in `web/src/stream/frames.ts`.
 - Touch: `web/src/app/conversation/waiting-messages.tsx`, `web/src/app/conversation/waiting-messages.test.tsx`, `web/src/app/conversation/contract.yaml`, this stages file.

@@ -902,8 +902,9 @@ obligations:
 
   - rule: >
       Enter queues a message while a turn runs. A waiting message offers Send now and Remove,
-      and each reaches the daemon.
-    tested_by: "queues on Enter while a turn runs, and offers Send now and Remove"
+      and each reaches the daemon. An executor's notice waits as a notice line (its title from
+      the card and "Waiting for the Planner", never its prompt), with Send now and no Remove.
+    tested_by: ["queues on Enter while a turn runs, and offers Send now and Remove", a_waiting_notice_is_not_drawn_as_the_persons_message]
 
   - rule: >
       Stop is shown while a turn runs and reads Stopping once a stop is asked for. A stop the
