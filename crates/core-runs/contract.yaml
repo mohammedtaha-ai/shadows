@@ -77,7 +77,7 @@ shapes:
   TaskRun: "{ task, done, done_at, latest, needs, start: StartAnswer, suggested_model }"
   StartAnswer: "{ allowed, code, reason }: code and reason null when allowed"
   DoneMark: "{ task: TaskRun, next }: what the Planner's mark answers; next is next_ready's task for a done mark, else null. MCP only, no route serves it"
-  FileDiff: "{ path, added, removed, patch }: the patch cut at 2,000 lines with a marker"
+  FileDiff: "{ path, added, removed, patch, hunks }: the patch cut at 2,000 lines with a marker; hunks (shadows-agent DiffHunk) read from the same patch before the cut, lines stopping at 2,000 in all, none for a binary file"
   AttemptFile: "{ path, text, cut }: a file at an attempt's commit; text null for deleted, binary or non-UTF-8 files; text cut on a line and char boundary at 2,000 lines or 200,000 bytes, whichever comes first"
   RecoverReport: "{ interrupted }"
   TaskLesson: "{ workflow_id, version, task, title, attempts: [LessonAttempt], commands: [LessonCommand], stopped_by, plan_should_have_said, recorded_at }: the record a task leaves when it stops on the cap, stored as run_lessons.record_json; the two Planner fields null until it writes them. No route serves it"
@@ -107,7 +107,7 @@ functions:
   record_lesson: "private: (plan, stopped) puts the task's TaskLesson in run_lessons keyed by the stopped attempt: the chain from the newest attempt down to the one a Start began, oldest first, the execute calls from Threads::entries of its thread in ordinal order, the task's title, both Planner fields null; a failure is logged runs.lesson_failed and never changes the cap's answer, success logs runs.lesson_recorded"
   write_lesson: "(grant, workflow, task, stopped_by, plan_should_have_said) -> TaskLesson; the Planner's grant checked as start_for; both trimmed and non-empty, else EmptyLesson; the task's latest record (by created_at, then attempt_id), else NoLesson; sets the two fields and stores it; writing again replaces them. No read method, route or tool lists the records: the main session reads run_lessons.record_json"
   next_ready: "private: the lowest-numbered task never run (no done mark, no attempt at all) that Start allows now"
-  diff: "(attempt) -> Vec<FileDiff>; each file of the attempt's commit, nothing before it commits"
+  diff: "(attempt) -> Vec<FileDiff>; each file of the attempt's commit, nothing before it commits; each @@ -a[,b] +c[,d] @@ starts a hunk with old_start a and new_start c, lines led by space, + or - are Context, Add, Remove without that character, no-newline markers skipped"
   file: "(attempt, path) -> AttemptFile; unknown attempt or no commit is NotFound; trim path and normalize backslashes, then Scope::admits_under with Git::prefix and the attempt's writes, else OutsideWrites before reading a blob. Git::blob reads the commit, never the working tree; NUL in the first 8,000 bytes or invalid UTF-8 gives text null. No blob gives text null only for a path Git::changes lists (deleted), else NotFound. MAX_LINES 2,000 and MAX_BYTES 200,000 cut on a line and char boundary with cut true and no marker"
   planner_commit: "private: (grant, workflow, task) -> AttemptId; planner_plan checks a Thread grant of the plan's project, then attempts newest first at plan.version: first with a commit, whatever its state; none is NotFound"
   diff_for: "(grant, workflow, task) -> Vec<FileDiff>; diff of planner_commit, preserving all paths and counts; patches kept in order up to MAX_LINES in all, then every later patch is [not shown: read it with task_file]; route diff unchanged"
@@ -267,6 +267,8 @@ obligations:
     tested_by: [a_commit_from_before_the_attempt_is_refused]
   - rule: An attempt's diff lists each file of its commit with its counts and patch.
     tested_by: [diff_returns_each_files_counts_and_patch]
+  - rule: Each file of an attempt's diff carries its hunks, read from its patch with old and new starts and each line's op.
+    tested_by: [diff_answers_each_files_hunks]
   - rule: The matcher admits by pattern, with `*` stopping at `/`, an empty set admitting nothing, bad patterns refused and Windows separators normalised.
     tested_by: [a_star_does_not_cross_a_separator, no_patterns_admit_nothing, an_invalid_pattern_is_an_error, windows_separators_are_normalised]
   - rule: Two patterns may overlap unless their literal prefixes are disjoint folders; a pattern led by a glob or climbing out with `..` may overlap anything.

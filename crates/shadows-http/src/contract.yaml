@@ -100,6 +100,7 @@ runs:
     - 'PUT /api/workflows/{workflow}/versions/{version}/tasks/{task}/done -> Runs::mark_done'
     - 'POST /api/attempts/{id}/stop -> Runs::stop, run detached'
     - 'GET /api/attempts/{id}/diff -> Runs::diff'
+    - 'GET /api/attempts/{id}/files?path= -> Runs::file (AttemptFile; 409 outside_writes is a RunRefusal)'
   refusals: >
     A Runs refusal is 409 RunRefusal { code, reason } with Runs' own opaque code, the same
     codes a task's start answer carries; NotFound is 404, Storage and Unavailable 5xx
@@ -109,7 +110,7 @@ runs:
     start_while_waiting_is_409_with_the_waiting_tasks, a_replayed_start_returns_the_same_attempt,
     the_attempts_are_listed_newest_first, stop_answers_the_attempt_as_it_stands,
     the_diff_of_an_attempt_with_no_commit_is_empty, a_done_mark_frees_the_tasks_that_need_it,
-    the_folder_decides_start_not_git_and_dirty_scope,
+    the_folder_decides_start_not_git_and_dirty_scope, a_file_at_an_attempts_commit_is_served,
     live_a_task_started_over_http_commits_only_its_writes]
 
 code_inventory:

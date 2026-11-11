@@ -3,6 +3,7 @@ use crate::git::Git;
 use crate::model::{AttemptFile, FileDiff};
 use crate::scope::Scope;
 use crate::{AttemptId, Runs, RunsError};
+use shadows_agent::events::{DiffHunk, DiffLine, DiffOp};
 
 /// A patch longer than this is cut, with a marker saying how much was left.
 pub(crate) const MAX_LINES: usize = 2_000;
@@ -100,14 +101,60 @@ impl Runs {
                 ])
                 .await
                 .map_err(RunsError::Unavailable)?;
+            let patch = String::from_utf8_lossy(&patch);
             files.push(FileDiff {
                 path: path.to_string(),
                 added: added.parse().unwrap_or(0),
                 removed: removed.parse().unwrap_or(0),
-                patch: Self::bounded(&String::from_utf8_lossy(&patch)),
+                patch: Self::bounded(&patch),
+                hunks: Self::hunks(path, &patch),
             });
         }
         Ok(files)
+    }
+
+    /// The patch's hunks, read before it is cut; their lines stop at
+    /// `MAX_LINES` in all, as the patch does.
+    fn hunks(path: &str, patch: &str) -> Vec<DiffHunk> {
+        let mut hunks: Vec<DiffHunk> = Vec::new();
+        let mut kept = 0;
+        for line in patch.lines() {
+            if let Some(header) = line.strip_prefix("@@ -") {
+                let mut ranges = header.split(' ');
+                let start = |range: Option<&str>| {
+                    range
+                        .and_then(|r| r.split(',').next())
+                        .and_then(|n| n.parse::<u32>().ok())
+                };
+                let old_start = start(ranges.next());
+                let new_start = start(ranges.next().map(|r| r.trim_start_matches('+')));
+                hunks.push(DiffHunk {
+                    path: path.to_string(),
+                    old_start,
+                    new_start,
+                    lines: Vec::new(),
+                });
+                continue;
+            }
+            let Some(hunk) = hunks.last_mut() else {
+                continue;
+            };
+            let op = match line.chars().next() {
+                Some(' ') => DiffOp::Context,
+                Some('+') => DiffOp::Add,
+                Some('-') => DiffOp::Remove,
+                _ => continue,
+            };
+            if kept == MAX_LINES {
+                break;
+            }
+            kept += 1;
+            hunk.lines.push(DiffLine {
+                op,
+                text: line[1..].to_string(),
+            });
+        }
+        hunks
     }
 
     fn bounded(patch: &str) -> String {

@@ -1,18 +1,19 @@
 //! One job: the routes over a task's attempts — the task's run state,
-//! Start, Stop, an attempt's diff, and the person's done mark.
+//! Start, Stop, an attempt's diff, a file at its commit, and the person's
+//! done mark.
 //!
 //! Each handler reads the request, calls one `Runs` method and shapes the
 //! answer. A refused Start is 409 with Runs' own `code` and `reason`.
 //! Every handler here is `pub(super)`, named only by the route table.
 
 use axum::Json;
-use axum::extract::{Path, State};
+use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 
 use super::AppState;
 use super::failure::{ErrorBody, RunFailure, RunRefusal};
 use super::transport::Transport;
-use shadows_core::{Attempt, AttemptId, FileDiff, TaskRun, WorkflowId};
+use shadows_core::{Attempt, AttemptFile, AttemptId, FileDiff, TaskRun, WorkflowId};
 
 /// A task of a plan version: `/api/workflows/{workflow}/versions/{version}/tasks/{task}`.
 type TaskPath = Path<(WorkflowId, i64, u32)>;
@@ -200,4 +201,39 @@ pub(super) async fn diff(
     Path(attempt): Path<AttemptId>,
 ) -> Result<Json<Vec<FileDiff>>, RunFailure> {
     Ok(Json(s.core.runs().diff(&attempt).await?))
+}
+
+/// Which file of an attempt's commit to read.
+#[derive(serde::Deserialize, utoipa::IntoParams)]
+#[into_params(parameter_in = Query)]
+pub(super) struct FilePath {
+    /// A path inside the task's writes, as the diff names it.
+    path: String,
+}
+
+/// One file of the task as the attempt's commit holds it, changed by it or
+/// not; text is null for a deleted or binary file, and cut is true when a
+/// long file was shortened.
+#[utoipa::path(
+    get,
+    path = "/api/attempts/{id}/files",
+    tag = "runs",
+    params(("id" = AttemptId, Path, description = "The attempt"), FilePath),
+    responses(
+        (status = 200, body = AttemptFile),
+        (
+            status = 404,
+            description = "no such attempt, no commit yet, or no such file at its commit",
+            body = ErrorBody,
+        ),
+        (status = 409, description = "outside_writes", body = RunRefusal),
+        (status = 500, description = "STORAGE_UNAVAILABLE", body = ErrorBody),
+    )
+)]
+pub(super) async fn file(
+    State(s): State<AppState>,
+    Path(attempt): Path<AttemptId>,
+    Query(query): Query<FilePath>,
+) -> Result<Json<AttemptFile>, RunFailure> {
+    Ok(Json(s.core.runs().file(&attempt, &query.path).await?))
 }

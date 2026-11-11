@@ -143,14 +143,16 @@ pub struct Need {
     pub done: bool,
 }
 
-/// One file of an attempt's commit: its line counts and its patch, cut at
-/// 2,000 lines with a marker.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, utoipa::ToSchema)]
+/// One file of an attempt's commit: its line counts, its patch cut at 2,000
+/// lines with a marker, and the same patch read into hunks (none for a binary
+/// file), whose lines stop at 2,000 in all.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, utoipa::ToSchema)]
 pub struct FileDiff {
     pub path: String,
     pub added: u32,
     pub removed: u32,
     pub patch: String,
+    pub hunks: Vec<shadows_agent::events::DiffHunk>,
 }
 
 /// One file as an attempt's commit holds it; deleted or binary files have no text.

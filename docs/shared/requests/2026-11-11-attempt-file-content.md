@@ -51,6 +51,7 @@ As asked, with one widening. Hamoud, 2026-11-11. Service: Runs
   binary file has none. `old_start` is 0 for a new file.
 - Built by B-131 once this is `accepted`. B-129 (the Planner's side) builds `Runs::file` first
   and changes nothing the page sees.
+- Built: B-131 (the route and `FileDiff.hunks`, as answered above).
 
 ## Frontend reply
 

@@ -262,6 +262,8 @@ async fn no_get_route_changes_state() {
             path.push_str("?from=2000-01-01T00:00:00Z&to=2100-01-01T00:00:00Z");
         } else if template.ends_with("/code/outline") {
             path.push_str("?path=");
+        } else if template == "/api/attempts/{id}/files" {
+            path.push_str("?path=src/t1.rs");
         }
         let before = observer.version().await.unwrap();
         if template.ends_with("/attachments/{attachment_id}") {
@@ -280,7 +282,13 @@ async fn no_get_route_changes_state() {
             continue;
         }
         let (status, body) = app::call(&a, "GET", &path, None).await;
-        assert!((200..300).contains(&status), "{path}: {status} {body}");
+        // The seeded attempt has no commit, so its file is not found; the
+        // route still must not write.
+        let not_found = template == "/api/attempts/{id}/files" && status == 404;
+        assert!(
+            (200..300).contains(&status) || not_found,
+            "{path}: {status} {body}"
+        );
         assert_eq!(
             observer.version().await.unwrap(),
             before,

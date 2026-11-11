@@ -216,3 +216,63 @@ async fn the_folder_decides_start_not_git_and_dirty_scope() {
     let (_, t1) = call(&app, "GET", &format!("{}/1", tasks(&v1)), None).await;
     assert_eq!(t1["start"]["code"], "not_git");
 }
+
+#[tokio::test]
+async fn a_file_at_an_attempts_commit_is_served() {
+    let (app, v1) = runs_app().await;
+    let root = folder(&app).await;
+    let first = git(&root, &["rev-parse", "HEAD"]).trim().to_string();
+    std::fs::create_dir_all(root.join("src")).unwrap();
+    std::fs::write(root.join("src").join("t1.rs"), "fn main() {}\n").unwrap();
+    git(&root, &["add", "src/t1.rs"]);
+    git(&root, &["commit", "-q", "-m", "T1"]);
+    let sha = git(&root, &["rev-parse", "HEAD"]).trim().to_string();
+    let id = committed(&app, &v1, "s1", sha).await;
+    // An attempt whose commit holds no src/t1.rs: inside writes, not there.
+    let before = committed(&app, &v1, "s2", first).await;
+    let (_, diff) = call(&app, "GET", &format!("/api/attempts/{id}/diff"), None).await;
+    let path = diff[0]["path"].as_str().unwrap().to_string();
+    assert_eq!(diff[0]["hunks"][0]["lines"][0]["op"], "add", "{diff}");
+    let files = format!("/api/attempts/{id}/files?path=");
+    let (status, file) = call(&app, "GET", &format!("{files}{path}"), None).await;
+    assert_eq!(status, 200, "{file}");
+    assert_eq!(
+        file,
+        json!({ "path": path, "text": "fn main() {}\n", "cut": false })
+    );
+    let before = format!("/api/attempts/{before}/files?path=src/t1.rs");
+    let (missing, _) = call(&app, "GET", &before, None).await;
+    assert_eq!(missing, 404);
+    let (outside, body) = call(&app, "GET", &format!("{files}nope.txt"), None).await;
+    assert_eq!(
+        (outside, body["code"].as_str()),
+        (409, Some("outside_writes"))
+    );
+    let unknown = "/api/attempts/nope/files?path=src/t1.rs";
+    let (unknown, _) = call(&app, "GET", unknown, None).await;
+    assert_eq!(unknown, 404);
+}
+
+/// Starts T1 (answered failed, no adapter) and records `sha` as its commit,
+/// as an accepted report would; no executor runs.
+async fn committed(app: &App, v1: &WorkflowId, command: &str, sha: String) -> String {
+    let (_, attempt) = start(app, v1, 1, command).await;
+    let id = attempt["id"].as_str().unwrap().to_string();
+    let row = id.clone();
+    app.storage
+        .write_txn(move |conn| {
+            Box::pin(async move {
+                sqlx::query(
+                    "UPDATE run_attempts SET state = 'committed', commit_sha = ? WHERE id = ?",
+                )
+                .bind(&sha)
+                .bind(&row)
+                .execute(&mut *conn)
+                .await?;
+                Ok(())
+            })
+        })
+        .await
+        .unwrap();
+    id
+}

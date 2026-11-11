@@ -452,3 +452,47 @@ async fn an_empty_commit_is_refused_until_it_changes_something() {
     assert_eq!(done.commit.as_deref(), Some(sha.as_str()));
     f.finish().await;
 }
+
+#[tokio::test]
+async fn diff_answers_each_files_hunks() {
+    use shadows_core::DiffOp::{Add, Context, Remove};
+    let f = fixture().await;
+    f.put("backend/app/a.php", "one\ntwo\n");
+    f.commit(&["backend/app/a.php"], "seed");
+    let (attempt, grant) = f.begin(3).await;
+    f.put("backend/app/a.php", "one\nTWO\nthree\n");
+    f.put("backend/app/b.php", "b\n");
+    let sha = f.commit(&["backend/app/a.php", "backend/app/b.php"], "Change");
+    f.report(&grant, &sha).await.unwrap();
+    let diff = f.core.runs().diff(&attempt).await.unwrap();
+    let lines = |path: &str| {
+        let file = diff.iter().find(|d| d.path == path).unwrap();
+        assert_eq!(file.hunks.len(), 1, "{:?}", file.hunks);
+        let hunk = &file.hunks[0];
+        assert_eq!(hunk.path, path);
+        let ops: Vec<_> = hunk
+            .lines
+            .iter()
+            .map(|l| (l.op.clone(), l.text.as_str()))
+            .collect();
+        (hunk.old_start, hunk.new_start, ops)
+    };
+    assert_eq!(
+        lines("backend/app/a.php"),
+        (
+            Some(1),
+            Some(1),
+            vec![
+                (Context, "one"),
+                (Remove, "two"),
+                (Add, "TWO"),
+                (Add, "three")
+            ]
+        )
+    );
+    assert_eq!(
+        lines("backend/app/b.php"),
+        (Some(0), Some(1), vec![(Add, "b")])
+    );
+    f.finish().await;
+}

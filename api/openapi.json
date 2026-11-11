@@ -1016,6 +1016,28 @@
         ],
         "type": "object"
       },
+      "AttemptFile": {
+        "description": "One file as an attempt's commit holds it; deleted or binary files have no text.",
+        "properties": {
+          "cut": {
+            "type": "boolean"
+          },
+          "path": {
+            "type": "string"
+          },
+          "text": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "path",
+          "cut"
+        ],
+        "type": "object"
+      },
       "AttemptId": {
         "format": "uuid",
         "type": "string"
@@ -2410,12 +2432,18 @@
         "type": "string"
       },
       "FileDiff": {
-        "description": "One file of an attempt's commit: its line counts and its patch, cut at\n2,000 lines with a marker.",
+        "description": "One file of an attempt's commit: its line counts, its patch cut at 2,000\nlines with a marker, and the same patch read into hunks (none for a binary\nfile), whose lines stop at 2,000 in all.",
         "properties": {
           "added": {
             "format": "int32",
             "minimum": 0,
             "type": "integer"
+          },
+          "hunks": {
+            "items": {
+              "$ref": "#/components/schemas/DiffHunk"
+            },
+            "type": "array"
           },
           "patch": {
             "type": "string"
@@ -2433,7 +2461,8 @@
           "path",
           "added",
           "removed",
-          "patch"
+          "patch",
+          "hunks"
         ],
         "type": "object"
       },
@@ -7885,6 +7914,77 @@
           }
         },
         "summary": "Each file of the attempt's commit with its counts and patch; none before\nit commits. A patch longer than 2,000 lines is cut with a marker.",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/attempts/{id}/files": {
+      "get": {
+        "operationId": "file",
+        "parameters": [
+          {
+            "description": "The attempt",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/AttemptId"
+            }
+          },
+          {
+            "description": "A path inside the task's writes, as the diff names it.",
+            "in": "query",
+            "name": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttemptFile"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "no such attempt, no commit yet, or no such file at its commit"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunRefusal"
+                }
+              }
+            },
+            "description": "outside_writes"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          }
+        },
+        "summary": "One file of the task as the attempt's commit holds it, changed by it or\nnot; text is null for a deleted or binary file, and cut is true when a\nlong file was shortened.",
         "tags": [
           "runs"
         ]
