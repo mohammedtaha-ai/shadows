@@ -1,7 +1,8 @@
 //! A task run end to end over HTTP on the real Claude adapter, against
 //! MiniMax through a Claude profile, with the executor reaching Shadows'
-//! `/mcp` on a real port. CI skips it; run it with `API_KEY_MINIMAX` set and
-//! `-- --ignored --test-threads=1`.
+//! `/mcp` on a real port, or on the person's signed-in Claude Code where the
+//! executor needs `auto`. CI skips it; run it with `API_KEY_MINIMAX` set, signed
+//! in, and `-- --ignored --test-threads=1`.
 use super::*;
 use shadows_agent::claude::ClaudeAdapter;
 use shadows_agent::profile::ClaudeProfile;
@@ -47,9 +48,33 @@ fn live_adapter() -> LiveAdapter {
         .map(|(name, value)| (name.to_string(), value.to_string()))
         .to_vec(),
     );
-    let env: serde_json::Map<String, Value> = profile
-        .spawn_env_with(&[], Some(&key))
-        .unwrap()
+    let env = profile.spawn_env_with(&[], Some(&key)).unwrap();
+    launched(dir, env)
+}
+
+/// The model picked on the subscription.
+const SUBSCRIPTION_MODEL: &str = "sonnet";
+
+/// The real adapter on the person's signed-in Claude Code, with no provider
+/// override: `auto`'s safety check runs on Anthropic's server, which MiniMax
+/// does not pass through, so there `auto` refuses every `Bash` call. The
+/// launcher hands the adapter this process's environment, without any
+/// `ANTHROPIC_` name or `CLAUDE_CONFIG_DIR`, so Claude Code reads its own
+/// sign-in from the user's home.
+fn subscription_adapter() -> LiveAdapter {
+    let env = std::env::vars()
+        .filter(|(name, _)| {
+            !name.starts_with("ANTHROPIC_")
+                && !name.starts_with("API_KEY_")
+                && name != "CLAUDE_CONFIG_DIR"
+        })
+        .collect();
+    launched(tempfile::tempdir().unwrap(), env)
+}
+
+/// The pinned adapter run by a launcher in `dir` that first sets `env`.
+fn launched(dir: tempfile::TempDir, env: Vec<(String, String)>) -> LiveAdapter {
+    let env: serde_json::Map<String, Value> = env
         .into_iter()
         .map(|(name, value)| (name, Value::from(value)))
         .collect();
@@ -166,9 +191,9 @@ async fn live_an_executor_commits_its_own_work_and_reports_it() {
 /// reads the contract through `task_context` and builds the function it names,
 /// with its signature, committing only that file.
 #[tokio::test]
-#[ignore = "live: needs API_KEY_MINIMAX"]
+#[ignore = "live: needs the signed-in Claude Code subscription"]
 async fn live_an_executor_builds_the_function_its_contract_names() {
-    let live = live_adapter();
+    let live = subscription_adapter();
     let tmp = tempfile::tempdir().unwrap();
     let l = listening::listening_on(tmp.path(), live.adapter.clone()).await;
     let app = &l.app;
@@ -199,7 +224,7 @@ async fn live_an_executor_builds_the_function_its_contract_names() {
     let (status, attempt) = post(
         app,
         &path,
-        json!({ "command_id": "live-cart", "model": PICKED }),
+        json!({ "command_id": "live-cart", "model": SUBSCRIPTION_MODEL }),
     )
     .await;
     assert_eq!(status, 201, "{attempt}");

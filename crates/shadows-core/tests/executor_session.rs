@@ -1,7 +1,7 @@
-//! An executor session is built as the Planner's is: a fixed tool list, the
-//! permission rules of its one task, a grant that reads that task only, and a
-//! thread no conversation list shows. `fake_acp`'s `report` prompt answers
-//! with what its session was opened with.
+//! An executor session is built as the Planner's is: a fixed tool list, its
+//! instructions, a grant that reads its one task only, mode `auto` with no
+//! permission rules, and a thread no conversation list shows. `fake_acp`'s
+//! `report` prompt answers with what its session was opened with.
 
 #[allow(dead_code)]
 #[path = "fixtures/cross_plan.rs"]
@@ -107,10 +107,10 @@ impl Fixture {
             .unwrap()
     }
 
-    async fn open(&self, thread: &ThreadId, writes: &[&str]) {
-        let writes: Vec<String> = writes.iter().map(|w| w.to_string()).collect();
+    /// On `fake-large`, the fake's one model that offers `auto`.
+    async fn open(&self, thread: &ThreadId) {
         self.sessions
-            .open_executor(thread, &writes, scope(), "fake-small".into())
+            .open_executor(thread, scope(), "fake-large".into())
             .await
             .unwrap();
     }
@@ -150,11 +150,11 @@ impl Fixture {
 async fn an_executor_session_opens_with_its_instructions_tools_and_rules() {
     let f = fixture_with_session().await;
     let thread = f.executor_thread().await;
-    f.open(&thread, &["backend/**"]).await;
+    f.open(&thread).await;
 
     let offered = f.sessions.offered(&thread).await.unwrap();
-    assert_eq!(offered.current.mode, "default");
-    assert_eq!(offered.current.model, "fake-small");
+    assert_eq!(offered.current.mode, "auto");
+    assert_eq!(offered.current.model, "fake-large");
 
     f.turn(&thread, "report").await;
     let entries = f.entries(&thread).await;
@@ -164,12 +164,14 @@ async fn an_executor_session_opens_with_its_instructions_tools_and_rules() {
         .find(|e| e.kind == ThreadEntryKind::AgentMessage)
         .expect("an agent reply");
     let report: Value = serde_json::from_str(&reply.body).unwrap();
+    let append = report["append"].as_str().unwrap();
     assert!(
-        report["append"]
-            .as_str()
-            .unwrap()
-            .starts_with("[Shadows] You are an executor."),
+        append.starts_with("[Shadows] You are an executor."),
+        "{append}"
     );
+    // The body of `executor.md`, without its front matter.
+    assert!(append.contains("Never use Python"), "{append}");
+    assert!(!append.contains("tools:"), "{append}");
     assert_eq!(
         report["cwd"].as_str().map(std::path::Path::new),
         Some(f.root.as_path())
@@ -181,51 +183,23 @@ async fn an_executor_session_opens_with_its_instructions_tools_and_rules() {
         .iter()
         .map(|t| t.as_str().unwrap())
         .collect();
-    assert_eq!(tools, core_harness::EXECUTOR_TOOLS);
+    assert_eq!(
+        tools,
+        [
+            "Read",
+            "Grep",
+            "Glob",
+            "Edit",
+            "Write",
+            "MultiEdit",
+            "Bash",
+            "TodoWrite"
+        ]
+    );
     assert_eq!(options["settingSources"], serde_json::json!([]));
     assert_eq!(options["strictMcpConfig"], serde_json::json!(true));
-    let allow = &options["settings"]["permissions"]["allow"];
-    let allow: Vec<&str> = allow
-        .as_array()
-        .unwrap()
-        .iter()
-        .map(|r| r.as_str().unwrap())
-        .collect();
-    for rule in [
-        "Read",
-        "Grep",
-        "Glob",
-        "TodoWrite",
-        "Bash",
-        "Edit(backend/**)",
-        "Write(backend/**)",
-        "MultiEdit(backend/**)",
-    ] {
-        assert!(allow.contains(&rule), "{rule} missing from {allow:?}");
-    }
-    assert_eq!(allow.len(), 8, "only the task's rules: {allow:?}");
-
-    f.sessions.close_all().await.unwrap();
-    f.storage.close().await.unwrap();
-}
-
-#[tokio::test]
-async fn a_request_outside_the_rules_is_refused() {
-    let f = fixture_with_session().await;
-    let thread = f.executor_thread().await;
-    f.open(&thread, &["backend/**"]).await;
-
-    // The fake asks for a permission no rule allows: under `Refuse` it is
-    // answered no, and the refusal is a thread entry.
-    f.turn(&thread, "ask-permission").await;
-    let entries = f.entries(&thread).await;
-    assert!(
-        entries
-            .iter()
-            .any(|e| e.kind == ThreadEntryKind::PermissionRefused),
-        "no refusal in {:?}",
-        entries.iter().map(|e| e.kind).collect::<Vec<_>>()
-    );
+    // In `auto` nothing is asked, so no rule is sent.
+    assert!(options.get("settings").is_none(), "{options}");
 
     f.sessions.close_all().await.unwrap();
     f.storage.close().await.unwrap();

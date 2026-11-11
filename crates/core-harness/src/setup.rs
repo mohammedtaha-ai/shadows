@@ -10,7 +10,7 @@ use sha2::{Digest, Sha256};
 
 use super::Harness;
 use crate::error::HarnessError;
-use crate::executor::{EXECUTOR_TOOLS, ExecutorSession};
+use crate::executor::ExecutorSession;
 use core_db::{Storage, StorageError};
 use core_grants::GrantId;
 use core_instructions::{Instructions, InstructionsVersion};
@@ -232,7 +232,8 @@ impl Setups {
         })
     }
 
-    /// The executor's setup: its task's grant, tools and rules. On an error
+    /// The executor's setup: its task's grant, its tools and its instructions,
+    /// with no permission rules, since it runs in `auto`. On an error
     /// nothing it issued is left live.
     async fn for_executor(
         &self,
@@ -280,9 +281,9 @@ impl Setups {
             mcp,
             append: Some(ExecutorSession::instructions().to_string()),
             allowed_tools: vec![ALLOWED.to_string()],
-            tools: Some(EXECUTOR_TOOLS.iter().map(|t| t.to_string()).collect()),
+            tools: Some(ExecutorSession::tools()),
             setting_sources: None,
-            permissions: executor.permissions(),
+            permissions: vec![],
         })
     }
 

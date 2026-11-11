@@ -520,7 +520,7 @@ file disagrees with either, they are right and this file is the defect.
 
 | `crates/core-harness/src/error.rs` | harness failure vocabulary | `crates/core-harness/contract.yaml` |
 | `crates/core-harness/src/prompt.txt` | Planner opening instructions | `crates/core-harness/contract.yaml` |
-| `crates/core-harness/src/executor.txt` | executor opening instructions | `crates/core-harness/contract.yaml` |
+| `crates/core-harness/src/executor.md` | executor instructions with their tool list | `crates/core-harness/contract.yaml` |
 | `crates/core-harness/src/schema_descriptions/` | harness wire description metadata | `crates/core-harness/contract.yaml` |
 
 | `crates/core-design/src/openapi-3.1-schema.json` | bundled OpenAPI document schema | `crates/core-design/contract.yaml` |

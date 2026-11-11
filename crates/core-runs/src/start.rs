@@ -10,7 +10,7 @@ use core_grants::TaskScope;
 use core_plans::{Plan, PlanState, TaskContent, WorkflowId, WorkflowState};
 use core_turns::SendTurn;
 
-/// The permission mode in which a request outside the task's rules is refused.
+/// The mode an executor's turns run in; its project's modes do not apply.
 const MODE: &str = shadows_agent::policy::EXECUTOR_MODE;
 
 impl Runs {
@@ -66,7 +66,7 @@ impl Runs {
         if let Err(error) = self
             .inner
             .harness
-            .open_executor(&attempt.thread_id, &content.writes, scope, model.clone())
+            .open_executor(&attempt.thread_id, scope, model.clone())
             .await
         {
             return self

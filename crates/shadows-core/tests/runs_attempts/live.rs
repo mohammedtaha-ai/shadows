@@ -46,9 +46,13 @@ fn live_adapter() -> LiveAdapter {
         .map(|(name, value)| (name.to_string(), value.to_string()))
         .to_vec(),
     );
-    let env: serde_json::Map<String, Value> = profile
-        .spawn_env_with(&[], Some(&key))
-        .unwrap()
+    let env = profile.spawn_env_with(&[], Some(&key)).unwrap();
+    launched(dir, env)
+}
+
+/// The pinned adapter run by a launcher in `dir` that first sets `env`.
+fn launched(dir: tempfile::TempDir, env: Vec<(String, String)>) -> LiveAdapter {
+    let env: serde_json::Map<String, Value> = env
         .into_iter()
         .map(|(name, value)| (name, Value::from(value)))
         .collect();
@@ -89,13 +93,39 @@ async fn live_fixture() -> (Fixture, LiveAdapter) {
     (f, live)
 }
 
+/// The model picked on the subscription.
+const SUBSCRIPTION_MODEL: &str = "sonnet";
+
+/// The real adapter on the person's signed-in Claude Code, with no provider
+/// override: `auto`'s safety check runs on Anthropic's server, which MiniMax
+/// does not pass through, so there `auto` refuses every `Bash` call. The
+/// launcher hands the adapter this process's environment, without any
+/// `ANTHROPIC_` name or `CLAUDE_CONFIG_DIR`, so Claude Code reads its own
+/// sign-in from the user's home.
+async fn subscription_fixture() -> (Fixture, LiveAdapter) {
+    let env = std::env::vars()
+        .filter(|(name, _)| {
+            !name.starts_with("ANTHROPIC_")
+                && !name.starts_with("API_KEY_")
+                && name != "CLAUDE_CONFIG_DIR"
+        })
+        .collect();
+    let live = launched(tempfile::tempdir().unwrap(), env);
+    let f = fixture_with(true, Some(live.adapter.clone())).await;
+    (f, live)
+}
+
 impl Fixture {
     async fn start_live(&self, command: &str, task: u32, prompt: &str) -> Attempt {
+        self.start_live_on(PICKED, command, task, prompt).await
+    }
+
+    async fn start_live_on(&self, model: &str, command: &str, task: u32, prompt: &str) -> Attempt {
         self.core.runs().set_first_prompt_for_tests(prompt);
         let attempt = self
             .core
             .runs()
-            .start(command.into(), &self.workflow, 1, task, PICKED.into())
+            .start(command.into(), &self.workflow, 1, task, model.into())
             .await
             .unwrap();
         assert_eq!(attempt.state, AttemptState::Running, "{:?}", attempt.reason);
@@ -121,52 +151,100 @@ impl Fixture {
     }
 }
 
+/// In `auto`, the executor changes a file that already exists in a subfolder
+/// with `Edit`, nothing is refused, and the commit it makes is accepted. No
+/// `/mcp` is bound here, so the test reports that commit, as the session's
+/// grant would, while the turn still runs. A commit outside `writes` is refused
+/// by `a_commit_with_paths_outside_writes_is_refused_until_fixed`.
 #[tokio::test]
-#[ignore = "live: needs API_KEY_MINIMAX"]
-async fn live_an_executor_writes_inside_its_task_in_mode_default_and_is_refused_outside() {
-    let (f, _live) = live_fixture().await;
+#[ignore = "live: needs the signed-in Claude Code subscription"]
+async fn live_an_executor_edits_a_file_in_a_subfolder_in_mode_auto_and_its_commit_is_accepted() {
+    let (f, _live) = subscription_fixture().await;
+    let path = "backend/app/Http/routes.php";
+    std::fs::create_dir_all(f.root.join("backend/app/Http")).unwrap();
+    std::fs::write(
+        f.root.join(path),
+        "<?php\n\nnamespace App\\Http;\n\nuse App\\Models\\User;\n// ROUTES\n",
+    )
+    .unwrap();
+    git(&f.root, &["add", path]);
+    git(&f.root, &["commit", "-q", "-m", "routes"]);
+    let start = git(&f.root, &["rev-parse", "HEAD"]).trim().to_string();
     let attempt = f
-        .start_live(
+        .start_live_on(
+            SUBSCRIPTION_MODEL,
             "live-1",
             3,
-            "Use the Write tool to create backend/app/inside.txt containing the word A. \
-             Then use the Write tool to create web/outside.txt containing the word B. \
-             Do not use Bash. Then stop.",
+            &format!(
+                "Use the Edit tool to replace the line `// ROUTES` in {path} with the line \
+                 `use App\\Http\\Controllers\\HomeController;`. Change nothing else. Then \
+                 commit only that file with git: `git add {path}`, then \
+                 `git commit -m \"Use the home controller\"`. Then run the Bash command \
+                 `sleep 30`, and stop."
+            ),
         )
         .await;
     let offered = f.sessions.offered(&attempt.thread_id).await.unwrap();
-    assert_eq!(offered.current.mode, "default");
-    let ended = f.settled_live(&attempt).await;
+    assert_eq!(offered.current.mode, "auto");
+    let mut commit = None;
+    for _ in 0..1800 {
+        let head = git(&f.root, &["rev-parse", "HEAD"]).trim().to_string();
+        if head != start {
+            commit = Some(head);
+            break;
+        }
+        if f.state_of(&attempt).await.state != AttemptState::Running {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
     let entries = f.entries_of(&attempt.thread_id).await;
     let kinds: Vec<_> = entries.iter().map(|e| e.kind).collect();
-    println!(
-        "live write boundary: {:?} {:?} {kinds:?}",
-        ended.state, ended.reason
-    );
+    println!("live edit in auto: {commit:?} {kinds:?}");
+    let commit = commit.expect("the executor made no commit");
+    // This fixture binds no `/mcp`, so its sessions hold no grant row: the
+    // grant `task_report` would carry names the attempt's thread and task.
+    let grant = shadows_core::Grant {
+        id: shadows_core::GrantId::generate(),
+        kind: shadows_core::GrantKind::Executor,
+        project_id: f.project.clone(),
+        thread_id: Some(attempt.thread_id.clone()),
+        created_at: "2026-11-11T00:00:00Z".into(),
+        revoked_at: None,
+        scope: Some(shadows_core::testing::TaskScope {
+            workflow: SOURCE.into(),
+            version: 1,
+            task: 3,
+        }),
+    };
+    let done = f
+        .core
+        .runs()
+        .report(&grant, &commit, "Edited the routes file.".into())
+        .await
+        .unwrap();
+    assert_eq!(done.state, AttemptState::Committed);
+    assert_eq!(done.commit.as_deref(), Some(commit.as_str()));
+    let names = git(&f.root, &["show", "--name-only", "--format=", &commit]);
+    assert_eq!(names.trim(), path, "{names}");
+    // The file tool keeps the namespace's backslashes the shell dropped.
+    let written = git(&f.root, &["show", &format!("{commit}:{path}")]);
     assert!(
-        f.root.join("backend/app/inside.txt").is_file(),
-        "the write inside `writes` did not run"
+        written.contains("use App\\Http\\Controllers\\HomeController;"),
+        "{written}"
     );
+    assert!(written.contains("namespace App\\Http;"), "{written}");
+    assert!(!written.contains("// ROUTES"), "{written}");
     assert!(
-        !f.root.join("web/outside.txt").exists(),
-        "a write outside `writes` reached the folder"
+        !kinds.contains(&ThreadEntryKind::PermissionRefused),
+        "a refusal in `auto`: {kinds:?}"
     );
-    assert!(
-        kinds.contains(&ThreadEntryKind::PermissionRefused),
-        "no refusal recorded: {kinds:?}"
-    );
-    // What git sees is the task's file and nothing outside it.
-    let status = git(&f.root, &["status", "--porcelain", "--untracked-files=all"]);
-    println!("git status: {status:?}");
-    assert!(status.contains("backend/app/inside.txt"), "{status}");
-    assert!(!status.contains("web/"), "{status}");
-    assert_eq!(ended.reason.as_deref(), Some("ended without a commit"));
     f.finish().await;
 }
 
-/// An executor's write boundary holds only in mode `default`: in any other
-/// mode its edits would not reach Shadows to be refused. On a real executor
-/// session, a turn in another mode is refused before anything is written.
+/// An executor runs in `auto` and in no other mode, whatever its project
+/// allows. On a real executor session, a turn in another mode is refused
+/// before anything is written.
 #[tokio::test]
 #[ignore = "live: needs API_KEY_MINIMAX"]
 async fn live_an_executor_turn_in_another_mode_is_refused() {
@@ -194,11 +272,11 @@ async fn live_an_executor_turn_in_another_mode_is_refused() {
     };
     f.core
         .harness()
-        .open_executor(&thread, &["web/**".into()], scope, PICKED.into())
+        .open_executor(&thread, scope, PICKED.into())
         .await
         .unwrap();
-    // The modes this session offers besides `default`; Shadows offers no others.
-    for mode in ["acceptEdits", "auto"] {
+    // A mode the project allows, and one Shadows offers no thread.
+    for mode in ["acceptEdits", "default"] {
         let sent = f
             .core
             .turns()
@@ -219,12 +297,17 @@ async fn live_an_executor_turn_in_another_mode_is_refused() {
             .await;
         println!("live mode {mode}: {sent:?}");
         assert!(
-            matches!(sent, Err(shadows_core::TurnsError::ModeNotAllowed(ref m)) if m == mode),
+            matches!(
+                sent,
+                Err(shadows_core::TurnsError::ModeNotAllowed(ref m))
+                    | Err(shadows_core::TurnsError::SettingNotOffered { id: ref m, .. })
+                    if m == mode
+            ),
             "{sent:?}"
         );
     }
     let offered = f.sessions.offered(&thread).await.unwrap();
-    assert_eq!(offered.current.mode, "default");
+    assert_eq!(offered.current.mode, "auto");
     assert!(f.entries_of(&thread).await.is_empty());
     assert!(!f.root.join("web/x.txt").exists());
     f.core.harness().release_executor(&thread).await.unwrap();

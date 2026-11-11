@@ -70,12 +70,14 @@ layer_catalog: 'Planner standards text lists every kind presence and its layers 
 # Every new, resumed or forked Planner session sends PLANNER_TOOLS,
 # settingSources [] and strictMcpConfig true (the three planner_mcp opening tests).
 # Harness opens AYLUL with PermissionPolicy::Ask and Planner with Refuse.
-# `open_executor(thread, writes, grant, model)` opens an executor the same way: EXECUTOR_TOOLS,
-# executor.txt appended, settingSources [] and strictMcpConfig true, the task's rules (Read, Grep, Glob,
-# TodoWrite, Bash and Edit/Write/MultiEdit per `writes` pattern) in settings.permissions.allow,
-# Refuse, the session working in its project's folder as every session does, and mode `default`
-# set after opening (executor_session; live in runs_attempts: a Write inside `writes` runs unasked,
-# one outside is refused and never reaches the folder).
+# `open_executor(thread, grant, model)` opens an executor the same way, from its one compiled-in
+# file, executor.md: the front matter's `tools:` (Read, Grep, Glob, Edit, Write, MultiEdit, Bash,
+# TodoWrite) as the session's tools, the body appended; settingSources [] and strictMcpConfig true,
+# no permission rules, the session working in its project's folder as every session does, and
+# `policy::EXECUTOR_MODE` (`auto`) set after opening. Nothing is asked or refused while it works;
+# Runs' check on the reported commit is its one write boundary. The file carries no model and no
+# mode (executor::tests parse it; executor_session's opening test; live in runs_attempts: an Edit
+# of an existing file in a subfolder runs unasked and its commit is accepted).
 # `release_executor` forgets the thread's executor setup and closes the session (revoking its grant).
 # An executor-kind thread opens only while its setup is held: any other opening is refused, never
 # built as a Planner's (a_released_executor_thread_does_not_open_again). An executor thread's turns
@@ -86,7 +88,9 @@ layer_catalog: 'Planner standards text lists every kind presence and its layers 
 # §23.5 prompt names stable vision item ids, proposal cards and person-only approval.
 # §13.8 prompt: the Planner talks in the person's language and stores everything in English.
 # The prompt's "The task contract" section is held by mcp_tools::the_planner_is_told_what_a_contract_holds and, live, planner_live::live_the_planner_writes_a_contract_without_a_function_body.
-# executor.txt's contract bullets are held, live, by runs_routes::live_an_executor_builds_the_function_its_contract_names.
+# executor.md's "Tools" section (no Python; files through Write, Edit and MultiEdit, never the
+# shell) is held by executor::tests::the_executor_file_parses_and_names_its_eight_tools.
+# executor.md's contract bullets are held, live, by runs_routes::live_an_executor_builds_the_function_its_contract_names.
 # The prompt's "Look before you write a path" section is held by code_scope::the_planner_is_told_to_look_at_the_real_files.
 # The prompt's project_files line says what each page state means and that indexing is not a complete listing; held by mcp_tools::the_planner_is_told_an_indexing_listing_is_not_complete.
 # The prompt's task_add/task_update line says a task_update without the task's contract leaves it with none; held by mcp_tools::the_planner_is_told_what_a_contract_holds.

@@ -268,7 +268,7 @@ impl Fixture {
     async fn start(&self, command: &str, task: u32) -> Result<Attempt, RunsError> {
         self.core
             .runs()
-            .start(command.into(), &self.workflow, 1, task, "fake-small".into())
+            .start(command.into(), &self.workflow, 1, task, "fake-large".into())
             .await
     }
 
@@ -359,7 +359,7 @@ async fn start_opens_one_attempt_on_an_executor_thread() {
     let attempt = f.start("s1", 3).await.unwrap();
     assert_eq!(attempt.state, AttemptState::Running);
     assert_eq!(attempt.number, 1);
-    assert_eq!(attempt.model, "fake-small");
+    assert_eq!(attempt.model, "fake-large");
     assert!(attempt.operation_id.is_some());
     let kind: String = sqlx::query_scalar("SELECT kind FROM planning_thread WHERE id = ?")
         .bind(attempt.thread_id.as_str())
@@ -394,7 +394,7 @@ async fn the_same_command_returns_the_same_attempt() {
     let other = f
         .core
         .runs()
-        .start("s1".into(), &f.workflow, 1, 3, "fake-large".into())
+        .start("s1".into(), &f.workflow, 1, 3, "fake-small".into())
         .await;
     assert!(
         matches!(other, Err(RunsError::CommandConflict)),

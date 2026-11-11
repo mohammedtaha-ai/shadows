@@ -66,8 +66,8 @@ impl Turns {
                 detail: None,
             });
         }
-        // An executor's write boundary holds only in its own mode: in any mode
-        // a project allows, its edits would run without reaching Shadows.
+        // An executor runs in its own mode and no other: the modes a project
+        // allows its planning threads never decide how an attempt runs.
         let allowed = match context.kind {
             ThreadKind::Executor => vec![shadows_agent::policy::EXECUTOR_MODE.to_string()],
             ThreadKind::Planning => {

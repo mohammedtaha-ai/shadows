@@ -42,7 +42,6 @@ use shadows_agent::policy;
 use tokio::sync::broadcast;
 
 pub use assistant::AylulConfig;
-pub use executor::EXECUTOR_TOOLS;
 pub use model::{
     AylulUsageSnapshot, CarriedContext, ContextSource, Forget, HarnessInfo, HarnessMode,
     InvocationVersions, InvocationView, PlanningContextState, RememberedSettings,
