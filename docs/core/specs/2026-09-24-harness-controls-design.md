@@ -740,6 +740,13 @@ uses explicit `windows.sandbox="mxc"`, measured with a real command that
 started and was refused a write. Workspace write modes require their own
 policy and enforcement proof before they can be offered.
 
+The Planner reads and searches the project's files in this mode through
+read-only shell commands (Mohammed, 2026-11-11): reading before planning is
+required on every harness, and on Codex the shell is its only reader. Its
+instructions say so and forbid commands that write, install, build, start a
+server or reach the network; the sandbox refuses the writes. Nothing restricts
+reads to the project folder; the instructions do.
+
 Use the dedicated `CODEX_HOME` in the child environment. Keep user MCP
 settings in the regular Codex home and the dedicated profile reserved for
 Shadows. Refuse a dedicated home with unexpected MCP configuration before

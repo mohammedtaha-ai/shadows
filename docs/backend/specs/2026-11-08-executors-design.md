@@ -166,7 +166,17 @@ diagram above, §8 "The Planner on a failure", §12.4, §10 slice 3). D7 and D9 
   reads. The Planner never asks the executor for file contents, and the executor's report
   carries what the commit cannot show: the commands it ran and their results. Evidence: the
   slice 1b trial on `testing3` spent two of T2's three additions asking for the committed
-  files. It marks the task done (`task_done`), which closes the session and frees the scope;
+  files.
+- **The Planner reads the code before it plans** (Mohammed, 2026-11-11), on every harness:
+  before a task names a file, a function, a class or a layer, it reads the manifest, the
+  composition root, the folders of the layers the task works in and every file the task
+  modifies. It stays an instruction: Shadows sees reads only as tool calls (a Codex read is a
+  shell command line), so a check would be a guess that refuses honest edits.
+- **An executor's commit changes something** (Mohammed, 2026-11-11). `report` refuses a
+  commit that changes no file (`empty_commit`); the attempt stays Running. An executor with
+  nothing to change commits nothing and ends; the attempt fails "ended without a commit" and
+  the Planner's notice carries the executor's last message. An addition asks for a change,
+  never a question. `project_git_init`'s empty first commit is not a report. It marks the task done (`task_done`), which closes the session and frees the scope;
   or it sends an **addition** (`task_amend`): what is missing or must be extended. The Planner
   may also take a done mark back.
 - **An addition continues the executor in its session.** It is a new attempt on the same
