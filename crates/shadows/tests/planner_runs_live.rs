@@ -436,3 +436,311 @@ async fn live_an_attempt_without_a_commit_reaches_its_planner() {
         .await
         .unwrap();
 }
+
+/// The latest plan version the app's Planner thread wrote.
+async fn planner_plan(app: &app::App) -> shadows_core::Plan {
+    let plans = shadows_core::AppCore::plans_for_tests(app.storage.clone());
+    let Some(latest) = plans.thread_plan_for_test(&app.thread).await.unwrap() else {
+        let entries = app::entries(app).await;
+        let said: Vec<&str> = entries.iter().map(|e| e.body.as_str()).collect();
+        panic!("the Planner wrote no plan; its thread: {said:#?}");
+    };
+    plans.get_plan_for_test(&latest).await.unwrap()
+}
+
+/// The required layers of `kind` in the base standards, each placed under `at`.
+fn layers(kind: &str, at: &str) -> Vec<shadows_core::PartLayer> {
+    shadows_core::Standards::base()
+        .parts
+        .iter()
+        .find(|part| part.name == kind)
+        .unwrap()
+        .layers
+        .iter()
+        .filter(|layer| layer.required)
+        .map(|layer| shadows_core::PartLayer {
+            layer: layer.id.clone(),
+            place: format!("{at}{}", layer.id),
+            not_used: None,
+        })
+        .collect()
+}
+
+/// Gives the app's project what a person approves before plans: a whole
+/// vision, a map whose parts have kinds (the Go backend under internal/ of a
+/// module at the folder's root, its PostgreSQL database), and one roadmap
+/// outcome over both, as the
+/// person's own design edit writes them. The app's seed already approved the
+/// map and roadmap revisions.
+async fn approved_roadmap(app: &app::App) {
+    use shadows_core::{DesignOp, OutcomeContent, OutcomeId, PartContent, PartId, VisionField};
+    let backend = app.part.clone().expect("the app seeds a part");
+    let database = PartId::generate();
+    let outcome = OutcomeId::generate();
+    let mut ops = vec![
+        DesignOp::PartPut {
+            id: backend.clone(),
+            content: PartContent {
+                title: "Shop backend".into(),
+                responsibility: "The shop's HTTP service, a Go module at the folder's root".into(),
+                kind: Some("backend".into()),
+                folder: "internal".into(),
+                layers: layers("backend", "internal/"),
+                ..Default::default()
+            },
+        },
+        DesignOp::PartCreate {
+            id: database.clone(),
+            parent: None,
+            before: None,
+            content: PartContent {
+                title: "Shop database".into(),
+                responsibility: "PostgreSQL 16, run by docker compose".into(),
+                kind: Some("database".into()),
+                folder: "db".into(),
+                layers: layers("database", "db/"),
+                ..Default::default()
+            },
+        },
+        DesignOp::OutcomeCreate {
+            id: outcome.clone(),
+            parent: None,
+            before: None,
+            content: OutcomeContent {
+                title: "The shop runs".into(),
+                intended_result: "The shop's service starts against its database".into(),
+                acceptance: vec!["The service answers on its health endpoint".into()],
+            },
+        },
+        DesignOp::OutcomePartPut {
+            outcome: outcome.clone(),
+            part: backend,
+        },
+        DesignOp::OutcomePartPut {
+            outcome,
+            part: database,
+        },
+    ];
+    for (field, text) in [
+        (VisionField::Purpose, "An online shop"),
+        (VisionField::Users, "People who buy from the shop"),
+        (VisionField::Goals, "Customers can browse and order"),
+        (VisionField::Boundaries, "No payments in the first release"),
+        (
+            VisionField::TechnicalDirection,
+            "A Go service on PostgreSQL 16",
+        ),
+    ] {
+        ops.push(DesignOp::VisionItemAdd {
+            field,
+            text: text.into(),
+        });
+    }
+    app.core
+        .plans()
+        .edit_design("live-setup-design".into(), &app.project, 0, ops)
+        .await
+        .unwrap();
+    let stage = app.core.design().stage(&app.project).await.unwrap();
+    assert_eq!(format!("{:?}", stage.stage), "Plans", "{stage:?}");
+}
+
+/// Whether the Planner's thread holds a call of `tool`.
+fn called(entries: &[shadows_core::ThreadEntry], tool: &str) -> bool {
+    entries
+        .iter()
+        .any(|e| e.kind == ThreadEntryKind::ToolCall && format!("{e:?}").contains(tool))
+}
+
+/// The slice's acceptance: on an empty folder that is no repository, the
+/// Planner writes a Setup plan, runs it once approved (its first commit made by
+/// project_git_init), and plans the next feature on the files that appeared.
+#[tokio::test]
+#[ignore = "live: needs the signed-in Claude Code subscription and Docker"]
+async fn live_the_planner_sets_up_an_empty_folder() {
+    let live = live::subscription_adapter();
+    let tmp = tempfile::tempdir().unwrap();
+    let l = listening::listening_on(tmp.path(), live.adapter.clone()).await;
+    let app = &l.app;
+    let project = app.core.projects().get(&app.project).await.unwrap();
+    let root = PathBuf::from(project.directory.unwrap());
+    // The test app keeps its database in the project folder: the one file a
+    // person's folder would not hold, so it is ignored as the other tests do.
+    std::fs::write(root.join(".gitignore"), "*.sqlite3*\n").unwrap();
+    assert!(!root.join(".git").exists());
+    approved_roadmap(app).await;
+
+    let ask = "The roadmap is approved. Set this project up: a Go module named \
+               example.com/shop in the folder's root, and a docker-compose.yml that runs \
+               PostgreSQL 16 on port 5432. Write the Setup plan now; do not run it yet.";
+    let first = live::planner_turn_on(app, "live-setup-1", ask, live::SUBSCRIPTION_MODEL).await;
+    assert_eq!(first.status_kind, "Completed", "{first:?}");
+    let setup = planner_plan(app).await;
+    assert_eq!(setup.title.trim(), "Setup", "{setup:?}");
+    assert_eq!(format!("{:?}", setup.state), "Draft", "{setup:?}");
+    assert!(!setup.tasks.is_empty(), "{setup:?}");
+    plan::tie_to_part(app, &setup.id).await;
+    shadows_core::AppCore::plans_for_tests(app.storage.clone())
+        .approve_plan_for_test(
+            &app::ctx("approve-setup", "PlanApprove"),
+            &setup.id,
+            setup.revision,
+        )
+        .await
+        .unwrap();
+
+    let run = "The Setup plan is approved. Run it.";
+    let second = live::planner_turn_on(app, "live-setup-2", run, live::SUBSCRIPTION_MODEL).await;
+    assert_eq!(second.status_kind, "Completed", "{second:?}");
+    let numbers: Vec<u32> = setup.tasks.iter().map(|t| t.content.number).collect();
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(1200);
+    let mut seen: Vec<String> = Vec::new();
+    loop {
+        let mut all_done = true;
+        let mut states = Vec::new();
+        for n in &numbers {
+            let task = app
+                .core
+                .runs()
+                .task(&setup.id, setup.version, *n)
+                .await
+                .unwrap();
+            all_done &= task.done;
+            let state = task.latest.map(|a| format!("{:?}#{}", a.state, a.number));
+            states.push(format!("T{n}={}", state.unwrap_or_else(|| "-".into())));
+        }
+        let line = states.join(" ");
+        if seen.last() != Some(&line) {
+            println!("live setup states: {line}");
+            seen.push(line);
+        }
+        if all_done {
+            break;
+        }
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "the setup was not done: {seen:?}"
+        );
+        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+    }
+
+    assert!(!git(&root, &["rev-parse", "HEAD"]).trim().is_empty());
+    let authors = git(&root, &["log", "--format=%an"]);
+    assert!(authors.lines().any(|a| a == "Shadows"), "{authors}");
+    assert!(authors.lines().any(|a| a != "Shadows"), "{authors}");
+    let status = git(&root, &["status", "--porcelain"]);
+    assert_eq!(status.trim(), "", "uncommitted after the setup: {status}");
+    let mut commits = Vec::new();
+    let mut committed = String::new();
+    for n in &numbers {
+        let attempts = app
+            .core
+            .runs()
+            .attempts(&setup.id, setup.version, *n)
+            .await
+            .unwrap();
+        if let Some(sha) = attempts.first().and_then(|a| a.commit.clone()) {
+            committed.push_str(&git(&root, &["show", "--name-only", "--format=", &sha]));
+            commits.push(sha);
+        }
+    }
+    for file in ["go.mod", "docker-compose.yml"] {
+        assert!(root.join(file).exists(), "{file} is missing");
+        assert!(
+            committed.lines().any(|l| l.trim() == file),
+            "{file} is in no task's commit: {committed}"
+        );
+    }
+    let entries = app::entries(app).await;
+    for tool in ["project_git_init", "task_start", "task_done"] {
+        assert!(called(&entries, tool), "{tool} was not called");
+    }
+
+    // The turn that marked the last task done may still be ending.
+    for _ in 0..1800 {
+        let operations = app.core.turns().operations(&app.thread).await.unwrap();
+        if operations.iter().all(|op| op.finished_at.is_some()) {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    }
+    let next = "Now plan the first feature: an HTTP health endpoint. Write the plan.";
+    let third = live::planner_turn_on(app, "live-setup-3", next, live::SUBSCRIPTION_MODEL).await;
+    assert_eq!(third.status_kind, "Completed", "{third:?}");
+    // The feature plan is the project's newest version of a plan other than the setup's.
+    let feature: Option<String> = sqlx::query_scalar(
+        "SELECT w.id FROM workflow w JOIN plan p ON p.id = w.plan_id
+         WHERE p.project_id = ? AND w.plan_id != ?
+         ORDER BY w.created_at DESC, w.id DESC LIMIT 1",
+    )
+    .bind(app.project.as_str())
+    .bind(setup.plan_id.as_str())
+    .fetch_optional(app.storage.reader())
+    .await
+    .unwrap();
+    let Some(feature) = feature else {
+        let last = app::last_agent_entry(app).await;
+        panic!("the Planner wrote no feature plan; it said: {}", last.body);
+    };
+    let feature = shadows_core::AppCore::plans_for_tests(app.storage.clone())
+        .get_plan_for_test(&shadows_core::WorkflowId::from_literal(feature))
+        .await
+        .unwrap();
+    let created_dirs: Vec<String> = committed
+        .lines()
+        .filter_map(|l| l.trim().rsplit_once('/').map(|(d, _)| format!("{d}/")))
+        .collect();
+    // A path some task of the plan creates may be read by a later one.
+    let created: Vec<String> = feature
+        .tasks
+        .iter()
+        .flat_map(|t| t.content.contract.iter().flat_map(|c| c.files.iter()))
+        .filter(|f| {
+            let action = serde_json::to_value(f.action).unwrap();
+            action
+                .as_str()
+                .is_some_and(|a| a.eq_ignore_ascii_case("create"))
+        })
+        .map(|f| f.path.clone())
+        .collect();
+    let mut on_setup = false;
+    for task in &feature.tasks {
+        let value = serde_json::to_value(&task.content).unwrap();
+        let mut named: Vec<String> = task.content.reads.clone();
+        named.extend(task.content.writes.iter().cloned());
+        on_setup |= named.iter().any(|p| {
+            p.trim_start_matches("./") == "go.mod"
+                || created_dirs.iter().any(|d| p.starts_with(d.as_str()))
+        });
+        let files = value["contract"]["files"]
+            .as_array()
+            .cloned()
+            .unwrap_or_default();
+        let is_create = |f: &&serde_json::Value| {
+            f["action"]
+                .as_str()
+                .is_some_and(|a| a.eq_ignore_ascii_case("create"))
+        };
+        let changed = files
+            .iter()
+            .filter(|f| !is_create(f))
+            .filter_map(|f| f["path"].as_str());
+        let exact = task.content.reads.iter().map(String::as_str).chain(changed);
+        for path in exact.filter(|p| !p.contains(['*', '?', '['])) {
+            assert!(
+                root.join(path).exists() || created.iter().any(|c| c == path),
+                "T{} names {path}, which neither exists nor is created: {value}",
+                task.content.number
+            );
+        }
+    }
+    assert!(
+        on_setup,
+        "the feature plan names no setup file: {feature:?}"
+    );
+    println!("live setup: {}", commits.join(" "));
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+}

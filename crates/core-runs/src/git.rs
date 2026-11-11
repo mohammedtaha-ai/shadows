@@ -84,10 +84,12 @@ impl Git {
         self.run(&["init", "-q"]).await.map(|_| ())
     }
 
-    /// Records an empty commit and answers its full SHA. The identity is
-    /// fixed, so the commit does not depend on the person's git configuration
-    /// and says who made it.
-    pub(crate) async fn commit_empty(&self, message: &str) -> Result<String, String> {
+    /// Adds every unignored file the folder holds, a removal included, then
+    /// records one commit and answers its full SHA. An empty folder still gets
+    /// its commit. The identity is fixed, so the commit does not depend on the
+    /// person's git configuration and says who made it.
+    pub(crate) async fn commit_all(&self, message: &str) -> Result<String, String> {
+        self.run(&["add", "-A"]).await?;
         self.run(&[
             "-c",
             "user.name=Shadows",
@@ -103,6 +105,47 @@ impl Git {
         self.head()
             .await
             .ok_or_else(|| "the first commit was not recorded".to_string())
+    }
+
+    /// Appends `paths` (each with `true` for a folder) to the repository's
+    /// own local ignore list, `.git/info/exclude`, which is no project file.
+    /// Each line is anchored at the top, its pattern characters escaped.
+    pub(crate) async fn exclude(&self, paths: &[(String, bool)]) -> Result<(), String> {
+        if paths.is_empty() {
+            return Ok(());
+        }
+        let mut lines = String::new();
+        for (path, folder) in paths {
+            lines.push('/');
+            for c in path.chars() {
+                if matches!(c, '\\' | '*' | '?' | '[' | ']' | '!' | '#') {
+                    lines.push('\\');
+                }
+                lines.push(c);
+            }
+            if *folder {
+                lines.push('/');
+            }
+            lines.push('\n');
+        }
+        let info = self.root.join(".git").join("info");
+        let file = info.join("exclude");
+        let write = async {
+            tokio::fs::create_dir_all(&info).await?;
+            let mut current = match tokio::fs::read_to_string(&file).await {
+                Ok(text) => text,
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => String::new(),
+                Err(error) => return Err(error),
+            };
+            if !current.is_empty() && !current.ends_with('\n') {
+                current.push('\n');
+            }
+            current.push_str(&lines);
+            tokio::fs::write(&file, current).await
+        };
+        write
+            .await
+            .map_err(|error| format!("git's exclude list could not be written: {error}"))
     }
 
     /// The commit HEAD names, or `None` on a branch with no commit yet.

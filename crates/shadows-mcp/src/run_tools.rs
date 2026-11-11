@@ -158,9 +158,12 @@ impl Shadows {
 
     #[tool(
         description = "Make this project's folder a git repository when Start says it is not \
-                       one: git init and one empty first commit, made in Shadows' name. \
-                       Refused when the folder is already inside a repository. It writes no \
-                       file; starter files are a task's work."
+                       one: git init and a first commit, made in Shadows' name, of the files \
+                       the folder already holds (none in an empty folder). It leaves out what \
+                       git ignores and the secret and dependency files project_files lists as \
+                       left out; those stay in the folder, untracked. Refused when the folder \
+                       is already inside a repository. It writes no project file; starter \
+                       files are a task's work."
     )]
     async fn project_git_init(&self, Extension(grant): Extension<Grant>) -> CallToolResult {
         answer(

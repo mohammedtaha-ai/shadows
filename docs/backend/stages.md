@@ -297,7 +297,7 @@ Order and rulings: [the program](plans/2026-11-09-local-delivery-program.md). Sl
 
 ### B-128 · `project_git_init`'s first commit takes the folder's files, never its secrets or dependencies
 
-- Status: todo (slice 3, first; a fix of the built B-123, Mohammed 2026-11-11; secrets and dependencies left out, Mohammed 2026-11-12)
+- Status: done (slice 3, first; a fix of the built B-123, Mohammed 2026-11-11; secrets and dependencies left out, Mohammed 2026-11-12)
 - Plan: [Task B-128](plans/2026-11-11-slice-3-setup-first.md#task-b-128-project_git_inits-first-commit-takes-the-folders-files-never-its-secrets-or-dependencies).
 - Owner: Runs (`init_git`, git calls in a project folder; it now reads the project's file inventory through Code, which AppCore passes to `Runs::new`); AppCore (the `Runs::new` call); `shadows-mcp` and Harness (texts). Code does not change.
 - Read: `crates/core-runs/contract.yaml`, `crates/core-code/contract.yaml` (`inventory`, `refresh_inventory`, `InventoryEntry.excluded_reason`), `crates/shadows-mcp/src/contract.yaml`, `crates/core-harness/contract.yaml`; §5.2.
@@ -308,7 +308,7 @@ Order and rulings: [the program](plans/2026-11-09-local-delivery-program.md). Sl
 
 ### B-136 · A report leaves nothing uncommitted inside the task's writes
 
-- Status: todo (slice 3, after B-128; two items left from the `testing3` trial, folded in on 2026-11-12)
+- Status: done (slice 3, after B-128; two items left from the `testing3` trial, folded in on 2026-11-12)
 - Plan: [Task B-136](plans/2026-11-11-slice-3-setup-first.md#task-b-136-a-report-leaves-nothing-uncommitted-inside-the-tasks-writes).
 - Owner: Runs (`report` refuses `DirtyScope` while the task's `writes` hold uncommitted changes, through the same read Start's dirty check makes, moved into one private `dirty` method; `FIRST_PROMPT` says to leave nothing uncommitted and to commit nothing when nothing changes).
 - Read: `crates/core-runs/contract.yaml` (`report`, `start`, the `check_free, checks, report` agreement).
@@ -318,7 +318,7 @@ Order and rulings: [the program](plans/2026-11-09-local-delivery-program.md). Sl
 
 ### B-100 · The Planner sets the project up first, through a setup plan
 
-- Status: todo (slice 3, after B-136; Mohammed, 2026-11-11, [§5.2](specs/2026-11-08-executors-design.md#52-setup-before-detailed-planning-mohammed-2026-11-11)). Replaces the draft's preparation request, scope and persistence: no new worker, grant kind, thread kind, table or route.
+- Status: done (slice 3, after B-136; Mohammed, 2026-11-11, [§5.2](specs/2026-11-08-executors-design.md#52-setup-before-detailed-planning-mohammed-2026-11-11)). Replaces the draft's preparation request, scope and persistence: no new worker, grant kind, thread kind, table or route.
 - Plan: [Task B-100](plans/2026-11-11-slice-3-setup-first.md#task-b-100-the-planner-sets-the-project-up-first-through-a-setup-plan).
 - Owner: Harness (the Planner's instructions); Runs (`report` lets a task of the plan version titled `Setup` commit binary files, Mohammed 2026-11-11; every other task still refuses them).
 - Read: `crates/core-harness/contract.yaml`, `crates/core-runs/contract.yaml`; §5.2; slice 1b's Global Constraints; the prompt's "Look before you write a path" section as B-132 left it (the Setup section points at it, never restates it).
@@ -328,11 +328,12 @@ Order and rulings: [the program](plans/2026-11-09-local-delivery-program.md). Sl
 
 ### B-101 · A setup runs end to end on an empty folder
 
-- Status: todo (slice 3)
+- Status: done (slice 3; 2026-11-12, the test's project given an approved vision, map and roadmap through `Plans::edit_design`; live run printed `live setup: 1efdbf5ed9dea01dc0f1222d68f5ab0645797932 fe86957a7ba99bc810d33258727fd9890f533e65`)
 - Plan: [Task B-101](plans/2026-11-11-slice-3-setup-first.md#task-b-101-a-setup-runs-end-to-end-on-an-empty-folder).
 - Owner: none new: the slice's acceptance through Runs, Plans and the Planner.
 - Read: §5.2; `crates/core-runs/contract.yaml`; B-124's live fixtures.
-- Touch: `crates/shadows/tests/planner_runs_live.rs`; `crates/core-runs/contract.yaml` (one obligation); `docs/backend/stages.md` (this entry). If the run fails on Shadows' side, stop and report the refusal; widen no rule.
+- Ruling (controller, Mohammed's go-ahead, 2026-11-12): the live test's project must hold an approved roadmap (a vision, outcomes, a part with a kind, a stage past "idea"), reached through the public API in the test itself where it can be; only if it cannot, `crates/shadows/tests/fixtures/app.rs` may gain an opt-in for it, and every existing caller of `listening_on` keeps its seed unchanged.
+- Touch: `crates/shadows/tests/planner_runs_live.rs`; `crates/shadows/tests/fixtures/app.rs` (the opt-in above only); `crates/core-runs/contract.yaml` (one obligation); `docs/backend/stages.md` (this entry). If the run fails on Shadows' side, stop and report the refusal; widen no rule.
 - Needs: B-100. Signed in to Claude Code, with Docker running.
 - Done when: `cargo test -p shadows --test planner_runs_live live_the_planner_sets_up -- --ignored --test-threads=1` passes, its printed line recorded here; `cargo test -p shadows --test contract_tests`. One commit, `test(backend): B-101 <goal>`. Then Mohammed sets up a new project from the browser.
 

@@ -965,6 +965,7 @@ dependencies = [
 name = "core-runs"
 version = "0.1.0"
 dependencies = [
+ "core-code",
  "core-db",
  "core-grants",
  "core-harness",

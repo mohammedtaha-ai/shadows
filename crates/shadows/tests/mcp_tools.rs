@@ -960,10 +960,27 @@ async fn the_planner_is_told_an_indexing_listing_is_not_complete() {
 }
 
 #[test]
+fn the_planner_sets_the_project_up_first() {
+    let prompt = shadows_core::testing::PROMPT;
+    let texts: &[&str] = &[
+        "set the project up before you plan anything in detail",
+        "Every setup task writes files.",
+        "git status shows nothing left uncommitted",
+        "read the files that appeared as \"Look before you write a path\" says",
+        "Only a task of the plan titled exactly \"Setup\" may commit binary files",
+    ];
+    for text in texts {
+        assert!(prompt.contains(text), "{text}");
+    }
+    assert!(!prompt.contains("Agent Mode"));
+}
+
+#[test]
 fn the_planner_is_told_how_to_run_and_judge_tasks() {
     let prompt = shadows_core::testing::PROMPT;
     let texts: &[&str] = &[
         "project_git_init: when Start is refused",
+        "leaving out secret and dependency files, which stay in the folder untracked",
         "start the task task_done names as next at once with task_start, \
          without waiting for the person",
         "count anything the report says was skipped or could not run as not done",
