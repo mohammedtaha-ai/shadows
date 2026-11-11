@@ -18,7 +18,6 @@ export type Block =
   | { kind: 'row'; row: Row }
   | {
       kind: 'turn'
-      op: string
       key: string
       inside: Row[]
       /** Every ordinal inside, so a link to one opens the box. */
@@ -60,9 +59,13 @@ function rowKey(row: Row): string {
 }
 
 /** One turn's rows, in order, as the blocks it draws. The box holds everything up to the turn's
- * last notice or tool call; the text after it is the final answer and stays outside. */
+ * last notice or tool call; the text after it is the final answer and stays outside. A message the
+ * person steers in mid-turn stays where it was sent: the activity before it is a box of its own,
+ * already ended, and what follows is drawn as the turn's rows from that message on. */
 function turnOf(op: string, rows: readonly Row[], live: boolean): Block[] {
   const roles = rows.map(roleOf)
+  const steered = roles.findIndex((role, index) => role === 'prompt' && roles.slice(0, index).some((r) => r !== 'prompt'))
+  if (steered > 0) return [...turnOf(op, rows.slice(0, steered), false), ...turnOf(op, rows.slice(steered), live)]
   const lastItem = roles.lastIndexOf('item')
   if (lastItem < 0) return rows.map((row) => ({ kind: 'row', row }))
   const before: Block[] = []
@@ -87,7 +90,6 @@ function turnOf(op: string, rows: readonly Row[], live: boolean): Block[] {
   const first = inside[0] ?? rows[0]
   const box: Block = {
     kind: 'turn',
-    op,
     key: `turn-${first === undefined ? op : rowKey(first)}`,
     inside,
     ordinals: inside.flatMap(ordinalsOf),

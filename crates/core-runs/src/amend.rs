@@ -11,7 +11,7 @@ use crate::{Attempt, Runs, RunsError};
 use core_grants::Grant;
 use core_plans::WorkflowId;
 
-/// How many additions a task takes after its Start (Mohammed, 2026-11-11).
+/// How many additions a task takes after its Start; the next one stops it.
 pub(crate) const ADDITIONS: u32 = 3;
 
 /// The turn an addition sends the executor.

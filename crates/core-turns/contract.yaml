@@ -230,6 +230,7 @@ shapes:
     plan: Option<PlanId>
     # Why the last send failed (§20.3).
     last_error: Option<String>
+    created_at: String
     # The executor's notice this row is (queued_message.notice_json); null for the person's.
     notice: Option<Notice>
   Notice:
@@ -237,7 +238,6 @@ shapes:
     # thread is its identity, the card (an object the sender shapes) is drawn.
     executor: ThreadId
     card: serde_json::Value
-    created_at: String
   Queued:
     # What queueing answers, tagged "status": Waiting { message } or
     # Started { operation_id } when the thread was idle.

@@ -58,7 +58,7 @@ modules:
 dependencies:
   plans: Plans reads the frozen version, its tasks, its links and the tasks other plans' links reach.
   harness: Harness opens the executor session in its project's folder, releases it, and names the model last used on the executor's harness.
-  turns: Turns sends the first turn and stops it, and queues the Planner's notice (Turns::queue).
+  turns: Turns sends the first turn and stops it, and queues the Planner's notice in the executor's name (Turns::queue_notice).
   threads: Threads creates the executor thread inside the Start write, and reads the executor's entries for a lessons record and a failed notice's last message.
   grants: Grants revokes an interrupted attempt's grant at startup; an executor grant names the attempt's task.
   projects: Projects names the folder git runs in.
@@ -119,7 +119,7 @@ functions:
   set_first_prompt_for_tests: "test-support only: (prompt) scripts the first prompt of later attempts"
   mark_done: "(command, workflow, version, task, done) -> TaskRun; the command record keeps every mark command: a replay writes nothing, the same id with other input is CommandConflict; a done mark releases the task's latest attempt when it is Committed and still holds its scope (closes its session, frees its scope); a not-done mark releases nothing"
   notify: "private: (attempt) queues with Turns::queue_notice, as Notice { executor: the attempt's thread, card: its AttemptNotice }, on the plan's Planner thread (WrittenBy::Planner, not removed) a [Shadows] notice with the settings of that thread's last turn and command id notify-<attempt>: committed with its sha, files (path +added -removed) and report, or failed with its reason and its operation's last AgentMessage from Threads::entries, cut at 4,000 chars with [cut] appended when cut; an absent message or unreadable entries adds nothing and logs runs.notify_no_message; a committed notice says to read with task_diff and task_file before judging, and one whose attempt carried the task's third addition says it was the last; any failure is logged, never fails the watcher"
-  failed_message: "private: (attempt) -> String; the failed notice's last AgentMessage for attempt.operation_id, through Threads::entries in ordinal order; no operation, no message or a read failure logs runs.notify_no_message and answers empty; text cut after 4,000 chars with [cut] when cut"
+  failed_message: "private: (attempt) -> Option<String>; the failed notice's last AgentMessage for attempt.operation_id, through Threads::entries in ordinal order; no operation, no message or a read failure logs runs.notify_no_message and answers None; text cut after 4,000 chars with [cut] when cut"
   recover: "() -> RecoverReport; every Running attempt becomes Interrupted, its grant revoked and its scope freed; every other held scope is freed except a Committed attempt's, which keeps waiting for its judgment; none restarted, git not read"
 
 transitions:

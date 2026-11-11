@@ -58,4 +58,19 @@ describe('turnBlocks', () => {
     const blocks = turnBlocks([entryRow(u), toolRow(t)], null, [u, t])
     expect(shape(blocks)).toEqual(['u1', 'turn(1)'])
   })
+
+  it('a_message_steered_in_mid_turn_stays_where_it_was_sent', () => {
+    const n = notice('n1')
+    const t1 = toolEntry('t1', 'Read a.ts')
+    const steer = userEntry('u2', 'approve it')
+    const t2 = toolEntry('t2', 'Read b.ts')
+    const final = agentEntry('a1', 'Approved.')
+    const entries = [n, t1, steer, t2, final]
+    const rows = [entryRow(n), toolRow(t1), entryRow(steer), toolRow(t2), entryRow(final)]
+    const blocks = turnBlocks(rows, 'op1', entries)
+    expect(shape(blocks)).toEqual(['turn(2)', 'u2', 'turn(1)', 'a1'])
+    const [first, , second] = blocks
+    expect(first?.kind === 'turn' && first.live).toBe(false)
+    expect(second?.kind === 'turn' && second.live).toBe(true)
+  })
 })

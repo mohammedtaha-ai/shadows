@@ -689,7 +689,7 @@ design_cache_identity: "Project design refresh uses api/design.designKeys shared
 
 thread_query_identity: "Thread snapshot refresh uses API-owned identities shared with feature reads"
 
-feature_entry: "index.ts exposes SlashCommand, tabId, LimitWindow, Limits, PlanShowFrame, SubagentCard, toLimits, Connection, readSubagentCard, readAttemptNotice,ToolFrame, TodosFrame, TodoItem, readToolCard, readTodoList, DurableEvent, UsageFrame, useThreadStream, useProjectEvents, usePlanEvents."
+feature_entry: "index.ts exposes SlashCommand, tabId, LimitWindow, Limits, PlanShowFrame, SubagentCard, toLimits, Connection, readSubagentCard, readAttemptNotice, ToolFrame, TodosFrame, TodoItem, readToolCard, readTodoList, DurableEvent, UsageFrame, useThreadStream, useProjectEvents, usePlanEvents."
 
 refresh_policy:
   classifier: "refresh.ts classifyRefresh is pure: an event with delivery identifiers becomes refresh targets."
