@@ -568,8 +568,8 @@ not split by attempt.
   `put_lesson(&self, attempt: &AttemptId, project: &ProjectId, lesson: &TaskLesson) -> Result<(), RunsError>`
   (insert, or replace the row of the same attempt);
   `latest_lesson(&self, workflow: &WorkflowId, version: i64, task: u32) -> Result<Option<(AttemptId, ProjectId, TaskLesson)>, RunsError>`
-  (by `created_at`, then `attempt_id`);
-  `lessons(&self, project: &ProjectId) -> Result<Vec<TaskLesson>, RunsError>` (by `created_at`).
+  (by `created_at`, then `attempt_id`). No list read: nothing in Shadows reads the records yet
+  (Mohammed, 2026-11-11: the main session reads `run_lessons.record_json` from the database).
 - `lessons.rs`:
   - `pub(crate) async fn record_lesson(&self, plan: &Plan, stopped: &Attempt)`: the chain
     (the task's attempts from the newest down to and including the first with no `addition`,
@@ -582,8 +582,8 @@ not split by attempt.
     `planner_plan`; both trimmed and non-empty, else `EmptyLesson`; `latest_lesson`, else
     `NoLesson { task }`; sets the two fields, stores, answers the record. Writing again
     replaces the two fields.
-  - `pub async fn lessons(&self, project: &ProjectId) -> Result<Vec<TaskLesson>, RunsError>`:
-    every record of the project, for reading; no route or tool serves it yet.
+  - No `lessons` read method, route or tool: no caller exists (no layer before its first
+    user). The tests read the table.
 - `amend.rs`: on the cap, after `self.stop(..)`, `self.record_lesson(&plan, &stopped)` before
   answering `AdditionsSpent`; that error's text gains "; then call task_lessons with what
   stopped the work and what the plan should have said".
@@ -603,12 +603,12 @@ not split by attempt.
   entries with cards of kind `execute`, `go test ./...` completed and `docker compose up -d`
   failed with error `docker: not found`, and one of kind `edit`):
   - `a_task_stopped_on_the_cap_leaves_a_record`: the fourth `amend` is `AdditionsSpent`; then
-    `lessons(&f.project)` has one record for T3: `attempts` numbered 1 to 4 with the additions
+    `SELECT record_json FROM run_lessons` holds one row, which parses as a `TaskLesson` for T3: `attempts` numbered 1 to 4 with the additions
     as inserted (`None` for 1); `commands` exactly the two `execute` calls in order, the second
     with its error; both Planner fields `None`.
   - `the_planner_writes_what_the_plan_should_have_said`: then `write_lesson(&grant, .., 3,
     "Docker is not installed here.", "T3 needs Docker; the setup plan should install or check it.")`
-    answers the record with both fields; `lessons` reads them back; `write_lesson` with `"  "`
+    answers the record with both fields; the table's one row reads them back; `write_lesson` with `"  "`
     is `EmptyLesson`; for T4 (no record) `NoLesson { task: 4 }`; with an executor grant,
     `NotFound`.
   - The prompt test also asserts `"call task_lessons once"`.

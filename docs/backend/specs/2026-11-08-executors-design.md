@@ -168,9 +168,11 @@ diagram above, §8 "The Planner on a failure", §12.4, §10 slice 3). D7 and D9 
   report. The addition is recorded on the task through its attempts. There is no new plan
   version and no approval: the frozen version does not change. Runs owns it, as it owns the
   done marks of a frozen version.
-- **The Planner can make the folder a git repository** (`project_git_init`): `git init` and an
-  empty first commit made in Shadows' name, refused when the folder is already inside one. It
-  writes no file; starter files stay a task's work. Git belongs to Runs (§12.2).
+- **The Planner can make the folder a git repository** (`project_git_init`): `git init` and a
+  first commit made in Shadows' name, refused when the folder is already inside one. The first
+  commit takes the files the folder already holds, leaving out only what git ignores (an empty
+  folder gets an empty commit; Mohammed, 2026-11-11). It writes no file; starter files stay a
+  task's work. Git belongs to Runs (§12.2).
 
 - **Three additions per task start** (Mohammed, 2026-11-11). A fourth is refused: Runs stops
   the waiting attempt (its commit stays; its session closes and its scope is freed) and the
@@ -207,6 +209,11 @@ The setup is an ordinary plan run through §5.1: its tasks are executor attempts
 starts and judges, and **each lands as a reported commit**, so no file appears in the folder
 without a commit as its source. The Planner itself writes no file. This replaces the separate
 preparation worker the local delivery draft planned (its B-100 to B-102).
+
+**Binary files in setup only** (Mohammed, 2026-11-11). A scaffold may bring binary files (an
+icon). A task of a setup plan may commit them; every other task's commit with a binary file is
+refused, as §7 says. A task is a setup task when its plan version's title is `Setup` (trimmed,
+any case), the title the Planner is told to give it: no new field marks it.
 
 > **OPEN: is "setup first" enforced?** Only the Planner's instructions order it; nothing
 > refuses a detailed plan while the setup plan is not done. Closed when a real run shows the

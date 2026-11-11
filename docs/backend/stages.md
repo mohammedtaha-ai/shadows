@@ -295,15 +295,25 @@ Order and rulings: [the program](plans/2026-11-09-local-delivery-program.md). Sl
 - Read, Touch, Done when: written when slice 2 is detailed.
 - Needs: B-98, B-99.
 
+### B-128 · `project_git_init`'s first commit takes the files the folder holds
+
+- Status: todo (slice 3, first; a fix of the built B-123, Mohammed 2026-11-11)
+- Plan: [Task B-128](plans/2026-11-11-slice-3-setup-first.md#task-b-128-project_git_inits-first-commit-takes-the-files-the-folder-holds).
+- Owner: Runs (`init_git`, git calls in a project folder); `shadows-mcp` and Harness (texts).
+- Read: `crates/core-runs/contract.yaml`, `crates/shadows-mcp/src/contract.yaml`, `crates/core-harness/contract.yaml`; §5.2.
+- Touch: `crates/core-runs/src/git.rs`; `crates/core-runs/src/init.rs`; `crates/core-runs/contract.yaml`; `crates/shadows-mcp/src/run_tools.rs`; `crates/shadows-mcp/src/contract.yaml`; `crates/core-harness/src/prompt.txt`; `crates/core-harness/contract.yaml`; `crates/shadows-core/tests/runs_attempts/init.rs`; `crates/shadows/tests/mcp_tools.rs`; `docs/backend/stages.md` (this entry).
+- Needs: B-127.
+- Done when: `cargo test -p shadows-core --test runs_attempts` (the changed test and two new ones among them); `cargo test -p shadows --test mcp_tools --test mcp_server --test planner_mcp`; `cargo test -p shadows --test architecture --test codemap --test contract_tests`; rule 5's checks. One commit, `fix(backend): B-128 <goal>`.
+
 ### B-100 · The Planner sets the project up first, through a setup plan
 
-- Status: todo (slice 3, after slice 1b; Mohammed, 2026-11-11, [§5.2](specs/2026-11-08-executors-design.md#52-setup-before-detailed-planning-mohammed-2026-11-11)). Replaces the draft's preparation request, scope and persistence: no new worker, grant kind, thread kind, table or route.
+- Status: todo (slice 3, after B-128; Mohammed, 2026-11-11, [§5.2](specs/2026-11-08-executors-design.md#52-setup-before-detailed-planning-mohammed-2026-11-11)). Replaces the draft's preparation request, scope and persistence: no new worker, grant kind, thread kind, table or route.
 - Plan: [Task B-100](plans/2026-11-11-slice-3-setup-first.md#task-b-100-the-planner-sets-the-project-up-first-through-a-setup-plan).
-- Owner: Harness (the Planner's instructions).
-- Read: `crates/core-harness/contract.yaml`; §5.2; slice 1b's Global Constraints.
-- Touch: `crates/core-harness/src/prompt.txt`; `crates/core-harness/contract.yaml`; `crates/shadows/tests/mcp_tools.rs`; `docs/backend/stages.md` (this entry).
-- Needs: B-127.
-- Done when: `cargo test -p shadows --test mcp_tools --test planner_mcp`; `cargo test -p core-harness`; `cargo test -p shadows --test architecture --test codemap --test contract_tests`; rule 5's checks. One commit, `feat(backend): B-100 <goal>`.
+- Owner: Harness (the Planner's instructions); Runs (`report` lets a task of the plan version titled `Setup` commit binary files, Mohammed 2026-11-11; every other task still refuses them).
+- Read: `crates/core-harness/contract.yaml`, `crates/core-runs/contract.yaml`; §5.2; slice 1b's Global Constraints.
+- Touch: `crates/core-harness/src/prompt.txt`; `crates/core-harness/contract.yaml`; `crates/core-runs/src/report.rs`; `crates/core-runs/contract.yaml`; `crates/shadows/tests/mcp_tools.rs`; `crates/shadows-core/tests/runs_attempts.rs` (the `fixture_titled` helper); `crates/shadows-core/tests/runs_attempts/report.rs`; `docs/backend/stages.md` (this entry).
+- Needs: B-128.
+- Done when: `cargo test -p shadows --test mcp_tools --test planner_mcp`; `cargo test -p core-harness`; `cargo test -p shadows-core --test runs_attempts` (`a_setup_task_may_commit_a_binary_file` and the unchanged `a_commit_with_a_binary_file_is_refused` among them); `cargo test -p shadows --test architecture --test codemap --test contract_tests`; rule 5's checks. One commit, `feat(backend): B-100 <goal>`.
 
 ### B-101 · A setup runs end to end on an empty folder
 
@@ -412,7 +422,7 @@ Order and rulings: [the program](plans/2026-11-09-local-delivery-program.md). Sl
 
 ## Slice 1b: the Planner runs and judges tasks (2026-11-11)
 
-Mohammed's rulings after slice 1 ran on a real Go project: [executors design §5.1](specs/2026-11-08-executors-design.md#51-the-planner-judges-mohammed-2026-11-11). Plan: [slice 1b](plans/2026-11-11-slice-1b-planner-runs-tasks.md); each task's Interfaces and steps there are binding. It comes before slice 2. One builder, B-123 to B-125 in order, one commit each (built); B-126 waits for its shared request, then B-127, then slice 3 (B-100, B-101). Every task: new tests are live (the real adapter, real git) or run no agent, never a new fake-acp test; symbols through the LSP; only the tests named, with `-p` and the target, never `--workspace`; one build cache in `target/`, no `CARGO_TARGET_DIR`, `cargo clean` or `--release`; no `crates/**/*.rs` line over 100 columns.
+Mohammed's rulings after slice 1 ran on a real Go project: [executors design §5.1](specs/2026-11-08-executors-design.md#51-the-planner-judges-mohammed-2026-11-11). Plan: [slice 1b](plans/2026-11-11-slice-1b-planner-runs-tasks.md); each task's Interfaces and steps there are binding. It comes before slice 2. One builder, B-123 to B-125 in order, one commit each (built); B-126 waits for its shared request, then B-127, then slice 3 (B-128, B-100, B-101). Every task: new tests are live (the real adapter, real git) or run no agent, never a new fake-acp test; symbols through the LSP; only the tests named, with `-p` and the target, never `--workspace`; one build cache in `target/`, no `CARGO_TARGET_DIR`, `cargo clean` or `--release`; no `crates/**/*.rs` line over 100 columns.
 
 ### B-123 · The Planner initialises git in a folder that has none
 
