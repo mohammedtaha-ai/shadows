@@ -1,6 +1,6 @@
-# Shadows' notices marked in the conversation
+# Executor notices marked in the conversation
 
-- Status: accepted
+- Status: accepted; amended after acceptance by Mohammed's rulings (2026-11-11): Masada confirms the new marker in her reply
 - Asked by: Hamoud for Mohammed's wish, 2026-11-11 (Masada plans the web item on this shape)
 - Screen: the Planner conversation; backend [plan](../../backend/plans/2026-11-11-marked-shadows-notices.md)
 
@@ -10,7 +10,7 @@ Runs tells the Planner how each executor attempt ended with a `[Shadows]` notice
 message of a Planner turn. Today it is stored as an ordinary `UserMessage` from `User/local`,
 so the page draws it as the person's own bubble. Mohammed wants it drawn as an item inside the
 Planner turn's activity, beside its tool calls, the way Claude Code shows "Message from
-subagent <name>": a header such as "Shadows · T2 · attempt 3 committed", and the full report
+subagent <name>": a header such as "Executor (sonnet) · T2 · attempt 3 committed", and the full report
 under it as markdown, cut with Show more when long. Never a user bubble. The page needs a
 marker it reads without guessing from the text, and the header's facts.
 
@@ -18,14 +18,18 @@ marker it reads without guessing from the text, and the header's facts.
 
 | Call | Sends | Gets back |
 |---|---|---|
-| `GET /api/threads/{id}/entries` and the stream's entry frames | nothing new | a notice entry: `kind: "UserMessage"`, `author: { kind: "Shadows", id: "runs" }`, `body` the full text the model read, `card` an `AttemptNotice` |
-| `AttemptNotice` (the `card`) | | `{ workflow_id, version, task, title, attempt, attempt_id, outcome: "committed" \| "failed", commit: string \| null, report: string \| null, reason: string \| null, last_addition: boolean }` |
-| `GET /api/threads/{id}/queue` (the waiting messages) | nothing new | `QueuedMessage` gains `notice: { from: "runs", card: AttemptNotice } \| null`; null for the person's own |
+| `GET /api/threads/{id}/entries` and the stream's entry frames | nothing new | a notice entry: `kind: "UserMessage"`, `author: { kind: "Executor", id: <the attempt's executor thread id> }`, `body` the full text the model read, `card` an `AttemptNotice` |
+| `AttemptNotice` (the `card`) | | `{ workflow_id, version, task, title, attempt, attempt_id, model, outcome: "committed" \| "failed", commit: string \| null, report: string \| null, reason: string \| null, last_addition: boolean }` |
+| `GET /api/threads/{id}/queue` (the waiting messages) | nothing new | `QueuedMessage` gains `notice: { executor: <thread id>, card: AttemptNotice } \| null`; null for the person's own |
+| `DELETE /api/threads/{id}/queue/{qid}` on a notice row | as today | 409 `QUEUED_NOTICE_KEPT`; the row stays. The person's own rows are removed as today |
 
-- **The marker** is `author.kind == "Shadows"`. The person's messages stay `User`/`local` with
-  `card: null`.
-- **The header** comes from the card: `T{task}`, `attempt {attempt}`, `{outcome}`; `title` is
-  the task's title; `last_addition` true means this attempt carried the task's third and last
+- **The marker** is `author.kind == "Executor"`. The person's messages stay `User`/`local` with
+  `card: null`. `author.id` is the executor's thread, the conversation the task page opens.
+- **The name in the header** is "Executor ({card.model})": an executor has no agent identity of
+  its own, only its thread and the model it ran on.
+- **The header** comes from the card: `T{task}`, `attempt {attempt}`, `{outcome}`. `task`,
+  `attempt`, `outcome`, `title` and `model` are always set; `title` is the task's title, or
+  `T{task}` when the plan could not be read; `last_addition` true means this attempt carried the task's third and last
   addition.
 - **The report:** `report` is the executor's full report for a committed attempt, and its last
   message for a failed one (cut at 4,000 characters with `[cut]`), else null. `reason` is the
@@ -38,7 +42,8 @@ marker it reads without guessing from the text, and the header's facts.
 
 | When | The screen shows |
 |---|---|
-| a `Shadows` entry whose card is missing or unreadable | the body as plain text in the same item, with the header "Shadows" |
+| an `Executor` entry whose card is missing or unreadable | the body as plain text in the same item, with the header "Executor" |
+| removing a waiting notice (409 `QUEUED_NOTICE_KEPT`) | no Remove is drawn on a notice row; if the call is made anyway, Core's message |
 | `report` and `reason` both null | the header alone |
 
 ## Backend answer
@@ -51,6 +56,17 @@ stays a `UserMessage` because Core reads a turn's prompt entry by that kind; the
 marker. No route is added. `api/openapi.json` gains the `AttemptNotice` and `Notice` schemas
 and `QueuedMessage.notice`; `ThreadEntry.card` stays an open object. Built by B-134 once this
 is `accepted`.
+
+**Amended after Mohammed's rulings (2026-11-11), after Masada accepted.** The table above is
+the amended shape. (1) The notice arrives in the executor's name: `author` is `Executor` and
+the executor's thread id, not `Shadows/runs`, and the card gains `model` for the header's name;
+the turn the notice starts runs under the executor's principal, not the person's, and Grants
+refuses a vision, map, roadmap or plan approval in a turn that holds no message from the person
+(B-135, no change for the web). (2) Core refuses removing a waiting notice:
+`DELETE /api/threads/{id}/queue/{qid}` on a notice row is 409 `QUEUED_NOTICE_KEPT`. The web
+changes: F-111 and F-112 read `author.kind == "Executor"` instead of `"Shadows"`, name the
+header from `card.model`, read `QueuedMessage.notice.executor` instead of `from`, and draw no
+Remove on a notice row.
 
 ## Frontend reply
 

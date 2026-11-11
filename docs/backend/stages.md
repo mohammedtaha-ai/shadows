@@ -503,7 +503,7 @@ The live trial of slice 1b (`testing3`, Planner on Codex, executor on `sonnet`) 
 
 ### B-131 · The web reads a file at an attempt's commit, and each file's hunks
 
-- Status: blocked (on `docs/shared/requests/2026-11-11-attempt-file-content.md` being `accepted`; F-109 waits on it)
+- Status: todo (the request is accepted, 6a5f43c1; F-109 waits on it)
 - Plan: [Task B-131](plans/2026-11-11-planner-reads-commits.md#task-b-131-the-web-reads-a-file-at-an-attempts-commit-and-each-files-hunks).
 - Owner: Runs (`FileDiff.hunks`, read from the patch `diff` already runs); `shadows-http` (route `GET /api/attempts/{id}/files?path=` calling `Runs::file`, translation only).
 - Read: `crates/core-runs/contract.yaml`, `crates/shadows-http/src/contract.yaml`; the request and its backend answer.
@@ -543,26 +543,36 @@ Two rulings of Mohammed after the same trial: the Planner reads the code before 
 - Checks: `cargo test -p shadows --test openapi`: 8 passed; `git diff --exit-code -- api/`: unchanged. `cargo test -p shadows --test architecture --test codemap --test contract_tests`: 49 + 1 + 1 passed. `cargo fmt --all`; `cargo fmt --all --check`; `cargo clippy -p core-runs -p core-harness -p shadows-mcp -p shadows-core -p shadows --all-targets --features shadows/test-support -- -D warnings`; `cargo clippy -p core-runs -p core-harness -p shadows-mcp -p shadows-core -p shadows -- -D warnings`: passed. Rust files under crates checked: no line over 100 columns. The generic MCP refusal mapping already preserves empty_commit; refusal.rs needed no change. No full gate run.
 - Live (once, real adapter on the signed-in Claude Code subscription; RUST_TEST_NOCAPTURE=1): `cargo test -p shadows --test planner_runs_live live_an_attempt_without_a_commit -- --ignored --test-threads=1`: 1 passed, 4 filtered out. Printed lines:
 
-## Shadows' notices marked in the conversation (2026-11-11)
-
-Mohammed's wish: each `[Shadows]` notice is drawn as an item of the Planner's activity with a header and the full report, never as the person's bubble. Plan: [marked notices](plans/2026-11-11-marked-shadows-notices.md); its Interfaces, Rules and steps are binding. Request: [shadows notices](../shared/requests/2026-11-11-shadows-notices.md). It waits for the request; slice 3 need not wait for it (they share only `crates/core-runs/contract.yaml` and this file, so one builder at a time).
-
-### B-134 · Shadows' notices carry their author and their facts
-
-- Status: blocked (on `docs/shared/requests/2026-11-11-shadows-notices.md` being `accepted`)
-- Plan: [Task B-134](plans/2026-11-11-marked-shadows-notices.md#task-b-134-shadows-notices-carry-their-author-and-their-facts).
-- Owner: Runs (the notice and its card, `AttemptNotice`, in `notify`); Turns (`Turns::queue_notice`: who wrote a queued message and its card, on the waiting row and on the turn's prompt entry; Send now keeps them); core-db (migration 0057). Threads does not change.
-- Read: `crates/core-turns/contract.yaml` (`queue`, `send_queued`, `steer`, the turn's prompt entry), `crates/core-runs/contract.yaml` (`notify`), `crates/core-threads/contract.yaml` (`append_entry`), `crates/core-db/contract.yaml`; the request.
-- Touch: `crates/core-turns/src/model.rs`; `crates/core-turns/src/lib.rs`; `crates/core-turns/src/queue.rs`; `crates/core-turns/src/store/queue.rs`; `crates/core-turns/src/store/turn.rs`; `crates/core-turns/src/store/steer.rs`; `crates/core-turns/contract.yaml`; `crates/core-db/migrations/0057_queued_notice.sql` (new; the next free number at dispatch); `crates/core-db/tests/fixtures/base_migrations.sha384` and `crates/core-db/tests/migration_checksums.rs` (if asked); `crates/core-db/contract.yaml` (if it lists migrations); `crates/core-runs/src/model.rs`; `crates/core-runs/src/lib.rs`; `crates/core-runs/src/notify.rs`; `crates/core-runs/contract.yaml`; `crates/shadows-core/src/lib.rs` (two re-exports); `crates/shadows-http/src/openapi.rs`; `crates/shadows-http/src/contract.yaml`; `crates/shadows-core/tests/runs_attempts/planner.rs`; `crates/shadows/tests/planner_runs_live.rs`; `api/openapi.json` (regenerated); `docs/shared/requests/2026-11-11-shadows-notices.md` (one line in the backend answer: built); `docs/backend/stages.md` (this entry). No `SendTurn` literal changes; if one must, stop and say why.
-- Needs: B-133; the request `accepted`.
-- Done when: `cargo test -p core-db --test migration_checksums`; `cargo test -p shadows-core --test runs_attempts` (`a_notice_waits_on_a_busy_planner_as_shadows` among them); `cargo test -p shadows --test message_queue --test turn_command --test thread_contract --test resync` (unchanged); `UPDATE_OPENAPI=1 cargo test -p shadows --test openapi` (only `QueuedMessage.notice`, `Notice` and `AttemptNotice` change); signed in to Claude Code: `cargo test -p shadows --test planner_runs_live live_a_committed_attempt_reaches -- --ignored --test-threads=1` and `... live_an_attempt_without_a_commit -- --ignored --test-threads=1`, their `live notice card:` lines recorded here; `cargo test -p shadows --test architecture --test codemap --test contract_tests`; rule 5's checks. One commit, `feat(backend): B-134 <goal>`.
-
 ```text
 live notice: [Shadows] T1 "Add t1" of plan version 61ee6ffc-186d-4a1d-b87d-af00e046d4a6: attempt 1 failed: ended without a commit
 live last message: T1 needs no work. Its goal says to change no file, make no commit, and stop, so I did none of those and did not call `task_report`.
 ```
 
 - Review (2026-11-11): `prompt.txt` now tells the Planner a failed notice carries the executor's last message (pinned in `the_planner_is_told_how_to_run_and_judge_tasks`); `task_report`'s description string joined onto one line. Left, outside Touch: Runs' `FIRST_PROMPT` (`crates/core-runs/src/lib.rs`) still says only "run git commit yourself, then call task_report" and does not say to commit nothing when nothing needs to change; `executor.md` and the refusal text carry it.
+
+## Executor notices marked in the conversation (2026-11-11)
+
+Mohammed's wish: each `[Shadows]` notice is drawn as an item of the Planner's activity with a header and the full report, never as the person's bubble. His rulings after the first plan: the notice arrives in the executor's name and its turn does not run as the person, Core refuses an approval from anyone but the person, and Core refuses removing a waiting notice. Plan: [executor notices](plans/2026-11-11-marked-shadows-notices.md); its Interfaces, Rules and steps are binding. Request: [shadows notices](../shared/requests/2026-11-11-shadows-notices.md) (accepted; amended after the rulings, the web's marker is `author.kind == "Executor"`). Order: B-134, B-135. Slice 3 need not wait for them; they share only contracts and this file with it, so one builder at a time.
+
+### B-134 · An executor's notice is recorded in its name, with its facts, and stays queued
+
+- Status: todo
+- Plan: [Task B-134](plans/2026-11-11-marked-shadows-notices.md#task-b-134-an-executors-notice-is-recorded-in-its-name-with-its-facts-and-stays-queued).
+- Owner: Runs (the notice and its card, `AttemptNotice`, in `notify`); Turns (`Turns::queue_notice`: the executor and the card on the waiting row and on the turn's prompt entry, the commands under the executor's principal, Send now keeps them, `unqueue` refuses `QueuedNoticeKept`); core-db (migration 0057); `shadows-core` and `shadows-http` (the error code, 409). Threads does not change.
+- Read: `crates/core-turns/contract.yaml` (`queue`, `unqueue`, `send_queued`, `send_now`, the turn's prompt entry), `crates/core-runs/contract.yaml` (`notify`), `crates/core-threads/contract.yaml` (`append_entry`), `crates/core-db/contract.yaml`; the request.
+- Touch: `crates/core-turns/src/model.rs`; `crates/core-turns/src/lib.rs`; `crates/core-turns/src/queue.rs`; `crates/core-turns/src/error.rs`; `crates/core-turns/src/store/queue.rs`; `crates/core-turns/src/store/turn.rs`; `crates/core-turns/src/store/steer.rs`; `crates/core-turns/contract.yaml`; `crates/core-db/migrations/0057_queued_notice.sql` (new; the next free number at dispatch); `crates/core-db/tests/fixtures/base_migrations.sha384` and `crates/core-db/tests/migration_checksums.rs` (if asked); `crates/core-db/contract.yaml` (if it lists migrations); `crates/core-runs/src/model.rs`; `crates/core-runs/src/lib.rs`; `crates/core-runs/src/notify.rs`; `crates/core-runs/contract.yaml`; `crates/shadows-core/src/lib.rs` (two re-exports); `crates/shadows-core/src/error.rs`; `crates/shadows-http/src/failure/cases.rs`; `crates/shadows-http/src/failure/mod.rs`; `crates/shadows-http/src/failure/mapping_tests.rs` (if it lists every code); `crates/shadows-mcp/src/refusal.rs` (only if it matches every `ErrorCode`); `crates/shadows-http/src/openapi.rs`; `crates/shadows-http/src/contract.yaml`; `crates/shadows-core/tests/runs_attempts/planner.rs`; `crates/shadows/tests/planner_runs_live.rs`; `api/openapi.json` (regenerated); `docs/shared/requests/2026-11-11-shadows-notices.md` (one line in the backend answer: built); `docs/backend/stages.md` (this entry). No `SendTurn` literal changes; if one must, stop and say why.
+- Needs: B-133.
+- Done when: `cargo test -p core-db --test migration_checksums`; `cargo test -p shadows-core --test runs_attempts` (`a_notice_waits_on_a_busy_planner_in_the_executors_name` among them); `cargo test -p shadows-http mapping`; `cargo test -p shadows --test message_queue --test turn_command --test thread_contract --test resync` (unchanged); `UPDATE_OPENAPI=1 cargo test -p shadows --test openapi` (only `QueuedMessage.notice`, `Notice`, `AttemptNotice` and `QUEUED_NOTICE_KEPT` change); signed in to Claude Code: `cargo test -p shadows --test planner_runs_live live_a_committed_attempt_reaches -- --ignored --test-threads=1` and `... live_an_attempt_without_a_commit -- --ignored --test-threads=1`, their `live notice card:` lines recorded here; `cargo test -p shadows --test architecture --test codemap --test contract_tests`; rule 5's checks. One commit, `feat(backend): B-134 <goal>`.
+
+### B-135 · Only the person's message in a turn lets the Planner approve
+
+- Status: todo
+- Plan: [Task B-135](plans/2026-11-11-marked-shadows-notices.md#task-b-135-only-the-persons-message-in-a-turn-lets-the-planner-approve).
+- Owner: Grants (`authorise_in`, the approval authority all four approvals call: vision, map, roadmap, plan); Threads (`request_entry_in` reads only the person's message, its one caller Grants).
+- Read: `crates/core-grants/contract.yaml` (`authorise_in`), `crates/core-threads/contract.yaml` (`request_entry_in`).
+- Touch: `crates/core-threads/src/store/records.rs`; `crates/core-threads/contract.yaml`; `crates/core-grants/src/approval.rs`; `crates/core-grants/contract.yaml`; `crates/shadows/tests/grants.rs`; `docs/backend/stages.md` (this entry).
+- Needs: B-134 (one commit at a time; the test writes its own entries and needs no B-134 code).
+- Done when: `cargo test -p shadows --test grants` (`an_approval_needs_a_message_from_the_person_in_its_turn` among them); `cargo test -p shadows --test workspace_mcp --test planner_mcp --test plan_routes --test design_routes` (unchanged); `cargo test -p shadows --test architecture --test codemap --test contract_tests`; rule 5's checks. One commit, `feat(backend): B-135 <goal>`.
 
 ### B-107 · Store a simple brief on each attempt
 
