@@ -232,8 +232,8 @@ it is that folder's `contract.yaml`.
 | `web/src/app/conversation/tool-group.tsx` | A run of tool calls drawn as one line | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/tool-diff.tsx` | An edit's hunks drawn with line numbers | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/notice-item.tsx` | An executor's notice drawn as an activity item | `web/src/app/conversation/contract.yaml` |
-| `web/src/app/conversation/turn-blocks.ts` | Groups a turn's activity rows into one box | `web/src/app/conversation/contract.yaml` |
-| `web/src/app/conversation/turn-box.tsx` | One Planner turn's activity as one collapsible box | `web/src/app/conversation/contract.yaml` |
+| `web/src/app/conversation/turn-blocks.ts` | Groups each run of a turn's notices and tool calls into a box | `web/src/app/conversation/contract.yaml` |
+| `web/src/app/conversation/turn-box.tsx` | A run of notices and tool calls as one collapsible box | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/todo-card.tsx` | The agent's task list drawn as a checklist | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/agent-board.tsx` | Agent Mode's board: prompt, steps, task list, subagents, context | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/agent-console.tsx` | The board's console, one tab per kind of step | `web/src/app/conversation/contract.yaml` |
