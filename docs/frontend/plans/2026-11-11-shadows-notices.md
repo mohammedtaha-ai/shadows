@@ -19,6 +19,15 @@ waits in the queue.
 3. Each Planner turn is one collapsible box, as in Claude (F-113, after F-111). Cards the
    person acts on stay outside the folded box, under it (Mohammed confirmed).
 
+**Mohammed's ruling, 2026-11-12** (after seeing F-113 in the browser):
+
+4. A turn box holds **only** what comes to the Planner from others (the executor notices,
+   F-111) and the Planner's tool groups. The Planner's own text never goes inside a box, the
+   notes between tool calls included: it is drawn outside, in its place in the turn's order. The
+   summary counts no notes. A turn with text between tool calls draws one box per run of tools
+   and notices between two pieces of text, as Claude Code groups tool calls between its
+   messages. Everything else F-113 decided stands.
+
 Built by `frontend-builder`, one task at a time, from `docs/frontend/stages.md`.
 
 Backend shape: [the shadows notices request](../../shared/requests/2026-11-11-shadows-notices.md)
@@ -163,7 +172,8 @@ notice waits as a notice line, with no Remove (`a_waiting_notice_is_not_drawn_as
 
 ## F-113 · Each Planner turn is one collapsible box
 
-Ruling 3. Like Claude: every Planner turn's activity folds into one box.
+Rulings 3 and 4. Like Claude: a Planner turn's notices and tool calls fold into boxes, one per
+run between two pieces of the Planner's text; the text itself stays outside every box.
 
 **Needs from Core: nothing.** Every entry carries `operation_id` (its turn), and the person's
 prompt is the turn's `UserMessage`. The streamed rows of the running turn belong to the newest
@@ -171,25 +181,28 @@ turn while `running` is true. No shared request.
 
 **What goes where, per turn** (entries with the same `operation_id`; entries with none are
 drawn as today, outside any box):
-- **Above the box:** the person's prompt bubble (a `UserMessage` that is not a notice).
-- **In the box, in order:** the notice item (F-111), every tool group, the text between them,
-  and the permission answered/refused lines.
-- **Under the box, visible:** the turn's **final answer**, meaning its text after the last item
-  the box holds (its last `AgentMessage` entries or streamed text after the last tool group or
-  notice). Cards the person reads or acts on (`PermissionAsked`, the vision, map and roadmap
-  proposals, `PlanView`, `PlanApproved`, `Subagent`, `TodoList`) also stay outside the box, in
-  their order, so an approval or a question is never folded away.
-- A turn whose box would hold nothing (no notice, no tool, no in-between text) draws no box.
+- **Above the boxes:** the person's prompt bubble (a `UserMessage` that is not a notice).
+- **In a box, in order:** one run of notice items (F-111), tool groups and the permission
+  answered/refused lines among them.
+- **Outside every box, in its place (ruling 4, 2026-11-12):** the Planner's own text
+  (`AgentMessage` entries and streamed text), whether between tool calls or the final answer.
+  Each piece of text ends the run before it, so the run after it is a new box.
+- **Under the box of the run it came in, visible:** cards the person reads or acts on
+  (`PermissionAsked`, the vision, map and roadmap proposals, `PlanView`, `PlanApproved`,
+  `Subagent`, `TodoList`), in their order, so an approval or a question is never folded away.
+  A card does not split the run.
+- A run with no notice and no tool call draws no box.
 
 **The box.** New file `web/src/app/conversation/turn-box.tsx`, `TurnBox({ summary, live,
 children })`: left-aligned `surface-panel rounded-xl p-3`, a header `button` with
 `aria-expanded`, a chevron, and the summary line. **Open while its turn runs** (the newest
-turn while `running`), **folded once it ends**; the person's click wins over both, as
+turn while `running`; only the turn's last box, the earlier ones have ended), **folded once it
+ends**; the person's click wins over both, as
 `ToolGroup` does (`chosen ?? live`). A link to an entry inside (`#entry-<ordinal>`) opens it.
 - The summary line: the parts that apply, joined by ", ", first letter capital: `received a
   notice from {noticeName(card)}` (F-111's `noticeName`: `Executor (sonnet)`, or `Executor`
-  with no readable card), `ran N tools` (`ran 1 tool`), `wrote N notes` for the in-between text
-  blocks when there are any. Example: "Received a notice from Executor (sonnet), ran 5 tools". While it runs, a
+  with no readable card), `ran N tools` (`ran 1 tool`). It counts no text (ruling 4). Example:
+  "Received a notice from Executor (sonnet), ran 5 tools". While it runs, a
   spinner replaces the icon, as `ToolGroup` does.
 
 **The grouping.** New file `web/src/app/conversation/turn-blocks.ts`:
@@ -197,8 +210,8 @@ turn while `running`), **folded once it ends**; the person's click wins over bot
 the `activityRows`/`withLiveSteps` output. `Block` is `{ kind: 'row', row }` for a row drawn as
 today, or `{ kind: 'turn', op, key, inside: Row[], summary parts, live }`. A row's turn is its
 entry's `operation_id`, a tool row's steps' operation, and a streamed text row's the newest
-turn while `running`. The final answer rows and the outside cards come after the turn block as
-`row` blocks. `messages.tsx` maps the blocks: a `turn` block draws `TurnBox` with its inside
+turn while `running`. The text rows stay `row` blocks in their place, between the turn blocks;
+a run's outside cards come right after its turn block as `row` blocks. `messages.tsx` maps the blocks: a `turn` block draws `TurnBox` with its inside
 rows drawn exactly as `Messages` draws them today (`ToolRow`, `EntryRow`, `ReplyText`); the
 reply tail, live lists, subagent cards, Thinking and the operational label stay where they are.
 Applies to Planner conversations only: `Messages` skips the boxes when `harness ===
@@ -206,22 +219,26 @@ AYLUL_HARNESS`.
 
 **Tests:**
 - `web/src/app/conversation/turn-blocks.test.ts` (new):
-  `a_finished_turn_folds_its_notice_tools_and_text_and_keeps_its_final_answer` (notice, text,
-  2 tool rows, text, final text: one turn block holding the first five rows before the final
-  text, the final text outside); `a_turn_with_no_activity_has_no_box`;
-  `a_proposal_card_stays_outside_the_box`; `the_person_prompt_stays_above_the_box`.
+  `a_finished_turn_folds_its_notice_and_tools_and_keeps_its_final_answer` (notice, 2 tool rows,
+  final text: one turn block holding the first three, the final text outside);
+  `the_planner_text_between_tools_stays_outside_and_splits_the_box` (notice, tool, text, 2
+  tools, final text: box, text, box, text; ruling 4); `only_the_last_box_of_a_running_turn_is_live`;
+  `a_turn_with_no_activity_has_no_box`; `a_proposal_card_stays_outside_the_box`;
+  `the_person_prompt_stays_above_the_box`; `a_message_steered_in_mid_turn_stays_where_it_was_sent`.
 - `web/src/app/conversation/turn-box.test.tsx` (new):
   `a_finished_turn_shows_one_summary_line_and_opens_on_click` (folded: "Received a notice from
   Executor (sonnet), ran 5 tools", tool rows absent; after a click, present);
-  `a_running_turn_is_open_and_folds_when_it_ends`.
+  `the_planner_text_between_tools_stays_outside_and_splits_the_box` (two summaries, no "wrote",
+  the note visible while both are folded); `a_running_turn_is_open_and_folds_when_it_ends`.
 - Existing tests that read a finished turn's tool rows or in-between text now open its box
   first: `conversation.test.tsx`, `streamed-reply.test.tsx`, `tool-group.test.tsx`,
   `plan-in-conversation.test.tsx`. If another test file breaks, stop and report it: Masada
   widens the task.
 
-**Contracts and map.** `web/src/app/conversation/contract.yaml`: one obligation, "A finished
-Planner turn's notice, tool groups and in-between text fold into one box with a one-line
-summary; the prompt stays above it, the final answer and the cards the person acts on stay
-visible under it; a running turn's box is open (turn-blocks.test.ts, turn-box.test.tsx)".
+**Contracts and map.** `web/src/app/conversation/contract.yaml`: one obligation, "A turn box holds only the notices
+and tool groups, with a summary that counts no text; the Planner's text stays outside in its
+place and splits the runs into boxes; the prompt stays above, the cards the person acts on stay
+visible under their run's box; only a running turn's last box is open
+(turn-blocks.test.ts, turn-box.test.tsx)".
 `docs/frontend/codebase/README.md`: rows for `turn-blocks.ts` ("Groups a turn's activity rows
 into one box") and `turn-box.tsx` ("One Planner turn's activity as one collapsible box").

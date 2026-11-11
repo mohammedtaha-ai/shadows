@@ -1,5 +1,5 @@
-// One job: one Planner turn's activity as one collapsible box with a
-// one-line summary; open while the turn runs, folded once it ends.
+// One job: one run of a Planner turn's notices and tool calls as a collapsible
+// box with a one-line summary; open while the run is live, folded once it ends.
 
 import { cn } from 'cn'
 import { useLocation } from '@tanstack/react-router'
@@ -17,7 +17,6 @@ function summaryLine(summary: TurnSummary): string {
       ? []
       : [`received a notice from ${summary.notices.map(noticeName).join(' and ')}`]),
     ...(summary.tools === 0 ? [] : [`ran ${plural(summary.tools, 'tool', 'tools')}`]),
-    ...(summary.notes === 0 ? [] : [`wrote ${plural(summary.notes, 'note', 'notes')}`]),
   ]
   const line = parts.join(', ')
   return line.charAt(0).toUpperCase() + line.slice(1)
@@ -30,7 +29,7 @@ export function TurnBox({
   children,
 }: {
   summary: TurnSummary
-  /** The turn is still running. */
+  /** The turn is still running and this is its last box. */
   live: boolean
   /** Every ordinal inside: a link to one opens the box. */
   ordinals: readonly number[]

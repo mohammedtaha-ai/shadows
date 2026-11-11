@@ -588,13 +588,16 @@ queries_and_mutations:
 
 obligations:
   - rule: >
-      A finished Planner turn's notice, tool groups and in-between text fold into one box with a
-      one-line summary; the prompt stays above it, the final answer (all text after the turn's
-      last notice or tool call) and the cards the person acts on stay visible under it; a running
-      turn's box is open. A message the person steers in mid-turn stays where it was sent: the
-      activity before it is its own box, ended, and the turn goes on below it. AYLUL
+      A turn box holds only what comes to the Planner from others (the executor notices) and its
+      tool groups, with a one-line summary of notices and tools that counts no text. The
+      Planner's own text is never inside a box: it is drawn in its place in the turn's order, and
+      each piece of it ends the run of notices and tools before it, so a turn with text between
+      tool calls draws one box per run. The prompt stays above; a card the person acts on stays
+      visible, under the box of the run it came in. Only the last box of a running turn is open
+      by itself; the person's click overrides. A message the person steers in mid-turn stays
+      where it was sent: the activity before it has ended, and the turn goes on below it. AYLUL
       conversations draw no box.
-    tested_by: [a_finished_turn_folds_its_notice_tools_and_text_and_keeps_its_final_answer, a_turn_with_no_activity_has_no_box, a_proposal_card_stays_outside_the_box, the_person_prompt_stays_above_the_box, a_message_steered_in_mid_turn_stays_where_it_was_sent, a_finished_turn_shows_one_summary_line_and_opens_on_click, a_running_turn_is_open_and_folds_when_it_ends]
+    tested_by: [a_finished_turn_folds_its_notice_and_tools_and_keeps_its_final_answer, the_planner_text_between_tools_stays_outside_and_splits_the_box, only_the_last_box_of_a_running_turn_is_live, a_turn_with_no_activity_has_no_box, a_proposal_card_stays_outside_the_box, the_person_prompt_stays_above_the_box, a_message_steered_in_mid_turn_stays_where_it_was_sent, a_finished_turn_shows_one_summary_line_and_opens_on_click, a_running_turn_is_open_and_folds_when_it_ends]
 
   - rule: >
       An entry whose author is an Executor draws as a notice item of the turn's activity, never

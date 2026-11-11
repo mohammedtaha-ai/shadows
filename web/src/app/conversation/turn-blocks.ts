@@ -1,5 +1,5 @@
-// One job: grouping a Planner turn's activity rows into one box, leaving the
-// person's prompt above it and the answer and the cards they act on under it.
+// One job: grouping a Planner turn's notices and tool calls into boxes, leaving
+// the person's messages, the Planner's text and the cards they act on in place.
 
 import type { AttemptNotice } from '@/api/runs'
 import type { ThreadEntry } from '@/api/threads'
@@ -10,8 +10,6 @@ export interface TurnSummary {
   /** One card per notice the turn received; null where a card could not be read. */
   notices: readonly (AttemptNotice | null)[]
   tools: number
-  /** Text written between the box's items. */
-  notes: number
 }
 
 export type Block =
@@ -58,49 +56,64 @@ function rowKey(row: Row): string {
   return row.kind === 'entry' ? row.entry.id : row.key
 }
 
-/** One turn's rows, in order, as the blocks it draws. The box holds everything up to the turn's
- * last notice or tool call; the text after it is the final answer and stays outside. A message the
- * person steers in mid-turn stays where it was sent: the activity before it is a box of its own,
- * already ended, and what follows is drawn as the turn's rows from that message on. */
-function turnOf(op: string, rows: readonly Row[], live: boolean): Block[] {
-  const roles = rows.map(roleOf)
-  const steered = roles.findIndex((role, index) => role === 'prompt' && roles.slice(0, index).some((r) => r !== 'prompt'))
-  if (steered > 0) return [...turnOf(op, rows.slice(0, steered), false), ...turnOf(op, rows.slice(steered), live)]
-  const lastItem = roles.lastIndexOf('item')
-  if (lastItem < 0) return rows.map((row) => ({ kind: 'row', row }))
-  const before: Block[] = []
-  const inside: Row[] = []
-  const after: Block[] = []
+/** One run of activity as its box, or as plain rows when it holds no notice or tool call. */
+function boxOf(inside: Row[], roles: readonly Role[], live: boolean): Block[] {
+  if (!roles.includes('item')) return inside.map((row) => ({ kind: 'row', row }))
   const notices: (AttemptNotice | null)[] = []
   let tools = 0
-  let notes = 0
-  rows.forEach((row, index) => {
-    const role = roles[index]
-    if (role === 'prompt') {
-      before.push({ kind: 'row', row })
-    } else if (index <= lastItem && (role === 'item' || role === 'text' || role === 'line')) {
-      inside.push(row)
-      if (role === 'text') notes += 1
-      if (row.kind === 'tools') tools += row.steps.length
-      if (row.kind === 'entry' && role === 'item') notices.push(noticeOf(row.entry)?.card ?? null)
-    } else {
-      after.push({ kind: 'row', row })
-    }
+  inside.forEach((row, index) => {
+    if (row.kind === 'tools') tools += row.steps.length
+    if (row.kind === 'entry' && roles[index] === 'item') notices.push(noticeOf(row.entry)?.card ?? null)
   })
-  const first = inside[0] ?? rows[0]
-  const box: Block = {
+  const first = inside[0]
+  return [{
     kind: 'turn',
-    key: `turn-${first === undefined ? op : rowKey(first)}`,
+    key: `turn-${first === undefined ? '' : rowKey(first)}`,
     inside,
     ordinals: inside.flatMap(ordinalsOf),
-    summary: { notices, tools, notes },
+    summary: { notices, tools },
     live,
-  }
-  return [...before, box, ...after]
+  }]
 }
 
-/** Groups each turn's rows into one box. A row that names no turn, and a turn
- * with no notice or tool call, stay as they are. `entries` tells which turn a
+/** One turn's rows, in order, as the blocks it draws. A box holds only a run of notices and tool
+ * calls (with the permission lines among them); the Planner's own text stays outside, in its
+ * place, and ends the run before it. A card the person acts on stays outside too, drawn under the
+ * box of the run it came in, so the run stays one box. While the turn runs,
+ * only its last box is live. A message the person steers in mid-turn stays where it was sent: the
+ * activity before it has ended, and what follows is drawn as the turn's rows from that message on. */
+function turnOf(rows: readonly Row[], live: boolean): Block[] {
+  const roles = rows.map(roleOf)
+  const steered = roles.findIndex((role, index) => role === 'prompt' && roles.slice(0, index).some((r) => r !== 'prompt'))
+  if (steered > 0) return [...turnOf(rows.slice(0, steered), false), ...turnOf(rows.slice(steered), live)]
+  const blocks: Block[] = []
+  let run: Row[] = []
+  let runRoles: Role[] = []
+  let held: Block[] = []
+  const close = (last: boolean) => {
+    blocks.push(...boxOf(run, runRoles, live && last), ...held)
+    run = []
+    runRoles = []
+    held = []
+  }
+  rows.forEach((row, index) => {
+    const role = roles[index] ?? 'outside'
+    if (role === 'item' || role === 'line') {
+      run.push(row)
+      runRoles.push(role)
+    } else if (role === 'outside' && run.length > 0) {
+      held.push({ kind: 'row', row })
+    } else {
+      close(!roles.slice(index).includes('item'))
+      blocks.push({ kind: 'row', row })
+    }
+  })
+  close(true)
+  return blocks
+}
+
+/** Groups each turn's runs of notices and tool calls into boxes. A row that names
+ * no turn, and a turn with no notice or tool call, stay as they are. `entries` tells which turn a
  * durable tool step belongs to; `runningOp` is the turn still running, which
  * owns the streamed text and the live steps. */
 export function turnBlocks(
@@ -114,7 +127,7 @@ export function turnBlocks(
   let runOp: string | null = null
   const flush = () => {
     if (runOp === null) blocks.push(...run.map((row): Block => ({ kind: 'row', row })))
-    else blocks.push(...turnOf(runOp, run, runOp === runningOp))
+    else blocks.push(...turnOf(run, runOp === runningOp))
     run = []
   }
   for (const row of rows) {

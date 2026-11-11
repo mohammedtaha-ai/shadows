@@ -24,18 +24,46 @@ const shape = (blocks: Block[]) =>
   blocks.map((b) => (b.kind === 'row' ? (b.row.kind === 'entry' ? b.row.entry.id : b.row.kind) : `turn(${b.inside.length})`))
 
 describe('turnBlocks', () => {
-  it('a_finished_turn_folds_its_notice_tools_and_text_and_keeps_its_final_answer', () => {
+  it('a_finished_turn_folds_its_notice_and_tools_and_keeps_its_final_answer', () => {
     const n = notice('n1')
-    const note = agentEntry('a1', 'Let me look.')
     const t1 = toolEntry('t1', 'Read a.ts')
     const t2 = toolEntry('t2', 'Read b.ts')
     const final = agentEntry('a2', 'All done.')
-    const entries = [n, note, t1, t2, final]
-    const rows = [entryRow(n), entryRow(note), toolRow(t1), toolRow(t2), entryRow(final)]
+    const entries = [n, t1, t2, final]
+    const rows = [entryRow(n), toolRow(t1), toolRow(t2), entryRow(final)]
     const blocks = turnBlocks(rows, null, entries)
-    expect(shape(blocks)).toEqual(['turn(4)', 'a2'])
+    expect(shape(blocks)).toEqual(['turn(3)', 'a2'])
     const box = blocks[0]
-    expect(box?.kind === 'turn' && box.summary).toEqual({ notices: [null], tools: 2, notes: 1 })
+    expect(box?.kind === 'turn' && box.summary).toEqual({ notices: [null], tools: 2 })
+  })
+
+  it('the_planner_text_between_tools_stays_outside_and_splits_the_box', () => {
+    const n = notice('n1')
+    const t1 = toolEntry('t1', 'Read a.ts')
+    const note = agentEntry('a1', 'Let me look.')
+    const t2 = toolEntry('t2', 'Read b.ts')
+    const t3 = toolEntry('t3', 'Read c.ts')
+    const final = agentEntry('a2', 'All done.')
+    const entries = [n, t1, note, t2, t3, final]
+    const rows = [entryRow(n), toolRow(t1), entryRow(note), toolRow(t2), toolRow(t3), entryRow(final)]
+    const blocks = turnBlocks(rows, null, entries)
+    expect(shape(blocks)).toEqual(['turn(2)', 'a1', 'turn(2)', 'a2'])
+    const [first, , second] = blocks
+    expect(first?.kind === 'turn' && first.summary).toEqual({ notices: [null], tools: 1 })
+    expect(second?.kind === 'turn' && second.summary).toEqual({ notices: [], tools: 2 })
+    expect(first?.kind === 'turn' && second?.kind === 'turn' && first.key !== second.key).toBe(true)
+  })
+
+  it('only_the_last_box_of_a_running_turn_is_live', () => {
+    const t1 = toolEntry('t1', 'Read a.ts')
+    const note = agentEntry('a1', 'Let me look.')
+    const t2 = toolEntry('t2', 'Read b.ts')
+    const entries = [t1, note, t2]
+    const blocks = turnBlocks([toolRow(t1), entryRow(note), toolRow(t2)], 'op1', entries)
+    expect(shape(blocks)).toEqual(['turn(1)', 'a1', 'turn(1)'])
+    const [first, , second] = blocks
+    expect(first?.kind === 'turn' && first.live).toBe(false)
+    expect(second?.kind === 'turn' && second.live).toBe(true)
   })
 
   it('a_turn_with_no_activity_has_no_box', () => {
