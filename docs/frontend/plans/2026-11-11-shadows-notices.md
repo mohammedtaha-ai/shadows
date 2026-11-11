@@ -1,38 +1,44 @@
-# Shadows' notices drawn as the Planner's activity
+# Executor notices drawn as the Planner's activity
 
 Mohammed, 2026-11-11. Runs tells the Planner how each executor attempt ended with a
 `[Shadows]` notice, sent as the message of a Planner turn. Today the page draws it as the
 person's own bubble. Mohammed wants it drawn the way Claude Code's desktop draws "Message from
 subagent <name>": an item of the turn's activity, beside its tool calls, with a header such as
-"Shadows · T2 · attempt 3 committed" and the executor's full report under it as markdown, cut
+"Executor (sonnet) · T2 · attempt 3 committed" and the executor's full report under it as markdown, cut
 with Show more when long. Never a user bubble, and never the person's waiting message while it
 waits in the queue.
 
 **Mohammed's rulings, 2026-11-11:**
 1. The notice arrives **in the executor's name**, not the person's and not a plain "Shadows":
-   the header names the executor (`<executor> · T2 · attempt 3 committed`). Which field holds
-   the name is Hamoud's answer in [the request](../../shared/requests/2026-11-11-shadows-notices.md);
-   this plan calls it **the executor name field** and the builder takes it from there. Core
-   refuses approvals from anyone but the person; the web needs nothing for that.
-2. Core refuses removing a waiting notice; the web shows no Remove on it (F-112).
-3. Each Planner turn is one collapsible box, as in Claude (F-113, after F-111).
+   the header reads `Executor ({card.model}) · T2 · attempt 3 committed`, as
+   [the request](../../shared/requests/2026-11-11-shadows-notices.md) states after its
+   amendment (`8b5a5a20`). Core refuses approvals in a turn with no message from the person
+   (B-135); the web needs nothing for that.
+2. Core refuses removing a waiting notice (409 `QUEUED_NOTICE_KEPT`); the web shows no Remove
+   on it (F-112).
+3. Each Planner turn is one collapsible box, as in Claude (F-113, after F-111). Cards the
+   person acts on stay outside the folded box, under it (Mohammed confirmed).
+
+Built by `frontend-builder`, one task at a time, from `docs/frontend/stages.md`.
 
 Backend shape: [the shadows notices request](../../shared/requests/2026-11-11-shadows-notices.md)
 (accepted), built by B-134 ([its plan](../../backend/plans/2026-11-11-marked-shadows-notices.md)).
 
 ## What Core gives
 
-- A notice entry is a `UserMessage` whose `author` is `{ kind: "Shadows", id: "runs" }`. The
-  person's messages stay `User`/`local` with `card: null`. **The marker is `author.kind ===
-  "Shadows"`**; the page never reads the body's text to decide. If Hamoud's update to the
-  request (ruling 1) changes the author's kind, the marker is what the request then states.
-- The executor's name: the executor name field the request names after ruling 1.
+- A notice entry is a `UserMessage` whose `author` is `{ kind: "Executor", id: <the attempt's
+  executor thread id> }`. The person's messages stay `User`/`local` with `card: null`. **The
+  marker is `author.kind === "Executor"`**; the page never reads the body's text to decide.
+- The header's name is `Executor ({card.model})`: an executor has no identity of its own, only
+  its thread and the model it ran on.
 - Its `card` is an `AttemptNotice`: `{ workflow_id, version, task, title, attempt, attempt_id,
-  outcome: "committed" | "failed", commit, report, reason, last_addition }`. `ThreadEntry.card`
+  model, outcome: "committed" | "failed", commit, report, reason, last_addition }`. `task`,
+  `attempt`, `outcome`, `title` and `model` are always set. `ThreadEntry.card`
   stays an open object in the schema, so the page reads it with a checked reader.
 - `body` is the whole notice as the model read it, Shadows' instructions to the Planner included.
   The page shows it only when the card is missing or unreadable.
-- `QueuedMessage.notice: { from: "runs", card: AttemptNotice } | null`, null for the person's.
+- `QueuedMessage.notice: { executor: <thread id>, card: AttemptNotice } | null`, null for the
+  person's. Removing a notice row answers 409 `QUEUED_NOTICE_KEPT`.
 - Old notices recorded before B-134 keep `User` and no card: they stay bubbles. Core does not
   rewrite them, and the page does not guess.
 
@@ -63,26 +69,25 @@ F-113 then folds the whole turn, the notice item included, into one box (ruling 
 - No browser journey: Mohammed tries it in the browser himself.
 - One commit per task, `git add <each file>`, nothing under `.claude/`, no push.
 
-## F-111 · A Shadows notice draws as an item of the Planner's activity
+## F-111 · An executor's notice draws as an item of the Planner's activity
 
 **Reading the card.**
 - `web/src/api/runs.ts`: export `type AttemptNotice = components['schemas']['AttemptNotice']`
   (Runs owns the type). Add it to the `runs:` block of `web/src/api/contract.yaml`.
 - `web/src/stream/frames.ts`: `readAttemptNotice(value: unknown): AttemptNotice | null`, beside
-  `readSubagentCard` and in its style: null unless `task` and `attempt` are numbers, `title` a
-  string and `outcome` is `committed` or `failed`; `commit`, `report` and `reason` read as
+  `readSubagentCard` and in its style: null unless `task` and `attempt` are numbers, `title` and
+  `model` strings and `outcome` is `committed` or `failed`; `commit`, `report` and `reason` read as
   string or null; `last_addition` true only when it is `true`. Line in
   `web/src/stream/contract.yaml`.
 - `web/src/app/conversation/tool-text.ts`: `noticeOf(entry: ThreadEntry): { card: AttemptNotice
   | null } | null`, beside `subagentOf`: null unless `entry.kind === 'UserMessage'` and
-  `entry.author.kind === 'Shadows'`; otherwise the card read by `readAttemptNotice` (null when
+  `entry.author.kind === 'Executor'`; otherwise the card read by `readAttemptNotice` (null when
   missing or unreadable). `copyText` copies a notice's `report`, else its `reason`, else its body.
 
 **The item.** New file `web/src/app/conversation/notice-item.tsx`:
-- `noticeTitle(card: AttemptNotice | null): string`: `{executor} · T{task} · attempt {attempt}
-  {outcome}`, where `{executor}` is the executor name field; `Shadows` when the card is null
-  or the name is missing. Exported: F-112 uses it. `readAttemptNotice` reads the name field as
-  a string or null.
+- `noticeName(card: AttemptNotice | null): string`: `Executor ({card.model})`, or `Executor`
+  when the card is null. `noticeTitle(card)`: `{noticeName} · T{task} · attempt {attempt}
+  {outcome}`, or `Executor` when the card is null. Both exported: F-112 and F-113 use them.
 - `NoticeItem({ body, card })`: a left-aligned `surface-panel rounded-xl p-3` block, like a
   tool group of several steps.
   - Header: a `button` with `aria-expanded`, a chevron (rotates when open), an icon
@@ -101,7 +106,7 @@ F-113 then folds the whole turn, the notice item included, into one box (ruling 
       `max-h-80 overflow-hidden` with a `Show more` button under it; `Show more` lifts the
       limit and becomes `Show less`. The full report is always in the DOM; only its height is cut.
     - Card null (unreadable or missing): the `body` as plain text (`whitespace-pre-wrap`,
-      `dir="auto"`), under the header `Shadows`.
+      `dir="auto"`), under the header `Executor`.
     - `report` and `reason` both null: the header alone, with no chevron and no body.
 - `web/src/app/conversation/entry.tsx`: the `UserMessage` branch first asks `noticeOf(entry)`;
   a notice returns `<NoticeItem body={entry.body} card={notice.card} />`. The person's bubble
@@ -112,26 +117,26 @@ F-113 then folds the whole turn, the notice item included, into one box (ruling 
 
 **Tests**, new file `web/src/app/conversation/notice-item.test.tsx`, drawing `Entry` as
 `todo-card.test.tsx` does:
-- `a_notice_draws_as_an_activity_item_not_a_bubble`: a `Shadows` entry with a committed card
-  (task 2, attempt 3, a report holding `**done**` and a list): the card's executor name is
-  `Codex`, and the header reads `Codex · T2 · attempt 3 committed`; the task title shows; `done` is drawn inside a `strong`; the body's
+- `a_notice_draws_as_an_activity_item_not_a_bubble`: an `Executor` entry with a committed card
+  (task 2, attempt 3, model `sonnet`, a report holding `**done**` and a list): the header reads
+  `Executor (sonnet) · T2 · attempt 3 committed`; the task title shows; `done` is drawn inside a `strong`; the body's
   instruction text is not on the page; no element carries the bubble's `surface-glow` class.
 - `a_failed_notice_shows_its_reason_and_report`: outcome `failed`, `reason` and `report` set:
   both show; the header reads `attempt 1 failed`.
 - `a_long_report_is_cut_with_show_more`: a report of 40 lines: `Show more` shows; after a
   click, `Show less`.
-- `a_notice_without_a_readable_card_shows_its_body_under_shadows`: author `Shadows`, card
-  `null`: header `Shadows`, the body as plain text.
+- `a_notice_without_a_readable_card_shows_its_body_under_executor`: author `Executor`, card
+  `null`: header `Executor`, the body as plain text.
 - `the_header_closes_and_reopens_the_report`: a click on the header hides the report
   (`aria-expanded` false); a second click shows it.
 - `an_old_notice_from_the_person_stays_a_bubble`: author `User`/`local`, body starting
   `[Shadows]`, card null: drawn as the person's bubble (the page does not read the text).
 
 **Contracts and map.** `web/src/app/conversation/contract.yaml`: one obligation, "An entry
-whose author is Shadows draws as a notice item of the turn's activity, never as the person's
+whose author is an Executor draws as a notice item of the turn's activity, never as the person's
 bubble; its header comes from its card, its report is drawn whole as markdown and cut only in
 height (notice-item.test.tsx)". `docs/frontend/codebase/README.md`: a row for
-`web/src/app/conversation/notice-item.tsx`, "A Shadows notice drawn as an activity item".
+`web/src/app/conversation/notice-item.tsx`, "An executor's notice drawn as an activity item".
 
 ## F-112 · A waiting notice is not drawn as the person's waiting message
 
@@ -141,14 +146,16 @@ notice, not as the person's message:
 - one line: the icon of `NoticeItem`, `noticeTitle(readAttemptNotice(m.notice.card))`, and
   `Waiting for the Planner` muted; the `prompt` text is **not** shown (it is the model's text);
 - `Send now` / `Send` stays as for every row (Core steers it with its author and card);
-- **no `Remove` button** (ruling 2: Core refuses removing a notice); `last_error`, when set, shows as for
+- **no `Remove` button** (ruling 2: Core refuses it with 409 `QUEUED_NOTICE_KEPT`; if the call
+  is made anyway, the existing error line shows Core's message);
+- the row reads `m.notice.card`; `m.notice.executor` is not shown; `last_error`, when set, shows as for
   every row.
 A row whose `notice` is null is drawn exactly as today.
 
 **Tests**, in `web/src/app/conversation/waiting-messages.test.tsx`:
 - `a_waiting_notice_is_not_drawn_as_the_persons_message`: the queue answers a notice row
-  (task 2, attempt 3, committed) then the person's row. The notice row shows `Codex · T2 ·
-  attempt 3 committed` (the card's executor name) and `Waiting for the Planner`, not its prompt text, offers `Send now`
+  (task 2, attempt 3, committed) then the person's row. The notice row shows `Executor (sonnet) · T2 ·
+  attempt 3 committed` and `Waiting for the Planner`, not its prompt text, offers `Send now`
   and no `Remove`; the person's row shows its text with `Send now` and `Remove`, as today.
 
 **Contract.** `web/src/app/conversation/contract.yaml`: the waiting messages line says a
@@ -180,9 +187,9 @@ children })`: left-aligned `surface-panel rounded-xl p-3`, a header `button` wit
 turn while `running`), **folded once it ends**; the person's click wins over both, as
 `ToolGroup` does (`chosen ?? live`). A link to an entry inside (`#entry-<ordinal>`) opens it.
 - The summary line: the parts that apply, joined by ", ", first letter capital: `received a
-  notice from <executor>` (from the notice's card, F-111's executor name; `received a notice`
-  without one), `ran N tools` (`ran 1 tool`), `wrote N notes` for the in-between text blocks
-  when there are any. Example: "Received a notice from Codex, ran 5 tools". While it runs, a
+  notice from {noticeName(card)}` (F-111's `noticeName`: `Executor (sonnet)`, or `Executor`
+  with no readable card), `ran N tools` (`ran 1 tool`), `wrote N notes` for the in-between text
+  blocks when there are any. Example: "Received a notice from Executor (sonnet), ran 5 tools". While it runs, a
   spinner replaces the icon, as `ToolGroup` does.
 
 **The grouping.** New file `web/src/app/conversation/turn-blocks.ts`:
@@ -205,7 +212,7 @@ AYLUL_HARNESS`.
   `a_proposal_card_stays_outside_the_box`; `the_person_prompt_stays_above_the_box`.
 - `web/src/app/conversation/turn-box.test.tsx` (new):
   `a_finished_turn_shows_one_summary_line_and_opens_on_click` (folded: "Received a notice from
-  Codex, ran 5 tools", tool rows absent; after a click, present);
+  Executor (sonnet), ran 5 tools", tool rows absent; after a click, present);
   `a_running_turn_is_open_and_folds_when_it_ends`.
 - Existing tests that read a finished turn's tool rows or in-between text now open its box
   first: `conversation.test.tsx`, `streamed-reply.test.tsx`, `tool-group.test.tsx`,

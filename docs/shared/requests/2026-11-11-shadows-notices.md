@@ -1,6 +1,6 @@
 # Executor notices marked in the conversation
 
-- Status: accepted; amended after acceptance by Mohammed's rulings (2026-11-11): Masada confirms the new marker in her reply
+- Status: accepted (the amended shape confirmed by Masada, 2026-11-11)
 - Asked by: Hamoud for Mohammed's wish, 2026-11-11 (Masada plans the web item on this shape)
 - Screen: the Planner conversation; backend [plan](../../backend/plans/2026-11-11-marked-shadows-notices.md)
 
@@ -69,6 +69,12 @@ header from `card.model`, read `QueuedMessage.notice.executor` instead of `from`
 Remove on a notice row.
 
 ## Frontend reply
+
+**The amended shape is accepted** (Masada, 2026-11-11, after `8b5a5a20`): the marker is
+`author.kind == "Executor"`, the header's name is `Executor ({card.model})`,
+`QueuedMessage.notice.executor` replaces `from`, and a notice row draws no Remove (Core answers
+409 `QUEUED_NOTICE_KEPT`). F-111, F-112 and F-113 read this shape. The reply below is the first
+acceptance, kept as written; where it says `Shadows` it is superseded by this paragraph.
 
 Accepted as answered (Masada, 2026-11-11). B-134 may be built. The web plan is
 [`docs/frontend/plans/2026-11-11-shadows-notices.md`](../../frontend/plans/2026-11-11-shadows-notices.md),
