@@ -15,7 +15,7 @@ Mohammed, 2026-11-11. Two pieces of the task page (`web/src/app/tasks/`):
 - Run only: `npx vitest run src/app/tasks` plus `npm run typecheck`, `npm run lint`,
   `npm run build` and `npx vitest run src/codemap.test.ts src/architecture`, from `web/`.
   Never the whole suite. Never run vitest while a `cargo` process runs on this machine
-  (check with `tasklist /FI "IMAGENAME eq cargo.exe"` before each vitest run; if one runs, wait and check again).
+  (check with `powershell -NoProfile -Command "Get-Process cargo -ErrorAction SilentlyContinue"` (empty output means none) before each vitest run; if one runs, wait and check again).
 - No browser journey: Mohammed tries it in the browser himself.
 - One commit per task, `git add <each file>`, nothing under `.claude/`, no push.
 
