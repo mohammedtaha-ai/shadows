@@ -248,7 +248,7 @@ mod mapping_tests {
 
     #[test]
     fn every_core_error_keeps_its_mcp_mapping() {
-        assert_eq!(Case::all().len(), 63);
+        assert_eq!(Case::all().len(), 64);
         for case in Case::all() {
             let name = format!("{:?}", case.error);
             assert_eq!(case.error.code(), case.code, "{name}");
