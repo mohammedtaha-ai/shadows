@@ -413,7 +413,9 @@ functions:
     scan_project:
       signature: "(&self, project: &ProjectId, progress: &Progress) -> Result<u32, CodeError>"
       # No folder, or a missing one: nothing changes. Walks on a blocking
-      # thread, sets `found`, `index_file` per kept path (a failure is
+      # thread, reads `code_file_stamps` and the folder's canonical path
+      # once for the walk (either unread: each file reads its own), sets
+      # `found`, `index_file`'s steps per kept path (a failure is
       # `code.index_failed` and the walk goes on), `done` after each, and
       # returns early once `stop` is set; then `record_inventory`; then deletes the rows of every key
       # the walk did not see, unless the walk was incomplete or the folder
@@ -590,6 +592,9 @@ functions:
     # All instance methods below belong to the private CodeStore.
     code_file_stamp:
       signature: "(&self, project: &ProjectId, path_key: &str) -> Result<Option<(String, i64, i64)>, StorageError>"
+    code_file_stamps:
+      signature: "(&self, project: &ProjectId) -> Result<HashMap<String, (String, i64, i64)>, StorageError>"
+      # Every stamp of the project by file key, for one scan's whole walk.
     code_file_keys:
       signature: "(&self, project: &ProjectId) -> Result<Vec<String>, StorageError>"
     code_files_under:
@@ -600,7 +605,7 @@ functions:
       signature: "(&self, project: &ProjectId, file: FileRow, tags: Vec<Tag>) -> Result<(), StorageError>"
       # One write: nothing for a removed project (so a worker finishing a
       # file after a removal writes no row); else delete the file's tags,
-      # upsert its row, insert its tags.
+      # upsert its row, insert its tags, 500 rows a statement.
     delete_code_file:
       signature: "(&self, project: &ProjectId, path_key: &str) -> Result<(), StorageError>"
       # One write: the tags explicitly, then the row.

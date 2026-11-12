@@ -6,7 +6,7 @@
 //! call them; a second copy of either would drift, and the index would then
 //! depend on which path saw the change.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
@@ -39,6 +39,13 @@ pub(super) struct Progress {
 struct Walked {
     paths: Vec<String>,
     incomplete: bool,
+}
+
+/// What one scan reads once for its whole walk, where a single file reads its own.
+pub(super) struct Known {
+    /// Every stored stamp of the project, by file key.
+    stamps: HashMap<String, (String, i64, i64)>,
+    canonical_dir: PathBuf,
 }
 
 /// The paths a walk is limited to: those files, and the folders above them.
@@ -120,6 +127,18 @@ impl Code {
         dir: &Path,
         path: &str,
     ) -> anyhow::Result<bool> {
+        self.index_known(project, dir, path, None).await
+    }
+
+    /// `index_file`, with the stored stamps and the folder's canonical path
+    /// taken from `known` when a scan read them for its whole walk.
+    async fn index_known(
+        &self,
+        project: &ProjectId,
+        dir: &Path,
+        path: &str,
+        known: Option<&Known>,
+    ) -> anyhow::Result<bool> {
         let store = &self.inner.store;
         let key = Code::path_key(path);
         let full = dir.join(path);
@@ -140,11 +159,18 @@ impl Code {
             return Ok(false);
         };
         let (size, modified_ms) = Code::stamp(&meta);
-        let stored = (path.to_string(), size, modified_ms);
-        if store.code_file_stamp(project, &key).await? == Some(stored) {
+        let stamp = (path.to_string(), size, modified_ms);
+        let unchanged = match known {
+            Some(known) => known.stamps.get(&key) == Some(&stamp),
+            None => store.code_file_stamp(project, &key).await? == Some(stamp),
+        };
+        if unchanged {
             return Ok(false);
         }
-        let canonical_dir = tokio::fs::canonicalize(dir).await?;
+        let canonical_dir = match known {
+            Some(known) => known.canonical_dir.clone(),
+            None => tokio::fs::canonicalize(dir).await?,
+        };
         let real = tokio::fs::canonicalize(&full).await?;
         if !names_itself(&real, &canonical_dir, path) {
             tracing::warn!(
@@ -218,6 +244,18 @@ impl Code {
                 }
             }
         };
+        // Read once: a file the watcher writes during the walk only differs
+        // from its stamp here, so it is indexed again.
+        let known = match (
+            store.code_file_stamps(project).await,
+            tokio::fs::canonicalize(&dir).await,
+        ) {
+            (Ok(stamps), Ok(canonical_dir)) => Some(Known {
+                stamps,
+                canonical_dir,
+            }),
+            _ => None,
+        };
         progress
             .found
             .store(walked.paths.len() as u32, Ordering::Relaxed);
@@ -229,7 +267,7 @@ impl Code {
                 return Ok(indexed);
             }
             seen.insert(Code::path_key(path));
-            match self.index_file(project, &dir, path).await {
+            match self.index_known(project, &dir, path, known.as_ref()).await {
                 Ok(wrote) => indexed += u32::from(wrote),
                 Err(error) => {
                     tracing::warn!(

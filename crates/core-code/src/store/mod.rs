@@ -6,6 +6,7 @@ mod reach;
 
 pub(crate) use inventory::InventoryRow;
 
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use shadows_index::{Role, Tag};
@@ -33,6 +34,9 @@ pub(super) type ScopeRow = (ProjectId, String, Option<String>);
 /// The row count past which an answer says `more`.
 const HITS: i64 = 50;
 
+/// How many tags one `INSERT` carries: eight values each.
+const TAG_ROWS: usize = 500;
+
 type HitRow = (String, i64, String, String, Option<String>);
 
 /// Private persistence for the code service.
@@ -58,6 +62,24 @@ impl CodeStore {
         .bind(path_key)
         .fetch_optional(self.storage.reader())
         .await?)
+    }
+
+    /// Every stored stamp of the project, by file key: what one scan compares
+    /// its whole walk against.
+    pub(super) async fn code_file_stamps(
+        &self,
+        project: &ProjectId,
+    ) -> Result<HashMap<String, (String, i64, i64)>, StorageError> {
+        let rows: Vec<(String, String, i64, i64)> = sqlx::query_as(
+            "SELECT path_key, path, size, modified_ms FROM code_file WHERE project_id = ?",
+        )
+        .bind(project.as_str())
+        .fetch_all(self.storage.reader())
+        .await?;
+        Ok(rows
+            .into_iter()
+            .map(|(key, path, size, modified_ms)| (key, (path, size, modified_ms)))
+            .collect())
     }
 
     /// Every file key the project's index holds, by key.
@@ -134,26 +156,28 @@ impl CodeStore {
                     .bind(file.skipped)
                     .execute(&mut *conn)
                     .await?;
-                    for tag in &tags {
-                        let role = match tag.role {
-                            Role::Definition => "definition",
-                            Role::Reference => "reference",
-                        };
-                        sqlx::query(
+                    // Several rows a statement, each statement under SQLite's
+                    // bound-variable limit.
+                    for rows in tags.chunks(TAG_ROWS) {
+                        let mut insert = sqlx::QueryBuilder::new(
                             "INSERT INTO code_tag
-                           (project_id, path_key, path, name, kind, role, line, signature)
-                         VALUES (?,?,?,?,?,?,?,?)",
-                        )
-                        .bind(project.as_str())
-                        .bind(&file.path_key)
-                        .bind(&file.path)
-                        .bind(&tag.name)
-                        .bind(&tag.kind)
-                        .bind(role)
-                        .bind(i64::from(tag.line))
-                        .bind(&tag.signature)
-                        .execute(&mut *conn)
-                        .await?;
+                           (project_id, path_key, path, name, kind, role, line, signature) ",
+                        );
+                        insert.push_values(rows, |mut row, tag| {
+                            let role = match tag.role {
+                                Role::Definition => "definition",
+                                Role::Reference => "reference",
+                            };
+                            row.push_bind(project.as_str())
+                                .push_bind(&file.path_key)
+                                .push_bind(&file.path)
+                                .push_bind(&tag.name)
+                                .push_bind(&tag.kind)
+                                .push_bind(role)
+                                .push_bind(i64::from(tag.line))
+                                .push_bind(&tag.signature);
+                        });
+                        insert.build().execute(&mut *conn).await?;
                     }
                     Ok(())
                 })
