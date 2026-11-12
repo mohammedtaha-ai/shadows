@@ -74,9 +74,12 @@ SQLx/SQLite, rmcp, axum/utoipa; React client.
     `pub async fn start(spec: ServerSpec, timeout: Duration) -> Result<Server, LspError>`
     (spawn through `shadows_process::spawn` with piped stdio, `initialize` with the root's
     `file://` URI as the one workspace folder, then `initialized`);
-    `pub async fn open(&self, path: &Path, language_id: &str, text: String) -> Result<(), LspError>`
-    (`didOpen` the first time, `didChange` with the full text after, version counted per file);
-    `pub async fn request(&self, method: &str, params: serde_json::Value, timeout: Duration) -> Result<serde_json::Value, LspError>`;
+    `pub async fn ask(&self, path: &Path, language_id: &str, text: String, method: &str, params: serde_json::Value, timeout: Duration) -> Result<serde_json::Value, LspError>`:
+    `didOpen` the file with `text`, sends the request, then `didClose`, whatever the answer.
+    **No file stays open** (Codex's review, 2026-11-13): the server reads every file it was not
+    handed from disk, so an executor's change is never answered from an old copy, and there
+    is no open state to keep in step with the watcher. `request(&self, method, params,
+    timeout)` is the same with no file (for `workspace/symbol`);
     `pub fn capabilities(&self) -> &serde_json::Value`;
     `pub fn last_error_line(&self) -> Option<String>` (the last stderr line);
     `pub async fn shutdown(self)` (`shutdown`, `exit`, then the handle drops and kills).
@@ -86,8 +89,12 @@ SQLx/SQLite, rmcp, axum/utoipa; React client.
 - [ ] **Step 1: Write the failing tests** in `crates/shadows-lsp/tests/gopls.rs`, each
   `#[ignore = "needs gopls on PATH"]` and run in Done when:
   - `gopls_answers_a_definition`: a temp module (`go.mod`, `a.go` with `func Hello() string`,
-    `b.go` calling `Hello()`), `start`, `open` both, `request("textDocument/definition", …)`
-    at the call: the answer's URI ends with `a.go` and its line is `Hello`'s (zero-based).
+    `b.go` calling `Hello()`), `start`, `ask(b.go, "go", <b.go's text>,
+    "textDocument/definition", …)` at the call: the answer's URI ends with `a.go` and its line
+    is `Hello`'s (zero-based).
+  - `an_edit_on_disk_is_seen_by_the_next_question`: after one `ask` on `b.go`, `a.go` is
+    rewritten on disk with `Hello` moved two lines down; the next definition `ask` from `b.go`
+    answers the new line.
   - `gopls_answers_references`: `textDocument/references` with `includeDeclaration: true` at
     `Hello` finds two locations.
   - `a_missing_command_is_a_spawn_error`: `ServerSpec` with `no-such-server-xyz` →
@@ -98,7 +105,7 @@ SQLx/SQLite, rmcp, axum/utoipa; React client.
 - [ ] **Step 3: Implement** `client.rs` with `async_lsp::MainLoop::new_client` and
   `tokio_util::compat` over `ProcessHandle::take_stdio`; stderr is read line by line, keeping
   the last.
-- [ ] **Step 4: Run** the same command; expected: 4 passed.
+- [ ] **Step 4: Run** the same command; expected: 5 passed.
 - [ ] **Step 5: Commit** `feat(backend): B-138 the shadows-lsp client (async-lsp, infrastructure)`.
 
 ## Task B-139: the catalog and a project's servers
@@ -186,6 +193,14 @@ SQLx/SQLite, rmcp, axum/utoipa; React client.
 - Callers that touch: `Turns` when a message is sent (person's or a notice), and every
   `Code` question (`code_lsp`, inventory). Callers that stop touching: `Threads::list`,
   project create. A touch no longer activates linked projects.
+- **Work in progress holds the project** (Codex's review, 2026-11-13): a long turn or an
+  attempt may call no Code tool for more than the idle time. New
+  `Code::hold(&self, project: &ProjectId) -> ActiveHold`; an `ActiveHold` keeps the project
+  active while it lives, and its drop counts as a touch, so the idle time starts when the
+  work ends. `Turns` holds one for each running turn (from its start until it settles);
+  `Runs` holds one for each running attempt (Runs already has `Code`, B-128). Files add:
+  `crates/core-runs/src/` (the file that starts and ends an attempt),
+  `crates/core-runs/contract.yaml`.
 - `CodeSettings`, `set_active_limit` and `LIMITS` go.
 
 - [ ] **Step 1: Write the failing tests**:
@@ -196,6 +211,8 @@ SQLx/SQLite, rmcp, axum/utoipa; React client.
   - `an_idle_project_stops` with a test-only idle of 1 s (`Code::idle_for_test`): touched,
     then after 3 s `Inactive`, and its gopls (if any) is gone.
   - `a_touch_does_not_activate_links`.
+  - `a_held_project_outlives_the_idle_time`: idle 1 s, a `hold` kept for 3 s: still active;
+    1 s after the hold drops plus the sweep, `Inactive`.
 - [ ] **Step 2: Run** the test file; expected: fail.
 - [ ] **Step 3: Implement**; remove every `active_limit` test.
 - [ ] **Step 4: Run** it, `cargo test -p shadows --test openapi` with `UPDATE_OPENAPI=1`
@@ -226,8 +243,11 @@ SQLx/SQLite, rmcp, axum/utoipa; React client.
   Locations inside `result` are rewritten to `{ "project", "path", "line", "character" }`,
   one-based, project-relative; a location outside the project and its links is dropped.
 - `Code::lsp(&self, asker: Asker<'_>, question: LspQuestion) -> Result<LspAnswer, CodeError>`:
-  checks `file` with `Code::inside`; sends the file's current text (`Server::open`) before
-  the request; `IncomingCalls`/`OutgoingCalls` do `textDocument/prepareCallHierarchy` first;
+  checks `file` with `Code::inside`, then **resolves its real path and refuses one outside
+  the project's real folder** (a link or junction out), the same check the index makes
+  before it reads (`scan.rs`, `names_itself` and the canonical folder; Codex's review,
+  2026-11-13), and only then reads it; sends the file's current text with the request
+  (`Server::ask`, B-138); `IncomingCalls`/`OutgoingCalls` do `textDocument/prepareCallHierarchy` first;
   `WorkspaceSymbol` asks every running server of the project and merges. Bounds: 100 items,
   32 KiB of answer; time limit 20 s per request. `CodeError::InvalidCommand` for a missing
   `file`/`line`/`character`/`query` the operation needs.
@@ -248,6 +268,9 @@ SQLx/SQLite, rmcp, axum/utoipa; React client.
   - `code_lsp_answers_no_server_for_an_unknown_extension`: `x.zz` → `NoServer`.
   - `code_lsp_refuses_a_path_outside_the_project`: `../x.go` and an absolute path →
     `invalid_command`.
+  - `code_lsp_refuses_a_link_out_of_the_project`: `src/out` is a symlink (a junction on
+    Windows) to a folder outside the project holding `x.go`; `code_lsp` on `src/out/x.go` is
+    refused and the server is never asked.
   - `a_slow_answer_times_out`: an added server that never answers (a script that reads stdin
     and writes nothing) → an error whose text says the server did not answer in time, within
     25 s.
@@ -309,18 +332,26 @@ SQLx/SQLite, rmcp, axum/utoipa; React client.
   2 to 5 options, labels 1 to 80 characters, question 1 to 500; appends a `PersonQuestion`
   entry whose card is `{ question_id, question, options, chosen: null }`.
 - `Turns::answer(&self, command: CommandId, thread: &ThreadId, question: &QuestionId, option: usize) -> Result<Queued, TurnsError>`:
-  records `chosen` once (a second answer with another command is `Conflict`, a replay
-  answers the first result); then queues the person's own message to the Planner thread,
-  text `Answer to "<question>": <label>`, through the existing `Turns::queue`, so it is the
-  person's message (it may approve, B-135).
+  **the click is the person's message** (Codex's review, 2026-11-13: a choice recorded but
+  never delivered). In **one transaction** it records `chosen`, rewrites the question
+  entry's card to `chosen: <option>` (through a Threads `*_in` method; add
+  `Threads::set_card_in(&mut Tx, entry, card)` if none exists), and records the person's
+  message `Answer to "<question>": <label>` exactly as a typed message is recorded on the
+  same send path: started at once when the thread is idle, waiting when a turn runs. Only
+  after the commit is a turn started; a start that fails leaves the recorded message, as a
+  typed message's failed start does. A second answer with another command is `Conflict`; a
+  replay answers the first result. It is the person's message, so it may approve (B-135).
+  Files add: `crates/core-threads/src/lib.rs` and its store, if `set_card_in` is new.
 - MCP `person_ask { question, options: [{ label, consent? }] }` → `{ question_id }`.
 - HTTP: `POST /api/threads/{id}/questions/{question}/answer { command_id, option }`.
 - Prompt: "When the person must choose, ask with `person_ask` and wait for the answer; do
   not ask the same thing in text."
 
 - [ ] **Step 1: Failing tests** in `person_questions.rs`: `a_question_is_a_stored_entry`
-  (survives reopening the core), `an_answer_reaches_the_planner_as_the_persons_message`,
-  `a_question_is_answered_once`, `an_executor_cannot_ask`.
+  (survives reopening the core), `an_answer_reaches_the_planner_as_the_persons_message`
+  (thread idle, and thread with a turn running), `a_question_is_answered_once`,
+  `an_answered_card_reads_chosen_after_a_reload` (the entries read again from a new core show
+  `chosen`), `an_executor_cannot_ask`.
 - [ ] **Step 2–4: Run** `cargo test -p shadows-core --test person_questions`, then
   `cargo test -p shadows --test mcp_tools --test planner_mcp`: fail, implement, pass.
 - [ ] **Step 5: Commit** `feat(backend): B-143 person_ask, the question card`.
@@ -328,7 +359,8 @@ SQLx/SQLite, rmcp, axum/utoipa; React client.
 ## Task B-144: `code_server_install`
 
 **Files:**
-- Create: `crates/core-turns/src/install.rs`, `crates/core-code/src/lsp/install.rs`,
+- Create: `crates/core-turns/src/install.rs`, `crates/core-turns/src/store/install.rs`,
+  `crates/core-db/migrations/0061_server_install.sql`, `crates/core-code/src/lsp/install.rs`,
   `crates/shadows-core/tests/server_install.rs`
 - Modify: `crates/core-turns/src/model.rs` (`Notice.executor: Option<ThreadId>`; `None` is
   Shadows, actor kind `Shadows`), `crates/core-turns/src/lib.rs`,
@@ -346,10 +378,17 @@ SQLx/SQLite, rmcp, axum/utoipa; React client.
 - `Turns::install_server(&self, thread: &ThreadId, id: &str) -> Result<(), TurnsError>`:
   refused (`Refused("the person has not chosen to install <id>")`) unless the thread's
   latest answered `person_question` chose an option whose consent is
-  `server_install:<id>` and whose `consent_used` is 0; marks it used, answers at once, and
-  runs `Code::install_server` in the background; then queues a notice
-  (`executor: None`, card `{ kind: "server_install", server, ok, tail }`) to the thread.
-  On success the next recompute starts the server.
+  `server_install:<id>` and whose `consent_used` is 0; in one transaction marks it used and
+  writes a `server_install` row (`id, question_id, thread_id, server, state: running,
+  started_at, finished_at, tail`; migration `0061_server_install.sql`), answers at once,
+  and runs `Code::install_server` in the background; then records the outcome (`ok` or
+  `failed`) on the row and queues a notice (`executor: None`, card
+  `{ kind: "server_install", server, ok, tail }`) to the thread. On success the next
+  recompute starts the server.
+- **An install cut short** (Codex's review, 2026-11-13; kept simple): when Shadows starts,
+  every `running` row becomes `interrupted` and its thread gets the same notice with
+  `ok: false, interrupted: true`. Nothing is installed again on its own: the Planner asks
+  the person on a new card, and a new choice is a new consent.
 - MCP `code_server_install { server }` → "Installing <server>; you will get a notice."
 - Prompt: when `code_lsp` answers `NoServer` with `NotInstalled` and an `install` line,
   ask with `person_ask` (one option with `consent: "server_install:<id>"`, one for "I'll
@@ -359,7 +398,9 @@ SQLx/SQLite, rmcp, axum/utoipa; React client.
   `install_needs_the_persons_choice_for_that_server` (no question; a question for another
   server; a used consent: all refused), `an_install_outcome_reaches_the_planner_as_a_notice`
   (an added catalog entry is not installable; the test uses a test-only install line
-  `cmd /c echo installed`, `Code::install_line_for_test`), `a_server_with_no_install_line_is_refused`.
+  `cmd /c echo installed`, `Code::install_line_for_test`), `a_server_with_no_install_line_is_refused`,
+  `an_install_running_at_start_reads_interrupted` (a `running` row written, a new core
+  started: the row is `interrupted`, one notice reaches the thread, and nothing runs).
 - [ ] **Step 2–4: Run** `cargo test -p shadows-core --test server_install`, then
   `--test executor_notice` (or the file holding B-125's notice tests): fail, implement, pass.
 - [ ] **Step 5: Commit** `feat(backend): B-144 code_server_install after the person's choice`.
@@ -385,7 +426,9 @@ SQLx/SQLite, rmcp, axum/utoipa; React client.
 
 ## Task F-116: Settings › Code
 
-**Files:** `web/src/app/settings/sections.ts`, `web/src/app/settings/sections/code.tsx`
+**Files:** `web/src/app/settings/sections.ts`, `web/src/app/settings/settings-dialog.tsx`
+(the section's entry in `CONTENT`, which draws it; Codex's review, 2026-11-13),
+`web/src/app/settings/settings-dialog.test.tsx`, `web/src/app/settings/sections/code.tsx`
 (+ test), `web/src/api/code.ts` (+ test), `web/src/app/settings/general-preferences.tsx`
 and `web/src/app/settings/active-projects.tsx` (the limit goes), `docs/frontend/stages.md`.
 
@@ -398,7 +441,9 @@ and `web/src/app/settings/active-projects.tsx` (the limit goes), `docs/frontend/
   `.`), with the line "A server you add runs on your machine on your responsibility."
 - General loses "Active projects".
 - Tests: `lists_the_servers_with_their_state`, `switching_off_warns_first`,
-  `adds_and_removes_a_server`, `general_has_no_active_projects`.
+  `adds_and_removes_a_server`, `general_has_no_active_projects`, and in
+  `settings-dialog.test.tsx` `opening_code_shows_its_servers` (the dialog opened on
+  `settings=code` draws the section's content, not an empty panel).
 - Done when: `npm test -- settings code`, `npm run build`, lint. One commit,
   `feat(web): F-116 Settings › Code`.
 
