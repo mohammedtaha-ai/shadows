@@ -22,7 +22,7 @@
 
 name: web-api
 project_thread_order: "threadsQuery preserves Core's latest-assistant-reply order; unanswered conversations follow by newest creation sequence."
-part_layers: 'PartLayer is a generated-schema alias; PartContent carries folder and layers through the existing design operations.'
+part_layers: 'PartContent carries folder and layers through the existing design operations.'
 version: 1
 status: current
 source: web/src/api
@@ -33,7 +33,7 @@ planning_context:
   saveAnchorAnswer: Cancel the exact anchor read before caching the mutation answer.
   carriedContextQuery: Read a turn's carried context, returning null for CONTEXT_NOT_CARRIED.
   resendContext: Mark context owed again using the caller's command id.
-  aliases: ThreadPlanningAnchor, CarriedContext and ContextRecord come from the generated schemas.
+  aliases: ThreadPlanningAnchor and ContextRecord come from the generated schemas.
 groups:
   groupsQuery: Read the AYLUL group list.
   groupQuery: Read group members and attention state by id.
@@ -775,19 +775,19 @@ projects_operations:
 code_operations:
   owner: code.ts
   operations: "getCodeStatus listCodeLinks putCodeLink removeCodeLink getCodeSettings setActiveLimit"
-  types: "ProjectStatus IndexState ProjectLink CodeSettings; generated schema aliases"
+  types: "ProjectStatus ProjectLink CodeSettings; generated schema aliases"
   transport: "transport/index.ts owns the shared generated client and error mapping"
 
 workflows_operations:
   owner: workflows.ts
   operations: "listPlans getPlanVersions archivePlan unarchivePlan getPlan getPlanMap approvePlan editBindings"
-  types: "PlanOp Plan PlanTask PlanLink LinkedTask PlanMap MapPlan PlanListing PlanVersions VersionLine WrittenBy Approved; generated schema aliases"
+  types: "PlanOp Plan PlanTask PlanLink LinkedTask PlanMap MapPlan PlanListing PlanVersions WrittenBy Approved; generated schema aliases"
   transport: "transport/index.ts owns the shared generated client and error mapping"
 
 agreements_operations:
   owner: agreements.ts
   operations: "listAgreements getAgreement startAgreement editAgreement reviewAgreement agreeAgreement"
-  types: "AgreementVersion AgreementContent AgreementReview AgreementBinding; generated schema aliases"
+  types: "AgreementVersion AgreementContent AgreementReview; generated schema aliases"
   transport: "transport/index.ts owns the shared generated client and error mapping"
 
 design_operations:
@@ -837,6 +837,6 @@ background_task_stop: "sessions.ts stopTask posts the selected task stop request
 
 layout_only: "PartContent and StageView use the regenerated schema without starter files or structure counts; no createStructure operation remains."
 
-# workflows aliases generated Phase, PhaseRef, PhaseEndpoint and LinkedPhase.
+# workflows aliases generated Phase and PhaseEndpoint.
 # Exact foreign navigation uses the server-captured workflow_id with planQuery;
 # no new transport, endpoint or inferred latest-version lookup is introduced.

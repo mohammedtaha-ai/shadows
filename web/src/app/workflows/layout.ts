@@ -8,7 +8,7 @@ import { type Edge, type Node, type NodeHandle, Position } from '@xyflow/react'
 import type { Plan, PlanLink, PlanTask } from '@/api/workflows'
 import { type LinkedNode, type MissingNode, linkedLayout, parentName } from './linked-layout'
 
-export type LinkKind = PlanLink['kind']
+type LinkKind = PlanLink['kind']
 
 export interface StartData extends Record<string, unknown> {
   title: string
@@ -48,14 +48,14 @@ export interface LinkData extends Record<string, unknown> {
 
 export type PlanEdge = Edge<LinkData, 'link'>
 
-export const TASK_WIDTH = 256
-export const START_WIDTH = 256
+const TASK_WIDTH = 256
+const START_WIDTH = 256
 /** Border, padding, the `T4` row, the title and two lines of goal. */
 const TASK_BASE_HEIGHT = 98
 /** The gap above the detail lines. */
 const DETAILS_GAP = 6
 /** One detail line: a path, the needs, one wait. */
-export const LINE_HEIGHT = 16
+const LINE_HEIGHT = 16
 /** Border, padding, the "Plan" row, the title and three lines of goal. */
 const START_HEIGHT = 114
 const MAX_WRITES = 3
@@ -66,13 +66,13 @@ export function taskNodeId(number: number): string {
   return `t${number}`
 }
 
-export function linkId(link: Pick<PlanLink, 'kind' | 'after' | 'task'>): string {
+function linkId(link: Pick<PlanLink, 'kind' | 'after' | 'task'>): string {
   const after = typeof link.after === 'number' ? link.after : `${link.after.plan_id}-t${link.after.task}`
   return `${link.kind}-${after}-${link.task}`
 }
 
 /** "1 part waits for T8", "2 parts wait for T8". */
-export function waitsFor(count: number, after: number | string): string {
+function waitsFor(count: number, after: number | string): string {
   const name = typeof after === 'number' ? `T${after}` : after
   return count === 1 ? `1 part waits for ${name}` : `${count} parts wait for ${name}`
 }

@@ -5,11 +5,10 @@ import { ApiError, client, unwrap } from './transport'
 
 type Schemas = components['schemas']
 export type ThreadPlanningAnchor = Schemas['ThreadPlanningAnchor']
-export type CarriedContext = Schemas['CarriedContext']
 export type ContextRecord = Schemas['ContextResponse']
 type AnchorResponse = Schemas['AnchorResponse']
 
-export const planningKeys = {
+const planningKeys = {
   anchor: (threadId: string) => ['planning-context', 'anchor', threadId] as const,
   carried: (operationId: string) => ['planning-context', 'carried', operationId] as const,
 }

@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button'
 import { CopyButton } from '../copy-button'
 import { ErrorLine } from '../error-line'
 
-export interface ForkPoint {
+interface ForkPoint {
   projectId: string
   threadId: string
   entryId: string

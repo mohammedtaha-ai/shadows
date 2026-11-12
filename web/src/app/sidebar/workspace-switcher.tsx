@@ -14,7 +14,7 @@ const WORKSPACES: { id: Workspace; label: string; description: string }[] = [
 ]
 
 /** The leaf mark beside the workspace name; its colours follow the theme tokens. */
-export function LeafMark({ className = 'size-5' }: { className?: string }) {
+function LeafMark({ className = 'size-5' }: { className?: string }) {
   return (
     <svg viewBox="0 0 28 28" fill="none" aria-hidden className={className}>
       <defs>

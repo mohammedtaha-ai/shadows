@@ -84,7 +84,7 @@ export function replyReducer(state: ReplyState, action: ReplyAction): ReplyState
 }
 
 /** What the entries list currently holds, and what is known about the turn. */
-export interface Durable {
+interface Durable {
   /** Ordinals in the fetched entries list. */
   readonly ordinals: ReadonlySet<number>
   /** When that list was fetched (ms). */

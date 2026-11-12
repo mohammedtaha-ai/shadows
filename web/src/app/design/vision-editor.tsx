@@ -10,7 +10,7 @@ import { designKeys } from '@/api/design'
 import { Button } from '@/components/ui/button'
 import { ErrorLine } from '../error-line'
 import { VISION_FIELDS, fieldLabel } from './vision-fields'
-export function ItemOrigin({projectId,item,titles}: {projectId:string;item:VisionItem;titles:Map<string,string>}) {
+function ItemOrigin({projectId,item,titles}: {projectId:string;item:VisionItem;titles:Map<string,string>}) {
   const threadId = item.approved_from
   return <small className="text-muted-foreground">{threadId === null || threadId === undefined ? 'added by hand' : <span>from <Link to="/projects/$projectId/threads/$threadId" params={{projectId,threadId}}><bdi>{titles.get(threadId) ?? 'a conversation'}</bdi></Link></span>}</small>
 }

@@ -38,7 +38,7 @@ export type Row =
   | { kind: 'text'; key: string; text: string }
 
 /** Streamed text that came before the entry at `ordinal`. */
-export interface TextPart {
+interface TextPart {
   ordinal: number
   text: string
 }

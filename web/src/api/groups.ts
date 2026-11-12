@@ -4,7 +4,6 @@ import { client, unwrap } from './transport'
 
 export type Group = components['schemas']['Group']
 export type Message = components['schemas']['Message']
-export type Speaker = components['schemas']['Speaker']
 
 export const groupKeys = {
   list: ['aylul-groups'] as const,

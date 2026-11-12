@@ -13,11 +13,11 @@ export const DAEMON_URL = daemonOrigin()
 // early this module was imported.
 export const client = createClient<paths>({ baseUrl: DAEMON_URL, fetch: (request) => fetch(request) })
 
-export type ErrorCode = components['schemas']['ErrorCode']
+type ErrorCode = components['schemas']['ErrorCode']
 type ErrorBody = components['schemas']['ErrorBody']
 
 /** Why a call failed, in the terms a screen needs to say what to do next. */
-export type Problem =
+type Problem =
   /** No HTTP answer at all: the daemon is not running, or the browser refused
    * the answer because this page's origin is not in `--allow-origin`. A
    * browser reports both identically, so the client cannot tell them apart. */
@@ -50,7 +50,7 @@ export class ApiError extends Error {
 
 /** The failure a non-2xx answer stands for. `body` is what openapi-fetch
  * parsed: JSON when it could, the raw text otherwise, `undefined` when empty. */
-export function toApiError(response: Response, body: unknown): ApiError {
+function toApiError(response: Response, body: unknown): ApiError {
   if (isErrorBody(body)) {
     return new ApiError(
       {

@@ -14,12 +14,12 @@ export function dirsQuery(path: string | null) {
   })
 }
 
-export type DirectoryListing = components['schemas']['DirectoryListing']
+type DirectoryListing = components['schemas']['DirectoryListing']
 
-export type DirectoryEntry = components['schemas']['DirectoryEntry']
+type DirectoryEntry = components['schemas']['DirectoryEntry']
 
 /** One directory's subdirectories, or with no path the roots (drives). */
-export function listDirs(path: string | null): Promise<DirectoryListing> {
+function listDirs(path: string | null): Promise<DirectoryListing> {
   return unwrap(
     client.GET('/api/fs/dirs', { params: { query: path === null ? {} : { path } } }),
   )

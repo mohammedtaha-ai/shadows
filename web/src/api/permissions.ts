@@ -3,9 +3,8 @@ import { client, unwrap } from './transport'
 import type { components } from './schema'
 
 export type WaitingPermission = components['schemas']['WaitingPermission']
-export type PermissionAnswer = components['schemas']['PermissionAnswer']
-export type PermissionOption = components['schemas']['PermissionOption']
-export const permissionKeys = { waiting: () => ['aylul-permissions'] }
+type PermissionAnswer = components['schemas']['PermissionAnswer']
+const permissionKeys = { waiting: () => ['aylul-permissions'] }
 export const waitingPermissionsQuery = queryOptions({
   queryKey: permissionKeys.waiting(), retry: false,
   queryFn: () => unwrap(client.GET('/api/aylul/permissions')),

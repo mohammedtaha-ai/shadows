@@ -34,13 +34,12 @@ export type AgreementContent = components['schemas']['AgreementContent']
 
 export type AgreementReview = components['schemas']['AgreementReview']
 
-export type AgreementBinding = components['schemas']['AgreementBinding']
 
-export function listAgreements(projectId: string): Promise<AgreementVersion[]> {
+function listAgreements(projectId: string): Promise<AgreementVersion[]> {
   return unwrap(client.GET('/api/projects/{id}/agreements', { params: { path: { id: projectId } } }))
 }
 
-export function getAgreement(projectId: string, agreement: string, version?: number): Promise<AgreementVersion> {
+function getAgreement(projectId: string, agreement: string, version?: number): Promise<AgreementVersion> {
   return unwrap(client.GET('/api/projects/{id}/agreements/{agreement}', {
     params: { path: { id: projectId, agreement }, query: { version } },
   }))

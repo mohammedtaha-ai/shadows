@@ -10,7 +10,7 @@ export type AgentInput = components['schemas']['AgentInput']
 export type EnvEntry = components['schemas']['EnvEntry']
 export type ProviderPreset = components['schemas']['ProviderPreset']
 export type ProviderTestOutcome = components['schemas']['ProviderTestOutcome']
-export type ProviderTest = components['schemas']['ProviderTest']
+type ProviderTest = components['schemas']['ProviderTest']
 
 export const profileKeys = {
   presets: () => ['aylul-provider-presets'],
