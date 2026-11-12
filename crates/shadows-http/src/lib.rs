@@ -142,13 +142,37 @@ pub fn router(state: AppState, mcp: Router) -> Router {
 /// The route table, and with it the OpenAPI document's paths: a route exists
 /// here or not at all, so the document cannot list a route the router lacks
 /// or miss one it has. Each `routes!` groups the methods of one path.
+///
+/// The table is built one group at a time: a debug build keeps every
+/// `routes!` temporary of a function alive in that function's frame, and one
+/// chain for the whole table needs most of a megabyte of stack, which is all
+/// a Windows main thread has.
 fn routes() -> OpenApiRouter<AppState> {
-    OpenApiRouter::with_openapi(openapi::base())
+    let table = attachment_routes(OpenApiRouter::with_openapi(openapi::base()));
+    let table = aylul_routes(table);
+    let table = aylul_agent_routes(table);
+    let table = design_routes(table);
+    let table = workspace_routes(table);
+    let table = conversation_routes(table);
+    let table = session_routes(table);
+    let table = plan_routes(table);
+    let table = run_routes(table);
+    code_routes(table)
+}
+
+#[inline(never)]
+fn attachment_routes(table: OpenApiRouter<AppState>) -> OpenApiRouter<AppState> {
+    table
         .routes(routes!(attachments::upload))
         .routes(routes!(attachments::read))
         .layer(axum::extract::DefaultBodyLimit::max(
             shadows_core::MAX_IMAGE_BYTES + 65536,
         ))
+}
+
+#[inline(never)]
+fn aylul_routes(table: OpenApiRouter<AppState>) -> OpenApiRouter<AppState> {
+    table
         .routes(routes!(runtime::identity))
         .routes(routes!(aylul_person::person, aylul_person::update_person))
         .routes(routes!(aylul_providers::provider_presets))
@@ -165,6 +189,11 @@ fn routes() -> OpenApiRouter<AppState> {
         .routes(routes!(aylul_extensions::toggle))
         .routes(routes!(aylul_extensions::tools))
         .routes(routes!(aylul_extensions::tool_rules))
+}
+
+#[inline(never)]
+fn aylul_agent_routes(table: OpenApiRouter<AppState>) -> OpenApiRouter<AppState> {
+    table
         .routes(routes!(aylul_providers::test_provider))
         .routes(routes!(aylul_providers::test_saved_provider))
         .routes(routes!(
@@ -188,6 +217,11 @@ fn routes() -> OpenApiRouter<AppState> {
         .routes(routes!(groups::messages, groups::send))
         .routes(routes!(aylul_env::list))
         .routes(routes!(aylul_env::set, aylul_env::remove))
+}
+
+#[inline(never)]
+fn design_routes(table: OpenApiRouter<AppState>) -> OpenApiRouter<AppState> {
+    table
         .routes(routes!(project::list_projects, project::create_project))
         .routes(routes!(design::vision))
         .routes(routes!(design::vision_proposals))
@@ -196,6 +230,11 @@ fn routes() -> OpenApiRouter<AppState> {
         .routes(routes!(roadmap::roadmap_proposals))
         .routes(routes!(roadmap::approve_roadmap_proposal))
         .routes(routes!(design::approve_vision_proposal))
+}
+
+#[inline(never)]
+fn workspace_routes(table: OpenApiRouter<AppState>) -> OpenApiRouter<AppState> {
+    table
         .routes(routes!(standards::get_standards))
         .routes(routes!(standards::save_standards_additions))
         .routes(routes!(design::get_stage))
@@ -209,6 +248,11 @@ fn routes() -> OpenApiRouter<AppState> {
         .routes(routes!(agreements::review))
         .routes(routes!(agreements::agree))
         .routes(routes!(agreements::bindings))
+}
+
+#[inline(never)]
+fn conversation_routes(table: OpenApiRouter<AppState>) -> OpenApiRouter<AppState> {
+    table
         .routes(routes!(project::update_project, project::remove_project))
         .routes(routes!(project::list_threads, project::create_thread))
         .routes(routes!(conversation::list_entries))
@@ -218,6 +262,11 @@ fn routes() -> OpenApiRouter<AppState> {
         .routes(routes!(queue::queue, queue::queued))
         .routes(routes!(queue::unqueue))
         .routes(routes!(queue::send_now))
+}
+
+#[inline(never)]
+fn session_routes(table: OpenApiRouter<AppState>) -> OpenApiRouter<AppState> {
+    table
         .routes(routes!(harness::list_harnesses))
         .routes(routes!(
             harness::waiting_permissions,
@@ -240,6 +289,11 @@ fn routes() -> OpenApiRouter<AppState> {
         ))
         .routes(routes!(planning_context::context))
         .routes(routes!(planning_context::resend))
+}
+
+#[inline(never)]
+fn plan_routes(table: OpenApiRouter<AppState>) -> OpenApiRouter<AppState> {
+    table
         .routes(routes!(workflow::list_plans))
         .routes(routes!(workflow::plan_map))
         .routes(routes!(workflow::get_plan))
@@ -247,6 +301,11 @@ fn routes() -> OpenApiRouter<AppState> {
         .routes(routes!(workflow::get_plan_versions))
         .routes(routes!(workflow::archive_plan))
         .routes(routes!(workflow::unarchive_plan))
+}
+
+#[inline(never)]
+fn run_routes(table: OpenApiRouter<AppState>) -> OpenApiRouter<AppState> {
+    table
         .routes(routes!(runs::task))
         .routes(routes!(runs::attempts, runs::start))
         .routes(routes!(runs::mark_done))
@@ -259,6 +318,11 @@ fn routes() -> OpenApiRouter<AppState> {
             instructions::get_instructions,
             instructions::save_instructions
         ))
+}
+
+#[inline(never)]
+fn code_routes(table: OpenApiRouter<AppState>) -> OpenApiRouter<AppState> {
+    table
         .routes(routes!(code::definitions))
         .routes(routes!(code::references))
         .routes(routes!(code::outline))
@@ -318,36 +382,37 @@ mod aylul_profiles_tests;
 #[cfg(test)]
 mod adapter_agreements_tests;
 
-/// Temporary measurement: the smallest thread stack `routes()` builds on.
 #[cfg(test)]
-mod stack_probe {
-    const SIZE: &str = "SHADOWS_STACK_PROBE_KB";
+mod route_table_stack {
+    const CHILD: &str = "SHADOWS_ROUTE_TABLE_STACK_KB";
+    /// Half of a Windows main thread's megabyte.
+    const BOUND_KB: usize = 512;
 
+    /// An overflow aborts its process, so the build runs in a child of this
+    /// test binary, on a thread of the bounded size.
     #[test]
-    fn routes_stack_probe() {
-        if let Ok(kb) = std::env::var(SIZE) {
+    fn the_route_table_builds_on_half_a_megabyte_of_stack() {
+        if let Ok(kb) = std::env::var(CHILD) {
             let kb: usize = kb.parse().expect("a size in KiB");
             std::thread::Builder::new()
                 .stack_size(kb * 1024)
                 .spawn(|| drop(super::routes().split_for_parts()))
-                .expect("the probe thread starts")
+                .expect("the bounded thread starts")
                 .join()
-                .expect("the probe thread ends");
+                .expect("the bounded thread ends");
             return;
         }
-        let exe = std::env::current_exe().expect("the test binary's path");
-        let mut table = String::new();
-        for kb in [64, 128, 192, 256, 384, 512, 640, 768, 896, 1024, 2048] {
-            let status = std::process::Command::new(&exe)
-                .args(["--exact", "stack_probe::routes_stack_probe"])
-                .env(SIZE, kb.to_string())
-                .stdout(std::process::Stdio::null())
-                .stderr(std::process::Stdio::null())
-                .status()
-                .expect("the probe child runs");
-            let result = if status.success() { "ok" } else { "OVERFLOW" };
-            table.push_str(&format!("\nSTACK_PROBE {kb} KiB: {result}"));
-        }
-        panic!("measurement only, never a kept test:{table}");
+        let status = std::process::Command::new(std::env::current_exe().expect("this binary"))
+            .args([
+                "--exact",
+                "route_table_stack::the_route_table_builds_on_half_a_megabyte_of_stack",
+            ])
+            .env(CHILD, BOUND_KB.to_string())
+            .status()
+            .expect("the child runs");
+        assert!(
+            status.success(),
+            "the route table overflowed {BOUND_KB} KiB of stack: split the group that grew"
+        );
     }
 }

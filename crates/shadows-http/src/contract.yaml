@@ -129,3 +129,11 @@ map_refusals: 'MAP_REFUSED is HTTP 422 with the rule-prefixed domain message; sh
 layout_only: Map records contain no starter files; the stage has no Structure step or file count, and no HTTP structure-write route exists. Roadmap follows map approval.
 
 queued_notices: 'QUEUED_NOTICE_KEPT is 409: DELETE of a waiting executor notice removes nothing. QueuedMessage.notice and the Notice and AttemptNotice schemas (the latter listed in openapi.rs, as the card a notice entry carries) describe it.'
+
+route_table:
+  rule: >
+    `routes()` builds the table one group function at a time, in the same route order, so
+    no single frame holds every `routes!` temporary. One chain needed more than 768 KiB of
+    stack in a debug build, on Windows as on Linux, against the megabyte a Windows main
+    thread has; the groups need under 320 KiB.
+  tested_by: [the_route_table_builds_on_half_a_megabyte_of_stack]
