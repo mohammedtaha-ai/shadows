@@ -268,6 +268,7 @@ it is that folder's `contract.yaml`.
 | `web/src/app/conversation/use-conversation.ts` | Binds an open conversation to its stream, entries, turns | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/use-images.ts` | Own selected image uploads | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/pending-images.tsx` | Present selected image previews | `web/src/app/conversation/contract.yaml` |
+| `web/src/app/conversation/image-zoom.tsx` | Opens one conversation image large in a dialog | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/use-session-settings.ts` | Own session-setting changes | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/use-send.ts` | Deliver the composed message | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/use-stop.ts` | Stop the running turn | `web/src/app/conversation/contract.yaml` |

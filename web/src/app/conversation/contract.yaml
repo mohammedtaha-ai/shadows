@@ -1656,14 +1656,15 @@ provider_models: Agent drafts project provider model objects into picker choices
 
 
 image_attachments:
-  tested_by: [web/src/app/conversation/composer-images.test.tsx]
-  owner: "useImages in use-images.ts owns selection, capability reason, intake, retry, removal and dropping sent images; PendingImages in pending-images.tsx owns previews and image controls; PendingImage in upload-images.ts carries file identity, upload command, answer, error and in-flight promise"
+  tested_by: [web/src/app/conversation/composer-images.test.tsx, web/src/app/conversation/image-zoom.test.tsx, web/src/app/conversation/waiting-messages.test.tsx]
+  owner: "useImages in use-images.ts owns selection, capability reason, intake, retry, removal and dropping sent images; PendingImages in pending-images.tsx owns the composer tiles and their controls; ImageZoom in image-zoom.tsx owns the thumbnail button and the viewer dialog; PendingImage in upload-images.ts carries file identity, upload command, answer, error and in-flight promise"
   useImages: "(choices, threadId, inFlight, changed, refuse, initialImages?) => { images, imageReason, filePicker, add, pick, retry, remove, drop, imagesChanged }; changed clears the pending send on add/remove; refuse delivers Core capability refusal to the composer error line"
-  PendingImages: "({ images, threadId, inFlight, onRetry, onRemove }) => JSX.Element | null; owns ImagePreview and its object URL cleanup"
+  PendingImages: "({ images, threadId, inFlight, onRetry, onRemove }) => JSX.Element | null; each image is a size-16 square tile in a wrapping row: a corner remove button shown on hover or keyboard focus (still in the tab order), a dimmed tile with a spinner while uploading, a destructive ring with a centred retry button (title = Core message) when failed, and Core message as one line under the row; the tile li carries data-upload local|uploading|uploaded|failed and aria-busy while uploading; no status text; its preview hook owns the object URL cleanup"
+  ImageZoom: "({ alt, src?, image?, className?, loading?: lazy }) => JSX.Element; a button named View <alt> holding the thumbnail img and a Dialog holding the whole image fitted to the screen; src is an attachmentUrl, or image is a callback that sets and cleans up a node src (the composer local file); loading applies to the thumbnail only; closes on Esc, outside click and Close, and focus returns to the thumbnail; holds no upload state"
   uploadImages: "upload-images.ts; (threadId, images, changed) => Promise<string[]>; reuses in-flight uploads and immutable answers; returns ids in selection order; preserves Core errors"
   intake: "Paste intercepts only image clipboard files in clipboard order; other paste keeps browser behavior. Paste, drop, Add photos and Ctrl+U hand files or picking to useImages; existing threads upload immediately; draft files stay local until its first send creates a thread"
   validation: "Core alone accepts content, media type and size. No frontend type list or size limit. Session capabilities disable intake with image_reason. Draft capability is provisional until the first opened session answers."
-  previews: "Local object URLs are revoked on removal/unmount; uploaded previews, queued images and durable user entries use attachmentUrl from the API owner"
+  previews: "Sent and queued images open the ImageZoom viewer and are no longer links. Local object URLs are revoked on removal/unmount; uploaded previews, queued images and durable user entries use attachmentUrl from the API owner"
   sending: "Send awaits uploads; empty text with images is valid; send/queue carries ordered ids. Text and images survive failure. Only accepted sends clear text and images. Text and files cannot change during a pending send or queue request."
   replay: "Stable local image keys participate in the turn attempt; upload command ids survive retries and draft handoff. A command conflict requires a fresh id on the next explicit retry."
   tests:
@@ -1677,7 +1678,13 @@ image_attachments:
     - "Core capability disables image paste, drop and Ctrl+U with its reason"
     - "removing an uploading image prevents its late answer from being sent"
     - "draft first-send images survive %s"
+    - "an uploading image is a quiet busy tile with no status text"
+    - "clicking a composer tile opens the image large"
     - "the transcript renders ordered message images from the thread byte route"
+    - "clicking a sent image opens it large"
+    - "a waiting message image opens large and has no remove button on it"
+    - "the thumbnail opens the whole image in a named dialog"
+    - "%s closes the viewer and focus returns to the thumbnail"
     - "queue preserves ordered image ids and Send now uses the saved queued images"
     - "command conflict retains the message and makes the next explicit send a new command"
     - "a refused queue keeps text and images and its unchanged retry command"

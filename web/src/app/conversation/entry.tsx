@@ -8,6 +8,7 @@ import { type Plan, type PlanTask } from '@/api/workflows'
 import { attachmentUrl, type ThreadEntry } from '@/api/threads'
 import { readTodoList } from '@/stream'
 import { type HarnessPolicy, modeLabel } from '@/api/harnesses'
+import { ImageZoom } from './image-zoom'
 import { PlanCard } from './plan-card'
 import { SubagentCardView } from './subagent-card'
 import { VisionProposalCard } from './vision-proposal-card'
@@ -71,20 +72,13 @@ export function Entry({
         >
           {entry.attachments.length > 0 && <div className="mb-2 flex flex-wrap gap-2">
             {entry.attachments.map(image => (
-              <a
+              <ImageZoom
                 key={image.id}
-                href={attachmentUrl(entry.thread_id, image.id)}
-                target="_blank"
-                rel="noreferrer"
-              >
-                <img
-                  src={attachmentUrl(entry.thread_id, image.id)}
-                  crossOrigin="anonymous"
-                  alt={image.name ?? 'Attached image'}
-                  loading="lazy"
-                  className="max-h-48 max-w-64 rounded-lg border border-accent-line/25 object-contain"
-                />
-              </a>
+                src={attachmentUrl(entry.thread_id, image.id)}
+                alt={image.name ?? 'Attached image'}
+                loading="lazy"
+                className="max-h-48 max-w-64 rounded-lg border border-accent-line/25 object-contain"
+              />
             ))}
           </div>}
           <p>{entry.body}</p>

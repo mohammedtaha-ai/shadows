@@ -22,6 +22,12 @@ function deliverFiles(app: TestApp, via: 'paste' | 'drop' | 'picker', files: Fil
   return event
 }
 
+/** Every tile in the image row is saved; the row's tiles carry the upload state, not text. */
+function allUploaded(app: TestApp) {
+  const tiles = [...app.container.querySelectorAll('[aria-label="Images"] > li')]
+  return tiles.length > 0 && tiles.every(tile => tile.getAttribute('data-upload') === 'uploaded')
+}
+
 /** The shared app fixture records JSON requests; intercept multipart at the fake daemon boundary. */
 function imageUploads(app: TestApp, answer: (request: Request) => Promise<Response> = async request => {
   const body = await request.formData()
@@ -62,13 +68,38 @@ it.each(['paste', 'drop', 'picker', 'shortcut'] as const)('%s uploads immediatel
     expect(click).toHaveBeenCalledOnce()
   }
   deliverFiles(app, via === 'shortcut' ? 'picker' : via, [imageFile()])
-  await until(() => app.text().includes('Uploaded'))
+  await until(() => allUploaded(app))
   expect(uploads).toBe(1)
+  expect(app.text()).not.toContain('Uploaded')
+  expect(app.button('Remove screen.png')!.closest('li')).toBe(app.container.querySelector('[aria-label="Images"] > li'))
+  expect(app.container.querySelector('img[alt="screen.png"]')?.closest('button')?.getAttribute('aria-label')).toBe('View screen.png')
   expect(app.container.querySelector('img[alt="screen.png"]')?.getAttribute('src')).toContain('/api/threads/t1/attachments/image-1')
   act(() => app.button('Remove screen.png')!.click())
   expect(app.container.querySelector('img[alt="screen.png"]')).toBeNull()
   expect(turnStarts(app)).toBe(0)
   expect(URL.revokeObjectURL).toHaveBeenCalled()
+})
+
+it('an uploading image is a quiet busy tile with no status text', async () => {
+  const app = await start('/projects/p1/threads/t1', answers())
+  await until(ready(app))
+  imageUploads(app, () => new Promise<Response>(() => {}))
+  deliverFiles(app, 'paste', [imageFile()])
+  await until(() => app.container.querySelector('[aria-label="Images"] > li[data-upload="uploading"]') !== null)
+  const tile = app.container.querySelector('[aria-label="Images"] > li')!
+  expect(tile.getAttribute('aria-busy')).toBe('true')
+  expect(app.text()).not.toContain('Uploading')
+})
+
+it('clicking a composer tile opens the image large', async () => {
+  const app = await start('/projects/p1/threads/t1', answers())
+  await until(ready(app))
+  imageUploads(app)
+  deliverFiles(app, 'paste', [imageFile()])
+  await until(() => allUploaded(app))
+  act(() => app.button('View screen.png')!.click())
+  await until(() => document.body.querySelector('[role="dialog"] img[alt="screen.png"]') !== null)
+  expect(document.body.querySelector('[role="dialog"]')?.textContent).toContain('screen.png')
 })
 
 it('ordinary text paste keeps the browser paste behavior', async () => {
@@ -138,7 +169,7 @@ it('Send waits for uploads and sends image-only ids in selection order', async (
   act(() => app.button('Send')!.click())
   expect(turnStarts(app)).toBe(0)
   act(() => release.get('second.png')!())
-  await until(() => app.text().includes('Uploaded'))
+  await until(() => app.container.querySelector('[aria-label="Images"] [data-upload="uploaded"]') !== null)
   expect(turnStarts(app)).toBe(0)
   act(() => release.get('first.png')!())
   await until(() => turnStarts(app) === 1)
@@ -161,8 +192,10 @@ it('a failed upload keeps text and images with Core reason and retries the same 
   expect(textarea(app).value).toBe('Keep my text')
   expect(app.button('Remove screen.png')).toBeDefined()
   expect(app.button('Send')?.disabled).toBe(true)
+  const tile = app.button('Retry screen.png')!.closest('li')!
+  expect(tile.getAttribute('data-upload')).toBe('failed')
   act(() => app.button('Retry screen.png')!.click())
-  await until(() => app.text().includes('Uploaded'))
+  await until(() => allUploaded(app))
   expect(commands).toEqual([commands[0], commands[0]])
   expect(turnStarts(app)).toBe(0)
 })
@@ -178,7 +211,7 @@ it('a refused send keeps text and images and replays the same ordered command', 
   imageUploads(app)
   typeInto(textarea(app), 'Keep both')
   deliverFiles(app, 'picker', [imageFile()])
-  await until(() => app.text().includes('Uploaded'))
+  await until(() => allUploaded(app))
   act(() => app.button('Send')!.click())
   await until(() => app.text().includes('Core refuses images for this model'))
   expect(textarea(app).value).toBe('Keep both')
@@ -239,6 +272,15 @@ it('the transcript renders ordered message images from the thread byte route', a
     expect.stringContaining('/api/threads/t1/attachments/second'),
   ])
   expect(images.map(image => image.getAttribute('crossorigin'))).toEqual(['anonymous', 'anonymous'])
+  expect(app.container.querySelector('a[href*="/attachments/"]')).toBeNull()
+})
+
+it('clicking a sent image opens it large', async () => {
+  const entry = { ...userEntry('images', ''), attachments: [{ id: 'one', media_type: 'image/png', name: 'First screenshot' }] }
+  const app = await start('/projects/p1/threads/t1', answers({ entries: [entry] }))
+  await until(() => app.button('View First screenshot') !== undefined)
+  act(() => app.button('View First screenshot')!.click())
+  await until(() => document.body.querySelector('[role="dialog"] img[alt="First screenshot"]') !== null)
 })
 
 it('queue preserves ordered image ids and Send now uses the saved queued images', async () => {
@@ -256,7 +298,7 @@ it('queue preserves ordered image ids and Send now uses the saved queued images'
   await until(() => app.button('Stop') !== undefined)
   imageUploads(app)
   deliverFiles(app, 'paste', [imageFile('first.png'), imageFile('second.png')])
-  await until(() => app.text().includes('Uploaded'))
+  await until(() => allUploaded(app))
   act(() => textarea(app).dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })))
   await until(() => app.button('Send now') !== undefined)
   expect(queued).toMatchObject({ prompt: '', attachments: ['first.png', 'second.png'] })
@@ -279,7 +321,7 @@ it('command conflict retains the message and makes the next explicit send a new 
   imageUploads(app)
   typeInto(textarea(app), 'Keep on conflict')
   deliverFiles(app, 'paste', [imageFile()])
-  await until(() => app.text().includes('Uploaded'))
+  await until(() => allUploaded(app))
   act(() => app.button('Send')!.click())
   await until(() => app.text().includes('Core says this command belongs to another request'))
   expect(textarea(app).value).toBe('Keep on conflict')
@@ -306,7 +348,7 @@ it('a refused queue keeps text and images and its unchanged retry command', asyn
   imageUploads(app)
   typeInto(textarea(app), 'Keep queued text')
   deliverFiles(app, 'paste', [imageFile()])
-  await until(() => app.text().includes('Uploaded'))
+  await until(() => allUploaded(app))
   const enter = () => act(() => textarea(app).dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })))
   enter()
   await until(() => app.text().includes('Core refused the queued images'))
@@ -355,7 +397,7 @@ it('an upload command conflict needs an explicit retry with a fresh command', as
   await until(() => app.text().includes('Core reports an upload command conflict'))
   expect(commands).toHaveLength(1)
   act(() => app.button('Retry screen.png')!.click())
-  await until(() => app.text().includes('Uploaded'))
+  await until(() => allUploaded(app))
   expect(commands).toHaveLength(2)
   expect(commands[1]).not.toBe(commands[0])
 })

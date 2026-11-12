@@ -151,7 +151,7 @@ These tasks are blocked until their named backend API exists; no component imple
 
 ### F-114 · Image tiles with a corner ✕ in the composer, and a viewer for every conversation image
 
-- Status: todo (start after the frontend-fixer's `crossOrigin="anonymous"` image fix is committed)
+- Status: done (start after the frontend-fixer's `crossOrigin="anonymous"` image fix is committed)
 - Plan: [plans/2026-11-12-conversation-images.md](plans/2026-11-12-conversation-images.md)
 - Read: the plan; `web/src/app/conversation/contract.yaml` (`image_attachments`); `web/src/components/ui/dialog.tsx`; code-map rows for `pending-images.tsx`, `entry.tsx`, `waiting-messages.tsx`.
 - Touch: `web/src/app/conversation/image-zoom.tsx` (new), `web/src/app/conversation/image-zoom.test.tsx` (new), `web/src/app/conversation/pending-images.tsx`, `web/src/app/conversation/entry.tsx`, `web/src/app/conversation/waiting-messages.tsx`, `web/src/app/conversation/composer-images.test.tsx`, `web/src/app/conversation/waiting-messages.test.tsx`, `web/src/app/conversation/contract.yaml`, `docs/frontend/codebase/README.md`, `docs/frontend/stages.md` (this status only).
