@@ -1261,7 +1261,7 @@ async fn mcp_values_never_leave_secrets() {
 }
 
 #[tokio::test]
-async fn agent_mcp_servers_resolve_only_enabled_items() {
+async fn an_opening_resolves_only_enabled_mcp_servers() {
     let w = world().await;
     let on = w
         .extensions
@@ -1282,7 +1282,7 @@ async fn agent_mcp_servers_resolve_only_enabled_items() {
         .set_agent_extension("on".into(), "aylul", ExtensionKind::Mcp, &on.id, true)
         .await
         .unwrap();
-    let servers = w.extensions.agent_mcp_servers("aylul").await.unwrap();
+    let servers = w.extensions.opening_snapshot("aylul").await.unwrap().mcp;
     assert_eq!(servers.len(), 1);
     assert!(!format!("{servers:?}").contains("synthetic-one"));
     match &servers[0] {

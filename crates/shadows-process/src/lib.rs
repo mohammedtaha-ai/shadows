@@ -76,7 +76,7 @@ impl ProcessHandle {
     /// registers this handle in `LiveHandles` (a `'static` task reading lines
     /// while the handle itself is moved into a shared map), which an
     /// accessor that only lends `&mut` cannot support.
-    pub fn take_stdout_lines(&mut self) -> Option<Lines<BufReader<ChildStdout>>> {
+    pub fn take_stdout_lines(&mut self) -> Option<StdoutLines> {
         self.stdout.take()
     }
 

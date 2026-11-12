@@ -190,13 +190,6 @@ impl std::fmt::Debug for McpServerConfig {
 }
 
 impl Extensions {
-    pub async fn agent_mcp_servers(
-        &self,
-        slug: &str,
-    ) -> Result<Vec<McpServerConfig>, ExtensionsError> {
-        Ok(self.opening_snapshot(slug).await?.mcp)
-    }
-
     pub async fn opening_snapshot(
         &self,
         slug: &str,
