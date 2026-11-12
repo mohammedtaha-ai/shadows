@@ -69,6 +69,10 @@ uuid = { version = "1", features = ["v4", "serde"] }
 utoipa = { version = "5", features = ["uuid"] }
 utoipa-axum = "0.2"
 libc = "0.2"
+# A language server's JSON-RPC over stdio: `shadows-lsp`'s client loop and the
+# protocol's types. Infrastructure, not product logic.
+async-lsp = { version = "0.2", default-features = false, features = ["omni-trait"] }
+lsp-types = "0.95"
 
 # Dev-dependencies.
 tempfile = "3"

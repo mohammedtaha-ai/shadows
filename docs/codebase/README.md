@@ -374,6 +374,8 @@ pattern to follow, not merely an example.
 | `crates/shadows-process/src/launch.rs` | child launch configuration | `crates/shadows-process/src/lib.rs` |
 | `crates/shadows-process/src/persistent.rs` | independent process lifetime | `crates/shadows-process/src/lib.rs` |
 | `crates/shadows-process/src/bin/` | test apparatus that no product code links | `crates/shadows-process/src/bin/tree_probe.rs` |
+| `crates/shadows-lsp/src/lib.rs` | one language server, spoken to over stdio | `crates/shadows-lsp/src/lib.rs` |
+| `crates/shadows-lsp/src/client.rs` | the JSON-RPC client loop over a server's stdio | `crates/shadows-lsp/src/lib.rs` |
 | `crates/fake-acp/src/main.rs` | test apparatus that no product code links | `crates/fake-acp/contract.yaml` |
 | `crates/fake-acp/src/handlers.rs` | fake protocol handler registration | `crates/fake-acp/src/main.rs` |
 | `crates/fake-acp/src/handlers/` | fake protocol request handling | `crates/fake-acp/src/main.rs` |

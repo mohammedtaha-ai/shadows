@@ -339,7 +339,7 @@ Design: [language servers](specs/2026-11-13-language-servers-design.md) (Mohamme
 - Needs: none. Every later slice 2 task reads `crates/codebase/` and `Codebase`.
 ### B-138 · The shadows-lsp client
 
-- Status: ready.
+- Status: done.
 - Plan: [Task B-138](plans/2026-11-13-slice-2-language-servers.md#task-b-138-the-shadows-lsp-client).
 - Needs: B-138a.
 

@@ -54,6 +54,7 @@ depends on `shadows-core` only. `shadows-index` depends on no Shadows crate.
 | `shadows-agent` | The AI subprocess harness (the ACP `Connection`) |
 | `shadows-index` | tree-sitter: a file's text in, its tags out |
 | `shadows-process` | `tokio::process` / `process-wrap` |
+| `shadows-lsp` | One language server's process and its requests |
 
 ## Code structure
 
