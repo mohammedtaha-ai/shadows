@@ -38,6 +38,15 @@ The plan is at `a4f89386`, deleted after the merge.
 Structure and depth, slices 3 to 5 (PR #61, `a4f89386`): F-92 to F-95 shipped with B-71 to B-82.
 Their entries are in this file at `a4f89386`. Mohammed tried them in the browser on 2026-11-07.
 
+Conversation order and Codex: F-96 (the conversation refreshes its order after an assistant reply) shipped in
+PR #62 (`3a443ea0`) with B-83; F-97 (Codex in the conversation flow) in PR #63 (`217d7540`) with B-85 to B-87;
+F-98 (the task page) in PR #64 (`c71b263d`) with B-89 to B-93. Their entries are in this file at those commits.
+
+Task page review, the Diff tab and the Planner's notices: F-106 to F-113 shipped in PR #65 (`617d806f`) with
+B-95 to B-136. Their entries are in this file at `617d806f`. Their plans,
+`docs/frontend/plans/2026-11-11-task-page-review-and-diff.md` and `docs/frontend/plans/2026-11-11-shadows-notices.md`,
+are at `617d806f`. PR #66 (`5a52a06a`) removed dead web exports and type aliases and has no `F-` task.
+
 Still open outside any task: the light palette and the real desktop login-item behaviour need
 their own app and OS acceptance.
 
@@ -63,34 +72,6 @@ routing, event refresh, contracts and code-map paths first.
 Use Roadmap for outcome coverage and Project map for ownership. The old
 mockup's `Built` label cannot be used as evidence of completion.
 
-### F-96 · Refresh conversation order after an assistant reply
-
-- Status: done (automated checks; Mohammed owns manual browser acceptance)
-- Plan: Direct user request, 2026-11-07; owner spec §13.11 in `docs/core/specs/2026-09-25-planner-workflow-design.md`.
-- Read: `web/src/stream/contract.yaml`, `web/src/app/sidebar/contract.yaml`.
-- Touch: `web/src/stream/refresh.ts`, `web/src/stream/refresh.test.tsx`, `web/src/stream/contract.yaml`, `web/src/app/sidebar/sidebar.test.tsx`, `web/src/app/sidebar/contract.yaml`, `web/src/api/threads.ts`, `web/src/api/contract.yaml`, this stages file.
-- Needs: B-83; `docs/shared/requests/2026-11-07-conversation-reply-order.md` (accepted).
-- Done when: affected sidebar/stream tests, typecheck, lint, build, codemap and architecture checks pass. Manual browser acceptance belongs to Mohammed.
-- Verified: 164 tests in sidebar, stream, codemap and architecture; typecheck, lint and production build. Vite retains its existing chunk-size warning.
-
-### F-97 · Use Codex in the existing conversation flow
-
-- Status: done
-- Plan: [Codex app-server, F-97](../backend/plans/2026-11-07-codex-app-server.md#f-97-use-the-existing-conversation-ui).
-- Read: harness controls spec §12.14; `web/src/app/conversation/contract.yaml`; `web/src/api/contract.yaml`; the accepted [Codex Planner request](../shared/requests/2026-11-07-codex-planner.md).
-- Touch: the exact F-97 file list in the plan: conversation picker/session/labels and their tests/contract, fake daemon fixture, frontend code map, this stages file and shared request. No new layout or local permission rules. Widened in the whole-branch review to `web/src/test/contract-fixtures.ts`, whose `codexHarness` carries Core's unconfigured listing (its reason and `read-only` mode), and to `web/src/app/project-settings/project-modes.test.tsx` and its `contract.yaml`, whose undecided-modes test no longer uses Codex.
-- Needs: B-87; `docs/shared/requests/2026-11-07-codex-planner.md` (accepted).
-- Done when: Codex selection survives first send, the harness locks after a turn, server configuration/errors and per-model efforts are shown, text/tools are not duplicated, unsupported capabilities stay unavailable, and context uses reported last-request figures. Focused conversation tests, typecheck, lint, build, codemap and architecture pass; B-88 owns real browser acceptance, run on `main` after the merge.
-
-### F-98 · The task page
-
-- Status: done
-- Plan: [F-98](../backend/plans/2026-11-08-executors.md#f-98-the-task-page); design [executors](../backend/specs/2026-11-08-executors-design.md) §4 (mockup A, tabs).
-- Touch: the plan's F-98 file list.
-- Needs: B-93's routes and generated types; `docs/shared/requests/2026-11-08-task-run-page.md` (accepted).
-- Done when: the plan's F-98 tests, typecheck, lint, build, codemap and architecture pass.
-
-
 ## Approved local delivery UI, 2026-11-09
 
 These tasks are blocked until their named backend API exists; no component implements Core readiness policy.
@@ -102,7 +83,7 @@ These tasks are blocked until their named backend API exists; no component imple
 - Owner: web API and design UI.
 - Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
 - Touch: exact Create/Modify/Test file list of Task 1; no other source paths.
-- Needs: B-99; accepted shared API/model agreement. Backend must expose its generated API before this task starts.
+- Needs: `docs/backend/stages.md` at `617d806f` (B-99); accepted shared API/model agreement. Backend must expose its generated API before this task starts.
 - Done when: all named RED/GREEN steps and focused verification commands in Task 1 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
 
 ### F-100 · Preparation status from the Planner's project
@@ -122,7 +103,7 @@ These tasks are blocked until their named backend API exists; no component imple
 - Owner: web API, task and workflow UI.
 - Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
 - Touch: exact Create/Modify/Test file list of Task 3; no other source paths.
-- Needs: B-106, F-99; accepted shared API/model agreement. Backend must expose its generated API before this task starts.
+- Needs: `docs/backend/stages.md` at `617d806f` (B-106), F-99; accepted shared API/model agreement. Backend must expose its generated API before this task starts.
 - Done when: all named RED/GREEN steps and focused verification commands in Task 3 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
 
 ### F-102 · Attempt brief and scoped question results
@@ -165,88 +146,3 @@ These tasks are blocked until their named backend API exists; no component imple
 - Needs: B-118, F-104; accepted shared API/model agreement. Backend must expose its generated API before this task starts.
 - Done when: all named RED/GREEN steps and focused verification commands in Task 7 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
 
-## Task page: the Planner's review and the Diff tab, 2026-11-11
-
-Plan: [2026-11-11-task-page-review-and-diff.md](plans/2026-11-11-task-page-review-and-diff.md).
-Its Global constraints bind every task here.
-
-### F-106 · The task page says when the task waits for the Planner's judgment
-
-- Status: done
-- Plan: [F-106](plans/2026-11-11-task-page-review-and-diff.md#f-106--the-task-page-says-when-the-task-waits-for-the-planners-judgment)
-- Read: `web/src/app/tasks/contract.yaml`; the `runs:` block of `web/src/api/contract.yaml`; [the planner review request](../shared/requests/2026-11-11-planner-review.md) "What the page can derive".
-- Touch: `web/src/api/runs.ts`, `web/src/api/contract.yaml`, `web/src/app/tasks/use-task-run.ts`, `web/src/app/tasks/task-header.tsx`, `web/src/app/tasks/task-page.test.tsx`, `web/src/app/tasks/contract.yaml`, this stages file.
-- Needs: none (B-125 is built; no new field).
-- Done when: `npx vitest run src/app/tasks` passes with `a_committed_task_waits_for_the_planners_judgment` and `a_task_marked_done_does_not_wait`; typecheck, lint, build, `npx vitest run src/codemap.test.ts src/architecture` pass. One commit, `feat(web): F-106 <goal>`.
-
-### F-107 · The Diff tab: the chosen file above, the changed files in a small box below
-
-- Status: done
-- Plan: [F-107](plans/2026-11-11-task-page-review-and-diff.md#f-107--the-diff-tab-the-chosen-file-above-the-changed-files-in-a-small-box-below)
-- Read: `web/src/app/tasks/contract.yaml`; the `tasks` rows of `docs/frontend/codebase/README.md`; `attemptDiffQuery` in `web/src/api/runs.ts`.
-- Touch: `web/src/app/tasks/diff-tab.tsx`, `web/src/app/tasks/file-patch.tsx` (new), `web/src/app/tasks/task-page.test.tsx`, `web/src/app/tasks/contract.yaml`, `docs/frontend/codebase/README.md`, this stages file.
-- Needs: none (`GET /api/attempts/{id}/diff` as it is).
-- Done when: `npx vitest run src/app/tasks` passes with `diff_opens_the_first_file_and_switches_on_click` and `diff_shows_a_cut_marker_as_plain_text`; typecheck, lint, build, `npx vitest run src/codemap.test.ts src/architecture` pass. One commit, `feat(web): F-107 <goal>`.
-
-### F-110 · A task stopped on the cap does not wait for the Planner's judgment
-
-- Status: done
-- Plan: main session's ruling, 2026-11-11 (B-126 as planned in `2d48930c`: a fourth `task_amend` stops the waiting attempt, frees its scope, and Start is allowed again). "Waiting for the Planner's judgment" holds only when `run.latest` is committed, `run.done` is false **and** `run.start.code === 'task_busy'`. No new Core field. A capped task (committed, not done, Start allowed) shows nothing extra until F-108, and is not read again every two seconds.
-- Read: `awaitingJudgment` in `web/src/api/runs.ts`; the `runs:` block of `web/src/api/contract.yaml`; `web/src/app/tasks/contract.yaml`.
-- Touch: `web/src/api/runs.ts` (`awaitingJudgment` and its doc comment), `web/src/api/contract.yaml`, `web/src/app/tasks/task-page.test.tsx` (the F-106 waiting test's fixture gets `start: { allowed: false, code: 'task_busy', reason: ... }`; one new test), `web/src/app/tasks/contract.yaml` (the waiting obligation names the `task_busy` condition and the new test; also delete the duplicated Diff tab obligation F-107 committed twice), this stages file.
-- Needs: F-106.
-- Done when: `npx vitest run src/app/tasks` passes, with `a_task_stopped_on_the_cap_does_not_wait` (latest committed, `done: false`, `start.allowed: true`, codes null: no badge, and the task is not read again after two seconds) and the existing waiting tests; typecheck, lint, build, `npx vitest run src/codemap.test.ts src/architecture` pass. One commit, `fix(web): F-110 <goal>`.
-
-### F-108 · An attempt's addition on the Report tab
-
-- Status: done. B-126 built at `cecdc0ca`; `npm run gen:api` passed (1 generation). From `web/`: `npx vitest run src/app/tasks src/codemap.test.ts src/architecture` passed (105 tests, 3 files), including the plain-text addition test and cap header checks; `npm run typecheck`, `npm run lint` and `npm run build` passed (1 run each; build transformed 3819 modules, with the chunk-size warning). Automated fixture checks only; no live browser acceptance run.
-- Plan: [F-108](plans/2026-11-11-task-page-review-and-diff.md#f-108--an-attempts-addition-on-the-report-tab-blocked-on-b-126)
-- Read: `web/src/app/tasks/contract.yaml`; [the planner review request](../shared/requests/2026-11-11-planner-review.md), its backend answer for the cap of 3.
-- Touch: `web/src/api/schema.d.ts` (only through `npm run gen:api`), `web/src/app/tasks/report-tab.tsx`, `web/src/app/tasks/task-page.test.tsx`, `web/src/app/tasks/contract.yaml`, this stages file. The cap needs no field: a task whose latest attempt is committed, carries an `addition`, is not done and whose `start.allowed` is true shows "Stopped after the Planner's third addition; back to you" in the header (one function in `web/src/api/runs.ts`, beside `awaitingJudgment`; add `web/src/app/tasks/task-header.tsx` and `web/src/api/contract.yaml` to this list).
-- Needs: B-126; `docs/shared/requests/2026-11-11-planner-review.md` (accepted).
-- Done when: `npx vitest run src/app/tasks` passes with `the_report_shows_the_planners_addition_as_plain_text`; typecheck, lint, build, codemap and architecture pass. One commit.
-
-### F-109 · The whole file with its changes in the Diff tab
-
-- Status: done
-- Plan: [F-109](plans/2026-11-11-task-page-review-and-diff.md#f-109--the-whole-file-with-its-changes)
-- Read: `docs/shared/requests/2026-11-11-attempt-file-content.md` (accepted); `web/src/app/tasks/contract.yaml`; the `runs:` block of `web/src/api/contract.yaml`; the `tasks` rows of `docs/frontend/codebase/README.md`.
-- Touch: `web/src/api/schema.d.ts` (only through `npm run gen:api`), `web/src/api/runs.ts`, `web/src/api/contract.yaml`, `web/src/app/tasks/diff-tab.tsx`, `web/src/app/tasks/file-view.tsx` (new), `web/src/app/tasks/file-patch.tsx` (deleted), `web/src/app/tasks/task-page.test.tsx`, `web/src/app/tasks/contract.yaml`, `docs/frontend/codebase/README.md`, this stages file.
-- Needs: B-131 committed (`api/openapi.json` holds `AttemptFile`, `GET /api/attempts/{id}/files` and `FileDiff.hunks`); F-107.
-- Done when: `npx vitest run src/app/tasks` passes with `diff_opens_the_first_file_and_switches_on_click`, `diff_shows_the_whole_file_with_its_changes_marked`, `diff_shows_no_text_for_a_deleted_file_with_its_hunks`, `diff_says_when_core_shortened_the_file` and `diff_shows_cores_refusal_in_the_file_area`; typecheck, lint, build, `npx vitest run src/codemap.test.ts src/architecture` pass. One commit, `feat(web): F-109 <goal>`.
-
-## Executor notices as the Planner's activity, 2026-11-11
-
-Plan: [2026-11-11-shadows-notices.md](plans/2026-11-11-shadows-notices.md). Its Global
-constraints bind both tasks. Backend: B-134 on
-[the notices request](../shared/requests/2026-11-11-shadows-notices.md) (accepted, amended at `8b5a5a20` by Mohammed's rulings).
-Built by `frontend-builder`.
-
-### F-111 · An executor's notice draws as an item of the Planner's activity
-
-- Status: done
-- Plan: [F-111](plans/2026-11-11-shadows-notices.md#f-111--an-executors-notice-draws-as-an-item-of-the-planners-activity)
-- Read: the plan's "What Core gives" and "Where the item sits"; `web/src/app/conversation/contract.yaml`; `web/src/stream/contract.yaml`; the `runs:` block of `web/src/api/contract.yaml`; `Entry` in `entry.tsx`, `EntryRow` in `messages.tsx`, `subagentOf` and `copyText` in `tool-text.ts`, `readSubagentCard` in `web/src/stream/frames.ts`, `ToolGroup` in `tool-group.tsx` (the look to match).
-- Touch: `web/src/api/schema.d.ts` (only through `npm run gen:api`), `web/src/api/runs.ts`, `web/src/api/contract.yaml`, `web/src/stream/frames.ts`, `web/src/stream/index.ts` (only to export `readAttemptNotice`: the architecture check lets the conversation module reach `stream` only through this entry; approved by the coordinator), `web/src/stream/contract.yaml`, `web/src/app/conversation/tool-text.ts`, `web/src/app/conversation/notice-item.tsx` (new), `web/src/app/conversation/notice-item.test.tsx` (new), `web/src/app/conversation/reply-text.tsx` (the `compact` prop only), `web/src/app/conversation/entry.tsx`, `web/src/app/conversation/messages.tsx` (`EntryRow` footer only), `web/src/app/conversation/contract.yaml`, `docs/frontend/codebase/README.md`, this stages file.
-- Needs: B-134 committed (`api/openapi.json` holds `AttemptNotice` with `model`, `Notice` with `executor`, and `QueuedMessage.notice`).
-- Done when: `npx vitest run src/app/conversation/notice-item.test.tsx src/app/conversation/todo-card.test.tsx src/app/conversation/reply-text.test.tsx` passes, with `a_notice_draws_as_an_activity_item_not_a_bubble`, `a_failed_notice_shows_its_reason_and_report`, `a_long_report_is_cut_with_show_more`, `a_notice_without_a_readable_card_shows_its_body_under_executor`, `the_header_closes_and_reopens_the_report` and `an_old_notice_from_the_person_stays_a_bubble`; typecheck, lint, build, `npx vitest run src/codemap.test.ts src/architecture` pass. One commit, `feat(web): F-111 <goal>`.
-
-### F-112 · A waiting notice is not drawn as the person's waiting message
-
-- Status: done
-- Plan: [F-112](plans/2026-11-11-shadows-notices.md#f-112--a-waiting-notice-is-not-drawn-as-the-persons-waiting-message)
-- Read: `web/src/app/conversation/contract.yaml`; `WaitingMessages` in `waiting-messages.tsx`; `noticeTitle` in `notice-item.tsx`; `readAttemptNotice` in `web/src/stream/frames.ts`.
-- Touch: `web/src/app/conversation/waiting-messages.tsx`, `web/src/app/conversation/waiting-messages.test.tsx`, `web/src/app/conversation/contract.yaml`, this stages file.
-- Needs: F-111; B-134 (Mohammed ruled 2026-11-11: Core refuses removing a notice with 409 `QUEUED_NOTICE_KEPT`, the web shows no Remove).
-- Done when: `npx vitest run src/app/conversation/waiting-messages.test.tsx` passes with `a_waiting_notice_is_not_drawn_as_the_persons_message` and the existing queue test; typecheck, lint, build, `npx vitest run src/codemap.test.ts src/architecture` pass. One commit, `feat(web): F-112 <goal>`.
-
-### F-113 · Each Planner turn is one collapsible box
-
-- Status: done
-- Deviations, approved by the coordinator: `turnBlocks(rows, runningOp, entries)` takes `entries` because a `ToolStep` does not carry its turn.
-- Mohammed's ruling, 2026-11-12 (plan ruling 4): a box holds only the notices and tool groups; the Planner's text, notes between tool calls included, stays outside in its place and splits the runs into boxes; the summary counts no notes. Fixed by `fix(web): F-113 the Planner's text stays outside the turn box`; tests `a_finished_turn_folds_its_notice_and_tools_and_keeps_its_final_answer`, `the_planner_text_between_tools_stays_outside_and_splits_the_box` (both test files) and `only_the_last_box_of_a_running_turn_is_live`.
-- Plan: [F-113](plans/2026-11-11-shadows-notices.md#f-113--each-planner-turn-is-one-collapsible-box)
-- Read: the plan's F-113; `web/src/app/conversation/contract.yaml`; `Messages`, `ToolRow` and `EntryRow` in `messages.tsx`; `Row`, `activityRows` and `withLiveSteps` in `activity-rows.ts`; `ToolGroup` in `tool-group.tsx` (the open/fold behaviour to match); `noticeOf` in `tool-text.ts`; `noticeName` in `notice-item.tsx` (the summary's name).
-- Touch: `web/src/app/conversation/turn-blocks.ts` (new), `web/src/app/conversation/turn-blocks.test.ts` (new), `web/src/app/conversation/turn-box.tsx` (new), `web/src/app/conversation/turn-box.test.tsx` (new), `web/src/app/conversation/messages.tsx`, `web/src/app/conversation/conversation.test.tsx`, `web/src/app/conversation/streamed-reply.test.tsx`, `web/src/app/conversation/tool-group.test.tsx`, `web/src/app/conversation/plan-in-conversation.test.tsx` (these four only to open a finished turn's box before reading inside it), `web/src/app/conversation/message-actions.test.tsx` (the same: its two tool-line tests read a lone finished tool call, which the box now folds; approved by the coordinator), `web/src/app/conversation/contract.yaml`, `docs/frontend/codebase/README.md`, this stages file.
-- Needs: F-111. Nothing from Core: entries carry `operation_id`; no shared request.
-- Done when: `npx vitest run src/app/conversation` passes, with `a_finished_turn_folds_its_notice_and_tools_and_keeps_its_final_answer`, `the_planner_text_between_tools_stays_outside_and_splits_the_box`, `only_the_last_box_of_a_running_turn_is_live`, `a_turn_with_no_activity_has_no_box`, `a_proposal_card_stays_outside_the_box`, `the_person_prompt_stays_above_the_box`, `a_finished_turn_shows_one_summary_line_and_opens_on_click` and `a_running_turn_is_open_and_folds_when_it_ends`; typecheck, lint, build, `npx vitest run src/codemap.test.ts src/architecture` pass. One commit, `feat(web): F-113 <goal>`.

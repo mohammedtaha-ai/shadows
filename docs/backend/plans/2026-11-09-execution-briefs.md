@@ -166,7 +166,7 @@ git commit -m "feat(core): readiness from real inputs and current plan state"
 - Modify: `crates/shadows-mcp/src/run_tools.rs`
 - Modify: `crates/shadows-mcp/src/server.rs`
 - Modify: `crates/core-grants/src/tools.rs`
-- Modify: `crates/core-harness/src/executor.txt`
+- Modify: `crates/core-harness/src/executor.md`
 - Modify: `crates/shadows-http/src/runs.rs`
 - Modify: `crates/shadows-http/src/openapi.rs`
 - Modify: `api/openapi.json`
@@ -220,7 +220,7 @@ Also run `cargo fmt --all --check`; expected exit 0. Run architecture/codemap on
 Set its stages status with the observed command/result and update the named contracts/maps. Stage only the paths listed above, including a newly generated API file only when this task changes public routes/types.
 
 ```powershell
-git add -- crates/core-runs/src/question.rs crates/core-runs/src/lib.rs crates/core-runs/src/model.rs crates/shadows-mcp/src/run_tools.rs crates/shadows-mcp/src/server.rs crates/core-grants/src/tools.rs crates/core-harness/src/executor.txt crates/shadows-http/src/runs.rs crates/shadows-http/src/openapi.rs api/openapi.json docs/codebase/README.md docs/backend/stages.md crates/core-runs/contract.yaml crates/core-harness/contract.yaml crates/core-grants/contract.yaml crates/shadows-http/src/contract.yaml crates/shadows-mcp/src/contract.yaml crates/shadows-core/tests/runs_attempts.rs
+git add -- crates/core-runs/src/question.rs crates/core-runs/src/lib.rs crates/core-runs/src/model.rs crates/shadows-mcp/src/run_tools.rs crates/shadows-mcp/src/server.rs crates/core-grants/src/tools.rs crates/core-harness/src/executor.md crates/shadows-http/src/runs.rs crates/shadows-http/src/openapi.rs api/openapi.json docs/codebase/README.md docs/backend/stages.md crates/core-runs/contract.yaml crates/core-harness/contract.yaml crates/core-grants/contract.yaml crates/shadows-http/src/contract.yaml crates/shadows-mcp/src/contract.yaml crates/shadows-core/tests/runs_attempts.rs
 git commit -m "feat(core): task-aware questions and executor tools"
 ```
 

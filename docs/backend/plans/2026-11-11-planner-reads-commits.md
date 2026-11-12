@@ -21,7 +21,7 @@ Planner tool reads a file at a commit (`project_files` lists names only; a Codex
 **Architecture:** Runs already reads an attempt's commit (`Runs::diff`, behind
 `GET /api/attempts/{id}/diff`). It gains one method, `Runs::file`, a file of the task as an
 attempt's commit holds it, which answers both the Planner and the web's open request
-(`docs/shared/requests/2026-11-11-attempt-file-content.md`, F-109). The Planner reaches both
+(`docs/shared/requests/2026-11-11-attempt-file-content.md` at `617d806f`, F-109). The Planner reaches both
 methods through two tools, `task_diff` and `task_file`, by `diff_for` and `file_for`: the
 Planner's grant checked as `start_for` checks it, the task's latest committed attempt found,
 then the same `diff` and `file` the routes call. The notice stays as it is but names the two
@@ -36,7 +36,7 @@ their results, which the commit cannot show.
 
 ## Global Constraints
 
-- The same as [slice 1b](2026-11-11-slice-1b-planner-runs-tasks.md#global-constraints): new
+- The same as slice 1b (`docs/backend/plans/2026-11-11-slice-1b-planner-runs-tasks.md` at `617d806f`, its Global Constraints): new
   tests are live (the real adapter, real git) or run no agent, never a new fake-acp test;
   symbols through the LSP; only the tests named, with `-p` and the target; one build cache in
   `target/`; no `crates/**/*.rs` line over 100 columns; commit by path.
@@ -332,7 +332,7 @@ async fn a_windows_child_keeps_local_app_data() {
 
 ## Task B-131: The web reads a file at an attempt's commit, and each file's hunks
 
-Blocked until `docs/shared/requests/2026-11-11-attempt-file-content.md` is `accepted`.
+Blocked until `docs/shared/requests/2026-11-11-attempt-file-content.md` at `617d806f` is `accepted`.
 
 **Files:**
 - Modify: `crates/core-runs/src/model.rs` (`FileDiff.hunks: Vec<DiffHunk>`)

@@ -65,7 +65,7 @@ Since this plan was written, B-129 to B-135 landed. Checked against each, and am
 
 ## Global Constraints
 
-- The same as [slice 1b](2026-11-11-slice-1b-planner-runs-tasks.md#global-constraints).
+- The same as slice 1b (`docs/backend/plans/2026-11-11-slice-1b-planner-runs-tasks.md` at `617d806f`, its Global Constraints).
 - Needs B-123 to B-135 built. Order inside the slice: B-128, B-136, B-100, B-101.
 
 ## Review Focus

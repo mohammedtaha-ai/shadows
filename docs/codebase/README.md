@@ -173,7 +173,7 @@ pattern to follow, not merely an example.
 | `crates/shadows-mcp/src/plan_tools.rs` | plan MCP translation | `crates/shadows-mcp/src/contract.yaml` |
 | `crates/shadows-mcp/src/agreement_tools.rs` | agreement tool translation | `crates/shadows-mcp/src/agreement_tools.rs` |
 | `crates/shadows-mcp/src/workspace_tools.rs` | workspace read tool translation | `crates/shadows-mcp/src/workspace_tools.rs` |
-| `crates/shadows-mcp/src/run_tools.rs` | task commit tool translation | `crates/shadows-mcp/src/contract.yaml` |
+| `crates/shadows-mcp/src/run_tools.rs` | task run tool translation | `crates/shadows-mcp/src/contract.yaml` |
 | `crates/shadows-mcp/src/refusal.rs` | what an MCP tool call answers | `crates/shadows-mcp/src/refusal.rs` |
 | `crates/shadows-core/src/lib.rs` | the application behind `AppCore` | `crates/shadows-core/src/app.rs` |
 | `crates/shadows-core/src/app.rs` | the application's composition root | `crates/shadows-core/src/app.rs` |
