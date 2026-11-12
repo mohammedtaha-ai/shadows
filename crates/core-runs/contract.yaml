@@ -143,6 +143,13 @@ transitions:
 # proves nothing about whether the session can still write.
 
 agreements:
+  - between: [start_answer, start]
+    rule: >
+      What a task answers about starting is what Start does: start_answer runs
+      Start's own checks and check_held without writing, so a refused answer
+      carries Start's refusal code.
+    holds: true
+    tested_by: a_refused_answer_is_starts_refusal
   - between: [check_free, checks, report, file]
     rule: One matcher decides overlap at Start, the dirty checks at Start and at report, the report check and file reach.
     holds: true

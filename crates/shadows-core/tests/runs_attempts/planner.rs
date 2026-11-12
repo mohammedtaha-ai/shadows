@@ -453,3 +453,31 @@ async fn a_notice_waits_on_a_busy_planner_in_the_executors_name() {
     );
     f.finish().await;
 }
+
+/// A refused answer is Start's own refusal: the same code, and Start writes
+/// nothing. T3 is busy with a committed attempt; T6 waits on T1.
+#[tokio::test]
+async fn a_refused_answer_is_starts_refusal() {
+    let f = fixture().await;
+    f.committed_attempt().await;
+    let runs = f.core.runs();
+    for task in [3, 6] {
+        let answer = runs.task(&f.workflow, 1, task).await.unwrap().start;
+        assert!(!answer.allowed, "T{task}: {answer:?}");
+        let started = runs
+            .start(
+                format!("start-{task}"),
+                &f.workflow,
+                1,
+                task,
+                "fake-large".into(),
+            )
+            .await;
+        let Err(error) = started else {
+            panic!("T{task} started though refused: {started:?}")
+        };
+        assert_eq!(answer.code.as_deref(), Some(error.code()), "T{task}");
+    }
+    assert!(runs.attempts(&f.workflow, 1, 6).await.unwrap().is_empty());
+    f.finish().await;
+}
