@@ -258,23 +258,82 @@ describe('ThreadStream', () => {
 
   it('lets go of its connection while the page is hidden and resumes after its seq', () => {
     const page = fakePage()
-    const { stream, sources, current } = harness({ page })
+    const { stream, sources, current } = harness({ page, hiddenGraceMs: 1_000 })
     stream.start()
     current().durable(1)
     current().caughtUp(1)
+    current().emit('delta', JSON.stringify({ op: 'a', text: 'partial' }))
 
     page.show('hidden')
+    vi.advanceTimersByTime(999)
+    expect(sources[0]?.closed).toBe(false)
+    vi.advanceTimersByTime(1)
     expect(sources[0]?.closed).toBe(true)
     expect(sources).toHaveLength(1)
+    expect(stream.getState().streaming).toEqual({})
 
     page.show('visible')
     expect(sources).toHaveLength(2)
     expect(afterOf(current())).toBe('1')
+    expect(stream.getState().connection).toBe('reconnecting')
 
     stream.close()
     page.show('hidden')
+    vi.advanceTimersByTime(60_000)
     page.show('visible')
     expect(sources).toHaveLength(2)
+  })
+
+  // A pane whose visibility flickers reconnected and refetched at every flicker.
+  it('keeps its connection when the page is shown again within the grace', () => {
+    const page = fakePage()
+    const { stream, sources, current } = harness({ page, hiddenGraceMs: 1_000 })
+    stream.start()
+    current().durable(1)
+    current().caughtUp(1)
+    current().emit('delta', JSON.stringify({ op: 'a', text: 'partial' }))
+    vi.runOnlyPendingTimers()
+    let heard = 0
+    stream.subscribe(() => (heard += 1))
+
+    for (let flicker = 0; flicker < 5; flicker += 1) {
+      page.show('hidden')
+      vi.advanceTimersByTime(900)
+      page.show('visible')
+    }
+    vi.advanceTimersByTime(60_000)
+
+    expect(sources).toHaveLength(1)
+    expect(sources[0]?.closed).toBe(false)
+    expect(heard).toBe(0)
+    expect(stream.getState()).toMatchObject({ connection: 'live', streaming: { a: 'partial' } })
+  })
+
+  it('close() during the grace cancels it', () => {
+    const page = fakePage()
+    const { stream, sources } = harness({ page, hiddenGraceMs: 1_000 })
+    stream.start()
+    let heard = 0
+    stream.subscribe(() => (heard += 1))
+
+    page.show('hidden')
+    stream.close()
+    expect(sources[0]?.closed).toBe(true)
+    vi.advanceTimersByTime(60_000)
+
+    expect(heard).toBe(0)
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('lets go after 30 seconds hidden by default', () => {
+    const page = fakePage()
+    const { stream, sources } = harness({ page })
+    stream.start()
+    page.show('hidden')
+    vi.advanceTimersByTime(29_999)
+    expect(sources[0]?.closed).toBe(false)
+    vi.advanceTimersByTime(1)
+    expect(sources[0]?.closed).toBe(true)
   })
 
   it('opens nothing while started on a hidden page', () => {

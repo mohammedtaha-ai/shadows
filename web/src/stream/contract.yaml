@@ -74,6 +74,7 @@ shapes:
     maxDelayMs: "number; default 10000"
     maxFailures: "number; default 10; breaks without a caught-up between them"
     page: "PageLike | null; default `document`; null keeps the connection on any page"
+    hiddenGraceMs: "number; default 30000; how long a hidden page keeps its connection"
   Delta: "{ op: string, text: string }; transient"
   TurnEnd: "{ op: string, subtype: string, stopReason: string | null }; transient"
   Meta: "{ op: string, label: string }; transient; sets the op's label"
@@ -174,14 +175,14 @@ thread_stream:
   # nothing; start() opens or waits for a shown page.
   constructor: "(options: Options) -> ThreadStream"
   start: "() -> void; opens, or waits while hidden; calling again after close() resumes"
-  close: "() -> void; closes the connection and cancels a pending reconnect"
-  retry: "() -> void; the only way out of `failed`; resets the failure budget"
+  close: "() -> void; closes the connection and cancels a pending reconnect and hidden grace"
+  retry: "() -> void; the only way out of `failed`; resets the failure budget; cancels a hidden grace"
   getState: "() -> StreamState"
   subscribe: "(listener: () => void) -> () => void"
   private_methods:
     note: >
       #open(connection), #durable(event), #lost(problem), #fail(problem), #onPage(),
-      #disconnect(), #hidden(), #set(patch). All private; they hold the state machine.
+      #endGrace(), #disconnect(), #hidden(), #set(patch). All private; they hold the state machine.
     private: true
 
 hooks:
@@ -348,12 +349,23 @@ obligations:
       plan-show delivery; the targetTab filter lives in use-conversation.ts.
 
   - rule: >
-      A hidden page holds no connection. Hidden, the stream closes its source and clears
-      transient state. Shown again, it resumes after lastSeq.
+      A page hidden past hiddenGraceMs holds no connection. When the grace ends with the page
+      still hidden, the stream closes its source and clears transient state. Shown again, it
+      resumes after lastSeq with a fresh failure budget.
     tested_by: "lets go of its connection while the page is hidden and resumes after its seq"
     note: >
-      The test checks the source's closed flag and the resumed cursor. It does not check
-      `connection`. See the gap at #onPage.
+      The test checks the grace's end, the closed flag, the cleared text and the resumed
+      cursor. `connection` while hidden is not checked. See the gap at #onPage.
+
+  - rule: >
+      A page shown again before hiddenGraceMs ends keeps its connection: no disconnect, no
+      reconnect, no state change.
+    tested_by: "keeps its connection when the page is shown again within the grace"
+
+  - rule: >
+      close() during the grace cancels it; the grace defaults to 30 seconds.
+    tested_by: "close() during the grace cancels it"
+    note: "The default is held by 'lets go after 30 seconds hidden by default'."
 
   - rule: >
       A stream started on a hidden page opens nothing until the page is shown.
@@ -479,7 +491,7 @@ not_the_caller's:
 gaps:
   - at: ThreadStream.#onPage
     gap: >
-      When the page turns hidden, #onPage disconnects and clears streaming, labels and subagents,
+      When a hidden page's grace ends, #onPage disconnects and clears streaming, labels and subagents,
       but leaves `connection` at its previous value. A stream that was `live` therefore reports
       `live` with no open source, until the page is shown and #open sets `reconnecting`.
       start() on a hidden page sets `reconnecting` or `connecting` instead, so the two paths
@@ -590,8 +602,22 @@ tests:
 
   - name: lets go of its connection while the page is hidden and resumes after its seq
     checks: >
-      Hiding closes the source, showing opens a second at after=1, and close() stops reopening on
-      show. The connection state is not asserted.
+      With a 1 s grace, hiding keeps the source until the grace ends, then closes it and clears
+      streamed text; showing opens a second at after=1 as `reconnecting`, and close() stops
+      reopening on show.
+
+  - name: keeps its connection when the page is shown again within the grace
+    checks: >
+      Five hide-show flickers shorter than the grace leave one open source, no notice to
+      subscribers, `live`, and the streamed text kept.
+
+  - name: close() during the grace cancels it
+    checks: >
+      close() while hidden closes the source and leaves no timer pending and no notice.
+
+  - name: lets go after 30 seconds hidden by default
+    checks: >
+      Without hiddenGraceMs the source stays open at 29 999 ms hidden and closes at 30 000 ms.
 
   - name: opens nothing while started on a hidden page
     checks: >
