@@ -65,9 +65,7 @@ export type Plan = components['schemas']['Plan']
 
 export type PlanTask = components['schemas']['PlanTask']
 export type Phase = components['schemas']['Phase']
-export type PhaseRef = components['schemas']['PhaseRef']
 export type PhaseEndpoint = components['schemas']['PhaseEndpoint']
-export type LinkedPhase = components['schemas']['LinkedPhase']
 
 export type PlanLink = components['schemas']['Link']
 
@@ -81,14 +79,13 @@ export type PlanListing = components['schemas']['PlanListing']
 
 export type PlanVersions = components['schemas']['PlanVersions']
 
-export type VersionLine = components['schemas']['VersionLine']
 
 export type WrittenBy = components['schemas']['WrittenBy']
 
-export type Approved = components['schemas']['Approved']
+type Approved = components['schemas']['Approved']
 
 /** Each project's plan by its latest version, or archived ones too. */
-export function listPlans(projectId: string, archived = false): Promise<PlanListing[]> {
+function listPlans(projectId: string, archived = false): Promise<PlanListing[]> {
   return unwrap(
     client.GET('/api/projects/{id}/workflows', {
       params: { path: { id: projectId }, query: { archived } },
@@ -97,7 +94,7 @@ export function listPlans(projectId: string, archived = false): Promise<PlanList
 }
 
 /** One plan with every version, oldest first. */
-export function getPlanVersions(planId: string): Promise<PlanVersions> {
+function getPlanVersions(planId: string): Promise<PlanVersions> {
   return unwrap(client.GET('/api/plans/{id}', { params: { path: { id: planId } } }))
 }
 
@@ -127,7 +124,7 @@ export function getPlan(workflowId: string): Promise<Plan> {
   return unwrap(client.GET('/api/workflows/{id}', { params: { path: { id: workflowId } } }))
 }
 
-export function getPlanMap(projectId: string): Promise<PlanMap> {
+function getPlanMap(projectId: string): Promise<PlanMap> {
   return unwrap(client.GET('/api/projects/{id}/plan-map', { params: { path: { id: projectId } } }))
 }
 

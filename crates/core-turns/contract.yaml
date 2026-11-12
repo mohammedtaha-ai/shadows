@@ -636,6 +636,12 @@ obligations:
       - a_turn_without_a_plan_writes_no_todo_list
       - changed_tools_reports_a_call_once_per_change
       - a_turns_task_list_is_kept_as_a_todo_list_entry
+  - rule: >
+      The entries one harness event completes are written in one transaction, in
+      their order; a failed write is logged and the turn goes on. Live activity is
+      read again only after a tool call or a task list update.
+    tested_by: none
+    note: Structural; read in `PlannerTurn::persist` and `accept`.
   - rule: Terminal usage and operation state commit together once under the existing claim and CAS.
     tested_by: [usage_ends_atomically_once]
   - rule: Cancelled or refused replies keep actual measurements; missing responses remain unknown.

@@ -171,17 +171,10 @@ async fn insert_thread(
     .await?;
     JournalEntry::append_event(
         conn,
-        core_db::JournalEntry {
-            event_id: uuid::Uuid::new_v4().to_string(),
-            kind: "PlanningThreadCreated".into(),
-            actor,
-            causation: None,
-            correlation_id: None,
-            project_id: Some(project_id.as_str().to_owned()),
-            thread_id: Some(id.as_str().to_owned()),
-            operation_id: None,
-            payload_json: serde_json::json!({ "title": title, "harness": harness }).to_string(),
-        },
+        core_db::JournalEntry::new("PlanningThreadCreated", actor)
+            .with_project(project_id.as_str())
+            .with_thread(id.as_str())
+            .with_payload(serde_json::json!({ "title": title, "harness": harness })),
         ts,
     )
     .await?;
@@ -337,17 +330,10 @@ impl crate::Threads {
             })?;
         JournalEntry::append_event(
             conn,
-            core_db::JournalEntry {
-                event_id: uuid::Uuid::new_v4().to_string(),
-                kind: "PlanningThreadHarnessChanged".into(),
-                actor,
-                causation: None,
-                correlation_id: None,
-                project_id: Some(project.as_str().to_owned()),
-                thread_id: Some(thread.as_str().to_owned()),
-                operation_id: None,
-                payload_json: serde_json::json!({ "harness": harness }).to_string(),
-            },
+            core_db::JournalEntry::new("PlanningThreadHarnessChanged", actor)
+                .with_project(project.as_str())
+                .with_thread(thread.as_str())
+                .with_payload(serde_json::json!({ "harness": harness })),
             ts,
         )
         .await?;

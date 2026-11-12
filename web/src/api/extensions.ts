@@ -6,15 +6,13 @@ import type { components } from './schema'
 export type ExtensionKind = components['schemas']['ExtensionKind']
 export type Item = components['schemas']['Item']
 export type AgentItem = components['schemas']['AgentItem']
-export type ExtensionLibrary = components['schemas']['ExtensionLibrary']
 export type AgentExtensions = components['schemas']['AgentExtensions']
-export type ExtensionImport = components['schemas']['Import']
 export type McpItem = components['schemas']['McpItem']
 export type McpInput = components['schemas']['McpInput']
 export type McpValueInput = components['schemas']['McpValueInput']
 export type ToolRuleEntry = components['schemas']['ToolRuleEntry']
 export type ToolRule = components['schemas']['ToolRule']
-export type AgentTools = components['schemas']['AgentTools']
+type AgentTools = components['schemas']['AgentTools']
 
 export function agentToolsQuery(slug: string, id: string) {
   return queryOptions({ queryKey: ['aylul-agent-mcp-tools', slug, id], retry: false,

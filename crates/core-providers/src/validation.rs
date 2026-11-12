@@ -1,5 +1,5 @@
 //! Provider input rules: presets, labels, URLs and the model list.
-use super::{ProviderInput, Providers, ProvidersError};
+use super::{ProviderInput, ProviderModel, Providers, ProvidersError};
 
 const BASE_URL_RULE: &str = "Base URL must use HTTPS or loopback HTTP, with a host, \
     no credentials, and no invalid authority or whitespace.";
@@ -73,7 +73,9 @@ impl Providers {
             if !models.insert(id.clone()) {
                 return Err(invalid(&field, "Each model is listed once."));
             }
-            let size = model.context_window.unwrap_or(200_000);
+            let size = model
+                .context_window
+                .unwrap_or(ProviderModel::DEFAULT_CONTEXT_WINDOW);
             if !(1000..=10_000_000).contains(&size) {
                 return Err(invalid(
                     &format!("models[{index}].context_window"),

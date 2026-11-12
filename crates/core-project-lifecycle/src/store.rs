@@ -45,17 +45,7 @@ impl ProjectLifecycleStore {
                     Grants::revoke_project_grants_in(conn, &id, actor.clone(), &ts).await?;
                     JournalEntry::append_event(
                         conn,
-                        JournalEntry {
-                            event_id: uuid::Uuid::new_v4().to_string(),
-                            kind: "ProjectRemoved".into(),
-                            project_id: Some(id.as_str().to_owned()),
-                            thread_id: None,
-                            operation_id: None,
-                            actor,
-                            causation: None,
-                            correlation_id: None,
-                            payload_json: "{}".into(),
-                        },
+                        JournalEntry::new("ProjectRemoved", actor).with_project(id.as_str()),
                         &ts,
                     )
                     .await?;

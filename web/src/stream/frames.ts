@@ -37,7 +37,7 @@ export interface ProjectDesignChanged {
 }
 
 /** Streamed text of a running turn. Transient. */
-export interface Delta {
+interface Delta {
   op: string
   text: string
 }
@@ -50,7 +50,7 @@ export interface TurnEnd {
 }
 
 /** Accept transient operational labels from streams that supply them. */
-export interface Meta {
+interface Meta {
   op: string
   label: string
 }
@@ -78,7 +78,7 @@ export interface UsageFrame {
 }
 
 /** The session's choices changed. Transient. */
-export interface OptionsFrame {
+interface OptionsFrame {
   threadId: string
   choices: SessionChoices
 }
@@ -114,7 +114,7 @@ export interface SubagentCard {
 }
 
 /** A running turn's subagent card after a change. Transient. */
-export interface SubagentFrame {
+interface SubagentFrame {
   op: string
   card: SubagentCard
 }
@@ -202,7 +202,7 @@ export interface ToolFrame {
 }
 
 /** A running turn's whole task list. Transient. */
-export interface TodosFrame {
+interface TodosFrame {
   op: string
   entries: readonly TodoItem[]
 }
@@ -440,7 +440,7 @@ export function parseOptions(data: string): OptionsFrame {
 }
 
 export type SlashCommand = { name: string; description: string; hint: string | null }
-export type CommandsFrame = { threadId: string; commands: readonly SlashCommand[] }
+type CommandsFrame = { threadId: string; commands: readonly SlashCommand[] }
 
 function isSlashCommand(value: unknown): value is SlashCommand {
   if (typeof value !== 'object' || value === null) return false

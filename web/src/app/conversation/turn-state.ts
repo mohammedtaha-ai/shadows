@@ -42,7 +42,7 @@ const TERMINAL: ReadonlySet<Status> = new Set(['Completed', 'Failed', 'Cancelled
 /** The start route's answer carries no seq, so any row or event replaces it. */
 const UNORDERED = -1
 
-export function isTerminal(status: Status): boolean {
+function isTerminal(status: Status): boolean {
   return TERMINAL.has(status)
 }
 

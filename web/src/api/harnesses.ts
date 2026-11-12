@@ -10,7 +10,7 @@ export type HarnessInfo = components['schemas']['HarnessInfo']
 
 /** The CLIs a conversation can run on, with what each remembers and its
  * latest reported limits. */
-export function listHarnesses(): Promise<HarnessInfo[]> {
+function listHarnesses(): Promise<HarnessInfo[]> {
   return unwrap(client.GET('/api/harnesses'))
 }
 

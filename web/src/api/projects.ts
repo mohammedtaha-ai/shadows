@@ -63,17 +63,17 @@ export function invalidateProjects(client: QueryClient): void {
 
 export type Project = components['schemas']['Project']
 
-export type CreateProject = components['schemas']['CreateProject']
+type CreateProject = components['schemas']['CreateProject']
 
 export type InstructionsVersion = components['schemas']['InstructionsVersion']
 
 export type Grant = components['schemas']['Grant']
 
-export type IssuedGrant = components['schemas']['IssuedGrantBody']
+type IssuedGrant = components['schemas']['IssuedGrantBody']
 
 /** Every project, oldest first. Also the reachability probe: it is the
  * cheapest call that proves the daemon answers this origin. */
-export function listProjects(): Promise<Project[]> {
+function listProjects(): Promise<Project[]> {
   return unwrap(client.GET('/api/projects'))
 }
 
@@ -109,7 +109,7 @@ export function removeProject(projectId: string, commandId: string): Promise<Pro
 }
 
 /** The project's current instructions, or `null` before the first save. */
-export function getInstructions(projectId: string): Promise<InstructionsVersion | null> {
+function getInstructions(projectId: string): Promise<InstructionsVersion | null> {
   return unwrap(
     client.GET('/api/projects/{id}/planner-instructions', { params: { path: { id: projectId } } }),
   )
@@ -131,7 +131,7 @@ export function saveInstructions(
 
 /** A project's grants for external agents, revoked ones included, newest
  * first. */
-export function listGrants(projectId: string): Promise<Grant[]> {
+function listGrants(projectId: string): Promise<Grant[]> {
   return unwrap(
     client.GET('/api/projects/{id}/mcp-grants', { params: { path: { id: projectId } } }),
   )

@@ -61,17 +61,10 @@ impl StandardsStore {
                     .bind(&ts)
                     .execute(&mut *conn)
                     .await?;
-                    let event = JournalEntry {
-                        event_id: uuid::Uuid::new_v4().to_string(),
-                        kind: "ProjectStandardsSaved".into(),
-                        project_id: Some(project.as_str().to_owned()),
-                        thread_id: None,
-                        operation_id: None,
-                        actor: Actor::user(&ctx.principal_id),
-                        causation: None,
-                        correlation_id: None,
-                        payload_json: serde_json::json!({"number": number}).to_string(),
-                    };
+                    let event =
+                        JournalEntry::new("ProjectStandardsSaved", Actor::user(&ctx.principal_id))
+                            .with_project(project.as_str())
+                            .with_payload(serde_json::json!({"number": number}));
                     JournalEntry::append_event(conn, event, &ts).await?;
                     CommandContext::record_command(
                         conn,

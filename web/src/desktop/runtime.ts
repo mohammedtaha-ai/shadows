@@ -5,7 +5,7 @@ export interface ConnectionView {
   origin:string|null
   error:string|null
 }
-export interface ConnectionBridge {
+interface ConnectionBridge {
   listen(callback:(view:ConnectionView)=>void):Promise<()=>void>
   snapshot():Promise<ConnectionView>
 }

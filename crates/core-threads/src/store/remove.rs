@@ -44,17 +44,9 @@ impl crate::Threads {
         let actor = Actor::user(&ctx.principal_id);
         JournalEntry::append_event(
             conn,
-            core_db::JournalEntry {
-                event_id: uuid::Uuid::new_v4().to_string(),
-                kind: "ThreadRemoved".into(),
-                actor,
-                causation: None,
-                correlation_id: None,
-                project_id: Some(current.project_id.as_str().to_owned()),
-                thread_id: Some(thread.as_str().to_owned()),
-                operation_id: None,
-                payload_json: "{}".into(),
-            },
+            core_db::JournalEntry::new("ThreadRemoved", actor)
+                .with_project(current.project_id.as_str())
+                .with_thread(thread.as_str()),
             ts,
         )
         .await?;

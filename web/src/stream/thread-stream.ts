@@ -120,6 +120,9 @@ export interface Options {
   page?: PageLike | null
 }
 
+/** Everything transient: a break or a hidden page never resends it. */
+const CLEARED = { streaming: {}, labels: {}, subagents: {}, tools: {}, todos: {}, tasks: [] } satisfies Partial<StreamState>
+
 export class ThreadStream {
   readonly #options: Required<Omit<Options, 'onDurable' | 'onCaughtUp' | 'onNotice'>> &
     Pick<Options, 'onDurable' | 'onCaughtUp' | 'onNotice'>
@@ -184,7 +187,7 @@ export class ThreadStream {
     if (!this.#wanted || this.#state.connection === 'failed') return
     if (this.#hidden()) {
       this.#disconnect()
-      this.#set({ streaming: {}, labels: {}, subagents: {}, tools: {}, todos: {}, tasks: [] })
+      this.#set(CLEARED)
     } else if (this.#source === null && this.#timer === null) {
       this.#failures = 0
       this.#open(this.#state.caughtUp ? 'reconnecting' : 'connecting')
@@ -293,7 +296,7 @@ export class ThreadStream {
     // `lastSeq` at once. Not a failure, so no backoff.
     on('lagged', () => {
       this.#disconnect()
-      this.#set({ streaming: {}, labels: {}, subagents: {}, tools: {}, todos: {}, tasks: [] })
+      this.#set(CLEARED)
       this.#open('reconnecting')
     })
     // The daemon could not read its journal and is ending the stream.
@@ -316,10 +319,10 @@ export class ThreadStream {
     this.#disconnect()
     this.#failures += 1
     if (this.#failures > this.#options.maxFailures) {
-      this.#set({ connection: 'failed', problem, streaming: {}, labels: {}, subagents: {}, tools: {}, todos: {}, tasks: [] })
+      this.#set({ connection: 'failed', problem, ...CLEARED })
       return
     }
-    this.#set({ connection: 'reconnecting', problem, streaming: {}, labels: {}, subagents: {}, tools: {}, todos: {}, tasks: [] })
+    this.#set({ connection: 'reconnecting', problem, ...CLEARED })
     const delay = Math.min(
       this.#options.baseDelayMs * 2 ** (this.#failures - 1),
       this.#options.maxDelayMs,
@@ -333,7 +336,7 @@ export class ThreadStream {
   /** A frame this client cannot read. Reconnecting would read it again, so stop. */
   #fail(problem: string): void {
     this.#disconnect()
-    this.#set({ connection: 'failed', problem, streaming: {}, labels: {}, subagents: {}, tools: {}, todos: {}, tasks: [] })
+    this.#set({ connection: 'failed', problem, ...CLEARED })
   }
 
   #set(patch: Partial<StreamState>): void {

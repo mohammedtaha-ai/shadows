@@ -1,6 +1,6 @@
 import {listen} from '@tauri-apps/api/event'
 import {nativeCall} from './native'
-export type MainDestination=
+type MainDestination=
   | {kind:'companionSettings'}
   | {kind:'agentDraft';agent:string}
   | {kind:'conversation';projectId:string;threadId:string}
@@ -8,7 +8,7 @@ export type MainDestination=
   | {kind:'agentSettings';agent:string}
   | {kind:'newAgent'}
   | {kind:'settings'}
-export interface PendingNavigation {revision:number;destination:MainDestination}
+interface PendingNavigation {revision:number;destination:MainDestination}
 export function groupNavigationRoute(destination:Extract<MainDestination,{kind:'group'}>){
   return {to:'/aylul/groups/$groupId',params:{groupId:destination.groupId}} as const
 }

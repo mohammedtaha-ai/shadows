@@ -8,7 +8,7 @@ import { workflowsKey } from '@/api/workflows'
 import { Button } from '@/components/ui/button'
 import { ErrorLine } from '../error-line'
 
-export const CHANGED_WHILE_LOOKING = 'The plan changed while you were looking; review it again'
+const CHANGED_WHILE_LOOKING = 'The plan changed while you were looking; review it again'
 
 /** Approve, with the validator's list above it. It stays enabled with
  * blockers: pressed anyway, the daemon's `422` lists what is missing. */

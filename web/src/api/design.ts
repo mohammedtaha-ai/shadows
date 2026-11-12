@@ -12,18 +12,16 @@ export type VisionField = components['schemas']['VisionField']
 export type VisionProposal = components['schemas']['VisionProposal']
 export type MapProposal = components['schemas']['MapProposal']
 export type RoadmapProposal = components['schemas']['RoadmapProposal']
-export type ContractHead = components['schemas']['ContractHead']
-export type DesignChange = components['schemas']['DesignChange']
+type DesignChange = components['schemas']['DesignChange']
 export type DesignEdit = components['schemas']['DesignEdit']
 export type Part = components['schemas']['Part']
 export type PartContent = components['schemas']['PartContent']
-export type PartLayer = components['schemas']['PartLayer']
 export type PartView = components['schemas']['PartView']
-export type PartPage = components['schemas']['PartPage']
+type PartPage = components['schemas']['PartPage']
 export type Outcome = components['schemas']['Outcome']
 export type OutcomeContent = components['schemas']['OutcomeContent']
 export type OutcomeView = components['schemas']['OutcomeView']
-export type OutcomePage = components['schemas']['OutcomePage']
+type OutcomePage = components['schemas']['OutcomePage']
 export function getOutcome(projectId: string, outcomeId: string): Promise<OutcomeView> {
   return unwrap(client.GET('/api/projects/{id}/design/outcomes/{outcome}', { params: { path: { id: projectId, outcome: outcomeId } } }))
 }
@@ -46,11 +44,11 @@ export function editDesign(projectId: string, body: DesignEdit): Promise<DesignC
   return unwrap(client.POST('/api/projects/{id}/design/edits', { params: { path: { id: projectId } }, body }))
 }
 
-export function listVisionProposals(projectId: string): Promise<VisionProposal[]> {
+function listVisionProposals(projectId: string): Promise<VisionProposal[]> {
   return unwrap(client.GET('/api/projects/{id}/vision-proposals', { params: { path: { id: projectId } } }))
 }
 
-export function listMapProposals(projectId: string): Promise<MapProposal[]> {
+function listMapProposals(projectId: string): Promise<MapProposal[]> {
   return unwrap(client.GET('/api/projects/{id}/map-proposals', {params:{path:{id:projectId}}}))
 }
 export function approveMapProposal(projectId: string, proposalId: string, commandId: string): Promise<DesignChange> {
@@ -59,7 +57,7 @@ export function approveMapProposal(projectId: string, proposalId: string, comman
   }))
 }
 
-export function listRoadmapProposals(projectId: string): Promise<RoadmapProposal[]> {
+function listRoadmapProposals(projectId: string): Promise<RoadmapProposal[]> {
   return unwrap(client.GET('/api/projects/{id}/roadmap-proposals', {params:{path:{id:projectId}}}))
 }
 export function approveRoadmapProposal(projectId: string, proposalId: string, commandId: string): Promise<DesignChange> {
@@ -179,12 +177,12 @@ export type EffectiveStandards = components['schemas']['EffectiveStandards']
 
 export type StandardsAdditions = components['schemas']['StandardsAdditions']
 
-export type StandardsAdditionsVersion = components['schemas']['StandardsAdditionsVersion']
+type StandardsAdditionsVersion = components['schemas']['StandardsAdditionsVersion']
 
-export type StageView = components['schemas']['StageView']
+type StageView = components['schemas']['StageView']
 
 /** Compiled-in standards with this project's latest additions. */
-export function getStandards(projectId: string): Promise<EffectiveStandards> {
+function getStandards(projectId: string): Promise<EffectiveStandards> {
   return unwrap(client.GET('/api/projects/{id}/standards', { params: { path: { id: projectId } } }))
 }
 
@@ -197,6 +195,6 @@ export function saveStandardsAdditions(projectId: string, commandId: string,
 }
 
 /** The stage computed by the design service. */
-export function getStage(projectId: string): Promise<StageView> {
+function getStage(projectId: string): Promise<StageView> {
   return unwrap(client.GET('/api/projects/{id}/stage', { params: { path: { id: projectId } } }))
 }

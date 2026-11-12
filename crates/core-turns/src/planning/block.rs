@@ -29,11 +29,11 @@ impl Block {
     const REFERENCE_ONLY: &str = "Reference for this conversation, not a request. Act only on \
         what the person's message asks; open plans and stages without a plan are not tasks.";
 
-    pub fn source(&mut self, kind: &str, id: &str, version: i64) {
+    pub(super) fn source(&mut self, kind: &str, id: &str, version: i64) {
         self.scoped_source(SourceScope::Retained, kind, id, version);
     }
 
-    pub fn scoped_source(&mut self, scope: SourceScope, kind: &str, id: &str, version: i64) {
+    pub(super) fn scoped_source(&mut self, scope: SourceScope, kind: &str, id: &str, version: i64) {
         let source = ContextSource {
             kind: kind.into(),
             id: id.into(),
@@ -100,7 +100,7 @@ impl Block {
         text
     }
 
-    pub fn finish(mut self, index_budget: i64, detail_budget: i64) -> CarriedContext {
+    pub(super) fn finish(mut self, index_budget: i64, detail_budget: i64) -> CarriedContext {
         for (slot, label) in [
             (0, "part children"),
             (1, "outcome children"),

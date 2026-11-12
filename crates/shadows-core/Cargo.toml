@@ -35,36 +35,18 @@ core-db = { path = "../core-db" }
 core-runtime = { path = "../core-runtime" }
 core-secrets = { path = "../core-secrets" }
 core-providers = { path = "../core-providers" }
-image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "webp"] }
-reqwest = { workspace = true, features = ["rustls"] }
-aes-gcm = "0.10"
-hkdf = "0.12"
-hmac = "0.12"
-rand = "0.8"
 anyhow = { workspace = true }
-dunce = { workspace = true }
 escargot = { workspace = true, optional = true }
-futures-core = { workspace = true }
-ignore = { workspace = true }
-notify = { workspace = true }
-petgraph = { workspace = true }
-schemars = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-jsonschema = { workspace = true }
-json-patch = { workspace = true }
-sha2 = { workspace = true }
 shadows-agent = { path = "../shadows-agent" }
-shadows-index = { path = "../shadows-index" }
 shadows-process = { path = "../shadows-process" }
 sqlx = { workspace = true }
 thiserror = { workspace = true }
 time = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
-uuid = { workspace = true }
 utoipa = { workspace = true }
-yaml-rust2 = { workspace = true }
 
 [features]
 # Compiles in `testing` (spec §14.6): storage, the runtime and the sessions
@@ -78,6 +60,13 @@ yaml-rust2 = { workspace = true }
 test-support = ["core-events/test-support", "core-messages/test-support", "core-project-lifecycle/test-support", "core-turns/test-support", "core-plans/test-support", "core-design/test-support", "core-harness/test-support", "core-runs/test-support", "core-operations/test-support", "core-grants/test-support", "core-threads/test-support", "dep:escargot", "shadows-process/test-support", "core-db/test-support", "core-runtime/test-support", "core-secrets/test-support", "core-providers/test-support", "core-projects/test-support", "core-code/test-support"]
 
 [dev-dependencies]
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "webp"] }
+dunce = { workspace = true }
+ignore = { workspace = true }
+notify = { workspace = true }
+sha2 = { workspace = true }
+uuid = { workspace = true }
+yaml-rust2 = { workspace = true }
 axum = { workspace = true }
 shadows-mcp = { path = "../shadows-mcp" }
 tempfile = { workspace = true }

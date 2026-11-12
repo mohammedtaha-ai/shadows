@@ -69,8 +69,7 @@ functions:
   import_bundled: Import embedded items at startup unless present or previously declined; no-op without AYLUL.
   add_mcp: Create replayable MCP configuration with write-only values in the same transaction.
   update_mcp: Replace configuration without changing its id or switches; omitted values are retained.
-  agent_mcp_servers: Resolve only enabled MCP configurations for a trusted opening.
-  opening_snapshot: Resolve the agent's library and MCP servers under one retained library guard.
+  opening_snapshot: Resolve the agent's library and only its enabled MCP servers under one retained library guard.
   delete_extension: Remove the item and every enablement in one transaction; MCP deletion removes its secret scope.
   agent_extensions: List the whole library with one live agent's switches.
   set_agent_extension: Atomically validate and set one live agent's switch.
@@ -128,4 +127,4 @@ obligations:
   - rule: MCP commands replay equal fingerprints and refuse changed inputs.
     tested_by: [mcp_commands_replay_and_conflict]
   - rule: Trusted openings receive only enabled MCP servers and Debug redacts their values.
-    tested_by: [agent_mcp_servers_resolve_only_enabled_items]
+    tested_by: [an_opening_resolves_only_enabled_mcp_servers]

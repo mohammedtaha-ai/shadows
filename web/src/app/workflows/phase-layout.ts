@@ -5,14 +5,14 @@ import { handles, layoutPlan, placeGraph, type PlanEdge, type PlanNode } from '.
 import type { PhaseNode, TaskGroupNode, BoundaryNode } from './phase-node'
 
 export type PhaseGraphNode = PlanNode | PhaseNode | TaskGroupNode | BoundaryNode
-export const PHASE_WIDTH = 256
-export const PHASE_HEIGHT = 132
+const PHASE_WIDTH = 256
+const PHASE_HEIGHT = 132
 
 export function phaseNodeId(endpoint: PhaseEndpoint): string {
   return `${endpoint.workflow_id}:v${endpoint.version}:t${endpoint.task}:phase:${endpoint.phase_id}`
 }
 
-export function phaseEndpoint(plan: Plan, task: number, phase: Phase): PhaseEndpoint {
+function phaseEndpoint(plan: Plan, task: number, phase: Phase): PhaseEndpoint {
   return { plan_id: plan.plan_id, workflow_id: plan.id, version: plan.version,
     plan_title: plan.title, task, phase_id: phase.id, phase_number: phase.number, title: phase.title }
 }

@@ -7,8 +7,8 @@ import type { DurableEvent } from './frames'
 import { type Notice, type StreamState } from './thread-stream'
 import { threadBinding } from './thread-registry'
 
-export type DurableListener = (event: DurableEvent, live: boolean, state: StreamState) => void
-export type NoticeListener = (notice: Notice) => void
+type DurableListener = (event: DurableEvent, live: boolean, state: StreamState) => void
+type NoticeListener = (notice: Notice) => void
 
 /** A thread's live stream while the calling component is mounted. Switching
  * `threadId` or unmounting closes the connection; it never stops a turn.

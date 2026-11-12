@@ -39,21 +39,20 @@ export function saveUnlinkedCodeAnswer(client: QueryClient, projectId: string, l
 
 export type ProjectStatus = components['schemas']['ProjectStatus']
 
-export type IndexState = components['schemas']['IndexState']
 
 export type ProjectLink = components['schemas']['ProjectLink']
 
 export type CodeSettings = components['schemas']['CodeSettings']
 
 /** How a project's code index stands. Asking does not make it active. */
-export function getCodeStatus(projectId: string): Promise<ProjectStatus> {
+function getCodeStatus(projectId: string): Promise<ProjectStatus> {
   return unwrap(
     client.GET('/api/projects/{id}/code/status', { params: { path: { id: projectId } } }),
   )
 }
 
 /** The projects whose index this one reads, by slug. */
-export function listCodeLinks(projectId: string): Promise<ProjectLink[]> {
+function listCodeLinks(projectId: string): Promise<ProjectLink[]> {
   return unwrap(
     client.GET('/api/projects/{id}/code/links', { params: { path: { id: projectId } } }),
   )
@@ -87,7 +86,7 @@ export function removeCodeLink(
 }
 
 /** The code index's settings: how many projects are active at once. */
-export function getCodeSettings(): Promise<CodeSettings> {
+function getCodeSettings(): Promise<CodeSettings> {
   return unwrap(client.GET('/api/code/settings'))
 }
 

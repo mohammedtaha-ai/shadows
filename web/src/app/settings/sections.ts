@@ -2,7 +2,7 @@ import { type DesktopSectionId, visibleDesktopSettingsSections } from '@/app/des
 
 export type SectionId = 'account' | 'general' | 'providers' | 'agents' | 'plugins' | 'usage' | DesktopSectionId
 
-export const SECTIONS: { id: SectionId; label: string; group: 'You' | 'AI' }[] = [
+const SECTIONS: { id: SectionId; label: string; group: 'You' | 'AI' }[] = [
   { id: 'account', label: 'Account', group: 'You' },
   { id: 'general', label: 'General', group: 'You' },
   { id: 'providers', label: 'Providers', group: 'AI' },

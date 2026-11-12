@@ -1,6 +1,6 @@
 import {nativeCall as invoke} from './native';
 
-export type Step = { at: string; tool: string; target: string; summary: string };
+type Step = { at: string; tool: string; target: string; summary: string };
 export type Session = {
   id: string; agent: 'claude_code'; project: string; state: 'running' | 'waiting' | 'ended';
   startedAt: string; updatedAt: string; lastStep: Step | null; lastMessage: string | null;

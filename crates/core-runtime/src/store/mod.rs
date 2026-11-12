@@ -107,16 +107,6 @@ impl RuntimeStore<'_> {
 
 impl RuntimeStore<'_> {
     fn event(kind: &str, payload: serde_json::Value) -> JournalEntry {
-        JournalEntry {
-            event_id: uuid::Uuid::new_v4().to_string(),
-            kind: kind.into(),
-            actor: Actor::system(),
-            causation: None,
-            correlation_id: None,
-            project_id: None,
-            thread_id: None,
-            operation_id: None,
-            payload_json: payload.to_string(),
-        }
+        JournalEntry::new(kind, Actor::system()).with_payload(payload)
     }
 }

@@ -3,7 +3,7 @@
 
 import { Activity, type LucideIcon, Play, RefreshCw, Timer, Wrench } from 'lucide-react'
 
-export interface Shown {
+interface Shown {
   readonly icon: LucideIcon
   readonly text: string
 }

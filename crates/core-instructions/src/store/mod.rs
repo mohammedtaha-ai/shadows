@@ -47,13 +47,16 @@ impl InstructionsStore {
                         return load_version(conn, &id).await;
                     }
                     Projects::require_live_in(conn, &project).await?;
-                    let number: i64 = sqlx::query_scalar(
-                        "SELECT COALESCE(MAX(number), 0) + 1 FROM planner_instructions_version
+                    let last: i64 = sqlx::query_scalar(
+                        "SELECT COALESCE(MAX(number), 0) FROM planner_instructions_version
                           WHERE project_id = ?",
                     )
                     .bind(project.as_str())
                     .fetch_one(&mut *conn)
                     .await?;
+                    let number = last.checked_add(1).ok_or_else(|| {
+                        StorageError::Unavailable("instructions version exhausted".into())
+                    })?;
                     let id = uuid::Uuid::new_v4().to_string();
                     sqlx::query(
                         "INSERT INTO planner_instructions_version
@@ -67,17 +70,12 @@ impl InstructionsStore {
                     .bind(&ts)
                     .execute(&mut *conn)
                     .await?;
-                    let event = JournalEntry {
-                        event_id: uuid::Uuid::new_v4().to_string(),
-                        kind: "PlannerInstructionsSaved".into(),
-                        project_id: Some(project.as_str().to_owned()),
-                        thread_id: None,
-                        operation_id: None,
-                        actor: Actor::user(&ctx.principal_id),
-                        causation: None,
-                        correlation_id: None,
-                        payload_json: serde_json::json!({ "number": number }).to_string(),
-                    };
+                    let event = JournalEntry::new(
+                        "PlannerInstructionsSaved",
+                        Actor::user(&ctx.principal_id),
+                    )
+                    .with_project(project.as_str())
+                    .with_payload(serde_json::json!({ "number": number }));
                     JournalEntry::append_event(conn, event, &ts).await?;
                     let (scope, key) = ("Project", project.as_str());
                     CommandContext::record_command(

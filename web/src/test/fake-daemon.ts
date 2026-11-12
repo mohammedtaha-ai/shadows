@@ -55,7 +55,7 @@ async function saveFakeProvider(request: Request): Promise<Response> {
 /** Codex as Core lists it when configured: `read-only` is its only mode. */
 export const codexConfigured: HarnessInfo = { ...codexHarness, available: true, reason: null }
 
-export interface Overrides {
+interface Overrides {
   /** `GET /api/harnesses`; Claude Code and an unconfigured Codex by default. */
   harnesses?: HarnessInfo[]
   usage?: Answer

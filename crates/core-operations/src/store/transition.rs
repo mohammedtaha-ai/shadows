@@ -130,16 +130,10 @@ impl Transition {
         actor: Actor,
         payload: Option<serde_json::Value>,
     ) -> JournalEntry {
-        JournalEntry {
-            event_id: uuid::Uuid::new_v4().to_string(),
-            kind: kind.into(),
-            actor,
-            causation: None,
-            correlation_id: None,
-            project_id: None,
-            thread_id: None,
-            operation_id: None,
-            payload_json: payload.map_or_else(|| "{}".into(), |p| p.to_string()),
+        let event = JournalEntry::new(kind, actor);
+        match payload {
+            Some(payload) => event.with_payload(payload),
+            None => event,
         }
     }
 }

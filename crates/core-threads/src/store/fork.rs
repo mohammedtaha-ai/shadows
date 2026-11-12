@@ -85,23 +85,15 @@ impl crate::Threads {
         .await?;
         JournalEntry::append_event(
             conn,
-            core_db::JournalEntry {
-                event_id: uuid::Uuid::new_v4().to_string(),
-                kind: "PlanningThreadCreated".into(),
-                actor: Actor::user(&ctx.principal_id),
-                causation: None,
-                correlation_id: None,
-                project_id: Some(original.project_id.as_str().to_owned()),
-                thread_id: Some(id.as_str().to_owned()),
-                operation_id: None,
-                payload_json: serde_json::json!({
+            core_db::JournalEntry::new("PlanningThreadCreated", Actor::user(&ctx.principal_id))
+                .with_project(original.project_id.as_str())
+                .with_thread(id.as_str())
+                .with_payload(serde_json::json!({
                     "title": title,
                     "harness": original.harness,
                     "forked_from_thread": source.as_str(),
                     "forked_from_entry": at.as_str(),
-                })
-                .to_string(),
-            },
+                })),
             ts,
         )
         .await?;
@@ -211,20 +203,15 @@ async fn copy_entries(
         }
         JournalEntry::append_event(
             conn,
-            core_db::JournalEntry {
-                event_id: uuid::Uuid::new_v4().to_string(),
-                kind: "ThreadEntryAppended".into(),
-                actor: Actor {
+            core_db::JournalEntry::new(
+                "ThreadEntryAppended",
+                Actor {
                     kind: author_kind,
                     id: author_id,
                 },
-                causation: None,
-                correlation_id: None,
-                project_id: None,
-                thread_id: Some(fork.as_str().to_owned()),
-                operation_id: None,
-                payload_json: payload.to_string(),
-            },
+            )
+            .with_thread(fork.as_str())
+            .with_payload(payload),
             ts,
         )
         .await?;

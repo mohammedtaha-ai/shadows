@@ -8,7 +8,7 @@ export function duration(ms: number): string {
 }
 
 /** `43119` → `43k`, `950` → `950`. */
-export function tokens(n: number): string {
+function tokens(n: number): string {
   return n < 1000 ? `${n}` : `${Math.round(n / 1000)}k`
 }
 

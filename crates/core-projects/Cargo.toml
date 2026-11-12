@@ -14,7 +14,6 @@ workspace = true
 [dependencies]
 core-db = { path = "../core-db" }
 dunce = { workspace = true }
-futures-core = { workspace = true }
 shadows-agent = { path = "../shadows-agent" }
 tracing = { workspace = true }
 serde = { workspace = true }

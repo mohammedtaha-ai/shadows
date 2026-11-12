@@ -9,7 +9,7 @@ import { groupKeys } from '@/api/groups'
 import type { DurableEvent } from './frames'
 import { subscribeProjectStream, subscribeThreadStream, type StreamSubscriber } from './thread-registry'
 
-export type RefreshTarget =
+type RefreshTarget =
   | { kind: 'workflows' | 'projects' | 'thread-lists' | 'permissions' | 'groups' }
   | { kind: 'design' | 'agreements' | 'agreement-versions' | 'project-workflows'; projectId: string }
   | { kind: 'entries' | 'operations'; threadId: string }
