@@ -897,7 +897,7 @@ async fn live_a_codex_turn_sees_an_image() {
     let choices = w.core.harness().open_session(&w.thread).await.unwrap();
     assert!(choices.capabilities.image);
     let current = choices.current;
-    let red = include_bytes!("../../shadows/tests/fixtures/red.png").to_vec();
+    let red = include_bytes!("fixtures/red-64.png").to_vec();
     let image = w
         .core
         .threads()

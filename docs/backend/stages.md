@@ -716,7 +716,7 @@ its image button from the session's `capabilities.image`, so no web change.
 
 ### B-137 · A Codex conversation takes images
 
-- Status: done (live test written, not run: no dedicated Codex home configured).
+- Status: done. Live, 2026-11-12, real signed-in Codex (dedicated home `%LOCALAPPDATA%/Shadows/codex-home`): `live_a_codex_turn_sees_an_image` 1 passed (14.5 s). A 1x1 PNG reached Codex but read as "White", so the live test sends a 64x64 red fixture (`crates/shadows-core/tests/fixtures/red-64.png`). Browser check pending.
 - Owner: `shadows-agent`'s Codex connection (`crates/shadows-agent/src/codex/prompt.rs`): `prompt_capabilities` reports `image: true` with no reason, and `input` maps `PromptBlock::Image { media_type, bytes }` to `{"type":"image","url":"data:<media_type>;base64,<bytes>"}`, for both `prompt_blocks` and `steer_blocks`. The capability is the connection's, not the model's: a model that refuses images answers with its own provider error, which already reaches the person (simple boundary, 2026-11-08).
 - Read: `crates/core-harness/contract.yaml` (`require_images`, `image_input`); `crates/shadows-agent/src/acp/prompt.rs` (how the ACP side maps an image); `crates/shadows-core/tests/codex_session.rs` (`codex_choices_follow_the_model_catalog`, `live_a_codex_planner_reads_a_file_and_writes_none`).
 - Touch: `crates/shadows-agent/src/codex/prompt.rs`; `crates/shadows-agent/contract.yaml` (only if it names the Codex image refusal); `crates/core-harness/contract.yaml` (the `image_input` lines, if they name Codex); `crates/shadows-core/tests/codex_session.rs`; `docs/backend/stages.md` (this entry). If `fake-codex` refuses an image turn in a test that is not live, stop and name it; no new fake-codex behaviour.
