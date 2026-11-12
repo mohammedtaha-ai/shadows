@@ -146,3 +146,14 @@ These tasks are blocked until their named backend API exists; no component imple
 - Needs: B-118, F-104; accepted shared API/model agreement. Backend must expose its generated API before this task starts.
 - Done when: all named RED/GREEN steps and focused verification commands in Task 7 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
 
+
+## Conversation images, 2026-11-12
+
+### F-114 · Image tiles with a corner ✕ in the composer, and a viewer for every conversation image
+
+- Status: todo (start after the frontend-fixer's `crossOrigin="anonymous"` image fix is committed)
+- Plan: [plans/2026-11-12-conversation-images.md](plans/2026-11-12-conversation-images.md)
+- Read: the plan; `web/src/app/conversation/contract.yaml` (`image_attachments`); `web/src/components/ui/dialog.tsx`; code-map rows for `pending-images.tsx`, `entry.tsx`, `waiting-messages.tsx`.
+- Touch: `web/src/app/conversation/image-zoom.tsx` (new), `web/src/app/conversation/image-zoom.test.tsx` (new), `web/src/app/conversation/pending-images.tsx`, `web/src/app/conversation/entry.tsx`, `web/src/app/conversation/waiting-messages.tsx`, `web/src/app/conversation/composer-images.test.tsx`, `web/src/app/conversation/waiting-messages.test.tsx`, `web/src/app/conversation/contract.yaml`, `docs/frontend/codebase/README.md`, `docs/frontend/stages.md` (this status only).
+- Needs: none (no API change); the crossOrigin fix commit first.
+- Done when: from `web/`, `npx vitest run src/app/conversation/image-zoom.test.tsx src/app/conversation/composer-images.test.tsx src/app/conversation/waiting-messages.test.tsx` passes with the test names in the plan's Tests section, and `npm run typecheck`, `npm run lint`, `npm run build`, `npx vitest run src/codemap.test.ts src/architecture` pass.
