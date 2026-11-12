@@ -75,6 +75,12 @@ impl RunsStore {
         Self { storage }
     }
 
+    /// Changes after each commit that appended to the journal, a turn's
+    /// ending among them.
+    pub fn committed(&self) -> tokio::sync::watch::Receiver<i64> {
+        self.storage.watch_committed()
+    }
+
     /// The replay check, the busy check, the overlap check and the insert are
     /// one write, so two concurrent Starts cannot both pass.
     pub async fn begin_attempt(&self, new: NewAttempt) -> Result<Begun, RunsError> {

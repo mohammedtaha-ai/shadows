@@ -7,8 +7,9 @@ use crate::model::{AttemptId, AttemptState};
 use core_operations::OperationId;
 use core_threads::ThreadId;
 
-/// How often the turn's operation is looked at while it runs.
-const POLL: Duration = Duration::from_millis(25);
+/// The longest the turn's operation goes unread while it runs. A commit wakes
+/// the watcher sooner; this bound covers a signal it did not see.
+const RECHECK: Duration = Duration::from_secs(1);
 
 impl Runs {
     /// Follows the turn in the background until it ends.
@@ -19,6 +20,9 @@ impl Runs {
 
     async fn observe(&self, attempt: AttemptId, thread: ThreadId, operation: OperationId) {
         let mut warned = false;
+        // Taken before the first read: an ending committed between a read and
+        // the wait is already a pending change.
+        let mut committed = self.inner.store.committed();
         let ended = loop {
             // A failed read proves nothing about the turn: the scope stays held
             // and the turn is looked at again.
@@ -28,7 +32,7 @@ impl Runs {
                     if !std::mem::replace(&mut warned, true) {
                         tracing::warn!(%attempt, %error, "runs.watch_read_failed");
                     }
-                    tokio::time::sleep(POLL).await;
+                    tokio::time::sleep(RECHECK).await;
                     continue;
                 }
             };
@@ -37,7 +41,12 @@ impl Runs {
                 .find(|op| op.id.as_str() == operation.as_str())
             {
                 Some(op) if op.finished_at.is_some() => break op,
-                _ => tokio::time::sleep(POLL).await,
+                _ => {
+                    // A closed signal answers at once: wait the bound instead.
+                    if let Ok(Err(_)) = tokio::time::timeout(RECHECK, committed.changed()).await {
+                        tokio::time::sleep(RECHECK).await;
+                    }
+                }
             }
         };
         // A stopped turn is Stop's to record; a daemon stop leaves the attempt

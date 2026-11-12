@@ -3,22 +3,12 @@
 use crate::model::{Need, StartAnswer};
 use crate::store::NewAttempt;
 use crate::{Runs, RunsError};
-use core_plans::{LinkKind, Plan, TaskParent, WorkflowId};
+use core_plans::{LinkKind, Plan, TaskParent};
 
 impl Runs {
     /// Whether Start may run now, by the same checks in the same order as
     /// Start, without writing. A refusal is an answer; a failure to read is
     /// an error.
-    pub async fn can_start(
-        &self,
-        workflow: &WorkflowId,
-        version: i64,
-        task: u32,
-    ) -> Result<StartAnswer, RunsError> {
-        let plan = self.plan(workflow, version).await?;
-        self.start_answer(&plan, task).await
-    }
-
     pub(crate) async fn start_answer(
         &self,
         plan: &Plan,
