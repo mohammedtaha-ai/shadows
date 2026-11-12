@@ -317,3 +317,37 @@ mod aylul_profiles_tests;
 
 #[cfg(test)]
 mod adapter_agreements_tests;
+
+/// Temporary measurement: the smallest thread stack `routes()` builds on.
+#[cfg(test)]
+mod stack_probe {
+    const SIZE: &str = "SHADOWS_STACK_PROBE_KB";
+
+    #[test]
+    fn routes_stack_probe() {
+        if let Ok(kb) = std::env::var(SIZE) {
+            let kb: usize = kb.parse().expect("a size in KiB");
+            std::thread::Builder::new()
+                .stack_size(kb * 1024)
+                .spawn(|| drop(super::routes().split_for_parts()))
+                .expect("the probe thread starts")
+                .join()
+                .expect("the probe thread ends");
+            return;
+        }
+        let exe = std::env::current_exe().expect("the test binary's path");
+        let mut table = String::new();
+        for kb in [64, 128, 192, 256, 384, 512, 640, 768, 896, 1024, 2048] {
+            let status = std::process::Command::new(&exe)
+                .args(["--exact", "stack_probe::routes_stack_probe"])
+                .env(SIZE, kb.to_string())
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
+                .status()
+                .expect("the probe child runs");
+            let result = if status.success() { "ok" } else { "OVERFLOW" };
+            table.push_str(&format!("\nSTACK_PROBE {kb} KiB: {result}"));
+        }
+        panic!("measurement only, never a kept test:{table}");
+    }
+}
