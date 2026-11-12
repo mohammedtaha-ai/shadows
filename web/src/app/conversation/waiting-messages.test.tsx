@@ -103,7 +103,7 @@ it.each(['INVALID_COMMAND', 'COMMAND_CONFLICT'] as const)('Send now preserves qu
   await until(() => a.button('Send now') !== undefined)
   act(() => a.button('Send now')!.click())
   await until(() => a.text().includes('Core refused Send now') && a.button('Send now')?.disabled === false)
-  expect(a.container.querySelectorAll('img[alt="Queued image"]')).toHaveLength(2)
+  expect(a.container.querySelectorAll('img[alt="Queued image"][crossorigin="anonymous"]')).toHaveLength(2)
   act(() => a.button('Send now')!.click())
   await until(() => requests.length === 2)
   if (code === 'COMMAND_CONFLICT') expect(requests[1]?.command_id).not.toBe(requests[0]?.command_id)

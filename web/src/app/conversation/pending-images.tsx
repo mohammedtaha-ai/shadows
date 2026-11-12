@@ -39,5 +39,6 @@ function ImagePreview({ image, threadId }: { image: PendingImage; threadId: stri
     node.src = local
     return () => URL.revokeObjectURL(local)
   }, [file, saved, threadId])
-  return <img ref={preview} alt={file.name} className="size-24 rounded object-cover" />
+  // A saved image lives on the daemon, another origin: only a CORS request carries the Origin its guard needs.
+  return <img ref={preview} crossOrigin="anonymous" alt={file.name} className="size-24 rounded object-cover" />
 }

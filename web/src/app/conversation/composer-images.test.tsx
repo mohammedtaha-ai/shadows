@@ -183,6 +183,9 @@ it('a refused send keeps text and images and replays the same ordered command', 
   await until(() => app.text().includes('Core refuses images for this model'))
   expect(textarea(app).value).toBe('Keep both')
   expect(app.button('Remove screen.png')).toBeDefined()
+  const saved = app.container.querySelector<HTMLImageElement>('[aria-label="Images"] img')!
+  expect(saved.getAttribute('src')).toContain('/api/threads/t1/attachments/')
+  expect(saved.getAttribute('crossorigin')).toBe('anonymous')
   act(() => app.button('Send')!.click())
   await until(() => requests.length === 2)
   expect(requests[1]).toEqual(requests[0])
@@ -235,6 +238,7 @@ it('the transcript renders ordered message images from the thread byte route', a
     expect.stringContaining('/api/threads/t1/attachments/first%20image'),
     expect.stringContaining('/api/threads/t1/attachments/second'),
   ])
+  expect(images.map(image => image.getAttribute('crossorigin'))).toEqual(['anonymous', 'anonymous'])
 })
 
 it('queue preserves ordered image ids and Send now uses the saved queued images', async () => {
@@ -256,7 +260,7 @@ it('queue preserves ordered image ids and Send now uses the saved queued images'
   act(() => textarea(app).dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })))
   await until(() => app.button('Send now') !== undefined)
   expect(queued).toMatchObject({ prompt: '', attachments: ['first.png', 'second.png'] })
-  expect(app.container.querySelectorAll('img[alt="Queued image"]')).toHaveLength(2)
+  expect(app.container.querySelectorAll('img[alt="Queued image"][crossorigin="anonymous"]')).toHaveLength(2)
   act(() => app.button('Send now')!.click())
   await until(() => app.calls.includes('POST /api/threads/t1/queue/q1/send-now'))
   expect(app.bodies.at(-1)).toMatchObject({ command_id: expect.any(String) })

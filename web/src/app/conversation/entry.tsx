@@ -79,6 +79,7 @@ export function Entry({
               >
                 <img
                   src={attachmentUrl(entry.thread_id, image.id)}
+                  crossOrigin="anonymous"
                   alt={image.name ?? 'Attached image'}
                   loading="lazy"
                   className="max-h-48 max-w-64 rounded-lg border border-accent-line/25 object-contain"

@@ -65,7 +65,7 @@ export function WaitingMessages({ threadId, running }: { threadId: string; runni
             key={m.id}
             className="ml-auto max-w-[80%] rounded-xl border border-border/60 bg-muted/40 px-3 py-2 opacity-70"
           >
-            {(m.attachments ?? []).map(id => <img key={id} src={attachmentUrl(threadId, id)} alt="Queued image" className="size-24 rounded object-cover" />)}
+            {(m.attachments ?? []).map(id => <img key={id} src={attachmentUrl(threadId, id)} crossOrigin="anonymous" alt="Queued image" className="size-24 rounded object-cover" />)}
             <p dir="auto" className="whitespace-pre-wrap text-sm text-foreground">
               {m.prompt}
             </p>
