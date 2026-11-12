@@ -1,6 +1,6 @@
 //! Code service MCP translation.
 use super::{
-    refusal::{Refusal, text},
+    refusal::{Refusal, answer, text},
     server::Shadows,
 };
 use rmcp::{
@@ -10,7 +10,7 @@ use rmcp::{
 };
 use serde::Deserialize;
 use shadows_core::Grant;
-use shadows_core::{Answer, Asker, IndexState};
+use shadows_core::{Answer, Asker, IndexState, InventoryQuery};
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 struct NameArgs {
@@ -29,6 +29,19 @@ struct OutlineArgs {
     /// As for where_is.
     #[serde(default)]
     project: Option<String>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+struct FilesArgs {
+    /// A folder relative to the project's folder. Leave it out for the whole project.
+    #[serde(default)]
+    prefix: Option<String>,
+    /// The `next` value of the page before this one.
+    #[serde(default)]
+    after: Option<String>,
+    /// How many entries, 1 to 200. Leave it out for 100.
+    #[serde(default)]
+    limit: Option<u16>,
 }
 
 #[tool_router(router = code_tool_router, vis = "pub(super)")]
@@ -79,6 +92,47 @@ impl Shadows {
             .code()
             .outline(Asker::Grant(&grant.project_id), only, &args.path);
         text(asked.await.map(|a| lines(&a, false)).map_err(Refusal::from))
+    }
+
+    #[tool(
+        description = "The files the project's folder really holds, page by page: files, \
+                       folders, and what is left out with its reason (dependencies, ignored, \
+                       secret, link). Give prefix for one folder, and after with a page's next \
+                       for the page that follows. INVENTORY_STALE means the folder changed: \
+                       start again without after. A page's state: ready is a complete \
+                       listing; incomplete means some entries could not be read; missing \
+                       means the project has no folder or it is not there; indexing means \
+                       the listing is not complete yet: ask again, never conclude the folder \
+                       is empty."
+    )]
+    async fn project_files(
+        &self,
+        Extension(grant): Extension<Grant>,
+        Parameters(args): Parameters<FilesArgs>,
+    ) -> CallToolResult {
+        let default = InventoryQuery::default();
+        let query = InventoryQuery {
+            prefix: args.prefix.unwrap_or(default.prefix),
+            after: args.after,
+            limit: args.limit.unwrap_or(default.limit),
+        };
+        let asked = self
+            .core
+            .code()
+            .inventory(Asker::Grant(&grant.project_id), query);
+        answer(asked.await.map_err(Refusal::from))
+    }
+
+    #[tool(
+        description = "Read the project's folder again now, and answer the first page of \
+                       its files. Use it when files were added or removed."
+    )]
+    async fn project_refresh(&self, Extension(grant): Extension<Grant>) -> CallToolResult {
+        let asked = self
+            .core
+            .code()
+            .refresh_inventory(Asker::Grant(&grant.project_id));
+        answer(asked.await.map_err(Refusal::from))
     }
 }
 

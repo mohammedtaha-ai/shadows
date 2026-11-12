@@ -6,9 +6,10 @@
 //! `model` holds the types, `store` the queries, `scan` the walk and the
 //! indexing of one file, `scope` who may read what, `watch` one active
 //! project's worker, `active` which projects have one, `links` the links
-//! and the active limit as commands.
+//! and the active limit as commands, `inventory` the paged file list.
 
 mod active;
+mod inventory;
 mod links;
 mod model;
 mod scan;
@@ -21,7 +22,8 @@ use std::sync::Arc;
 use std::time::Duration;
 
 pub use model::{
-    Answer, CodeConfig, CodeSettings, Hit, IndexState, ProjectLink, ProjectStatus, Skipped,
+    Answer, CodeConfig, CodeSettings, Hit, IndexState, InventoryEntry, InventoryKind,
+    InventoryPage, InventoryQuery, InventoryState, ProjectLink, ProjectStatus, Skipped,
 };
 pub use scope::Asker;
 
@@ -211,12 +213,8 @@ impl Code {
         self.status_of(&(p.id, p.slug, p.directory)).await
     }
 
-    /// Scans `project` once, now, on the caller's task. Tests call it; a
-    /// worker calls `scan_project` itself.
-    #[cfg_attr(
-        not(feature = "test-support"),
-        expect(dead_code, reason = "only tests scan outside a worker")
-    )]
+    /// Scans `project` once, now, on the caller's task: tests, and a refresh
+    /// with no worker. A worker calls `scan_project` itself.
     pub(crate) async fn scan(&self, project: &ProjectId) -> Result<(), CodeError> {
         self.scan_project(project, &scan::Progress::default())
             .await

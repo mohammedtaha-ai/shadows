@@ -49,6 +49,8 @@ pub enum ErrorCode {
     IdempotencyKeyRequired,
     InvalidCommand,
     InvalidCursor,
+    /// The file list changed since the cursor's page; 409.
+    InventoryStale,
     AgentAuthFailed,
     AgentUnsupportedProfile,
     PathInvalid,
@@ -71,6 +73,8 @@ pub enum ErrorCode {
     ThreadBusy,
     /// The waiting message was already sent or removed; 404.
     QueuedMessageGone,
+    /// An executor's notice is not removed from the queue; 409.
+    QueuedNoticeKept,
     /// Fork from anything but the last completed entry.
     ForkPointNotSupported,
     /// A change to a frozen plan version; 409.
@@ -368,6 +372,10 @@ impl From<core_code::CodeError> for CoreError {
                 code: ErrorCode::GrantScope,
                 message,
             },
+            CodeError::InventoryStale => Self::Refused {
+                code: ErrorCode::InventoryStale,
+                message: error.to_string(),
+            },
             CodeError::Projects(error) => error.into(),
             CodeError::Storage(error) => Self::Storage(error),
         }
@@ -588,6 +596,10 @@ impl From<core_turns::TurnsError> for CoreError {
             },
             TurnsError::QueuedMessageGone => Self::Refused {
                 code: ErrorCode::QueuedMessageGone,
+                message,
+            },
+            TurnsError::QueuedNoticeKept => Self::Refused {
+                code: ErrorCode::QueuedNoticeKept,
                 message,
             },
             TurnsError::RuntimeStopping => Self::RuntimeStopping,

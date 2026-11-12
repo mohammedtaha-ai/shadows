@@ -154,6 +154,8 @@ frame_readers:
   parseSubagent: "(data: string) -> SubagentFrame"
   readSubagentCard:
     "(value: unknown) -> SubagentCard | null; null when value is not a card, no throw"
+  readAttemptNotice:
+    "(value: unknown) -> AttemptNotice | null; null unless task and attempt are numbers, title and model strings and outcome is committed or failed; commit, report and reason read as string or null; last_addition true only when true; no throw"
   parseTool: "(data: string) -> ToolFrame"
   parseTodos: "(data: string) -> TodosFrame"
   readToolCard:
@@ -687,7 +689,7 @@ design_cache_identity: "Project design refresh uses api/design.designKeys shared
 
 thread_query_identity: "Thread snapshot refresh uses API-owned identities shared with feature reads"
 
-feature_entry: "index.ts exposes SlashCommand, tabId, LimitWindow, Limits, PlanShowFrame, SubagentCard, toLimits, Connection, readSubagentCard, ToolFrame, TodosFrame, TodoItem, readToolCard, readTodoList, DurableEvent, UsageFrame, useThreadStream, useProjectEvents, usePlanEvents."
+feature_entry: "index.ts exposes SlashCommand, tabId, LimitWindow, Limits, PlanShowFrame, SubagentCard, toLimits, Connection, readSubagentCard, readAttemptNotice, ToolFrame, TodosFrame, TodoItem, readToolCard, readTodoList, DurableEvent, UsageFrame, useThreadStream, useProjectEvents, usePlanEvents."
 
 refresh_policy:
   classifier: "refresh.ts classifyRefresh is pure: an event with delivery identifiers becomes refresh targets."

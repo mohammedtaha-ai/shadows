@@ -134,6 +134,9 @@ pub struct AcceptanceItem {
     utoipa::ToSchema,
     schemars::JsonSchema,
 )]
+// A misspelt key is refused, never dropped: a dropped `contract` would
+// leave the task with none.
+#[serde(deny_unknown_fields)]
 pub struct TaskContent {
     pub number: u32,
     pub title: String,
@@ -145,6 +148,8 @@ pub struct TaskContent {
     pub acceptance: Vec<AcceptanceItem>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub phases: Vec<crate::Phase>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub contract: Option<crate::TaskContract>,
 }
 
 /// `task` waits for `after`.

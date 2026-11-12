@@ -20,9 +20,11 @@ import type { SubagentCard, TodoItem, ToolFrame } from '@/stream'
 import { TodoCard } from './todo-card'
 import { type Row, activityRows, liveSteps, withLiveSteps } from './activity-rows'
 import { ToolGroup } from './tool-group'
+import { type Block, turnBlocks } from './turn-blocks'
+import { TurnBox } from './turn-box'
 import type { Cut, ShownReply } from './reply'
 import { SubagentCardView } from './subagent-card'
-import { copyText, silent, subagentOf } from './tool-text'
+import { copyText, noticeOf, silent, subagentOf } from './tool-text'
 import { labelOf } from './turn-settings'
 
 const NO_ENTRIES: readonly ThreadEntry[] = []
@@ -151,6 +153,44 @@ export function Messages({
   const invocationOf = (entry: ThreadEntry) =>
     entry.operation_id == null ? undefined : operationsById.get(entry.operation_id)?.invocation
 
+  // A Planner turn's notice, tools and in-between text fold into one box; AYLUL's do not.
+  const runningOp = running ? (turnOp ?? shown.at(-1)?.operation_id ?? null) : null
+  const blocks = useMemo<Block[]>(
+    () => harness === AYLUL_HARNESS
+      ? rows.map((row) => ({ kind: 'row', row }))
+      : turnBlocks(rows, runningOp, entries ?? NO_ENTRIES),
+    [rows, runningOp, entries, harness],
+  )
+  const drawRow = (row: Row) => row.kind === 'text' ? (
+    <motion.li key={row.key} {...appear}>
+      <ReplyText text={row.text} />
+    </motion.li>
+  ) : row.kind === 'tools' ? (
+    <ToolRow
+      key={row.key}
+      row={row}
+      answered={answered.get(row.steps.at(-1)?.key ?? row.key)}
+      {...forkProps(row, forkFrom, forkAt)}
+    />
+  ) : (
+    <EntryRow
+      key={row.entry.id}
+      entry={row.entry}
+      handedOver={handedOver.has(row.entry.ordinal)}
+      policy={policy}
+      requestedMode={invocationOf(row.entry)?.requested_mode ?? null}
+      planningContext={harness === AYLUL_HARNESS ? null : invocationOf(row.entry)?.planning_context ?? null}
+      projectId={projectId}
+      onPointAt={onPointAt}
+      onOpenSubagent={onOpenSubagent}
+      onOpenContext={onOpenContext}
+      answered={answered.get(row.entry.id)}
+      {...(forkFrom !== null && forkAt !== null && row.entry.id === forkAt.shownId
+        ? { forkProjectId: forkFrom.projectId, forkThreadId: forkFrom.threadId, forkEntryId: forkAt.entryId }
+        : {})}
+    />
+  )
+
   return (
     <div
       ref={scroller}
@@ -180,35 +220,13 @@ export function Messages({
           </li>
         )}
         <AnimatePresence initial={false}>
-          {rows.map((row) => row.kind === 'text' ? (
-            <motion.li key={row.key} {...appear}>
-              <ReplyText text={row.text} />
+          {blocks.map((block) => block.kind === 'turn' ? (
+            <motion.li key={block.key} {...appear} data-entry-kind="turn">
+              <TurnBox summary={block.summary} live={block.live} ordinals={block.ordinals}>
+                {block.inside.map(drawRow)}
+              </TurnBox>
             </motion.li>
-          ) : row.kind === 'tools' ? (
-            <ToolRow
-              key={row.key}
-              row={row}
-              answered={answered.get(row.steps.at(-1)?.key ?? row.key)}
-              {...forkProps(row, forkFrom, forkAt)}
-            />
-          ) : (
-            <EntryRow
-              key={row.entry.id}
-              entry={row.entry}
-              handedOver={handedOver.has(row.entry.ordinal)}
-              policy={policy}
-              requestedMode={invocationOf(row.entry)?.requested_mode ?? null}
-              planningContext={harness === AYLUL_HARNESS ? null : invocationOf(row.entry)?.planning_context ?? null}
-              projectId={projectId}
-              onPointAt={onPointAt}
-              onOpenSubagent={onOpenSubagent}
-              onOpenContext={onOpenContext}
-              answered={answered.get(row.entry.id)}
-              {...(forkFrom !== null && forkAt !== null && row.entry.id === forkAt.shownId
-                ? { forkProjectId: forkFrom.projectId, forkThreadId: forkFrom.threadId, forkEntryId: forkAt.entryId }
-                : {})}
-            />
-          ))}
+          ) : drawRow(block.row))}
           {reply !== null && reply.tail !== '' && (
             <motion.li key="reply" {...appear}>
               <ReplyText text={reply.tail} live={reply.live} />
@@ -325,6 +343,7 @@ const EntryRow = memo(function EntryRow({
       ? undefined
       : { projectId: forkProjectId, threadId: forkThreadId, entryId: forkEntryId }
   const operationId = entry.operation_id
+  const fromPerson = entry.kind === 'UserMessage' && noticeOf(entry) === null
   return (
     <motion.li
       id={`entry-${entry.ordinal}`}
@@ -342,8 +361,8 @@ const EntryRow = memo(function EntryRow({
         onOpenSubagent={onOpenSubagent}
       />
       {answered !== undefined && <p className="text-xs text-faint-foreground">{answered}</p>}
-      <div className={cn(entry.kind === 'UserMessage' && 'flex flex-wrap items-center justify-end gap-2')}>
-        {entry.kind === 'UserMessage' && planningContext !== null && operationId != null &&
+      <div className={cn(fromPerson && 'flex flex-wrap items-center justify-end gap-2')}>
+        {fromPerson && planningContext !== null && operationId != null &&
           <ContextMark state={planningContext} onOpen={() => onOpenContext(operationId)} />}
         <MessageActions text={copyText(entry)} forkPoint={forkPoint} />
       </div>

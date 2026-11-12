@@ -42,7 +42,6 @@ use shadows_agent::policy;
 use tokio::sync::broadcast;
 
 pub use assistant::AylulConfig;
-pub use executor::EXECUTOR_TOOLS;
 pub use model::{
     AylulUsageSnapshot, CarriedContext, ContextSource, Forget, HarnessInfo, HarnessMode,
     InvocationVersions, InvocationView, PlanningContextState, RememberedSettings,
@@ -195,6 +194,16 @@ impl Harness {
             });
         }
         Ok(list)
+    }
+
+    /// The model of the last turn started on harness `kind`, which that
+    /// harness offered then; None when no turn ran on it.
+    pub async fn remembered_model(&self, kind: &str) -> Result<Option<String>, HarnessError> {
+        Ok(self
+            .store
+            .remembered_settings(kind)
+            .await?
+            .map(|(model, _)| model))
     }
 
     /// Opens the thread's harness session and answers what it

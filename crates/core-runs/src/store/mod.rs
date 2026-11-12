@@ -1,8 +1,9 @@
-//! Runs' private persistence: attempts and task marks.
+//! Runs' private persistence: attempts, task marks and lessons records.
 //!
 //! `RunsStore` is private to the crate, so its methods are `pub` only to
 //! the service; no other service's write calls into it, and nothing here is
 //! `pub(crate)` or declared under `shared_in_transaction`.
+mod lessons;
 mod marks;
 mod recover;
 
@@ -19,9 +20,6 @@ use core_plans::WorkflowId;
 use core_projects::ProjectId;
 use core_threads::ThreadId;
 
-/// The harness an executor thread runs on.
-const HARNESS: &str = "claude-code";
-
 type AttemptRow = (
     String,
     String,
@@ -36,6 +34,8 @@ type AttemptRow = (
     Option<String>,
     Option<String>,
     String,
+    Option<String>,
+    Option<String>,
     Option<String>,
 );
 
@@ -53,6 +53,15 @@ pub(crate) struct NewAttempt {
     pub(crate) task: u32,
     pub(crate) model: String,
     pub(crate) writes: Vec<String>,
+    /// The commit HEAD named at Start; `None` on a branch with no commit.
+    pub(crate) start_head: Option<String>,
+}
+
+/// What an addition asks the store to record on the attempt it begins.
+pub(crate) struct Continued {
+    pub(crate) addition: String,
+    /// The commit HEAD named when the addition was sent.
+    pub(crate) start_head: Option<String>,
 }
 
 pub(crate) struct Begun {
@@ -86,7 +95,7 @@ impl RunsStore {
                         conn,
                         &new.project,
                         format!("T{}", new.task),
-                        HARNESS,
+                        crate::EXECUTOR_HARNESS,
                     )
                     .await?;
                     let number: i64 = sqlx::query_scalar(
@@ -102,8 +111,9 @@ impl RunsStore {
                     sqlx::query(
                         "INSERT INTO run_attempts
                            (id, project_id, workflow_id, version, task, number, thread_id,
-                            model, state, writes_json, started_at, command_id, fingerprint)
-                         VALUES (?,?,?,?,?,?,?,?,'running',?,?,?,?)",
+                            model, state, writes_json, started_at, command_id, fingerprint,
+                            start_head)
+                         VALUES (?,?,?,?,?,?,?,?,'running',?,?,?,?,?)",
                     )
                     .bind(id.as_str())
                     .bind(new.project.as_str())
@@ -117,6 +127,7 @@ impl RunsStore {
                     .bind(&ts)
                     .bind(&new.command_id)
                     .bind(&new.fingerprint)
+                    .bind(&new.start_head)
                     .execute(&mut *conn)
                     .await?;
                     let attempt = Self::load(conn, &id).await?;
@@ -217,7 +228,8 @@ impl RunsStore {
     async fn load(conn: &mut SqliteConnection, id: &AttemptId) -> Result<Attempt, RunsError> {
         let row: Option<AttemptRow> = sqlx::query_as(
             "SELECT id, project_id, workflow_id, version, task, number, thread_id,
-                    operation_id, model, state, commit_sha, reason, started_at, ended_at
+                    operation_id, model, state, commit_sha, reason, started_at, ended_at,
+                    report, addition
                  FROM run_attempts WHERE id = ?",
         )
         .bind(id.as_str())
@@ -249,6 +261,8 @@ impl RunsStore {
             reason: row.11,
             started_at: row.12,
             ended_at: row.13,
+            report: row.14,
+            addition: row.15,
         })
     }
 
@@ -333,26 +347,42 @@ impl RunsStore {
         Ok(serde_json::from_str(&writes)?)
     }
 
-    /// Records the commit git already holds. A `Running` attempt becomes
-    /// `Committed`; one that left `Running` meanwhile keeps its state and
-    /// still names its commit.
-    pub async fn record_commit(&self, id: &AttemptId, sha: &str) -> Result<(), RunsError> {
-        let (id, sha, ts) = (id.clone(), sha.to_string(), Storage::now());
+    /// The commit HEAD named when the attempt started.
+    pub async fn start_head(&self, id: &AttemptId) -> Result<Option<String>, RunsError> {
+        let head: Option<Option<String>> =
+            sqlx::query_scalar("SELECT start_head FROM run_attempts WHERE id = ?")
+                .bind(id.as_str())
+                .fetch_optional(self.storage.reader())
+                .await?;
+        head.ok_or(RunsError::NotFound)
+    }
+
+    /// Records the accepted commit and report: a `Running` attempt becomes
+    /// `Committed`. Answers whether this call moved it; one that left
+    /// `Running` meanwhile keeps its state.
+    pub async fn record_report(
+        &self,
+        id: &AttemptId,
+        sha: &str,
+        report: &str,
+    ) -> Result<bool, RunsError> {
+        let (id, sha, report) = (id.clone(), sha.to_string(), report.to_string());
+        let ts = Storage::now();
         self.storage
             .write_txn_as(move |conn| {
                 Box::pin(async move {
-                    sqlx::query(
-                        "UPDATE run_attempts SET commit_sha = ?,
-                           state = CASE WHEN state = 'running' THEN 'committed' ELSE state END,
-                           ended_at = COALESCE(ended_at, ?)
-                         WHERE id = ? AND commit_sha IS NULL",
+                    let moved = sqlx::query(
+                        "UPDATE run_attempts
+                         SET state = 'committed', commit_sha = ?, report = ?, ended_at = ?
+                         WHERE id = ? AND state = 'running'",
                     )
                     .bind(&sha)
+                    .bind(&report)
                     .bind(&ts)
                     .bind(id.as_str())
                     .execute(&mut *conn)
                     .await?;
-                    Ok(())
+                    Ok(moved.rows_affected() == 1)
                 })
             })
             .await
@@ -378,6 +408,111 @@ impl RunsStore {
             .await
     }
 
+    /// The task's latest attempt when it is committed and still holds its
+    /// scope: the one waiting for the Planner's judgment.
+    pub async fn awaiting(
+        &self,
+        workflow: &WorkflowId,
+        version: i64,
+        task: u32,
+    ) -> Result<Option<(AttemptId, ThreadId)>, RunsError> {
+        let row: Option<(String, String, String, Option<String>)> = sqlx::query_as(
+            "SELECT id, state, thread_id, released_at FROM run_attempts
+             WHERE workflow_id = ? AND version = ? AND task = ?
+             ORDER BY number DESC LIMIT 1",
+        )
+        .bind(workflow.as_str())
+        .bind(version)
+        .bind(i64::from(task))
+        .fetch_optional(self.storage.reader())
+        .await?;
+        Ok(match row {
+            Some((id, state, thread, None)) if state == AttemptState::Committed.as_str() => Some((
+                AttemptId::from_recorded(id),
+                ThreadId::from_recorded(thread),
+            )),
+            _ => None,
+        })
+    }
+
+    /// How many of the task's attempts, from the newest down, carry an
+    /// addition before the first that does not (the one a Start began).
+    pub async fn additions_since_start(
+        &self,
+        workflow: &WorkflowId,
+        version: i64,
+        task: u32,
+    ) -> Result<u32, RunsError> {
+        let additions: Vec<Option<String>> = sqlx::query_scalar(
+            "SELECT addition FROM run_attempts
+             WHERE workflow_id = ? AND version = ? AND task = ? ORDER BY number DESC",
+        )
+        .bind(workflow.as_str())
+        .bind(version)
+        .bind(i64::from(task))
+        .fetch_all(self.storage.reader())
+        .await?;
+        let count = additions.iter().take_while(|a| a.is_some()).count();
+        Ok(u32::try_from(count).unwrap_or(u32::MAX))
+    }
+
+    /// One write: `previous`, committed and still holding its scope, is
+    /// released into a new `Running` attempt on the same thread carrying the
+    /// addition. Any other `previous` is `NotAwaiting`.
+    pub async fn continue_attempt(
+        &self,
+        previous: &AttemptId,
+        next: Continued,
+    ) -> Result<Attempt, RunsError> {
+        let (previous, ts) = (previous.clone(), Storage::now());
+        self.storage
+            .write_txn_as(move |conn| {
+                Box::pin(async move {
+                    let row: Option<(i64, String, Option<String>)> = sqlx::query_as(
+                        "SELECT task, state, released_at FROM run_attempts WHERE id = ?",
+                    )
+                    .bind(previous.as_str())
+                    .fetch_optional(&mut *conn)
+                    .await?;
+                    let (task, state, released) = row.ok_or(RunsError::NotFound)?;
+                    if state != AttemptState::Committed.as_str() || released.is_some() {
+                        return Err(RunsError::NotAwaiting {
+                            task: u32::try_from(task).unwrap_or(0),
+                        });
+                    }
+                    sqlx::query("UPDATE run_attempts SET released_at = ? WHERE id = ?")
+                        .bind(&ts)
+                        .bind(previous.as_str())
+                        .execute(&mut *conn)
+                        .await?;
+                    let id = AttemptId::generate();
+                    sqlx::query(
+                        "INSERT INTO run_attempts
+                           (id, project_id, workflow_id, version, task, number, thread_id,
+                            model, state, writes_json, started_at, command_id, fingerprint,
+                            start_head, addition)
+                         SELECT ?, p.project_id, p.workflow_id, p.version, p.task,
+                                (SELECT MAX(o.number) + 1 FROM run_attempts o
+                                 WHERE o.workflow_id = p.workflow_id
+                                   AND o.version = p.version AND o.task = p.task),
+                                p.thread_id, p.model, 'running', p.writes_json, ?, ?,
+                                'amend', ?, ?
+                         FROM run_attempts p WHERE p.id = ?",
+                    )
+                    .bind(id.as_str())
+                    .bind(&ts)
+                    .bind(format!("amend-{id}"))
+                    .bind(&next.start_head)
+                    .bind(&next.addition)
+                    .bind(previous.as_str())
+                    .execute(&mut *conn)
+                    .await?;
+                    Self::load(conn, &id).await
+                })
+            })
+            .await
+    }
+
     /// A task's attempts, newest first.
     pub async fn attempts(
         &self,
@@ -387,7 +522,8 @@ impl RunsStore {
     ) -> Result<Vec<Attempt>, RunsError> {
         let rows: Vec<AttemptRow> = sqlx::query_as(
             "SELECT id, project_id, workflow_id, version, task, number, thread_id,
-                    operation_id, model, state, commit_sha, reason, started_at, ended_at
+                    operation_id, model, state, commit_sha, reason, started_at, ended_at,
+                    report, addition
              FROM run_attempts
              WHERE workflow_id = ? AND version = ? AND task = ? ORDER BY number DESC",
         )

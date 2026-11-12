@@ -86,4 +86,5 @@ const WINDOWS_ESSENTIAL_ENV: &[&str] = &[
     "TMP",
     "USERPROFILE",
     "APPDATA",
+    "LOCALAPPDATA",
 ];

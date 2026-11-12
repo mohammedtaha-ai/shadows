@@ -12,14 +12,14 @@ const rehypePlugins = [...Object.values(defaultRehypePlugins), rehypeDirAuto]
 
 /** While `live`, the text is still arriving: incomplete markdown is closed as
  * it streams and a purple cursor follows the last word. */
-export function ReplyText({ text, live = false }: { text: string; live?: boolean }) {
+export function ReplyText({ text, live = false, compact = false }: { text: string; live?: boolean; compact?: boolean }) {
   return (
     <Streamdown
       plugins={plugins}
       rehypePlugins={rehypePlugins}
       isAnimating={live}
       caret={live ? 'block' : undefined}
-      className="reply-bidi font-serif text-[15px] leading-7 text-foreground [&>*:last-child]:after:ms-0.5 [&>*:last-child]:after:text-accent-line [&>*:last-child]:after:motion-safe:animate-pulse"
+      className={`reply-bidi ${compact ? 'text-sm leading-6' : 'font-serif text-[15px] leading-7'} text-foreground [&>*:last-child]:after:ms-0.5 [&>*:last-child]:after:text-accent-line [&>*:last-child]:after:motion-safe:animate-pulse`}
     >
       {text}
     </Streamdown>

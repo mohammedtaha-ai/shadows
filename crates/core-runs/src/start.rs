@@ -10,7 +10,7 @@ use core_grants::TaskScope;
 use core_plans::{Plan, PlanState, TaskContent, WorkflowId, WorkflowState};
 use core_turns::SendTurn;
 
-/// The permission mode in which a request outside the task's rules is refused.
+/// The mode an executor's turns run in; its project's modes do not apply.
 const MODE: &str = shadows_agent::policy::EXECUTOR_MODE;
 
 impl Runs {
@@ -37,6 +37,8 @@ impl Runs {
         }
         let plan = self.plan(workflow, version).await?;
         let content = self.checks(&plan, task).await?;
+        // A reported commit already reachable from here is not this attempt's work.
+        let start_head = Git::at(&self.folder(&plan.project_id).await?).head().await;
         let begun = self
             .inner
             .store
@@ -49,21 +51,33 @@ impl Runs {
                 task,
                 model: model.clone(),
                 writes: content.writes.clone(),
+                start_head,
             })
             .await?;
         if begun.replayed {
             return Ok(begun.attempt);
         }
-        let attempt = begun.attempt;
+        self.run_turn(begun.attempt, self.first_prompt(task)).await
+    }
+
+    /// Opens the attempt's executor session, live, closed or gone after a
+    /// restart, sends it `prompt` as one turn and watches the turn. Start and
+    /// an addition both end here: one way to run an attempt's turn.
+    pub(crate) async fn run_turn(
+        &self,
+        attempt: Attempt,
+        prompt: String,
+    ) -> Result<Attempt, RunsError> {
+        let model = attempt.model.clone();
         let scope = TaskScope {
-            workflow: workflow.as_str().to_string(),
-            version,
-            task,
+            workflow: attempt.workflow_id.as_str().to_string(),
+            version: attempt.version,
+            task: attempt.task,
         };
         if let Err(error) = self
             .inner
             .harness
-            .open_executor(&attempt.thread_id, &content.writes, scope, model.clone())
+            .open_executor(&attempt.thread_id, scope, model.clone())
             .await
         {
             return self
@@ -84,7 +98,7 @@ impl Runs {
                 attempt.thread_id.clone(),
                 SendTurn {
                     command_id: format!("run-{}", attempt.id),
-                    prompt: self.first_prompt(task),
+                    prompt,
                     attachments: vec![],
                     model,
                     mode: MODE.into(),
@@ -145,17 +159,28 @@ impl Runs {
         }
         let git = Git::at(&self.folder(&plan.project_id).await?);
         let prefix = git.prefix().await.ok_or(RunsError::NotGit)?;
-        let dirty: Vec<String> = git
-            .changed(&prefix)
-            .await
-            .map_err(RunsError::Unavailable)?
-            .into_iter()
-            .filter(|path| matcher.admits(path))
-            .collect();
+        let dirty = self.dirty(&git, &prefix, &matcher).await?;
         if !dirty.is_empty() {
             return Err(RunsError::DirtyScope { paths: dirty });
         }
         Ok(content)
+    }
+
+    /// Every uncommitted path inside the folder that `matcher` admits: the
+    /// one read Start's and a report's dirty checks both make.
+    pub(crate) async fn dirty(
+        &self,
+        git: &Git,
+        prefix: &str,
+        matcher: &Scope,
+    ) -> Result<Vec<String>, RunsError> {
+        Ok(git
+            .changed(prefix)
+            .await
+            .map_err(RunsError::Unavailable)?
+            .into_iter()
+            .filter(|path| matcher.admits(path))
+            .collect())
     }
 
     /// The attempt cannot go on: it fails with `reason` and frees its scope.

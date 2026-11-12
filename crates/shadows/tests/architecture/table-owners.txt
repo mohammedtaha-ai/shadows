@@ -18,6 +18,8 @@ aylul_person :: person
 aylul_provider :: providers
 aylul_usage :: usage
 code_file :: code
+code_inventory :: code
+code_inventory_scan :: code
 code_setting :: code
 code_tag :: code
 command_record :: db
@@ -43,6 +45,7 @@ harness_thread_mode :: harness
 mcp_grant :: grants
 run_attempts :: runs
 run_task_marks :: runs
+run_lessons :: runs
 message :: messages
 message_cursor :: messages
 message_delivery :: messages

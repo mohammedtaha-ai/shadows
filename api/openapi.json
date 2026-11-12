@@ -914,8 +914,15 @@
       "Attempt": {
         "description": "One try at a task. `operation_id` is the operation of its turn, absent\nuntil the turn starts.",
         "properties": {
+          "addition": {
+            "description": "The Planner's addition this attempt carried on with, in the session of\nthe attempt before it; null for an attempt Start began.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "commit": {
-            "description": "The commit's SHA once the attempt committed.",
+            "description": "The SHA of the commit the executor made and reported, once accepted.",
             "type": [
               "string",
               "null"
@@ -959,6 +966,13 @@
               "null"
             ]
           },
+          "report": {
+            "description": "The executor's own account of what it did, ran and found, stored\nwith its accepted commit.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "started_at": {
             "type": "string"
           },
@@ -994,15 +1008,108 @@
           "model",
           "state",
           "commit",
+          "report",
+          "addition",
           "reason",
           "started_at",
           "ended_at"
         ],
         "type": "object"
       },
+      "AttemptFile": {
+        "description": "One file as an attempt's commit holds it; deleted or binary files have no text.",
+        "properties": {
+          "cut": {
+            "type": "boolean"
+          },
+          "path": {
+            "type": "string"
+          },
+          "text": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "path",
+          "cut"
+        ],
+        "type": "object"
+      },
       "AttemptId": {
         "format": "uuid",
         "type": "string"
+      },
+      "AttemptNotice": {
+        "description": "The facts of an executor's notice to its Planner, the card the\nconversation draws: which task and attempt, on which model, how it ended,\nand the executor's report (its last message when it failed).",
+        "properties": {
+          "attempt": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "attempt_id": {
+            "$ref": "#/components/schemas/AttemptId"
+          },
+          "commit": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "last_addition": {
+            "description": "The attempt carried the task's third and last addition.",
+            "type": "boolean"
+          },
+          "model": {
+            "type": "string"
+          },
+          "outcome": {
+            "$ref": "#/components/schemas/AttemptState"
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "report": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "task": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "title": {
+            "description": "The task's title, or `T{task}` when it has none.",
+            "type": "string"
+          },
+          "version": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "workflow_id": {
+            "$ref": "#/components/schemas/WorkflowId"
+          }
+        },
+        "required": [
+          "workflow_id",
+          "version",
+          "task",
+          "title",
+          "attempt",
+          "attempt_id",
+          "model",
+          "outcome",
+          "last_addition"
+        ],
+        "type": "object"
       },
       "AttemptState": {
         "description": "Where an attempt stands. Only `Running` has no `ended_at`.",
@@ -1333,6 +1440,120 @@
         "required": [
           "header",
           "rules"
+        ],
+        "type": "object"
+      },
+      "ContractSource": {
+        "description": "Where a used output comes from.",
+        "oneOf": [
+          {
+            "description": "An output another task of this plan version produces.",
+            "properties": {
+              "kind": {
+                "enum": [
+                  "task"
+                ],
+                "type": "string"
+              },
+              "output": {
+                "type": "string"
+              },
+              "target": {
+                "$ref": "#/components/schemas/ContractTarget"
+              }
+            },
+            "required": [
+              "target",
+              "output",
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "Code the project already holds. `symbol` is empty for the whole file.",
+            "properties": {
+              "kind": {
+                "enum": [
+                  "existing"
+                ],
+                "type": "string"
+              },
+              "path": {
+                "type": "string"
+              },
+              "symbol": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "path",
+              "kind"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "ContractTarget": {
+        "description": "The task that produces a used output.",
+        "oneOf": [
+          {
+            "properties": {
+              "kind": {
+                "enum": [
+                  "local"
+                ],
+                "type": "string"
+              },
+              "task": {
+                "format": "int32",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "task",
+              "kind"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "ContractUse": {
+        "additionalProperties": false,
+        "description": "Something this task relies on, and why.",
+        "properties": {
+          "purpose": {
+            "type": "string"
+          },
+          "source": {
+            "$ref": "#/components/schemas/ContractSource"
+          }
+        },
+        "required": [
+          "source",
+          "purpose"
+        ],
+        "type": "object"
+      },
+      "ContractValue": {
+        "additionalProperties": false,
+        "description": "A parameter or a return value.",
+        "properties": {
+          "meaning": {
+            "type": "string"
+          },
+          "name": {
+            "description": "The parameter's name; empty for a return value.",
+            "type": "string"
+          },
+          "type_name": {
+            "description": "As the project's language writes the type.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type_name",
+          "meaning"
         ],
         "type": "object"
       },
@@ -2207,6 +2428,7 @@
           "IDEMPOTENCY_KEY_REQUIRED",
           "INVALID_COMMAND",
           "INVALID_CURSOR",
+          "INVENTORY_STALE",
           "AGENT_AUTH_FAILED",
           "AGENT_UNSUPPORTED_PROFILE",
           "PATH_INVALID",
@@ -2222,6 +2444,7 @@
           "HARNESS_LOCKED",
           "THREAD_BUSY",
           "QUEUED_MESSAGE_GONE",
+          "QUEUED_NOTICE_KEPT",
           "FORK_POINT_NOT_SUPPORTED",
           "WORKFLOW_FROZEN_IMMUTABLE",
           "WORKFLOW_VALIDATION_FAILED",
@@ -2268,13 +2491,29 @@
         ],
         "type": "object"
       },
+      "FileAction": {
+        "description": "What the task does to a file.",
+        "enum": [
+          "read",
+          "create",
+          "modify",
+          "delete"
+        ],
+        "type": "string"
+      },
       "FileDiff": {
-        "description": "One file of an attempt's commit: its line counts and its patch, cut at\n2,000 lines with a marker.",
+        "description": "One file of an attempt's commit: its line counts, its patch cut at 2,000\nlines with a marker, and the same patch read into hunks (none for a binary\nfile), whose lines stop at 2,000 in all.",
         "properties": {
           "added": {
             "format": "int32",
             "minimum": 0,
             "type": "integer"
+          },
+          "hunks": {
+            "items": {
+              "$ref": "#/components/schemas/DiffHunk"
+            },
+            "type": "array"
           },
           "patch": {
             "type": "string"
@@ -2292,7 +2531,30 @@
           "path",
           "added",
           "removed",
-          "patch"
+          "patch",
+          "hunks"
+        ],
+        "type": "object"
+      },
+      "FileWork": {
+        "additionalProperties": false,
+        "description": "One file the task works on, and why.",
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/FileAction"
+          },
+          "path": {
+            "description": "One exact file, relative to the project's folder, with '/'. Never a pattern.",
+            "type": "string"
+          },
+          "purpose": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "action",
+          "purpose"
         ],
         "type": "object"
       },
@@ -2697,6 +2959,105 @@
           "created_at"
         ],
         "type": "object"
+      },
+      "InventoryEntry": {
+        "description": "One path of a project's folder.",
+        "properties": {
+          "excluded_reason": {
+            "description": "`dependencies`, `ignored`, `secret` or `link`; null unless `kind` is `excluded`.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "has_symbols": {
+            "description": "The code index holds at least one tag of this file.",
+            "type": "boolean"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/InventoryKind"
+          },
+          "language": {
+            "description": "The name `shadows-index` gives the file's extension; null for any other file.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "path": {
+            "description": "Relative to the project's folder, with '/'. A folder has no trailing '/'.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "kind",
+          "language",
+          "excluded_reason",
+          "has_symbols"
+        ],
+        "type": "object"
+      },
+      "InventoryKind": {
+        "description": "What one listed path is.",
+        "enum": [
+          "directory",
+          "file",
+          "excluded"
+        ],
+        "type": "string"
+      },
+      "InventoryPage": {
+        "description": "One page of a project's file list, in path order.",
+        "properties": {
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/InventoryEntry"
+            },
+            "type": "array"
+          },
+          "generation": {
+            "description": "Moves by one each time a listing changed the stored entries; 0 before the first.",
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "next": {
+            "description": "What to pass as `after` for the following page; null on the last.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "observed_at": {
+            "description": "When the last listing ended (RFC 3339); null before the first.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "state": {
+            "$ref": "#/components/schemas/InventoryState"
+          }
+        },
+        "required": [
+          "state",
+          "generation",
+          "entries",
+          "next",
+          "observed_at"
+        ],
+        "type": "object"
+      },
+      "InventoryState": {
+        "description": "How a project's file list stands.",
+        "enum": [
+          "missing",
+          "indexing",
+          "ready",
+          "incomplete"
+        ],
+        "type": "string"
       },
       "InvocationView": {
         "description": "What a turn asked for and what the harness reported.\nAnything not reported is `None`, never estimated.\nPlanning context is heard after normal completion, prepared while unconfirmed, or null without a record.\n",
@@ -3699,6 +4060,24 @@
           "task",
           "title",
           "done"
+        ],
+        "type": "object"
+      },
+      "Notice": {
+        "description": "A message an executor's attempt sends the Planner through Shadows: the\nturn it starts is recorded in the executor's name, with its card.",
+        "properties": {
+          "card": {
+            "description": "The facts the conversation draws, as the sender shaped them.",
+            "type": "object"
+          },
+          "executor": {
+            "$ref": "#/components/schemas/ThreadId",
+            "description": "The executor's thread, its identity."
+          }
+        },
+        "required": [
+          "executor",
+          "card"
         ],
         "type": "object"
       },
@@ -5022,6 +5401,42 @@
         ],
         "type": "object"
       },
+      "ProducedOutput": {
+        "additionalProperties": false,
+        "description": "Something other tasks may rely on: one symbol or one file of this task.",
+        "properties": {
+          "acceptance": {
+            "description": "The task's acceptance items that prove it.",
+            "items": {
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "artifact": {
+            "description": "A file path this task creates or modifies.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "description": "Chosen by the writer, unique within the task: `o1`.",
+            "type": "string"
+          },
+          "symbol_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
       "Project": {
         "properties": {
           "allowed_modes": {
@@ -5657,6 +6072,17 @@
           },
           "model": {
             "type": "string"
+          },
+          "notice": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Notice",
+                "description": "The executor's notice this message is; `null` for the person's."
+              }
+            ]
           },
           "plan": {
             "oneOf": [
@@ -6379,7 +6805,75 @@
         ],
         "type": "object"
       },
+      "SymbolKind": {
+        "description": "What kind of symbol a task builds.",
+        "enum": [
+          "function",
+          "method",
+          "class"
+        ],
+        "type": "string"
+      },
+      "SymbolWork": {
+        "additionalProperties": false,
+        "description": "One function, method or class the task builds, described by its behavior.",
+        "properties": {
+          "behavior": {
+            "description": "Short sentences saying what it does, never its code.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "errors": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "id": {
+            "description": "Chosen by the writer, unique within the task: `s1`.",
+            "type": "string"
+          },
+          "inputs": {
+            "items": {
+              "$ref": "#/components/schemas/ContractValue"
+            },
+            "type": "array"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/SymbolKind"
+          },
+          "name": {
+            "type": "string"
+          },
+          "path": {
+            "description": "One of the task's files that it creates or modifies.",
+            "type": "string"
+          },
+          "returns": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ContractValue",
+                "description": "What it answers; null for a class."
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "path",
+          "kind",
+          "name",
+          "behavior"
+        ],
+        "type": "object"
+      },
       "TaskContent": {
+        "additionalProperties": false,
         "description": "A task as the plan holds it, shown as `T{number}`.",
         "properties": {
           "acceptance": {
@@ -6387,6 +6881,16 @@
               "$ref": "#/components/schemas/AcceptanceItem"
             },
             "type": "array"
+          },
+          "contract": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TaskContract"
+              }
+            ]
           },
           "goal": {
             "type": "string"
@@ -6428,6 +6932,58 @@
           "writes",
           "acceptance"
         ],
+        "type": "object"
+      },
+      "TaskContract": {
+        "additionalProperties": false,
+        "description": "What a task builds, named exactly: the executor's brief beside the goal.",
+        "properties": {
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/FileWork"
+            },
+            "type": "array"
+          },
+          "forbidden": {
+            "description": "What must not be changed.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "invariants": {
+            "description": "What must stay true.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "produces": {
+            "items": {
+              "$ref": "#/components/schemas/ProducedOutput"
+            },
+            "type": "array"
+          },
+          "steps": {
+            "description": "The order of work, when it matters.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "symbols": {
+            "items": {
+              "$ref": "#/components/schemas/SymbolWork"
+            },
+            "type": "array"
+          },
+          "uses": {
+            "items": {
+              "$ref": "#/components/schemas/ContractUse"
+            },
+            "type": "array"
+          }
+        },
         "type": "object"
       },
       "TaskId": {
@@ -7457,6 +8013,77 @@
           }
         },
         "summary": "Each file of the attempt's commit with its counts and patch; none before\nit commits. A patch longer than 2,000 lines is cut with a marker.",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/attempts/{id}/files": {
+      "get": {
+        "operationId": "file",
+        "parameters": [
+          {
+            "description": "The attempt",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/AttemptId"
+            }
+          },
+          {
+            "description": "A path inside the task's writes, as the diff names it.",
+            "in": "query",
+            "name": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttemptFile"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "no such attempt, no commit yet, or no such file at its commit"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunRefusal"
+                }
+              }
+            },
+            "description": "outside_writes"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          }
+        },
+        "summary": "One file of the task as the attempt's commit holds it, changed by it or\nnot; text is null for a deleted or binary file, and cut is true when a\nlong file was shortened.",
         "tags": [
           "runs"
         ]
@@ -11164,6 +11791,107 @@
         ]
       }
     },
+    "/api/projects/{id}/code/files": {
+      "get": {
+        "operationId": "files",
+        "parameters": [
+          {
+            "description": "The project",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ProjectId"
+            }
+          },
+          {
+            "description": "A folder relative to the project's folder; none for all of it.",
+            "in": "query",
+            "name": "prefix",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "The `next` of the page before this one.",
+            "in": "query",
+            "name": "after",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "1 to 200; 100 when absent.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InventoryPage"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "INVALID_COMMAND: no such project"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "INVENTORY_STALE: the file list changed since the cursor's page"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "INVALID_COMMAND: a limit outside 1 to 200, a path outside the project, or a cursor this listing did not give"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          }
+        },
+        "summary": "One page of the files the project's folder holds, in path order: files,\nfolders, and what is left out with its reason. A file's content is never\nread.",
+        "tags": [
+          "code"
+        ]
+      }
+    },
     "/api/projects/{id}/code/links": {
       "get": {
         "operationId": "links",
@@ -11556,6 +12284,58 @@
           }
         },
         "summary": "Where a name is used, matched by name only: every hit says\n`matched_by: \"name\"`.",
+        "tags": [
+          "code"
+        ]
+      }
+    },
+    "/api/projects/{id}/code/refresh": {
+      "post": {
+        "operationId": "refresh",
+        "parameters": [
+          {
+            "description": "The project",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ProjectId"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InventoryPage"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "INVALID_COMMAND: no such project"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          }
+        },
+        "summary": "Lists the project's folder again now, and answers the first page.",
         "tags": [
           "code"
         ]

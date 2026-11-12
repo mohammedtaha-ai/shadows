@@ -1,7 +1,7 @@
 //! The tools each grant kind permits.
 use super::{GrantKind, Grants};
 /// Only the Planner may show a plan in a person's conversation.
-const THREAD_TOOLS: [&str; 20] = [
+const THREAD_TOOLS: [&str; 29] = [
     "vision_approve",
     "map_approve",
     "roadmap_approve",
@@ -22,6 +22,15 @@ const THREAD_TOOLS: [&str; 20] = [
     "plan_show",
     "vision_propose",
     "workspace_get",
+    "project_files",
+    "project_refresh",
+    "project_git_init",
+    "task_start",
+    "task_done",
+    "task_amend",
+    "task_lessons",
+    "task_diff",
+    "task_file",
 ];
 
 /// External agents can edit project plans and read reachable project code.
@@ -44,13 +53,14 @@ const PROJECT_TOOLS: [&str; 16] = [
     "workspace_get",
 ];
 
-/// An executor reads its task and the code it needs, and commits its work.
+/// An executor reads its task and the code it needs, and reports the commit
+/// it made.
 const EXECUTOR_TOOLS: [&str; 5] = [
     "task_context",
     "where_is",
     "who_uses",
     "outline",
-    "task_commit",
+    "task_report",
 ];
 
 impl Grants {

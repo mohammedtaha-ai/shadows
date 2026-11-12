@@ -4,10 +4,16 @@ status: current
 source: web/src/app/tasks
 responsibility: Show one task of a plan version to run and to read, over Core's answers.
 obligations:
+  - Each Report attempt says "Began from Start" for a null addition or "Carried on with the Planner's addition" with the addition shown as plain preserved text under its heading, dir auto, never markup (the_report_shows_the_planners_addition_as_plain_text).
+  - The header shows "Stopped after the Planner's third addition; back to you" only when the API's stoppedOnAdditionCap holds; the web counts no additions (a_task_stopped_on_the_cap_does_not_wait, the_cap_message_is_absent_with_%s).
   - Start's state and reason are `start.allowed` and `start.reason` from Core; the page holds no readiness rule.
   - The model starts on `suggested_model` and stays what the person chose through a refused send, which shows Core's reason and refetches.
   - Start and mark done keep their command id after a lost answer and make a new one after any answer.
+  - A read Core refuses (a task it cannot find answers 404) shows Core's code and message at once in place of "Reading the task…"; the read is not retried (a_task_core_cannot_find_shows_its_message_and_reads_once).
+  - The Report tab shows each attempt's `report` from Core as plain preserved text, never as markup, and nothing when it is null (the_report_shows_the_executors_report_as_plain_text, the_report_shows_nothing_extra_without_a_report).
   - A running attempt and the attempt list are read again until the attempt ends; the Run tab reads its executor thread until the turn's operation has ended, since a committed attempt's turn goes on to report.
+  - A committed task not marked done shows "Waiting for the Planner's judgment" and only while its latest attempt is committed, it is not marked done and Core refuses Start as task_busy (the Planner is still judging); it is read again every two seconds until it is marked or a new attempt starts. A task stopped on the cap (Start allowed) shows no waiting badge and is not read again (a_committed_task_waits_for_the_planners_judgment, a_task_marked_done_does_not_wait, a_task_stopped_on_the_cap_does_not_wait).
+  - The Diff tab opens the first changed file above, whole as the attempt's commit holds it, with Core's added and removed lines marked, and lists every changed file in a box below; a click opens that file. A refused file read shows Core's message in the file area and keeps the list (diff_opens_the_first_file_and_switches_on_click, diff_shows_the_whole_file_with_its_changes_marked, diff_shows_cores_refusal_in_the_file_area).
 traps:
   - The Run tab shows entries as messages and one-line rows; the conversation's tool and diff cards are not public to this folder.
   - The model is free text: the API offers no list of executor models.

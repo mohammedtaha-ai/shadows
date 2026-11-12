@@ -57,11 +57,7 @@ fn walk(dir: &Path, only: Option<Arc<Only>>) -> Walked {
         incomplete: false,
     };
     let root = dir.to_path_buf();
-    let walker = ignore::WalkBuilder::new(dir)
-        .parents(false)
-        .git_global(false)
-        .require_git(false)
-        .follow_links(false)
+    let walker = Code::walker(dir, true)
         .filter_entry(move |e| {
             let is_dir = e.file_type().is_some_and(|t| t.is_dir());
             if is_dir && e.file_name().to_str().is_some_and(Code::never_walked) {
@@ -246,6 +242,7 @@ impl Code {
             }
             progress.done.fetch_add(1, Ordering::Relaxed);
         }
+        self.record_inventory(project, &dir).await;
         // A walk that could not read an entry may have missed files
         // that are still there, so it deletes nothing; the next scan does.
         // Nor does a folder that vanished during the scan: its index is kept.
@@ -316,6 +313,20 @@ impl Code {
 }
 
 impl Code {
+    /// The settings the index's walk and the file listing share: the folder's
+    /// own ignore files, no parent's and no global one, no link followed; with
+    /// `hidden`, nothing hidden.
+    pub(super) fn walker(dir: &Path, hidden: bool) -> ignore::WalkBuilder {
+        let mut builder = ignore::WalkBuilder::new(dir);
+        builder
+            .parents(false)
+            .git_global(false)
+            .require_git(false)
+            .follow_links(false)
+            .hidden(hidden);
+        builder
+    }
+
     /// Folders never walked, with or without a `.gitignore`.
     pub(super) fn never_walked(name: &str) -> bool {
         name == "target" || name == "node_modules"

@@ -2,7 +2,12 @@
 
 - Date: 2026-11-08
 - Status: **approved** by Mohammed on 2026-11-08, in conversation, after a brainstorm with the
-  controller; `core-runs` (§9) and the controller's calls (§12) approved with it.
+  controller; `core-runs` (§9) and the controller's calls (§12) approved with it. Amended
+  2026-11-09 by Mohammed: the executor makes its own commit and reports it (§7). Amended
+  2026-11-11 by Mohammed: the executor runs in `auto` from one file (§7); the Planner starts,
+  judges and continues tasks in place of the critic and the ladder (§5.1), with three
+  additions per task, a lessons record and one review path; setup comes first, as a plan the
+  Planner runs (§5.2).
 - Builds on, and does not replace:
   - Core vision §2 (bounded executors who ask Shadows), §3 (a failing test that belongs to
     another task), §5 (the escalation ladder), §6 (executors and critics) — `docs/core/vision.md`;
@@ -127,6 +132,118 @@ confirms it with this spec.
 as the Planner's Stop does today. An attempt stopped before its commit has no commit; its
 working-tree changes stay in the folder and are named in the Report.
 
+### 5.1 The Planner judges (Mohammed, 2026-11-11)
+
+Evidence: the first run of slice 1 on a real Go project. T1 committed and said its Compose file
+starts PostgreSQL and Redis, but only ran `docker-compose config -q`. T2 committed with a report
+saying its pool test skipped, so two of its three acceptance items were never checked. Nobody
+read either report and acted. The folder was not a git repository, so Start was refused until
+Mohammed ran `git init` by hand.
+
+This replaces the critic (§8 "Critic session", §10 slice 2's critic) and the ladder (D8, the
+diagram above, §8 "The Planner on a failure", §12.4, §10 slice 3). D7 and D9 stand.
+
+- **The Planner starts a task** with `task_start`, which calls the method the Start button
+  calls; only the Planner of the plan's project may. It starts a task when the person asks it
+  to run one.
+- **After a done mark the Planner moves on by itself** (Mohammed, 2026-11-11). Marking a task
+  done answers `next`: the lowest-numbered task of that version that has never run and that
+  Start allows now (its needs links done, no overlap, a clean folder). The Planner starts it at
+  once without waiting for the person. A task that already ran, done or failed, is never
+  offered; a failure goes to the person.
+- **The Planner hears how each attempt ended.** When an attempt's turn ends with an accepted
+  commit, or fails without one, Runs puts a message in the plan's own conversation
+  (`written_by`'s thread) naming the task, the commit, the files it changed and the executor's
+  report, or the failure. It is a waiting message: a busy Planner reads it when its turn ends,
+  and a restart does not lose it. It arrives in the executor's name (Mohammed, 2026-11-11): its
+  entry stays the turn's `UserMessage`, written by `Executor` and the attempt's executor thread
+  with a card of its facts (task, attempt, model, outcome, commit, the full report), so the page
+  draws it inside the Planner's activity, never as the person's message; the model reads the
+  same text as before. The turn it starts runs under the executor's principal, never the
+  person's, and Grants refuses any approval (vision, map, roadmap, plan) in a turn that holds no
+  message from the person. A waiting notice cannot be removed from the queue
+  (`QUEUED_NOTICE_KEPT`); the person's own waiting messages can.
+- **A committed attempt waits for the judgment.** Its session stays open and its `writes` stay
+  held until the task is marked done or the attempt is stopped. This replaces "a committed
+  attempt holds its scope until its turn has ended".
+- **The Planner judges** the commit against the task's acceptance items by reading what it
+  changed, with its own tools (Mohammed, 2026-11-11): `task_diff`, the latest committed
+  attempt's files with their patches, and `task_file`, any file inside the task's `writes` as
+  that commit holds it. They call Runs' `diff` and `file`, the methods the task page's Diff tab
+  reads. The Planner never asks the executor for file contents, and the executor's report
+  carries what the commit cannot show: the commands it ran and their results. Evidence: the
+  slice 1b trial on `testing3` spent two of T2's three additions asking for the committed
+  files.
+- **The Planner reads the code before it plans** (Mohammed, 2026-11-11), on every harness:
+  before a task names a file, a function, a class or a layer, it reads the manifest, the
+  composition root, the folders of the layers the task works in and every file the task
+  modifies. It stays an instruction: Shadows sees reads only as tool calls (a Codex read is a
+  shell command line), so a check would be a guess that refuses honest edits.
+- **An executor's commit changes something** (Mohammed, 2026-11-11). `report` refuses a
+  commit that changes no file (`empty_commit`); the attempt stays Running. An executor with
+  nothing to change commits nothing and ends; the attempt fails "ended without a commit" and
+  the Planner's notice carries the executor's last message. An addition asks for a change,
+  never a question. `project_git_init`'s empty first commit is not a report. It marks the task done (`task_done`), which closes the session and frees the scope;
+  or it sends an **addition** (`task_amend`): what is missing or must be extended. The Planner
+  may also take a done mark back.
+- **An addition continues the executor in its session.** It is a new attempt on the same
+  executor thread, carrying the addition's text; the attempt before it keeps its commit and
+  report. The addition is recorded on the task through its attempts. There is no new plan
+  version and no approval: the frozen version does not change. Runs owns it, as it owns the
+  done marks of a frozen version.
+- **The Planner can make the folder a git repository** (`project_git_init`): `git init` and a
+  first commit made in Shadows' name, refused when the folder is already inside one. The first
+  commit takes the files the folder already holds, leaving out what git ignores (an empty
+  folder gets an empty commit; Mohammed, 2026-11-11) and what Code's inventory classes as
+  secret or dependency (Mohammed, 2026-11-12): those stay in the folder untracked, listed in
+  `.git/info/exclude`. Runs reads the inventory through Code. It writes no file; starter files stay a
+  task's work. Git belongs to Runs (§12.2).
+
+- **Three additions per task start** (Mohammed, 2026-11-11). A fourth is refused: Runs stops
+  the waiting attempt (its commit stays; its session closes and its scope is freed) and the
+  task goes back to the person. A new Start begins a new count.
+- **A task stopped on the cap leaves a lessons record** (Mohammed, 2026-11-11), a JSON record
+  Runs keeps to improve Shadows: the plan version and task, each attempt of the chain with its
+  addition (what was missing), commit and report, the shell commands the executor ran (their
+  titles, status and error, from the executor thread's tool-call entries; their output is not
+  stored), and two texts the Planner writes with `task_lessons`: what stopped the work, and
+  what the plan should have said so the executor need not have come back.
+
+**One review path** (Mohammed, 2026-11-11). An attempt's end reaches a judgment by one road:
+Runs' watcher sees the turn end → `Runs::notify` hands the attempt on → the Planner judges →
+`task_done` (`mark_done`, which the person's done mark also calls) or `task_amend` (`amend`).
+Nothing else marks a task done or continues it. **A reviewer plugs in at `notify`:** a critic
+(or any third agent) would be started there on the attempt's commit, and its findings would
+join the same notice, so the Planner still decides and nothing after `notify` changes. No
+hook, trait or field exists for it until that reviewer is built.
+
+> **OPEN: does the critic come back?** The Planner's judgment replaces it. Closed when a real
+> run shows the Planner marking done work that does not hold, which is the critic's case; it
+> then plugs in at `notify` as above.
+
+### 5.2 Setup before detailed planning (Mohammed, 2026-11-11)
+
+Setup belongs to the Planner and comes first: once the roadmap is approved, the Planner makes
+the folder a git repository if it is not one, then writes and runs a **setup plan** that
+brings the environment (database and service containers) and the initial structure (the
+framework's scaffold, in each runnable part's folder as the map places it). Only when it is
+done does the Planner refresh the file listing and plan the detailed work on the files that
+appeared. Executors then build features.
+
+The setup is an ordinary plan run through §5.1: its tasks are executor attempts the Planner
+starts and judges, and **each lands as a reported commit**, so no file appears in the folder
+without a commit as its source. The Planner itself writes no file. This replaces the separate
+preparation worker the local delivery draft planned (its B-100 to B-102).
+
+**Binary files in setup only** (Mohammed, 2026-11-11). A scaffold may bring binary files (an
+icon). A task of a setup plan may commit them; every other task's commit with a binary file is
+refused, as §7 says. A task is a setup task when its plan version's title is `Setup` (trimmed,
+any case), the title the Planner is told to give it: no new field marks it.
+
+> **OPEN: is "setup first" enforced?** Only the Planner's instructions order it; nothing
+> refuses a detailed plan while the setup plan is not done. Closed when a real run shows the
+> Planner planning in detail before its setup is done.
+
 ## 6. Running together in one folder (D2, D3)
 
 - A task is **ready** when its plan version is Frozen, its `needs` links are complete, and no
@@ -134,10 +251,10 @@ working-tree changes stay in the folder and are named in the Report.
   conservatively: when Shadows cannot prove two patterns disjoint, they intersect.
 - Ready tasks may run together. Mohammed starts each one; nothing starts on its own in the
   first release, except the retries in §5.
-- **Commits are serialized** by Shadows: one commit at a time per project folder. An executor
-  commits through a Shadows tool, not `git commit`. The tool stages only the attempt's changed
-  paths inside `writes` and commits them on the folder's current branch, with the task and
-  attempt in the message. Changed paths outside `writes` stay uncommitted and are named (§7).
+- **Each executor commits its own files** with `git commit`, on the folder's current branch, and
+  reports that commit to Shadows, which checks it and records it (§7, amended 2026-11-09).
+  Disjoint `writes` keep two executors' commits apart; Shadows writes no commit and keeps no
+  commit queue.
 - A test failing because of another running or unstarted task's code is reported as pending
   on that task (D4). The critic does not count it as a failure of this task.
 
@@ -154,18 +271,60 @@ built as the Planner is: it has only the tools and permissions its task gives it
   question. Any other request reaches Shadows and is refused, as a Planner session's are
   (`PermissionPolicy::Refuse`), and the refusal is a thread entry. The session runs in mode
   `default`, set explicitly: in `auto` and `acceptEdits` no request reaches Shadows at all.
-- Shell commands are not policed. A command may still write outside `writes`; the commit
-  handles that.
-- **At commit,** `task_commit` reads the folder's git status. Every changed path matching
-  `writes` is committed; a changed path outside `writes` is left in the folder, uncommitted, and
-  named in the attempt's Report. Files git ignores (`vendor/`, `.env`, caches) never appear.
-  A path inside `writes` reached through a link or junction refuses the commit, because git would
-  read another folder's files through it.
+- Shell commands are not policed. A command may still write outside `writes`; the check on the
+  reported commit handles that.
+
+**The mode and the file: amended 2026-11-11 by Mohammed, after the first run of a task with a
+contract.** Evidence: in two attempts of two, the executor wrote through the shell, which
+dropped the backslashes of PHP namespaces, and the `Edit` or `Write` it then asked for on a
+path inside `writes` was refused; neither attempt committed. The attempts that committed
+before had never called `Edit` or `Write`. This replaces the first bullet above:
+
+- **The executor runs in `auto`.** Nothing it does is asked about and nothing is refused
+  while it works. The shell could already write anywhere, so the permission rules guarded
+  nothing the commit check does not; they are gone.
+- **The reported commit is the one write boundary.** `task_report` refuses a commit that
+  changes a path outside `writes`, as before. It also refuses one while `writes` still hold
+  uncommitted changes (`dirty_scope`, the same read Start makes):
+  what an attempt leaves inside its task's paths is either committed or removed,
+  so the next Start is not refused for it. A person's edit inside a running task's `writes`
+  blocks its report the same way until it is committed or removed (accepted, Mohammed,
+  2026-11-12).
+- **The executor is one file.** Its instructions and its tool list live in
+  `crates/core-harness/src/executor.md`: the front matter names the tools, the body is the
+  instructions. It is compiled in; a project does not change it. The instructions tell the
+  executor to change files with its file tools, never through the shell, and never to use
+  Python.
 - Containers and other processes a task starts keep running after its turn and after Stop;
   stopping them is the project's business, not the attempt's.
-- **Accepted:** a hand edit or another process's change inside a running task's `writes` is
-  committed with the task's work. The Diff tab and the critic show it. Two tasks never share
-  `writes` (§6), so no task commits another's files.
+
+**The commit: amended 2026-11-09 by Mohammed, after the first browser run.** Evidence: the
+executor ran `python` (a Windows store stub), which installed a Python runtime into
+`backend/Python/`; `task_commit` then committed 2354 files, everything changed inside `writes`.
+The agent removed the runtime and ran `git commit --amend` from its shell, which dropped the
+`Shadows-Attempt` trailer and left Shadows pointing at an orphaned commit. The rule now: the
+agent knows what it did, so **the agent makes its own commit and then reports to Shadows
+exactly what it did; Shadows checks and records.** This replaces `task_commit`, its temporary
+index, its commit queue and its trailer.
+
+- **The executor commits.** It removes its strays first, stages only its own files inside
+  `writes`, by name, never a binary or an installer, and runs `git commit` with its own message
+  on the branch that is checked out. Every other change in the folder, the person's included,
+  stays where it is.
+- **It reports.** It calls `task_report { commit, report }`: the commit's SHA and an honest
+  account of what it did, what it ran or tested, and what passed or failed. The executor's
+  instructions and its first prompt say this plainly.
+- **Runs checks the reported commit** and refuses, with a reason the agent can act on, when the
+  name is not a SHA of a commit in the repository; the commit is not reachable from HEAD; it
+  was already reachable from the HEAD recorded when the attempt started; any path it changes
+  against its first parent lies outside `writes` (all listed); or it adds or modifies a file
+  git counts as binary (all listed). A refusal leaves the attempt `Running`, so the agent fixes
+  its commit and reports again.
+- **On acceptance** the attempt becomes `Committed` with the SHA and the report text, which
+  the Report tab shows. One accepted report per attempt; another is `AlreadyCommitted`.
+- **Accepted:** a hand edit inside a running task's `writes` enters the commit only if the
+  executor stages it. Two tasks never share `writes` (§6), so no task's commit passes the check
+  with another's files.
 
 ## 8. What the executor and critic receive (D11, D12)
 
@@ -173,13 +332,13 @@ built as the Planner is: it has only the tools and permissions its task gives it
 
 - Instructions: Shadows' built-in executor instructions (stay in `writes`; build nothing you do
   not own; no mocks for another task's code; a test pending on another task is expected; stop
-  and report if the plan is wrong; commit through the tool).
+  and report if the plan is wrong; commit your own files with git, then report the commit).
 - The task: goal, reads, writes, acceptance, phases, and for each link the other task's number,
   title, state and label.
 - The project structure: the approved map's parts and their folders.
 - Tools over Shadows MCP, with a grant scoped to this task: `where_is`, `who_uses`, `outline`
-  (the code index); `task_commit`; `task_report` (done, or a problem with evidence and the
-  tasks it affects).
+  (the code index); `task_report` (the commit the executor made and its account of the work,
+  §7). Reporting a problem with evidence and the tasks it affects joins it with the ladder.
 - Model: the one chosen on the task page.
 
 **Critic session**
@@ -201,13 +360,13 @@ the code and the diff to investigate.
 ## 9. Ownership
 
 A new service, **Runs** (`core-runs`), owns attempts: their records, the ready rule, the
-concurrency check, the commit queue, the attempt ladder and the critic dispatch. It is listed
+concurrency check, the check of a reported commit, the attempt ladder and the critic dispatch. It is listed
 in `AppCore` with its contract. This is the controller's proposal and needs Mohammed's approval
 with this spec; CLAUDE.md requires a new owner to be a controller decision.
 
 | Owner | Gains |
 |---|---|
-| `core-runs` (new) | attempts, the ready rule, concurrency, commit queue, ladder, critic dispatch, task status |
+| `core-runs` (new) | attempts, the ready rule, concurrency, reported commits, ladder, critic dispatch, task status |
 | `core-plans` | the suggested model on `TaskContent`; acceptance marks per attempt are read from Runs, the plan stays immutable |
 | `core-harness` | executor and critic sessions: their instructions, their scoped grant, their mode |
 | `core-grants` | a task-scoped grant |
@@ -226,9 +385,10 @@ Each slice runs end to end in the browser before the next.
 
 0. **Probe:** done 2026-11-08; §7 holds its outcome.
 1. **One task, by hand:** Runs, the task page (Details, Run), Start/Stop, the executor session
-   with its scoped grant and its task's permission rules, `task_commit` with its `writes` check, the Diff
-   tab. No critic: the attempt ends at its commit and Mohammed reads it. The `writes` overlap
-   check and the commit queue ship here, so two tasks started together are already safe.
+   with its scoped grant and its task's permission rules, `task_report` with its check of the
+   executor's own commit (§7, amended 2026-11-09), the Diff tab. No critic: the attempt ends at
+   its commit and Mohammed reads it. The `writes` overlap check ships here, so two tasks started
+   together are already safe.
 2. **The critic:** dispatch after the commit, `task_review`, acceptance marks, the Report tab,
    real plan progress (the two shared requests). Its plan decides whether a task carries
    `checks` (commands) that Runs runs at Start, before the first write, and again after the
@@ -239,7 +399,7 @@ Each slice runs end to end in the browser before the next.
 3. **The ladder:** the owner thread, the Planner's failure message and its three tools,
    attempts 2 and 3 in the same session, the stop for Mohammed.
 4. **Together:** pending-on-another-task marks, and the acceptance run of several tasks at once
-   (the overlap check and commit queue already shipped in slice 1).
+   (the overlap check already shipped in slice 1).
 
 ## 11. Acceptance
 
@@ -266,11 +426,10 @@ this spec; each is marked as the controller's, not his.
    project folder is not a git repository, or when it already has uncommitted changes inside the
    task's `writes`. Changes elsewhere in the folder are other tasks' business and do not block.
    Commits go to whatever branch the folder has checked out; Shadows never switches it.
-3. **Restart.** A running attempt found on startup is matched against git first: a commit whose
-   `Shadows-Attempt` trailer names it makes it `Committed` (git is written before SQLite).
-   Otherwise it becomes `Interrupted`: its process is gone, its uncommitted changes stay in the
-   folder and are listed. An attempt whose session fails to open, or whose turn ends without a
-   commit, is `Failed` with that reason. Each attempt is bound to its turn's operation. It does not count toward the cap
+3. **Restart.** A running attempt found on startup becomes `Interrupted`: with no accepted
+   report Shadows recorded no commit, and git is not searched (amended 2026-11-09, §7). Its
+   process is gone; its uncommitted changes stay in the folder. An attempt whose session fails
+   to open, or whose turn ends without an accepted report, is `Failed` with that reason. Each attempt is bound to its turn's operation. It does not count toward the cap
    and does not climb the ladder. The Report tab shows it; Start begins a new attempt in a new
    session. Runs reconciles this on startup through Operations.
 4. **The ladder lives in Runs, not in prompts.** After a critic FAIL, Runs posts the failure into

@@ -333,7 +333,7 @@ shared_in_transaction:
   set_harness_in: "Harness calls the guarded thread-row update in its command transaction."
   fork_in: Harness checks replay and asks Operations for eligibility before this thread mutation.
   entry_in: "Grants reads retained approval entry identity and ordinal in the caller snapshot."
-  request_entry_in: "Grants reads the latest user request for an opaque turn ref inside approval writes."
+  request_entry_in: "Grants reads the person's latest message (UserMessage with author_kind User) for an opaque turn ref inside approval writes; an executor's entry is never the request."
   harness_in: "Grants reads a retained thread's harness in its project during approval authorization."
   get_in: Plans reads retained thread metadata for historical attribution.
   project_in: Turns and Grants read the thread's owning project in their transaction.

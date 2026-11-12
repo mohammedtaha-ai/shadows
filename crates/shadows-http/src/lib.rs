@@ -252,6 +252,7 @@ fn routes() -> OpenApiRouter<AppState> {
         .routes(routes!(runs::mark_done))
         .routes(routes!(runs::stop))
         .routes(routes!(runs::diff))
+        .routes(routes!(runs::file))
         .routes(routes!(grants::list_grants, grants::issue_grant))
         .routes(routes!(grants::revoke_grant))
         .routes(routes!(
@@ -262,6 +263,8 @@ fn routes() -> OpenApiRouter<AppState> {
         .routes(routes!(code::references))
         .routes(routes!(code::outline))
         .routes(routes!(code::status))
+        .routes(routes!(code::files))
+        .routes(routes!(code::refresh))
         .routes(routes!(code::links))
         .routes(routes!(code::put_link, code::remove_link))
         .routes(routes!(code::get_settings, code::put_settings))

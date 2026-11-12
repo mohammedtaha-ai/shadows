@@ -35,6 +35,10 @@ functions:
     steering, task and permission operations. Errors are ConnectionError;
     Codex answers task stop with an Rpc refusal and holds no permission
     requests.
+  policy::EXECUTOR_MODE: >
+    `auto`, the one mode an executor thread runs in: nothing is asked or
+    refused while it works, and Runs' check on its reported commit is its write
+    boundary. Offered::refusal accepts it beside the policy's allowed modes.
   CodexProgram::new: Holds the configured executable and dedicated Codex home.
   CodexProgram::process_spec: >
     `app-server --listen stdio://` with apps, plugins, hooks, multi-agent and

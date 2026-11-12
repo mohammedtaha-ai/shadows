@@ -14,7 +14,8 @@ import { VisionProposalCard } from './vision-proposal-card'
 import { MapProposalCard } from './map-proposal-card'
 import { RoadmapProposalCard } from './roadmap-proposal-card'
 import { TodoCard } from './todo-card'
-import { subagentOf } from './tool-text'
+import { NoticeItem } from './notice-item'
+import { noticeOf, subagentOf } from './tool-text'
 import { PermissionCard } from './permission-card'
 
 // Streamdown and its code highlighting are most of this app's weight, so they
@@ -60,6 +61,8 @@ export function Entry({
   onOpenSubagent: (id: string) => void
 }) {
   if (entry.kind === 'UserMessage') {
+    const notice = noticeOf(entry)
+    if (notice !== null) return <NoticeItem body={entry.body} card={notice.card} />
     return (
       <div className="flex justify-end">
         <div

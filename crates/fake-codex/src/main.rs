@@ -189,6 +189,17 @@ impl Peer {
                     "params": {"threadId": thread, "turnId": turn, "itemId": "cmd"}
                 }))?;
             }
+            // The texts the turn's input carried, in order: what the model would read.
+            "blocks" => {
+                let texts: Vec<&str> = params["input"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .filter_map(|item| item["text"].as_str())
+                    .collect();
+                self.chunk(&json!(texts).to_string())?;
+                self.complete("completed")?;
+            }
             "foreign terminal" => {
                 self.terminal("stale-turn", "interrupted")?;
                 self.chunk("current")?;

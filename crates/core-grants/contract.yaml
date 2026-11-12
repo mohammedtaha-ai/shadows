@@ -114,6 +114,10 @@ functions:
   reads:
     tools_for:
       signature: "(kind: GrantKind) -> &'static [&'static str]"
+      # The Planner's (Thread) list holds 29 tools; only it holds project_files,
+      # project_refresh, project_git_init, task_start, task_done, task_amend and
+      # task_lessons, task_diff and task_file. The project
+      # and executor lists do not change.
     read_in:
       signature: "(conn, principal, agent, request) -> Result<Option<ApprovedBy>, StorageError>"
     list:
@@ -130,6 +134,10 @@ functions:
     authorise_in:
       signature: "(conn, approver: &Approver, project: &ProjectId) -> Result<Option<ThreadEntryId>, GrantsError>"
       # Callers check the running turn between the writer check and this provenance check.
+      # The request is the person's latest message in the turn (Threads::request_entry_in);
+      # none (a turn a notice started, with nothing steered in by the person) is
+      # GrantScopeMessage("Only the person approves: this turn holds no message from the person.").
+      # Vision, map, roadmap and plan approvals all reach it.
     issue:
       signature: "(&self, command_id: String, project: &ProjectId) -> Result<IssuedView, GrantsError>"
       # "McpGrantIssue", params { project }, principal User/local, scope
@@ -253,6 +261,8 @@ called_by_other_services:
 
 
 obligations:
+  - rule: Only the person's message in a turn lets the Planner approve; an executor's message is never the request.
+    tested_by: [an_approval_needs_a_message_from_the_person_in_its_turn]
   - rule: >
       Only the token's hash is stored. `mcp_grant.token_hash` holds
       `hash_token(token)`; no table cell holds the raw token; no durable
@@ -483,6 +493,6 @@ tests:
       the first.
 
 # Both tools_for allowlists include task_context, a read with no execution authority.
-# The executor allowlist is task_context, where_is, who_uses, outline and task_commit
-# (Runs::commit, which commits only inside the task's writes); startup and
+# The executor allowlist is task_context, where_is, who_uses, outline and task_report
+# (Runs::report, which accepts the executor's own commit only inside the task's writes); startup and
 # thread removal revoke executor grants with the thread ones (executor_session tests).

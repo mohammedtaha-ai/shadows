@@ -169,9 +169,11 @@ impl Failure {
                     StatusCode::NOT_FOUND
                 }
                 ErrorCode::ThreadBusy
+                | ErrorCode::QueuedNoticeKept
                 | ErrorCode::HarnessLocked
                 | ErrorCode::ProjectHasThreads
                 | ErrorCode::StageBlocked
+                | ErrorCode::InventoryStale
                 | ErrorCode::WorkflowFrozenImmutable => StatusCode::CONFLICT,
                 _ => StatusCode::UNPROCESSABLE_ENTITY,
             },

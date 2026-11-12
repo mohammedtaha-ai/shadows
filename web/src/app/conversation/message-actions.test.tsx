@@ -27,6 +27,12 @@ async function start(table: ReturnType<typeof answers>): Promise<TestApp> {
   return open
 }
 
+/** A finished turn's activity is folded into one box: open it before reading inside. */
+async function openBox(app: TestApp): Promise<void> {
+  await until(() => app.button('Ran 1 tool') !== undefined)
+  await act(async () => app.button('Ran 1 tool')?.click())
+}
+
 describe('message actions', () => {
   it('copy is on every message and copies its text', async () => {
     const writes: string[] = []
@@ -97,6 +103,7 @@ describe('entries that are not messages', () => {
 
   it('a tool call reads as a tool line, not as bracketed text', async () => {
     const app = await start(answers({ entries: [toolEntry('a1', 'npm test')] }))
+    await openBox(app)
     await until(() => app.text().includes('npm test'))
     expect(app.text()).not.toContain('[tool:')
     expect(app.container.querySelector('[data-entry-kind="tool"]')).not.toBeNull()
@@ -110,6 +117,7 @@ describe('entries that are not messages', () => {
       },
     } as Clipboard)
     const app = await start(answers({ entries: [toolEntry('t1', 'npm test')] }))
+    await openBox(app)
     await until(() => app.buttons('Copy').length === 1)
     await act(async () => app.buttons('Copy')[0]?.click())
     await until(() => writes.length === 1)

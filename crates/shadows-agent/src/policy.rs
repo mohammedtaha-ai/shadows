@@ -19,11 +19,11 @@ pub const CODEX_READ_ONLY: &str = "read-only";
 /// AYLUL's brain: Claude Code on its own profile, opened without Planner setup.
 pub const AYLUL: &str = "aylul";
 
-/// The mode an executor session runs in: it asks for every request its task's
-/// rules do not allow, so Shadows can refuse it. It is no project's choice, so
-/// it is not among `allowed_modes`; an executor thread runs in it and in no
-/// other mode, and no planning thread runs in it.
-pub const EXECUTOR_MODE: &str = "default";
+/// The mode an executor session runs in: nothing is asked and nothing is
+/// refused while it works, since the check on its reported commit is its one
+/// write boundary. It is no project's choice: an executor thread runs in it
+/// and in no other mode, whatever its project allows its planning threads.
+pub const EXECUTOR_MODE: &str = "auto";
 
 /// Every harness Shadows knows, in the order a client lists them.
 pub const KNOWN: [&str; 3] = [CLAUDE_CODE, CODEX, AYLUL];

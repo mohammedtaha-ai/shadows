@@ -46,7 +46,7 @@ use shadows_agent::TurnSettings;
 
 pub use handles::LiveHandles;
 pub use model::{
-    InvocationView, Operation, OperationId, Queued, QueuedMessage, QueuedMessageId, SentNow,
+    InvocationView, Notice, Operation, OperationId, Queued, QueuedMessage, QueuedMessageId, SentNow,
 };
 pub use spawn::{OnCompleted, PlannerTurnRequest, StartError};
 pub use store::{NewQueued, QueueAnswer};
@@ -125,9 +125,19 @@ pub struct SendTurn {
     pub client_tab: Option<String>,
 }
 
+/// The waiting message a turn sends: its row, Send now's own command, and
+/// the notice the row is, if it is one.
+type Dequeued = (QueuedMessageId, Option<CommandContext>, Option<Notice>);
+
 /// `turn.start`'s command for `turn` on `thread`: `send` asks its
-/// replay first, and `queue` asks the replay of the start it derived.
-fn start_command(command_id: String, thread: &ThreadId, turn: &SendTurn) -> CommandContext {
+/// replay first, and `queue` asks the replay of the start it derived. A
+/// notice's turn is the executor's command, the notice part of it.
+fn start_command(
+    command_id: String,
+    thread: &ThreadId,
+    turn: &SendTurn,
+    notice: Option<&Notice>,
+) -> CommandContext {
     let mut params = serde_json::json!({
         "thread_id": thread,
         "prompt": turn.prompt,
@@ -145,7 +155,26 @@ fn start_command(command_id: String, thread: &ThreadId, turn: &SendTurn) -> Comm
     if !turn.attachments.is_empty() {
         params["attachments"] = serde_json::json!(turn.attachments);
     }
-    CommandContext::user(command_id, "turn.start", params)
+    in_name_of(
+        CommandContext::user(command_id, "turn.start", params),
+        notice,
+    )
+}
+
+/// `command` as the notice's executor sends it, the notice joined to its
+/// fingerprint; unchanged for the person's.
+fn in_name_of(mut command: CommandContext, notice: Option<&Notice>) -> CommandContext {
+    let Some(notice) = notice else {
+        return command;
+    };
+    command.request_fingerprint = CommandContext::fingerprint(
+        &command.command_kind,
+        &serde_json::json!({ "request": command.request_fingerprint, "notice": notice }),
+    );
+    let actor = notice.actor();
+    command.principal_kind = actor.kind;
+    command.principal_id = actor.id;
+    command
 }
 
 impl Turns {
@@ -216,7 +245,7 @@ impl Turns {
         &self,
         thread_id: ThreadId,
         turn: SendTurn,
-        dequeue: Option<(QueuedMessageId, Option<CommandContext>)>,
+        dequeue: Option<Dequeued>,
     ) -> Result<OperationId, TurnsError> {
         self.send_inner(thread_id, turn, dequeue, false).await
     }
@@ -225,10 +254,11 @@ impl Turns {
         &self,
         thread_id: ThreadId,
         turn: SendTurn,
-        dequeue: Option<(QueuedMessageId, Option<CommandContext>)>,
+        dequeue: Option<Dequeued>,
         default_effort: bool,
     ) -> Result<OperationId, TurnsError> {
-        let mut command = start_command(turn.command_id.clone(), &thread_id, &turn);
+        let notice = dequeue.as_ref().and_then(|(_, _, notice)| notice.as_ref());
+        let mut command = start_command(turn.command_id.clone(), &thread_id, &turn, notice);
         if default_effort {
             command.request_fingerprint = CommandContext::fingerprint(
                 "turn.start",
@@ -329,7 +359,7 @@ impl Turns {
             prompt: &prompt,
             settings: &settings,
             focus: focus.as_ref(),
-            dequeue: dequeue.as_ref().map(|(id, also)| Dequeue {
+            dequeue: dequeue.as_ref().map(|(id, also, _)| Dequeue {
                 id,
                 also: also.as_ref(),
             }),

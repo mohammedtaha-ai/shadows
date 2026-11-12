@@ -10,7 +10,7 @@ use sha2::{Digest, Sha256};
 
 use super::Harness;
 use crate::error::HarnessError;
-use crate::executor::{EXECUTOR_TOOLS, ExecutorSession};
+use crate::executor::ExecutorSession;
 use core_db::{Storage, StorageError};
 use core_grants::GrantId;
 use core_instructions::{Instructions, InstructionsVersion};
@@ -30,6 +30,17 @@ const REMOVED: &str = "[Shadows] The project's Planner instructions were removed
 const OURS: &str = "[Shadows] Shadows' instructions for you:";
 const STANDARDS: &str = "[Shadows] The project's standards changed. \
     They replace the standards you were given before:";
+
+/// Whether a thread's session holds its parent's prompt rather than the one
+/// it opened with. A Claude fork keeps its parent's appended prompt, so its
+/// first turn owes every version. Codex's `thread/fork` takes the developer
+/// instructions it is opened with, so a Codex fork heard its own opening, as a
+/// new thread does: sending them again would bury the person's text under them.
+impl Harness {
+    pub(crate) fn keeps_parent_prompt(harness: &str, forked: bool) -> bool {
+        forked && harness != policy::CODEX
+    }
+}
 
 /// The version `agent_invocation.prompt_version` records: the first 16 hex
 /// digits of the SHA-256 of `prompt.txt`, computed once from the compiled text.
@@ -221,7 +232,8 @@ impl Setups {
         })
     }
 
-    /// The executor's setup: its task's grant, tools and rules. On an error
+    /// The executor's setup: its task's grant, its tools and its instructions,
+    /// with no permission rules, since it runs in `auto`. On an error
     /// nothing it issued is left live.
     async fn for_executor(
         &self,
@@ -269,9 +281,9 @@ impl Setups {
             mcp,
             append: Some(ExecutorSession::instructions().to_string()),
             allowed_tools: vec![ALLOWED.to_string()],
-            tools: Some(EXECUTOR_TOOLS.iter().map(|t| t.to_string()).collect()),
+            tools: Some(ExecutorSession::tools()),
             setting_sources: None,
-            permissions: executor.permissions(),
+            permissions: vec![],
         })
     }
 
@@ -301,8 +313,8 @@ impl Setups {
 
     /// The session lost what it heard: compare the next turn with what it
     /// opened with. A thread with no held setup has no live session.
-    pub(crate) fn reset(&self, thread: &ThreadId, fork: bool) {
-        let opened = self.heard_first(thread, fork);
+    pub(crate) fn reset(&self, thread: &ThreadId, parent_prompt: bool) {
+        let opened = self.heard_first(thread, parent_prompt);
         if let Some(held) = self.lock().get_mut(thread) {
             held.withheld = opened;
         }
@@ -341,7 +353,13 @@ impl Setups {
                     instructions: Some(latest.instructions),
                     standards: Some((latest.standards, latest.additions)),
                 }),
-                None => self.heard_first(thread, context.fork_session_id.is_some()),
+                None => self.heard_first(
+                    thread,
+                    Harness::keeps_parent_prompt(
+                        &context.harness,
+                        context.fork_session_id.is_some(),
+                    ),
+                ),
             },
         };
         let Some(heard) = heard else {
@@ -372,11 +390,11 @@ impl Setups {
     }
 
     /// What a thread with no started turn heard: what its session opened
-    /// with, unless that session is a fork's, whose parent holds versions no
-    /// turn of this thread recorded. `None` when there is nothing to compare
-    /// with.
-    fn heard_first(&self, thread: &ThreadId, fork: bool) -> Option<Heard> {
-        if fork {
+    /// with, unless that session kept its parent's prompt, which holds
+    /// versions no turn of this thread recorded. `None` when there is nothing
+    /// to compare with.
+    fn heard_first(&self, thread: &ThreadId, parent_prompt: bool) -> Option<Heard> {
+        if parent_prompt {
             return Some(Heard {
                 ours: false,
                 instructions: None,

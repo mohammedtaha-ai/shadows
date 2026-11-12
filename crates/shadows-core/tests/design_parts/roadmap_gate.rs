@@ -42,6 +42,7 @@ fn add_task() -> PlanOp {
     PlanOp::TaskAdd {
         task: TaskContent {
             phases: Vec::new(),
+            contract: None,
             number: 1,
             title: "Task".into(),
             goal: "Goal".into(),

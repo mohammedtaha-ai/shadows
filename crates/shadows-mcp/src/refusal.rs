@@ -221,7 +221,10 @@ impl From<shadows_core::RunsError> for Refusal {
                 ErrorCode::CommandConflict,
                 "the command id was used for another request",
             ),
-            RunsError::NotFound => Self::scope("no running attempt holds this grant's task"),
+            RunsError::NotFound => Self::scope(
+                "not found: no such plan version or task in this project, or no running \
+                 attempt holds this grant's task",
+            ),
             other => Self::new(
                 ErrorCode::InvalidCommand,
                 format!("{}: {other}", other.code()),
@@ -245,7 +248,7 @@ mod mapping_tests {
 
     #[test]
     fn every_core_error_keeps_its_mcp_mapping() {
-        assert_eq!(Case::all().len(), 63);
+        assert_eq!(Case::all().len(), 64);
         for case in Case::all() {
             let name = format!("{:?}", case.error);
             assert_eq!(case.error.code(), case.code, "{name}");

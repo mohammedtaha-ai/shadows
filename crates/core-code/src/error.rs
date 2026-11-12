@@ -5,6 +5,8 @@ pub enum CodeError {
     InvalidCommand(String),
     #[error("{0}")]
     GrantScope(String),
+    #[error("the file list changed; read it again from the start")]
+    InventoryStale,
     #[error(transparent)]
     Projects(#[from] core_projects::ProjectsError),
     #[error(transparent)]

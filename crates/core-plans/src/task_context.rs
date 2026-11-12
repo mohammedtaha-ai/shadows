@@ -12,6 +12,8 @@ pub struct TaskContext {
     pub phase_dependencies: Vec<PhaseDependency>,
     pub plan: ContextPlan,
     pub task: TaskContent,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub contracts: Vec<crate::ResolvedContract>,
     pub parts: Vec<TaskPart>,
     pub unowned_paths: Vec<String>,
     pub standards: ContextStandards,

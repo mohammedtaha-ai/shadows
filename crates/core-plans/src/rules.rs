@@ -53,6 +53,9 @@ impl Rules {
                 problems.push(Problem::new(format!("T{n} has no acceptance item")));
             }
         }
+        problems.extend(crate::task_contract::ContractRules::approval_problems(
+            content,
+        ));
         problems
     }
 }
@@ -67,6 +70,7 @@ impl Rules {
         removed: &BTreeSet<u32>,
     ) -> Vec<Problem> {
         let mut problems = crate::phases::PhaseRules::problems(content);
+        problems.extend(crate::task_contract::ContractRules::problems(content));
         for (&n, task) in &content.tasks {
             if n == 0 || task.number == 0 {
                 problems.push(Problem::new("T0 is not a task number; numbers start at 1"));

@@ -55,11 +55,15 @@ pub use core_person::{Person, PersonPatch, PersonSettings, Theme};
 pub use core_plans::UiSignal;
 pub use core_plans::{
     AcceptanceItem, AgreementBinding, AgreementParticipantImpact, AgreementPartyReview,
-    AgreementReview, Approved, BindingParticipant, DesignOp, DraftStart, DraftStarted, EditOutcome,
-    Focus, LastEdit, Link, LinkKind, LinkedTask, MapLink, MapPlan, OutcomeView, PartView, Place,
-    Plan, PlanContent, PlanEdit, PlanId, PlanListing, PlanMap, PlanOp, PlanShow, PlanShown,
-    PlanState, PlanTask, PlanVersions, Plans, Problem, TaskContent, TaskId, TaskParent,
-    TaskPreview, VersionLine, WorkflowId, WorkflowState, WrittenBy,
+    AgreementReview, Approved, BindingParticipant, ContractValue, DesignOp, DraftStart,
+    DraftStarted, EditOutcome, FileAction, FileWork, Focus, LastEdit, Link, LinkKind, LinkedTask,
+    MapLink, MapPlan, OutcomeView, PartView, Place, Plan, PlanContent, PlanEdit, PlanId,
+    PlanListing, PlanMap, PlanOp, PlanShow, PlanShown, PlanState, PlanTask, PlanVersions, Plans,
+    Problem, SymbolKind, SymbolWork, TaskContent, TaskContract, TaskId, TaskParent, TaskPreview,
+    VersionLine, WorkflowId, WorkflowState, WrittenBy,
+};
+pub use core_plans::{
+    ContractSource, ContractTarget, ContractUse, ProducedOutput, ResolvedContract,
 };
 pub use core_projects::{
     DirectoryEntry, DirectoryError, DirectoryListing, Project, ProjectId, Projects,
@@ -76,7 +80,7 @@ pub use core_threads::{
     WorkflowRef,
 };
 pub use core_turns::{
-    InvocationView, Operation, Queued, QueuedMessage, QueuedMessageId, SendTurn, SentNow,
+    InvocationView, Notice, Operation, Queued, QueuedMessage, QueuedMessageId, SendTurn, SentNow,
     StartError, Turns,
 };
 pub use core_usage::{ModelUsage, ProviderUsage, Usage, UsageReport};
@@ -111,7 +115,9 @@ pub use core_instructions::InstructionsError;
 
 pub use core_standards::StandardsError;
 
-pub use core_code::CodeError;
+pub use core_code::{
+    CodeError, InventoryEntry, InventoryKind, InventoryPage, InventoryQuery, InventoryState,
+};
 
 pub use core_threads::ThreadsError;
 
@@ -134,4 +140,4 @@ pub use core_plans::{LinkedPhase, PhaseEndpoint};
 pub use core_plans::{Phase, PhaseId, PhaseInput, PhaseRef};
 
 pub use core_runs::{Attempt, AttemptId, AttemptState, RecoverReport, Runs, RunsError, TaskRun};
-pub use core_runs::{CommitResult, FileDiff, Need, StartAnswer};
+pub use core_runs::{AttemptFile, AttemptNotice, FileDiff, Need, StartAnswer};

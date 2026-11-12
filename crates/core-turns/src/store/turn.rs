@@ -157,9 +157,15 @@ impl super::TurnsStore {
                     if Operations::has_open_in(conn, &thread).await? {
                         return Err(crate::TurnsError::ThreadBusy);
                     }
-                    if let Some((id, _)) = &dequeue {
-                        Self::take_queued_in(conn, &thread, id).await?;
-                    }
+                    let notice = match &dequeue {
+                        Some((id, _)) => Self::take_queued_in(conn, &thread, id).await?,
+                        None => None,
+                    };
+                    // A notice's turn is the executor's message, with its card.
+                    let author = match &notice {
+                        Some(notice) => notice.actor(),
+                        None => Actor::user(&ctx.principal_id),
+                    };
                     let focus_task = match &focus {
                         Some(focus) => Some(focused(conn, &thread, focus).await?),
                         None => None,
@@ -179,17 +185,16 @@ impl super::TurnsStore {
                         &thread,
                         NewThreadEntry {
                             kind: ThreadEntryKind::UserMessage,
-                            author: Actor::user(&ctx.principal_id),
+                            author: author.clone(),
                             body: &prompt,
                             refs: &refs,
-                            card: None,
+                            card: notice.as_ref().map(|n| &n.card),
                             operation_id: Some(op.as_str()),
                         },
                         &attachments,
                         &ts,
                     )
                     .await?;
-                    let author = Actor::user(&ctx.principal_id);
                     Threads::title_from_first_message_in(
                         conn, &thread, &entry.id, &prompt, author, &ts,
                     )

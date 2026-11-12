@@ -146,6 +146,7 @@ fn the_document_names_every_route() {
             "DELETE /api/threads/{id}",
             "DELETE /api/threads/{id}/queue/{qid}",
             "GET /api/attempts/{id}/diff",
+            "GET /api/attempts/{id}/files",
             "GET /api/aylul/agent-template",
             "GET /api/aylul/agents",
             "GET /api/aylul/agents/{slug}/env",
@@ -172,6 +173,7 @@ fn the_document_names_every_route() {
             "GET /api/projects/{id}/agreements/{agreement}",
             "GET /api/projects/{id}/agreements/{agreement}/review",
             "GET /api/projects/{id}/code/definitions",
+            "GET /api/projects/{id}/code/files",
             "GET /api/projects/{id}/code/links",
             "GET /api/projects/{id}/code/outline",
             "GET /api/projects/{id}/code/references",
@@ -222,6 +224,7 @@ fn the_document_names_every_route() {
             "POST /api/projects",
             "POST /api/projects/{id}/agreements",
             "POST /api/projects/{id}/agreements/{agreement}/agree",
+            "POST /api/projects/{id}/code/refresh",
             "POST /api/projects/{id}/design/edits",
             "POST /api/projects/{id}/map-proposals/{proposal_id}/approve",
             "POST /api/projects/{id}/mcp-grants",
@@ -289,8 +292,11 @@ fn ids_errors_and_the_stream_are_described_as_clients_rely_on() {
             for (status, response) in op["responses"].as_object().unwrap() {
                 if status.starts_with('4') || status.starts_with('5') {
                     // The one exception: a refused run is 409 with Runs' own
-                    // code and reason, the pair a task's `start` answer carries.
-                    let expected = if status == "409" && path.contains("/tasks/{task}/") {
+                    // code and reason, the pair a task's `start` answer carries;
+                    // reading a file outside the task's writes is one.
+                    let runs =
+                        path.contains("/tasks/{task}/") || path == "/api/attempts/{id}/files";
+                    let expected = if status == "409" && runs {
                         "#/components/schemas/RunRefusal"
                     } else {
                         "#/components/schemas/ErrorBody"

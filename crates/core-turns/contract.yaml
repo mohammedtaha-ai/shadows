@@ -231,6 +231,13 @@ shapes:
     # Why the last send failed (§20.3).
     last_error: Option<String>
     created_at: String
+    # The executor's notice this row is (queued_message.notice_json); null for the person's.
+    notice: Option<Notice>
+  Notice:
+    # A message an executor's attempt sends the Planner through Shadows: its
+    # thread is its identity, the card (an object the sender shapes) is drawn.
+    executor: ThreadId
+    card: serde_json::Value
   Queued:
     # What queueing answers, tagged "status": Waiting { message } or
     # Started { operation_id } when the thread was idle.
@@ -330,8 +337,8 @@ functions:
       # SettingNotOffered; ModeNotAllowed; CommandConflict; TaskNotInPlan.
       # ModeNotAllowed reads the thread's kind: a planning thread may use the
       # modes its project allows; an executor thread `policy::EXECUTOR_MODE`
-      # and nothing else, since in any other mode its edits would not reach
-      # Shadows to be refused.
+      # (`auto`) and nothing else, so a project's modes never decide how an
+      # attempt runs.
       # Once the checks up to the busy check pass, before the session is
       # opened: `Code::touch` of the thread's project (§15.6), which never
       # fails or delays the turn.
@@ -343,15 +350,26 @@ functions:
       # (`start_command`). A replay of the derived start answers its turn
       # first, so no copy waits behind it. Refusals: `send`'s, and ThreadBusy
       # after two tries (a turn took the thread between Idle and the start).
+    queue_notice:
+      signature: "(&self, thread: ThreadId, turn: SendTurn, notice: Notice) -> Result<Queued, TurnsError>"
+      # `queue` in the executor's name: the turn.queue command, and the
+      # turn.start the row becomes, are recorded with principal Executor/<executor
+      # thread> and the notice joined to both fingerprints (`in_name_of`). The row
+      # stores the notice and is written even on an idle thread, then started at
+      # once with `send_queued`; ThreadBusy or QueuedMessageGone leaves it Waiting,
+      # any other refusal is recorded as its last_error and answered. The turn's
+      # prompt entry (and a steered one) has author Executor/<thread> and the card.
     queued:
       signature: "(&self, thread: &ThreadId) -> Result<Vec<QueuedMessage>, TurnsError>"
       # §20.5: the thread's waiting messages in `position` order.
     unqueue:
       signature: "(&self, thread: &ThreadId, id: &QueuedMessageId, command_id: String) -> Result<(), TurnsError>"
       # §20.5, "turn.unqueue": removes a waiting message. Refusals:
-      # QueuedMessageGone, CommandConflict.
+      # QueuedMessageGone, CommandConflict, and QueuedNoticeKept for a notice,
+      # which removes nothing (a replay is refused the same way).
     send_with:
-      signature: "(&self, thread_id: ThreadId, turn: SendTurn, dequeue: Option<(QueuedMessageId, Option<CommandContext>)>) -> Result<OperationId, TurnsError>"
+      signature: "(&self, thread_id: ThreadId, turn: SendTurn, dequeue: Option<(QueuedMessageId, Option<CommandContext>, Option<Notice>)>) -> Result<OperationId, TurnsError>"
+      # The dequeued row's notice makes the turn.start command the executor's.
       # pub(crate): `send` is `send_with(.., None)`. With a `dequeue`, the
       # turn takes that waiting message in its own transaction (§20.3).
     send_now:
@@ -524,7 +542,9 @@ functions:
       # title_from_first_message_in, Harness::record_invocation_in,
       # Harness::remember_settings_in, record_command. With `NewTurn.dequeue`: the row is
       # taken right after the busy check and `QueuedMessageSent` is journaled
-      # after the turn's command is recorded, both in this one write.
+      # after the turn's command is recorded, both in this one write. A taken row
+      # with a notice writes the entry with author Executor/<thread> and the card,
+      # and the title rule is called with that author.
     replayed_turn:
       signature: "(&self, ctx: &CommandContext, thread: &ThreadId) -> Result<Option<StartedTurn>, StorageError>"
     queue_message:
@@ -532,6 +552,11 @@ functions:
       # A replay answers the message as first answered; a removed thread is
       # NotFound; an idle thread writes nothing and is Idle; a busy one gets
       # the row, last in `position` order.
+    queue_notice_message:
+      signature: "(&self, ctx: &CommandContext, thread: &ThreadId, new: NewQueued<'_>, notice: &Notice) -> Result<(QueuedMessage, bool), StorageError>"
+      # pub(crate): `queue_message` storing the notice, written on an idle thread
+      # too; the bool says the thread was idle. MessageQueued's actor is the
+      # command's principal.
     queued_messages:
       signature: "(&self, thread: &ThreadId) -> Result<Vec<QueuedMessage>, StorageError>"
       # In `position` order; none for a removed thread.
@@ -540,12 +565,13 @@ functions:
     unqueue_message:
       signature: "(&self, ctx: &CommandContext, thread: &ThreadId, id: &QueuedMessageId) -> Result<(), TurnsError>"
       # A replay is judged first; a new command on a gone row is
-      # QueuedMessageGone.
+      # QueuedMessageGone, on a notice QueuedNoticeKept, removing nothing.
     fail_queued:
       signature: "(&self, thread: &ThreadId, id: &QueuedMessageId, reason: &str) -> Result<(), StorageError>"
       # Why the last send of a waiting message failed (§20.3, §20.4).
     take_queued_in:
-      signature: "(conn, thread: &ThreadId, id: &QueuedMessageId) -> Result<(), TurnsError>"
+      signature: "(conn, thread: &ThreadId, id: &QueuedMessageId) -> Result<Option<Notice>, TurnsError>"
+      # Answers the taken row's notice.
       # Removes a waiting message inside the caller's transaction, or
       # QueuedMessageGone: of two writers racing for one row, one wins.
     steered_entry:
@@ -596,6 +622,8 @@ called_by_other_services:
 
 
 obligations:
+  - rule: An executor's notice waits on a busy Planner with its notice, under the executor's principal, and the person cannot remove it while their own messages stay removable.
+    tested_by: [a_notice_waits_on_a_busy_planner_in_the_executors_name]
   - rule: Permission asks and answers become ordered entries; unfinished asks end refused and Planner refusal stays unchanged.
     tested_by: [permission_asked_and_answered_become_entries, an_open_ask_is_refused_at_finish, the_planner_refusal_entry_is_unchanged]
   - rule: >

@@ -7,9 +7,9 @@ use std::sync::atomic::Ordering;
 use super::handles::SteerTarget;
 use super::spawn::OnCompleted;
 use super::steer::SteerRequest;
-use super::{NewQueued, OperationId, QueueAnswer, SendTurn, Turns, start_command};
+use super::{NewQueued, OperationId, QueueAnswer, SendTurn, Turns, in_name_of, start_command};
 use crate::TurnsError;
-use crate::model::{Queued, QueuedMessage, QueuedMessageId, SentNow};
+use crate::model::{Notice, Queued, QueuedMessage, QueuedMessageId, SentNow};
 use core_db::CommandContext;
 use core_threads::{ThreadEntryId, ThreadId};
 
@@ -22,7 +22,29 @@ impl Turns {
     /// A waiting message on a busy thread; on an idle one, the turn
     /// it starts. A replay answers what the first call answered.
     pub async fn queue(&self, thread: ThreadId, turn: SendTurn) -> Result<Queued, TurnsError> {
-        let derived = start_command(idle_start_id(&turn.command_id), &thread, &turn);
+        self.queue_with(thread, turn, None).await
+    }
+
+    /// `queue` in the executor's name: the waiting row, and the turn it
+    /// starts, carry the notice, and the person cannot remove it. On an idle
+    /// thread the row is written and sent at once; a turn that took the
+    /// thread meanwhile leaves it waiting.
+    pub async fn queue_notice(
+        &self,
+        thread: ThreadId,
+        turn: SendTurn,
+        notice: Notice,
+    ) -> Result<Queued, TurnsError> {
+        self.queue_with(thread, turn, Some(notice)).await
+    }
+
+    async fn queue_with(
+        &self,
+        thread: ThreadId,
+        turn: SendTurn,
+        notice: Option<Notice>,
+    ) -> Result<Queued, TurnsError> {
+        let derived = start_command(idle_start_id(&turn.command_id), &thread, &turn, None);
         if let Some(replay) = self.store.replayed_turn(&derived, &thread).await? {
             return Ok(Queued::Started {
                 operation_id: replay.operation_id,
@@ -41,6 +63,7 @@ impl Turns {
             params["attachments"] = serde_json::json!(turn.attachments);
         }
         let command = CommandContext::user(turn.command_id.clone(), "turn.queue", params);
+        let command = in_name_of(command, notice.as_ref());
         if let Some(message) = self.store.replayed_queue(&command, &thread).await? {
             return Ok(Queued::Waiting { message });
         }
@@ -58,6 +81,26 @@ impl Turns {
             focus: turn.focus.as_ref(),
             plan: turn.plan.as_ref(),
         };
+        if let Some(notice) = &notice {
+            let store = &self.store;
+            let (message, idle) = store
+                .queue_notice_message(&command, &thread, new(), notice)
+                .await?;
+            if !idle {
+                return Ok(Queued::Waiting { message });
+            }
+            return match self.send_queued(&thread, &message, None).await {
+                Ok(operation_id) => Ok(Queued::Started { operation_id }),
+                Err(TurnsError::ThreadBusy | TurnsError::QueuedMessageGone) => {
+                    Ok(Queued::Waiting { message })
+                }
+                Err(error) => {
+                    let reason = error.to_string();
+                    store.fail_queued(&thread, &message.id, &reason).await?;
+                    Err(error)
+                }
+            };
+        }
         // Twice at most: a turn may take the thread between `Idle` and the start.
         for _ in 0..2 {
             match self.store.queue_message(&command, &thread, new()).await? {
@@ -192,7 +235,7 @@ impl Turns {
             plan: row.plan.clone(),
             client_tab: None,
         };
-        let dequeue = Some((row.id.clone(), also));
+        let dequeue = Some((row.id.clone(), also, row.notice.clone()));
         self.send_with(thread.clone(), turn, dequeue).await
     }
 

@@ -42,12 +42,15 @@ groups:
   createGroup: Create a group using the caller's command id.
   sendToGroup: Append a person message using the caller's command id.
 runs:
-  taskRunQuery: Read a task's run state; read again every two seconds while its latest attempt runs.
-  attemptsQuery: Read a task's attempts, newest first; read again every two seconds while the newest runs.
+  stoppedOnAdditionCap: True when the latest attempt is committed, carries a non-null addition, the task is not done and Core allows Start; the only place the web reads the cap, without counting additions.
+  awaitingJudgment: True when the task's latest attempt is committed, the task is not done and Core refuses Start with task_busy (a task stopped on the cap may be started, so it does not wait); the only place the web reads it.
+  taskRunQuery: Read a task's run state; read again every two seconds while its latest attempt runs or awaitingJudgment holds; retry only a lost call (up to 3), never Core's answer.
+  attemptsQuery: Read a task's attempts, newest first; read again every two seconds while the newest runs; retry only a lost call (up to 3), never Core's answer.
   startAttempt: Start an attempt on a model using the caller's command id; a refusal's ApiError message is Core's reason.
   stopAttempt: Stop an attempt.
   markTaskDone: Mark a task done or not done using the caller's command id.
-  aliases: TaskRun, Attempt, AttemptState and Need are exported from the generated schemas; FileDiff and RunRefusal stay inside runs.ts.
+  attemptFileQuery: Read one file as an attempt's commit holds it (GET /api/attempts/{id}/files?path=); ['runs', 'file', attemptId, path]; a refusal's ApiError message is Core's.
+  aliases: TaskRun, Attempt, AttemptState, Need, AttemptFile, AttemptNotice (an executor's notice card) and DiffHunk are exported from the generated schemas; FileDiff and RunRefusal stay inside runs.ts.
 mcp_tool_rules:
   agentToolsQuery: "GET /api/aylul/agents/{slug}/extensions/mcp/{id}/tools; ['aylul-agent-mcp-tools', slug, id]"
   setToolRules: Replace one item's entire rule set with the caller's command id.

@@ -3,13 +3,19 @@
 //! runs on `fake_acp`; `wait-for-release` holds its turn until a `release`
 //! file appears in the project folder. `live` runs the real adapter.
 
-#[path = "runs_attempts/commit.rs"]
-mod commit;
 #[allow(dead_code)]
 #[path = "fixtures/cross_plan.rs"]
 mod cross_plan;
+#[path = "runs_attempts/init.rs"]
+mod init;
+#[path = "runs_attempts/lessons.rs"]
+mod lessons;
 #[path = "runs_attempts/live.rs"]
 mod live;
+#[path = "runs_attempts/planner.rs"]
+mod planner;
+#[path = "runs_attempts/report.rs"]
+mod report;
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -38,6 +44,7 @@ fn task(number: u32, writes: &str) -> PlanOp {
     PlanOp::TaskAdd {
         task: TaskContent {
             phases: Vec::new(),
+            contract: None,
             number,
             title: format!("Task {number}"),
             goal: "A usable result".into(),
@@ -116,6 +123,15 @@ async fn fixture() -> Fixture {
 }
 
 async fn fixture_with(approve: bool, adapter: Option<Arc<ClaudeAdapter>>) -> Fixture {
+    fixture_full(approve, adapter, "Web").await
+}
+
+/// The approved fixture whose source plan is titled `title`.
+async fn fixture_titled(title: &str) -> Fixture {
+    fixture_full(true, None, title).await
+}
+
+async fn fixture_full(approve: bool, adapter: Option<Arc<ClaudeAdapter>>, title: &str) -> Fixture {
     let tmp = tempfile::tempdir().unwrap();
     let storage = Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
     let root = tmp.path().join("project");
@@ -163,10 +179,11 @@ async fn fixture_with(approve: bool, adapter: Option<Arc<ClaudeAdapter>>) -> Fix
         "INSERT INTO workflow
            (id, plan_id, state, version, revision, title, goal, written_by_thread,
             created_at, updated_at)
-         VALUES (?, 'source-plan', 'Draft', 1, 0, 'Web', 'A usable web app', ?,
+         VALUES (?, 'source-plan', 'Draft', 1, 0, ?, 'A usable web app', ?,
            '2026-10-04T00:00:00Z', '2026-10-04T00:00:00Z')",
     )
     .bind(SOURCE)
+    .bind(title)
     .bind(thread_id)
     .execute(storage.reader())
     .await
@@ -267,7 +284,7 @@ impl Fixture {
     async fn start(&self, command: &str, task: u32) -> Result<Attempt, RunsError> {
         self.core
             .runs()
-            .start(command.into(), &self.workflow, 1, task, "fake-small".into())
+            .start(command.into(), &self.workflow, 1, task, "fake-large".into())
             .await
     }
 
@@ -294,6 +311,77 @@ impl Fixture {
     }
 }
 
+/// The grant of the plan's Planner, the thread that wrote it.
+async fn planner_grant(f: &Fixture) -> shadows_core::Grant {
+    let thread: String = sqlx::query_scalar("SELECT written_by_thread FROM workflow WHERE id = ?")
+        .bind(SOURCE)
+        .fetch_one(f.storage.reader())
+        .await
+        .unwrap();
+    let thread = ThreadId::from_literal(thread);
+    shadows_core::Grants::issue_thread_grant_for_test(&f.storage, &thread)
+        .await
+        .unwrap()
+        .0
+}
+
+/// One recorded turn of the plan's Planner on `harness`, asking for `model`,
+/// committed by the turn command's own write and ended without an adapter.
+async fn planner_turn(f: &Fixture, id: &str, harness: &str, model: &str) {
+    use shadows_core::testing::turn::{new_turn, turn_command};
+    let thread: String = sqlx::query_scalar("SELECT written_by_thread FROM workflow WHERE id = ?")
+        .bind(SOURCE)
+        .fetch_one(f.storage.reader())
+        .await
+        .unwrap();
+    let thread = ThreadId::from_literal(thread);
+    let runtime = shadows_core::testing::Runtime::start(f.storage.clone())
+        .await
+        .unwrap();
+    let settings = shadows_agent::TurnSettings {
+        model: model.into(),
+        mode: "default".into(),
+        effort: None,
+    };
+    let mut turn = new_turn(&thread, &runtime, "plan it", &settings);
+    turn.harness_kind = harness;
+    let started = shadows_core::Turns::start_turn_for_test(
+        &f.storage,
+        &turn_command(id, &thread, "plan it", &settings),
+        turn,
+    )
+    .await
+    .unwrap();
+    shadows_core::Turns::mark_operation_failed_for_test(
+        &f.storage,
+        &started.operation_id,
+        shadows_core::testing::FailureStage::Prepare,
+        "recorded only",
+    )
+    .await
+    .unwrap();
+}
+
+/// The suggestion is a model the executor's harness offers: a Codex
+/// Planner's model is not, so the model last used on Claude is suggested.
+#[tokio::test]
+async fn the_suggested_model_is_one_the_executors_harness_offers() {
+    let f = fixture().await;
+    let suggested = |f: &Fixture| {
+        let runs = f.core.runs().clone();
+        let workflow = f.workflow.clone();
+        async move { runs.task(&workflow, 1, 1).await.unwrap().suggested_model }
+    };
+    assert_eq!(suggested(&f).await, None);
+    planner_turn(&f, "turn-1", "claude-code", "sonnet").await;
+    assert_eq!(suggested(&f).await.as_deref(), Some("sonnet"));
+    planner_turn(&f, "turn-2", "codex", "gpt-6-luna").await;
+    let after_codex = suggested(&f).await;
+    assert_ne!(after_codex.as_deref(), Some("gpt-6-luna"));
+    assert_eq!(after_codex.as_deref(), Some("sonnet"), "{after_codex:?}");
+    f.finish().await;
+}
+
 #[tokio::test]
 async fn start_opens_one_attempt_on_an_executor_thread() {
     let f = fixture().await;
@@ -301,7 +389,7 @@ async fn start_opens_one_attempt_on_an_executor_thread() {
     let attempt = f.start("s1", 3).await.unwrap();
     assert_eq!(attempt.state, AttemptState::Running);
     assert_eq!(attempt.number, 1);
-    assert_eq!(attempt.model, "fake-small");
+    assert_eq!(attempt.model, "fake-large");
     assert!(attempt.operation_id.is_some());
     let kind: String = sqlx::query_scalar("SELECT kind FROM planning_thread WHERE id = ?")
         .bind(attempt.thread_id.as_str())
@@ -309,6 +397,15 @@ async fn start_opens_one_attempt_on_an_executor_thread() {
         .await
         .unwrap();
     assert_eq!(kind, "executor");
+    // A reported commit is judged new against the HEAD Start saw.
+    let start_head: Option<String> =
+        sqlx::query_scalar("SELECT start_head FROM run_attempts WHERE id = ?")
+            .bind(attempt.id.as_str())
+            .fetch_one(f.storage.reader())
+            .await
+            .unwrap();
+    let head = git(&f.root, &["rev-parse", "HEAD"]);
+    assert_eq!(start_head.as_deref(), Some(head.trim()));
     f.finish().await;
 }
 
@@ -327,7 +424,7 @@ async fn the_same_command_returns_the_same_attempt() {
     let other = f
         .core
         .runs()
-        .start("s1".into(), &f.workflow, 1, 3, "fake-large".into())
+        .start("s1".into(), &f.workflow, 1, 3, "fake-small".into())
         .await;
     assert!(
         matches!(other, Err(RunsError::CommandConflict)),
@@ -533,7 +630,7 @@ async fn recover_interrupts_running_attempts_without_restarting_them() {
     .await
     .unwrap();
     let report = f.core.runs().recover().await.unwrap();
-    assert_eq!((report.interrupted, report.committed), (1, 0));
+    assert_eq!(report.interrupted, 1);
     let attempt = f
         .core
         .runs()
@@ -578,7 +675,7 @@ async fn disjoint_tasks_start_together() {
 }
 
 #[tokio::test]
-async fn a_committed_attempt_holds_its_scope_until_its_turn_ends() {
+async fn a_committed_attempt_holds_its_scope_until_it_is_marked_done() {
     let f = fixture().await;
     f.hold();
     let attempt = f.start("s1", 3).await.unwrap();
@@ -594,14 +691,34 @@ async fn a_committed_attempt_holds_its_scope_until_its_turn_ends() {
         "{held:?}"
     );
     f.release();
-    for n in 0..400 {
-        match f.start(&format!("retry-{n}"), 4).await {
-            Ok(_) => return f.finish().await,
-            Err(RunsError::Overlap { .. }) => tokio::time::sleep(Duration::from_millis(25)).await,
-            Err(other) => panic!("{other:?}"),
+    let operation = attempt.operation_id.clone().unwrap();
+    let mut ended = false;
+    for _ in 0..400 {
+        let operations = f.core.turns().operations(&attempt.thread_id).await.unwrap();
+        if operations
+            .iter()
+            .any(|op| op.id == operation && op.finished_at.is_some())
+        {
+            ended = true;
+            break;
         }
+        tokio::time::sleep(Duration::from_millis(25)).await;
     }
-    panic!("the scope was never released");
+    assert!(ended, "the turn never ended");
+    // Twenty of the watcher's 25 ms polls: a release it made would show now.
+    tokio::time::sleep(Duration::from_millis(500)).await;
+    let held = f.start("s3", 4).await;
+    assert!(
+        matches!(held, Err(RunsError::Overlap { task: 3 })),
+        "{held:?}"
+    );
+    f.core
+        .runs()
+        .mark_done("m1".into(), &f.workflow, 1, 3, true)
+        .await
+        .unwrap();
+    f.start("s4", 4).await.unwrap();
+    f.finish().await;
 }
 
 #[tokio::test]

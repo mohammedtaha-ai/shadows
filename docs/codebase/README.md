@@ -192,11 +192,17 @@ pattern to follow, not merely an example.
 | `crates/core-runs/src/scope.rs` | matching paths against a task's writes | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/ready.rs` | whether a task may start now | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/start.rs` | starting an attempt | `crates/core-runs/contract.yaml` |
+| `crates/core-runs/src/amend.rs` | carrying an attempt on with the Planner's addition | `crates/core-runs/contract.yaml` |
+| `crates/core-runs/src/lessons.rs` | the record a task leaves when it stops on the cap | `crates/core-runs/contract.yaml` |
+| `crates/core-runs/src/store/lessons.rs` | lessons records SQL | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/stop.rs` | stopping an attempt | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/git.rs` | git calls in a project folder | `crates/core-runs/contract.yaml` |
-| `crates/core-runs/src/commit.rs` | committing an attempt's work | `crates/core-runs/contract.yaml` |
+| `crates/core-runs/src/init.rs` | giving a project folder its repository | `crates/core-runs/contract.yaml` |
+| `crates/core-runs/src/planner.rs` | the Planner's calls on its project's tasks | `crates/core-runs/contract.yaml` |
+| `crates/core-runs/src/report.rs` | accepting an attempt's reported commit | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/diff.rs` | reading an attempt's commit | `crates/core-runs/contract.yaml` |
-| `crates/core-runs/src/watch.rs` | following a turn to its end | `crates/core-runs/contract.yaml` |
+| `crates/core-runs/src/watch.rs` | settling an attempt when its turn ends | `crates/core-runs/contract.yaml` |
+| `crates/core-runs/src/notify.rs` | telling a plan's Planner how an attempt ended | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/recover.rs` | settling attempts at startup | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/store/` | run persistence | `crates/core-runs/contract.yaml` |
 | `crates/core-runtime/src/` | the runtime instance's lifecycle | `crates/core-runtime/src/lib.rs` |
@@ -501,6 +507,8 @@ file disagrees with either, they are right and this file is the defect.
 | `crates/core-code/tests/recheck/` | question refresh race regression | `crates/core-code/tests/recheck/invariants.rs` |
 | `crates/core-code/src/error.rs` | index refusals | `crates/core-code/contract.yaml` |
 | `crates/core-code/src/testing.rs` | gated index inspection | `crates/core-code/contract.yaml` |
+| `crates/core-code/src/inventory.rs` | the paged file inventory of a project's folder | `crates/core-code/contract.yaml` |
+| `crates/core-code/src/store/inventory.rs` | file inventory persistence | `crates/core-code/contract.yaml` |
 
 | `crates/core-agents/assets/aylul-profile/CLAUDE.md` | bundled agent home instructions | `crates/core-agents/contract.yaml` |
 | `crates/core-agents/assets/aylul-profile/settings.json` | bundled agent home settings | `crates/core-agents/contract.yaml` |
@@ -518,7 +526,7 @@ file disagrees with either, they are right and this file is the defect.
 
 | `crates/core-harness/src/error.rs` | harness failure vocabulary | `crates/core-harness/contract.yaml` |
 | `crates/core-harness/src/prompt.txt` | Planner opening instructions | `crates/core-harness/contract.yaml` |
-| `crates/core-harness/src/executor.txt` | executor opening instructions | `crates/core-harness/contract.yaml` |
+| `crates/core-harness/src/executor.md` | executor instructions with their tool list | `crates/core-harness/contract.yaml` |
 | `crates/core-harness/src/schema_descriptions/` | harness wire description metadata | `crates/core-harness/contract.yaml` |
 
 | `crates/core-design/src/openapi-3.1-schema.json` | bundled OpenAPI document schema | `crates/core-design/contract.yaml` |
@@ -552,6 +560,8 @@ file disagrees with either, they are right and this file is the defect.
 | `crates/core-design/src/layout.rs` | project layout ownership | `crates/core-design/contract.yaml` |
 | `crates/core-design/src/store/layout.rs` | snapshot layout projection | `crates/core-design/contract.yaml` |
 | `crates/core-plans/src/task_context.rs` | approved task context boundary | `crates/core-plans/contract.yaml` |
+| `crates/core-plans/src/task_contract.rs` | task contract types with their one-task rules | `crates/core-plans/contract.yaml` |
+| `crates/core-plans/src/contract_uses.rs` | resolving a consumer's uses against its plan version's producers | `crates/core-plans/contract.yaml` |
 | `crates/core-plans/src/store/task_context.rs` | snapshot task context assembly | `crates/core-plans/contract.yaml` |
 | `crates/core-plans/src/phases.rs` | ordered phase contracts | `crates/core-plans/contract.yaml` |
 | `crates/core-plans/src/store/phase_refs.rs` | exact phase target resolution | `crates/core-plans/contract.yaml` |

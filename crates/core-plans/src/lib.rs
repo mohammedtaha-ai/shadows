@@ -26,11 +26,17 @@ mod map;
 mod model;
 mod phases;
 pub use phases::{LinkedPhase, Phase, PhaseEndpoint, PhaseId, PhaseInput, PhaseRef};
+mod contract_uses;
 mod ops;
 mod rules;
 mod task_context;
+mod task_contract;
 pub use task_context::{
     ContextPlan, ContextStandards, PhaseDependency, TaskContext, TaskPart, TaskPath,
+};
+pub use task_contract::{
+    ContractSource, ContractTarget, ContractUse, ContractValue, FileAction, FileWork,
+    ProducedOutput, ResolvedContract, SymbolKind, SymbolWork, TaskContract,
 };
 mod scope;
 mod signal;

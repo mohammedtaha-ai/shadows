@@ -49,7 +49,9 @@ agreements:
   - between: [plans::get, plans::get_for]
     must: Preserve stored values within scope; grant reads independently enforce project reach.
     tested_by: [plan_adapter_pairs_keep_their_authorization_boundaries,
-      incoming_previews_obey_the_grants_one_way_project_reach]
+      incoming_previews_obey_the_grants_one_way_project_reach,
+      a_contract_written_over_mcp_is_read_the_same_over_http]
+    # GET /api/workflows/{id} carries each task's contract at tasks[i].contract, from TaskContent.
   - between: [plans::approve, plans::approve_as_planner]
     must: >
       Both end in approve_plan_with. Person approval and Planner approval keep
@@ -98,6 +100,7 @@ runs:
     - 'PUT /api/workflows/{workflow}/versions/{version}/tasks/{task}/done -> Runs::mark_done'
     - 'POST /api/attempts/{id}/stop -> Runs::stop, run detached'
     - 'GET /api/attempts/{id}/diff -> Runs::diff'
+    - 'GET /api/attempts/{id}/files?path= -> Runs::file (AttemptFile; 409 outside_writes is a RunRefusal)'
   refusals: >
     A Runs refusal is 409 RunRefusal { code, reason } with Runs' own opaque code, the same
     codes a task's start answer carries; NotFound is 404, Storage and Unavailable 5xx
@@ -107,9 +110,22 @@ runs:
     start_while_waiting_is_409_with_the_waiting_tasks, a_replayed_start_returns_the_same_attempt,
     the_attempts_are_listed_newest_first, stop_answers_the_attempt_as_it_stands,
     the_diff_of_an_attempt_with_no_commit_is_empty, a_done_mark_frees_the_tasks_that_need_it,
-    the_folder_decides_start_not_git_and_dirty_scope,
+    the_folder_decides_start_not_git_and_dirty_scope, a_file_at_an_attempts_commit_is_served,
     live_a_task_started_over_http_commits_only_its_writes]
+
+code_inventory:
+  module: code.rs
+  routes:
+    - 'GET /api/projects/{id}/code/files -> Code::inventory (Asker::Person; absent prefix, after, limit take InventoryQuery::default())'
+    - 'POST /api/projects/{id}/code/refresh -> Code::refresh_inventory (Asker::Person), no body'
+  refusals: >
+    INVENTORY_STALE is 409 (a cursor of another generation, files only); a limit outside 1 to
+    200, a path outside the project or a foreign cursor is 422 INVALID_COMMAND; no such
+    project is 404.
+  tested_by: [the_person_and_the_planner_see_the_same_files]
 
 map_refusals: 'MAP_REFUSED is HTTP 422 with the rule-prefixed domain message; shared adapter fixtures cover it.'
 
 layout_only: Map records contain no starter files; the stage has no Structure step or file count, and no HTTP structure-write route exists. Roadmap follows map approval.
+
+queued_notices: 'QUEUED_NOTICE_KEPT is 409: DELETE of a waiting executor notice removes nothing. QueuedMessage.notice and the Notice and AttemptNotice schemas (the latter listed in openapi.rs, as the card a notice entry carries) describe it.'

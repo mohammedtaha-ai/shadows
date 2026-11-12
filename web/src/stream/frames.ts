@@ -3,6 +3,7 @@
 // the OpenAPI document's `/api/subscribe` entry); OpenAPI cannot type them, so
 // they are checked here, and a frame that does not match is a protocol error.
 
+import type { AttemptNotice } from '@/api/runs'
 import type { AccountLimits, Choice, SessionChoices } from '@/api/sessions'
 import type {
   CallKind,
@@ -148,6 +149,35 @@ export function readSubagentCard(value: unknown): SubagentCard | null {
     durationMs: count(value.duration_ms),
     tokens: count(value.tokens),
     toolCount: count(value.tool_count),
+  }
+}
+
+/** An executor's notice card as `value` holds it, or `null` when it is not one. */
+export function readAttemptNotice(value: unknown): AttemptNotice | null {
+  if (!isRecord(value)) return null
+  const { task, attempt, title, model, outcome } = value
+  if (
+    typeof task !== 'number' ||
+    typeof attempt !== 'number' ||
+    typeof title !== 'string' ||
+    typeof model !== 'string' ||
+    (outcome !== 'committed' && outcome !== 'failed')
+  ) {
+    return null
+  }
+  return {
+    workflow_id: textOrNull(value.workflow_id) ?? '',
+    version: typeof value.version === 'number' ? value.version : 0,
+    task,
+    title,
+    attempt,
+    attempt_id: textOrNull(value.attempt_id) ?? '',
+    model,
+    outcome,
+    commit: textOrNull(value.commit),
+    report: textOrNull(value.report),
+    reason: textOrNull(value.reason),
+    last_addition: value.last_addition === true,
   }
 }
 

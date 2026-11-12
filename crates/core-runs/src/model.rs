@@ -70,9 +70,17 @@ pub struct Attempt {
     pub operation_id: Option<OperationId>,
     pub model: String,
     pub state: AttemptState,
-    /// The commit's SHA once the attempt committed.
+    /// The SHA of the commit the executor made and reported, once accepted.
     #[schema(required)]
     pub commit: Option<String>,
+    /// The executor's own account of what it did, ran and found, stored
+    /// with its accepted commit.
+    #[schema(required)]
+    pub report: Option<String>,
+    /// The Planner's addition this attempt carried on with, in the session of
+    /// the attempt before it; null for an attempt Start began.
+    #[schema(required)]
+    pub addition: Option<String>,
     /// Why the attempt failed, when it did.
     #[schema(required)]
     pub reason: Option<String>,
@@ -98,6 +106,15 @@ pub struct TaskRun {
     /// without one.
     #[schema(required)]
     pub suggested_model: Option<String>,
+}
+
+/// What the Planner's done mark answers: the task as it now stands, and, for
+/// a done mark, the lowest-numbered task that never ran and may start now.
+/// MCP only; no route serves it.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct DoneMark {
+    pub task: TaskRun,
+    pub next: Option<u32>,
 }
 
 /// Whether Start may run now, by the same checks as Start, without writing.
@@ -126,28 +143,83 @@ pub struct Need {
     pub done: bool,
 }
 
-/// What a commit did: the attempt, now `Committed`, the paths it committed,
-/// and the changed paths outside `writes` it left in the folder.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
-pub struct CommitResult {
-    pub attempt: Attempt,
-    pub files: Vec<String>,
-    pub left: Vec<String>,
-}
-
-/// One file of an attempt's commit: its line counts and its patch, cut at
-/// 2,000 lines with a marker.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, utoipa::ToSchema)]
+/// One file of an attempt's commit: its line counts, its patch cut at 2,000
+/// lines with a marker, and the same patch read into hunks (none for a binary
+/// file), whose lines stop at 2,000 in all.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, utoipa::ToSchema)]
 pub struct FileDiff {
     pub path: String,
     pub added: u32,
     pub removed: u32,
     pub patch: String,
+    pub hunks: Vec<shadows_agent::events::DiffHunk>,
 }
 
-/// What startup recovery found.
+/// The facts of an executor's notice to its Planner, the card the
+/// conversation draws: which task and attempt, on which model, how it ended,
+/// and the executor's report (its last message when it failed).
+#[derive(Debug, Clone, serde::Serialize, utoipa::ToSchema)]
+pub struct AttemptNotice {
+    pub workflow_id: WorkflowId,
+    pub version: i64,
+    pub task: u32,
+    /// The task's title, or `T{task}` when it has none.
+    pub title: String,
+    pub attempt: u32,
+    pub attempt_id: AttemptId,
+    pub model: String,
+    pub outcome: AttemptState,
+    pub commit: Option<String>,
+    pub report: Option<String>,
+    pub reason: Option<String>,
+    /// The attempt carried the task's third and last addition.
+    pub last_addition: bool,
+}
+
+/// One file as an attempt's commit holds it; deleted or binary files have no text.
+#[derive(Debug, Clone, serde::Serialize, utoipa::ToSchema)]
+pub struct AttemptFile {
+    pub path: String,
+    pub text: Option<String>,
+    pub cut: bool,
+}
+
+/// The record a task leaves when it stops on the cap: the chain of attempts
+/// from its Start, the commands its executor ran, and the Planner's account
+/// of what stopped the work. The two Planner fields are `null` until it
+/// writes them. No route serves it.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct TaskLesson {
+    pub workflow_id: WorkflowId,
+    pub version: i64,
+    pub task: u32,
+    pub title: String,
+    pub attempts: Vec<LessonAttempt>,
+    pub commands: Vec<LessonCommand>,
+    pub stopped_by: Option<String>,
+    pub plan_should_have_said: Option<String>,
+    pub recorded_at: String,
+}
+
+/// One attempt of the chain, oldest first; `addition` is what was missing.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct LessonAttempt {
+    pub number: u32,
+    pub addition: Option<String>,
+    pub commit: Option<String>,
+    pub report: Option<String>,
+}
+
+/// One shell call the executor ran: its title, status and error, no output.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct LessonCommand {
+    pub command: String,
+    pub status: String,
+    pub error: Option<String>,
+}
+
+/// What startup recovery found: how many running attempts it interrupted.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct RecoverReport {
-    pub committed: u32,
     pub interrupted: u32,
 }

@@ -105,3 +105,74 @@ pub struct CodeSettings {
     /// The most `active_limit` Core accepts.
     pub active_limit_max: u32,
 }
+
+/// What a listing asks for. Built by an adapter; never deserialized.
+#[derive(Debug, Clone)]
+pub struct InventoryQuery {
+    /// A folder relative to the project's folder; "" for all of it.
+    pub prefix: String,
+    /// The `next` of the page before this one.
+    pub after: Option<String>,
+    /// 1 to 200.
+    pub limit: u16,
+}
+
+impl Default for InventoryQuery {
+    fn default() -> Self {
+        Self {
+            prefix: String::new(),
+            after: None,
+            limit: 100,
+        }
+    }
+}
+
+/// What one listed path is.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, utoipa::ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum InventoryKind {
+    Directory,
+    File,
+    Excluded,
+}
+
+/// How a project's file list stands.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, utoipa::ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum InventoryState {
+    Missing,
+    Indexing,
+    Ready,
+    Incomplete,
+}
+
+/// One path of a project's folder.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, utoipa::ToSchema)]
+pub struct InventoryEntry {
+    /// Relative to the project's folder, with '/'. A folder has no trailing '/'.
+    pub path: String,
+    pub kind: InventoryKind,
+    /// The name `shadows-index` gives the file's extension; null for any other file.
+    #[schema(required)]
+    pub language: Option<String>,
+    /// `dependencies`, `ignored`, `secret` or `link`; null unless `kind` is `excluded`.
+    #[schema(required)]
+    pub excluded_reason: Option<String>,
+    /// The code index holds at least one tag of this file.
+    pub has_symbols: bool,
+}
+
+/// One page of a project's file list, in path order.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, utoipa::ToSchema)]
+pub struct InventoryPage {
+    pub state: InventoryState,
+    /// Moves by one each time a listing changed the stored entries; 0 before the first.
+    pub generation: u64,
+    pub entries: Vec<InventoryEntry>,
+    /// What to pass as `after` for the following page; null on the last.
+    #[schema(required)]
+    pub next: Option<String>,
+    /// When the last listing ended (RFC 3339); null before the first.
+    #[schema(required)]
+    pub observed_at: Option<String>,
+}

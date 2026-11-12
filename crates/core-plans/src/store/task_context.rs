@@ -14,7 +14,7 @@ impl PlansStore {
         number: u32,
         phase_id: Option<&crate::PhaseId>,
     ) -> Result<TaskContext, PlansError> {
-        let workflow = Scope::named(workflow)?;
+        let workflow = &Scope::named_or_own(grant, workflow)?;
         let mut tx = self.storage.reader().begin().await?;
         if !Plans::workflow_in_project_in(&mut tx, workflow, &grant.project_id).await? {
             return Err(PlansError::GrantScope(
@@ -52,6 +52,7 @@ impl PlansStore {
             })?
             .content
             .clone();
+        let contracts = crate::task_contract::ContractRules::resolved(&plan.content(), number);
         let phase = phase_id
             .map(|id| {
                 task.phases
@@ -131,6 +132,7 @@ impl PlansStore {
                 title: plan.title,
             },
             task,
+            contracts,
             parts,
             unowned_paths,
             standards: ContextStandards {

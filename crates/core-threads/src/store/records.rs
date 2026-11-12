@@ -181,7 +181,8 @@ impl Threads {
         .fetch_one(conn)
         .await?)
     }
-    /// The latest user request recorded for the opaque turn reference.
+    /// The person's latest message in the opaque turn reference: an entry by
+    /// an executor, or anyone but the person, is never the request.
     pub async fn request_entry_in(
         conn: &mut SqliteConnection,
         thread: &ThreadId,
@@ -189,8 +190,7 @@ impl Threads {
     ) -> Result<Option<ThreadEntryId>, StorageError> {
         let id: Option<String> = sqlx::query_scalar(
             "SELECT id FROM thread_entry WHERE thread_id=? AND operation_id=? AND \
-            kind='UserMessage' ORDER BY ordinal DESC LIMIT \
-            1",
+            kind='UserMessage' AND author_kind='User' ORDER BY ordinal DESC LIMIT 1",
         )
         .bind(thread.as_str())
         .bind(turn)

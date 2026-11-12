@@ -740,10 +740,20 @@ async fn an_executor_grant_lists_its_tools_and_reads_only_its_task() {
         .await
         .unwrap();
     let executor = listening::mcp_client(&l.base, token.as_str()).await;
-    let mut names: Vec<String> = executor
-        .list_all_tools()
-        .await
-        .unwrap()
+    let tools = executor.list_all_tools().await.unwrap();
+    let report = tools
+        .iter()
+        .find(|tool| tool.name == "task_report")
+        .unwrap();
+    assert!(
+        report
+            .description
+            .as_deref()
+            .unwrap()
+            .contains("changes at least one file"),
+        "task_report must require a nonempty commit"
+    );
+    let mut names: Vec<String> = tools
         .into_iter()
         .map(|tool| tool.name.to_string())
         .collect();
@@ -752,8 +762,8 @@ async fn an_executor_grant_lists_its_tools_and_reads_only_its_task() {
         names,
         [
             "outline",
-            "task_commit",
             "task_context",
+            "task_report",
             "where_is",
             "who_uses"
         ]
@@ -765,8 +775,9 @@ async fn an_executor_grant_lists_its_tools_and_reads_only_its_task() {
     );
     let other = json!({ "workflow_id": workflow, "task_number": 2 });
     refused(&executor, "task_context", other).await;
-    // The grant holds no attempt, so there is nothing of its own to commit.
-    refused(&executor, "task_commit", json!({ "message": "x" })).await;
+    // The grant holds no attempt, so there is nothing of its own to report.
+    let report = json!({ "commit": "abc1234", "report": "x" });
+    refused(&executor, "task_report", report).await;
     let edit = json!({ "workflow_id": workflow, "expected_revision": 1, "ops": [add(3)] });
     let params = rmcp::model::CallToolRequestParams::new("plan_edit")
         .with_arguments(edit.as_object().unwrap().clone());
@@ -779,4 +790,247 @@ async fn an_executor_grant_lists_its_tools_and_reads_only_its_task() {
         .shut_down(std::time::Duration::from_secs(5), std::future::pending())
         .await
         .unwrap();
+}
+
+#[tokio::test]
+async fn a_contract_written_over_mcp_is_read_the_same_over_http() {
+    let l = listening_app().await;
+    let workflow = draft(&l.app).await.workflow_id;
+    let planner = thread_client(&l, &l.app.thread).await;
+    let tools = planner.list_all_tools().await.unwrap();
+    let describes = |name: &str, text: &str| {
+        let tool = tools.iter().find(|t| t.name == name).unwrap();
+        assert!(
+            tool.description.as_deref().unwrap().contains(text),
+            "{name}"
+        );
+    };
+    describes("plan_edit", "A task may carry contract");
+    describes("task_context", "the contracts of the outputs it uses");
+    let finder = json!({
+        "number": 1, "title": "Finder", "goal": "Find a customer", "reads": [],
+        "writes": ["app/**"], "acceptance": [{ "number": 1, "text": "A known email is found" }],
+        "contract": {
+            "files": [{ "path": "app/Services/CustomerFinder.php", "action": "create",
+                        "purpose": "Looks customers up" }],
+            "symbols": [{ "id": "s1", "path": "app/Services/CustomerFinder.php", "kind": "method",
+                "name": "findCustomer",
+                "inputs": [{ "name": "email", "type_name": "string", "meaning": "The address" }],
+                "returns": { "type_name": "?Customer", "meaning": "The match, or null" },
+                "behavior": ["Returns the customer whose email matches"] }],
+            "produces": [{ "id": "o1", "symbol_id": "s1", "acceptance": [1] }]
+        }
+    });
+    let redis = json!({
+        "number": 2, "title": "Redis", "goal": "Configure Redis", "reads": [],
+        "writes": ["docker/**"], "acceptance": [{ "number": 1, "text": "Redis starts" }],
+        "contract": {
+            "files": [{ "path": "docker/redis/redis.conf", "action": "create",
+                        "purpose": "Redis settings" }],
+            "uses": [{ "source": { "kind": "task", "target": { "kind": "local", "task": 1 },
+                                   "output": "o1" }, "purpose": "Caches lookups" }]
+        }
+    });
+    let ops = json!([
+        { "op": "task_add", "task": finder }, { "op": "task_add", "task": redis },
+        { "op": "task_add", "task": task(3, "legacy") },
+        { "op": "link_put", "link": { "task": 2, "after": 1, "kind": "needs", "label": "finder" } }
+    ]);
+    let edit = json!({ "workflow_id": workflow, "expected_revision": 0, "ops": ops });
+    ok(&planner, "plan_edit", edit).await;
+    let mcp = ok(&planner, "workflow_get", json!({ "workflow_id": workflow })).await;
+    let (status, http) =
+        app::call(&l.app, "GET", &format!("/api/workflows/{workflow}"), None).await;
+    assert_eq!(status, 200);
+    assert_eq!(http["tasks"][0]["contract"], mcp["tasks"][0]["contract"]);
+    assert_eq!(
+        http["tasks"][0]["contract"]["symbols"][0]["name"],
+        "findCustomer"
+    );
+    // A file task needs no function, and a legacy task has no contract key.
+    assert_eq!(http["tasks"][1]["contract"]["symbols"], json!([]));
+    assert!(http["tasks"][2].get("contract").is_none());
+    assert_eq!(http["blockers"], json!([]));
+    // A broken contract is refused with the plan's own code and the rule's words.
+    let mut bad = finder.clone();
+    bad["number"] = json!(4);
+    bad["contract"]["files"][0]["path"] = json!("../x.php");
+    let edit = json!({ "workflow_id": workflow, "expected_revision": 1,
+                       "ops": [{ "op": "task_add", "task": bad }] });
+    let refusal = refused(&planner, "plan_edit", edit).await;
+    assert!(
+        refusal.starts_with("WORKFLOW_VALIDATION_FAILED"),
+        "{refusal}"
+    );
+    assert!(
+        refusal.contains("T4 contract: `../x.php` is not an exact path"),
+        "{refusal}"
+    );
+    // Approved, the consumer reads its producer's contract.
+    plan::tie_to_part(&l.app, &workflow).await;
+    l.app
+        .core
+        .plans()
+        .approve("contract-approve".into(), &workflow, 1)
+        .await
+        .unwrap();
+    let args = json!({ "workflow_id": workflow, "task_number": 2 });
+    let context = ok(&planner, "task_context", args).await;
+    assert_eq!(context["contracts"][0]["symbol"]["name"], "findCustomer");
+    assert_eq!(context["contracts"][0]["producer_title"], "Finder");
+
+    l.app
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+}
+
+#[test]
+fn the_planner_is_told_what_a_contract_holds() {
+    let prompt = shadows_core::testing::PROMPT;
+    for text in [
+        "it says what to build, never how",
+        "Do not write function bodies or finished code in it",
+        "inputs (name, type_name, meaning)",
+        "do not invent a function for it",
+        "Never copy a producer's signature",
+        "A task_update sent without the task's contract leaves the task with none.",
+        "its path (the file it lives in)",
+        "plan_edit's description ends with one complete, valid edit; copy its shape.",
+    ] {
+        assert!(prompt.contains(text), "{text}");
+    }
+}
+
+#[tokio::test]
+async fn the_plan_edit_example_parses_as_the_ops_it_shows() {
+    let l = listening_app().await;
+    let planner = thread_client(&l, &l.app.thread).await;
+    let tools = planner.list_all_tools().await.unwrap();
+    let edit = tools.iter().find(|t| t.name == "plan_edit").unwrap();
+    let description = edit.description.as_deref().unwrap();
+    let (_, example) = description
+        .split_once("Example ops, valid as written: ")
+        .unwrap();
+    // The deserializer `plan_edit` applies to its `ops` argument.
+    let ops: Vec<shadows_core::PlanOp> = serde_json::from_str(example).unwrap();
+    assert!(matches!(
+        ops.as_slice(),
+        [
+            shadows_core::PlanOp::TaskAdd { .. },
+            shadows_core::PlanOp::LinkPut { .. }
+        ]
+    ));
+    let raw: serde_json::Value = serde_json::from_str(example).unwrap();
+    let task = &raw[0]["task"];
+    assert!(task["acceptance"][0]["text"].is_string());
+    for part in ["files", "symbols", "produces", "uses"] {
+        assert_eq!(
+            task["contract"][part].as_array().unwrap().len(),
+            1,
+            "{part}"
+        );
+    }
+    l.app
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+async fn the_planner_is_told_an_indexing_listing_is_not_complete() {
+    let unfinished = "indexing means the listing is not complete yet: ask again, \
+                      never conclude the folder is empty";
+    assert!(shadows_core::testing::PROMPT.contains(unfinished), "prompt");
+    let l = listening_app().await;
+    let planner = thread_client(&l, &l.app.thread).await;
+    let tools = planner.list_all_tools().await.unwrap();
+    let files = tools.iter().find(|t| t.name == "project_files").unwrap();
+    let description = files.description.as_deref().unwrap();
+    for state in ["ready", "incomplete", "missing", unfinished] {
+        assert!(description.contains(state), "{state}");
+    }
+    l.app
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+}
+
+#[test]
+fn the_planner_sets_the_project_up_first() {
+    let prompt = shadows_core::testing::PROMPT;
+    let texts: &[&str] = &[
+        "set the project up before you plan anything in detail",
+        "Every setup task writes files.",
+        "git status shows nothing left uncommitted",
+        "read the files that appeared as \"Look before you write a path\" says",
+        "Only a task of the plan titled \"Setup\" (in any case) may commit binary files",
+    ];
+    for text in texts {
+        assert!(prompt.contains(text), "{text}");
+    }
+    assert!(!prompt.contains("Agent Mode"));
+}
+
+#[test]
+fn the_planner_is_told_how_to_run_and_judge_tasks() {
+    let prompt = shadows_core::testing::PROMPT;
+    let texts: &[&str] = &[
+        "project_git_init: when Start is refused",
+        "leaving out secret and dependency files, which stay in the folder untracked",
+        "start the task task_done names as next at once with task_start, \
+         without waiting for the person",
+        "count anything the report says was skipped or could not run as not done",
+        "first read what it changed with task_diff",
+        "never ask the executor for file contents",
+        "After an addition, task_diff shows only that attempt's change",
+        "otherwise send task_amend with what is missing or must be extended.",
+        "A task takes at most three additions after its Start",
+        "call task_lessons once",
+        "An addition asks for a change to the task's files",
+        "or why it failed and the executor's last message",
+    ];
+    for text in texts {
+        assert!(prompt.contains(text), "{text}");
+    }
+}
+
+#[tokio::test]
+async fn the_planner_reads_a_commit_with_its_own_tools() {
+    let l = listening_app().await;
+    let planner = thread_client(&l, &l.app.thread).await;
+    let tools = planner.list_all_tools().await.unwrap();
+    for (name, text) in [
+        ("task_diff", "never ask the executor for file contents"),
+        ("task_file", "inside the task's writes"),
+    ] {
+        let tool = tools.iter().find(|t| t.name == name).unwrap();
+        assert!(
+            tool.description.as_deref().unwrap().contains(text),
+            "{name}"
+        );
+    }
+    l.app
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+}
+
+#[test]
+fn the_planner_reads_the_code_before_it_plans() {
+    let prompt = shadows_core::testing::PROMPT;
+    assert!(!prompt.contains("you cannot run commands"));
+    for text in [
+        "on Codex with read-only shell commands in the project's folder",
+        "Never run a command that writes, installs, builds, starts a server or reaches the network",
+        "the composition root, where the application is wired",
+        "and every file the task modifies, whole",
+        "A plan written from file names alone is not ready.",
+    ] {
+        assert!(prompt.contains(text), "{text}");
+    }
 }

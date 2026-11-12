@@ -28,7 +28,7 @@ use utoipa::OpenApi;
         shadows_core::TodoListCard, shadows_core::TodoItem, shadows_core::TodoStatus,
         shadows_core::ToolLive,
         shadows_core::WaitingPermission, shadows_core::PermissionAnswer,
-        shadows_core::PermissionOption
+        shadows_core::PermissionOption, shadows_core::AttemptNotice, shadows_core::Notice
     )),
     tags(
         (name = "aylul", description = "AYLUL agents, providers and write-only credentials"),

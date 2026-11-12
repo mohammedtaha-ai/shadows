@@ -30,6 +30,14 @@ impl Scope {
         self.set.is_match(Self::normal(path))
     }
 
+    /// A repository path inside the project prefix and writes, without ambiguous components.
+    pub(crate) fn admits_under(&self, prefix: &str, path: &str) -> bool {
+        !path.split('/').any(|part| matches!(part, "" | "." | ".."))
+            && path
+                .strip_prefix(prefix)
+                .is_some_and(|inside| self.admits(inside))
+    }
+
     /// Whether some path may match a pattern of both sets. Two patterns may
     /// intersect unless their literal prefixes are disjoint; unproven means
     /// they intersect.
@@ -75,6 +83,17 @@ impl Scope {
 #[cfg(test)]
 mod tests {
     use super::Scope;
+
+    #[test]
+    fn a_path_under_the_folder_is_admitted_and_one_that_climbs_is_not() {
+        let s = scope(&["backend/app/**"]);
+        assert!(s.admits_under("", "backend/app/a.php"));
+        assert!(s.admits_under("site/", "site/backend/app/a.php"));
+        assert!(!s.admits_under("site/", "backend/app/a.php"));
+        assert!(!s.admits_under("", "backend/app/../../.env"));
+        assert!(!s.admits_under("", "backend/app/./a.php"));
+        assert!(!s.admits_under("", "backend//app/a.php"));
+    }
 
     fn all(patterns: &[&str]) -> Vec<String> {
         patterns.iter().map(|p| p.to_string()).collect()
