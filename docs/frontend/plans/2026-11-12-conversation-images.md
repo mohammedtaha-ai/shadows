@@ -16,7 +16,11 @@ No Core change: the images, their upload state and their URLs already come from
 (`size-16`, `rounded-lg`, `overflow-hidden`, image `object-cover`), in a wrapping row.
 
 - A round ✕ button sits on the tile's top-right corner (`absolute -top-1.5 -end-1.5`,
-  `size-5 rounded-full`, lucide `X` icon `size-3`), always visible. Accessible name
+  `size-5 rounded-full`, lucide `X` icon `size-3`), shown only while the tile is hovered or
+  holds keyboard focus (`opacity-0 group-hover:opacity-100 group-focus-within:opacity-100`,
+  the tile `li` a `group`; Mohammed, 2026-11-12). It stays in the DOM and the tab order. The
+  error message shows as one line under the row of tiles and as the retry button's title
+  (Mohammed accepted, 2026-11-12). Accessible name
   `Remove <file name>`. Disabled while `inFlight`, as today.
 - No status text under the tile: "Uploaded", "Uploading..." and "Ready to upload on send" are gone.
 - Uploading: the tile dims (`opacity-60`) and shows a small centred spinner (lucide
