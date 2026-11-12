@@ -45,6 +45,7 @@ Notes for the voice design when it starts; they decide nothing.
 | Relay while away | The Planner's question and his answer travel when he is not at the machine | idea | [current direction](./vision.md#current-direction-2026-10-19) |
 | Answers with sources | "Why?" shows the plans, contracts and decisions behind a summary; fact vs. inference | idea | [vision §25](./vision.md#25-explainability-and-provenance), [§26](./vision.md#26-trust-and-confidence) |
 | Decision replay | "What happens if I choose A?" simulated by the Planner without changing the plan | idea | [vision §42](./vision.md#42-replay-and-decision-simulation), [§43](./vision.md#43-counterfactual-explanations) |
+| Shadows tools set up by AYLUL | The main assistant sets up Shadows for him: a language server from a link he pastes, assistants, the Planners' MCP per project | idea (Mohammed, 2026-11-13) | [language servers design](../backend/specs/2026-11-13-language-servers-design.md): a server is added by hand in Settings › Code until then |
 | Decision feedback | Compares what a decision expected with what happened | idea | [vision §44](./vision.md#44-decision-quality-feedback) |
 
 ## Attention and channels

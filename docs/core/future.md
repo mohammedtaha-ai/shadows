@@ -37,6 +37,7 @@ written beyond the vision). A feature leaves this list when it is delivered.
 | Deterministic verification | Checks that run without AI review, with each run's verdict recorded | planned | [§2.8](specs/2026-09-21-data-flow-design.md), [§6.12, §6.16, §6.17](specs/2026-09-21-sqlite-schema-design.md) |
 | Context Compiler and cross-harness continuity | The Compiler chooses and budgets what an agent receives; a conversation continues on another harness | planned | [§2.11](specs/2026-09-21-data-flow-design.md), [§11.5](specs/2026-09-21-rules-scope-and-milestones-design.md) |
 | Our own runtime replaces ACP | Core's agent connection moves from ACP to Shadows' own runtime, one capability at a time | planned | [architecture plan, Phase 6](../backend/plans/2026-10-21-architecture.md#phase-6--our-own-runtime-replaces-acp) |
+| The name index | `where_is`, `who_uses` and `outline` from the tree-sitter name index (`shadows-index`: Rust, TypeScript, JavaScript) | suspended (Mohammed, 2026-11-13): its code stays, nothing calls it; returns only if a need names it, such as a language with no language server | [language servers design](../backend/specs/2026-11-13-language-servers-design.md): `code_lsp` answers from the project's language servers instead |
 | Single-file adapter | The adapter runs without Node installed on the machine | idea | [harness controls, OPEN](specs/2026-09-24-harness-controls-design.md) |
 
 ## Workspace and Dashboard
