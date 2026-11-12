@@ -77,6 +77,14 @@ pub(crate) struct TurnWatch {
     pub span: tracing::Span,
 }
 
+impl TurnWatch {
+    fn store(&self) -> super::store::TurnsStore {
+        super::store::TurnsStore {
+            storage: self.storage.clone(),
+        }
+    }
+}
+
 fn turn_agent(w: &TurnWatch) -> Actor {
     Actor {
         kind: "Agent".into(),
@@ -90,7 +98,13 @@ fn turn_agent(w: &TurnWatch) -> Actor {
 }
 
 impl PlannerTurn {
+    /// Writes the entries in one transaction, in order. A failure is logged
+    /// and writes none of them.
     pub(super) async fn persist(w: &TurnWatch, entries: Vec<Durable>) {
+        if entries.is_empty() {
+            return;
+        }
+        let mut rows = Vec::with_capacity(entries.len());
         for entry in entries {
             let (kind, author, body, card) = match entry {
                 Durable::Message(body) => {
@@ -176,12 +190,15 @@ impl PlannerTurn {
                     "request_id":card.as_ref().unwrap()["request_id"], "state":state
                 })
             });
-            let (thread, operation) = (w.thread_id.clone(), w.op_id.clone());
-            let ts = core_db::Storage::now();
-            if let Err(error) = w
-                .storage
-                .write_txn(move |conn| {
-                    Box::pin(async move {
+            rows.push((kind, author, body, card, permission_change));
+        }
+        let (thread, operation) = (w.thread_id.clone(), w.op_id.clone());
+        let ts = core_db::Storage::now();
+        if let Err(error) = w
+            .storage
+            .write_txn(move |conn| {
+                Box::pin(async move {
+                    for (kind, author, body, card, permission_change) in rows {
                         core_threads::Threads::append_entry_in(
                             conn,
                             &thread,
@@ -202,28 +219,22 @@ impl PlannerTurn {
                                 .project_id;
                             JournalEntry::append_event(
                                 conn,
-                                JournalEntry {
-                                    event_id: uuid::Uuid::new_v4().to_string(),
-                                    kind: "PermissionsChanged".into(),
-                                    project_id: Some(project.as_str().into()),
-                                    thread_id: Some(thread.as_str().into()),
-                                    operation_id: Some(operation.as_str().into()),
-                                    actor: author,
-                                    causation: None,
-                                    correlation_id: None,
-                                    payload_json: payload.to_string(),
-                                },
+                                JournalEntry::new("PermissionsChanged", author)
+                                    .with_project(project.as_str())
+                                    .with_thread(thread.as_str())
+                                    .with_operation(operation.as_str())
+                                    .with_payload(payload),
                                 &ts,
                             )
                             .await?;
                         }
-                        Ok(())
-                    })
+                    }
+                    Ok(())
                 })
-                .await
-            {
-                tracing::error!(%error, "planner.append_thread_entry_failed");
-            }
+            })
+            .await
+        {
+            tracing::error!(%error, "planner.append_thread_entry_failed");
         }
     }
 }
@@ -245,7 +256,7 @@ async fn accept(
         // becomes carries these limits as the latest.
         let limits = rate_limit
             .as_ref()
-            .and_then(|r| AccountLimits::from_report(r, &now_rfc3339()));
+            .and_then(|r| AccountLimits::from_report(r, &core_db::Storage::now()));
         if let Some(limits) = limits
             && let Err(error) = w.sessions.record_limits(&w.harness, &limits).await
         {
@@ -264,6 +275,8 @@ async fn accept(
             tracing::error!(%error, "planner.context_forget_failed");
         }
     }
+    // Only these two change what `live` answers; streamed text does not.
+    let moved = matches!(e, HarnessEvent::ToolCall { .. } | HarnessEvent::Todos(_));
     let durable = collector.push(&e);
     PlannerTurn::persist(w, durable).await;
     let _ = bus.send((w.thread_id.clone(), w.op_id.clone(), e));
@@ -281,7 +294,9 @@ async fn accept(
             HarnessEvent::Tool(call),
         ));
     }
-    *w.activity.lock().unwrap_or_else(|error| error.into_inner()) = collector.live();
+    if moved {
+        *w.activity.lock().unwrap_or_else(|error| error.into_inner()) = collector.live();
+    }
 }
 
 impl PlannerTurn {
@@ -402,9 +417,7 @@ impl PlannerTurn {
                         native_session_id: Some(w.opened.session_id.clone()),
                         ..TurnObservation::from_usage(last_usage.as_ref())
                     };
-                    super::store::TurnsStore {
-                        storage: w.storage.clone(),
-                    }
+                    w.store()
                     .mark_operation_completed(
                         &w.op_id,
                         serde_json::json!({ "stop_reason": "end_turn" }),
@@ -413,16 +426,12 @@ impl PlannerTurn {
                     .await
                 }
                 Ok(TurnEnd::Cancelled) if w.cancel_requested.load(Ordering::SeqCst) => {
-                    super::store::TurnsStore {
-                        storage: w.storage.clone(),
-                    }
+                    w.store()
                     .mark_operation_cancelled_with_usage(&w.op_id, token_usage.as_ref())
                     .await
                 }
                 Ok(TurnEnd::Cancelled) => {
-                    super::store::TurnsStore {
-                        storage: w.storage.clone(),
-                    }
+                    w.store()
                     .mark_operation_failed_with_usage(
                         &w.op_id,
                         FailureStage::Run,
@@ -432,9 +441,7 @@ impl PlannerTurn {
                     .await
                 }
                 Ok(TurnEnd::Refused(reason)) => {
-                    super::store::TurnsStore {
-                        storage: w.storage.clone(),
-                    }
+                    w.store()
                     .mark_operation_failed_with_usage(
                         &w.op_id,
                         FailureStage::Run,
@@ -448,9 +455,7 @@ impl PlannerTurn {
                     {
                         tracing::error!(%error, "planner.dead_adapter_cleanup_failed");
                     }
-                    super::store::TurnsStore {
-                        storage: w.storage.clone(),
-                    }
+                    w.store()
                     .mark_operation_failed(
                         &w.op_id,
                         FailureStage::Run,
@@ -463,9 +468,7 @@ impl PlannerTurn {
                         ConnectionError::Rpc(reason) => reason,
                         other => other.to_string(),
                     };
-                    super::store::TurnsStore {
-                        storage: w.storage.clone(),
-                    }
+                    w.store()
                     .mark_operation_failed(&w.op_id, FailureStage::Run, &reason)
                     .await
                 }
@@ -491,11 +494,8 @@ impl PlannerTurn {
         op_id: &OperationId,
         requester: Actor,
     ) -> Result<StopOutcome, StorageError> {
-        super::store::TurnsStore {
-            storage: storage.clone(),
-        }
-        .request_cancellation(op_id, requester)
-        .await?;
+        let store = super::store::TurnsStore { storage };
+        store.request_cancellation(op_id, requester).await?;
         let Some((thread_id, session, flag, ended, span)) = ({
             let r = handles.0.lock().await;
             r.turns.get(op_id).map(|t| {
@@ -536,17 +536,7 @@ impl PlannerTurn {
             return Ok(StopOutcome::TerminationFailed);
         }
         tracing::info!(parent: &span, "planner.stop: the harness did not confirm; tree reaped");
-        super::store::TurnsStore {
-            storage: storage.clone(),
-        }
-        .mark_operation_cancelled(op_id)
-        .await?;
+        store.mark_operation_cancelled(op_id).await?;
         Ok(StopOutcome::Cancelled)
     }
-}
-
-fn now_rfc3339() -> String {
-    time::OffsetDateTime::now_utc()
-        .format(&time::format_description::well_known::Rfc3339)
-        .unwrap_or_default()
 }
