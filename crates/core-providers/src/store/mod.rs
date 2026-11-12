@@ -122,7 +122,7 @@ impl ProvidersStore {
         .bind(&input.name)
         .bind(&input.base_url)
         .bind(serde_json::to_string(&input.models)?)
-        .bind(200_000)
+        .bind(ProviderModel::DEFAULT_CONTEXT_WINDOW)
         .bind(&ts)
         .bind(&ts)
         .bind(&input.preset)

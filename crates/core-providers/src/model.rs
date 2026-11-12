@@ -21,6 +21,11 @@ pub struct ProviderInput {
     pub models: Vec<ProviderModelInput>,
 }
 
+impl ProviderModel {
+    /// The window a model has when its provider names none.
+    pub(crate) const DEFAULT_CONTEXT_WINDOW: u32 = 200_000;
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
 pub struct ProviderModel {
     pub id: String,

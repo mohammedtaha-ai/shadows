@@ -73,17 +73,9 @@ impl crate::Threads {
         }
         JournalEntry::append_event(
             conn,
-            core_db::JournalEntry {
-                event_id: uuid::Uuid::new_v4().to_string(),
-                kind: "ThreadEntryAppended".into(),
-                actor: entry.author.clone(),
-                causation: None,
-                correlation_id: None,
-                project_id: None,
-                thread_id: Some(thread_id.as_str().to_owned()),
-                operation_id: None,
-                payload_json: payload.to_string(),
-            },
+            core_db::JournalEntry::new("ThreadEntryAppended", entry.author.clone())
+                .with_thread(thread_id.as_str())
+                .with_payload(payload),
             ts,
         )
         .await?;

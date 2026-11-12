@@ -96,7 +96,7 @@ pub fn router(state: AppState, mcp: Router) -> Router {
     let guard = axum::middleware::from_fn_with_state(state.clone(), guard::refuse_foreign_pages);
     let (routes, _document) = routes().split_for_parts();
     routes
-        .with_state(state.clone())
+        .with_state(state)
         // Innermost: an extractor's plain-text refusal becomes an `ErrorBody`
         // before anything outside adds its headers to it.
         .layer(axum::middleware::map_response(

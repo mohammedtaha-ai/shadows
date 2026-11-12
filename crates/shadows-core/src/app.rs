@@ -455,9 +455,9 @@ impl AppCore {
             storage.clone(),
             operations.clone(),
             runtime,
-            sessions.clone(),
+            sessions,
             handles,
-            bus.clone(),
+            bus,
             code.clone(),
             instructions.clone(),
             standards.clone(),
@@ -480,7 +480,7 @@ impl AppCore {
             harness.clone(),
             projects.clone(),
             turns.clone(),
-            ui.clone(),
+            ui,
         ));
         let project_lifecycle =
             ProjectLifecycle::new(storage.clone(), projects.clone(), code.clone());
@@ -494,7 +494,7 @@ impl AppCore {
             person,
             secrets,
             design,
-            plans: plans.clone(),
+            plans,
             grants,
             turns,
             runs,

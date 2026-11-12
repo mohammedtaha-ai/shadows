@@ -105,17 +105,10 @@ async fn retitled(
 ) -> Result<(), StorageError> {
     JournalEntry::append_event(
         conn,
-        core_db::JournalEntry {
-            event_id: uuid::Uuid::new_v4().to_string(),
-            kind: "ThreadRetitled".into(),
-            actor,
-            causation: None,
-            correlation_id: None,
-            project_id: Some(project.to_owned()),
-            thread_id: Some(thread.as_str().to_owned()),
-            operation_id: None,
-            payload_json: serde_json::json!({ "title": title, "source": source }).to_string(),
-        },
+        core_db::JournalEntry::new("ThreadRetitled", actor)
+            .with_project(project)
+            .with_thread(thread.as_str())
+            .with_payload(serde_json::json!({ "title": title, "source": source })),
         ts,
     )
     .await?;

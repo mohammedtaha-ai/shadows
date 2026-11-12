@@ -295,9 +295,10 @@ impl AgentsStore {
         conn: &mut SqliteConnection,
         slug: &str,
     ) -> Result<(), AgentsError> {
+        let ts = Storage::now();
         sqlx::query("UPDATE aylul_agent SET deleted_at=?, updated_at=? WHERE slug=?")
-            .bind(Storage::now())
-            .bind(Storage::now())
+            .bind(&ts)
+            .bind(&ts)
             .bind(slug)
             .execute(conn)
             .await?;
