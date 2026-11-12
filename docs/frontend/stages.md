@@ -162,10 +162,10 @@ These tasks are blocked until their named backend API exists; no component imple
 
 Design: [language servers](../backend/specs/2026-11-13-language-servers-design.md). Plan: [slice 2](../backend/plans/2026-11-13-slice-2-language-servers.md); each entry's Touch, tests and Done when are its task there.
 
-### F-115 · The question card, and a notice from Shadows
+### F-115 · The question card, the Planner's permission cards, and Shadows' notices
 
 - Status: ready after B-143 and B-144.
-- Plan: [Task F-115](../backend/plans/2026-11-13-slice-2-language-servers.md#task-f-115-the-question-card-and-a-notice-from-shadows).
+- Plan: [Task F-115](../backend/plans/2026-11-13-slice-2-language-servers.md#task-f-115-the-question-card-the-planners-permission-cards-and-shadows-notices).
 
 ### F-116 · Settings › Code
 

@@ -232,7 +232,10 @@ appeared. Executors then build features.
 
 The setup is an ordinary plan run through §5.1: its tasks are executor attempts the Planner
 starts and judges, and **each lands as a reported commit**, so no file appears in the folder
-without a commit as its source. The Planner itself writes no file. This replaces the separate
+without a commit as its source. The Planner itself writes no project file. (Mohammed,
+2026-11-13: the Planner has a shell for installing and the environment; a project file it
+changes anyway is noted with its reason, or Shadows asks it why at the end of its turn:
+[language servers design](2026-11-13-language-servers-design.md), decisions 7 to 9.) This replaces the separate
 preparation worker the local delivery draft planned (its B-100 to B-102).
 
 **Binary files in setup only** (Mohammed, 2026-11-11). A scaffold may bring binary files (an

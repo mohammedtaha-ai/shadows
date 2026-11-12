@@ -6,16 +6,18 @@
 > binding, and so are this file's Interfaces and steps. Steps use checkbox (`- [ ]`) syntax.
 
 **Goal:** Shadows runs each active project's language servers and gives the Planner and the
-executor their LSP operations through one tool, `code_lsp`; a missing server is installed
-only after the person chooses it on a question card the Planner writes; the person controls
-the servers in Settings › Code.
+executor their LSP operations through one tool, `code_lsp`; the Planner gets a shell to
+install what is missing, under its program's own approval, which reaches the person as a
+card; Shadows records every project file the Planner changes and asks it why when it did not
+say; the person controls the servers in Settings › Code.
 
 **Architecture:** A new library crate, `shadows-lsp`, talks to one server (start, initialize,
 open a file, one request, shut down). `Code` owns the catalog, the person's server settings,
 which servers a project runs, their lifecycle inside the project's existing worker, and the
 `code_lsp` answer. Activity becomes "a message was sent in the project" with an idle stop.
 `Turns`, which already depends on `Code` and `Harness` and owns the waiting notice, owns the
-person's questions and the install. The tree-sitter name index is suspended: its tools and
+person's questions and the end-of-turn check of the Planner's changes. `Harness` holds the
+Planner programs' permission requests for the person. The tree-sitter name index is suspended: its tools and
 routes go, its code stays.
 
 **Tech Stack:** Rust 1.94+, `async-lsp` (with its `lsp-types`) and `tokio-util` compat,
@@ -48,9 +50,9 @@ SQLx/SQLite, rmcp, axum/utoipa; React client.
 2. **A path outside the project** (`../`, an absolute path, a link out) in `code_lsp`'s `file`
    is refused before a server sees it, and a location a server answers outside the project
    and its links is dropped. Pinned by `code_lsp_refuses_a_path_outside_the_project` (B-141).
-3. **A model calling `code_server_install` without the person's choice**, or twice on one
-   choice, or for another server than the one chosen, is refused. Pinned by
-   `install_needs_the_persons_choice_for_that_server` (B-144).
+3. **A Planner that changes a project file through its shell** (`sed`, a scaffold command)
+   and says nothing: the change is recorded and the Planner is asked why. Pinned by
+   `an_unnoted_shell_change_is_recorded_and_asked_about` (B-144).
 4. **An npm-installed server on Windows** is a `.cmd` shim, not an `.exe`: it must be found and
    started. Pinned by `a_cmd_shim_on_path_is_found` (B-139).
 5. **A question answered twice** (two tabs, a double click) records one answer and sends the
@@ -76,7 +78,9 @@ renamed service crate takes its name without `core-`. Every later task in this p
   `CLAUDE.md` (the service-crate rule: "`core-<service>` crates, and a new or renamed
   service crate named without `core-`, such as `codebase`"; the layer diagram's line);
   this plan's later tasks and `docs/backend/stages.md` where they name the old paths.
-- Modify: `crates/shadows/tests/architecture/main.rs`: it tells a service crate by the
+- Modify: `crates/shadows/tests/architecture/scanner.rs` (where `service` is decided and the
+  services are collected, lines 174-181 and 272) and `crates/shadows/tests/architecture/main.rs`
+  (Codex's review, 2026-11-13): both tell a service crate by the
   `core-` prefix; a service crate becomes "starts with `core-` (except `core-db`), or is in
   `UNPREFIXED_SERVICES = ["codebase"]`", one helper used by every check that reads the prefix.
 - Not renamed: database tables (`code_*`), migration files, MCP tool and HTTP route names,
@@ -109,9 +113,13 @@ renamed service crate takes its name without `core-`. Every later task in this p
     `file://` URI as the one workspace folder, then `initialized`);
     `pub async fn ask(&self, path: &Path, language_id: &str, text: String, method: &str, params: serde_json::Value, timeout: Duration) -> Result<serde_json::Value, LspError>`:
     `didOpen` the file with `text`, sends the request, then `didClose`, whatever the answer.
-    **No file stays open** (Codex's review, 2026-11-13): the server reads every file it was not
-    handed from disk, so an executor's change is never answered from an old copy, and there
-    is no open state to keep in step with the watcher. `request(&self, method, params,
+    No file stays open.
+    `pub async fn files_changed(&self, changes: &[(PathBuf, FileChange)]) -> Result<(), LspError>`
+    (`FileChange { Created, Changed, Deleted }`) sends `workspace/didChangeWatchedFiles`.
+    **A server keeps its own copy of closed files** and reads them again only when told
+    (Codex's trial on gopls v0.23.0, 2026-11-13: after `didOpen`/`didClose` the moved
+    function still answered its old line; after `didChangeWatchedFiles`, the new one), so
+    the caller tells it every change. `request(&self, method, params,
     timeout)` is the same with no file (for `workspace/symbol`);
     `pub fn capabilities(&self) -> &serde_json::Value`;
     `pub fn last_error_line(&self) -> Option<String>` (the last stderr line);
@@ -126,8 +134,8 @@ renamed service crate takes its name without `core-`. Every later task in this p
     "textDocument/definition", …)` at the call: the answer's URI ends with `a.go` and its line
     is `Hello`'s (zero-based).
   - `an_edit_on_disk_is_seen_by_the_next_question`: after one `ask` on `b.go`, `a.go` is
-    rewritten on disk with `Hello` moved two lines down; the next definition `ask` from `b.go`
-    answers the new line.
+    rewritten on disk with `Hello` moved two lines down and `files_changed([(a.go, Changed)])`
+    is sent; the next definition `ask` from `b.go` answers the new line.
   - `gopls_answers_references`: `textDocument/references` with `includeDeclaration: true` at
     `Hello` finds two locations.
   - `a_missing_command_is_a_spawn_error`: `ServerSpec` with `no-such-server-xyz` →
@@ -182,6 +190,10 @@ renamed service crate takes its name without `core-`. Every later task in this p
     `NotInstalled`.
 - The worker (`watch.rs`) holds `HashMap<String, shadows_lsp::Server>`; after each scan and
   each watcher batch it recomputes `wanted` and starts what is newly wanted, stops what is not;
+  **each watcher batch and each scan's changed paths go to every running server as
+  `files_changed`** (the paths of that server's extensions); a `code_lsp` question is a
+  worker job (`Job::Lsp`), so the changes queued before it reach the servers first
+  (Codex's review, 2026-11-13);
   `Worker::stop` shuts every server down. A start failure is `Failed` with
   `last_error_line`, retried at the next scan.
 
@@ -191,6 +203,8 @@ renamed service crate takes its name without `core-`. Every later task in this p
     within 60 s `servers` shows gopls `Running`, and no other server `Running`.
   - `a_new_extension_starts_its_server` (ignored, needs gopls): an empty folder touched, then
     `main.go` written; gopls becomes `Running` with no refresh call.
+  - `a_watched_change_reaches_the_server` (ignored, needs gopls): `Hello` moved in `a.go`
+    on disk with no question between; the next definition question answers the new line.
   - `a_missing_command_reads_not_installed`: an added server `no-such-server-xyz` for `.zz`,
     a `x.zz` file: its state is `NotInstalled`.
   - `a_server_that_exits_reads_failed`: an added server whose command exits at once
@@ -359,8 +373,8 @@ renamed service crate takes its name without `core-`. Every later task in this p
 
 **Interfaces:**
 - Migration: `person_question(id TEXT PRIMARY KEY, thread_id TEXT NOT NULL, question TEXT NOT NULL,
-  options TEXT NOT NULL, chosen INTEGER, consent_used INTEGER NOT NULL DEFAULT 0, asked_at TEXT NOT NULL,
-  answered_at TEXT)`; `options` is JSON `[{ "label", "consent": null | "server_install:<id>" }]`.
+  options TEXT NOT NULL, chosen INTEGER, asked_at TEXT NOT NULL, answered_at TEXT)`;
+  `options` is JSON `[{ "label" }]`.
 - `Turns::ask(&self, thread: &ThreadId, question: String, options: Vec<QuestionOption>) -> Result<QuestionId, TurnsError>`:
   2 to 5 options, labels 1 to 80 characters, question 1 to 500; appends a `PersonQuestion`
   entry whose card is `{ question_id, question, options, chosen: null }`.
@@ -375,7 +389,10 @@ renamed service crate takes its name without `core-`. Every later task in this p
   typed message's failed start does. A second answer with another command is `Conflict`; a
   replay answers the first result. It is the person's message, so it may approve (B-135).
   Files add: `crates/core-threads/src/lib.rs` and its store, if `set_card_in` is new.
-- MCP `person_ask { question, options: [{ label, consent? }] }` → `{ question_id }`.
+- MCP `person_ask { question, options: [{ label }] }` → `{ question_id }`.
+- **A fork copies the card as history** (Codex's review, 2026-11-13): the answer route refuses a
+  question whose `thread_id` is not the thread asked (`InvalidCommand`), and a card a fork
+  copied (its question's thread is not the entry's thread) is drawn with no buttons.
 - HTTP: `POST /api/threads/{id}/questions/{question}/answer { command_id, option }`.
 - Prompt: "When the person must choose, ask with `person_ask` and wait for the answer; do
   not ask the same thing in text."
@@ -384,61 +401,77 @@ renamed service crate takes its name without `core-`. Every later task in this p
   (survives reopening the core), `an_answer_reaches_the_planner_as_the_persons_message`
   (thread idle, and thread with a turn running), `a_question_is_answered_once`,
   `an_answered_card_reads_chosen_after_a_reload` (the entries read again from a new core show
-  `chosen`), `an_executor_cannot_ask`.
+  `chosen`), `a_forked_question_cannot_be_answered_in_the_fork`, `an_executor_cannot_ask`.
 - [ ] **Step 2–4: Run** `cargo test -p shadows-core --test person_questions`, then
   `cargo test -p shadows --test mcp_tools --test planner_mcp`: fail, implement, pass.
 - [ ] **Step 5: Commit** `feat(backend): B-143 person_ask, the question card`.
 
-## Task B-144: `code_server_install`
+## Task B-144: the Planner's shell, its permission cards, and the end-of-turn check
+
+**Ruling (Mohammed, 2026-11-13):** the Planner installs what is missing through its own shell,
+under its program's approval (Claude Code `auto`, Codex "approve for me"); the program's
+questions reach the person; Shadows records the Planner's file changes and asks about the
+unexplained ones. This replaces `code_server_install` and its consent.
 
 **Files:**
-- Create: `crates/core-turns/src/install.rs`, `crates/core-turns/src/store/install.rs`,
-  `crates/core-db/migrations/0061_server_install.sql`, `crates/core-code/src/lsp/install.rs`,
-  `crates/shadows-core/tests/server_install.rs`
-- Modify: `crates/core-turns/src/model.rs` (`Notice.executor: Option<ThreadId>`; `None` is
-  Shadows, actor kind `Shadows`), `crates/core-turns/src/lib.rs`,
-  `crates/core-turns/contract.yaml`, `crates/core-code/src/lib.rs`,
-  `crates/core-code/contract.yaml`, `crates/shadows-mcp/src/code_tools.rs`,
-  `crates/shadows-mcp/contract.yaml`, `crates/core-grants/src/tools.rs` (`THREAD_TOOLS`),
-  `crates/core-harness/src/prompt.txt`, `crates/core-harness/contract.yaml`, `api/openapi.json`
+- Modify: `crates/core-harness/src/setup.rs` (`Bash` in `PLANNER_TOOLS`; the Planner's Claude
+  Code mode `auto`), `crates/shadows-agent/src/codex/session.rs` (the Planner's
+  `sandbox: workspaceWrite`, `approvalPolicy: onRequest`, and the check of what Codex
+  accepted), `crates/shadows-agent/src/codex/connection.rs` (`requestApproval` held with its
+  options and answered by the person, not declined), `crates/shadows-agent/src/acp/permissions.rs`
+  (only if Planner sessions do not already hold), `crates/core-harness/src/permissions.rs`
+  (`waiting_permissions` lists Planner sessions too), `crates/core-harness/contract.yaml`,
+  `crates/shadows-agent/contract.yaml`
+- Create: `crates/core-turns/src/changes.rs`, `crates/shadows-core/tests/planner_changes.rs`,
+  `crates/shadows-core/tests/planner_permissions.rs`
+- Modify: `crates/codebase/src/active.rs` (`ActiveHold::changed(&self) -> Vec<String>`: the
+  paths the watcher saw change while it lived, `.git/` left out), `crates/codebase/contract.yaml`,
+  `crates/core-turns/src/` (the file where a turn settles), `crates/core-turns/src/model.rs`
+  (`Notice.executor: Option<ThreadId>`; `None` is Shadows, actor kind `Shadows`),
+  `crates/core-turns/contract.yaml`, `crates/core-threads/src/model.rs`
+  (`ThreadEntryKind::ProjectChange`), `crates/core-threads/contract.yaml`,
+  `crates/shadows-mcp/src/turn_tools.rs` (`project_change_note`), `crates/shadows-mcp/contract.yaml`,
+  `crates/core-grants/src/tools.rs` (`project_change_note` in `THREAD_TOOLS`),
+  `crates/core-harness/src/prompt.txt`, `api/openapi.json`
 
 **Interfaces:**
-- `Code::install_server(&self, id: &str) -> Result<InstallOutcome, CodeError>`: runs the
-  catalog's install line for this system through `shadows-process` (`cmd /c <line>` on
-  Windows) in the person's home folder, time limit 10 min;
-  `InstallOutcome { ok: bool, tail: String }` (the last 2 KiB of output).
-  No install line: `InvalidCommand("no install command for <id> on this system")`.
-- `Turns::install_server(&self, thread: &ThreadId, id: &str) -> Result<(), TurnsError>`:
-  refused (`Refused("the person has not chosen to install <id>")`) unless the thread's
-  latest answered `person_question` chose an option whose consent is
-  `server_install:<id>` and whose `consent_used` is 0; in one transaction marks it used and
-  writes a `server_install` row (`id, question_id, thread_id, server, state: running,
-  started_at, finished_at, tail`; migration `0061_server_install.sql`), answers at once,
-  and runs `Code::install_server` in the background; then records the outcome (`ok` or
-  `failed`) on the row and queues a notice (`executor: None`, card
-  `{ kind: "server_install", server, ok, tail }`) to the thread. On success the next
-  recompute starts the server.
-- **An install cut short** (Codex's review, 2026-11-13; kept simple): when Shadows starts,
-  every `running` row becomes `interrupted` and its thread gets the same notice with
-  `ok: false, interrupted: true`. Nothing is installed again on its own: the Planner asks
-  the person on a new card, and a new choice is a new consent.
-- MCP `code_server_install { server }` → "Installing <server>; you will get a notice."
-- Prompt: when `code_lsp` answers `NoServer` with `NotInstalled` and an `install` line,
-  ask with `person_ask` (one option with `consent: "server_install:<id>"`, one for "I'll
-  install it", and one to leave it), and call `code_server_install` only after the first.
+- `project_change_note { paths: [String], reason: String }` records a `ProjectChange` entry
+  `{ paths, reason, noted: true }` in the Planner's thread; paths are checked as `code_lsp`'s
+  `file` is (inside the project, by real path).
+- When a Planner turn settles, Turns takes its hold's `changed()` paths, removes those the
+  turn noted, and for the rest (if any), in one transaction, records a `ProjectChange` entry
+  `{ paths, reason: null, noted: false }` and queues a notice (`executor: None`, card
+  `{ kind: "project_change", paths }`, text "You changed these project files in your last
+  turn without project_change_note: <paths>. Say why with project_change_note."). A turn
+  that notice starts is checked the same way; at most one notice per turn.
+- A Planner session's permission requests wait for the person exactly as AYLUL's do: listed
+  by the existing waiting list and answered through
+  `POST /api/threads/{id}/session/permissions/{request_id}`; no second list route. A Codex
+  `requestApproval` maps to the same held request, and its answer back to
+  `{ decision: "accept" | "decline" }`.
+- Prompt: "Your shell is for installing tools and preparing the environment (a language
+  server, a container, a version check). Executors change the project's files through
+  commits; if you must change one yourself, call project_change_note with the paths and why.
+  When code_lsp says a language's server is not installed, ask the person with person_ask
+  whether you install it, they do, or it is left; on the first, run its install line." The
+  Setup section's "you write no file" line is amended to match.
 
-- [ ] **Step 1: Failing tests** in `server_install.rs`:
-  `install_needs_the_persons_choice_for_that_server` (no question; a question for another
-  server; a used consent: all refused), `an_install_outcome_reaches_the_planner_as_a_notice`
-  (an added catalog entry is not installable; the test uses a test-only install line
-  `cmd /c echo installed`, `Code::install_line_for_test`), `a_server_with_no_install_line_is_refused`,
-  `an_install_running_at_start_reads_interrupted` (a `running` row written, a new core
-  started: the row is `interrupted`, one notice reaches the thread, and nothing runs).
-- [ ] **Step 2–4: Run** `cargo test -p shadows-core --test server_install`, then
-  `--test executor_notice` (or the file holding B-125's notice tests): fail, implement, pass.
-- [ ] **Step 5: Commit** `feat(backend): B-144 code_server_install after the person's choice`.
+- [ ] **Step 1: Failing tests**:
+  - `planner_changes.rs`: `a_noted_change_is_recorded_with_its_reason`,
+    `an_unnoted_shell_change_is_recorded_and_asked_about` (a file written in the folder during
+    a Planner turn, no note: one `ProjectChange` entry with `noted: false`, one Shadows notice
+    naming it), `a_turn_with_no_change_sends_nothing`.
+  - `planner_permissions.rs` (ignored, live programs): `a_planner_permission_request_waits_for_the_person`
+    (Claude Code: a Planner asked to run a command its program asks about; the request is
+    listed and the person's allow lets it run), `codex_approval_is_held_not_declined`.
+  - `mcp_tools`: `the_planner_has_bash_and_project_change_note`.
+- [ ] **Step 2–4: Run** `cargo test -p shadows-core --test planner_changes --test planner_permissions`
+  (`-- --include-ignored` where the live programs are set), `cargo test -p shadows --test
+  mcp_tools --test planner_mcp`, `cargo test -p shadows-core --test codex_session`: fail,
+  implement, pass.
+- [ ] **Step 5: Commit** `feat(backend): B-144 the Planner's shell, its permission cards and its changes`.
 
-## Task F-115: the question card, and a notice from Shadows
+## Task F-115: the question card, the Planner's permission cards, and Shadows' notices
 
 **Files:** `web/src/app/conversation/person-question-card.tsx` (+ test),
 `web/src/app/conversation/entry.tsx`, `web/src/app/conversation/notice-item.tsx` (+ test),
@@ -446,14 +479,19 @@ renamed service crate takes its name without `core-`. Every later task in this p
 `docs/frontend/stages.md`, `docs/frontend/codebase/README.md` (if its map asks).
 
 - A `PersonQuestion` entry draws the question and one button per option, styled like the
-  permission card. An option with a consent shows under its label what it allows ("Lets
-  Shadows install typescript"). A click posts the answer with a new command id; the card then
+  permission card. A click posts the answer with a new command id; the card then
   shows the chosen option and no buttons. An answered card (from the entry's card or the
   route's conflict) never shows buttons again.
-- A notice whose `executor` is null is drawn in Shadows' name ("Shadows"), with the install
-  card: server, ok or failed, and the tail in a collapsed block.
+- A card copied by a fork (its question's thread is not the conversation's) shows its
+  question and options with no buttons.
+- A Planner conversation draws its program's permission requests with the permission card
+  that exists (`permission-card.tsx`), as an AYLUL conversation does.
+- A `ProjectChange` entry draws its paths and its reason, or "no reason given".
+- A notice whose `executor` is null is drawn in Shadows' name ("Shadows").
 - Tests: `renders_the_planners_options`, `a_click_answers_once`,
-  `an_answered_question_has_no_buttons`, `a_shadows_notice_names_shadows`.
+  `an_answered_question_has_no_buttons`, `a_forked_question_has_no_buttons`,
+  `a_planner_permission_request_shows_its_card`, `a_project_change_shows_its_reason`,
+  `a_shadows_notice_names_shadows`.
 - Done when: `npm test -- person-question notice-item questions`, `npm run build`, lint.
   One commit, `feat(web): F-115 the question card and Shadows' notices`.
 
@@ -490,6 +528,9 @@ and `web/src/app/settings/active-projects.tsx` (the limit goes), `docs/frontend/
   call, and its reply names both files.
 - The same against Codex (`SHADOWS_CODEX_PATH`, `SHADOWS_CODEX_HOME`), as
   `live_a_codex_turn_sees_an_image`.
+- Browser: on `testing3`, a `.ts` file added; the Planner asks with `person_ask`; on "you
+  install it" it runs the install line in its shell (with a permission card if its program
+  asks); the server starts and `code_lsp` answers from it.
 - Browser acceptance on `testing3` (Mohammed): the spec's Tests section, recorded in this
   entry.
 - Commit `test(backend): B-145 the Planner asks a real language server`.

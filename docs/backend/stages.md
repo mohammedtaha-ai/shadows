@@ -373,11 +373,11 @@ Design: [language servers](specs/2026-11-13-language-servers-design.md) (Mohamme
 - Plan: [Task B-143](plans/2026-11-13-slice-2-language-servers.md#task-b-143-person_ask-the-question-card).
 - Needs: none.
 
-### B-144 · code_server_install
+### B-144 · The Planner's shell, its permission cards, and the end-of-turn check
 
 - Status: ready.
-- Plan: [Task B-144](plans/2026-11-13-slice-2-language-servers.md#task-b-144-code_server_install).
-- Needs: B-139, B-143.
+- Plan: [Task B-144](plans/2026-11-13-slice-2-language-servers.md#task-b-144-the-planners-shell-its-permission-cards-and-the-end-of-turn-check).
+- Needs: B-138a, B-140 (`ActiveHold`), B-141 (`code_lsp`'s path check).
 
 ### B-145 · Live acceptance
 

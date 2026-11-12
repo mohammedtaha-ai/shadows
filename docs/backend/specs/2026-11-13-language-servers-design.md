@@ -25,14 +25,18 @@ whichever program runs them.
    while a conversation in it is running.
 2. The Planner and the executor ask the language servers through one tool, `code_lsp`,
    carrying the LSP operations as they are.
-3. A missing server is installed only after the person chooses it on a question card the
-   Planner writes.
-4. The person sees and controls the servers in a new **Code** section of the settings.
-5. The name index is suspended, not deleted.
+3. The Planner installs a missing server itself, through its own shell; its program
+   (Claude Code or Codex) asks the person when it judges a command needs it, and that
+   question reaches the person as a card in the conversation.
+4. Shadows knows every project file the Planner changes in a turn, and asks it why when it
+   did not say; the answer is recorded.
+5. The person sees and controls the servers in a new **Code** section of the settings.
+6. The name index is suspended, not deleted.
 
 ## Non-goals
 
-- Shadows installs nothing on its own; an install always follows the person's choice.
+- Shadows installs nothing on its own: Shadows runs no install command; the Planner does,
+  under its program's approval.
 - No server is chosen by the person per project: the files choose.
 - No diagnostics, rename, formatting or completion: the read operations below only.
 - No answer is mixed from two sources: a file whose language has no running server gets
@@ -42,7 +46,8 @@ whichever program runs them.
 
 ## Anti-goals (failure even if it works)
 
-- A model installs or runs anything the person did not choose on the card.
+- A project file changes in a Planner turn and nothing records it.
+- A question the Planner's program asks the person is refused unseen.
 - A project nobody is working in keeps servers and watchers running.
 - A Planner on Codex gets a worse answer than one on Claude Code.
 
@@ -71,14 +76,36 @@ whichever program runs them.
 6. **The person may switch a server off** in Settings › Code; the switch warns that
    Shadows' answers get worse. **The person may add a server** not in the catalog (its
    command, arguments and extensions), on their own responsibility, for community servers.
-7. **A missing server:** the Planner asks the person on a question card whether Shadows
-   installs it or the person does. On "Shadows installs it" the Planner calls
-   `code_server_install`; Shadows runs the catalog's install command itself, never the
-   Planner's text, and only after that choice.
-8. **The question card is general.** The Planner writes the question and its options
-   (buttons), and the person's choice returns to the Planner as its answer. Install is its
-   first user, not its only one. No session restarts: the tools exist from the start.
-9. **One slice**, backend and web together.
+7. **The Planner has a shell** (Mohammed, 2026-11-13; this replaces "the Planner itself
+   writes no file" of [executors design §5.2](2026-11-08-executors-design.md#52-setup-before-detailed-planning-mohammed-2026-11-11)).
+   On Claude Code it gets `Bash` and runs in `auto` mode; on Codex its sandbox lets it write
+   and its approval policy asks on request ("approve for me"). The program decides when to
+   ask the person; Shadows does not second-guess it (accepted: an install the program
+   judges safe runs without a question). Its instructions say: the shell is for installing
+   and the environment (a language server, a container, a version check); do not change the
+   project's files, which executors change through commits; if you must, call
+   `project_change_note` with the paths and the reason.
+8. **The program's questions reach the person.** A permission request from a Planner
+   session (Claude Code's, through ACP; Codex's `requestApproval`) is held and shown as a
+   permission card with its options, as AYLUL's are today, never refused unseen.
+9. **Shadows knows the Planner's changes.** At the end of each Planner turn, Shadows takes
+   the project files that changed during the turn without a commit (its edit tool calls,
+   which carry their path, and the project's watcher, which sees a shell's writes too).
+   Paths the Planner noted with `project_change_note` in that turn are recorded with their
+   reason. The rest are recorded as "no reason given", and Shadows sends the Planner a
+   notice naming them and asking why; its answer is recorded the same way. A change the
+   person makes by hand during a Planner turn is rare and accepted as asked about.
+10. **The question card is general.** The Planner writes the question and its options
+   (buttons), and the person's choice returns to the Planner as its answer, for any choice
+   the person must make. It grants nothing. No session restarts: the tools exist from the
+   start.
+11. **A missing server:** `code_lsp` answers "not installed" with the catalog's install line;
+   the Planner asks the person with the question card whether it installs it or the person
+   does, then runs the line in its shell or leaves it.
+12. **One slice**, backend and web together.
+13. **`core-code` becomes `codebase`** (`Code` becomes `Codebase`), named for what it
+   owns, without `core-`; the other `core-*` crates keep their names until touched. This
+   document names today's code (`core-code`, `Code`) where it describes what exists.
 
 ## How it fits the code
 
@@ -89,7 +116,9 @@ whichever program runs them.
 | Talking to a server | `shadows-process` (spawn, stdio, kill on drop) | `shadows-lsp`: one client for every server |
 | Code tools | `where_is`, `who_uses`, `outline` (`shadows-mcp/src/code_tools.rs`) | `code_lsp` in their place, for the Planner and the executor |
 | Waiting for the person | the look of the permission card (`permission-card.tsx`) | `person_ask`: a stored question in Turns, and its card |
-| Telling the Planner | the waiting notice, `Turns::queue_notice` (B-125) | a sender that is not an executor: an answer, an install's outcome |
+| The program's permission requests | AYLUL's held requests and their card (`core-harness/permissions.rs`) | held for Planner sessions too, on Claude Code and Codex |
+| The Planner's file changes | tool cards with kind, path and diff (`ToolCallCard`); the project watcher | the changes of one turn, `project_change_note`, the end-of-turn notice |
+| Telling the Planner | the waiting notice, `Turns::queue_notice` (B-125) | a sender that is not an executor: Shadows asking about a change |
 | Settings | the settings dialog and its sections (`web/src/app/settings`) | the Code section; "Active projects" removed |
 
 The executor works in the project's own folder (the commit is the checkpoint), so the
@@ -98,9 +127,11 @@ server reads the same files the executor writes; there is no worktree to follow.
 ### The `shadows-lsp` crate
 
 A library beside `shadows-index`, with no Shadows dependency but `shadows-process`. It
-starts one server from a command, arguments and a folder; initializes it; keeps the files
-it is asked about open with their current text; sends one request and returns its answer;
-and shuts the server down (kill on drop). It knows no project, grant, task or table. One
+starts one server from a command, arguments and a folder; initializes it; tells it which
+files changed on disk (`workspace/didChangeWatchedFiles`, which the project's watcher
+feeds: a server such as gopls keeps its own copy of closed files and reads them again only
+when told, Codex's trial on gopls v0.23.0, 2026-11-13); opens the asked file with its
+current text for one request, then closes it; and shuts the server down (kill on drop). It knows no project, grant, task or table. One
 client serves every server (`async-lsp`, infrastructure dependency). A server gets code of
 its own only when it needs it.
 
@@ -129,7 +160,7 @@ its own only when it needs it.
 - A server's state per project: `running`, `starting`, `not_installed` (its command is not
   found), `off` (the person switched it off), `failed` (it exited or did not initialize,
   with its last error line).
-- The person's added and switched-off servers are stored in `core-code`'s store, for every
+- The person's added and switched-off servers are stored in `codebase`'s store, for every
   project (my call: settings are the person's, not a project's); the catalog is data in
   the crate.
 - A linked project runs its own servers when it is active itself; touching a project no
@@ -138,39 +169,35 @@ its own only when it needs it.
 ### The question card (`person_ask`)
 
 - MCP tool for a Planner conversation only (a thread grant; an executor or an external
-  agent cannot call it): a question, two to five options (each a short label), and an
-  optional `consent` on an option (below). It returns at once with the question's id; the
-  card waits in the conversation.
+  agent cannot call it): a question and two to five options (each a short label). It
+  returns at once with the question's id; the card waits in the conversation. It grants
+  nothing.
 - The question is stored, a thread entry of its own kind, so it survives a restart. The
-  answer is a command with a command id, replayed as usual. A question is answered once.
-- The person's click reaches the Planner as a waiting notice, as an executor's notice
-  does. `Notice` names its sender today as `executor: ThreadId`; it becomes a sender that
-  is either an executor thread or the person's answer / an install's outcome.
-- **Owner: Turns** (my call). Turns already holds the waiting notice and sits above Harness
-  and Code (`core-turns` depends on both), so Harness or Code could not queue the notice
-  without a dependency cycle. The question store lives in Turns; the install is Turns
-  calling `Code`, then queueing its outcome. Permission requests are live, in memory and
-  AYLUL-only, so they are a model for the card's look, not for its storage.
+  click is the person's own message to the Planner (`Answer to "<question>": <label>`),
+  recorded with the choice in one transaction; the card then reads its choice. A question
+  is answered once; a card copied into a fork is history, with no buttons.
+- **Owner: Turns** (my call). Turns records the person's messages and sits above Harness
+  and Codebase (`core-turns` depends on both).
 
-### Install (`code_server_install`)
+### The Planner's shell and its changes
 
-- MCP tool for a Planner conversation, taking a catalog server id.
-- **Consent:** the Planner marks the install option with `consent: "server_install:<id>"`.
-  The card shows the person what that option allows. `code_server_install` runs only when
-  the person's latest answered question in this conversation chose an option with that
-  consent for that id, and that consent was not used before (my call: one consent, one
-  install).
-- Shadows runs the catalog's install command for the machine's system through
-  `shadows-process`, with a time limit, and records its outcome. The Planner gets the
-  outcome as a notice; on success the server starts in the project.
-- A catalog entry with no install command for this system cannot be installed by
-  Shadows; the Planner offers only "I'll install it" (the card shows the command when one
-  is known).
-- Install commands are written by us per entry (the upstream manifests carry none), from
-  each plugin's README. This slice writes Windows commands only, the system Shadows runs
-  on today; on Linux and macOS every entry has no known install command, so the card
-  offers only "I'll install it" there (my call). The data has a field per system so the
-  others can be filled later:
+- **Shell:** `Bash` joins `PLANNER_TOOLS` on Claude Code, in `auto` mode; on Codex the
+  Planner's sandbox becomes `workspaceWrite` with approval `onRequest` (today `readOnly`
+  and `never`, `shadows-agent/src/codex/session.rs`).
+- **Permission cards:** `Harness::waiting_permissions` holds and lists requests from Planner
+  sessions as well as AYLUL's; Codex's `requestApproval` is held with its options instead
+  of declined. The person's answer goes back through the route that exists
+  (`/api/threads/{id}/session/permissions/{request_id}`).
+- **`project_change_note { paths, reason }`:** a Planner MCP tool that records why it
+  changed project files; each note is a thread entry.
+- **The end-of-turn check:** while a Planner turn runs, the project's `ActiveHold`
+  (Codebase) collects the paths its watcher sees change, `.git/` left out. When the turn
+  settles, Turns compares them with the turn's notes: unnoted paths are recorded as a
+  thread entry "changed with no reason given", and a Shadows notice asks the Planner why.
+  One notice per turn; the answer turn's own changes are checked the same way.
+- **Install lines** are written by us per catalog entry (the upstream manifests carry
+  none), from each plugin's README, and shown by `code_lsp` and Settings › Code. Windows
+  only in this slice; the data has a field per system:
 
   | Server | Command | Install (Windows) |
   |---|---|---|
@@ -201,10 +228,11 @@ A new section, meant to grow. It starts with:
 
 ### Instructions
 
-- **Planner:** `code_lsp` and its operations; when a language the project uses has no
-  running server, ask the person with `person_ask` whether Shadows installs it, and call
-  `code_server_install` only after that choice. `person_ask` for any other choice the
-  person must make.
+- **Planner:** `code_lsp` and its operations; the shell is for installing and the
+  environment, not for the project's files; a file it must change is noted with
+  `project_change_note`; a language with no running server is offered to the person with
+  `person_ask` ("I install it" / "you install it" / "leave it"), then installed in the
+  shell on the first. `person_ask` for any other choice the person must make.
 - **Executor:** `code_lsp` replaces "ask `where_is`, `who_uses` and `outline`"
   (`core-harness/src/executor.md`).
 
@@ -218,8 +246,9 @@ three removed tools are removed with them.
 
 Acceptance in the browser on `testing3` (Go): a conversation starts gopls; the Planner's
 `code_lsp` `findReferences` answers from it; adding a `.ts` file makes the Planner ask about
-typescript-language-server on a card; choosing "Shadows installs it" installs it and
-starts it; switching gopls off in Settings › Code shows the warning, and `code_lsp` then
+typescript-language-server on a card; choosing "install it" makes the Planner run the
+install line (with Claude Code's or Codex's permission card when it asks) and the server
+starts; a file the Planner edits without a note brings Shadows' question; switching gopls off in Settings › Code shows the warning, and `code_lsp` then
 answers "no server (off)".
 
 ## Left to the builder
