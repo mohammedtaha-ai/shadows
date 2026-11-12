@@ -398,8 +398,8 @@ async fn codex_choices_follow_the_model_catalog() {
         Some("low"),
         "an opening without an effort runs at the model default"
     );
-    assert!(!choices.capabilities.image);
-    assert!(choices.capabilities.image_reason.is_some());
+    assert!(choices.capabilities.image);
+    assert_eq!(choices.capabilities.image_reason, None);
     w.close().await;
 }
 
@@ -882,6 +882,57 @@ async fn live_a_codex_planner_reads_a_file_and_writes_none() {
     println!(
         "live codex write: {} tool entries, {failed} failed, made.txt absent",
         tried.len()
+    );
+    w.close().await;
+}
+
+/// A Codex turn receives an attached image and names its colour.
+#[ignore = "live: needs codex (SHADOWS_CODEX_PATH) signed in to a dedicated home \
+            (SHADOWS_CODEX_HOME)"]
+#[tokio::test]
+async fn live_a_codex_turn_sees_an_image() {
+    let root = tempfile::tempdir().unwrap();
+    std::fs::create_dir_all(root.path().join("project")).unwrap();
+    let w = World::start_live(root).await;
+    let choices = w.core.harness().open_session(&w.thread).await.unwrap();
+    assert!(choices.capabilities.image);
+    let current = choices.current;
+    let red = include_bytes!("../../shadows/tests/fixtures/red.png").to_vec();
+    let image = w
+        .core
+        .threads()
+        .upload_attachment("red".into(), &w.thread, "image/png", None, red)
+        .await
+        .unwrap();
+    let mut send = turn(
+        "see",
+        "What colour is this image? Answer with one word.",
+        &current.model,
+        current.effort.as_deref(),
+    );
+    send.attachments = vec![image.id];
+    let operation = w.core.turns().send(w.thread.clone(), send).await.unwrap();
+    let done = w
+        .settled_within(&w.thread, &operation, Duration::from_secs(180))
+        .await;
+    assert_eq!(done.status_kind, "Completed", "{done:?}");
+    let reply = w
+        .core
+        .threads()
+        .entries(&w.thread)
+        .await
+        .unwrap()
+        .into_iter()
+        .rev()
+        .find(|entry| {
+            entry.kind == shadows_core::ThreadEntryKind::AgentMessage
+                && entry.operation_id.as_deref() == Some(operation.as_str())
+        })
+        .expect("the image turn's reply");
+    assert!(
+        reply.body.to_lowercase().contains("red"),
+        "{:?}",
+        reply.body
     );
     w.close().await;
 }

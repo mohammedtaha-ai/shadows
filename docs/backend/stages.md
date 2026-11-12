@@ -705,3 +705,23 @@ Mohammed's wish: each `[Shadows]` notice is drawn as an item of the Planner's ac
 - Touch: exact Create/Modify/Test file list of Task 4; no other source paths.
 - Needs: B-117, F-104; accepted shared API/model agreement. 
 - Done when: all named RED/GREEN steps and focused verification commands in Task 4 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
+
+## Codex images (2026-11-12)
+
+Mohammed, 2026-11-12: a person can send images to a Codex conversation, as with Claude Code.
+Codex 0.167's app-server takes an image turn input as `{"type":"image","url":<data URL>}`
+(`UserInput::Image`, from `codex app-server generate-json-schema`), and its models list
+`inputModalities` with `["text","image"]` as the default. The web composer already enables
+its image button from the session's `capabilities.image`, so no web change.
+
+### B-137 · A Codex conversation takes images
+
+- Status: done (live test written, not run: no dedicated Codex home configured).
+- Owner: `shadows-agent`'s Codex connection (`crates/shadows-agent/src/codex/prompt.rs`): `prompt_capabilities` reports `image: true` with no reason, and `input` maps `PromptBlock::Image { media_type, bytes }` to `{"type":"image","url":"data:<media_type>;base64,<bytes>"}`, for both `prompt_blocks` and `steer_blocks`. The capability is the connection's, not the model's: a model that refuses images answers with its own provider error, which already reaches the person (simple boundary, 2026-11-08).
+- Read: `crates/core-harness/contract.yaml` (`require_images`, `image_input`); `crates/shadows-agent/src/acp/prompt.rs` (how the ACP side maps an image); `crates/shadows-core/tests/codex_session.rs` (`codex_choices_follow_the_model_catalog`, `live_a_codex_planner_reads_a_file_and_writes_none`).
+- Touch: `crates/shadows-agent/src/codex/prompt.rs`; `crates/shadows-agent/contract.yaml` (only if it names the Codex image refusal); `crates/core-harness/contract.yaml` (the `image_input` lines, if they name Codex); `crates/shadows-core/tests/codex_session.rs`; `docs/backend/stages.md` (this entry). If `fake-codex` refuses an image turn in a test that is not live, stop and name it; no new fake-codex behaviour.
+- Tests:
+  - `codex_choices_follow_the_model_catalog` asserts `capabilities.image` is true and `image_reason` is `None`.
+  - New live test `live_a_codex_turn_sees_an_image`, `#[ignore]` with the same reason as the live Planner test: send `crates/shadows/tests/fixtures/red.png` with "What colour is this image? Answer with one word.", wait up to 180 s, the operation completes and the reply contains "red" (case-insensitive).
+- Needs: nothing.
+- Done when: `cargo test -p shadows-agent`; `cargo test -p shadows-core --test codex_session`; `cargo test -p shadows-core --test codex_session -- --ignored --test-threads=1 live_a_codex_turn_sees_an_image` passes against the signed-in Codex; `cargo test -p shadows-core --test contracts`; `cargo test -p shadows --test architecture --test codemap --test contract_tests`; fmt and the 100-column check on changed files. One commit, `feat(backend): B-137 a Codex conversation takes images`. Browser check: attach an image in a Codex conversation, and the reply describes it.

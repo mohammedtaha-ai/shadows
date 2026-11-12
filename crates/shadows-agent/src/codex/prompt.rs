@@ -263,20 +263,23 @@ async fn acknowledged(mut phase: watch::Receiver<Phase>) -> Option<String> {
 impl Connection {
     pub fn prompt_capabilities(&self) -> PromptCapabilities {
         PromptCapabilities {
-            image: false,
-            image_reason: Some("Codex does not support image prompts in Shadows".into()),
+            image: true,
+            image_reason: None,
         }
     }
 
     fn input(blocks: &[PromptBlock]) -> Result<Vec<Value>, ConnectionError> {
+        use base64::Engine as _;
         blocks
             .iter()
             .map(|block| match block {
                 PromptBlock::Text(text) => {
                     Ok(json!({"type":"text","text":text,"text_elements":[]}))
                 }
-                PromptBlock::Image(_) => {
-                    Err(ConnectionError::Rpc("Codex images are unavailable".into()))
+                PromptBlock::Image(image) => {
+                    let data = base64::engine::general_purpose::STANDARD.encode(&image.bytes);
+                    let url = format!("data:{};base64,{data}", image.media_type);
+                    Ok(json!({"type":"image","url":url}))
                 }
             })
             .collect()
