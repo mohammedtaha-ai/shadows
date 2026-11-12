@@ -449,7 +449,7 @@ async fn part_order_is_stable_across_restart() {
             .content(),
         frozen
     );
-    core.code().shut_down_for_test().await;
+    core.codebase().shut_down_for_test().await;
 
     core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
         .await

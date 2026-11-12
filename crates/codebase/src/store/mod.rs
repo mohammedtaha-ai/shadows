@@ -12,7 +12,7 @@ use std::sync::Arc;
 use shadows_index::{Role, Tag};
 use sqlx::SqliteConnection;
 
-use super::Code;
+use super::Codebase;
 use super::model::{Hit, Skipped};
 use core_db::{Storage, StorageError};
 use core_projects::{ProjectId, Projects};
@@ -359,7 +359,7 @@ impl CodeStore {
     }
 }
 
-impl Code {
+impl Codebase {
     /// Removes an index in the caller's project-removal transaction.
     pub async fn delete_code_index_in(
         conn: &mut SqliteConnection,

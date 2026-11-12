@@ -1,7 +1,8 @@
 # Project identities and registration methods are imported from core-projects.
 # Durable journal publication converts owned ids directly to core-db JournalEntry.
 # Database infrastructure: core-db; domain rules and private stores remain here.
-# selected_project_in promotes reach refusals as CodeError::GrantScope; Code does not depend on Grants.
+# selected_project_in promotes reach refusals as CodebaseError::GrantScope;
+# Codebase does not depend on Grants.
 # Owns the code index (spec §15.4–§15.6): walking a project's folder into
 # `code_file` and `code_tag`, keeping that copy true while the project is
 # one of the most recently used, and answering three questions from it —
@@ -30,7 +31,7 @@
 # `start` rebuilds it from the durable sequence of the last turns.
 # Trap: before `start` nothing is active — every project answers `Inactive`,
 # and `touch` only records the use. Tests that build with `assemble` start
-# `Code` only when they ask.
+# `Codebase` only when they ask.
 # Trap: a removed project (§4.2) is none to every read here (`code_scope`,
 # `code_order`, Projects::require_live_in); its rows and links go in Projects' removal
 # write, through the two `_in` functions, and `forget` then stops its worker.
@@ -45,11 +46,11 @@
 name: code
 version: 5
 status: current
-source: crates/core-code/src
+source: crates/codebase/src
 
 
 shapes:
-  Code:
+  Codebase:
     # Cheap to clone: an `Arc` over its private store, Projects and the active set.
     # ProjectLifecycle, Threads, Turns, Runs and every worker hold a clone.
     inner: Arc<Inner>
@@ -63,7 +64,7 @@ shapes:
   CodeStore:
     # Private to code/. Domain methods do not extend Storage.
     storage: Arc<Storage>
-  CodeConfig:
+  CodebaseConfig:
     rescan_every: Duration   # default 60 s
     debounce: Duration       # default 500 ms
   Asker:
@@ -142,7 +143,7 @@ shapes:
     running: Option<Running>
     closed: bool
   Running:
-    config: CodeConfig
+    config: CodebaseConfig
     # `code_setting.active_limit`: read by `start`, then set by
     # `set_active_limit`, each reading it under the lock.
     limit: usize
@@ -176,7 +177,7 @@ shapes:
     stopping: Notify
   Run:
     # The worker's own state, owned by its task.
-    code: Code
+    code: Codebase
     project: ProjectId
     dir: PathBuf
     shared: Arc<Shared>
@@ -248,12 +249,12 @@ functions:
     shut_down_for_test: "test-support: await index workers"
   lifecycle:
     code_order:
-      signature: "(&self) -> Result<Vec<(ProjectId, String)>, CodeError>"
-      # Private Code method: Projects::by_recent_activity, filtered to
+      signature: "(&self) -> Result<Vec<(ProjectId, String)>, CodebaseError>"
+      # Private Codebase method: Projects::by_recent_activity, filtered to
       # projects with a directory, preserving activity sequence DESC, id ASC.
-      # Code reads project metadata only through Projects.
+      # Codebase reads project metadata only through Projects.
     start:
-      signature: "(&self, config: CodeConfig) -> Result<(), CodeError>"
+      signature: "(&self, config: CodebaseConfig) -> Result<(), CodebaseError>"
       # `code_order`, then under the lock: `code_active_limit`, `begin`,
       # the touches recorded before it applied oldest first, `settle`.
       # Awaits no scan. A second call does nothing; so does one after
@@ -286,23 +287,23 @@ functions:
       private: true
   questions:
     definitions:
-      signature: "(&self, asker: Asker<'_>, only: Option<&str>, name: &str) -> Result<Answer, CodeError>"
+      signature: "(&self, asker: Asker<'_>, only: Option<&str>, name: &str) -> Result<Answer, CodebaseError>"
       # Exact, case-sensitive name, role definition. With no hit, up to 10
       # definition names containing the text, case-insensitively.
     references:
-      signature: "(&self, asker: Asker<'_>, only: Option<&str>, name: &str) -> Result<Answer, CodeError>"
+      signature: "(&self, asker: Asker<'_>, only: Option<&str>, name: &str) -> Result<Answer, CodebaseError>"
       # As `definitions` with role reference; every hit matched_by "name".
     outline:
-      signature: "(&self, asker: Asker<'_>, only: Option<&str>, path: &str) -> Result<Answer, CodeError>"
+      signature: "(&self, asker: Asker<'_>, only: Option<&str>, path: &str) -> Result<Answer, CodebaseError>"
       # `inside` first; the scope; `touch` of the asker's project; the
       # definitions whose key is the path's or under it, every one for ""
       # or "."; `recheck`, and the query once more for nonempty hits. No
       # suggestions.
     status:
-      signature: "(&self, project: &ProjectId) -> Result<ProjectStatus, CodeError>"
+      signature: "(&self, project: &ProjectId) -> Result<ProjectStatus, CodebaseError>"
       # `status_of`; it does not touch. NotFound for an unknown project.
     by_name:
-      signature: "(&self, asker, only, name, role) -> Result<Answer, CodeError>"
+      signature: "(&self, asker, only, name, role) -> Result<Answer, CodebaseError>"
       private: true
       # The scope (its refusals first), `touch` of the asker's project, the
       # query, `recheck` and the query once more for nonempty hits, then the
@@ -316,18 +317,18 @@ functions:
       # 2 s in all (`code.recheck_timeout` past it). True for nonempty hits:
       # a worker may have committed between the hit query and the stamp query.
     answer:
-      signature: "(&self, scope, hits, suggestions) -> Result<Answer, CodeError>"
+      signature: "(&self, scope, hits, suggestions) -> Result<Answer, CodebaseError>"
       private: true
       # Keeps 50 of at most 51 rows; `more` is the 51st. One status per
       # project in the scope, in the scope's order.
     status_of:
-      signature: "(&self, project: &ScopeRow) -> Result<ProjectStatus, CodeError>"
+      signature: "(&self, project: &ScopeRow) -> Result<ProjectStatus, CodebaseError>"
       private: true
       # NoDirectory with no folder; else the worker's `state` and
       # `updated_at`; Inactive and None without a worker.
   inventory:
     inventory:
-      signature: "(&self, asker: Asker<'_>, query: InventoryQuery) -> Result<InventoryPage, CodeError>"
+      signature: "(&self, asker: Asker<'_>, query: InventoryQuery) -> Result<InventoryPage, CodebaseError>"
       # The asker's own project only, never a linked one. In order: a limit
       # outside 1..=200 is INVALID_COMMAND "limit must be 1 to 200"; the
       # prefix through `inside` and `path_key`; Projects::get (an unknown
@@ -339,14 +340,14 @@ functions:
       # generation than the stored one is InventoryStale. `next` when the
       # extra row exists; Incomplete when the scan row says so, else Ready.
     refresh_inventory:
-      signature: "(&self, asker: Asker<'_>) -> Result<InventoryPage, CodeError>"
+      signature: "(&self, asker: Asker<'_>) -> Result<InventoryPage, CodebaseError>"
       # Projects::get, `touch`, then a `Job::Refresh` to the project's
       # worker awaited at most 30 s (`code.refresh_timeout`, the page as it
       # stands), or with no worker `scan` on the caller's task; then
       # `inventory` with the default query. No CommandId: the inventory is
       # derived from the files, as the index is.
     cursor:
-      signature: "(after: &str, prefix: &str) -> Result<(i64, String), CodeError>"
+      signature: "(after: &str, prefix: &str) -> Result<(i64, String), CodebaseError>"
       private: true
     record_inventory:
       signature: "(&self, project: &ProjectId, dir: &Path)"
@@ -373,16 +374,16 @@ functions:
       # *.pfx, id_rsa, id_ed25519.
   links:
     links:
-      signature: "(&self, project: &ProjectId) -> Result<Vec<ProjectLink>, CodeError>"
+      signature: "(&self, project: &ProjectId) -> Result<Vec<ProjectLink>, CodebaseError>"
       # By the linked slug; empty for an unknown project.
     put_link_in:
       signature: "(conn, project, linked, ts) -> Result<bool, StorageError>; inserts a link row in the caller transaction"
     remove_link_in:
       signature: "(conn, project, linked) -> Result<bool, StorageError>; removes a link row in the caller transaction"
     settings:
-      signature: "(&self) -> Result<CodeSettings, CodeError>"
+      signature: "(&self) -> Result<CodeSettings, CodebaseError>"
     set_active_limit:
-      signature: "(&self, command_id: String, active_limit: u32) -> Result<CodeSettings, CodeError>"
+      signature: "(&self, command_id: String, active_limit: u32) -> Result<CodeSettings, CodebaseError>"
       # Outside 1..=20: INVALID_COMMAND, before any write.
       # "CodeActiveLimitSet", params { active_limit }, scope Code, key
       # "settings" → `set_code_active_limit`; then, under the lock, `limit`
@@ -391,7 +392,7 @@ functions:
       # lowering it stops the least recently used workers at once.
   scope:
     projects:
-      signature: "(&self, asker: &Asker<'_>, only: Option<&str>) -> Result<Vec<ScopeRow>, CodeError>"
+      signature: "(&self, asker: &Asker<'_>, only: Option<&str>) -> Result<Vec<ScopeRow>, CodebaseError>"
       # The asker's project, then its direct links by slug. An `only` not in
       # it: GRANT_SCOPE for a grant, INVALID_COMMAND for a person, "the
       # project <slug> is not linked to this project".
@@ -399,19 +400,19 @@ functions:
       signature: "(&self) -> &ProjectId"
       # Asker method: the project a question starts from, and touches.
     inside:
-      signature: "(path: &str) -> Result<String, CodeError>"
+      signature: "(path: &str) -> Result<String, CodebaseError>"
       # '\' becomes '/', "./" and a trailing '/' are dropped; absolute, a
       # ':' or a ".." component is INVALID_COMMAND "the path must be inside
       # the project".
   indexing:
-    # Shared indexing helpers are associated Code methods; walk/names_itself are private.
+    # Shared indexing helpers are associated Codebase methods; walk/names_itself are private.
     scan:
-      signature: "(&self, project: &ProjectId) -> Result<(), CodeError>"
+      signature: "(&self, project: &ProjectId) -> Result<(), CodebaseError>"
       # pub(crate): tests reach it as `scan_for_test` (`testing`), and
       # `refresh_inventory` calls it with no worker. A worker calls
       # `scan_project` with its own `Progress`.
     scan_project:
-      signature: "(&self, project: &ProjectId, progress: &Progress) -> Result<u32, CodeError>"
+      signature: "(&self, project: &ProjectId, progress: &Progress) -> Result<u32, CodebaseError>"
       # No folder, or a missing one: nothing changes. Walks on a blocking
       # thread, reads `code_file_stamps` and the folder's canonical path
       # once for the walk (either unread: each file reads its own), sets
@@ -481,7 +482,7 @@ functions:
       signature: "(&mut self, project: &ProjectId)"
       # Once per project, at its last use: a core never started does not grow it.
     begin:
-      signature: "(&mut self, order: Vec<(ProjectId, PathBuf)>, limit: usize, config: CodeConfig) -> Vec<ProjectId>"
+      signature: "(&mut self, order: Vec<(ProjectId, PathBuf)>, limit: usize, config: CodebaseConfig) -> Vec<ProjectId>"
       # Once: the database's order and the limit; answers the early touches.
     used:
       signature: "(&mut self, rows: &[(ProjectId, Option<PathBuf>)])"
@@ -491,7 +492,7 @@ functions:
       signature: "(&mut self, limit: usize)"
       # The next `settle` follows it; before `start` it does nothing.
     settle:
-      signature: "(&mut self, code: &Code)"
+      signature: "(&mut self, code: &Codebase)"
       # Stops the worker of every project past the limit (`code.inactive`),
       # its task kept in `leaving`; spawns one for every active project
       # without one (`code.active`), given that project's `leaving` task.
@@ -507,7 +508,7 @@ functions:
       # Every worker stopped; answers their tasks and the `leaving` ones.
   worker:
     spawn:
-      signature: "(code: Code, project: ProjectId, dir: PathBuf, config: CodeConfig, before: Option<JoinHandle<()>>) -> Self"
+      signature: "(code: Codebase, project: ProjectId, dir: PathBuf, config: CodebaseConfig, before: Option<JoinHandle<()>>) -> Self"
       # The task awaits `before`, the project's previous worker, first.
     state:
       signature: "(&self) -> (IndexState, Option<String>)"
@@ -523,7 +524,7 @@ functions:
       # Sets `progress.stop` and wakes the task: it ends after the file it
       # is on, dropping its watcher.
     run:
-      signature: "(mut self, jobs, seen, config: CodeConfig)"
+      signature: "(mut self, jobs, seen, config: CodebaseConfig)"
       private: true
       # One select, biased: stop; a job; the interval (its first tick, at
       # once, is the first scan); a seen path (into `pending`) or Rescan (a
@@ -629,11 +630,11 @@ functions:
       private: true
     put_link_in:
       signature: "(conn, project, linked, ts) -> Result<bool, StorageError>; inserts a row only"
-      # Code associated method: insert within the caller's write; true only
+      # Codebase associated method: insert within the caller's write; true only
       # for a new row. Caller owns validation, command replay, events and notification.
     remove_link_in:
       signature: "(conn, project, linked) -> Result<bool, StorageError>; removes a row only"
-      # Code associated method: delete within the caller's write; true only
+      # Codebase associated method: delete within the caller's write; true only
       # when a link existed. Caller owns command replay, events and notification.
     delete_code_links_in:
       signature: "(conn, project: &ProjectId) -> Result<(), StorageError>"
@@ -682,7 +683,7 @@ functions:
 shared_in_transaction:
   load_link_in: Retained project link with slugs in the caller snapshot.
   replayed_link_in: Recorded link result even after removal; Plans owns command replay classification.
-  # Plans owns command replay and dependency notifications around the Code writes.
+  # Plans owns command replay and dependency notifications around the Codebase writes.
   put_link_in: "PlansStore::put_code_link: raw insert in its command transaction"
   remove_link_in: "PlansStore::remove_code_link: raw delete in its command transaction"
   selected_project_in: "Plans' store: resolves an optional project slug within the origin's live one-way reach in its read snapshot"
@@ -697,8 +698,8 @@ called_by_other_services:
 
 
 enums:
-  CodeError:
-    source: core_code::CodeError
+  CodebaseError:
+    source: codebase::CodebaseError
     values: [InvalidCommand, GrantScope, InventoryStale, Projects, Storage]
   StorageError:
     source: core_db::StorageError
@@ -947,7 +948,7 @@ agreements:
 not_the_caller's:
   - >
       Check the scope, resolve a slug, or join a path to a project's folder
-      yourself: an adapter passes the asker, `only` and the text to `Code`,
+      yourself: an adapter passes the asker, `only` and the text to `Codebase`,
       which owns `projects` and `inside`.
   - >
       Check a link or a limit, or build their fingerprints, yourself: an
@@ -1042,4 +1043,4 @@ tests:
       correctly report whether they changed a row.
 
 # Plans owns link/unlink command replay, events and dependency invalidation.
-# Code owns project_link persistence through put_link_in/remove_link_in.
+# Codebase owns project_link persistence through put_link_in/remove_link_in.

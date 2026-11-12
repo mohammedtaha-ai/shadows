@@ -1,4 +1,4 @@
-# Index access and project reach use core-code.
+# Index access and project reach use codebase.
 # Project identities and registration methods are imported from core-projects.
 # Database infrastructure: core-db; domain rules and private stores remain here.
 # Harness::set_thread_harness owns the close after its guarded command commits.
@@ -71,7 +71,7 @@ modules:
 
 dependencies:
   projects: crates/core-projects/contract.yaml
-  code: crates/core-code/contract.yaml
+  code: crates/codebase/contract.yaml
   agents: crates/core-agents/contract.yaml
 
 # OperationRef, WorkflowRef and TaskRef are opaque provenance strings, interpreted by their owners.
@@ -98,7 +98,7 @@ shapes:
   Threads:
     store: ThreadsStore
     projects: Projects
-    # A clone of the core's `Code`: `list` touches the project (§15.6).
+    # A clone of the core's `Codebase`: `list` touches the project (§15.6).
     code: Code
   ThreadsStore:
     storage: Arc<Storage> # Private to threads; uses the existing shared handle.

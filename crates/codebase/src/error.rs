@@ -1,6 +1,6 @@
 //! Failures owned by code indexing and project reach.
 #[derive(Debug, thiserror::Error)]
-pub enum CodeError {
+pub enum CodebaseError {
     #[error("{0}")]
     InvalidCommand(String),
     #[error("{0}")]

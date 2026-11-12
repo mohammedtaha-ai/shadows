@@ -27,8 +27,8 @@ use tokio::sync::{Notify, mpsc, oneshot};
 use tokio::task::JoinHandle;
 use tokio::time::{Instant, MissedTickBehavior};
 
-use super::Code;
-use super::model::{CodeConfig, IndexState};
+use super::Codebase;
+use super::model::{CodebaseConfig, IndexState};
 use super::scan::Progress;
 use core_projects::ProjectId;
 
@@ -54,7 +54,7 @@ enum Seen {
     Rescan,
 }
 
-/// What a worker shares with the rest of `Code`: how it stands.
+/// What a worker shares with the rest of `Codebase`: how it stands.
 #[derive(Default)]
 struct Shared {
     progress: Progress,
@@ -67,7 +67,7 @@ struct Shared {
     stopping: Notify,
 }
 
-/// One active project's worker, as `Code` holds it.
+/// One active project's worker, as `Codebase` holds it.
 pub(super) struct Worker {
     jobs: mpsc::Sender<Job>,
     shared: Arc<Shared>,
@@ -79,10 +79,10 @@ impl Worker {
     /// With `before`, the task of the project's previous worker, still on its
     /// last file, it waits for that task first: one writer per project.
     pub(super) fn spawn(
-        code: Code,
+        code: Codebase,
         project: ProjectId,
         dir: PathBuf,
-        config: CodeConfig,
+        config: CodebaseConfig,
         before: Option<JoinHandle<()>>,
     ) -> Self {
         let (jobs, jobs_rx) = mpsc::channel(64);
@@ -146,7 +146,7 @@ impl Worker {
 
 /// The worker's own state, owned by its task.
 struct Run {
-    code: Code,
+    code: Codebase,
     project: ProjectId,
     dir: PathBuf,
     shared: Arc<Shared>,
@@ -166,7 +166,7 @@ impl Run {
         mut self,
         mut jobs: mpsc::Receiver<Job>,
         mut seen: mpsc::Receiver<Seen>,
-        config: CodeConfig,
+        config: CodebaseConfig,
     ) {
         let mut interval = tokio::time::interval(config.rescan_every);
         interval.set_missed_tick_behavior(MissedTickBehavior::Delay);
@@ -200,7 +200,7 @@ impl Run {
                         let paths: Vec<String> = self
                             .pending
                             .drain()
-                            .filter(|p| Code::keeps(Path::new(p)))
+                            .filter(|p| Codebase::keeps(Path::new(p)))
                             .collect();
                         if !paths.is_empty() {
                             self.handle(Job::Files(paths)).await;
@@ -246,7 +246,7 @@ impl Run {
         // The scan covers every path still gathered.
         let unreported = self.pending.is_empty();
         self.pending.clear();
-        if !Code::folder_exists(&self.dir).await {
+        if !Codebase::folder_exists(&self.dir).await {
             self.folder_missing();
             return;
         }
@@ -296,13 +296,13 @@ impl Run {
     /// longer a regular file, has its rows deleted by `index_file`; one an
     /// ignore file names is left alone.
     async fn files(&mut self, paths: Vec<String>) {
-        if !Code::folder_exists(&self.dir).await {
+        if !Codebase::folder_exists(&self.dir).await {
             self.folder_missing();
             return;
         }
         let kept = {
             let (dir, paths) = (self.dir.clone(), paths.clone());
-            tokio::task::spawn_blocking(move || Code::kept_now(&dir, &paths))
+            tokio::task::spawn_blocking(move || Codebase::kept_now(&dir, &paths))
                 .await
                 .unwrap_or_default()
         };
@@ -313,7 +313,7 @@ impl Run {
             let regular = tokio::fs::symlink_metadata(self.dir.join(&path))
                 .await
                 .is_ok_and(|m| m.is_file());
-            if regular && !kept.contains(&Code::path_key(&path)) {
+            if regular && !kept.contains(&Codebase::path_key(&path)) {
                 continue;
             }
             self.index(&path).await;
@@ -329,7 +329,7 @@ impl Run {
     /// starts reads only what changed.
     async fn folder_changed(&self) -> bool {
         for path in &self.pending {
-            if Code::keeps(Path::new(path)) || path.split('/').any(|c| c.starts_with('.')) {
+            if Codebase::keeps(Path::new(path)) || path.split('/').any(|c| c.starts_with('.')) {
                 continue;
             }
             match tokio::fs::symlink_metadata(self.dir.join(path)).await {
@@ -337,7 +337,7 @@ impl Run {
                     let store = &self.code.inner.store;
                     // A failed read counts as new: a scan is the safe answer.
                     if !store
-                        .code_files_under(&self.project, &Code::path_key(path))
+                        .code_files_under(&self.project, &Codebase::path_key(path))
                         .await
                         .unwrap_or(false)
                     {
@@ -443,10 +443,10 @@ fn forward(
         return;
     }
     for path in &event.paths {
-        let Some(rel) = Code::relative(dir, path) else {
+        let Some(rel) = Codebase::relative(dir, path) else {
             continue;
         };
-        if rel.split('/').any(Code::never_walked) {
+        if rel.split('/').any(Codebase::never_walked) {
             continue;
         }
         if rel.rsplit('/').next() == Some(".gitignore") {

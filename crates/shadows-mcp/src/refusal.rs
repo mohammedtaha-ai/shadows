@@ -38,8 +38,8 @@ impl From<StorageError> for Refusal {
     }
 }
 
-impl From<shadows_core::CodeError> for Refusal {
-    fn from(error: shadows_core::CodeError) -> Self {
+impl From<shadows_core::CodebaseError> for Refusal {
+    fn from(error: shadows_core::CodebaseError) -> Self {
         CoreError::from(error).into()
     }
 }

@@ -1,6 +1,6 @@
 # Grant authority and approval provenance are imported from core-grants.
 # Thread identities and transaction methods are imported from core-threads.
-# Index access and project reach use core-code.
+# Index access and project reach use codebase.
 # Project identities and registration methods are imported from core-projects.
 # Database infrastructure: core-db; domain rules and private stores remain here.
 name: project_lifecycle
@@ -15,7 +15,7 @@ dependencies:
   projects: crates/core-projects/contract.yaml
   threads: crates/core-threads/contract.yaml
   plans: crates/core-plans/contract.yaml
-  code: crates/core-code/contract.yaml
+  code: crates/codebase/contract.yaml
   grants: crates/core-grants/contract.yaml
 shapes:
   ProjectLifecycle:

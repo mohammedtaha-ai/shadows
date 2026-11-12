@@ -1,6 +1,6 @@
 //! Atomic project-link commands with plan dependency notifications.
 use super::PlansStore;
-use core_code::{Code, ProjectLink};
+use codebase::{Codebase, ProjectLink};
 use core_db::{Actor, CommandContext, JournalEntry, Storage, StorageError};
 use core_projects::{ProjectId, Projects};
 impl PlansStore {
@@ -19,7 +19,7 @@ impl PlansStore {
                         CommandContext::classify(conn, &ctx, "Project", project.as_str()).await?
                     {
                         let done = ProjectId::from_recorded(done);
-                        return Code::replayed_link_in(conn, &ctx, &project, &done)
+                        return Codebase::replayed_link_in(conn, &ctx, &project, &done)
                             .await
                             .map(Some);
                     }
@@ -29,7 +29,7 @@ impl PlansStore {
                         Err(StorageError::NotFound(_)) => return Ok(None),
                         Err(error) => return Err(error),
                     }
-                    let made = Code::put_link_in(conn, &project, &linked, &ts).await?;
+                    let made = Codebase::put_link_in(conn, &project, &linked, &ts).await?;
                     if made {
                         let event =
                             JournalEntry::new("ProjectLinked", Actor::user(&ctx.principal_id))
@@ -55,7 +55,9 @@ impl PlansStore {
                         &ts,
                     )
                     .await?;
-                    Code::load_link_in(conn, &project, &linked).await.map(Some)
+                    Codebase::load_link_in(conn, &project, &linked)
+                        .await
+                        .map(Some)
                 })
             })
             .await
@@ -77,7 +79,7 @@ impl PlansStore {
                     {
                         return Ok(true);
                     }
-                    if !Code::remove_link_in(conn, &project, &linked).await? {
+                    if !Codebase::remove_link_in(conn, &project, &linked).await? {
                         return Ok(false);
                     }
                     let event =

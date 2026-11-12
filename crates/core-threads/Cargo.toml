@@ -15,7 +15,7 @@ workspace = true
 core-db = { path = "../core-db" }
 core-agents = { path = "../core-agents" }
 core-projects = { path = "../core-projects" }
-core-code = { path = "../core-code" }
+codebase = { path = "../codebase" }
 shadows-agent = { path = "../shadows-agent" }
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "webp"] }
 serde = { workspace = true }

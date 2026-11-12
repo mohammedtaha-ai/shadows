@@ -13,7 +13,7 @@ workspace = true
 
 [dependencies]
 core-db = { path = "../core-db" }
-core-code = { path = "../core-code" }
+codebase = { path = "../codebase" }
 core-grants = { path = "../core-grants" }
 core-plans = { path = "../core-plans" }
 core-projects = { path = "../core-projects" }
@@ -25,7 +25,7 @@ tokio = { workspace = true }
 uuid = { workspace = true }
 
 [features]
-test-support = ["core-code/test-support"]
+test-support = ["codebase/test-support"]
 
 [dev-dependencies]
 core-project-lifecycle = { path = ".", features = ["test-support"] }

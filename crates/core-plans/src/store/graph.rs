@@ -33,7 +33,8 @@ impl GraphRows {
             let Some((project, version, _)) = GraphRows::owner(conn, plan_id).await? else {
                 return Err(invalid(format!("plan {plan_id} T{task} is unavailable")));
             };
-            if !core_code::Code::project_reachable_in(conn, &source.project_id, &project).await? {
+            if !codebase::Codebase::project_reachable_in(conn, &source.project_id, &project).await?
+            {
                 return Err(invalid(format!(
                     "a project link to plan {plan_id}'s project is missing"
                 )));
@@ -171,8 +172,12 @@ impl GraphRows {
                             )));
                             continue;
                         };
-                        if !core_code::Code::project_reachable_in(conn, &source.project, &project)
-                            .await?
+                        if !codebase::Codebase::project_reachable_in(
+                            conn,
+                            &source.project,
+                            &project,
+                        )
+                        .await?
                         {
                             problems.push(Problem::new(format!(
                                 "T{number} needs a project link to plan {plan_id} T{task}"
@@ -252,7 +257,7 @@ impl GraphRows {
             let mut names = Vec::new();
             for event in cycle {
                 let version = &versions[&event.plan];
-                let title = if core_code::Code::project_reachable_in(
+                let title = if codebase::Codebase::project_reachable_in(
                     conn,
                     origin.unwrap_or(&root.project_id),
                     &version.project,

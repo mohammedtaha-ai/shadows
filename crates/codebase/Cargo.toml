@@ -1,5 +1,5 @@
 [package]
-name = "core-code"
+name = "codebase"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -35,4 +35,4 @@ tempfile = { workspace = true }
 tokio = { workspace = true }
 
 # Fixtures exercise gated inspection methods without enabling ordinary builds.
-core-code = { path = ".", features = ["test-support"] }
+codebase = { path = ".", features = ["test-support"] }

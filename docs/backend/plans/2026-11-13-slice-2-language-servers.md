@@ -152,14 +152,14 @@ renamed service crate takes its name without `core-`. Every later task in this p
 ## Task B-139: the catalog and a project's servers
 
 **Files:**
-- Create: `crates/core-code/src/lsp/mod.rs` (the servers a project runs, their state),
-  `crates/core-code/src/lsp/catalog.rs`, `crates/core-code/src/lsp/catalog.json`,
-  `crates/core-code/src/lsp/LICENSE-claude-plugins-official` (Apache-2.0 text and source
+- Create: `crates/codebase/src/lsp/mod.rs` (the servers a project runs, their state),
+  `crates/codebase/src/lsp/catalog.rs`, `crates/codebase/src/lsp/catalog.json`,
+  `crates/codebase/src/lsp/LICENSE-claude-plugins-official` (Apache-2.0 text and source
   commit), `crates/core-db/migrations/0058_code_servers.sql`,
-  `crates/core-code/src/store/servers.rs`
-- Modify: `crates/core-code/Cargo.toml` (`shadows-lsp`), `crates/core-code/src/lib.rs`,
-  `crates/core-code/src/model.rs`, `crates/core-code/src/watch.rs`,
-  `crates/core-code/src/store/mod.rs`, `crates/core-code/contract.yaml`,
+  `crates/codebase/src/store/servers.rs`
+- Modify: `crates/codebase/Cargo.toml` (`shadows-lsp`), `crates/codebase/src/lib.rs`,
+  `crates/codebase/src/model.rs`, `crates/codebase/src/watch.rs`,
+  `crates/codebase/src/store/mod.rs`, `crates/codebase/contract.yaml`,
   `docs/codebase/README.md`
 - Test: `crates/shadows-core/tests/code_servers.rs`
 
@@ -176,8 +176,8 @@ renamed service crate takes its name without `core-`. Every later task in this p
   `pub enum ServerState { Idle, Starting, Running, NotInstalled, Off, Failed { error: Option<String> } }`;
   `pub struct ServerStatus { pub id: String, pub added: bool, pub wanted: bool, pub extensions: Vec<String>, pub state: ServerState, pub install: Option<String> }`
   (`install` is this system's line).
-- `Code`:
-  - `pub async fn servers(&self, asker: Asker<'_>) -> Result<Vec<ServerStatus>, CodeError>`:
+- `Codebase`:
+  - `pub async fn servers(&self, asker: Asker<'_>) -> Result<Vec<ServerStatus>, CodebaseError>`:
     every catalog and added server, each with `wanted: bool` (the project's files need it).
     The state, in this order: `Off` when switched off; `NotInstalled` when its command is not
     found; for a wanted server in an active project, its worker's state (`Starting`,
@@ -219,9 +219,9 @@ renamed service crate takes its name without `core-`. Every later task in this p
 ## Task B-140: activity is a sent message, with an idle stop
 
 **Files:**
-- Modify: `crates/core-code/src/active.rs`, `crates/core-code/src/lib.rs`,
-  `crates/core-code/src/links.rs`, `crates/core-code/src/model.rs`,
-  `crates/core-code/contract.yaml`, `crates/core-threads/src/lib.rs` (`list` no longer
+- Modify: `crates/codebase/src/active.rs`, `crates/codebase/src/lib.rs`,
+  `crates/codebase/src/links.rs`, `crates/codebase/src/model.rs`,
+  `crates/codebase/contract.yaml`, `crates/core-threads/src/lib.rs` (`list` no longer
   touches), `crates/core-project-lifecycle/src/lib.rs` (create no longer touches),
   `crates/core-turns/src/` (the send path touches; the file the builder finds through
   `Turns::send`), `crates/core-turns/contract.yaml`, `crates/core-threads/contract.yaml`
@@ -233,19 +233,19 @@ renamed service crate takes its name without `core-`. Every later task in this p
   active-set tests; their limit cases are replaced)
 
 **Interfaces:**
-- `Code::touch(&self, project)` keeps its signature; it now records `last_used = now` and
+- `Codebase::touch(&self, project)` keeps its signature; it now records `last_used = now` and
   starts the worker if none runs. A private sweep (every 30 s) stops a worker whose
   `last_used` is older than `IDLE = Duration::from_secs(10 * 60)` (the spec's "short";
   Mohammed may change it). A worker stopping keeps its rows (index state, inventory).
 - Callers that touch: `Turns` when a message is sent (person's or a notice), and every
-  `Code` question (`code_lsp`, inventory). Callers that stop touching: `Threads::list`,
+  `Codebase` question (`code_lsp`, inventory). Callers that stop touching: `Threads::list`,
   project create. A touch no longer activates linked projects.
 - **Work in progress holds the project** (Codex's review, 2026-11-13): a long turn or an
   attempt may call no Code tool for more than the idle time. New
-  `Code::hold(&self, project: &ProjectId) -> ActiveHold`; an `ActiveHold` keeps the project
+  `Codebase::hold(&self, project: &ProjectId) -> ActiveHold`; an `ActiveHold` keeps the project
   active while it lives, and its drop counts as a touch, so the idle time starts when the
   work ends. `Turns` holds one for each running turn (from its start until it settles);
-  `Runs` holds one for each running attempt (Runs already has `Code`, B-128). Files add:
+  `Runs` holds one for each running attempt (Runs already has `Codebase`, B-128). Files add:
   `crates/core-runs/src/` (the file that starts and ends an attempt),
   `crates/core-runs/contract.yaml`.
 - `CodeSettings`, `set_active_limit` and `LIMITS` go.
@@ -255,7 +255,7 @@ renamed service crate takes its name without `core-`. Every later task in this p
     project's status is not `Inactive`.
   - `listing_threads_does_not_activate`: `threads().list` on an idle project; it stays
     `Inactive`.
-  - `an_idle_project_stops` with a test-only idle of 1 s (`Code::idle_for_test`): touched,
+  - `an_idle_project_stops` with a test-only idle of 1 s (`Codebase::idle_for_test`): touched,
     then after 3 s `Inactive`, and its gopls (if any) is gone.
   - `a_touch_does_not_activate_links`.
   - `a_held_project_outlives_the_idle_time`: idle 1 s, a `hold` kept for 3 s: still active;
@@ -269,10 +269,10 @@ renamed service crate takes its name without `core-`. Every later task in this p
 ## Task B-141: `code_lsp`, and the name index suspended
 
 **Files:**
-- Create: `crates/core-code/src/lsp/ask.rs`, `crates/shadows/tests/code_lsp.rs`
-- Modify: `crates/core-code/src/lib.rs`, `crates/core-code/src/model.rs`,
-  `crates/core-code/src/error.rs`, `crates/core-code/src/scan.rs` (tags not extracted),
-  `crates/core-code/contract.yaml`, `crates/shadows-mcp/src/code_tools.rs`,
+- Create: `crates/codebase/src/lsp/ask.rs`, `crates/shadows/tests/code_lsp.rs`
+- Modify: `crates/codebase/src/lib.rs`, `crates/codebase/src/model.rs`,
+  `crates/codebase/src/error.rs`, `crates/codebase/src/scan.rs` (tags not extracted),
+  `crates/codebase/contract.yaml`, `crates/shadows-mcp/src/code_tools.rs`,
   `crates/shadows-mcp/contract.yaml`, `crates/core-grants/src/tools.rs`,
   `crates/core-grants/contract.yaml`, `crates/shadows-http/src/code.rs` (the definitions,
   references and outline routes go), `api/openapi.json`,
@@ -289,14 +289,14 @@ renamed service crate takes its name without `core-`. Every later task in this p
 - `pub enum LspAnswer { Answered { server: String, result: serde_json::Value, truncated: bool }, NoServer { extension: String, server: Option<String>, state: Option<ServerState>, install: Option<String> } }`.
   Locations inside `result` are rewritten to `{ "project", "path", "line", "character" }`,
   one-based, project-relative; a location outside the project and its links is dropped.
-- `Code::lsp(&self, asker: Asker<'_>, question: LspQuestion) -> Result<LspAnswer, CodeError>`:
-  checks `file` with `Code::inside`, then **resolves its real path and refuses one outside
+- `Codebase::lsp(&self, asker: Asker<'_>, question: LspQuestion) -> Result<LspAnswer, CodebaseError>`:
+  checks `file` with `Codebase::inside`, then **resolves its real path and refuses one outside
   the project's real folder** (a link or junction out), the same check the index makes
   before it reads (`scan.rs`, `names_itself` and the canonical folder; Codex's review,
   2026-11-13), and only then reads it; sends the file's current text with the request
   (`Server::ask`, B-138); `IncomingCalls`/`OutgoingCalls` do `textDocument/prepareCallHierarchy` first;
   `WorkspaceSymbol` asks every running server of the project and merges. Bounds: 100 items,
-  32 KiB of answer; time limit 20 s per request. `CodeError::InvalidCommand` for a missing
+  32 KiB of answer; time limit 20 s per request. `CodebaseError::InvalidCommand` for a missing
   `file`/`line`/`character`/`query` the operation needs.
 - MCP: `code_lsp` replaces `where_is`, `who_uses` and `outline`. It is in `THREAD_TOOLS`,
   `EXECUTOR_TOOLS` and `PROJECT_TOOLS` (my call: external agents keep a code tool).
@@ -304,7 +304,7 @@ renamed service crate takes its name without `core-`. Every later task in this p
   documentSymbol, workspaceSymbol, goToImplementation, incomingCalls, outgoingCalls. Lines
   and characters are one-based, as an editor shows them."
 - Suspended index: `index_known` writes the file row with no tags (the inventory and the
-  file rows stay); `Code::definitions`, `references`, `outline` stay, called by nothing.
+  file rows stay); `Codebase::definitions`, `references`, `outline` stay, called by nothing.
 - `prompt.txt`: a short section naming `code_lsp`, and that a language with no running
   server is answered "no server" (B-144 adds the install lines). `executor.md:21` becomes
   "Ask `code_lsp` (definitions, references, symbols) before you search the tree yourself."
@@ -334,16 +334,16 @@ renamed service crate takes its name without `core-`. Every later task in this p
 ## Task B-142: the person's server settings over HTTP
 
 **Files:**
-- Modify: `crates/core-code/src/lsp/mod.rs`, `crates/core-code/src/store/servers.rs`,
-  `crates/core-code/contract.yaml`, `crates/shadows-http/src/code.rs`, `api/openapi.json`
+- Modify: `crates/codebase/src/lsp/mod.rs`, `crates/codebase/src/store/servers.rs`,
+  `crates/codebase/contract.yaml`, `crates/shadows-http/src/code.rs`, `api/openapi.json`
 - Test: `crates/shadows/tests/code_servers_routes.rs`
 
 **Interfaces:**
-- `Code::set_server_off(&self, command: CommandId, id: &str, off: bool) -> Result<(), CodeError>`;
-  `Code::add_server(&self, command: CommandId, server: AddedServer) -> Result<ServerStatus, CodeError>`
+- `Codebase::set_server_off(&self, command: CommandId, id: &str, off: bool) -> Result<(), CodebaseError>`;
+  `Codebase::add_server(&self, command: CommandId, server: AddedServer) -> Result<ServerStatus, CodebaseError>`
   (`AddedServer { id, command, args, extensions }`; an id that is a catalog id or already
   added is `InvalidCommand`; an extension must start with `.`);
-  `Code::remove_server(&self, command: CommandId, id: &str) -> Result<(), CodeError>` (added
+  `Codebase::remove_server(&self, command: CommandId, id: &str) -> Result<(), CodebaseError>` (added
   ones only). Each is idempotent by command id as every mutating command is.
 - Routes: `GET /api/projects/{id}/code/servers` → `Vec<ServerStatus>` (`Asker::Person`);
   `PUT /api/code/servers/{server}/off` `{ command_id, off }`;

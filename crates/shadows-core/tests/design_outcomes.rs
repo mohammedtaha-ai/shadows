@@ -367,7 +367,7 @@ async fn outcome_hierarchy_is_independent_of_parts() {
         core.plans().design_outcome(&p, &b).await.unwrap().ancestors[0].id,
         a
     );
-    core.code().shut_down_for_test().await;
+    core.codebase().shut_down_for_test().await;
 
     core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
         .await

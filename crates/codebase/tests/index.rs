@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use core_code::{Asker, Code, CodeConfig, CodeError};
+use codebase::{Asker, Codebase, CodebaseConfig, CodebaseError};
 use core_db::Storage;
 use core_projects::Projects;
 
@@ -24,8 +24,8 @@ async fn startup_order_uses_creation_sequence_then_project_id_for_ties() {
                 .id,
         );
     }
-    let code = Code::new(storage.clone(), projects.clone());
-    code.start(CodeConfig::default()).await.unwrap();
+    let code = Codebase::new(storage.clone(), projects.clone());
+    code.start(CodebaseConfig::default()).await.unwrap();
     assert_eq!(
         code.active_for_test().await,
         ids.iter().rev().cloned().collect::<Vec<_>>(),
@@ -44,8 +44,8 @@ async fn startup_order_uses_creation_sequence_then_project_id_for_ties() {
         .await
         .unwrap();
     ids.sort_by(|a, b| a.as_str().cmp(b.as_str()));
-    let code = Code::new(storage.clone(), projects);
-    code.start(CodeConfig::default()).await.unwrap();
+    let code = Codebase::new(storage.clone(), projects);
+    code.start(CodebaseConfig::default()).await.unwrap();
     assert_eq!(
         code.active_for_test().await,
         ids,
@@ -82,7 +82,7 @@ fn caller() { answer(); }
         )
         .await
         .unwrap();
-    let code = Code::new(storage.clone(), projects);
+    let code = Codebase::new(storage.clone(), projects);
     code.scan_for_test(&project.id).await.unwrap();
     let definitions = code
         .definitions(Asker::Person(&project.id), None, "answer")
@@ -104,21 +104,21 @@ fn caller() { answer(); }
     assert!(matches!(
         code.definitions(Asker::Grant(&project.id), Some("outside"), "answer")
             .await,
-        Err(CodeError::GrantScope(_))
+        Err(CodebaseError::GrantScope(_))
     ));
     assert!(matches!(
         code.definitions(Asker::Person(&project.id), Some("outside"), "answer")
             .await,
-        Err(CodeError::InvalidCommand(_))
+        Err(CodebaseError::InvalidCommand(_))
     ));
     assert!(matches!(
         code.outline(Asker::Person(&project.id), None, "../outside")
             .await,
-        Err(CodeError::InvalidCommand(_))
+        Err(CodebaseError::InvalidCommand(_))
     ));
     assert!(matches!(
         code.set_active_limit("invalid".into(), 0).await,
-        Err(CodeError::InvalidCommand(_))
+        Err(CodebaseError::InvalidCommand(_))
     ));
     let settings = code.settings().await.unwrap();
     assert_eq!(settings.active_limit, 5);

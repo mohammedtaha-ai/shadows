@@ -10,6 +10,15 @@ mod sql;
 
 const CORE: &str = "crates/shadows-core/src/";
 const FOUNDATIONS: [&str; 3] = ["db", "command", "testing"];
+
+/// Service crates that carry no `core-` prefix: a new or renamed service is named without it.
+const UNPREFIXED_SERVICES: [&str; 1] = ["codebase"];
+
+/// Whether a workspace crate is a service crate, the one test every check shares.
+pub(crate) fn service_crate(name: &str) -> bool {
+    (name.starts_with("core-") && name != "core-db") || UNPREFIXED_SERVICES.contains(&name)
+}
+
 const POOL_METHODS: [&str; 9] = [
     "reader",
     "close",
@@ -178,7 +187,7 @@ fn sources(root: &Path) -> Vec<Source> {
             let service = (relative.starts_with(CORE)
                 && owner != "composition"
                 && !FOUNDATIONS.contains(&owner.as_str()))
-                || (krate.starts_with("core-") && krate != "core-db");
+                || service_crate(krate);
             let mut modules = vec![krate.replace('-', "_")];
             for part in &parts[3..] {
                 if !["mod.rs", "lib.rs", "main.rs"].contains(part) {
@@ -269,7 +278,7 @@ fn registration(root: &Path, sources: &[Source], recorder: &mut Recorder) {
     for entry in std::fs::read_dir(root.join("crates")).unwrap() {
         let path = entry.unwrap().path();
         let krate = path.file_name().unwrap().to_string_lossy().to_string();
-        if krate.starts_with("core-") && path.join("src").is_dir() {
+        if (krate == "core-db" || service_crate(&krate)) && path.join("src").is_dir() {
             if krate == "core-db" {
                 if !codemap.contains("crates/core-db/src/") {
                     recorder.add(

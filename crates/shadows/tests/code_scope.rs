@@ -7,7 +7,7 @@ use serde_json::{Value, json};
 use shadows_agent::policy;
 use shadows_core::testing::ProjectDirectory;
 use shadows_core::testing::acp;
-use shadows_core::{CodeConfig, IndexState, ProjectId};
+use shadows_core::{CodebaseConfig, IndexState, ProjectId};
 
 #[path = "fixtures/app.rs"]
 mod app;
@@ -67,7 +67,7 @@ async fn text(client: &Client, tool: &str, args: Value) -> String {
 
 /// Touches each project, then waits until every one's index is `Ready`.
 async fn settle_index(l: &Listening, projects: &[&ProjectId]) {
-    let code = l.app.core.code();
+    let code = l.app.core.codebase();
     for p in projects {
         code.touch(p).await;
     }
@@ -98,8 +98,8 @@ async fn the_scope_is_the_project_and_its_links_only() {
     // `assemble` does not start the workers.
     l.app
         .core
-        .code()
-        .start(CodeConfig::default())
+        .codebase()
+        .start(CodebaseConfig::default())
         .await
         .unwrap();
 

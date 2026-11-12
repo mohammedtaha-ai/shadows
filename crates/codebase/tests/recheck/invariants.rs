@@ -3,7 +3,7 @@ use std::sync::Arc;
 use core_db::Storage;
 use core_projects::Projects;
 
-use super::Code;
+use super::Codebase;
 
 #[tokio::test]
 async fn hits_are_reloaded_when_indexing_finishes_before_the_stamp_check() {
@@ -20,7 +20,7 @@ async fn hits_are_reloaded_when_indexing_finishes_before_the_stamp_check() {
         .await
         .unwrap()
         .id;
-    let code = Code::new(storage.clone(), projects);
+    let code = Codebase::new(storage.clone(), projects);
     let file = dir.path().join("a.rs");
     std::fs::write(&file, "fn one() {}\n").unwrap();
     code.scan_for_test(&project).await.unwrap();

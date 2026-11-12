@@ -7,7 +7,7 @@ use std::time::Duration;
 
 use shadows_agent::claude::ClaudeAdapter;
 use shadows_core::testing::{CommandContext, ProjectDirectory, Storage, acp};
-use shadows_core::{AppCore, Asker, CodeConfig, CoreParts, IndexState, ProjectId};
+use shadows_core::{AppCore, Asker, CodebaseConfig, CoreParts, IndexState, ProjectId};
 
 /// A core over a temporary database in `db`, with one project whose folder is `dir`.
 async fn core_with_project() -> (
@@ -117,16 +117,20 @@ async fn indexing_follows_the_files() {
     w("big.rs", &"// x\n".repeat(300_000)); // > 1 MB
     let me = shadows_core::Asker::Person(&project);
 
-    core.code().scan_for_test(&project).await.unwrap();
-    let a = core.code().definitions(me, None, "alpha").await.unwrap();
+    core.codebase().scan_for_test(&project).await.unwrap();
+    let a = core
+        .codebase()
+        .definitions(me, None, "alpha")
+        .await
+        .unwrap();
     assert_eq!((a.hits[0].path.as_str(), a.hits[0].line), ("src/a.rs", 1));
     assert_eq!(a.hits[0].signature.as_deref(), Some("pub fn alpha() {}"));
-    let r = core.code().references(me, None, "alpha").await.unwrap();
+    let r = core.codebase().references(me, None, "alpha").await.unwrap();
     assert_eq!(r.hits[0].path, "src/b.rs");
     assert_eq!(r.hits[0].matched_by.as_deref(), Some("name"));
     for hidden in ["hidden_in_target", "hidden_by_nested_ignore"] {
         assert!(
-            core.code()
+            core.codebase()
                 .definitions(me, None, hidden)
                 .await
                 .unwrap()
@@ -135,7 +139,7 @@ async fn indexing_follows_the_files() {
             "{hidden}"
         );
     }
-    let s = core.code().status(&project).await.unwrap();
+    let s = core.codebase().status(&project).await.unwrap();
     assert!(
         s.skipped
             .iter()
@@ -146,9 +150,9 @@ async fn indexing_follows_the_files() {
     w("src/a.rs", "\n\npub fn alpha() {}\n");
     std::fs::remove_file(dir.path().join("src/b.rs")).unwrap();
     w("src/c.ts", "export function gamma() {}\n");
-    core.code().scan_for_test(&project).await.unwrap();
+    core.codebase().scan_for_test(&project).await.unwrap();
     assert_eq!(
-        core.code()
+        core.codebase()
             .definitions(me, None, "alpha")
             .await
             .unwrap()
@@ -157,7 +161,7 @@ async fn indexing_follows_the_files() {
         3
     );
     assert!(
-        core.code()
+        core.codebase()
             .references(me, None, "alpha")
             .await
             .unwrap()
@@ -165,7 +169,7 @@ async fn indexing_follows_the_files() {
             .is_empty()
     );
     assert_eq!(
-        core.code()
+        core.codebase()
             .definitions(me, None, "gamma")
             .await
             .unwrap()
@@ -173,12 +177,12 @@ async fn indexing_follows_the_files() {
             .len(),
         1
     );
-    let o = core.code().outline(me, None, "src").await.unwrap();
+    let o = core.codebase().outline(me, None, "src").await.unwrap();
     assert_eq!(
         o.hits.iter().map(|h| h.name.as_str()).collect::<Vec<_>>(),
         ["alpha", "gamma"]
     );
-    let near = core.code().definitions(me, None, "amm").await.unwrap();
+    let near = core.codebase().definitions(me, None, "amm").await.unwrap();
     assert!(near.hits.is_empty() && near.suggestions == ["gamma"]);
 
     core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
@@ -191,14 +195,14 @@ async fn watching_and_the_periodic_scan_keep_the_index_true() {
     let (core, project, dir, _db) = core_with_project().await;
     std::fs::create_dir_all(dir.path().join("src")).unwrap();
     std::fs::write(dir.path().join("src/a.rs"), "fn one() {}\n").unwrap();
-    let fast = CodeConfig {
+    let fast = CodebaseConfig {
         rescan_every: Duration::from_millis(400),
         debounce: Duration::from_millis(100),
     };
-    core.code().start(fast).await.unwrap();
-    core.code().touch(&project).await;
+    core.codebase().start(fast).await.unwrap();
+    core.codebase().touch(&project).await;
     let me = Asker::Person(&project);
-    let code = core.code();
+    let code = core.codebase();
     let defined = |name: &'static str| async move {
         !code
             .definitions(me, None, name)
@@ -214,14 +218,14 @@ async fn watching_and_the_periodic_scan_keep_the_index_true() {
     std::fs::write(&tmp, "\nfn one() {}\n").unwrap();
     std::fs::rename(&tmp, dir.path().join("src/a.rs")).unwrap();
     // The re-check answers the new line at once, without waiting for the watcher.
-    let a = core.code().definitions(me, None, "one").await.unwrap();
+    let a = core.codebase().definitions(me, None, "one").await.unwrap();
     assert_eq!(a.hits[0].line, 2);
 
     // A file the watcher never reports: the periodic scan finds it.
-    core.code().pause_watcher_for_test(&project).await;
+    core.codebase().pause_watcher_for_test(&project).await;
     std::fs::write(dir.path().join("src/b.rs"), "fn two() {}\n").unwrap();
     eventually(|| defined("two")).await;
-    core.code().shut_down_for_test().await;
+    core.codebase().shut_down_for_test().await;
 
     core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
         .await
@@ -231,15 +235,18 @@ async fn watching_and_the_periodic_scan_keep_the_index_true() {
 #[tokio::test]
 async fn only_the_most_recent_projects_are_watched() {
     let (core, projects, _dirs) = core_with_projects(6).await;
-    core.code().start(CodeConfig::default()).await.unwrap();
-    let active = core.code().active_for_test().await;
+    core.codebase()
+        .start(CodebaseConfig::default())
+        .await
+        .unwrap();
+    let active = core.codebase().active_for_test().await;
     assert_eq!(active.len(), 5);
     let sixth = projects.iter().find(|p| !active.contains(p)).unwrap();
     // Asking the sixth brings it in: its answer says it is indexing, not an error.
-    let a = core.code().status(sixth).await.unwrap();
+    let a = core.codebase().status(sixth).await.unwrap();
     assert!(matches!(a.state, IndexState::Inactive));
     let q = core
-        .code()
+        .codebase()
         .definitions(Asker::Person(sixth), None, "p0")
         .await
         .unwrap();
@@ -247,14 +254,14 @@ async fn only_the_most_recent_projects_are_watched() {
         q.status[0].state,
         IndexState::Indexing { .. } | IndexState::Ready
     ));
-    let now = core.code().active_for_test().await;
+    let now = core.codebase().active_for_test().await;
     assert_eq!(now.len(), 5);
     assert!(now.contains(sixth));
     assert!(
         !now.contains(&active[active.len() - 1]),
         "the least recently used left"
     );
-    core.code().shut_down_for_test().await;
+    core.codebase().shut_down_for_test().await;
 
     core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
         .await

@@ -2,7 +2,7 @@
 //!
 //! Start refuses a folder that is not a git repository. The Planner may make
 //! it one: `git init` and a first commit, in Shadows' name, of the files the
-//! folder already holds. What Code's file list classes as a secret or a
+//! folder already holds. What Codebase's file list classes as a secret or a
 //! dependency is left out of it, through git's local exclude list, and stays
 //! in the folder untracked. No project file is written; starter files are a
 //! task's work.
@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 
 use crate::git::Git;
 use crate::{Runs, RunsError};
-use core_code::{Asker, CodeError, InventoryQuery, InventoryState};
+use codebase::{Asker, CodebaseError, InventoryQuery, InventoryState};
 use core_grants::{Grant, GrantKind};
 use core_projects::ProjectId;
 
@@ -58,7 +58,7 @@ impl Runs {
         Ok(commit)
     }
 
-    /// Every path Code's fresh file list classes as a secret or a dependency,
+    /// Every path Codebase's fresh file list classes as a secret or a dependency,
     /// each with `true` for a folder. A list not complete yet is `NotListed`;
     /// a list that changed while it was read is read once more from its start.
     async fn left_out(
@@ -67,7 +67,7 @@ impl Runs {
         folder: &Path,
     ) -> Result<Vec<(String, bool)>, RunsError> {
         let code = &self.inner.code;
-        let unavailable = |error: CodeError| RunsError::Unavailable(error.to_string());
+        let unavailable = |error: CodebaseError| RunsError::Unavailable(error.to_string());
         code.refresh_inventory(Asker::Grant(project))
             .await
             .map_err(unavailable)?;
@@ -82,12 +82,12 @@ impl Runs {
             };
             let page = match code.inventory(Asker::Grant(project), query).await {
                 Ok(page) => page,
-                Err(CodeError::InventoryStale) if fresh_start => {
+                Err(CodebaseError::InventoryStale) if fresh_start => {
                     fresh_start = false;
                     paths.clear();
                     continue;
                 }
-                Err(CodeError::InventoryStale) => return Err(RunsError::NotListed),
+                Err(CodebaseError::InventoryStale) => return Err(RunsError::NotListed),
                 Err(error) => return Err(unavailable(error)),
             };
             if matches!(

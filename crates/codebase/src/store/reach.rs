@@ -2,11 +2,11 @@
 
 use sqlx::SqliteConnection;
 
-use crate::Code;
+use crate::Codebase;
 use core_db::StorageError;
 use core_projects::{ProjectId, Projects};
 
-impl Code {
+impl Codebase {
     /// Live same-project or direct-link reach in the caller's snapshot.
     pub async fn project_reachable_in(
         conn: &mut SqliteConnection,
@@ -38,20 +38,20 @@ impl Code {
         conn: &mut SqliteConnection,
         origin: &ProjectId,
         slug: Option<&str>,
-    ) -> Result<ProjectId, crate::CodeError> {
+    ) -> Result<ProjectId, crate::CodebaseError> {
         let selected = match slug {
             None => origin.clone(),
             Some(slug) => {
                 Projects::by_slug_in(conn, slug)
                     .await?
-                    .ok_or(crate::CodeError::GrantScope(
+                    .ok_or(crate::CodebaseError::GrantScope(
                         "outside what the grant allows".into(),
                     ))?
                     .id
             }
         };
         if !Self::project_reachable_in(conn, origin, &selected).await? {
-            return Err(crate::CodeError::GrantScope(
+            return Err(crate::CodebaseError::GrantScope(
                 "outside what the grant allows".into(),
             ));
         }

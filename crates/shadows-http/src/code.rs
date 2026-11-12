@@ -61,7 +61,9 @@ pub(super) async fn definitions(
 ) -> Result<Json<Answer>, Failure> {
     let asker = Asker::Person(&project);
     let only = q.project.as_deref();
-    Ok(Json(s.core.code().definitions(asker, only, &q.name).await?))
+    Ok(Json(
+        s.core.codebase().definitions(asker, only, &q.name).await?,
+    ))
 }
 
 /// Where a name is used, matched by name only: every hit says
@@ -90,7 +92,9 @@ pub(super) async fn references(
 ) -> Result<Json<Answer>, Failure> {
     let asker = Asker::Person(&project);
     let only = q.project.as_deref();
-    Ok(Json(s.core.code().references(asker, only, &q.name).await?))
+    Ok(Json(
+        s.core.codebase().references(asker, only, &q.name).await?,
+    ))
 }
 
 /// The definitions in a file or folder. It reads the index and
@@ -120,7 +124,7 @@ pub(super) async fn outline(
 ) -> Result<Json<Answer>, Failure> {
     let asker = Asker::Person(&project);
     let only = q.project.as_deref();
-    Ok(Json(s.core.code().outline(asker, only, &q.path).await?))
+    Ok(Json(s.core.codebase().outline(asker, only, &q.path).await?))
 }
 
 /// How the project's index stands. Asking does not make it active.
@@ -139,7 +143,7 @@ pub(super) async fn status(
     State(s): State<AppState>,
     Path(project): Path<ProjectId>,
 ) -> Result<Json<ProjectStatus>, Failure> {
-    Ok(Json(s.core.code().status(&project).await?))
+    Ok(Json(s.core.codebase().status(&project).await?))
 }
 
 #[derive(serde::Deserialize, utoipa::IntoParams)]
@@ -190,7 +194,7 @@ pub(super) async fn files(
         limit: q.limit.unwrap_or(default.limit),
     };
     let asker = Asker::Person(&project);
-    Ok(Json(s.core.code().inventory(asker, query).await?))
+    Ok(Json(s.core.codebase().inventory(asker, query).await?))
 }
 
 /// Lists the project's folder again now, and answers the first page.
@@ -210,7 +214,7 @@ pub(super) async fn refresh(
     Path(project): Path<ProjectId>,
 ) -> Result<Json<InventoryPage>, Failure> {
     let asker = Asker::Person(&project);
-    Ok(Json(s.core.code().refresh_inventory(asker).await?))
+    Ok(Json(s.core.codebase().refresh_inventory(asker).await?))
 }
 
 /// The projects this project reads, by slug.
@@ -228,7 +232,7 @@ pub(super) async fn links(
     State(s): State<AppState>,
     Path(project): Path<ProjectId>,
 ) -> Result<Json<Vec<ProjectLink>>, Failure> {
-    Ok(Json(s.core.code().links(&project).await?))
+    Ok(Json(s.core.codebase().links(&project).await?))
 }
 
 #[derive(serde::Deserialize, utoipa::ToSchema)]
@@ -326,7 +330,7 @@ pub(super) async fn remove_link(
     )
 )]
 pub(super) async fn get_settings(State(s): State<AppState>) -> Result<Json<CodeSettings>, Failure> {
-    Ok(Json(s.core.code().settings().await?))
+    Ok(Json(s.core.codebase().settings().await?))
 }
 
 #[derive(serde::Deserialize, utoipa::ToSchema)]
@@ -355,7 +359,7 @@ pub(super) async fn put_settings(
     State(s): State<AppState>,
     Json(body): Json<PutSettings>,
 ) -> Result<Json<CodeSettings>, Failure> {
-    let code = s.core.code();
+    let code = s.core.codebase();
     Ok(Json(
         code.set_active_limit(body.command_id, body.active_limit)
             .await?,

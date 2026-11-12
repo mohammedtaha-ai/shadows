@@ -11,12 +11,12 @@ use std::time::Duration;
 
 use shadows_index::language_for;
 
-use super::Code;
+use super::Codebase;
 use super::model::{InventoryPage, InventoryQuery, InventoryState};
 use super::scope::Asker;
 use super::store::InventoryRow;
 use super::watch::Job;
-use crate::CodeError;
+use crate::CodebaseError;
 use core_db::Storage;
 use core_projects::ProjectId;
 
@@ -48,18 +48,18 @@ fn secret_name(name: &str) -> bool {
 fn listed(dir: &Path) -> Listed {
     let mut incomplete = false;
     let mut seen = HashSet::new();
-    let walk = Code::walker(dir, false)
+    let walk = Codebase::walker(dir, false)
         .filter_entry(|e| {
             let is_dir = e.file_type().is_some_and(|t| t.is_dir());
             let name = e.file_name().to_str();
-            !(is_dir && name.is_some_and(|n| n == ".git" || Code::never_walked(n)))
+            !(is_dir && name.is_some_and(|n| n == ".git" || Codebase::never_walked(n)))
         })
         .build();
     for entry in walk {
         match entry {
             Ok(entry) => {
-                if let Some(rel) = Code::relative(dir, entry.path()).filter(|r| !r.is_empty()) {
-                    seen.insert(Code::path_key(&rel));
+                if let Some(rel) = Codebase::relative(dir, entry.path()).filter(|r| !r.is_empty()) {
+                    seen.insert(Codebase::path_key(&rel));
                 }
             }
             Err(_) => incomplete = true,
@@ -89,10 +89,10 @@ fn listed(dir: &Path) -> Listed {
             } else {
                 format!("{folder}/{name}")
             };
-            let key = Code::path_key(&path);
+            let key = Codebase::path_key(&path);
             let listed = if name == ".git" {
                 None
-            } else if kind.is_dir() && Code::never_walked(&name) {
+            } else if kind.is_dir() && Codebase::never_walked(&name) {
                 Some(("excluded", Some("dependencies")))
             } else if secret_name(&name) {
                 Some(("excluded", Some("secret")))
@@ -121,17 +121,19 @@ fn listed(dir: &Path) -> Listed {
     Listed { rows, incomplete }
 }
 
-impl Code {
+impl Codebase {
     /// One page of the asker's own project's file list, in path order.
     pub async fn inventory(
         &self,
         asker: Asker<'_>,
         query: InventoryQuery,
-    ) -> Result<InventoryPage, CodeError> {
+    ) -> Result<InventoryPage, CodebaseError> {
         if !(1..=MAX_LIMIT).contains(&query.limit) {
-            return Err(CodeError::InvalidCommand("limit must be 1 to 200".into()));
+            return Err(CodebaseError::InvalidCommand(
+                "limit must be 1 to 200".into(),
+            ));
         }
-        let prefix = Code::path_key(&Code::inside(&query.prefix)?);
+        let prefix = Codebase::path_key(&Codebase::inside(&query.prefix)?);
         let project = self.inner.projects.get(asker.home()).await?;
         self.touch(asker.home()).await;
         let empty = |state| InventoryPage {
@@ -144,7 +146,7 @@ impl Code {
         let Some(directory) = project.directory else {
             return Ok(empty(InventoryState::Missing));
         };
-        if !Code::folder_exists(Path::new(&directory)).await {
+        if !Codebase::folder_exists(Path::new(&directory)).await {
             return Ok(empty(InventoryState::Missing));
         }
         let cursor = match &query.after {
@@ -161,7 +163,7 @@ impl Code {
             return Ok(empty(InventoryState::Indexing));
         };
         if cursor.is_some_and(|(g, _)| g != generation) {
-            return Err(CodeError::InventoryStale);
+            return Err(CodebaseError::InventoryStale);
         }
         let more = rows.len() as i64 > limit;
         rows.truncate(query.limit as usize);
@@ -194,7 +196,10 @@ impl Code {
     }
 
     /// Lists the folder again now, then answers the first page.
-    pub async fn refresh_inventory(&self, asker: Asker<'_>) -> Result<InventoryPage, CodeError> {
+    pub async fn refresh_inventory(
+        &self,
+        asker: Asker<'_>,
+    ) -> Result<InventoryPage, CodebaseError> {
         let project = self.inner.projects.get(asker.home()).await?.id;
         self.touch(&project).await;
         let worker = self
@@ -222,8 +227,9 @@ impl Code {
     }
 
     /// `"<generation>:<path_key>"`, its key at or under `prefix`, or the refusal.
-    fn cursor(after: &str, prefix: &str) -> Result<(i64, String), CodeError> {
-        let refuse = || CodeError::InvalidCommand("the cursor is not one this listing gave".into());
+    fn cursor(after: &str, prefix: &str) -> Result<(i64, String), CodebaseError> {
+        let refuse =
+            || CodebaseError::InvalidCommand("the cursor is not one this listing gave".into());
         let (generation, key) = after.split_once(':').ok_or_else(refuse)?;
         let generation: i64 = generation.parse().map_err(|_| refuse())?;
         let under = prefix.is_empty()
@@ -247,7 +253,7 @@ impl Code {
             }
         };
         // A folder that vanished while it was listed keeps its stored list.
-        if !Code::folder_exists(dir).await {
+        if !Codebase::folder_exists(dir).await {
             return;
         }
         let store = &self.inner.store;

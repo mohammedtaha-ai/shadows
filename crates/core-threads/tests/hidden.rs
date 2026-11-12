@@ -1,4 +1,4 @@
-use core_code::Code;
+use codebase::Codebase;
 use core_db::Storage;
 use core_projects::Projects;
 use core_threads::{PlanningThread, Threads};
@@ -22,7 +22,7 @@ async fn fixture() -> Fixture {
         .unwrap();
     let threads = Threads::new(
         storage.clone(),
-        Code::new(storage.clone(), projects.clone()),
+        Codebase::new(storage.clone(), projects.clone()),
         projects,
     );
     let project_id = project.id.clone();

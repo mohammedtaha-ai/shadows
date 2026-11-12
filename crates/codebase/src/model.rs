@@ -68,14 +68,14 @@ pub struct Answer {
 
 /// How the workers keep the index current.
 #[derive(Debug, Clone, Copy)]
-pub struct CodeConfig {
+pub struct CodebaseConfig {
     /// How often each active project is scanned: the watcher can lose changes.
     pub rescan_every: std::time::Duration,
     /// How long no change has to arrive before the gathered paths are indexed.
     pub debounce: std::time::Duration,
 }
 
-impl Default for CodeConfig {
+impl Default for CodebaseConfig {
     fn default() -> Self {
         Self {
             rescan_every: std::time::Duration::from_secs(60),

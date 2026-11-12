@@ -15,8 +15,8 @@ use shadows_agent::claude::ClaudeAdapter;
 use shadows_process::{ProcessSpec, spawn};
 
 use crate::error::CoreError;
+use codebase::{Codebase, CodebaseConfig};
 use core_agents::Agents;
-use core_code::{Code, CodeConfig};
 use core_db::Storage;
 use core_design::Design;
 use core_events::Events;
@@ -150,10 +150,10 @@ pub struct CoreParts {
          agent group conversations | \
          `crates/core-messages/src` | \
          `crates/core-messages/contract.yaml` |"]
-#[doc = " | `Code` | \
+#[doc = " | `Codebase` | \
          project code indexing | \
-         `crates/core-code/src` | \
-         `crates/core-code/contract.yaml` |"]
+         `crates/codebase/src` | \
+         `crates/codebase/contract.yaml` |"]
 #[doc = " | `Runs` | \
          executor attempts at plan tasks | \
          `crates/core-runs/src` | \
@@ -196,7 +196,7 @@ pub struct AppCore {
     events: Arc<Events>,
     messages: Arc<Messages>,
     messages_worker: std::sync::OnceLock<MessagesWorker>,
-    code: Code,
+    code: Codebase,
 }
 
 impl AppCore {
@@ -389,7 +389,7 @@ impl AppCore {
         tracing::info!(interrupted = recovered.interrupted, "recovery.runs_settled");
         // The active set is chosen and the workers spawned; `serve`
         // waits for no scan. The index never stops the daemon.
-        if let Err(error) = core.code.start(CodeConfig::default()).await {
+        if let Err(error) = core.code.start(CodebaseConfig::default()).await {
             tracing::warn!(error = %error, "code.start_failed");
         }
         if config.aylul.is_some() {
@@ -431,7 +431,7 @@ impl AppCore {
             // `mcp_url`, under `test-support`: `grants` was built over it.
             ..
         } = parts;
-        let code = Code::new(storage.clone(), projects.clone());
+        let code = Codebase::new(storage.clone(), projects.clone());
         let harness = sessions.clone();
         let threads = Arc::new(Threads::new(
             storage.clone(),
@@ -612,11 +612,11 @@ impl AppCore {
         self.start_messages();
     }
 
-    pub fn code(&self) -> &Code {
+    pub fn codebase(&self) -> &Codebase {
         &self.code
     }
 
-    /// Stops Code's watchers and workers after their current file, then asks
+    /// Stops Codebase's watchers and workers after their current file, then asks
     /// Turns to stop every running turn and close every adapter. The binary
     /// owns the signals and transport. After Turns stops successfully, storage
     /// closes last, including when the binary exits through `shadows serve`.

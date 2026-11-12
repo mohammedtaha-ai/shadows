@@ -10,8 +10,8 @@ use std::path::PathBuf;
 
 use tokio::task::JoinHandle;
 
-use super::Code;
-use super::model::CodeConfig;
+use super::Codebase;
+use super::model::CodebaseConfig;
 use super::watch::Worker;
 use core_projects::ProjectId;
 
@@ -30,7 +30,7 @@ pub(super) struct Active {
 }
 
 struct Running {
-    config: CodeConfig,
+    config: CodebaseConfig,
     limit: usize,
     workers: HashMap<ProjectId, Worker>,
     /// The tasks of workers past the limit, finishing the file they are on,
@@ -61,7 +61,7 @@ impl Active {
         &mut self,
         order: Vec<(ProjectId, PathBuf)>,
         limit: usize,
-        config: CodeConfig,
+        config: CodebaseConfig,
     ) -> Vec<ProjectId> {
         if self.closed || self.running.is_some() {
             return Vec::new();
@@ -104,7 +104,7 @@ impl Active {
 
     /// Every active project gets a worker, which scans at once; every
     /// project past the limit loses its worker, and its index stays.
-    pub(super) fn settle(&mut self, code: &Code) {
+    pub(super) fn settle(&mut self, code: &Codebase) {
         let Some(running) = &mut self.running else {
             return;
         };

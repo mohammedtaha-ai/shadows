@@ -1,10 +1,10 @@
-impl crate::Code {
+impl crate::Codebase {
     /// `scan`, now, on the test's task: the index a test asks about is the
     /// one its files were just written into.
     pub async fn scan_for_test(
         &self,
         project: &core_projects::ProjectId,
-    ) -> Result<(), crate::CodeError> {
+    ) -> Result<(), crate::CodebaseError> {
         self.scan(project).await
     }
 

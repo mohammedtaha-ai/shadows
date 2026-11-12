@@ -323,16 +323,16 @@ pattern to follow, not merely an example.
 | `crates/core-design/src/store/part_edit.rs` | transactional part mutations | `crates/core-design/src/store/part_edit.rs` |
 | `crates/core-design/src/store/` | persistence of the design workspace | `crates/core-design/src/store/vision.rs` |
 | `crates/core-design/src/store/vision.rs` | atomic workspace edits with immutable replay results | `crates/core-design/src/store/vision.rs` |
-| `crates/core-code/src/` | the code index of each project's folder | `crates/core-code/src/lib.rs` |
-| `crates/core-code/src/model.rs` | the code index types callers meet | `crates/core-code/src/model.rs` |
-| `crates/core-code/src/store/` | private CodeStore index persistence | `crates/core-code/src/store/mod.rs` |
-| `crates/core-code/src/store/links.rs` | transactional code link persistence | `crates/core-code/src/store/links.rs` |
-| `crates/core-code/src/store/reach.rs` | live one-way project reach in a snapshot | `crates/core-code/src/store/reach.rs` |
-| `crates/core-code/src/scan.rs` | walking a project's folder into the index | `crates/core-code/src/scan.rs` |
-| `crates/core-code/src/scope.rs` | what a code question may read | `crates/core-code/src/scope.rs` |
-| `crates/core-code/src/watch.rs` | keeping one active project's index current | `crates/core-code/src/watch.rs` |
-| `crates/core-code/src/active.rs` | which projects are active, in order of use | `crates/core-code/src/active.rs` |
-| `crates/core-code/src/links.rs` | the commands over links or the active limit | `crates/core-code/src/links.rs` |
+| `crates/codebase/src/` | the code index of each project's folder | `crates/codebase/src/lib.rs` |
+| `crates/codebase/src/model.rs` | the code index types callers meet | `crates/codebase/src/model.rs` |
+| `crates/codebase/src/store/` | private CodeStore index persistence | `crates/codebase/src/store/mod.rs` |
+| `crates/codebase/src/store/links.rs` | transactional code link persistence | `crates/codebase/src/store/links.rs` |
+| `crates/codebase/src/store/reach.rs` | live one-way project reach in a snapshot | `crates/codebase/src/store/reach.rs` |
+| `crates/codebase/src/scan.rs` | walking a project's folder into the index | `crates/codebase/src/scan.rs` |
+| `crates/codebase/src/scope.rs` | what a code question may read | `crates/codebase/src/scope.rs` |
+| `crates/codebase/src/watch.rs` | keeping one active project's index current | `crates/codebase/src/watch.rs` |
+| `crates/codebase/src/active.rs` | which projects are active, in order of use | `crates/codebase/src/active.rs` |
+| `crates/codebase/src/links.rs` | the commands over links or the active limit | `crates/codebase/src/links.rs` |
 | `crates/core-events/src/` | what clients watch live | `crates/core-events/src/lib.rs` |
 | `crates/core-events/src/model.rs` | journal replay cursor | `crates/core-events/src/model.rs` |
 | `crates/core-events/src/subscription.rs` | one subscriber's replay-then-live stream | `crates/core-events/src/subscription.rs` |
@@ -503,12 +503,12 @@ file disagrees with either, they are right and this file is the defect.
 | `crates/core-standards/src/error.rs` | standards refusals | `crates/core-standards/contract.yaml` |
 | `crates/core-standards/src/standards.yaml` | bundled standards definition | `crates/core-standards/contract.yaml` |
 
-| `crates/core-code/src/lib.rs` | code indexing boundary | `crates/core-code/contract.yaml` |
-| `crates/core-code/tests/recheck/` | question refresh race regression | `crates/core-code/tests/recheck/invariants.rs` |
-| `crates/core-code/src/error.rs` | index refusals | `crates/core-code/contract.yaml` |
-| `crates/core-code/src/testing.rs` | gated index inspection | `crates/core-code/contract.yaml` |
-| `crates/core-code/src/inventory.rs` | the paged file inventory of a project's folder | `crates/core-code/contract.yaml` |
-| `crates/core-code/src/store/inventory.rs` | file inventory persistence | `crates/core-code/contract.yaml` |
+| `crates/codebase/src/lib.rs` | code indexing boundary | `crates/codebase/contract.yaml` |
+| `crates/codebase/tests/recheck/` | question refresh race regression | `crates/codebase/tests/recheck/invariants.rs` |
+| `crates/codebase/src/error.rs` | index refusals | `crates/codebase/contract.yaml` |
+| `crates/codebase/src/testing.rs` | gated index inspection | `crates/codebase/contract.yaml` |
+| `crates/codebase/src/inventory.rs` | the paged file inventory of a project's folder | `crates/codebase/contract.yaml` |
+| `crates/codebase/src/store/inventory.rs` | file inventory persistence | `crates/codebase/contract.yaml` |
 
 | `crates/core-agents/assets/aylul-profile/CLAUDE.md` | bundled agent home instructions | `crates/core-agents/contract.yaml` |
 | `crates/core-agents/assets/aylul-profile/settings.json` | bundled agent home settings | `crates/core-agents/contract.yaml` |

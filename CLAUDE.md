@@ -65,7 +65,8 @@ with hard boundaries. The compiler holds the boundaries, not good intentions.
                                   │
    composition   shadows-core = AppCore                          builds and wires
                                   │
-   services      core-<service> crates: turns, harness, threads, plans, design, ...
+   services      core-<service> crates, and a new or renamed service crate named without
+                 `core-`, such as `codebase`: turns, harness, threads, plans, design, ...
                  each one: its service, its model, its store (private)
                                   │
    foundation    core-db: the pool, the transaction, the journal

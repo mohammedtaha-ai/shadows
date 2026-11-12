@@ -88,7 +88,7 @@ async fn listing_keeps_order_and_missing_invocations_without_other_threads() {
         .map(|op| (op.id, op.invocation.is_some()))
         .collect();
     assert_eq!(actual, expected);
-    core.code().shut_down().await;
+    core.codebase().shut_down().await;
 
     core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
         .await

@@ -1,15 +1,15 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use core_code::{
-    Asker, Code, CodeError, InventoryEntry, InventoryKind, InventoryPage, InventoryQuery,
+use codebase::{
+    Asker, Codebase, CodebaseError, InventoryEntry, InventoryKind, InventoryPage, InventoryQuery,
     InventoryState,
 };
 use core_db::Storage;
 use core_projects::{ProjectId, Projects};
 
 /// A project on `dir` with its own database in a temporary folder, returned last.
-async fn project_on(dir: &Path) -> (Arc<Storage>, Code, ProjectId, tempfile::TempDir) {
+async fn project_on(dir: &Path) -> (Arc<Storage>, Codebase, ProjectId, tempfile::TempDir) {
     let db = tempfile::tempdir().unwrap();
     let storage = Arc::new(
         Storage::open(&db.path().join("code.sqlite3"))
@@ -22,7 +22,7 @@ async fn project_on(dir: &Path) -> (Arc<Storage>, Code, ProjectId, tempfile::Tem
         .await
         .unwrap()
         .id;
-    let code = Code::new(storage.clone(), projects);
+    let code = Codebase::new(storage.clone(), projects);
     (storage, code, project, db)
 }
 
@@ -136,11 +136,14 @@ async fn inventory_pages_in_path_order_and_refuses_a_stale_cursor() {
     write(dir.path(), "f.txt", "");
     assert_eq!(code.refresh_inventory(me).await.unwrap().generation, 2);
     let stale = code.inventory(me, ask(one.next.clone(), 2)).await;
-    assert!(matches!(stale, Err(CodeError::InventoryStale)), "{stale:?}");
+    assert!(
+        matches!(stale, Err(CodebaseError::InventoryStale)),
+        "{stale:?}"
+    );
     for (after, limit) in [(None, 0), (None, 201), (Some("garbage".to_string()), 2)] {
         let refused = code.inventory(me, ask(after, limit)).await;
         assert!(
-            matches!(refused, Err(CodeError::InvalidCommand(_))),
+            matches!(refused, Err(CodebaseError::InvalidCommand(_))),
             "{refused:?}"
         );
     }
@@ -171,7 +174,7 @@ async fn inventory_prefix_lists_one_folder() {
         ..Default::default()
     };
     let out = code.inventory(me, query).await;
-    assert!(matches!(out, Err(CodeError::InvalidCommand(_))));
+    assert!(matches!(out, Err(CodebaseError::InvalidCommand(_))));
     storage.close().await.unwrap();
 }
 

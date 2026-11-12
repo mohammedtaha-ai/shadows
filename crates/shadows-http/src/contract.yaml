@@ -8,7 +8,7 @@
 # ThreadsError is translated through CoreError with unchanged responses.
 # Extension library methods and refusals are imported from core-extensions.
 # AgentsError is translated through CoreError with unchanged responses.
-# CodeError converts through CoreError to preserve index and scope refusals.
+# CodebaseError converts through CoreError to preserve index and scope refusals.
 # StandardsError converts through CoreError to preserve InvalidCommand refusals.
 # InstructionsError converts through CoreError to preserve HTTP refusals.
 # PersonError converts through CoreError to preserve HTTP refusals.

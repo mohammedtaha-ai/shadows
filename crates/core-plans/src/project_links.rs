@@ -2,7 +2,7 @@
 use super::Plans;
 use super::scope::Scope;
 use crate::PlansError;
-use core_code::ProjectLink;
+use codebase::ProjectLink;
 use core_db::CommandContext;
 use core_projects::ProjectId;
 fn invalid(message: String) -> PlansError {

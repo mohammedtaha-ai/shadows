@@ -61,7 +61,7 @@ pub use turn::StopOutcome;
 /// A running turn's live harness events, for every live subscriber.
 pub type Bus =
     tokio::sync::broadcast::Sender<(ThreadId, OperationId, shadows_agent::events::HarnessEvent)>;
-use core_code::Code;
+use codebase::Codebase;
 use core_db::{Actor, CommandContext, Storage, StorageError};
 use core_harness::{Harness, LeaseError};
 use core_instructions::Instructions;
@@ -97,7 +97,7 @@ pub struct Turns {
     sessions: Arc<Harness>,
     handles: Arc<LiveHandles>,
     bus: Bus,
-    code: Code,
+    code: Codebase,
     instructions: Instructions,
     standards: Standards,
     projects: Projects,
@@ -191,7 +191,7 @@ impl Turns {
         sessions: Arc<Harness>,
         handles: Arc<LiveHandles>,
         bus: Bus,
-        code: Code,
+        code: Codebase,
         instructions: Instructions,
         standards: Standards,
         projects: Projects,

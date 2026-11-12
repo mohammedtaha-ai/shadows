@@ -334,7 +334,7 @@ Design: [language servers](specs/2026-11-13-language-servers-design.md) (Mohamme
 
 ### B-138a · `core-code` becomes `codebase`
 
-- Status: ready (Mohammed, 2026-11-13: the service is named without `core-`).
+- Status: done (Mohammed, 2026-11-13: the service is named without `core-`).
 - Plan: [Task B-138a](plans/2026-11-13-slice-2-language-servers.md#task-b-138a-core-code-becomes-codebase).
 - Needs: none. Every later slice 2 task reads `crates/codebase/` and `Codebase`.
 ### B-138 · The shadows-lsp client

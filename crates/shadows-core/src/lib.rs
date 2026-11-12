@@ -13,9 +13,9 @@ pub use core_grants::{ApprovalRequest, ApprovedBy, Approver, Writer};
 #[cfg(feature = "test-support")]
 pub use app::CoreParts;
 pub use app::{AppCore, StartConfig};
-pub use core_code::{
-    Answer, Asker, Code, CodeConfig, CodeSettings, Hit, IndexState, ProjectLink, ProjectStatus,
-    Skipped,
+pub use codebase::{
+    Answer, Asker, CodeSettings, Codebase, CodebaseConfig, Hit, IndexState, ProjectLink,
+    ProjectStatus, Skipped,
 };
 // `StorageError`, `StartError` and `DirectoryError` are what `CoreError`
 // carries, which each adapter maps.
@@ -115,8 +115,8 @@ pub use core_instructions::InstructionsError;
 
 pub use core_standards::StandardsError;
 
-pub use core_code::{
-    CodeError, InventoryEntry, InventoryKind, InventoryPage, InventoryQuery, InventoryState,
+pub use codebase::{
+    CodebaseError, InventoryEntry, InventoryKind, InventoryPage, InventoryQuery, InventoryState,
 };
 
 pub use core_threads::ThreadsError;

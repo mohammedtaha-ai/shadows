@@ -444,7 +444,7 @@ async fn executor_threads_are_not_listed_as_conversations() {
     let projects = shadows_core::Projects::new(f.storage.clone());
     let threads = Threads::new(
         f.storage.clone(),
-        core_code::Code::new(f.storage.clone(), projects.clone()),
+        codebase::Codebase::new(f.storage.clone(), projects.clone()),
         projects,
     );
     let listed = threads.list(&f.project).await.unwrap();

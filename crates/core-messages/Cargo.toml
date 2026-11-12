@@ -31,7 +31,7 @@ utoipa = { workspace = true }
 uuid = { workspace = true }
 
 [dev-dependencies]
-core-code = { path = "../core-code" }
+codebase = { path = "../codebase" }
 core-projects = { path = "../core-projects" }
 core-providers = { path = "../core-providers" }
 core-secrets = { path = "../core-secrets" }

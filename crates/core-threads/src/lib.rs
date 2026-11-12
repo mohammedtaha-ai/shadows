@@ -28,7 +28,7 @@ pub use model::{
     ThreadEntryKind, ThreadId, ThreadKind, TurnContext, WorkflowRef,
 };
 
-use core_code::Code;
+use codebase::Codebase;
 use core_db::{CommandContext, Storage};
 use core_projects::{ProjectId, Projects};
 pub use error::ThreadsError;
@@ -37,12 +37,12 @@ use store::ThreadsStore;
 /// Thread persistence and the project code activity a listing touches.
 pub struct Threads {
     store: ThreadsStore,
-    code: Code,
+    code: Codebase,
     projects: Projects,
 }
 
 impl Threads {
-    pub fn new(storage: Arc<Storage>, code: Code, projects: Projects) -> Self {
+    pub fn new(storage: Arc<Storage>, code: Codebase, projects: Projects) -> Self {
         Self {
             store: ThreadsStore::with_storage(storage),
             code,
@@ -51,7 +51,7 @@ impl Threads {
     }
 
     /// A project's planning threads, oldest first. An unknown project has none.
-    /// Opening a project lists its threads, so the project is touched in Code.
+    /// Opening a project lists its threads, so the project is touched in Codebase.
     pub async fn list(&self, project: &ProjectId) -> Result<Vec<PlanningThread>, ThreadsError> {
         let threads = self.store.list_threads_for_project(project).await?;
         self.code.touch(project).await;

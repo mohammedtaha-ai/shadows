@@ -6,7 +6,7 @@
 # OperationsError is translated through CoreError with unchanged responses.
 # GrantsError is translated through CoreError with unchanged responses.
 # ThreadsError is translated through CoreError with unchanged responses.
-# CodeError converts through CoreError to preserve the MCP scope and storage envelope.
+# CodebaseError converts through CoreError to preserve the MCP scope and storage envelope.
 name: shadows-mcp
 version: 1
 status: current

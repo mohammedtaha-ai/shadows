@@ -5,7 +5,7 @@ use core_projects::Projects;
 
 use super::super::model::{InventoryPage, InventoryQuery, InventoryState};
 use super::super::store::InventoryRow;
-use super::super::{Asker, Code};
+use super::super::{Asker, Codebase};
 
 fn file(path: &str) -> InventoryRow {
     InventoryRow {
@@ -35,7 +35,7 @@ async fn an_incomplete_listing_deletes_nothing() {
         .await
         .unwrap()
         .id;
-    let code = Code::new(storage.clone(), projects);
+    let code = Codebase::new(storage.clone(), projects);
     let store = &code.inner.store;
     let me = Asker::Person(&project);
     let now = Storage::now();

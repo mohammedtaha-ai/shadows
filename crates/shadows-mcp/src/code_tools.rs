@@ -56,10 +56,10 @@ impl Shadows {
         Parameters(args): Parameters<NameArgs>,
     ) -> CallToolResult {
         let only = args.project.as_deref();
-        let asked = self
-            .core
-            .code()
-            .definitions(Asker::Grant(&grant.project_id), only, &args.name);
+        let asked =
+            self.core
+                .codebase()
+                .definitions(Asker::Grant(&grant.project_id), only, &args.name);
         text(asked.await.map(|a| lines(&a, false)).map_err(Refusal::from))
     }
 
@@ -71,10 +71,10 @@ impl Shadows {
         Parameters(args): Parameters<NameArgs>,
     ) -> CallToolResult {
         let only = args.project.as_deref();
-        let asked = self
-            .core
-            .code()
-            .references(Asker::Grant(&grant.project_id), only, &args.name);
+        let asked =
+            self.core
+                .codebase()
+                .references(Asker::Grant(&grant.project_id), only, &args.name);
         text(asked.await.map(|a| lines(&a, true)).map_err(Refusal::from))
     }
 
@@ -89,7 +89,7 @@ impl Shadows {
         let only = args.project.as_deref();
         let asked = self
             .core
-            .code()
+            .codebase()
             .outline(Asker::Grant(&grant.project_id), only, &args.path);
         text(asked.await.map(|a| lines(&a, false)).map_err(Refusal::from))
     }
@@ -118,7 +118,7 @@ impl Shadows {
         };
         let asked = self
             .core
-            .code()
+            .codebase()
             .inventory(Asker::Grant(&grant.project_id), query);
         answer(asked.await.map_err(Refusal::from))
     }
@@ -130,7 +130,7 @@ impl Shadows {
     async fn project_refresh(&self, Extension(grant): Extension<Grant>) -> CallToolResult {
         let asked = self
             .core
-            .code()
+            .codebase()
             .refresh_inventory(Asker::Grant(&grant.project_id));
         answer(asked.await.map_err(Refusal::from))
     }

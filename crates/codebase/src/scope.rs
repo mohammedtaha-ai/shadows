@@ -1,10 +1,10 @@
 //! One job: what a code question may read: the projects
-//! in its scope, and a path inside one. `Code`'s questions call these first.
+//! in its scope, and a path inside one. `Codebase`'s questions call these first.
 
-use crate::CodeError;
+use crate::CodebaseError;
 use core_projects::ProjectId;
 
-use super::Code;
+use super::Codebase;
 use super::store::ScopeRow;
 
 /// Who asks a question, which decides the project it starts from and the
@@ -26,7 +26,7 @@ impl Asker<'_> {
     }
 }
 
-impl Code {
+impl Codebase {
     /// The projects a question may read: the asker's project, then its direct
     /// links, by slug. `only` narrows it to one of them. A project with no
     /// folder is in it; its status says so.
@@ -34,10 +34,10 @@ impl Code {
         &self,
         asker: &Asker<'_>,
         only: Option<&str>,
-    ) -> Result<Vec<ScopeRow>, CodeError> {
-        let refuse: fn(String) -> CodeError = match asker {
-            Asker::Person(_) => CodeError::InvalidCommand,
-            Asker::Grant(_) => CodeError::GrantScope,
+    ) -> Result<Vec<ScopeRow>, CodebaseError> {
+        let refuse: fn(String) -> CodebaseError = match asker {
+            Asker::Person(_) => CodebaseError::InvalidCommand,
+            Asker::Grant(_) => CodebaseError::GrantScope,
         };
         let scope = self.inner.store.code_scope(asker.home()).await?;
         let Some(slug) = only else {
@@ -53,15 +53,15 @@ impl Code {
     }
 }
 
-impl Code {
+impl Codebase {
     /// A relative path inside the project, with '/', or the refusal
     /// INVALID_COMMAND "the path must be inside the project".
-    pub(super) fn inside(path: &str) -> Result<String, CodeError> {
+    pub(super) fn inside(path: &str) -> Result<String, CodebaseError> {
         let p = path.replace('\\', "/");
         let p = p.trim_start_matches("./").trim_end_matches('/');
         let bad = p.starts_with('/') || p.contains(':') || p.split('/').any(|c| c == "..");
         if bad {
-            return Err(CodeError::InvalidCommand(
+            return Err(CodebaseError::InvalidCommand(
                 "the path must be inside the project".into(),
             ));
         }

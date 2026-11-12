@@ -2,9 +2,9 @@
 //! a `CommandContext::user` with a `CommandId`, written by one store method; a
 //! refusal the store cannot phrase is written here.
 
-use super::Code;
+use super::Codebase;
 use super::model::{CodeSettings, ProjectLink};
-use crate::CodeError;
+use crate::CodebaseError;
 use core_db::CommandContext;
 use core_projects::ProjectId;
 
@@ -21,14 +21,14 @@ fn settings_of(active_limit: u32) -> CodeSettings {
     }
 }
 
-impl Code {
+impl Codebase {
     /// The projects `project` reads, by their slug.
-    pub async fn links(&self, project: &ProjectId) -> Result<Vec<ProjectLink>, CodeError> {
+    pub async fn links(&self, project: &ProjectId) -> Result<Vec<ProjectLink>, CodebaseError> {
         Ok(self.inner.store.code_links(project).await?)
     }
 
     /// The stored settings.
-    pub async fn settings(&self) -> Result<CodeSettings, CodeError> {
+    pub async fn settings(&self) -> Result<CodeSettings, CodebaseError> {
         let limit = self.inner.store.code_active_limit().await?;
         Ok(settings_of(limit as u32))
     }
@@ -40,9 +40,9 @@ impl Code {
         &self,
         command_id: String,
         active_limit: u32,
-    ) -> Result<CodeSettings, CodeError> {
+    ) -> Result<CodeSettings, CodebaseError> {
         if !LIMITS.contains(&active_limit) {
-            return Err(CodeError::InvalidCommand(format!(
+            return Err(CodebaseError::InvalidCommand(format!(
                 "the active limit must be from {} to {}, not {active_limit}",
                 LIMITS.start(),
                 LIMITS.end()

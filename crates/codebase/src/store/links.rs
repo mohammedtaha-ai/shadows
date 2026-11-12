@@ -3,7 +3,7 @@
 use sqlx::SqliteConnection;
 
 use super::CodeStore;
-use crate::Code;
+use crate::Codebase;
 use crate::model::ProjectLink;
 use core_db::{Actor, CommandContext, JournalEntry, Storage, StorageError};
 use core_projects::{ProjectId, Projects};
@@ -93,7 +93,7 @@ impl CodeStore {
     }
 }
 
-impl Code {
+impl Codebase {
     /// Inserts a link in the caller's transaction. The caller owns validation,
     /// command replay, events and dependency notifications. True only for a new row.
     pub async fn put_link_in(
@@ -146,7 +146,7 @@ impl Code {
     }
 }
 
-impl Code {
+impl Codebase {
     pub async fn load_link_in(
         conn: &mut SqliteConnection,
         project: &ProjectId,
@@ -168,7 +168,7 @@ impl Code {
     }
 }
 
-impl Code {
+impl Codebase {
     pub async fn replayed_link_in(
         conn: &mut SqliteConnection,
         ctx: &CommandContext,

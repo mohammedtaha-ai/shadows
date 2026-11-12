@@ -559,6 +559,27 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0c9ea0ac24bc397ab3c98583a3c9ba74fa56b09a4449bbe172b9b1ddb016027a"
 
 [[package]]
+name = "codebase"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "codebase",
+ "core-db",
+ "core-projects",
+ "ignore",
+ "notify",
+ "serde",
+ "serde_json",
+ "shadows-index",
+ "sqlx",
+ "tempfile",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "utoipa",
+]
+
+[[package]]
 name = "color_quant"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -613,27 +634,6 @@ dependencies = [
  "tempfile",
  "thiserror",
  "tokio",
- "utoipa",
-]
-
-[[package]]
-name = "core-code"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "core-code",
- "core-db",
- "core-projects",
- "ignore",
- "notify",
- "serde",
- "serde_json",
- "shadows-index",
- "sqlx",
- "tempfile",
- "thiserror",
- "tokio",
- "tracing",
  "utoipa",
 ]
 
@@ -748,7 +748,7 @@ checksum = "773648b94d0e5d620f64f280777445740e61fe701025087ec8b57f45c791888b"
 name = "core-grants"
 version = "0.1.0"
 dependencies = [
- "core-code",
+ "codebase",
  "core-db",
  "core-grants",
  "core-projects",
@@ -819,8 +819,8 @@ dependencies = [
 name = "core-messages"
 version = "0.1.0"
 dependencies = [
+ "codebase",
  "core-agents",
- "core-code",
  "core-db",
  "core-events",
  "core-projects",
@@ -879,7 +879,7 @@ dependencies = [
 name = "core-plans"
 version = "0.1.0"
 dependencies = [
- "core-code",
+ "codebase",
  "core-db",
  "core-design",
  "core-grants",
@@ -904,7 +904,7 @@ dependencies = [
 name = "core-project-lifecycle"
 version = "0.1.0"
 dependencies = [
- "core-code",
+ "codebase",
  "core-db",
  "core-grants",
  "core-plans",
@@ -959,7 +959,7 @@ dependencies = [
 name = "core-runs"
 version = "0.1.0"
 dependencies = [
- "core-code",
+ "codebase",
  "core-db",
  "core-grants",
  "core-harness",
@@ -1038,8 +1038,8 @@ dependencies = [
 name = "core-threads"
 version = "0.1.0"
 dependencies = [
+ "codebase",
  "core-agents",
- "core-code",
  "core-db",
  "core-projects",
  "core-threads",
@@ -1060,7 +1060,7 @@ dependencies = [
 name = "core-turns"
 version = "0.1.0"
 dependencies = [
- "core-code",
+ "codebase",
  "core-db",
  "core-design",
  "core-grants",
@@ -3747,8 +3747,8 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "axum",
+ "codebase",
  "core-agents",
- "core-code",
  "core-db",
  "core-design",
  "core-events",

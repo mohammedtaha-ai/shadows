@@ -1,4 +1,4 @@
-//! One job: the code index  — the `Code` service. It walks
+//! One job: the code index  — the `Codebase` service. It walks
 //! a project's folder into SQLite, keeps it current while the project is
 //! active, and answers three questions from it: where a name is defined, who
 //! uses it, and what a path holds.
@@ -22,13 +22,13 @@ use std::sync::Arc;
 use std::time::Duration;
 
 pub use model::{
-    Answer, CodeConfig, CodeSettings, Hit, IndexState, InventoryEntry, InventoryKind,
+    Answer, CodeSettings, CodebaseConfig, Hit, IndexState, InventoryEntry, InventoryKind,
     InventoryPage, InventoryQuery, InventoryState, ProjectLink, ProjectStatus, Skipped,
 };
 pub use scope::Asker;
 
 mod error;
-pub use error::CodeError;
+pub use error::CodebaseError;
 #[cfg(feature = "test-support")]
 mod testing;
 use active::Active;
@@ -51,11 +51,11 @@ struct Inner {
 /// The code index. Cheap to clone: `ProjectLifecycle`, `Threads` and `Turns` hold a
 /// clone to call `touch`, and each worker holds one.
 #[derive(Clone)]
-pub struct Code {
+pub struct Codebase {
     inner: Arc<Inner>,
 }
 
-impl Code {
+impl Codebase {
     pub fn new(storage: Arc<Storage>, projects: Projects) -> Self {
         Self {
             inner: Arc::new(Inner {
@@ -67,7 +67,7 @@ impl Code {
     }
 
     /// Projects with a directory, in the owner's explicit activity order.
-    async fn code_order(&self) -> Result<Vec<(ProjectId, String)>, CodeError> {
+    async fn code_order(&self) -> Result<Vec<(ProjectId, String)>, CodebaseError> {
         Ok(self
             .inner
             .projects
@@ -81,7 +81,7 @@ impl Code {
     /// Chooses the active set and starts a worker per active project;
     /// it waits for no scan. `AppCore::start` calls it with the default; a
     /// test calls it when it wants workers.
-    pub async fn start(&self, config: CodeConfig) -> Result<(), CodeError> {
+    pub async fn start(&self, config: CodebaseConfig) -> Result<(), CodebaseError> {
         let store = &self.inner.store;
         let order = self.code_order().await?;
         let order = order
@@ -170,7 +170,7 @@ impl Code {
         asker: Asker<'_>,
         only: Option<&str>,
         name: &str,
-    ) -> Result<Answer, CodeError> {
+    ) -> Result<Answer, CodebaseError> {
         self.by_name(asker, only, name, "definition").await
     }
 
@@ -180,7 +180,7 @@ impl Code {
         asker: Asker<'_>,
         only: Option<&str>,
         name: &str,
-    ) -> Result<Answer, CodeError> {
+    ) -> Result<Answer, CodebaseError> {
         let mut answer = self.by_name(asker, only, name, "reference").await?;
         for hit in &mut answer.hits {
             hit.matched_by = Some("name".into());
@@ -195,7 +195,7 @@ impl Code {
         asker: Asker<'_>,
         only: Option<&str>,
         path: &str,
-    ) -> Result<Answer, CodeError> {
+    ) -> Result<Answer, CodebaseError> {
         let path = Self::path_key(&Self::inside(path)?);
         let store = &self.inner.store;
         let scope = self.projects(&asker, only).await?;
@@ -208,14 +208,14 @@ impl Code {
     }
 
     /// How the project's index stands. It does not touch the project.
-    pub async fn status(&self, project: &ProjectId) -> Result<ProjectStatus, CodeError> {
+    pub async fn status(&self, project: &ProjectId) -> Result<ProjectStatus, CodebaseError> {
         let p = self.inner.projects.get(project).await?;
         self.status_of(&(p.id, p.slug, p.directory)).await
     }
 
     /// Scans `project` once, now, on the caller's task: tests, and a refresh
     /// with no worker. A worker calls `scan_project` itself.
-    pub(crate) async fn scan(&self, project: &ProjectId) -> Result<(), CodeError> {
+    pub(crate) async fn scan(&self, project: &ProjectId) -> Result<(), CodebaseError> {
         self.scan_project(project, &scan::Progress::default())
             .await
             .map(|_| ())
@@ -227,7 +227,7 @@ impl Code {
         only: Option<&str>,
         name: &str,
         role: &str,
-    ) -> Result<Answer, CodeError> {
+    ) -> Result<Answer, CodebaseError> {
         let store = &self.inner.store;
         let scope = self.projects(&asker, only).await?;
         self.touch(asker.home()).await;
@@ -299,7 +299,7 @@ impl Code {
         scope: &[ScopeRow],
         mut hits: Vec<Hit>,
         suggestions: Vec<String>,
-    ) -> Result<Answer, CodeError> {
+    ) -> Result<Answer, CodebaseError> {
         let more = hits.len() > HITS;
         hits.truncate(HITS);
         let mut status = Vec::with_capacity(scope.len());
@@ -319,7 +319,7 @@ impl Code {
     async fn status_of(
         &self,
         (id, slug, directory): &ScopeRow,
-    ) -> Result<ProjectStatus, CodeError> {
+    ) -> Result<ProjectStatus, CodebaseError> {
         let (files, skipped) = self.inner.store.code_counts(id).await?;
         let (state, updated_at) = match directory {
             None => (IndexState::NoDirectory, None),

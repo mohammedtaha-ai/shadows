@@ -15,9 +15,9 @@ use std::time::{Instant, UNIX_EPOCH};
 use shadows_index::{extract, language_for};
 use tokio::io::AsyncReadExt;
 
-use super::Code;
+use super::Codebase;
 use super::store::FileRow;
-use crate::CodeError;
+use crate::CodebaseError;
 use core_projects::ProjectId;
 
 /// A file over this many bytes is not parsed: `too_large`.
@@ -64,16 +64,17 @@ fn walk(dir: &Path, only: Option<Arc<Only>>) -> Walked {
         incomplete: false,
     };
     let root = dir.to_path_buf();
-    let walker = Code::walker(dir, true)
+    let walker = Codebase::walker(dir, true)
         .filter_entry(move |e| {
             let is_dir = e.file_type().is_some_and(|t| t.is_dir());
-            if is_dir && e.file_name().to_str().is_some_and(Code::never_walked) {
+            if is_dir && e.file_name().to_str().is_some_and(Codebase::never_walked) {
                 return false;
             }
             let Some(only) = &only else {
                 return true;
             };
-            let Some(key) = Code::relative(&root, e.path()).map(|r| Code::path_key(&r)) else {
+            let Some(key) = Codebase::relative(&root, e.path()).map(|r| Codebase::path_key(&r))
+            else {
                 return false;
             };
             if is_dir {
@@ -94,10 +95,10 @@ fn walk(dir: &Path, only: Option<Arc<Only>>) -> Walked {
         let Ok(rel) = entry.path().strip_prefix(dir) else {
             continue;
         };
-        if !Code::keeps(rel) {
+        if !Codebase::keeps(rel) {
             continue;
         }
-        if let Some(path) = Code::relative(dir, entry.path()) {
+        if let Some(path) = Codebase::relative(dir, entry.path()) {
             out.paths.push(path);
         }
     }
@@ -108,10 +109,11 @@ fn walk(dir: &Path, only: Option<Arc<Only>>) -> Walked {
 /// component for component: a link or a junction on the way, or a name
 /// Windows normalises (`a.rs.`), names another file, which is not opened.
 fn names_itself(real: &Path, canonical_dir: &Path, path: &str) -> bool {
-    Code::relative(canonical_dir, real).is_some_and(|r| Code::path_key(&r) == Code::path_key(path))
+    Codebase::relative(canonical_dir, real)
+        .is_some_and(|r| Codebase::path_key(&r) == Codebase::path_key(path))
 }
 
-impl Code {
+impl Codebase {
     /// Indexes one file, `path` relative to `dir` with '/': skipped
     /// when its path, size and modified time equal its row, else read, parsed
     /// on a blocking thread and written in one transaction. A file that is
@@ -140,7 +142,7 @@ impl Code {
         known: Option<&Known>,
     ) -> anyhow::Result<bool> {
         let store = &self.inner.store;
-        let key = Code::path_key(path);
+        let key = Codebase::path_key(path);
         let full = dir.join(path);
         let meta = match tokio::fs::symlink_metadata(&full).await {
             Ok(m) if m.is_file() => Some(m),
@@ -149,7 +151,7 @@ impl Code {
             Err(e) => return Err(e.into()),
         };
         let Some(meta) = meta else {
-            if Code::folder_exists(dir).await {
+            if Codebase::folder_exists(dir).await {
                 store.delete_code_file(project, &key).await?;
                 return Ok(true);
             }
@@ -158,7 +160,7 @@ impl Code {
         let Some(language) = language_for(Path::new(path)) else {
             return Ok(false);
         };
-        let (size, modified_ms) = Code::stamp(&meta);
+        let (size, modified_ms) = Codebase::stamp(&meta);
         let stamp = (path.to_string(), size, modified_ms);
         let unchanged = match known {
             Some(known) => known.stamps.get(&key) == Some(&stamp),
@@ -224,14 +226,14 @@ impl Code {
         &self,
         project: &ProjectId,
         progress: &Progress,
-    ) -> Result<u32, CodeError> {
+    ) -> Result<u32, CodebaseError> {
         let started = Instant::now();
         let store = &self.inner.store;
         let Some(directory) = self.inner.projects.get(project).await?.directory else {
             return Ok(0);
         };
         let dir = PathBuf::from(directory);
-        if !Code::folder_exists(&dir).await {
+        if !Codebase::folder_exists(&dir).await {
             return Ok(0);
         }
         let walked = {
@@ -266,7 +268,7 @@ impl Code {
             if progress.stop.load(Ordering::Relaxed) {
                 return Ok(indexed);
             }
-            seen.insert(Code::path_key(path));
+            seen.insert(Codebase::path_key(path));
             match self.index_known(project, &dir, path, known.as_ref()).await {
                 Ok(wrote) => indexed += u32::from(wrote),
                 Err(error) => {
@@ -284,7 +286,7 @@ impl Code {
         // A walk that could not read an entry may have missed files
         // that are still there, so it deletes nothing; the next scan does.
         // Nor does a folder that vanished during the scan: its index is kept.
-        if walked.incomplete || !Code::folder_exists(&dir).await {
+        if walked.incomplete || !Codebase::folder_exists(&dir).await {
             tracing::warn!(project = project.as_str(), "code.walk_incomplete");
             return Ok(indexed);
         }
@@ -315,7 +317,7 @@ impl Code {
     }
 }
 
-impl Code {
+impl Codebase {
     /// Of a question's hit files, those whose size or modified time differ
     /// from their rows, or that are gone or not regular files.
     /// It stats them and opens none. A folder that is missing answers none:
@@ -326,7 +328,7 @@ impl Code {
         dir: &Path,
         paths: impl IntoIterator<Item = &'a str>,
     ) -> Vec<String> {
-        if !Code::folder_exists(dir).await {
+        if !Codebase::folder_exists(dir).await {
             return Vec::new();
         }
         let mut changed = Vec::new();
@@ -334,13 +336,13 @@ impl Code {
             let stored = self
                 .inner
                 .store
-                .code_file_stamp(project, &Code::path_key(path))
+                .code_file_stamp(project, &Codebase::path_key(path))
                 .await;
             let on_disk = tokio::fs::symlink_metadata(dir.join(path))
                 .await
                 .ok()
                 .filter(std::fs::Metadata::is_file)
-                .map(|m| Code::stamp(&m));
+                .map(|m| Codebase::stamp(&m));
             match (stored, on_disk) {
                 (Ok(Some((_, size, ms))), Some(now)) if (size, ms) == now => {}
                 _ => changed.push(path.to_string()),
@@ -350,7 +352,7 @@ impl Code {
     }
 }
 
-impl Code {
+impl Codebase {
     /// The settings the index's walk and the file listing share: the folder's
     /// own ignore files, no parent's and no global one, no link followed; with
     /// `hidden`, nothing hidden.
@@ -377,7 +379,7 @@ impl Code {
         let visible = path.components().all(|c| match c {
             Component::Normal(n) => n
                 .to_str()
-                .is_some_and(|n| !Code::never_walked(n) && !n.starts_with('.')),
+                .is_some_and(|n| !Codebase::never_walked(n) && !n.starts_with('.')),
             _ => false,
         });
         visible && language_for(path).is_some()
@@ -421,7 +423,7 @@ impl Code {
     /// Of `paths`, the keys of those the walk would keep now: on disk, passing
     /// `keeps`, and named by no ignore file on their way (blocking).
     pub(super) fn kept_now(dir: &Path, paths: &[String]) -> HashSet<String> {
-        let files: HashSet<String> = paths.iter().map(|p| Code::path_key(p)).collect();
+        let files: HashSet<String> = paths.iter().map(|p| Codebase::path_key(p)).collect();
         let mut folders = HashSet::from([String::new()]);
         for f in &files {
             let mut at = f.as_str();
@@ -431,6 +433,6 @@ impl Code {
             }
         }
         let walked = walk(dir, Some(Arc::new(Only { files, folders })));
-        walked.paths.iter().map(|p| Code::path_key(p)).collect()
+        walked.paths.iter().map(|p| Codebase::path_key(p)).collect()
     }
 }
