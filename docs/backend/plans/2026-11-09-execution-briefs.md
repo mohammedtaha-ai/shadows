@@ -138,7 +138,7 @@ Expected: new named tests fail for the missing operation/type or the stated beha
 
 - [ ] **Step 3: Implement the Interfaces in the listed files**
 
-Retain the current write matcher/overlap rule. Revalidate existing required definitions; no full-project stale flag or broad read locks. Plans owns its state query; Runs stores only its own attempts. Update can_start and Start through the same rule.
+Retain the current write matcher/overlap rule. Revalidate existing required definitions; no full-project stale flag or broad read locks. Plans owns its state query; Runs stores only its own attempts. Update start_answer and Start through the same rule.
 
 - [ ] **Step 4: Run and observe GREEN**
 
