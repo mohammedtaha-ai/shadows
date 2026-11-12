@@ -20,7 +20,6 @@ core-projects = { path = "../core-projects" }
 core-threads = { path = "../core-threads" }
 core-turns = { path = "../core-turns" }
 serde = { workspace = true }
-serde_json = { workspace = true }
 sqlx = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
@@ -31,5 +30,6 @@ shadows-agent = { path = "../shadows-agent" }
 test-support = ["core-db/test-support"]
 
 [dev-dependencies]
+serde_json = { workspace = true }
 core-events = { path = ".", features = ["test-support"] }
 tempfile = { workspace = true }
