@@ -157,3 +157,17 @@ These tasks are blocked until their named backend API exists; no component imple
 - Touch: `web/src/app/conversation/image-zoom.tsx` (new), `web/src/app/conversation/image-zoom.test.tsx` (new), `web/src/app/conversation/pending-images.tsx`, `web/src/app/conversation/entry.tsx`, `web/src/app/conversation/waiting-messages.tsx`, `web/src/app/conversation/composer-images.test.tsx`, `web/src/app/conversation/waiting-messages.test.tsx`, `web/src/app/conversation/contract.yaml`, `docs/frontend/codebase/README.md`, `docs/frontend/stages.md` (this status only).
 - Needs: none (no API change); the crossOrigin fix commit first.
 - Done when: from `web/`, `npx vitest run src/app/conversation/image-zoom.test.tsx src/app/conversation/composer-images.test.tsx src/app/conversation/waiting-messages.test.tsx` passes with the test names in the plan's Tests section, and `npm run typecheck`, `npm run lint`, `npm run build`, `npx vitest run src/codemap.test.ts src/architecture` pass.
+
+## Slice 2: the question card and Settings › Code (2026-11-13)
+
+Design: [language servers](../backend/specs/2026-11-13-language-servers-design.md). Plan: [slice 2](../backend/plans/2026-11-13-slice-2-language-servers.md); each entry's Touch, tests and Done when are its task there.
+
+### F-115 · The question card, and a notice from Shadows
+
+- Status: ready after B-143 and B-144.
+- Plan: [Task F-115](../backend/plans/2026-11-13-slice-2-language-servers.md#task-f-115-the-question-card-and-a-notice-from-shadows).
+
+### F-116 · Settings › Code
+
+- Status: ready after B-140 and B-142.
+- Plan: [Task F-116](../backend/plans/2026-11-13-slice-2-language-servers.md#task-f-116-settings--code).

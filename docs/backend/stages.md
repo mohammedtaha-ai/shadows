@@ -147,7 +147,7 @@ Order and rulings: [the program](plans/2026-11-09-local-delivery-program.md). Sl
 
 ### B-97 · Server catalog and controlled process lifecycle
 
-- Status: blocked (prerequisites below must ship first)
+- Status: replaced (2026-11-13) by B-138 to B-145, [slice 2 plan](plans/2026-11-13-slice-2-language-servers.md), from the [language servers design](specs/2026-11-13-language-servers-design.md).
 - Plan: [Task 2](plans/2026-11-09-repository-discovery.md#task-2-b-97-server-catalog-and-controlled-process-lifecycle), changed by the [program's slice 2 changes](plans/2026-11-09-local-delivery-program.md) (Mohammed, 2026-11-11): the catalog is the twelve `lspServers` of claude-plugins-official (`*-lsp/.claude-plugin/plugin.json`: command, args, extensionToLanguage; Apache-2.0) copied as one data file; a project's servers are chosen from its files' extensions in the inventory of `docs/backend/stages.md` at `617d806f` (B-96); a server not installed shows "not installed" with its install command. Not PHP-only.
 - Owner: Code.
 - Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
@@ -157,7 +157,7 @@ Order and rulings: [the program](plans/2026-11-09-local-delivery-program.md). Sl
 
 ### B-98 · Verified semantic queries with bounded results
 
-- Status: blocked (prerequisites below must ship first)
+- Status: replaced (2026-11-13) by B-138 to B-145, [slice 2 plan](plans/2026-11-13-slice-2-language-servers.md), from the [language servers design](specs/2026-11-13-language-servers-design.md).
 - Plan: [Task 3](plans/2026-11-09-repository-discovery.md#task-3-b-98-verified-semantic-queries-with-bounded-results).
 - Owner: Code.
 - Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
@@ -167,7 +167,7 @@ Order and rulings: [the program](plans/2026-11-09-local-delivery-program.md). Sl
 
 ### B-119 · Language-server status and question routes reach the Planner
 
-- Status: blocked (slice 2; prerequisites below must ship first)
+- Status: replaced (2026-11-13) by B-138 to B-145, [slice 2 plan](plans/2026-11-13-slice-2-language-servers.md), from the [language servers design](specs/2026-11-13-language-servers-design.md).
 - Plan: draft, the language-server part of [Task 4](plans/2026-11-09-repository-discovery.md#task-4-b-99-repository-and-lsp-apis-reach-the-planner), which `docs/backend/stages.md` at `617d806f` (B-99) no longer carries.
 - Owner: Code, Grants and adapters.
 - Read, Touch, Done when: written when slice 2 is detailed.
@@ -326,3 +326,55 @@ its image button from the session's `capabilities.image`, so no web change.
   - New live test `live_a_codex_turn_sees_an_image`, `#[ignore]` with the same reason as the live Planner test: send `crates/shadows/tests/fixtures/red.png` with "What colour is this image? Answer with one word.", wait up to 180 s, the operation completes and the reply contains "red" (case-insensitive).
 - Needs: nothing.
 - Done when: `cargo test -p shadows-agent`; `cargo test -p shadows-core --test codex_session`; `cargo test -p shadows-core --test codex_session -- --ignored --test-threads=1 live_a_codex_turn_sees_an_image` passes against the signed-in Codex; `cargo test -p shadows-core --test contracts`; `cargo test -p shadows --test architecture --test codemap --test contract_tests`; fmt and the 100-column check on changed files. One commit, `feat(backend): B-137 a Codex conversation takes images`. Browser check: attach an image in a Codex conversation, and the reply describes it.
+
+## Slice 2: language servers, the question card and Settings › Code (2026-11-13)
+
+Design: [language servers](specs/2026-11-13-language-servers-design.md) (Mohammed, 2026-11-13). Plan: [slice 2](plans/2026-11-13-slice-2-language-servers.md). Each entry's Touch is its task's Files; its Done when is its task's run steps, plus `cargo test -p shadows --test architecture --test codemap --test contract_tests`, fmt and the 100-column check. One commit each, as the task names it. Order: B-138, B-139, B-140, B-141, B-142, B-143, B-144, F-115, F-116, B-145.
+
+### B-138 · The shadows-lsp client
+
+- Status: ready.
+- Plan: [Task B-138](plans/2026-11-13-slice-2-language-servers.md#task-b-138-the-shadows-lsp-client).
+- Needs: none.
+
+### B-139 · The catalog and a project's servers
+
+- Status: ready.
+- Plan: [Task B-139](plans/2026-11-13-slice-2-language-servers.md#task-b-139-the-catalog-and-a-projects-servers).
+- Needs: B-138.
+
+### B-140 · Activity is a sent message, with an idle stop
+
+- Status: ready.
+- Plan: [Task B-140](plans/2026-11-13-slice-2-language-servers.md#task-b-140-activity-is-a-sent-message-with-an-idle-stop).
+- Needs: B-139.
+
+### B-141 · code_lsp, and the name index suspended
+
+- Status: ready.
+- Plan: [Task B-141](plans/2026-11-13-slice-2-language-servers.md#task-b-141-code_lsp-and-the-name-index-suspended).
+- Needs: B-139, B-140.
+
+### B-142 · The person's server settings over HTTP
+
+- Status: ready.
+- Plan: [Task B-142](plans/2026-11-13-slice-2-language-servers.md#task-b-142-the-persons-server-settings-over-http).
+- Needs: B-139.
+
+### B-143 · person_ask, the question card
+
+- Status: ready.
+- Plan: [Task B-143](plans/2026-11-13-slice-2-language-servers.md#task-b-143-person_ask-the-question-card).
+- Needs: none.
+
+### B-144 · code_server_install
+
+- Status: ready.
+- Plan: [Task B-144](plans/2026-11-13-slice-2-language-servers.md#task-b-144-code_server_install).
+- Needs: B-139, B-143.
+
+### B-145 · Live acceptance
+
+- Status: ready.
+- Plan: [Task B-145](plans/2026-11-13-slice-2-language-servers.md#task-b-145-live-acceptance).
+- Needs: B-141, B-144, F-115, F-116.
