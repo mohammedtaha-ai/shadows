@@ -329,13 +329,19 @@ its image button from the session's `capabilities.image`, so no web change.
 
 ## Slice 2: language servers, the question card and Settings › Code (2026-11-13)
 
-Design: [language servers](specs/2026-11-13-language-servers-design.md) (Mohammed, 2026-11-13). Plan: [slice 2](plans/2026-11-13-slice-2-language-servers.md). Each entry's Touch is its task's Files; its Done when is its task's run steps, plus `cargo test -p shadows --test architecture --test codemap --test contract_tests`, fmt and the 100-column check. One commit each, as the task names it. Order: B-138, B-139, B-140, B-141, B-142, B-143, B-144, F-115, F-116, B-145.
+Design: [language servers](specs/2026-11-13-language-servers-design.md) (Mohammed, 2026-11-13). Plan: [slice 2](plans/2026-11-13-slice-2-language-servers.md). Each entry's Touch is its task's Files; its Done when is its task's run steps, plus `cargo test -p shadows --test architecture --test codemap --test contract_tests`, fmt and the 100-column check. One commit each, as the task names it. Order: B-138a, B-138, B-139, B-140, B-141, B-142, B-143, B-144, F-115, F-116, B-145.
 
+
+### B-138a · `core-code` becomes `codebase`
+
+- Status: ready (Mohammed, 2026-11-13: the service is named without `core-`).
+- Plan: [Task B-138a](plans/2026-11-13-slice-2-language-servers.md#task-b-138a-core-code-becomes-codebase).
+- Needs: none. Every later slice 2 task reads `crates/codebase/` and `Codebase`.
 ### B-138 · The shadows-lsp client
 
 - Status: ready.
 - Plan: [Task B-138](plans/2026-11-13-slice-2-language-servers.md#task-b-138-the-shadows-lsp-client).
-- Needs: none.
+- Needs: B-138a.
 
 ### B-139 · The catalog and a project's servers
 

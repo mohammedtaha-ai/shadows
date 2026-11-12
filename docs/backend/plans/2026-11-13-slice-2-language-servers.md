@@ -38,7 +38,7 @@ SQLx/SQLite, rmcp, axum/utoipa; React client.
 - The catalog is the twelve upstream definitions, copied with the Apache-2.0 notice; install
   commands are Windows only in this slice, `null` elsewhere.
 - Migrations take the next free numbers from `0058`; renumber only an unshipped one.
-- Order: B-138, B-139, B-140, B-141, B-142, B-143, B-144, then F-115 and F-116, then B-145.
+- Order: B-138a, B-138, B-139, B-140, B-141, B-142, B-143, B-144, then F-115 and F-116, then B-145.
 
 ## Review Focus
 
@@ -57,6 +57,39 @@ SQLx/SQLite, rmcp, axum/utoipa; React client.
    Planner one message. Pinned by `a_question_is_answered_once` (B-143).
 
 ---
+
+## Task B-138a: `core-code` becomes `codebase`
+
+**Ruling (Mohammed, 2026-11-13):** the service that owns a project's code on disk (files,
+watcher, activity, language servers, links, the suspended index) is named for what it is,
+without `core-`. The other `core-*` crates keep their names until they are touched; a new or
+renamed service crate takes its name without `core-`. Every later task in this plan reads
+`crates/codebase/` and `Codebase` where it says `crates/core-code/` and `Code`.
+
+**Files:**
+- Move: `crates/core-code/` → `crates/codebase/` (`git mv`, so history follows).
+- Modify: `crates/codebase/Cargo.toml` (`name = "codebase"`), every `Cargo.toml` that
+  depends on `core-code`, `Cargo.lock`, every `use core_code::` and `core_code::` path,
+  the type `Code` → `Codebase` and AppCore's accessor `code()` → `codebase()`
+  (`crates/shadows-core/src/app.rs`), `CodeError` → `CodebaseError`, `CodeConfig` →
+  `CodebaseConfig`; every `contract.yaml` that names them; `docs/codebase/README.md`;
+  `CLAUDE.md` (the service-crate rule: "`core-<service>` crates, and a new or renamed
+  service crate named without `core-`, such as `codebase`"; the layer diagram's line);
+  this plan's later tasks and `docs/backend/stages.md` where they name the old paths.
+- Modify: `crates/shadows/tests/architecture/main.rs`: it tells a service crate by the
+  `core-` prefix; a service crate becomes "starts with `core-` (except `core-db`), or is in
+  `UNPREFIXED_SERVICES = ["codebase"]`", one helper used by every check that reads the prefix.
+- Not renamed: database tables (`code_*`), migration files, MCP tool and HTTP route names,
+  tracing event names (`code.*`), `IndexState` and the model types other than those above.
+
+- [ ] **Step 1: Run** `cargo test -p shadows --test architecture --test codemap --test contract_tests`
+  before the move; record the counts.
+- [ ] **Step 2: Move and rename** as listed; `cargo check --workspace --all-targets --features fake-acp/test-support`.
+- [ ] **Step 3: Run** the Step 1 command, `cargo test -p codebase`, `cargo test -p shadows-core
+  --test code_index` (or the files holding Code's tests); expected: the same counts as Step 1,
+  all passing. `rg -n "core-code|core_code"` outside `target/` and `docs/evidence/` finds only
+  dated history (plans and stages entries of earlier slices are left as written).
+- [ ] **Step 4: Commit** `refactor(backend): B-138a core-code becomes codebase`.
 
 ## Task B-138: the `shadows-lsp` client
 
