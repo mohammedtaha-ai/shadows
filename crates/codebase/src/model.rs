@@ -176,3 +176,37 @@ pub struct InventoryPage {
     #[schema(required)]
     pub observed_at: Option<String>,
 }
+
+/// How one language server stands for one project.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, utoipa::ToSchema)]
+#[serde(tag = "state", rename_all = "snake_case")]
+pub enum ServerState {
+    /// Not running: the project is not active, or its files do not need it.
+    Idle,
+    Starting,
+    Running,
+    /// Its command is not found on this machine.
+    NotInstalled,
+    /// The person switched it off.
+    Off,
+    /// It exited or did not initialize; its last error line, when it wrote one.
+    Failed {
+        #[schema(required)]
+        error: Option<String>,
+    },
+}
+
+/// One catalog or added server, as a project sees it.
+#[derive(Debug, Clone, serde::Serialize, utoipa::ToSchema)]
+pub struct ServerStatus {
+    pub id: String,
+    /// The person added it; it is not in the catalog.
+    pub added: bool,
+    /// The project holds a file with one of its extensions.
+    pub wanted: bool,
+    pub extensions: Vec<String>,
+    pub state: ServerState,
+    /// The command that installs it on this system; null when none is known.
+    #[schema(required)]
+    pub install: Option<String>,
+}

@@ -20,6 +20,8 @@ aylul_usage :: usage
 code_file :: codebase
 code_inventory :: codebase
 code_inventory_scan :: codebase
+code_server_added :: codebase
+code_server_off :: codebase
 code_setting :: codebase
 code_tag :: codebase
 command_record :: db

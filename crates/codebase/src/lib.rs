@@ -11,6 +11,7 @@
 mod active;
 mod inventory;
 mod links;
+mod lsp;
 mod model;
 mod scan;
 mod scope;
@@ -23,7 +24,8 @@ use std::time::Duration;
 
 pub use model::{
     Answer, CodeSettings, CodebaseConfig, Hit, IndexState, InventoryEntry, InventoryKind,
-    InventoryPage, InventoryQuery, InventoryState, ProjectLink, ProjectStatus, Skipped,
+    InventoryPage, InventoryQuery, InventoryState, ProjectLink, ProjectStatus, ServerState,
+    ServerStatus, Skipped,
 };
 pub use scope::Asker;
 

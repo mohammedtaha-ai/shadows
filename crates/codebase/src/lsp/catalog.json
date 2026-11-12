@@ -1,0 +1,201 @@
+[
+  {
+    "id": "clangd",
+    "command": "clangd",
+    "args": [
+      "--background-index"
+    ],
+    "extensions": {
+      ".c": "c",
+      ".h": "c",
+      ".cpp": "cpp",
+      ".cc": "cpp",
+      ".cxx": "cpp",
+      ".hpp": "cpp",
+      ".hxx": "cpp",
+      ".C": "cpp",
+      ".H": "cpp"
+    },
+    "install": {
+      "windows": "winget install LLVM.LLVM",
+      "macos": null,
+      "linux": null
+    },
+    "source": "clangd-lsp@23c304a6387ed2fa207ceff27646d8514ee75235"
+  },
+  {
+    "id": "csharp-ls",
+    "command": "csharp-ls",
+    "args": [],
+    "extensions": {
+      ".cs": "csharp"
+    },
+    "install": {
+      "windows": "dotnet tool install --global csharp-ls",
+      "macos": null,
+      "linux": null
+    },
+    "source": "csharp-lsp@23c304a6387ed2fa207ceff27646d8514ee75235"
+  },
+  {
+    "id": "gopls",
+    "command": "gopls",
+    "args": [],
+    "extensions": {
+      ".go": "go"
+    },
+    "install": {
+      "windows": "go install golang.org/x/tools/gopls@latest",
+      "macos": null,
+      "linux": null
+    },
+    "source": "gopls-lsp@23c304a6387ed2fa207ceff27646d8514ee75235"
+  },
+  {
+    "id": "jdtls",
+    "command": "jdtls",
+    "args": [],
+    "extensions": {
+      ".java": "java"
+    },
+    "install": {
+      "windows": null,
+      "macos": null,
+      "linux": null
+    },
+    "source": "jdtls-lsp@23c304a6387ed2fa207ceff27646d8514ee75235"
+  },
+  {
+    "id": "kotlin-lsp",
+    "command": "kotlin-lsp",
+    "args": [
+      "--stdio"
+    ],
+    "extensions": {
+      ".kt": "kotlin",
+      ".kts": "kotlin"
+    },
+    "install": {
+      "windows": null,
+      "macos": null,
+      "linux": null
+    },
+    "source": "kotlin-lsp@23c304a6387ed2fa207ceff27646d8514ee75235"
+  },
+  {
+    "id": "lua",
+    "command": "lua-language-server",
+    "args": [],
+    "extensions": {
+      ".lua": "lua"
+    },
+    "install": {
+      "windows": "winget install LuaLS.lua-language-server",
+      "macos": null,
+      "linux": null
+    },
+    "source": "lua-lsp@23c304a6387ed2fa207ceff27646d8514ee75235"
+  },
+  {
+    "id": "intelephense",
+    "command": "intelephense",
+    "args": [
+      "--stdio"
+    ],
+    "extensions": {
+      ".php": "php"
+    },
+    "install": {
+      "windows": "npm install -g intelephense",
+      "macos": null,
+      "linux": null
+    },
+    "source": "php-lsp@23c304a6387ed2fa207ceff27646d8514ee75235"
+  },
+  {
+    "id": "pyright",
+    "command": "pyright-langserver",
+    "args": [
+      "--stdio"
+    ],
+    "extensions": {
+      ".py": "python",
+      ".pyi": "python"
+    },
+    "install": {
+      "windows": "npm install -g pyright",
+      "macos": null,
+      "linux": null
+    },
+    "source": "pyright-lsp@23c304a6387ed2fa207ceff27646d8514ee75235"
+  },
+  {
+    "id": "ruby-lsp",
+    "command": "ruby-lsp",
+    "args": [],
+    "extensions": {
+      ".rb": "ruby",
+      ".rake": "ruby",
+      ".gemspec": "ruby",
+      ".ru": "ruby",
+      ".erb": "erb"
+    },
+    "install": {
+      "windows": "gem install ruby-lsp",
+      "macos": null,
+      "linux": null
+    },
+    "source": "ruby-lsp@23c304a6387ed2fa207ceff27646d8514ee75235"
+  },
+  {
+    "id": "rust-analyzer",
+    "command": "rust-analyzer",
+    "args": [],
+    "extensions": {
+      ".rs": "rust"
+    },
+    "install": {
+      "windows": "rustup component add rust-analyzer",
+      "macos": null,
+      "linux": null
+    },
+    "source": "rust-analyzer-lsp@23c304a6387ed2fa207ceff27646d8514ee75235"
+  },
+  {
+    "id": "sourcekit-lsp",
+    "command": "sourcekit-lsp",
+    "args": [],
+    "extensions": {
+      ".swift": "swift"
+    },
+    "install": {
+      "windows": null,
+      "macos": null,
+      "linux": null
+    },
+    "source": "swift-lsp@23c304a6387ed2fa207ceff27646d8514ee75235"
+  },
+  {
+    "id": "typescript",
+    "command": "typescript-language-server",
+    "args": [
+      "--stdio"
+    ],
+    "extensions": {
+      ".ts": "typescript",
+      ".tsx": "typescriptreact",
+      ".js": "javascript",
+      ".jsx": "javascriptreact",
+      ".mts": "typescript",
+      ".cts": "typescript",
+      ".mjs": "javascript",
+      ".cjs": "javascript"
+    },
+    "install": {
+      "windows": "npm install -g typescript-language-server typescript",
+      "macos": null,
+      "linux": null
+    },
+    "source": "typescript-lsp@23c304a6387ed2fa207ceff27646d8514ee75235"
+  }
+]

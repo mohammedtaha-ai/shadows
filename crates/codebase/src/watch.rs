@@ -15,8 +15,13 @@
 //! a scan's own reads would trigger more scans without an end.
 //! A `Close(Write)` is kept: it ends a write, and
 //! inotify reports a write through `mmap(2)` by nothing else.
+//!
+//! The worker also owns the project's language servers: after each scan and each
+//! watcher batch it starts the servers the files now want and stops the rest, and
+//! tells every running server which of its files changed on disk, since a server
+//! reads a closed file again only when told.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
@@ -28,9 +33,16 @@ use tokio::task::JoinHandle;
 use tokio::time::{Instant, MissedTickBehavior};
 
 use super::Codebase;
-use super::model::{CodebaseConfig, IndexState};
+use super::lsp::Wanted;
+use super::model::{CodebaseConfig, IndexState, ServerState};
 use super::scan::Progress;
 use core_projects::ProjectId;
+
+/// How long a language server may take to start and initialize.
+const START_WAIT: std::time::Duration = std::time::Duration::from_secs(120);
+
+/// A server's start, as its task reports it back to the worker.
+type Started = (Wanted, Result<shadows_lsp::Server, shadows_lsp::LspError>);
 
 /// Paths the watcher may hold for the worker before it counts as lost.
 const SEEN_CAPACITY: usize = 8192;
@@ -46,6 +58,12 @@ pub(super) enum Job {
     Recheck(Vec<String>, oneshot::Sender<()>),
     /// A scan, which lists the folder again, then reply.
     Refresh(oneshot::Sender<()>),
+    /// A language-server question: the changes gathered before it reach the servers
+    /// first, then the reply carries the running server, if any.
+    Lsp(
+        String,
+        oneshot::Sender<Option<(Wanted, Arc<shadows_lsp::Server>)>>,
+    ),
 }
 
 /// What the watcher's thread passes on.
@@ -65,6 +83,8 @@ struct Shared {
     paused: AtomicBool,
     updated_at: Mutex<Option<String>>,
     stopping: Notify,
+    /// Each wanted server's state: `Starting`, `Running` or `Failed`.
+    servers: Mutex<HashMap<String, ServerState>>,
 }
 
 /// One active project's worker, as `Codebase` holds it.
@@ -87,6 +107,7 @@ impl Worker {
     ) -> Self {
         let (jobs, jobs_rx) = mpsc::channel(64);
         let (seen, seen_rx) = mpsc::channel(SEEN_CAPACITY);
+        let (started, started_rx) = mpsc::unbounded_channel();
         let shared = Arc::new(Shared::default());
         let run = Run {
             code,
@@ -97,12 +118,15 @@ impl Worker {
             seen,
             lost: Arc::new(AtomicBool::new(false)),
             pending: HashSet::new(),
+            servers: HashMap::new(),
+            extra: HashSet::new(),
+            started,
         };
         let task = tokio::spawn(async move {
             if let Some(before) = before {
                 let _ = before.await;
             }
-            run.run(jobs_rx, seen_rx, config).await;
+            run.run(jobs_rx, seen_rx, started_rx, config).await;
         });
         Self { jobs, shared, task }
     }
@@ -122,6 +146,11 @@ impl Worker {
         };
         let updated_at = s.updated_at.lock().map(|u| u.clone()).unwrap_or(None);
         (state, updated_at)
+    }
+
+    /// How one of the project's wanted servers stands, if the worker holds it.
+    pub(super) fn server_state(&self, id: &str) -> Option<ServerState> {
+        self.shared.servers.lock().ok()?.get(id).cloned()
     }
 
     /// Where to send a job.
@@ -159,6 +188,12 @@ struct Run {
     lost: Arc<AtomicBool>,
     /// Paths reported and not yet handled, until none arrives for `debounce`.
     pending: HashSet<String>,
+    /// The running language servers, by id.
+    servers: HashMap<String, (Wanted, Arc<shadows_lsp::Server>)>,
+    /// Extensions of files the watcher saw since the last listing.
+    extra: HashSet<String>,
+    /// Where a server's start task reports.
+    started: mpsc::UnboundedSender<Started>,
 }
 
 impl Run {
@@ -166,6 +201,7 @@ impl Run {
         mut self,
         mut jobs: mpsc::Receiver<Job>,
         mut seen: mpsc::Receiver<Seen>,
+        mut started: mpsc::UnboundedReceiver<Started>,
         config: CodebaseConfig,
     ) {
         let mut interval = tokio::time::interval(config.rescan_every);
@@ -189,6 +225,7 @@ impl Run {
                     }
                     Some(Seen::Rescan) | None => self.handle(Job::Scan).await,
                 },
+                Some((wanted, result)) = started.recv() => self.server_started(wanted, result),
                 _ = quiet, if !self.pending.is_empty() => {
                     // A folder renamed or deleted is reported alone, never
                     // the files in it: the whole batch becomes one scan,
@@ -197,14 +234,16 @@ impl Run {
                         tracing::info!(project = self.project.as_str(), "code.folder_changed");
                         self.handle(Job::Scan).await;
                     } else {
-                        let paths: Vec<String> = self
-                            .pending
-                            .drain()
+                        let all: Vec<String> = self.pending.drain().collect();
+                        self.tell_servers(&all).await;
+                        let paths: Vec<String> = all
+                            .into_iter()
                             .filter(|p| Codebase::keeps(Path::new(p)))
                             .collect();
                         if !paths.is_empty() {
                             self.handle(Job::Files(paths)).await;
                         }
+                        self.sync_servers(false).await;
                     }
                 }
             }
@@ -216,6 +255,7 @@ impl Run {
                 self.handle(Job::Scan).await;
             }
         }
+        self.stop_servers().await;
     }
 
     async fn handle(&mut self, job: Job) {
@@ -233,6 +273,11 @@ impl Run {
             Job::Refresh(reply) => {
                 self.scan().await;
                 let _ = reply.send(());
+            }
+            Job::Lsp(server, reply) => {
+                let gathered: Vec<String> = self.pending.iter().cloned().collect();
+                self.tell_servers(&gathered).await;
+                let _ = reply.send(self.servers.get(&server).cloned());
             }
         }
     }
@@ -287,6 +332,170 @@ impl Run {
             Err(error) => {
                 tracing::warn!(project = self.project.as_str(), error = %error, "code.scan_failed")
             }
+        }
+        // The listing is current again; a failed server is tried once more.
+        self.extra.clear();
+        self.sync_servers(true).await;
+    }
+
+    /// Starts the servers the project's files want and are not running, and stops the
+    /// running ones they do not want now. A failed server is tried again only on
+    /// `retry` (after a scan); one whose command is not found is not started.
+    async fn sync_servers(&mut self, retry: bool) {
+        let wanted = match self.code.wanted_servers(&self.project, &self.extra).await {
+            Ok(wanted) => wanted,
+            Err(error) => {
+                tracing::warn!(
+                    project = self.project.as_str(),
+                    error = %error,
+                    "code.servers_failed"
+                );
+                return;
+            }
+        };
+        let ids: HashSet<&str> = wanted.iter().map(|w| w.id.as_str()).collect();
+        let mut states = match self.shared.servers.lock() {
+            Ok(mut shared) => std::mem::take(&mut *shared),
+            Err(_) => HashMap::new(),
+        };
+        states.retain(|id, _| ids.contains(id.as_str()));
+        let gone: Vec<String> = self
+            .servers
+            .keys()
+            .filter(|id| !ids.contains(id.as_str()))
+            .cloned()
+            .collect();
+        for id in gone {
+            if let Some((_, server)) = self.servers.remove(&id) {
+                tracing::info!(project = self.project.as_str(), server = %id, "code.server_stop");
+                tokio::spawn(Run::shut(server));
+            }
+        }
+        let path = std::env::var_os("PATH").unwrap_or_default();
+        for server in wanted {
+            if self.servers.contains_key(&server.id) {
+                continue;
+            }
+            match states.get(&server.id) {
+                Some(ServerState::Starting) => continue,
+                Some(ServerState::Failed { .. }) if !retry => continue,
+                _ => {}
+            }
+            let Some(executable) = Codebase::find_command(&server.command, &path) else {
+                states.remove(&server.id);
+                continue;
+            };
+            states.insert(server.id.clone(), ServerState::Starting);
+            tracing::info!(
+                project = self.project.as_str(),
+                server = %server.id,
+                "code.server_start"
+            );
+            let spec = shadows_lsp::ServerSpec {
+                executable,
+                args: server.args.clone(),
+                root: self.dir.clone(),
+                env: std::env::vars().collect(),
+            };
+            let started = self.started.clone();
+            tokio::spawn(async move {
+                let result = shadows_lsp::Server::start(spec, START_WAIT).await;
+                // A worker that stopped meanwhile drops the server, which kills it.
+                let _ = started.send((server, result));
+            });
+        }
+        if let Ok(mut shared) = self.shared.servers.lock() {
+            *shared = states;
+        }
+    }
+
+    /// A start task's report: the server runs, or reads `Failed` with its last line.
+    fn server_started(
+        &mut self,
+        server: Wanted,
+        result: Result<shadows_lsp::Server, shadows_lsp::LspError>,
+    ) {
+        let state = match result {
+            Ok(running) => {
+                let id = server.id.clone();
+                self.servers.insert(id, (server.clone(), Arc::new(running)));
+                ServerState::Running
+            }
+            Err(error) => {
+                let error = match error {
+                    shadows_lsp::LspError::Exited(Some(line)) => line,
+                    other => other.to_string(),
+                };
+                tracing::warn!(
+                    project = self.project.as_str(),
+                    server = %server.id,
+                    error = %error,
+                    "code.server_failed"
+                );
+                ServerState::Failed { error: Some(error) }
+            }
+        };
+        if let Ok(mut states) = self.shared.servers.lock() {
+            states.insert(server.id, state);
+        }
+    }
+
+    /// The watcher's paths go to every running server that reads them, as changed
+    /// or deleted by what is on disk now; an extension not listed yet is kept so the
+    /// next `sync_servers` sees it.
+    async fn tell_servers(&mut self, paths: &[String]) {
+        let mut on_disk = Vec::with_capacity(paths.len());
+        for path in paths {
+            let full = self.dir.join(path);
+            let exists = tokio::fs::symlink_metadata(&full)
+                .await
+                .is_ok_and(|m| m.is_file());
+            if exists && let Some(ext) = Codebase::extension(path) {
+                self.extra.insert(ext.to_string());
+            }
+            on_disk.push((path, full, exists));
+        }
+        for (server, running) in self.servers.values() {
+            let changes: Vec<_> = on_disk
+                .iter()
+                .filter(|(path, _, _)| server.reads(path))
+                .map(|(_, full, exists)| {
+                    let change = if *exists {
+                        shadows_lsp::FileChange::Changed
+                    } else {
+                        shadows_lsp::FileChange::Deleted
+                    };
+                    (full.clone(), change)
+                })
+                .collect();
+            if !changes.is_empty()
+                && let Err(error) = running.files_changed(&changes).await
+            {
+                tracing::warn!(
+                    project = self.project.as_str(),
+                    server = %server.id,
+                    error = %error,
+                    "code.server_tell_failed"
+                );
+            }
+        }
+    }
+
+    /// Shuts every running server down: the worker is stopping.
+    async fn stop_servers(&mut self) {
+        for (_, (_, server)) in self.servers.drain() {
+            Run::shut(server).await;
+        }
+        if let Ok(mut states) = self.shared.servers.lock() {
+            states.clear();
+        }
+    }
+
+    /// Shuts one server down once no question holds it; a held one is killed when
+    /// the last holder lets go.
+    async fn shut(server: Arc<shadows_lsp::Server>) {
+        if let Ok(server) = Arc::try_unwrap(server) {
+            server.shutdown().await;
         }
     }
 

@@ -511,6 +511,9 @@ file disagrees with either, they are right and this file is the defect.
 | `crates/codebase/src/testing.rs` | gated index inspection | `crates/codebase/contract.yaml` |
 | `crates/codebase/src/inventory.rs` | the paged file inventory of a project's folder | `crates/codebase/contract.yaml` |
 | `crates/codebase/src/store/inventory.rs` | file inventory persistence | `crates/codebase/contract.yaml` |
+| `crates/codebase/src/lsp/` | the language servers a project's files want | `crates/codebase/contract.yaml` |
+| `crates/codebase/src/lsp/catalog.rs` | the language-server catalog | `crates/codebase/contract.yaml` |
+| `crates/codebase/src/store/servers.rs` | the person's server settings persistence | `crates/codebase/contract.yaml` |
 
 | `crates/core-agents/assets/aylul-profile/CLAUDE.md` | bundled agent home instructions | `crates/core-agents/contract.yaml` |
 | `crates/core-agents/assets/aylul-profile/settings.json` | bundled agent home settings | `crates/core-agents/contract.yaml` |

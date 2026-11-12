@@ -276,7 +276,7 @@ fn extracted_code_depends_only_on_declared_lower_owners() {
     {
         let name = line.trim().trim_matches(',').trim_matches('"');
         assert!(
-            (!name.starts_with("shadows") || name == "shadows-index")
+            (!name.starts_with("shadows") || ["shadows-index", "shadows-lsp"].contains(&name))
                 && (!scanner::service_crate(name)
                     || ["core-db", "core-projects", "codebase"].contains(&name)),
             "code must depend only on lower owners and infrastructure: {name}"

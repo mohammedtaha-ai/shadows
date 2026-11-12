@@ -3,8 +3,10 @@
 mod inventory;
 mod links;
 mod reach;
+mod servers;
 
 pub(crate) use inventory::InventoryRow;
+pub(crate) use servers::AddedRow;
 
 use std::collections::HashMap;
 use std::sync::Arc;

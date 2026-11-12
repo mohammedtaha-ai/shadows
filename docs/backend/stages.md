@@ -345,7 +345,7 @@ Design: [language servers](specs/2026-11-13-language-servers-design.md) (Mohamme
 
 ### B-139 · The catalog and a project's servers
 
-- Status: ready.
+- Status: done.
 - Plan: [Task B-139](plans/2026-11-13-slice-2-language-servers.md#task-b-139-the-catalog-and-a-projects-servers).
 - Needs: B-138.
 

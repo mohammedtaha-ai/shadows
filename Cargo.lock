@@ -587,6 +587,7 @@ dependencies = [
  "serde",
  "serde_json",
  "shadows-index",
+ "shadows-lsp",
  "sqlx",
  "tempfile",
  "thiserror",

@@ -22,6 +22,7 @@ thiserror = { workspace = true }
 utoipa = { workspace = true }
 
 shadows-index = { path = "../shadows-index" }
+shadows-lsp = { path = "../shadows-lsp" }
 ignore = { workspace = true }
 notify = { workspace = true }
 tracing = { workspace = true }

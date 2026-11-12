@@ -236,11 +236,52 @@ modules:
   store/: private index SQL
   inventory.rs: the paged file inventory of a project's folder
   store/inventory.rs: file inventory persistence
+  lsp/mod.rs: the language servers a project's files want
+  lsp/catalog.rs: the language-server catalog
+  store/servers.rs: the person's server settings persistence
 
 dependencies:
   projects: crates/core-projects/contract.yaml
+  # A library, not a service: one language server's process and its requests.
+  shadows-lsp: crates/shadows-lsp
 
 functions:
+  servers:
+    servers:
+      signature: "(&self, asker: Asker<'_>) -> Result<Vec<ServerStatus>, CodebaseError>"
+      # Every catalog then added server, with `wanted` (the project's listed files
+      # need it). State, in order: Off (switched off), NotInstalled
+      # (`find_command` finds nothing on PATH), the worker's Starting / Running /
+      # Failed for a wanted server of an active project, else Idle. It does not touch.
+    wanted:
+      signature: "(&self, extensions: &HashSet<String>, off: &HashSet<String>, added: &[Added]) -> Vec<Wanted>"
+      private: true
+      # The one rule "the files choose": a catalog or added server one of whose
+      # extensions is in `extensions` and whose id is not in `off`. `.C` and `.H`
+      # compare as written, any other extension lower-cased.
+    wanted_servers:
+      signature: "(&self, project: &ProjectId, extra: &HashSet<String>) -> Result<Vec<Wanted>, CodebaseError>"
+      # `wanted` over the listing's extensions plus `extra` (the watcher's new ones).
+    every_server:
+      signature: "(added: &[Added]) -> Vec<Wanted>"
+      private: true
+    catalog:
+      signature: "() -> &'static [CatalogEntry]"
+      # `catalog.json`, parsed once: the twelve upstream definitions
+      # (LICENSE-claude-plugins-official) with Shadows' install lines.
+    extension:
+      signature: "(path: &str) -> Option<&str>"
+    find_command:
+      signature: "(command: &str, path: &OsStr) -> Option<PathBuf>"
+      # A command naming a path is checked as is; a bare name is looked up on
+      # `path`, on Windows with each PATHEXT ending (an npm `.cmd` shim).
+    running_server:
+      signature: "(&self, project: &ProjectId, id: &str) -> Option<(Wanted, Arc<Server>)>"
+      # Through the worker's `Job::Lsp`, so the changes it gathered reach the
+      # servers before the question.
+    add_server_for_test: "test-support: store an added server with no command"
+    ask_server_for_test: "test-support: one request to a running server"
+    catalog_for_test: "test-support: the catalog's ids and extensions"
   construction:
     new: "(storage: Arc<Storage>, projects: Projects) -> Code"
     scan_for_test: "test-support: synchronous fixture scan"
@@ -581,6 +622,32 @@ functions:
       private: true
       # A new recursive `RecommendedWatcher`; a failure is
       # `code.watcher_failed`, and the next scan tries again.
+    server_state:
+      signature: "(&self, id: &str) -> Option<ServerState>"
+    sync_servers:
+      signature: "(&mut self, retry: bool)"
+      private: true
+      # After each scan (retry: true) and each watcher batch (false): stops the
+      # running servers no longer wanted, starts each wanted one not running or
+      # starting (a Failed one only on retry; one `find_command` misses is not
+      # started), on its own task, reporting through `started`.
+    server_started:
+      signature: "(&mut self, server: Wanted, result: Result<Server, LspError>)"
+      private: true
+      # Running, or Failed with the server's last stderr line (`code.server_failed`).
+    tell_servers:
+      signature: "(&mut self, paths: &[String])"
+      private: true
+      # Every watcher batch's paths, and those gathered when a `Job::Lsp` arrives,
+      # go to each running server that reads them as `files_changed` (Changed, or
+      # Deleted when gone); a new file's extension joins `extra`.
+    stop_servers:
+      signature: "(&mut self)"
+      private: true
+      # When the worker stops: every server shut down.
+    shut:
+      signature: "(server: Arc<Server>)"
+      private: true
     forward:
       signature: "(dir: &Path, seen: &mpsc::Sender<Seen>, lost: &AtomicBool, event: notify::Result<notify::Event>)"
       private: true
@@ -591,6 +658,16 @@ functions:
       # Path. `try_send`: a full or closed channel sets `lost`.
   store:
     # All instance methods below belong to the private CodeStore.
+    servers_off:
+      signature: "(&self) -> Result<HashSet<String>, StorageError>"
+    servers_added:
+      signature: "(&self) -> Result<Vec<AddedRow>, StorageError>"
+    file_extensions:
+      signature: "(&self, project: &ProjectId) -> Result<HashSet<String>, StorageError>"
+      # The extensions of the listing's files (`code_inventory`), as written.
+    add_server_row:
+      signature: "(&self, row: AddedRow) -> Result<(), StorageError>"
+      # test-support only.
     code_file_stamp:
       signature: "(&self, project: &ProjectId, path_key: &str) -> Result<Option<(String, i64, i64)>, StorageError>"
     code_file_stamps:
@@ -713,6 +790,22 @@ enums:
 
 
 obligations:
+  - rule: >
+      The files choose a project's language servers: while the project is
+      active its worker runs each server one of whose extensions its files
+      have, unless the person switched it off, and starts one when a file with
+      a new extension appears, without a refresh.
+    tested_by: a_new_extension_starts_its_server
+  - rule: >
+      A server reads a closed file again only when told, so every change the
+      watcher sees goes to the running servers that read it before the next
+      question reaches them.
+    tested_by: a_watched_change_reaches_the_server
+  - rule: >
+      A server that exits or does not initialize reads Failed, never Running,
+      and is tried again at the next scan; one whose command is not found reads
+      NotInstalled and is not started.
+    tested_by: a_server_that_exits_reads_failed
   - rule: >
       The index follows the files: a scan indexes a new file, re-indexes a
       changed one (its size or modified time differs), and deletes the rows
@@ -1022,6 +1115,22 @@ tests:
     checks: A removed file's entry is gone after a refresh, at generation 2.
   - name: a_link_out_of_the_folder_is_listed_and_never_entered
     checks: A symlink (Unix) or junction (Windows) out is excluded link, nothing under it.
+  - name: the_catalog_has_the_twelve_servers
+    checks: Twelve ids; clangd's extensions hold `.C` and `.c`.
+  - name: a_go_file_wants_gopls
+    checks: Ignored, needs gopls. A folder with main.go, touched; gopls Running within 60 s, alone.
+  - name: a_new_extension_starts_its_server
+    checks: Ignored, needs gopls. An empty folder touched, then main.go written; gopls Running.
+  - name: a_watched_change_reaches_the_server
+    checks: >
+      Ignored, needs gopls. Hello moved two lines down in a.go on disk with no
+      question between; the next definition from b.go answers the new line.
+  - name: a_missing_command_reads_not_installed
+    checks: An added server `no-such-server-xyz` for `.zz`, with x.zz, reads NotInstalled.
+  - name: a_server_that_exits_reads_failed
+    checks: An added server whose command exits at once (`cmd /c exit 3`) reads Failed.
+  - name: a_cmd_shim_on_path_is_found
+    checks: Windows only. `fake-ls.cmd` in a folder on the given PATH is found for `fake-ls`.
   - name: an_incomplete_listing_deletes_nothing
     checks: >
       A unit test in inventory.rs: an incomplete write without b.txt keeps
