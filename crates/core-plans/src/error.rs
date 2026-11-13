@@ -74,6 +74,7 @@ impl From<codebase::CodebaseError> for PlansError {
             codebase::CodebaseError::InvalidCommand(message) => Self::InvalidCommand(message),
             codebase::CodebaseError::GrantScope(message) => Self::GrantScope(message),
             codebase::CodebaseError::InventoryStale => Self::InvalidCommand(error.to_string()),
+            codebase::CodebaseError::LanguageServer(message) => Self::InvalidCommand(message),
             codebase::CodebaseError::Storage(error) => Self::Storage(error),
             codebase::CodebaseError::Projects(error) => error.into(),
         }

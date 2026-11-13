@@ -7,6 +7,10 @@ pub enum CodebaseError {
     GrantScope(String),
     #[error("the file list changed; read it again from the start")]
     InventoryStale,
+    /// A language server failed the question: it did not answer in time, exited
+    /// or answered an error.
+    #[error("{0}")]
+    LanguageServer(String),
     #[error(transparent)]
     Projects(#[from] core_projects::ProjectsError),
     #[error(transparent)]

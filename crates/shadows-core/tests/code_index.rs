@@ -198,6 +198,7 @@ async fn watching_and_the_periodic_scan_keep_the_index_true() {
     let fast = CodebaseConfig {
         rescan_every: Duration::from_millis(400),
         debounce: Duration::from_millis(100),
+        ..CodebaseConfig::default()
     };
     core.codebase().start(fast).await.unwrap();
     core.codebase().touch(&project).await;
@@ -343,4 +344,32 @@ async fn a_held_project_outlives_the_idle_time() {
     tokio::time::sleep(Duration::from_secs(3)).await;
     assert!(inactive(&core, &project).await);
     core.codebase().shut_down_for_test().await;
+}
+
+#[tokio::test]
+async fn the_name_index_is_off_by_default() {
+    let db = tempfile::tempdir().unwrap();
+    let core = shadows_core::testing::app(db.path().join("s.sqlite3"))
+        .await
+        .unwrap();
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(dir.path().join("lib.rs"), "pub fn answer() {}\n").unwrap();
+    let project = core
+        .projects()
+        .create("c-off".into(), "off", "Off", dir.path().to_str().unwrap())
+        .await
+        .unwrap()
+        .id;
+    core.codebase().scan_for_test(&project).await.unwrap();
+    let status = core.codebase().status(&project).await.unwrap();
+    assert_eq!(status.files, 1, "the file row is written");
+    let found = core
+        .codebase()
+        .definitions(Asker::Person(&project), None, "answer")
+        .await
+        .unwrap();
+    assert!(found.hits.is_empty(), "no tag is extracted");
+    core.shut_down(Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }

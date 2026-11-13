@@ -323,9 +323,6 @@ fn run_routes(table: OpenApiRouter<AppState>) -> OpenApiRouter<AppState> {
 #[inline(never)]
 fn code_routes(table: OpenApiRouter<AppState>) -> OpenApiRouter<AppState> {
     table
-        .routes(routes!(code::definitions))
-        .routes(routes!(code::references))
-        .routes(routes!(code::outline))
         .routes(routes!(code::status))
         .routes(routes!(code::files))
         .routes(routes!(code::refresh))

@@ -73,6 +73,9 @@ pub struct CodebaseConfig {
     pub rescan_every: std::time::Duration,
     /// How long no change has to arrive before the gathered paths are indexed.
     pub debounce: std::time::Duration,
+    /// Whether a scan extracts the tree-sitter name index's tags. Off in the app:
+    /// the language servers answer instead; file rows and the inventory stay.
+    pub name_index: bool,
 }
 
 impl Default for CodebaseConfig {
@@ -80,6 +83,7 @@ impl Default for CodebaseConfig {
         Self {
             rescan_every: std::time::Duration::from_secs(60),
             debounce: std::time::Duration::from_millis(500),
+            name_index: true,
         }
     }
 }
@@ -198,4 +202,60 @@ pub struct ServerStatus {
     /// The command that installs it on this system; null when none is known.
     #[schema(required)]
     pub install: Option<String>,
+}
+
+/// One read operation of a language server, as Claude Code's LSP tool names it.
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, utoipa::ToSchema,
+)]
+#[serde(rename_all = "camelCase")]
+pub enum LspOperation {
+    GoToDefinition,
+    FindReferences,
+    Hover,
+    DocumentSymbol,
+    WorkspaceSymbol,
+    GoToImplementation,
+    IncomingCalls,
+    OutgoingCalls,
+}
+
+/// A question to a project's language server. Lines and characters are one-based.
+#[derive(Debug, Clone)]
+pub struct LspQuestion {
+    pub operation: LspOperation,
+    /// Relative to the project's folder; every operation but `workspaceSymbol` needs it.
+    pub file: Option<String>,
+    pub line: Option<u32>,
+    pub character: Option<u32>,
+    /// What `workspaceSymbol` looks for.
+    pub query: Option<String>,
+    /// A linked project's slug; none is the asker's own project.
+    pub project: Option<String>,
+}
+
+/// What a language-server question answers.
+#[derive(Debug, Clone, serde::Serialize, utoipa::ToSchema)]
+#[serde(tag = "answer", rename_all = "snake_case")]
+pub enum LspAnswer {
+    /// The server's result, its locations rewritten to `{ project, path, line,
+    /// character }`, one-based and project-relative.
+    Answered {
+        server: String,
+        result: serde_json::Value,
+        /// Items or bytes past the bounds were left out.
+        truncated: bool,
+    },
+    /// No running server reads the file.
+    NoServer {
+        extension: String,
+        /// The server that would read it, if one is known.
+        #[schema(required)]
+        server: Option<String>,
+        #[schema(required)]
+        state: Option<ServerState>,
+        /// How to install it on this system, when it is not installed.
+        #[schema(required)]
+        install: Option<String>,
+    },
 }

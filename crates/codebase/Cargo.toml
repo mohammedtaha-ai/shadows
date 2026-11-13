@@ -23,6 +23,8 @@ utoipa = { workspace = true }
 
 shadows-index = { path = "../shadows-index" }
 shadows-lsp = { path = "../shadows-lsp" }
+# `Url`, the file URIs a language server reads and answers.
+lsp-types = { workspace = true }
 ignore = { workspace = true }
 notify = { workspace = true }
 tracing = { workspace = true }

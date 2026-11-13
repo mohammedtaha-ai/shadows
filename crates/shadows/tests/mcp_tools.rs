@@ -758,16 +758,7 @@ async fn an_executor_grant_lists_its_tools_and_reads_only_its_task() {
         .map(|tool| tool.name.to_string())
         .collect();
     names.sort();
-    assert_eq!(
-        names,
-        [
-            "outline",
-            "task_context",
-            "task_report",
-            "where_is",
-            "who_uses"
-        ]
-    );
+    assert_eq!(names, ["code_lsp", "task_context", "task_report"]);
     let own = json!({ "workflow_id": workflow, "task_number": 1 });
     assert_eq!(
         ok(&executor, "task_context", own).await["task"]["number"],

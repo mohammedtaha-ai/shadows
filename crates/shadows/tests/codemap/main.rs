@@ -7,7 +7,7 @@
 //! job is stated with "and".
 //!
 //! The generated inventory of every declaration was retired on 2026-10-01: the
-//! Rust LSP, and Shadows' own `where_is`, `who_uses` and `outline`, answer
+//! Rust LSP, and Shadows' own `code_lsp`, answer
 //! where a name is, its signature and its callers exactly, with no upkeep.
 
 use std::path::{Path, PathBuf};

@@ -91,6 +91,8 @@ layer_catalog: 'Planner standards text lists every kind presence and its layers 
 # executor.md's "Tools" section (no Python; files through Write, Edit and MultiEdit, never the
 # shell) is held by executor::tests::the_executor_file_parses_and_names_its_eight_tools.
 # executor.md's contract bullets are held, live, by runs_routes::live_an_executor_builds_the_function_its_contract_names.
+# executor.md asks for `code_lsp` before searching the tree; prompt.txt names `code_lsp`, and that
+# a language with no running server is answered "no server".
 # The prompt's "Look before you write a path" section is held by code_scope::the_planner_is_told_to_look_at_the_real_files.
 # The prompt's project_files line says what each page state means and that indexing is not a complete listing; held by mcp_tools::the_planner_is_told_an_indexing_listing_is_not_complete.
 # The prompt's task_add/task_update line says a task_update without the task's contract leaves it with none; held by mcp_tools::the_planner_is_told_what_a_contract_holds.

@@ -25,7 +25,8 @@ use std::time::Duration;
 pub use active::ActiveHold;
 pub use model::{
     Answer, CodebaseConfig, Hit, IndexState, InventoryEntry, InventoryKind, InventoryPage,
-    InventoryQuery, InventoryState, ProjectLink, ProjectStatus, ServerState, ServerStatus, Skipped,
+    InventoryQuery, InventoryState, LspAnswer, LspOperation, LspQuestion, ProjectLink,
+    ProjectStatus, ServerState, ServerStatus, Skipped,
 };
 pub use scope::Asker;
 
@@ -52,6 +53,8 @@ struct Inner {
     uses: std::sync::Mutex<Uses>,
     /// How long a project goes unused before its worker stops.
     idle: std::sync::Mutex<Duration>,
+    /// `CodebaseConfig::name_index`, as `start` set it; on before it.
+    name_index: std::sync::atomic::AtomicBool,
 }
 
 /// A project's code on disk. Cheap to clone: `ProjectLifecycle`, `Turns` and `Runs`
@@ -70,6 +73,7 @@ impl Codebase {
                 active: Default::default(),
                 uses: Default::default(),
                 idle: std::sync::Mutex::new(active::IDLE),
+                name_index: std::sync::atomic::AtomicBool::new(true),
             }),
         }
     }
@@ -78,6 +82,7 @@ impl Codebase {
     /// stops idle ones; it waits for no scan. `AppCore::start` calls it with the
     /// default; a test calls it when it wants workers.
     pub async fn start(&self, config: CodebaseConfig) -> Result<(), CodebaseError> {
+        (self.inner.name_index).store(config.name_index, std::sync::atomic::Ordering::Relaxed);
         let early = self.inner.active.lock().await.begin(config);
         for project in early {
             self.activate(&project).await;

@@ -583,6 +583,7 @@ dependencies = [
  "core-db",
  "core-projects",
  "ignore",
+ "lsp-types",
  "notify",
  "serde",
  "serde_json",

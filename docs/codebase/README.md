@@ -512,6 +512,7 @@ file disagrees with either, they are right and this file is the defect.
 | `crates/codebase/src/store/inventory.rs` | file inventory persistence | `crates/codebase/contract.yaml` |
 | `crates/codebase/src/lsp/` | the language servers a project's files want | `crates/codebase/contract.yaml` |
 | `crates/codebase/src/lsp/catalog.rs` | the language-server catalog | `crates/codebase/contract.yaml` |
+| `crates/codebase/src/lsp/ask.rs` | answering a code_lsp question | `crates/codebase/contract.yaml` |
 | `crates/codebase/src/store/servers.rs` | the person's server settings persistence | `crates/codebase/contract.yaml` |
 
 | `crates/core-agents/assets/aylul-profile/CLAUDE.md` | bundled agent home instructions | `crates/core-agents/contract.yaml` |

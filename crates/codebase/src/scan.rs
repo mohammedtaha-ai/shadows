@@ -114,6 +114,12 @@ fn names_itself(real: &Path, canonical_dir: &Path, path: &str) -> bool {
 }
 
 impl Codebase {
+    /// Whether `real` is `path` inside `canonical_dir`: the check every read of a
+    /// project file makes before it opens one.
+    pub(crate) fn real_path_is(real: &Path, canonical_dir: &Path, path: &str) -> bool {
+        names_itself(real, canonical_dir, path)
+    }
+
     /// Indexes one file, `path` relative to `dir` with '/': skipped
     /// when its path, size and modified time equal its row, else read, parsed
     /// on a blocking thread and written in one transaction. A file that is
@@ -199,6 +205,8 @@ impl Codebase {
             Some(b) if b[..b.len().min(BINARY_PROBE)].contains(&0) => (Some("binary"), Vec::new()),
             Some(b) => match String::from_utf8(b) {
                 Err(_) => (Some("not_utf8"), Vec::new()),
+                // With the name index off the file row is written with no tags.
+                Ok(_) if !self.inner.name_index.load(Ordering::Relaxed) => (None, Vec::new()),
                 Ok(text) => {
                     let tags =
                         tokio::task::spawn_blocking(move || extract(language, &text)).await?;

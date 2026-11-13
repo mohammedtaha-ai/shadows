@@ -142,14 +142,6 @@ pub(super) fn answer<T: serde::Serialize>(outcome: Result<T, Refusal>) -> CallTo
     refused(refusal)
 }
 
-/// The tool result for `outcome`: its text as it is, or the refusal's text.
-pub(super) fn text(outcome: Result<String, Refusal>) -> CallToolResult {
-    match outcome {
-        Ok(text) => CallToolResult::success(vec![ContentBlock::text(text)]),
-        Err(refusal) => refused(refusal),
-    }
-}
-
 /// `isError`, with the code a client matches on, then what to do.
 fn refused(refusal: Refusal) -> CallToolResult {
     let code = serde_json::to_value(refusal.code)

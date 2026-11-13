@@ -376,6 +376,11 @@ impl From<codebase::CodebaseError> for CoreError {
                 code: ErrorCode::InventoryStale,
                 message: error.to_string(),
             },
+            // A language server is a program on this machine, as a harness is.
+            CodebaseError::LanguageServer(message) => Self::Refused {
+                code: ErrorCode::HarnessUnavailable,
+                message,
+            },
             CodebaseError::Projects(error) => error.into(),
             CodebaseError::Storage(error) => Self::Storage(error),
         }

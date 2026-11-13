@@ -4,6 +4,7 @@
 //! its extensions and the person has not switched it off. The project's worker
 //! (`watch.rs`) starts what is wanted and stops what is not.
 
+mod ask;
 mod catalog;
 
 use std::collections::{BTreeMap, HashSet};

@@ -1,5 +1,5 @@
-//! One job: the routes over the code index — a project's three
-//! questions, its index status, its file list, its links, and the active limit.
+//! One job: the routes over a project's code — its index status, its file
+//! list and its links.
 //!
 //! A person asks over HTTP, so a question is `Asker::Person`: a project
 //! outside the scope is refused INVALID_COMMAND, never GRANT_SCOPE. Every
@@ -11,120 +11,7 @@ use axum::http::StatusCode;
 
 use super::failure::ErrorBody;
 use super::{AppState, Failure};
-use shadows_core::{
-    Answer, Asker, InventoryPage, InventoryQuery, ProjectId, ProjectLink, ProjectStatus,
-};
-
-#[derive(serde::Deserialize, utoipa::IntoParams)]
-#[into_params(parameter_in = Query)]
-pub(super) struct NameQuery {
-    /// The exact name, case-sensitively.
-    name: String,
-    /// A linked project's slug, to ask only it; none asks the project and
-    /// every project it links to.
-    project: Option<String>,
-}
-
-#[derive(serde::Deserialize, utoipa::IntoParams)]
-#[into_params(parameter_in = Query)]
-pub(super) struct PathQuery {
-    /// A file or folder relative to the project's folder; "" for all of it.
-    path: String,
-    /// As for `definitions`.
-    project: Option<String>,
-}
-
-/// Where a name is defined: per hit, its project, path, line, kind and
-/// signature.
-#[utoipa::path(
-    get,
-    path = "/api/projects/{id}/code/definitions",
-    tag = "code",
-    params(("id" = ProjectId, Path, description = "The project asked from"), NameQuery),
-    responses(
-        (status = 200, body = Answer),
-        (status = 400, description = "INVALID_COMMAND: no `name`", body = ErrorBody),
-        (status = 404, description = "INVALID_COMMAND: no such project", body = ErrorBody),
-        (
-            status = 422,
-            description = "INVALID_COMMAND: the project named is not linked",
-            body = ErrorBody,
-        ),
-        (status = 500, description = "STORAGE_UNAVAILABLE", body = ErrorBody),
-    )
-)]
-pub(super) async fn definitions(
-    State(s): State<AppState>,
-    Path(project): Path<ProjectId>,
-    Query(q): Query<NameQuery>,
-) -> Result<Json<Answer>, Failure> {
-    let asker = Asker::Person(&project);
-    let only = q.project.as_deref();
-    Ok(Json(
-        s.core.codebase().definitions(asker, only, &q.name).await?,
-    ))
-}
-
-/// Where a name is used, matched by name only: every hit says
-/// `matched_by: "name"`.
-#[utoipa::path(
-    get,
-    path = "/api/projects/{id}/code/references",
-    tag = "code",
-    params(("id" = ProjectId, Path, description = "The project asked from"), NameQuery),
-    responses(
-        (status = 200, body = Answer),
-        (status = 400, description = "INVALID_COMMAND: no `name`", body = ErrorBody),
-        (status = 404, description = "INVALID_COMMAND: no such project", body = ErrorBody),
-        (
-            status = 422,
-            description = "INVALID_COMMAND: the project named is not linked",
-            body = ErrorBody,
-        ),
-        (status = 500, description = "STORAGE_UNAVAILABLE", body = ErrorBody),
-    )
-)]
-pub(super) async fn references(
-    State(s): State<AppState>,
-    Path(project): Path<ProjectId>,
-    Query(q): Query<NameQuery>,
-) -> Result<Json<Answer>, Failure> {
-    let asker = Asker::Person(&project);
-    let only = q.project.as_deref();
-    Ok(Json(
-        s.core.codebase().references(asker, only, &q.name).await?,
-    ))
-}
-
-/// The definitions in a file or folder. It reads the index and
-/// opens no path.
-#[utoipa::path(
-    get,
-    path = "/api/projects/{id}/code/outline",
-    tag = "code",
-    params(("id" = ProjectId, Path, description = "The project asked from"), PathQuery),
-    responses(
-        (status = 200, body = Answer),
-        (status = 400, description = "INVALID_COMMAND: no `path`", body = ErrorBody),
-        (status = 404, description = "INVALID_COMMAND: no such project", body = ErrorBody),
-        (
-            status = 422,
-            description = "INVALID_COMMAND: the path must be inside the project, or the project \
-                           named is not linked",
-            body = ErrorBody,
-        ),
-        (status = 500, description = "STORAGE_UNAVAILABLE", body = ErrorBody),
-    )
-)]
-pub(super) async fn outline(
-    State(s): State<AppState>,
-    Path(project): Path<ProjectId>,
-    Query(q): Query<PathQuery>,
-) -> Result<Json<Answer>, Failure> {
-    let asker = Asker::Person(&project);
-    let only = q.project.as_deref();
-    Ok(Json(s.core.codebase().outline(asker, only, &q.path).await?))
-}
+use shadows_core::{Asker, InventoryPage, InventoryQuery, ProjectId, ProjectLink, ProjectStatus};
 
 /// How the project's index stands. Asking does not make it active.
 #[utoipa::path(

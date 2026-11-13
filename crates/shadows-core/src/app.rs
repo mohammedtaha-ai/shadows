@@ -389,7 +389,15 @@ impl AppCore {
         tracing::info!(interrupted = recovered.interrupted, "recovery.runs_settled");
         // The active set is chosen and the workers spawned; `serve`
         // waits for no scan. The index never stops the daemon.
-        if let Err(error) = core.code.start(CodebaseConfig::default()).await {
+        if let Err(error) = core
+            .code
+            .start(CodebaseConfig {
+                // The language servers answer code questions; the name index waits.
+                name_index: false,
+                ..CodebaseConfig::default()
+            })
+            .await
+        {
             tracing::warn!(error = %error, "code.start_failed");
         }
         if config.aylul.is_some() {

@@ -117,6 +117,7 @@ pub use core_standards::StandardsError;
 
 pub use codebase::{
     CodebaseError, InventoryEntry, InventoryKind, InventoryPage, InventoryQuery, InventoryState,
+    LspAnswer, LspOperation, LspQuestion, ServerState, ServerStatus,
 };
 
 pub use core_threads::ThreadsError;

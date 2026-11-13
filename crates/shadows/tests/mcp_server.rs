@@ -120,6 +120,7 @@ async fn the_tool_list_depends_on_the_grant_kind() {
             "agreement_list",
             "agreement_review",
             "agreement_start",
+            "code_lsp",
             "draft_start",
             "map_approve",
             "map_propose",
@@ -157,14 +158,12 @@ async fn the_tool_list_depends_on_the_grant_kind() {
             "agreement_list",
             "agreement_review",
             "agreement_start",
+            "code_lsp",
             "draft_prepare",
             "draft_start",
-            "outline",
             "plan_edit",
             "task_context",
             "task_get",
-            "where_is",
-            "who_uses",
             "workflow_get",
             "workflow_list",
             "workspace_get"
@@ -225,6 +224,7 @@ async fn the_legacy_initialize_lifecycle_works_without_a_session() {
             "agreement_list",
             "agreement_review",
             "agreement_start",
+            "code_lsp",
             "draft_start",
             "map_approve",
             "map_propose",
@@ -303,7 +303,7 @@ async fn the_discover_lifecycle_works_without_a_session() {
     let tools = answer["result"]["tools"]
         .as_array()
         .unwrap_or_else(|| panic!("{answer}"));
-    assert_eq!(tools.len(), 29, "{answer}");
+    assert_eq!(tools.len(), 30, "{answer}");
     assert_eq!(answer["result"]["cacheScope"], "private", "{answer}");
     // The Planner learns from the schema, not from a refusal, that an edit names no field.
     let propose = tools

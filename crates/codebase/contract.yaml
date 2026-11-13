@@ -71,6 +71,9 @@ shapes:
   CodebaseConfig:
     rescan_every: Duration   # default 60 s
     debounce: Duration       # default 500 ms
+    # Whether a scan extracts the name index's tags; default true, false in
+    # `AppCore::start` (the language servers answer instead).
+    name_index: bool
   Asker:
     # HTTP asks as a person, refusals INVALID_COMMAND; MCP under a grant,
     # refusals GRANT_SCOPE. Either names the project the scope starts from.
@@ -238,6 +241,7 @@ modules:
   store/inventory.rs: file inventory persistence
   lsp/mod.rs: the language servers a project's files want
   lsp/catalog.rs: the language-server catalog
+  lsp/ask.rs: answering a code_lsp question
   store/servers.rs: the person's server settings persistence
 
 dependencies:
@@ -282,6 +286,30 @@ functions:
     add_server_for_test: "test-support: store an added server with no command"
     ask_server_for_test: "test-support: one request to a running server"
     catalog_for_test: "test-support: the catalog's ids and extensions"
+    lsp:
+      signature: "(&self, asker: Asker<'_>, question: LspQuestion) -> Result<LspAnswer, CodebaseError>"
+      # The scope (its refusals first), `touch` of the asker's project; the
+      # project asked is `question.project` or the asker's. workspaceSymbol needs
+      # `query` and asks every running server, merged. Every other operation
+      # needs `file`: `inside`, then `real_file` (its real path must be that
+      # path inside the folder's real path, as `names_itself` checks for the
+      # index), and all but documentSymbol a one-based line and character. The
+      # server reading the file's extension, waited for up to 20 s while it
+      # starts; none running is NoServer with its state and, when not installed,
+      # its install line. The file's current text goes with the request
+      # (`Server::ask`, 20 s); incomingCalls and outgoingCalls prepare the call
+      # hierarchy first. A server failure (no answer in time, exit, an error) is
+      # `LanguageServer`. Locations become `{ project, path, line, character }`,
+      # one-based; one outside the scope is dropped; 100 items, 32 KiB.
+    real_file:
+      signature: "(dir: &Path, rel: &str) -> Result<PathBuf, CodebaseError>"
+      private: true
+    located:
+      signature: "(value: Value, roots: &[Root], file: &str) -> Value"
+      private: true
+    bounded:
+      signature: "(value: Value) -> (Value, bool)"
+      private: true
   construction:
     new: "(storage: Arc<Storage>, projects: Projects) -> Code"
     scan_for_test: "test-support: synchronous fixture scan"
@@ -772,7 +800,7 @@ called_by_other_services:
 enums:
   CodebaseError:
     source: codebase::CodebaseError
-    values: [InvalidCommand, GrantScope, InventoryStale, Projects, Storage]
+    values: [InvalidCommand, GrantScope, InventoryStale, LanguageServer, Projects, Storage]
   StorageError:
     source: core_db::StorageError
     values: []
@@ -785,6 +813,22 @@ enums:
 
 
 obligations:
+  - rule: >
+      A code_lsp file is read and sent to a server only when it is inside the
+      project by its real path: `../`, an absolute path and a link or junction
+      out of the folder are refused INVALID_COMMAND before any server is asked.
+    tested_by: code_lsp_refuses_a_link_out_of_the_project
+    note: also code_lsp_refuses_a_path_outside_the_project.
+  - rule: >
+      A server that does not answer never holds a question: each request ends
+      after 20 s with LanguageServer "the language server did not answer in time".
+    tested_by: a_slow_answer_times_out
+  - rule: >
+      A file whose language has no running server is answered NoServer, never
+      from the name index, which is off in the app (`name_index: false`): a
+      scan writes file rows and the inventory, and no tag.
+    tested_by: the_name_index_is_off_by_default
+    note: also code_lsp_answers_no_server_for_an_unknown_extension.
   - rule: >
       The files choose a project's language servers: while the project is
       active its worker runs each server one of whose extensions its files
@@ -1123,6 +1167,20 @@ tests:
     checks: An added server whose command exits at once (`cmd /c exit 3`) reads Failed.
   - name: a_cmd_shim_on_path_is_found
     checks: Windows only. `fake-ls.cmd` in a folder on the given PATH is found for `fake-ls`.
+  - name: code_lsp_finds_references_with_gopls
+    checks: Ignored, needs gopls. findReferences at a.go Hello (3:6) answers a.go and b.go, b.go at 4:9.
+  - name: code_lsp_answers_no_server_for_an_unknown_extension
+    checks: x.zz answers no_server with extension .zz and no server.
+  - name: code_lsp_refuses_a_path_outside_the_project
+    checks: ../x.go and an absolute path are INVALID_COMMAND.
+  - name: code_lsp_refuses_a_link_out_of_the_project
+    checks: src/out, a junction (symlink on Unix) out of the folder; src/out/x.go is refused.
+  - name: a_slow_answer_times_out
+    checks: An added server that answers initialize only; hover errs "did not answer in time" within 25 s.
+  - name: the_removed_code_tools_are_listed_nowhere
+    checks: No grant kind lists where_is, who_uses or outline; all three list code_lsp.
+  - name: the_name_index_is_off_by_default
+    checks: Through AppCore::start, a scanned .rs file has its row and no definition.
   - name: an_incomplete_listing_deletes_nothing
     checks: >
       A unit test in inventory.rs: an incomplete write without b.txt keeps

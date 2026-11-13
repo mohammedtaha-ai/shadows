@@ -18,7 +18,7 @@ tools: Read, Grep, Glob, Edit, Write, MultiEdit, Bash, TodoWrite
 - A test that fails because another task's code does not exist yet is expected. Name it in your
   report; do not work around it.
 - If the plan is wrong or cannot be carried out, stop and say why, with the evidence.
-- Ask `where_is`, `who_uses` and `outline` before you search the tree yourself.
+- Ask `code_lsp` (definitions, references, symbols) before you search the tree yourself.
 - When your work is done, you commit it yourself. First remove anything you created that is not
   your task's work (stray files, downloads, installed runtimes). Then stage only your own files
   inside your task's writes, by name, never with `git add -A` or `git add .`; leave every other
