@@ -614,6 +614,27 @@ async fn codex_modes_migrate_without_granting_write_access() {
     w.close().await;
 }
 
+/// A project that allows only Codex's `read-only` opens a new conversation
+/// there, not on the default `ask` it never allowed.
+#[tokio::test]
+async fn codex_opens_on_the_projects_mode_when_the_default_is_not_allowed() {
+    let w = World::start(false).await;
+    w.core
+        .projects()
+        .set_modes(
+            "read-only-only".into(),
+            &w.project,
+            [("codex".into(), vec![CODEX_READ_ONLY.into()])].into(),
+        )
+        .await
+        .unwrap();
+    let choices = w.core.harness().open_session(&w.thread).await.unwrap();
+    assert_eq!(choices.current.mode, CODEX_READ_ONLY);
+    let op = w.send_in(CODEX_READ_ONLY, "opened", "settings").await;
+    assert_eq!(w.done(&op).await.status_kind, "Completed");
+    w.close().await;
+}
+
 /// Applies the migrations before 0050 from copies of the checked-in files, so
 /// their checksums match, with one ordinary and one AYLUL project that allow
 /// Claude's `acceptEdits` only.

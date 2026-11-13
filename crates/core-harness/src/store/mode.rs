@@ -168,8 +168,22 @@ impl Harness {
                 Err(error) => return Err(error),
             }
         }
-        policy::default_mode(&context.harness)
-            .map(str::to_owned)
-            .ok_or_else(|| HarnessError::HarnessUnavailable(context.harness))
+        let default = policy::default_mode(&context.harness)
+            .ok_or_else(|| HarnessError::HarnessUnavailable(context.harness.clone()))?;
+        // A project that predates a program's default mode keeps the authority it
+        // was given: the default only when it allows it, else its first allowed
+        // mode in the policy's order. None allowed leaves the default, refused
+        // where a turn checks it.
+        let project = Projects::get_in(conn, &context.project_id).await?;
+        let allowed = project
+            .allowed_modes
+            .get(&context.harness)
+            .map(Vec::as_slice)
+            .unwrap_or_default();
+        let opening = std::iter::once(default)
+            .chain(policy::allowed_modes(&context.harness).iter().copied())
+            .find(|mode| allowed.iter().any(|m| m == mode))
+            .unwrap_or(default);
+        Ok(opening.to_owned())
     }
 }

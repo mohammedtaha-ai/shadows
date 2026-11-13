@@ -304,7 +304,9 @@ functions:
       # Equal replay preserves later choices; a different mode is CommandConflict.
     selected_mode_in:
       signature: "(conn, thread) -> Result<String, HarnessError>"
-      # Harness-only: remembered mode when still allowed, otherwise policy default.
+      # Harness-only: remembered mode when still allowed, otherwise the policy default
+      # when the project allows it, otherwise the project's first allowed mode in policy
+      # order (a project that predates Codex's `ask` opens on `read-only`).
     copy_mode_in:
       signature: "(conn, source, fork) -> Result<(), StorageError>"
       # Harness composes this after Threads::fork_in in the same transaction.

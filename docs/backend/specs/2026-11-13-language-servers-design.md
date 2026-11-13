@@ -185,7 +185,10 @@ its own only when it needs it.
   conversation has two modes, the person's choice (Mohammed, 2026-11-13, B-146):
   "Ask to approve" (`ask`, the default: sandbox `workspace-write`, approval `on-request`,
   each request a held card) and "Read only" (`read-only`: sandbox `read-only`, approval
-  `never`, nothing asked). A thread opens in the default mode; the picked mode is sent
+  `never`, nothing asked). A thread opens in the default mode when its project allows it,
+  otherwise in the project's first allowed mode: a project made before B-146 allows
+  `read-only` only (migration 0050) and keeps it until the person adds `ask`. The picked
+  mode is sent
   with every `turn/start` as `sandboxPolicy` and `approvalPolicy`
   (`shadows-agent/src/codex/session.rs`). In Read only the Planner cannot install a
   missing server, so its `person_ask` offers only "you install it" (with the install

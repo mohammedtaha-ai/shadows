@@ -394,6 +394,8 @@ Design: [language servers](specs/2026-11-13-language-servers-design.md) (Mohamme
 - Ruling: Mohammed, 2026-11-13, amending B-144. "Ask to approve" (`ask`, default:
   `workspace-write`, `on-request`) and "Read only" (`read-only`, `never`); the mode is
   sent on every `turn/start`. In Read only the Planner offers no install of its own.
+- Older projects: a project made before B-146 allows `read-only` only and opens there,
+  not on `ask` (`codex_opens_on_the_projects_mode_when_the_default_is_not_allowed`).
 - Design: [language servers](specs/2026-11-13-language-servers-design.md), "The Planner's shell and its changes".
 
 ### B-145 · Live acceptance
