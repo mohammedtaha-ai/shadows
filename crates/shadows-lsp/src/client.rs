@@ -110,8 +110,11 @@ impl Server {
             }
         });
 
-        let (main_loop, socket) = MainLoop::new_client(|_| {
-            let mut router = Router::new(());
+        // async-lsp's loop panics when every socket to it is dropped while it runs
+        // ("Sender is alive"), so its router keeps one: the loop then ends only when
+        // the server's stdout closes, which a refused start's kill makes happen.
+        let (main_loop, socket) = MainLoop::new_client(|own: ServerSocket| {
+            let mut router = Router::new(own);
             router
                 .unhandled_request(|_, request| {
                     // `workspace/configuration` wants one answer per item; every
@@ -127,7 +130,7 @@ impl Server {
                 .unhandled_notification(|_, _| ControlFlow::Continue(()));
             router
         });
-        tokio::spawn(async move {
+        let running = tokio::spawn(async move {
             let _ = main_loop
                 .run_buffered(stdout.compat(), stdin.compat_write())
                 .await;
@@ -181,6 +184,9 @@ impl Server {
             Ok(answer) => answer,
             Err(error) => {
                 server.kill();
+                // The loop ends with the killed process's stdout; a start that failed
+                // leaves no task behind.
+                let _ = tokio::time::timeout(Duration::from_secs(2), running).await;
                 return Err(error);
             }
         };

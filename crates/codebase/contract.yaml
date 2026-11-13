@@ -937,6 +937,11 @@ obligations:
       and is tried again at the next scan; one whose command is not found reads
       NotInstalled and is not started.
     tested_by: a_server_that_exits_reads_failed
+    note: >
+      shadows-lsp holds the start's side: a server that refuses initialize or
+      exits at once is that error and leaves no panic, since its client loop
+      keeps a socket to itself and ends with the server's stdout
+      (crates/shadows-lsp/tests/start.rs).
   - rule: >
       The index follows the files: a scan indexes a new file, re-indexes a
       changed one (its size or modified time differs), and deletes the rows
