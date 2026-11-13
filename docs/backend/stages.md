@@ -400,6 +400,10 @@ Design: [language servers](specs/2026-11-13-language-servers-design.md) (Mohamme
 
 ### B-145 · Live acceptance
 
-- Status: ready.
+- Status: done (2026-11-13) for the live tests: `crates/shadows/tests/language_servers_live.rs`,
+  `live_a_planner_asks_gopls` (Claude Code) and `live_a_codex_planner_asks_gopls` (Codex),
+  2 passed with gopls; each turn called `code_lsp` and named `b.go` and `c.go`. B-144's
+  `planner_permissions` live tests: 2 passed (Codex's first cold start timed out once, then
+  passed). Left: the browser acceptance on `testing3` (Mohammed), to be recorded here.
 - Plan: [Task B-145](plans/2026-11-13-slice-2-language-servers.md#task-b-145-live-acceptance).
 - Needs: B-141, B-144, F-115, F-116.
