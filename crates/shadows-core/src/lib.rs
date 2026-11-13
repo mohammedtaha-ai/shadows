@@ -14,7 +14,7 @@ pub use core_grants::{ApprovalRequest, ApprovedBy, Approver, Writer};
 pub use app::CoreParts;
 pub use app::{AppCore, StartConfig};
 pub use codebase::{
-    Answer, Asker, CodeSettings, Codebase, CodebaseConfig, Hit, IndexState, ProjectLink,
+    ActiveHold, Answer, Asker, Codebase, CodebaseConfig, Hit, IndexState, ProjectLink,
     ProjectStatus, Skipped,
 };
 // `StorageError`, `StartError` and `DirectoryError` are what `CoreError`

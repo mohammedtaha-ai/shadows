@@ -1,23 +1,14 @@
-//! Link command persistence and the active limit.
+//! Link persistence.
 
 use sqlx::SqliteConnection;
 
 use super::CodeStore;
 use crate::Codebase;
 use crate::model::ProjectLink;
-use core_db::{Actor, CommandContext, JournalEntry, Storage, StorageError};
+use core_db::{CommandContext, StorageError};
 use core_projects::{ProjectId, Projects};
 
 impl CodeStore {
-    /// How many projects are active at once: `code_setting.active_limit`.
-    pub(in super::super) async fn code_active_limit(&self) -> Result<i64, StorageError> {
-        Ok(
-            sqlx::query_scalar("SELECT active_limit FROM code_setting WHERE id = 1")
-                .fetch_one(self.storage.reader())
-                .await?,
-        )
-    }
-
     /// The projects `project` reads, by the linked slug.
     pub(in super::super) async fn code_links(
         &self,
@@ -47,49 +38,6 @@ impl CodeStore {
         out.sort_by(|a, b| a.linked.cmp(&b.linked));
         snapshot.commit().await?;
         Ok(out)
-    }
-
-    /// Sets `code_setting.active_limit`, already checked 1..=20. A replay
-    /// answers the limit it set, which its outcome ref holds.
-    pub(in super::super) async fn set_code_active_limit(
-        &self,
-        ctx: &CommandContext,
-        limit: u32,
-    ) -> Result<u32, StorageError> {
-        let (ctx, ts) = (ctx.clone(), Storage::now());
-        self.storage
-            .write_txn(move |conn| {
-                Box::pin(async move {
-                    if let Some(done) =
-                        CommandContext::classify(conn, &ctx, "Code", "settings").await?
-                    {
-                        return done
-                            .parse()
-                            .map_err(|_| StorageError::NotFound("active limit"));
-                    }
-                    sqlx::query("UPDATE code_setting SET active_limit = ? WHERE id = 1")
-                        .bind(i64::from(limit))
-                        .execute(&mut *conn)
-                        .await?;
-                    let event =
-                        JournalEntry::new("CodeActiveLimitSet", Actor::user(&ctx.principal_id))
-                            .with_payload(serde_json::json!({ "active_limit": limit }));
-                    JournalEntry::append_event(conn, event.clone(), &ts).await?;
-                    let set = limit.to_string();
-                    CommandContext::record_command(
-                        conn,
-                        &ctx,
-                        "Code",
-                        "settings",
-                        "CodeSetting",
-                        &set,
-                        &ts,
-                    )
-                    .await?;
-                    Ok(limit)
-                })
-            })
-            .await
     }
 }
 

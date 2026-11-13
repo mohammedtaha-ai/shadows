@@ -95,17 +95,6 @@ pub struct ProjectLink {
     pub created_at: String,
 }
 
-/// The code index's settings.
-#[derive(Debug, Clone, serde::Serialize, utoipa::ToSchema)]
-pub struct CodeSettings {
-    /// How many projects are active at once: 1 to 20, default 5.
-    pub active_limit: u32,
-    /// The least `active_limit` Core accepts.
-    pub active_limit_min: u32,
-    /// The most `active_limit` Core accepts.
-    pub active_limit_max: u32,
-}
-
 /// What a listing asks for. Built by an adapter; never deserialized.
 #[derive(Debug, Clone)]
 pub struct InventoryQuery {

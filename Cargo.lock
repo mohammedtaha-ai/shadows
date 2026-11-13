@@ -1055,7 +1055,6 @@ dependencies = [
 name = "core-threads"
 version = "0.1.0"
 dependencies = [
- "codebase",
  "core-agents",
  "core-db",
  "core-projects",

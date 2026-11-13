@@ -351,7 +351,7 @@ Design: [language servers](specs/2026-11-13-language-servers-design.md) (Mohamme
 
 ### B-140 · Activity is a sent message, with an idle stop
 
-- Status: ready.
+- Status: done.
 - Plan: [Task B-140](plans/2026-11-13-slice-2-language-servers.md#task-b-140-activity-is-a-sent-message-with-an-idle-stop).
 - Needs: B-139.
 

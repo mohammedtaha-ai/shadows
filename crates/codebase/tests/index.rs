@@ -1,60 +1,8 @@
 use std::sync::Arc;
 
-use codebase::{Asker, Codebase, CodebaseConfig, CodebaseError};
+use codebase::{Asker, Codebase, CodebaseError};
 use core_db::Storage;
 use core_projects::Projects;
-
-#[tokio::test]
-async fn startup_order_uses_creation_sequence_then_project_id_for_ties() {
-    let db = tempfile::tempdir().unwrap();
-    let dir = tempfile::tempdir().unwrap();
-    let storage = Arc::new(
-        Storage::open(&db.path().join("code.sqlite3"))
-            .await
-            .unwrap(),
-    );
-    let projects = Projects::new(storage.clone());
-    let mut ids = Vec::new();
-    for slug in ["zulu", "alpha", "middle"] {
-        ids.push(
-            projects
-                .create(slug.into(), slug, slug, dir.path().to_str().unwrap())
-                .await
-                .unwrap()
-                .id,
-        );
-    }
-    let code = Codebase::new(storage.clone(), projects.clone());
-    code.start(CodebaseConfig::default()).await.unwrap();
-    assert_eq!(
-        code.active_for_test().await,
-        ids.iter().rev().cloned().collect::<Vec<_>>(),
-        "creation sequence must decide startup order"
-    );
-    code.shut_down().await;
-    storage
-        .write_txn(|conn| {
-            Box::pin(async move {
-                sqlx::query("DELETE FROM durable_event WHERE kind = 'ProjectCreated'")
-                    .execute(conn)
-                    .await?;
-                Ok(())
-            })
-        })
-        .await
-        .unwrap();
-    ids.sort_by(|a, b| a.as_str().cmp(b.as_str()));
-    let code = Codebase::new(storage.clone(), projects);
-    code.start(CodebaseConfig::default()).await.unwrap();
-    assert_eq!(
-        code.active_for_test().await,
-        ids,
-        "equal activity sequences must sort by project id"
-    );
-    code.shut_down().await;
-
-    storage.close().await.unwrap();
-}
 
 #[tokio::test]
 async fn indexing_uses_the_public_constructor_and_keeps_scope_refusals_distinct() {
@@ -116,16 +64,6 @@ fn caller() { answer(); }
             .await,
         Err(CodebaseError::InvalidCommand(_))
     ));
-    assert!(matches!(
-        code.set_active_limit("invalid".into(), 0).await,
-        Err(CodebaseError::InvalidCommand(_))
-    ));
-    let settings = code.settings().await.unwrap();
-    assert_eq!(settings.active_limit, 5);
-    assert_eq!(
-        (settings.active_limit_min, settings.active_limit_max),
-        (1, 20)
-    );
     code.shut_down().await;
 
     storage.close().await.unwrap();

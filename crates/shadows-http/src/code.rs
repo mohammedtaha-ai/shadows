@@ -12,8 +12,7 @@ use axum::http::StatusCode;
 use super::failure::ErrorBody;
 use super::{AppState, Failure};
 use shadows_core::{
-    Answer, Asker, CodeSettings, InventoryPage, InventoryQuery, ProjectId, ProjectLink,
-    ProjectStatus,
+    Answer, Asker, InventoryPage, InventoryQuery, ProjectId, ProjectLink, ProjectStatus,
 };
 
 #[derive(serde::Deserialize, utoipa::IntoParams)]
@@ -318,54 +317,3 @@ pub(super) async fn remove_link(
         .await?;
     Ok(StatusCode::NO_CONTENT)
 }
-
-/// The code index's settings.
-#[utoipa::path(
-    get,
-    path = "/api/code/settings",
-    tag = "code",
-    responses(
-        (status = 200, body = CodeSettings),
-        (status = 500, description = "STORAGE_UNAVAILABLE", body = ErrorBody),
-    )
-)]
-pub(super) async fn get_settings(State(s): State<AppState>) -> Result<Json<CodeSettings>, Failure> {
-    Ok(Json(s.core.codebase().settings().await?))
-}
-
-#[derive(serde::Deserialize, utoipa::ToSchema)]
-pub(super) struct PutSettings {
-    /// The idempotency key.
-    command_id: String,
-    /// How many projects are active at once: 1 to 20.
-    active_limit: u32,
-}
-
-/// Sets how many projects are active at once. Lowering it stops the
-/// least recently used projects' watchers at once.
-#[utoipa::path(
-    put,
-    path = "/api/code/settings",
-    tag = "code",
-    request_body = PutSettings,
-    responses(
-        (status = 200, description = "Set, or the replay of the same command", body = CodeSettings),
-        (status = 409, description = "COMMAND_CONFLICT", body = ErrorBody),
-        (status = 422, description = "INVALID_COMMAND: outside 1 to 20", body = ErrorBody),
-        (status = 500, description = "STORAGE_UNAVAILABLE", body = ErrorBody),
-    )
-)]
-pub(super) async fn put_settings(
-    State(s): State<AppState>,
-    Json(body): Json<PutSettings>,
-) -> Result<Json<CodeSettings>, Failure> {
-    let code = s.core.codebase();
-    Ok(Json(
-        code.set_active_limit(body.command_id, body.active_limit)
-            .await?,
-    ))
-}
-
-#[cfg(test)]
-#[path = "code_tests.rs"]
-mod code_tests;

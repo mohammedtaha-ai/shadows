@@ -1,7 +1,6 @@
 // Each test binary reads a different part of the fixture.
 #![allow(dead_code)]
 
-use codebase::Codebase;
 use core_agents::{AgentInput, Agents};
 use core_db::Storage;
 use core_messages::Messages;
@@ -62,11 +61,7 @@ pub async fn fixture() -> Fixture {
             .await
             .unwrap();
     }
-    let threads = Arc::new(Threads::new(
-        storage.clone(),
-        Codebase::new(storage.clone(), projects.clone()),
-        projects,
-    ));
+    let threads = Arc::new(Threads::new(storage.clone(), projects));
     let messages = Messages::new(storage.clone(), agents.clone());
     Fixture {
         _tmp: tmp,

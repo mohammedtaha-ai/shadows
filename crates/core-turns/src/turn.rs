@@ -74,6 +74,8 @@ pub(crate) struct TurnWatch {
     pub cancel_requested: Arc<AtomicBool>,
     /// called after a `Completed` is recorded, and after nothing else.
     pub on_completed: Option<OnCompleted>,
+    /// Dropped when the watch ends: the project's idle time starts then.
+    pub _hold: Option<codebase::ActiveHold>,
     pub span: tracing::Span,
 }
 

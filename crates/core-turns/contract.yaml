@@ -340,8 +340,9 @@ functions:
       # (`auto`) and nothing else, so a project's modes never decide how an
       # attempt runs.
       # Once the checks up to the busy check pass, before the session is
-      # opened: `Code::touch` of the thread's project (§15.6), which never
-      # fails or delays the turn.
+      # opened: `Codebase::touch` of the thread's project, which never
+      # fails or delays the turn; the started turn holds an `ActiveHold` of the
+      # project until it settles, so a long turn keeps it active.
     queue:
       signature: "(&self, thread: ThreadId, turn: SendTurn) -> Result<Queued, TurnsError>"
       # §20.2, "turn.queue": a waiting message on a busy thread; on an idle

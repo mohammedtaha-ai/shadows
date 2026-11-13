@@ -156,7 +156,6 @@ pattern to follow, not merely an example.
 | `crates/shadows-http/src/roadmap.rs` | the routes over roadmap proposals | `crates/shadows-http/src/roadmap.rs` |
 | `crates/shadows-http/src/agreements.rs` | the routes over shared API agreements | `crates/shadows-http/src/agreements.rs` |
 | `crates/shadows-http/src/code.rs` | the routes over the code index | `crates/shadows-http/src/code.rs` |
-| `crates/shadows-http/src/code_tests.rs` | the tests of the code index routes | `crates/shadows-http/src/code_tests.rs` |
 | `crates/shadows-http/src/sse.rs` | the replay-then-live stream's SSE framing | `crates/shadows-http/src/sse.rs` |
 | `crates/shadows-http/src/fs.rs` | choosing a project directory on this machine | `crates/shadows-http/src/fs.rs` |
 | `crates/shadows-http/src/openapi.rs` | the OpenAPI document describing this API | `crates/shadows-http/src/openapi.rs` |
@@ -331,8 +330,8 @@ pattern to follow, not merely an example.
 | `crates/codebase/src/scan.rs` | walking a project's folder into the index | `crates/codebase/src/scan.rs` |
 | `crates/codebase/src/scope.rs` | what a code question may read | `crates/codebase/src/scope.rs` |
 | `crates/codebase/src/watch.rs` | keeping one active project's index current | `crates/codebase/src/watch.rs` |
-| `crates/codebase/src/active.rs` | which projects are active, in order of use | `crates/codebase/src/active.rs` |
-| `crates/codebase/src/links.rs` | the commands over links or the active limit | `crates/codebase/src/links.rs` |
+| `crates/codebase/src/active.rs` | which projects are active | `crates/codebase/src/active.rs` |
+| `crates/codebase/src/links.rs` | reading a project's links | `crates/codebase/src/links.rs` |
 | `crates/core-events/src/` | what clients watch live | `crates/core-events/src/lib.rs` |
 | `crates/core-events/src/model.rs` | journal replay cursor | `crates/core-events/src/model.rs` |
 | `crates/core-events/src/subscription.rs` | one subscriber's replay-then-live stream | `crates/core-events/src/subscription.rs` |

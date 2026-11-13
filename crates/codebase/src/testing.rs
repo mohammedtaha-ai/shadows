@@ -25,3 +25,13 @@ impl crate::Codebase {
         self.shut_down().await
     }
 }
+
+impl crate::Codebase {
+    /// A project goes idle after `idle` instead of the default; the sweep looks
+    /// that often.
+    pub fn idle_for_test(&self, idle: std::time::Duration) {
+        if let Ok(mut now) = self.inner.idle.lock() {
+            *now = idle;
+        }
+    }
+}

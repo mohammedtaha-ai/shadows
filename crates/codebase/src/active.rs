@@ -1,12 +1,14 @@
-//! One job: which projects are active, in order of use.
+//! One job: which projects are active.
 //!
-//! The order is kept in memory, never stored: after a restart it starts
-//! again from the last turns. The first `active_limit` projects in it are
-//! active, and each active project has exactly one worker; `settle` makes the
-//! workers follow the order after every change.
+//! A project is active while it is used: a sent message, a code question or a
+//! running piece of work (an `ActiveHold`) makes it so, and a sweep stops its
+//! worker once it has gone unused for the idle time. Each active project has
+//! exactly one worker. Nothing is stored: after a restart a project waits for
+//! its next use.
 
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::time::{Duration, Instant};
 
 use tokio::task::JoinHandle;
 
@@ -15,14 +17,151 @@ use super::model::CodebaseConfig;
 use super::watch::Worker;
 use core_projects::ProjectId;
 
-/// The order of use and the workers of the active projects.
+/// How long a project goes unused before its worker stops.
+pub(super) const IDLE: Duration = Duration::from_secs(10 * 60);
+/// The longest the sweep sleeps between two looks.
+const SWEEP_EVERY: Duration = Duration::from_secs(30);
+
+/// When a project was last used, and how many holds keep it active now.
+#[derive(Debug, Clone, Copy)]
+pub(super) struct Usage {
+    last: Instant,
+    holds: usize,
+}
+
+/// The use of every project, kept apart from `Active` so a hold's drop, which
+/// cannot await, records its end at once.
+#[derive(Default)]
+pub(super) struct Uses {
+    by_project: HashMap<ProjectId, Usage>,
+}
+
+impl Uses {
+    /// A use now: the idle time starts again.
+    pub(super) fn used(&mut self, project: &ProjectId) {
+        let usage = self.by_project.entry(project.clone()).or_insert(Usage {
+            last: Instant::now(),
+            holds: 0,
+        });
+        usage.last = Instant::now();
+    }
+
+    pub(super) fn hold(&mut self, project: &ProjectId) {
+        self.used(project);
+        if let Some(usage) = self.by_project.get_mut(project) {
+            usage.holds += 1;
+        }
+    }
+
+    /// A hold ended: it counts as a use, so the idle time starts now.
+    pub(super) fn release(&mut self, project: &ProjectId) {
+        if let Some(usage) = self.by_project.get_mut(project) {
+            usage.holds = usage.holds.saturating_sub(1);
+            usage.last = Instant::now();
+        }
+    }
+
+    /// Whether the project went unused, with no hold, for `idle`.
+    pub(super) fn idle(&self, project: &ProjectId, idle: Duration) -> bool {
+        self.by_project
+            .get(project)
+            .is_none_or(|u| u.holds == 0 && u.last.elapsed() >= idle)
+    }
+
+    pub(super) fn forget(&mut self, project: &ProjectId) {
+        self.by_project.remove(project);
+    }
+}
+
+/// Keeps a project active while it lives: a running turn or attempt holds one.
+/// Its drop counts as a use, so the idle time starts when the work ends.
+pub struct ActiveHold {
+    code: Codebase,
+    project: ProjectId,
+}
+
+impl Drop for ActiveHold {
+    fn drop(&mut self) {
+        if let Ok(mut uses) = self.code.inner.uses.lock() {
+            uses.release(&self.project);
+        }
+    }
+}
+
+impl std::fmt::Debug for ActiveHold {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ActiveHold")
+            .field("project", &self.project)
+            .finish()
+    }
+}
+
+impl Codebase {
+    /// Keeps `project` active until the answer drops; activates it now.
+    pub async fn hold(&self, project: &ProjectId) -> ActiveHold {
+        if let Ok(mut uses) = self.inner.uses.lock() {
+            uses.hold(project);
+        }
+        self.activate(project).await;
+        ActiveHold {
+            code: self.clone(),
+            project: project.clone(),
+        }
+    }
+
+    /// Stops the worker of every active project that went unused for the idle
+    /// time with no hold. Its rows stay.
+    pub(super) async fn sweep(&self) {
+        let idle = self.idle_time();
+        let mut active = self.inner.active.lock().await;
+        let unused: Vec<ProjectId> = match self.inner.uses.lock() {
+            Ok(uses) => active
+                .active()
+                .into_iter()
+                .filter(|p| uses.idle(p, idle))
+                .collect(),
+            Err(_) => Vec::new(),
+        };
+        for project in unused {
+            active.stop(&project);
+        }
+    }
+
+    /// The idle time, which a test shortens.
+    pub(super) fn idle_time(&self) -> Duration {
+        self.inner.idle.lock().map(|d| *d).unwrap_or(IDLE)
+    }
+
+    /// The sweep's task: it holds the service weakly, so it ends with it, and
+    /// looks every `SWEEP_EVERY` or every idle time, whichever is shorter.
+    pub(super) fn spawn_sweep(&self) {
+        let weak = std::sync::Arc::downgrade(&self.inner);
+        tokio::spawn(async move {
+            loop {
+                let every = match weak.upgrade() {
+                    Some(inner) => {
+                        let code = Codebase { inner };
+                        if !code.inner.active.lock().await.running() {
+                            return;
+                        }
+                        code.idle_time().min(SWEEP_EVERY)
+                    }
+                    None => return,
+                };
+                tokio::time::sleep(every).await;
+                match weak.upgrade() {
+                    Some(inner) => Codebase { inner }.sweep().await,
+                    None => return,
+                }
+            }
+        });
+    }
+}
+
+/// The active projects' workers.
 #[derive(Default)]
 pub(super) struct Active {
-    /// Most recent first; only projects with a folder.
-    order: Vec<ProjectId>,
-    /// Each ordered project's folder, which never changes.
-    dirs: HashMap<ProjectId, PathBuf>,
-    /// Touches before `start`, oldest first.
+    /// Uses before `start`, oldest first.
     early: Vec<ProjectId>,
     running: Option<Running>,
     /// `shut_down` ran: nothing starts again.
@@ -31,10 +170,9 @@ pub(super) struct Active {
 
 struct Running {
     config: CodebaseConfig,
-    limit: usize,
     workers: HashMap<ProjectId, Worker>,
-    /// The tasks of workers past the limit, finishing the file they are on,
-    /// by project: a project active again waits for its own before its new
+    /// The tasks of stopped workers, finishing the file they are on, by
+    /// project: a project active again waits for its own before its new
     /// worker starts, so one project never has two writers, and `close`
     /// hands the rest to shutdown, so none outlives it.
     leaving: HashMap<ProjectId, JoinHandle<()>>,
@@ -46,8 +184,7 @@ impl Active {
         self.running.is_some()
     }
 
-    /// Before `start`, a touch only records the use: once per project, at
-    /// its last use, so a core whose `start` never ran does not grow it.
+    /// Before `start`, a use only records the project, once, at its last use.
     pub(super) fn record(&mut self, project: &ProjectId) {
         if !self.closed {
             self.early.retain(|p| p != project);
@@ -55,99 +192,49 @@ impl Active {
         }
     }
 
-    /// `start`: the order the database gives, most recent first; answers the
-    /// touches recorded before it, oldest first, for the caller to apply.
-    pub(super) fn begin(
-        &mut self,
-        order: Vec<(ProjectId, PathBuf)>,
-        limit: usize,
-        config: CodebaseConfig,
-    ) -> Vec<ProjectId> {
+    /// `start`: answers the uses recorded before it, oldest first, for the
+    /// caller to activate.
+    pub(super) fn begin(&mut self, config: CodebaseConfig) -> Vec<ProjectId> {
         if self.closed || self.running.is_some() {
             return Vec::new();
         }
-        for (id, dir) in order {
-            self.order.push(id.clone());
-            self.dirs.insert(id, dir);
-        }
         self.running = Some(Running {
             config,
-            limit,
             workers: HashMap::new(),
             leaving: HashMap::new(),
         });
         std::mem::take(&mut self.early)
     }
 
-    /// A use of the first of `rows`: its direct links (the rest) become the
-    /// most recent, in their order, then it does, so it is always first and
-    /// the links touched first are the first to leave. A project
-    /// with no folder takes no place.
-    pub(super) fn used(&mut self, rows: &[(ProjectId, Option<PathBuf>)]) {
-        for (id, dir) in rows.iter().skip(1).chain(rows.first()) {
-            let Some(dir) = dir else {
-                continue;
-            };
-            self.order.retain(|p| p != id);
-            self.order.insert(0, id.clone());
-            self.dirs.insert(id.clone(), dir.clone());
-        }
-    }
-
-    /// A new `active_limit`, which the next `settle` follows. Before `start`
-    /// there is nothing to change: `start` reads the stored limit.
-    pub(super) fn limit(&mut self, limit: usize) {
-        if let Some(running) = &mut self.running {
-            running.limit = limit;
-        }
-    }
-
-    /// Every active project gets a worker, which scans at once; every
-    /// project past the limit loses its worker, and its index stays.
-    pub(super) fn settle(&mut self, code: &Codebase) {
+    /// The project gets a worker, which scans at once, unless it has one.
+    pub(super) fn activate(&mut self, code: &Codebase, project: &ProjectId, dir: PathBuf) {
         let Some(running) = &mut self.running else {
             return;
         };
         running.leaving.retain(|_, task| !task.is_finished());
-        let active = &self.order[..self.order.len().min(running.limit)];
-        let gone: Vec<ProjectId> = running
-            .workers
-            .keys()
-            .filter(|p| !active.contains(p))
-            .cloned()
-            .collect();
-        for p in gone {
-            if let Some(worker) = running.workers.remove(&p) {
-                tracing::info!(project = p.as_str(), "code.inactive");
-                running.leaving.insert(p, worker.stop());
-            }
+        if running.workers.contains_key(project) {
+            return;
         }
-        for p in active {
-            if !running.workers.contains_key(p)
-                && let Some(dir) = self.dirs.get(p)
-            {
-                tracing::info!(project = p.as_str(), "code.active");
-                let before = running.leaving.remove(p);
-                let worker =
-                    Worker::spawn(code.clone(), p.clone(), dir.clone(), running.config, before);
-                running.workers.insert(p.clone(), worker);
-            }
-        }
+        tracing::info!(project = project.as_str(), "code.active");
+        let before = running.leaving.remove(project);
+        let worker = Worker::spawn(code.clone(), project.clone(), dir, running.config, before);
+        running.workers.insert(project.clone(), worker);
     }
 
-    /// The project was removed: it leaves the order, and its worker
-    /// stops after the file it is on, its task kept in `leaving` for
-    /// `close`. The caller's `settle` gives its place to the next project.
-    pub(super) fn forget(&mut self, project: &ProjectId) {
-        self.order.retain(|p| p != project);
-        self.dirs.remove(project);
-        self.early.retain(|p| p != project);
+    /// The project's worker stops after the file it is on; its index stays.
+    pub(super) fn stop(&mut self, project: &ProjectId) {
         if let Some(running) = &mut self.running
             && let Some(worker) = running.workers.remove(project)
         {
-            tracing::info!(project = project.as_str(), "code.removed");
+            tracing::info!(project = project.as_str(), "code.inactive");
             running.leaving.insert(project.clone(), worker.stop());
         }
+    }
+
+    /// The project was removed: its worker stops, and an early use is dropped.
+    pub(super) fn forget(&mut self, project: &ProjectId) {
+        self.early.retain(|p| p != project);
+        self.stop(project);
     }
 
     /// The active project's worker, if it is active.
@@ -155,11 +242,15 @@ impl Active {
         self.running.as_ref()?.workers.get(project)
     }
 
-    /// The active projects, most recent first.
-    #[cfg(feature = "test-support")]
+    /// The active projects, by id.
     pub(super) fn active(&self) -> Vec<ProjectId> {
-        let limit = self.running.as_ref().map_or(0, |r| r.limit);
-        self.order.iter().take(limit).cloned().collect()
+        let mut active: Vec<ProjectId> = self
+            .running
+            .as_ref()
+            .map(|r| r.workers.keys().cloned().collect())
+            .unwrap_or_default();
+        active.sort_by(|a, b| a.as_str().cmp(b.as_str()));
+        active
     }
 
     /// Stops every worker; answers their tasks, and those of the workers

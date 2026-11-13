@@ -1,4 +1,3 @@
-# Index access and project reach use codebase.
 # Project identities and registration methods are imported from core-projects.
 # Database infrastructure: core-db; domain rules and private stores remain here.
 # Harness::set_thread_harness owns the close after its guarded command commits.
@@ -71,7 +70,6 @@ modules:
 
 dependencies:
   projects: crates/core-projects/contract.yaml
-  code: crates/codebase/contract.yaml
   agents: crates/core-agents/contract.yaml
 
 # OperationRef, WorkflowRef and TaskRef are opaque provenance strings, interpreted by their owners.
@@ -98,8 +96,6 @@ shapes:
   Threads:
     store: ThreadsStore
     projects: Projects
-    # A clone of the core's `Codebase`: `list` touches the project (§15.6).
-    code: Code
   ThreadsStore:
     storage: Arc<Storage> # Private to threads; uses the existing shared handle.
   PlanningThread:
@@ -195,8 +191,7 @@ functions:
       # Latest AgentMessage append event sequence first. Unanswered threads
       # follow, newest PlanningThreadCreated sequence first, then id.
       # An unknown project has none.
-      # Then `Code::touch` of the project: the web client opening a project
-      # lists its threads (§15.6). It never fails the listing.
+      # It does not touch the project: listing is not a use.
     create:
       signature: "(&self, command_id: String, project: &ProjectId, title: &str, harness: Option<&str>, profile: Option<&str>) -> Result<PlanningThread, ThreadsError>"
       # harness or `claude-code` → `Projects::known_harness` →

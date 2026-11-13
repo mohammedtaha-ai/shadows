@@ -1,12 +1,12 @@
-//! One job: the code index  — the `Codebase` service. It walks
+//! One job: a project's code on disk — the `Codebase` service. It walks
 //! a project's folder into SQLite, keeps it current while the project is
-//! active, and answers three questions from it: where a name is defined, who
-//! uses it, and what a path holds.
+//! active, runs the language servers its files want, and answers questions
+//! about it.
 //!
 //! `model` holds the types, `store` the queries, `scan` the walk and the
 //! indexing of one file, `scope` who may read what, `watch` one active
-//! project's worker, `active` which projects have one, `links` the links
-//! and the active limit as commands, `inventory` the paged file list.
+//! project's worker, `active` which projects have one, `links` the links as
+//! commands, `inventory` the paged file list, `lsp` the language servers.
 
 mod active;
 mod inventory;
@@ -22,10 +22,10 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
+pub use active::ActiveHold;
 pub use model::{
-    Answer, CodeSettings, CodebaseConfig, Hit, IndexState, InventoryEntry, InventoryKind,
-    InventoryPage, InventoryQuery, InventoryState, ProjectLink, ProjectStatus, ServerState,
-    ServerStatus, Skipped,
+    Answer, CodebaseConfig, Hit, IndexState, InventoryEntry, InventoryKind, InventoryPage,
+    InventoryQuery, InventoryState, ProjectLink, ProjectStatus, ServerState, ServerStatus, Skipped,
 };
 pub use scope::Asker;
 
@@ -33,7 +33,7 @@ mod error;
 pub use error::CodebaseError;
 #[cfg(feature = "test-support")]
 mod testing;
-use active::Active;
+use active::{Active, Uses};
 use core_db::Storage;
 use core_projects::{ProjectId, Projects};
 use store::{CodeStore, ScopeRow};
@@ -48,10 +48,14 @@ struct Inner {
     store: CodeStore,
     projects: Projects,
     active: tokio::sync::Mutex<Active>,
+    /// When each project was last used, and its holds.
+    uses: std::sync::Mutex<Uses>,
+    /// How long a project goes unused before its worker stops.
+    idle: std::sync::Mutex<Duration>,
 }
 
-/// The code index. Cheap to clone: `ProjectLifecycle`, `Threads` and `Turns` hold a
-/// clone to call `touch`, and each worker holds one.
+/// A project's code on disk. Cheap to clone: `ProjectLifecycle`, `Turns` and `Runs`
+/// hold a clone, and each worker holds one.
 #[derive(Clone)]
 pub struct Codebase {
     inner: Arc<Inner>,
@@ -64,67 +68,57 @@ impl Codebase {
                 store: CodeStore::with_storage(storage),
                 projects,
                 active: Default::default(),
+                uses: Default::default(),
+                idle: std::sync::Mutex::new(active::IDLE),
             }),
         }
     }
 
-    /// Projects with a directory, in the owner's explicit activity order.
-    async fn code_order(&self) -> Result<Vec<(ProjectId, String)>, CodebaseError> {
-        Ok(self
-            .inner
-            .projects
-            .by_recent_activity()
-            .await?
-            .into_iter()
-            .filter_map(|p| p.directory.map(|dir| (p.id, dir)))
-            .collect())
-    }
-
-    /// Chooses the active set and starts a worker per active project;
-    /// it waits for no scan. `AppCore::start` calls it with the default; a
-    /// test calls it when it wants workers.
+    /// Starts the workers of the projects used before it, and the sweep that
+    /// stops idle ones; it waits for no scan. `AppCore::start` calls it with the
+    /// default; a test calls it when it wants workers.
     pub async fn start(&self, config: CodebaseConfig) -> Result<(), CodebaseError> {
-        let store = &self.inner.store;
-        let order = self.code_order().await?;
-        let order = order
-            .into_iter()
-            .map(|(id, dir)| (id, PathBuf::from(dir)))
-            .collect();
-        let mut active = self.inner.active.lock().await;
-        // Under the lock, as `set_active_limit` reads it: a limit set before
-        // `begin` is not lost.
-        let limit = store.code_active_limit().await?.max(1) as usize;
-        for early in active.begin(order, limit, config) {
-            if let Some(rows) = self.used_rows(&early).await {
-                active.used(&rows);
-            }
+        let early = self.inner.active.lock().await.begin(config);
+        for project in early {
+            self.activate(&project).await;
         }
-        active.settle(self);
+        self.spawn_sweep();
         Ok(())
     }
 
-    /// The project was used: its links, then it, become the most
-    /// recent, and active; the scan runs in its worker. It never fails its
-    /// caller: a failure is logged. Before `start`, it only records the use.
+    /// The project was used: the idle time starts again, and its worker starts
+    /// if none runs; the scan runs in the worker. Its links are not activated.
+    /// It never fails its caller: a failure is logged. Before `start`, it only
+    /// records the use.
     pub async fn touch(&self, project: &ProjectId) {
+        if let Ok(mut uses) = self.inner.uses.lock() {
+            uses.used(project);
+        }
+        self.activate(project).await;
+    }
+
+    /// Gives `project` a worker if it has a folder and none runs.
+    async fn activate(&self, project: &ProjectId) {
         let mut active = self.inner.active.lock().await;
         if !active.running() {
             active.record(project);
             return;
         }
-        if let Some(rows) = self.used_rows(project).await {
-            active.used(&rows);
-            active.settle(self);
+        if active.worker(project).is_some() {
+            return;
+        }
+        if let Some(dir) = self.folder(project).await {
+            active.activate(self, project, dir);
         }
     }
 
-    /// The project was removed: its watcher and worker stop, and it
-    /// leaves the active set, whose next project takes its place. It never
-    /// fails its caller; the rows went in the removal's own write.
+    /// The project was removed: its watcher and worker stop. It never fails
+    /// its caller; the rows went in the removal's own write.
     pub async fn forget(&self, project: &ProjectId) {
-        let mut active = self.inner.active.lock().await;
-        active.forget(project);
-        active.settle(self);
+        if let Ok(mut uses) = self.inner.uses.lock() {
+            uses.forget(project);
+        }
+        self.inner.active.lock().await.forget(project);
     }
 
     /// Stops every watcher and worker; a worker finishes the file it is on.
@@ -143,21 +137,20 @@ impl Codebase {
         }
     }
 
-    /// The active projects, most recent first.
+    /// The active projects.
     #[cfg(feature = "test-support")]
     pub(crate) async fn active_projects(&self) -> Vec<ProjectId> {
         self.inner.active.lock().await.active()
     }
 
-    /// The project and its direct links, each with its folder, or `None` logged.
-    async fn used_rows(&self, project: &ProjectId) -> Option<Vec<(ProjectId, Option<PathBuf>)>> {
+    /// The project's folder, or `None`: no folder, or an unknown project (logged
+    /// unless unknown).
+    async fn folder(&self, project: &ProjectId) -> Option<PathBuf> {
         match self.inner.store.code_scope(project).await {
-            Ok(rows) => Some(
-                rows.into_iter()
-                    .map(|(id, _, dir)| (id, dir.map(PathBuf::from)))
-                    .collect(),
-            ),
-            // An unknown project, as `Threads::list` may be asked for, is no use.
+            Ok(rows) => rows
+                .into_iter()
+                .find(|(id, _, _)| id == project)
+                .and_then(|(_, _, dir)| dir.map(PathBuf::from)),
             Err(core_db::StorageError::NotFound(_)) => None,
             Err(error) => {
                 tracing::warn!(project = project.as_str(), error = %error, "code.touch_failed");

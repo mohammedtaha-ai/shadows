@@ -433,11 +433,7 @@ impl AppCore {
         } = parts;
         let code = Codebase::new(storage.clone(), projects.clone());
         let harness = sessions.clone();
-        let threads = Arc::new(Threads::new(
-            storage.clone(),
-            code.clone(),
-            projects.clone(),
-        ));
+        let threads = Arc::new(Threads::new(storage.clone(), projects.clone()));
         let AylulOwners {
             providers,
             agents,

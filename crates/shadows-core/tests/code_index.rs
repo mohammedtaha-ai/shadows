@@ -232,38 +232,115 @@ async fn watching_and_the_periodic_scan_keep_the_index_true() {
         .unwrap();
 }
 
+/// Sends one message in a new thread of `project`. No adapter runs here, so the
+/// turn itself fails to open its session; the use is what counts.
+async fn send_a_message(core: &AppCore, project: &ProjectId) {
+    let thread = core
+        .threads()
+        .create("t-send".into(), project, "Chat", None, None)
+        .await
+        .unwrap();
+    let _ = core
+        .turns()
+        .send(
+            thread.id.clone(),
+            shadows_core::SendTurn {
+                command_id: "send-1".into(),
+                prompt: "hello".into(),
+                attachments: vec![],
+                model: "default".into(),
+                mode: "default".into(),
+                effort: None,
+                focus: None,
+                plan: None,
+                client_tab: None,
+            },
+        )
+        .await;
+}
+
+async fn inactive(core: &AppCore, project: &ProjectId) -> bool {
+    matches!(
+        core.codebase().status(project).await.unwrap().state,
+        IndexState::Inactive
+    )
+}
+
 #[tokio::test]
-async fn only_the_most_recent_projects_are_watched() {
-    let (core, projects, _dirs) = core_with_projects(6).await;
+async fn a_sent_message_activates_its_project() {
+    let (core, project, _dir, _db) = core_with_project().await;
     core.codebase()
         .start(CodebaseConfig::default())
         .await
         .unwrap();
-    let active = core.codebase().active_for_test().await;
-    assert_eq!(active.len(), 5);
-    let sixth = projects.iter().find(|p| !active.contains(p)).unwrap();
-    // Asking the sixth brings it in: its answer says it is indexing, not an error.
-    let a = core.codebase().status(sixth).await.unwrap();
-    assert!(matches!(a.state, IndexState::Inactive));
-    let q = core
-        .codebase()
-        .definitions(Asker::Person(sixth), None, "p0")
+    assert!(inactive(&core, &project).await);
+    send_a_message(&core, &project).await;
+    assert!(!inactive(&core, &project).await);
+    core.codebase().shut_down_for_test().await;
+}
+
+#[tokio::test]
+async fn listing_threads_does_not_activate() {
+    let (core, project, _dir, _db) = core_with_project().await;
+    core.codebase()
+        .start(CodebaseConfig::default())
         .await
         .unwrap();
-    assert!(matches!(
-        q.status[0].state,
-        IndexState::Indexing { .. } | IndexState::Ready
-    ));
-    let now = core.codebase().active_for_test().await;
-    assert_eq!(now.len(), 5);
-    assert!(now.contains(sixth));
-    assert!(
-        !now.contains(&active[active.len() - 1]),
-        "the least recently used left"
+    core.threads().list(&project).await.unwrap();
+    assert!(inactive(&core, &project).await);
+    core.codebase().shut_down_for_test().await;
+}
+
+#[tokio::test]
+async fn an_idle_project_stops() {
+    let (core, project, _dir, _db) = core_with_project().await;
+    core.codebase().idle_for_test(Duration::from_secs(1));
+    core.codebase()
+        .start(CodebaseConfig::default())
+        .await
+        .unwrap();
+    core.codebase().touch(&project).await;
+    assert!(!inactive(&core, &project).await);
+    tokio::time::sleep(Duration::from_secs(3)).await;
+    assert!(inactive(&core, &project).await);
+    assert!(core.codebase().active_for_test().await.is_empty());
+    core.codebase().shut_down_for_test().await;
+}
+
+#[tokio::test]
+async fn a_touch_does_not_activate_links() {
+    let (core, projects, _dirs) = core_with_projects(2).await;
+    core.plans()
+        .link_projects("link-1".into(), &projects[0], &projects[1])
+        .await
+        .unwrap();
+    core.codebase()
+        .start(CodebaseConfig::default())
+        .await
+        .unwrap();
+    core.codebase().touch(&projects[0]).await;
+    assert_eq!(
+        core.codebase().active_for_test().await,
+        [projects[0].clone()]
     );
     core.codebase().shut_down_for_test().await;
+}
 
-    core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
+#[tokio::test]
+async fn a_held_project_outlives_the_idle_time() {
+    let (core, project, _dir, _db) = core_with_project().await;
+    core.codebase().idle_for_test(Duration::from_secs(1));
+    core.codebase()
+        .start(CodebaseConfig::default())
         .await
         .unwrap();
+    let hold = core.codebase().hold(&project).await;
+    tokio::time::sleep(Duration::from_secs(3)).await;
+    assert!(!inactive(&core, &project).await, "held past the idle time");
+    drop(hold);
+    tokio::time::sleep(Duration::from_millis(500)).await;
+    assert!(!inactive(&core, &project).await, "the drop is a use");
+    tokio::time::sleep(Duration::from_secs(3)).await;
+    assert!(inactive(&core, &project).await);
+    core.codebase().shut_down_for_test().await;
 }

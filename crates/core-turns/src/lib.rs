@@ -318,8 +318,9 @@ impl Turns {
             None => None,
         };
         self.sessions.check_idle(&thread_id, &context).await?;
-        // The checks passed: a turn starts in this project, which is used.
-        self.code.touch(&context.project_id).await;
+        // The checks passed: a turn starts in this project, which it keeps active
+        // until it settles.
+        let hold = self.code.hold(&context.project_id).await;
         let opened = self
             .sessions
             .open_for_images(&thread_id, !attachments.is_empty())
@@ -403,6 +404,7 @@ impl Turns {
                 client_tab,
                 events,
                 on_completed: Some(self.on_completed()),
+                hold: Some(hold),
             },
             self.bus.clone(),
         )

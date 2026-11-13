@@ -1361,35 +1361,6 @@
         ],
         "type": "object"
       },
-      "CodeSettings": {
-        "description": "The code index's settings.",
-        "properties": {
-          "active_limit": {
-            "description": "How many projects are active at once: 1 to 20, default 5.",
-            "format": "int32",
-            "minimum": 0,
-            "type": "integer"
-          },
-          "active_limit_max": {
-            "description": "The most `active_limit` Core accepts.",
-            "format": "int32",
-            "minimum": 0,
-            "type": "integer"
-          },
-          "active_limit_min": {
-            "description": "The least `active_limit` Core accepts.",
-            "format": "int32",
-            "minimum": 0,
-            "type": "integer"
-          }
-        },
-        "required": [
-          "active_limit",
-          "active_limit_min",
-          "active_limit_max"
-        ],
-        "type": "object"
-      },
       "ContextResponse": {
         "properties": {
           "carried": {
@@ -5967,25 +5938,6 @@
         ],
         "type": "object"
       },
-      "PutSettings": {
-        "properties": {
-          "active_limit": {
-            "description": "How many projects are active at once: 1 to 20.",
-            "format": "int32",
-            "minimum": 0,
-            "type": "integer"
-          },
-          "command_id": {
-            "description": "The idempotency key.",
-            "type": "string"
-          }
-        },
-        "required": [
-          "command_id",
-          "active_limit"
-        ],
-        "type": "object"
-      },
       "Queued": {
         "description": "What queueing answers.",
         "oneOf": [
@@ -9932,96 +9884,6 @@
         },
         "tags": [
           "aylul"
-        ]
-      }
-    },
-    "/api/code/settings": {
-      "get": {
-        "operationId": "get_settings",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CodeSettings"
-                }
-              }
-            },
-            "description": ""
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            },
-            "description": "STORAGE_UNAVAILABLE"
-          }
-        },
-        "summary": "The code index's settings.",
-        "tags": [
-          "code"
-        ]
-      },
-      "put": {
-        "operationId": "put_settings",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PutSettings"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CodeSettings"
-                }
-              }
-            },
-            "description": "Set, or the replay of the same command"
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            },
-            "description": "COMMAND_CONFLICT"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            },
-            "description": "INVALID_COMMAND: outside 1 to 20"
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            },
-            "description": "STORAGE_UNAVAILABLE"
-          }
-        },
-        "summary": "Sets how many projects are active at once. Lowering it stops the\nleast recently used projects' watchers at once.",
-        "tags": [
-          "code"
         ]
       }
     },

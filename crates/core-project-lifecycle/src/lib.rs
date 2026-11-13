@@ -37,7 +37,6 @@ impl ProjectLifecycle {
             .projects
             .create(command_id, slug, name, directory)
             .await?;
-        self.code.touch(&project.id).await;
         Ok(project)
     }
 

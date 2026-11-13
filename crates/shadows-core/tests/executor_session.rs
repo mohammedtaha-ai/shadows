@@ -442,11 +442,7 @@ async fn executor_threads_are_not_listed_as_conversations() {
     .unwrap();
 
     let projects = shadows_core::Projects::new(f.storage.clone());
-    let threads = Threads::new(
-        f.storage.clone(),
-        codebase::Codebase::new(f.storage.clone(), projects.clone()),
-        projects,
-    );
+    let threads = Threads::new(f.storage.clone(), projects);
     let listed = threads.list(&f.project).await.unwrap();
     let ids: Vec<_> = listed.iter().map(|t| t.id.clone()).collect();
     assert_eq!(ids, vec![planning.id]);

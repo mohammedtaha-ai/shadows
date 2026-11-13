@@ -5,7 +5,7 @@
 # Codebase does not depend on Grants.
 # Owns the code index (spec §15.4–§15.6): walking a project's folder into
 # `code_file` and `code_tag`, keeping that copy true while the project is
-# one of the most recently used, and answering three questions from it —
+# in use, and answering three questions from it —
 # where a name is defined, who uses it, and what a path holds — within the
 # scope of projects the asker may read.
 #
@@ -27,19 +27,19 @@
 #
 # Trap: `references` matches by name only. Two functions with one name are
 # not told apart, which is why every such hit says `matched_by: name`.
-# Trap: the order of use lives in memory only (§15.6); after a restart
-# `start` rebuilds it from the durable sequence of the last turns.
+# Trap: the uses live in memory only; after a restart a project waits for its
+# next use.
 # Trap: before `start` nothing is active — every project answers `Inactive`,
 # and `touch` only records the use. Tests that build with `assemble` start
 # `Codebase` only when they ask.
 # Trap: a removed project (§4.2) is none to every read here (`code_scope`,
-# `code_order`, Projects::require_live_in); its rows and links go in Projects' removal
+# Projects::require_live_in); its rows and links go in Projects' removal
 # write, through the two `_in` functions, and `forget` then stops its worker.
 #
-# Unlike the index, the links and the active limit are the person's choices:
-# commands with a CommandId (kinds ProjectLinkPut, ProjectLinkRemove,
-# CodeActiveLimitSet), each one write with its journal event (ProjectLinked,
-# ProjectUnlinked, CodeActiveLimitSet), as `save_planner_instructions` is.
+# Unlike the index, the links are the person's choices:
+# commands with a CommandId (kinds ProjectLinkPut, ProjectLinkRemove), each
+# one write with its journal event (ProjectLinked, ProjectUnlinked), as
+# `save_planner_instructions` is.
 # Trap: a link's replay answers the link as it stands; once that link is
 # removed, the link as the command left it, dated by its command record.
 
@@ -57,10 +57,14 @@ shapes:
   Inner:
     store: CodeStore
     projects: Projects
-    # Held across reads only: `code_scope` in `touch` and `start`, and
-    # `code_active_limit` in `start` and `set_active_limit`; never across a
+    # Held across reads only: `code_scope` in `activate`; never across a
     # write, and no worker takes it.
     active: tokio::sync::Mutex<Active>
+    # Each project's last use and its holds; a std mutex, so a hold's drop
+    # records its end without awaiting.
+    uses: std::sync::Mutex<Uses>
+    # IDLE (10 min) unless a test shortens it.
+    idle: std::sync::Mutex<Duration>
   CodeStore:
     # Private to code/. Domain methods do not extend Storage.
     storage: Arc<Storage>
@@ -109,10 +113,6 @@ shapes:
     project: String      # the slug of the project that reads
     linked: String       # the slug of the project it reads
     created_at: String
-  CodeSettings:
-    active_limit: u32    # 1..=20, default 5 (migration 0008)
-    active_limit_min: u32  # 1, from the `LIMITS` range the write checks
-    active_limit_max: u32  # 20, from the same range
   FileRow:
     # What `code_file` holds for one file.
     path_key: String
@@ -135,25 +135,25 @@ shapes:
     done: AtomicU32
     stop: AtomicBool
   Active:
-    # Most recent first; only projects with a folder.
-    order: Vec<ProjectId>
-    dirs: HashMap<ProjectId, PathBuf>
-    # Touches before `start`, oldest first.
+    # Uses before `start`, oldest first.
     early: Vec<ProjectId>
     running: Option<Running>
     closed: bool
   Running:
     config: CodebaseConfig
-    # `code_setting.active_limit`: read by `start`, then set by
-    # `set_active_limit`, each reading it under the lock.
-    limit: usize
-    # Exactly the first `limit` of `order`, after every `settle`.
+    # One per active project.
     workers: HashMap<ProjectId, Worker>
-    # The tasks of stopped workers past the limit, by project, until they
-    # finish: a project active again hands its own to its new worker, which
-    # waits for it (one writer per project); `close` hands the rest to
-    # `shut_down`.
+    # The tasks of stopped workers, by project, until they finish: a project
+    # active again hands its own to its new worker, which waits for it (one
+    # writer per project); `close` hands the rest to `shut_down`.
     leaving: HashMap<ProjectId, JoinHandle<()>>
+  Usage:
+    last: Instant
+    holds: usize
+  ActiveHold:
+    # Keeps its project active while it lives; its drop is a use.
+    code: Codebase
+    project: ProjectId
   Job:
     Scan: unit
     Files: Vec<String>
@@ -231,7 +231,7 @@ modules:
   active.rs: active project selection
   scan.rs: filesystem indexing
   scope.rs: question scope validation
-  links.rs: active limit commands
+  links.rs: reading a project's links
   watch.rs: project indexing worker
   store/: private index SQL
   inventory.rs: the paged file inventory of a project's folder
@@ -289,29 +289,43 @@ functions:
     active_for_test: "test-support: active project order"
     shut_down_for_test: "test-support: await index workers"
   lifecycle:
-    code_order:
-      signature: "(&self) -> Result<Vec<(ProjectId, String)>, CodebaseError>"
-      # Private Codebase method: Projects::by_recent_activity, filtered to
-      # projects with a directory, preserving activity sequence DESC, id ASC.
-      # Codebase reads project metadata only through Projects.
     start:
       signature: "(&self, config: CodebaseConfig) -> Result<(), CodebaseError>"
-      # `code_order`, then under the lock: `code_active_limit`, `begin`,
-      # the touches recorded before it applied oldest first, `settle`.
-      # Awaits no scan. A second call does nothing; so does one after
-      # `shut_down`.
+      # `begin` under the lock, then `activate` for each use recorded before
+      # it, oldest first, then `spawn_sweep`. Awaits no scan. A second call
+      # does nothing; so does one after `shut_down`.
     touch:
       signature: "(&self, project: &ProjectId)"
-      # Never fails, never waits on a scan. Before `start`: `record` only.
-      # After: `used_rows` (its `code_scope` read; NotFound quiet, any other
-      # failure logged `code.touch_failed`), `used`, `settle`. After
-      # `shut_down`: nothing.
+      # A use: `Uses::used` (the idle time starts again), then `activate`.
+      # Never fails, never waits on a scan, never activates a link.
+    activate:
+      signature: "(&self, project: &ProjectId)"
+      private: true
+      # Before `start`: `record` only. After: a worker for the project if it
+      # has a folder (`folder`) and none runs. After `shut_down`: nothing.
+    hold:
+      signature: "(&self, project: &ProjectId) -> ActiveHold"
+      # `Uses::hold` and `activate`: the project stays active while the
+      # answer lives, whatever the idle time; its drop is a use.
+    sweep:
+      signature: "(&self)"
+      private: true
+      # Stops the worker (`code.inactive`) of every active project unused for
+      # the idle time with no hold. Its rows stay.
+    spawn_sweep:
+      signature: "(&self)"
+      private: true
+      # A task holding the service weakly: `sweep` every 30 s, or every idle
+      # time when shorter; it ends with the service or `shut_down`.
+    idle_time:
+      signature: "(&self) -> Duration"
+      private: true
+    idle_for_test: "test-support: a shorter idle time"
     forget:
       signature: "(&self, project: &ProjectId)"
-      # Projects' `remove`, after its write: `Active::forget` (out of the
-      # order, its worker stopped after the file it is on, `code.removed`,
-      # the task kept in `leaving`), then `settle`, so the next project takes
-      # its place. Never fails.
+      # Projects' `remove`, after its write: its use dropped, `Active::forget`
+      # (its worker stopped after the file it is on, the task kept in
+      # `leaving`). Never fails.
     shut_down:
       signature: "(&self)"
       # `close` under the lock, then every worker's task awaited outside it.
@@ -323,9 +337,11 @@ functions:
     active_projects:
       signature: "(&self) -> Vec<ProjectId>"
       # test-support only; tests reach it as `active_for_test`.
-    used_rows:
-      signature: "(&self, project: &ProjectId) -> Option<Vec<(ProjectId, Option<PathBuf>)>>"
+    folder:
+      signature: "(&self, project: &ProjectId) -> Option<PathBuf>"
       private: true
+      # Its `code_scope` row's folder; NotFound quiet, any other failure
+      # logged `code.touch_failed`.
   questions:
     definitions:
       signature: "(&self, asker: Asker<'_>, only: Option<&str>, name: &str) -> Result<Answer, CodebaseError>"
@@ -421,16 +437,6 @@ functions:
       signature: "(conn, project, linked, ts) -> Result<bool, StorageError>; inserts a link row in the caller transaction"
     remove_link_in:
       signature: "(conn, project, linked) -> Result<bool, StorageError>; removes a link row in the caller transaction"
-    settings:
-      signature: "(&self) -> Result<CodeSettings, CodebaseError>"
-    set_active_limit:
-      signature: "(&self, command_id: String, active_limit: u32) -> Result<CodeSettings, CodebaseError>"
-      # Outside 1..=20: INVALID_COMMAND, before any write.
-      # "CodeActiveLimitSet", params { active_limit }, scope Code, key
-      # "settings" → `set_code_active_limit`; then, under the lock, `limit`
-      # with the stored value read there (a replay answers an older one; of
-      # two calls at once, the last to lock reads the newer) and `settle`:
-      # lowering it stops the least recently used workers at once.
   scope:
     projects:
       signature: "(&self, asker: &Asker<'_>, only: Option<&str>) -> Result<Vec<ScopeRow>, CodebaseError>"
@@ -523,27 +529,23 @@ functions:
       signature: "(&mut self, project: &ProjectId)"
       # Once per project, at its last use: a core never started does not grow it.
     begin:
-      signature: "(&mut self, order: Vec<(ProjectId, PathBuf)>, limit: usize, config: CodebaseConfig) -> Vec<ProjectId>"
-      # Once: the database's order and the limit; answers the early touches.
-    used:
-      signature: "(&mut self, rows: &[(ProjectId, Option<PathBuf>)])"
-      # The links (the rows after the first) to the front in their order,
-      # then the first; a row with no folder takes no place.
-    limit:
-      signature: "(&mut self, limit: usize)"
-      # The next `settle` follows it; before `start` it does nothing.
-    settle:
-      signature: "(&mut self, code: &Codebase)"
-      # Stops the worker of every project past the limit (`code.inactive`),
-      # its task kept in `leaving`; spawns one for every active project
-      # without one (`code.active`), given that project's `leaving` task.
+      signature: "(&mut self, config: CodebaseConfig) -> Vec<ProjectId>"
+      # Once: answers the uses recorded before it.
+    activate:
+      signature: "(&mut self, code: &Codebase, project: &ProjectId, dir: PathBuf)"
+      # A worker for the project unless it has one (`code.active`), given
+      # that project's `leaving` task.
+    stop:
+      signature: "(&mut self, project: &ProjectId)"
+      # Its worker stops after the file it is on (`code.inactive`), the task
+      # kept in `leaving`.
     worker:
       signature: "(&self, project: &ProjectId) -> Option<&Worker>"
     forget:
       signature: "(&mut self, project: &ProjectId)"
     active:
       signature: "(&self) -> Vec<ProjectId>"
-      # test-support only.
+      # The active projects, by id: the sweep's list.
     close:
       signature: "(&mut self) -> Vec<JoinHandle<()>>"
       # Every worker stopped; answers their tasks and the `leaving` ones.
@@ -687,16 +689,8 @@ functions:
     delete_code_file:
       signature: "(&self, project: &ProjectId, path_key: &str) -> Result<(), StorageError>"
       # One write: the tags explicitly, then the row.
-    code_active_limit:
-      signature: "(&self) -> Result<i64, StorageError>"
-      # In store/links.rs, with the links' rows.
     code_links:
       signature: "(&self, project: &ProjectId) -> Result<Vec<ProjectLink>, StorageError>"
-    set_code_active_limit:
-      signature: "(&self, ctx: &CommandContext, limit: u32) -> Result<u32, StorageError>"
-      # One write: classify (a replay answers the limit its outcome ref
-      # holds) → UPDATE code_setting → `CodeActiveLimitSet` { active_limit },
-      # no project → record_command.
     load_link_in:
       signature: "(conn, project: &ProjectId, linked: &ProjectId) -> Result<ProjectLink, StorageError>"
       private: true
@@ -770,7 +764,8 @@ shared_in_transaction:
 
 
 called_by_other_services:
-  touch: "Turns send, Threads list and ProjectLifecycle create record project use without waiting for indexing."
+  touch: "Turns send records a use of the thread's project without waiting for indexing."
+  hold: "Turns holds one per running turn, Runs one per running attempt, until it settles."
   forget: "ProjectLifecycle removal stops the worker after its committed removal write."
 
 
@@ -878,32 +873,25 @@ obligations:
       but the renamed file is indexed before stale checks its stamp.
 
   - rule: >
-      Only the `active_limit` most recently used projects with a folder are
-      active, each with one worker; `start` orders them by their last turn
-      (else their creation), and a use (`touch`: a turn, a listing of
-      threads, a creation, a question) puts the project's links, then the
-      project, first, the least recently used leaving. A question about an
-      inactive project answers from its rows with the state Indexing.
-      A project evicted and used again before its old worker finished its
-      file never has two writers: the new worker awaits the old task first.
-    tested_by: only_the_most_recent_projects_are_watched
+      A project is active while it is used: a sent message, a code question
+      or a live `ActiveHold` gives it a worker, and the sweep stops that worker
+      once the project went unused with no hold for the idle time (10 min);
+      its rows stay. Listing threads, creating a project and touching a project
+      activate nothing else: not the project for a listing, never its links.
+    tested_by: a_held_project_outlives_the_idle_time
     note: >
-      The one-writer part is structural (`settle` hands `leaving`'s task to
-      `Worker::spawn`); no test evicts a project mid-scan.
-      The body has six projects with no turn, so the order is by creation;
-      Startup creation ordering and id ties are also covered by
-      startup_order_uses_creation_sequence_then_project_id_for_ties; operation ordering is
-      covered by Projects' projects_are_ordered_by_the_newest_operation_in_the_journal.
-      The active-set test makes no link, so a link's
-      activation before its project is held by no test.
+      also a_sent_message_activates_its_project, listing_threads_does_not_activate,
+      an_idle_project_stops and a_touch_does_not_activate_links. A project used
+      again before its old worker finished its file never has two writers: the
+      new worker awaits the old task first (structural, `leaving`).
 
   - rule: >
       `touch` never fails its caller and never waits on a scan: an error is
       logged and dropped, and the scan runs in the worker.
     tested_by: none
     note: >
-      Structural: `touch` returns `()`. `Turns::send`, `Threads::list` and
-      `Projects::create` call it after their own work succeeded.
+      Structural: `touch` returns `()`. `Turns::send` and the questions call it
+      after their own checks succeeded.
 
   - rule: >
       No path outside the project's folder is ever read. The walk reads no
@@ -979,18 +967,15 @@ obligations:
       (activation or scope) are held by no test.
 
   - rule: >
-      Links and the active limit change only by command: ProjectLinkPut,
-      ProjectLinkRemove and CodeActiveLimitSet, each one write with its
-      replay, its event and its command record. A link to itself or to no
-      project, removing a link that is not there, and a limit outside
-      1..=20 are INVALID_COMMAND, with nothing written; linking twice
-      answers the link. A new limit is followed at once.
+      Links change only by command: ProjectLinkPut and ProjectLinkRemove,
+      each one write with its replay, its event and its command record. A
+      link to itself or to no project and removing a link that is not there
+      are INVALID_COMMAND, with nothing written; linking twice answers the link.
     tested_by: the_scope_is_the_project_and_its_links_only
     note: >
       The body makes one link through the route and nothing else; the
-      refusals, the replays, the events and the limit are held by no test.
-      A test would link twice, unlink twice, link to itself and to a random
-      id, and set the limit to 0, 21 and then 1 and see four workers stop.
+      refusals, the replays and the events are held by no test.
+      A test would link twice, unlink twice, link to itself and to a random id.
 
   - rule: Every file of the folder is listed whatever its language, and no content is.
     tested_by: inventory_lists_every_file_whatever_its_language
@@ -1082,11 +1067,18 @@ tests:
       `Access(Close(Read))` on src/a.rs send nothing and leave `lost`
       false; `Modify(Data)` and `Access(Close(Write))` each send
       Path("src/a.rs").
-  - name: only_the_most_recent_projects_are_watched
+  - name: a_sent_message_activates_its_project
+    checks: A message sent in a project's thread makes its status other than Inactive.
+  - name: listing_threads_does_not_activate
+    checks: Threads::list on an idle project leaves it Inactive.
+  - name: an_idle_project_stops
+    checks: With a 1 s idle time, a touched project is Inactive 3 s later, with no worker.
+  - name: a_touch_does_not_activate_links
+    checks: Touching a project linked to another activates the first only.
+  - name: a_held_project_outlives_the_idle_time
     checks: >
-      Six projects, default config: five are active; the sixth answers
-      status Inactive; a question about it answers Indexing or Ready; then
-      it is active, five still are, and the least recently used one left.
+      With a 1 s idle time, a hold kept 3 s keeps the project active; just after
+      its drop it is still active (the drop is a use); 3 s later it is Inactive.
   - name: the_scope_is_the_project_and_its_links_only
     checks: >
       demo linked to backend through PUT …/code/links/{linked}; secret not
@@ -1136,12 +1128,8 @@ tests:
       A unit test in inventory.rs: an incomplete write without b.txt keeps
       it at generation 1, Incomplete; a complete one removes it, generation 2.
 
-  # Startup ordering is tested in mod.rs; link snapshots in store/reach.rs;
+  # Link snapshots are tested in store/reach.rs;
   # transaction rollback in store/links.rs. Each test stays with its rule.
-  - name: startup_order_uses_creation_sequence_then_project_id_for_ties
-    checks: >
-      Three projects sort by creation event sequence descending; after creation
-      events are removed, equal fallback sequences sort by project id ascending.
   - name: link_reads_keep_the_callers_snapshot_and_replay_removed_projects
     checks: >
       Reach and slug resolution keep a reader's snapshot across project removal;

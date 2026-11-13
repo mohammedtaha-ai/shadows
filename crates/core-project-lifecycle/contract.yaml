@@ -27,7 +27,7 @@ functions:
   service:
     create:
       signature: "(&self, command_id, slug, name, directory) -> Result<Project, ProjectLifecycleError>"
-      rule: Projects resolves and registers the directory, then Code is touched, including replay.
+      rule: Projects resolves and registers the directory; creating does not activate the project.
     remove:
       signature: "(&self, command_id, project) -> Result<Project, ProjectLifecycleError>"
       rule: >
