@@ -99,7 +99,7 @@ function AddServer({ projectId }: { projectId: string }) {
   const set = (key: keyof typeof empty) => (event: { target: { value: string } }) => setForm(current => ({ ...current, [key]: event.target.value }))
   const extensions = form.extensions.split(',').map(value => value.trim()).filter(Boolean)
   const args = form.args.split(/\s+/).filter(Boolean)
-  const valid = form.id.trim() !== '' && form.command.trim() !== '' && extensions.length > 0 && extensions.every(value => value.startsWith('.') && value.length > 1)
+  // Core checks the id, the command and each extension; its refusal is shown as it says it.
   const add = useMutation({
     retry: false,
     mutationFn: () => {
@@ -113,7 +113,7 @@ function AddServer({ projectId }: { projectId: string }) {
       await client.invalidateQueries({ queryKey: codeKeys.servers(projectId) })
     },
   })
-  const submit = (event: FormEvent) => { event.preventDefault(); if (valid) add.mutate() }
+  const submit = (event: FormEvent) => { event.preventDefault(); add.mutate() }
   return (
     <form aria-label="Add a server" onSubmit={submit} className="space-y-3 rounded-lg border border-border p-4">
       <h2 className="text-sm font-medium">Add a server</h2>
@@ -121,11 +121,9 @@ function AddServer({ projectId }: { projectId: string }) {
       <label className="grid gap-1 text-sm">Command<Input value={form.command} onChange={set('command')} /></label>
       <label className="grid gap-1 text-sm">Arguments<Input value={form.args} onChange={set('args')} /></label>
       <label className="grid gap-1 text-sm">Extensions (comma-separated)<Input value={form.extensions} placeholder=".ts, .tsx" onChange={set('extensions')} /></label>
-      {form.extensions.trim() !== '' && !extensions.every(value => value.startsWith('.') && value.length > 1) &&
-        <p className="text-xs text-destructive-foreground">Each extension starts with a dot.</p>}
       <p className="text-xs text-muted-foreground">A server you add runs on your machine on your responsibility.</p>
       {add.error && <ErrorLine error={add.error} />}
-      <Button type="submit" disabled={!valid || add.isPending}>Add server</Button>
+      <Button type="submit" disabled={add.isPending}>Add server</Button>
     </form>
   )
 }

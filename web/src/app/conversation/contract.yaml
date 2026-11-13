@@ -60,7 +60,20 @@ permission_cards:
   authority: "Only a matching thread/request in the live waiting list offers option buttons; malformed and historical cards offer no actions. The project stream refreshes the list without polling."
   answers: "A button sends its offered option id; one answer stays in flight. Equal retries reuse the command id; a settled/not-found error refetches and keeps Core's message."
   entries: "entry.tsx renders PermissionAsked through PermissionCard, PermissionAnswered with its body and by you, and held PermissionRefused with its reason; Planner's legacy mode hint remains for unstructured refusals."
-  tested_by: ["only a live matching request offers option buttons and a click answers it", "an uncertain failed answer retries with the same command id", "the project event removes a request settled by another surface", "one answer stays in flight and every option is disabled until it settles"]
+  tested_by: ["only a live matching request offers option buttons and a click answers it", "an uncertain failed answer retries with the same command id", "the project event removes a request settled by another surface", "one answer stays in flight and every option is disabled until it settles", a_planner_permission_request_shows_its_card]
+
+question_cards:
+  owner: person-question-card.tsx
+  card: "PersonQuestionCard draws a PersonQuestion entry's question with one button per option, read through api/questions readQuestionCard; an unreadable card shows the entry's body."
+  answers: "A click posts answerQuestion with a retry-stable command id, one answer in flight; on success saveAnsweredQuestion writes the choice and the card shows 'You chose: <label>' with no buttons."
+  authority: "Buttons show only while the card has no choice; Core's COMMAND_CONFLICT (answered) or INVALID_COMMAND (another conversation's) closes them, and a card whose thread_id is not the entry's thread (a fork's copy) never offers them."
+  tested_by: [renders_the_planners_options, a_click_answers_once, an_answered_question_has_no_buttons, a_forked_question_has_no_buttons]
+
+shadows_notices:
+  owner: notice-item.tsx
+  notices: "noticeOf reads the author: Executor notices keep their attempt card; Shadows' notices carry none and are drawn under the sender name Shadows."
+  changes: "ProjectChangeLine draws a ProjectChange entry's paths and its reason, or 'no reason given'."
+  tested_by: [a_shadows_notice_names_shadows, a_project_change_shows_its_reason]
 
 
 # ── shapes ───────────────────────────────────────────────────────────────────

@@ -105,6 +105,13 @@ permissions:
   answer: "answerPermission(threadId, requestId, optionId, commandId) forwards one button choice to the generated POST route"
   refresh: "invalidatePermissions reconciles the live list after answers, settled/not-found errors and project PermissionsChanged events"
 
+questions:
+  owner: questions.ts
+  read: "readQuestionCard(card) -> QuestionCard | null; a PersonQuestion entry's card { question_id, thread_id, question, options[].label, chosen }, null when unreadable"
+  answer: "answerQuestion(threadId, questionId, option, commandId) -> Promise<Queued>; POST /api/threads/{id}/questions/{question}/answer"
+  saved_answer: "saveAnsweredQuestion(queryClient, threadId, questionId, option) writes the choice into the cached entry's card through writeSaved, then invalidates the entries: a card rewrite has no live frame"
+  tested_by: web/src/api/questions.test.ts
+
 mcp_library:
   owner: extensions.ts
   save: "saveMcp(id, commandId, McpInput): POST for new items, PUT by stable id for edits; preserves absent secret values"
@@ -720,7 +727,7 @@ project_cache:
 
 code_cache:
   owner: code.ts
-  keys: "codeKeys preserves settings, per-project status and link arrays; status polling intervals remain unchanged"
+  keys: "codeKeys holds per-project server, status and link keys; status polls 2 s while indexing, else 10 s, and the server list every 5 s"
   saved_answers: "saveUnlinkedCodeAnswer filters one link through writeSaved, cancelling the exact prior read"
 
 directory_cache:

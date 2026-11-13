@@ -3,11 +3,13 @@
 # Database infrastructure: core-db; domain rules and private stores remain here.
 # selected_project_in promotes reach refusals as CodebaseError::GrantScope;
 # Codebase does not depend on Grants.
-# Owns the code index (spec §15.4–§15.6): walking a project's folder into
-# `code_file` and `code_tag`, keeping that copy true while the project is
-# in use, and answering three questions from it —
-# where a name is defined, who uses it, and what a path holds — within the
-# scope of projects the asker may read.
+# Owns a project's code on disk (spec §15.4–§15.6; language servers design):
+# walking a project's folder into `code_file` and `code_inventory`, keeping
+# that copy true while the project is in use, running the language servers its
+# files want and answering `code_lsp` from them, within the scope of projects
+# the asker may read. The name index (`code_tag`, and `definitions`,
+# `references` and `outline` over it) is suspended: its code stays, nothing
+# calls it, and `AppCore::start` sets `CodebaseConfig::name_index` false.
 #
 # The index is a copy derived from the files. It carries no CommandId and no
 # journal event, and can be deleted and rebuilt. Paths are stored relative
@@ -52,7 +54,7 @@ source: crates/codebase/src
 shapes:
   Codebase:
     # Cheap to clone: an `Arc` over its private store, Projects and the active set.
-    # ProjectLifecycle, Threads, Turns, Runs and every worker hold a clone.
+    # ProjectLifecycle, Turns, Runs and every worker hold a clone.
     inner: Arc<Inner>
   Inner:
     store: CodeStore
@@ -65,6 +67,8 @@ shapes:
     uses: std::sync::Mutex<Uses>
     # IDLE (10 min) unless a test shortens it.
     idle: std::sync::Mutex<Duration>
+    # `CodebaseConfig::name_index` as `start` set it; true before it.
+    name_index: AtomicBool
   CodeStore:
     # Private to code/. Domain methods do not extend Storage.
     storage: Arc<Storage>
@@ -1041,8 +1045,9 @@ obligations:
       logged and dropped, and the scan runs in the worker.
     tested_by: none
     note: >
-      Structural: `touch` returns `()`. `Turns::send` and the questions call it
-      after their own checks succeeded.
+      Structural: `touch` returns `()`. `lsp`, the inventory reads and the
+      suspended name-index questions call it after their own checks succeeded;
+      a sent message and an attempt take a `hold` instead.
 
   - rule: >
       No path outside the project's folder is ever read. The walk reads no
@@ -1050,8 +1055,8 @@ obligations:
       `index_file` stats with `symlink_metadata`, and before it opens a file
       its canonical path must be the path inside the folder's canonical
       path, so a link or junction on the way, or a name Windows normalises,
-      is skipped and logged; `outline` refuses an absolute path, a ':' or a
-      '..' component, and reads the index only.
+      is skipped and logged; `inside` (which `code_lsp`'s file goes through)
+      refuses an absolute path, a ':' or a '..' component.
     tested_by: the_scope_is_the_project_and_its_links_only
     note: >
       `inside`, the WalkBuilder settings, `symlink_metadata` and
@@ -1112,10 +1117,10 @@ obligations:
       from a project outside it.
     tested_by: the_scope_is_the_project_and_its_links_only
     note: >
-      With `projects` made to let `only` name any project, the body fails at
-      its first `secret` assertion: `where_is` { key, project: secret } is
-      answered with secret's hit instead of refused. A link's own links
-      (activation or scope) are held by no test.
+      The test holds the grant's refusal of an unlinked project only. The
+      person's INVALID_COMMAND, the one-way direction, an unnamed question's
+      scope and a link's own links are held by no test: no route asks a
+      linked project's code as the person.
 
   - rule: >
       Links change only by command: ProjectLinkPut and ProjectLinkRemove,
@@ -1180,9 +1185,9 @@ not_the_caller's:
       yourself: an adapter passes the asker, `only` and the text to `Codebase`,
       which owns `projects` and `inside`.
   - >
-      Check a link or a limit, or build their fingerprints, yourself: an
-      adapter passes the command id and the ids or the number to `link`,
-      `unlink` or `set_active_limit`, which refuse and record.
+      Check a server setting, or build its fingerprint, yourself: an adapter
+      passes the command id and the server to `set_server_off`, `add_server` or
+      `remove_server`, which refuse and record.
   - >
       Filter a changed path or write a file's rows yourself: `keeps` and
       `index_file` are the only implementation of either.
@@ -1233,12 +1238,9 @@ tests:
   - name: the_scope_is_the_project_and_its_links_only
     checks: >
       demo linked to backend through PUT …/code/links/{linked}; secret not
-      linked. Over a project grant: where_is orders answers "backend:
-      src/api.rs:1 function orders", and so does naming backend; naming
-      secret is GRANT_SCOPE; unnamed, `key` never mentions secret; over HTTP
-      naming secret is 422 INVALID_COMMAND; outline "../" is refused "the
-      path must be inside the project"; backend naming demo is 422
-      INVALID_COMMAND (one way).
+      linked. Over a project grant: code_lsp naming secret is GRANT_SCOPE
+      before any server is asked; code_lsp on "../x.rs" is refused "the path
+      must be inside the project".
   - name: inventory_lists_every_file_whatever_its_language
     checks: >
       PHP, JSON, Rust and dotfiles are listed, src/lib.rs as rust with

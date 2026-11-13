@@ -339,8 +339,8 @@ index, its commit queue and its trailer.
 - The task: goal, reads, writes, acceptance, phases, and for each link the other task's number,
   title, state and label.
 - The project structure: the approved map's parts and their folders.
-- Tools over Shadows MCP, with a grant scoped to this task: `where_is`, `who_uses`, `outline`
-  (the code index); `task_report` (the commit the executor made and its account of the work,
+- Tools over Shadows MCP, with a grant scoped to this task: `code_lsp`
+  (the project's language servers); `task_report` (the commit the executor made and its account of the work,
   §7). Reporting a problem with evidence and the tasks it affects joins it with the ladder.
 - Model: the one chosen on the task page.
 

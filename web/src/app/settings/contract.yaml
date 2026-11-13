@@ -1,9 +1,5 @@
 # Owns the global Settings dialog: URL-selected sections over the current page.
 #
-# Trap: the form keeps the person's typed number until it is saved or the saved value
-# changes while the field is untouched. The save's success clears that edit without
-# checking for a newer one, so an edit typed while the save was in flight is lost.
-#
 # Shared sections use the SettingsDialog content map; desktop-ui registers machine content.
 
 name: web-settings
@@ -158,47 +154,26 @@ obligations:
     tested_by:
       - "/settings redirects to the dialog"
   - rule: >
-      The limit must be a whole number within the bounds the settings read carries. Any other
-      text disables Save and shows the bounds, e.g. "A whole number from 1 to 20."
+      Code lists the open project's servers as Core answers them (id, extensions, state) and
+      follows their state by polling; a not-installed server shows its install line with a
+      copy button.
     tested_by:
-      - "saves the active limit"
-
+      - "lists_the_servers_with_their_state"
   - rule: >
-      Save sends the number with one command id. A retry of the same number reuses the id;
-      another number gets a new one.
+      Switching a server off first warns that Shadows' answers get worse, with Cancel and
+      Switch off; only Switch off sends the request, with a retry-stable command id.
     tested_by:
-      - "saves the active limit"
-    note: >
-      The test checks the body's command id is present, not that a retry reuses it.
-
+      - "switching_off_warns_first"
   - rule: >
-      Save is disabled while the field holds the saved value, and while a save is in
-      flight.
+      Add a server sends the id, command, arguments and extensions as typed; Core checks them
+      and its refusal is shown as it says it. Remove deletes a server the person added.
     tested_by:
-      - "follows a value changed elsewhere while the field is untouched"
-      - "saves the active limit"
-
-  - rule: >
-      A value saved elsewhere replaces an untouched field after a refetch.
-    tested_by:
-      - "follows a value changed elsewhere while the field is untouched"
-
-  - rule: >
-      An edit typed while a save is in flight survives that save's success.
-    tested_by: none
-    note: >
-      Does not hold; see gaps.
+      - "adds_and_removes_a_server"
 
 
 # ── gaps ─────────────────────────────────────────────────────────────────────────
 
-gaps:
-  - at: LimitForm
-    gap: >
-      onSuccess calls setEdited(null) unconditionally. The input is not disabled while a
-      save is in flight, so a number typed then is dropped: the field snaps back to the
-      value the save returned. The project's instructions editor guards this case
-      (its base-version rule), and this form does not.
+gaps: []
 
 
 # ── open_questions ───────────────────────────────────────────────────────────────
@@ -214,16 +189,13 @@ tests:
   - name: "switching_off_warns_first"
     checks: Switching a server off shows the warning with Cancel and Switch off; only Switch off sends the request.
   - name: "adds_and_removes_a_server"
-    checks: The add form needs dotted extensions; a valid one posts the server; Remove deletes an added one.
-  - name: "follows a value changed elsewhere while the field is untouched"
-    checks: >
-      After another tab's 7 is refetched, the untouched field shows 7 and Save is disabled.
+    checks: An extension without a dot is posted and Core's refusal shown; the corrected server posts as typed; Remove deletes an added one.
 
 extension_refresh_owner: "Library changes invalidate extensionKeys from api/extensions.ts"
 
 person_cache_owner: "Both person forms send only their changed fields through api/person.savePerson and pass saved whole records through api/person.savePersonAnswer"
 
-code_cache_owner: "api/code.ts owns saved active-project settings answers"
+code_cache_owner: "api/code.ts owns the server list query and its keys"
 
 usage_query_identity: "Usage cache inspection and feature reads use api/usage.usageKeys"
 

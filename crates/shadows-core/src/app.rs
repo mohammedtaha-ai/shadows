@@ -151,7 +151,7 @@ pub struct CoreParts {
          `crates/core-messages/src` | \
          `crates/core-messages/contract.yaml` |"]
 #[doc = " | `Codebase` | \
-         project code indexing | \
+         a project's code on disk | \
          `crates/codebase/src` | \
          `crates/codebase/contract.yaml` |"]
 #[doc = " | `Runs` | \

@@ -255,8 +255,8 @@ shared_in_transaction:
   mark_removed_in: ProjectLifecycle soft-removes the project in its transaction.
   retained_metadata_in: Retained name, directory and removed flag for plan previews.
   is_live_in: Boolean liveness through require_live_in in the caller snapshot.
-  get_in: "Code::code_scope: live project metadata in its read snapshot"
-  by_slug_in: "Code::selected_project_in: live slug resolution in the dependency snapshot"
+  get_in: "Codebase::code_scope: live project metadata in its read snapshot"
+  by_slug_in: "Codebase::selected_project_in: live slug resolution in the dependency snapshot"
   slug_in: "Code link reads and replays: retained slugs in the caller's snapshot"
   require_live_in: "Instructions and Code: the one liveness check in the caller's transaction or snapshot"
 

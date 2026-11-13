@@ -43,13 +43,13 @@ pub struct Mode {
 
 // Claude Code's own acceptEdits runs file commands inside the project folder
 // without a permission request, so Shadows never sees them; anything else is
-// asked, and Shadows refuses it.
+// asked, and the request waits for the person's answer.
 const CLAUDE_CODE_MODES: [Mode; 2] = [
     Mode {
         id: "acceptEdits",
         label: "Accept edits",
         description: "Claude Code edits, creates and deletes files in the project folder \
-                      without asking. Other commands are refused.",
+                      without asking. Other commands ask you first.",
     },
     Mode {
         id: "auto",

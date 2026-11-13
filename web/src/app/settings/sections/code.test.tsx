@@ -38,18 +38,23 @@ it('switching_off_warns_first', async () => {
 })
 
 it('adds_and_removes_a_server', async () => {
+  let posts = 0
   app = await startApp('/projects/p1/new?settings=code', { ...answers(),
     'GET /api/projects/p1/code/servers': [mine],
-    'POST /api/code/servers': () => Response.json({ ...mine, id: 'zls', extensions: ['.zig'] }),
+    'POST /api/code/servers': () => ++posts === 1
+      ? Response.json({ code: 'INVALID_COMMAND', message: 'each extension must start with a dot, as .go' }, { status: 422 })
+      : Response.json({ ...mine, id: 'zls', extensions: ['.zig'] }),
     'DELETE /api/code/servers/mine': () => new Response(null, { status: 204 }) })
   await until(() => app!.button('Remove') !== undefined)
   expect(app.text()).toContain('A server you add runs on your machine on your responsibility.')
   typeInto(field('Server id'), 'zls'); typeInto(field('Command'), 'zls'); typeInto(field('Arguments'), '--stdio')
+  // Core checks the extensions and the form shows its refusal.
   typeInto(field('Extensions'), 'zig')
-  expect(app.button('Add server')!.disabled).toBe(true)
+  act(() => app!.button('Add server')!.click())
+  await until(() => app!.text().includes('each extension must start with a dot, as .go'))
   typeInto(field('Extensions'), '.zig, .zon')
   act(() => app!.button('Add server')!.click())
-  await until(() => app!.calls.includes('POST /api/code/servers'))
+  await until(() => posts === 2)
   expect(app.bodies.at(-1)).toEqual({ id: 'zls', command: 'zls', args: ['--stdio'], extensions: ['.zig', '.zon'], command_id: expect.any(String) })
   act(() => app!.button('Remove')!.click())
   await until(() => app!.calls.some(c => c.startsWith("DELETE /api/code/servers/mine")))

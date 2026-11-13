@@ -25,8 +25,7 @@ does not exist or misses a module that does, and
 service does not have (spec §14.7), so neither can go stale quietly. The map
 spans the whole workspace: every path below is relative to the repository
 root. *Does this already exist, and with what signature?* is not written down:
-the Rust LSP, or `where_is`, `who_uses` and `outline` when the `shadows` MCP
-server is connected, answer it from the code.
+the Rust LSP (or the TypeScript one through Serena) answers it from the code.
 
 ## Architecture Invariants
 
@@ -46,6 +45,8 @@ What the code keeps true, in rust-analyzer's style. Spec §14.6 owns them.
 - `shadows-core` never imports `axum` or `rmcp`.
 - `shadows-index` knows nothing of SQLite or projects. It depends on no
   Shadows crate, nor on a database library; spec §15.2 owns this one.
+- `shadows-lsp` knows no project, grant, task or table. It depends on no
+  Shadows crate but `shadows-process`; the language servers design owns this one.
 - Another service calls a service's `store` only through a function or method
   that store's contract declares, under `shared_in_transaction` (inside one
   write) or `called_by_other_services`. These are existing migration exceptions:
@@ -324,14 +325,14 @@ pattern to follow, not merely an example.
 | `crates/core-design/src/store/part_edit.rs` | transactional part mutations | `crates/core-design/src/store/part_edit.rs` |
 | `crates/core-design/src/store/` | persistence of the design workspace | `crates/core-design/src/store/vision.rs` |
 | `crates/core-design/src/store/vision.rs` | atomic workspace edits with immutable replay results | `crates/core-design/src/store/vision.rs` |
-| `crates/codebase/src/` | the code index of each project's folder | `crates/codebase/src/lib.rs` |
+| `crates/codebase/src/` | a project's code on disk | `crates/codebase/src/lib.rs` |
 | `crates/codebase/src/model.rs` | the code index types callers meet | `crates/codebase/src/model.rs` |
 | `crates/codebase/src/store/` | private CodeStore index persistence | `crates/codebase/src/store/mod.rs` |
 | `crates/codebase/src/store/links.rs` | transactional code link persistence | `crates/codebase/src/store/links.rs` |
 | `crates/codebase/src/store/reach.rs` | live one-way project reach in a snapshot | `crates/codebase/src/store/reach.rs` |
 | `crates/codebase/src/scan.rs` | walking a project's folder into the index | `crates/codebase/src/scan.rs` |
 | `crates/codebase/src/scope.rs` | what a code question may read | `crates/codebase/src/scope.rs` |
-| `crates/codebase/src/watch.rs` | keeping one active project's index current | `crates/codebase/src/watch.rs` |
+| `crates/codebase/src/watch.rs` | one active project's worker | `crates/codebase/src/watch.rs` |
 | `crates/codebase/src/active.rs` | which projects are active | `crates/codebase/src/active.rs` |
 | `crates/codebase/src/links.rs` | reading a project's links | `crates/codebase/src/links.rs` |
 | `crates/core-events/src/` | what clients watch live | `crates/core-events/src/lib.rs` |
@@ -410,7 +411,7 @@ file disagrees with either, they are right and this file is the defect.
 - **Built / not-built status.** The tree answers it and
   each side's `stages.md` lists what is left. A third copy would record
   one fact in three places.
-- **A list of declarations or signatures.** The LSP and `where_is` answer it
+- **A list of declarations or signatures.** The LSP answers it
   exactly. A generated inventory did this until 2026-10-01, and cost every
   change a regeneration step.
 - **Explanations of declarations.** Those live as doc comments on the
@@ -508,7 +509,7 @@ file disagrees with either, they are right and this file is the defect.
 | `crates/core-standards/src/error.rs` | standards refusals | `crates/core-standards/contract.yaml` |
 | `crates/core-standards/src/standards.yaml` | bundled standards definition | `crates/core-standards/contract.yaml` |
 
-| `crates/codebase/src/lib.rs` | code indexing boundary | `crates/codebase/contract.yaml` |
+| `crates/codebase/src/lib.rs` | the Codebase service boundary | `crates/codebase/contract.yaml` |
 | `crates/codebase/tests/recheck/` | question refresh race regression | `crates/codebase/tests/recheck/invariants.rs` |
 | `crates/codebase/src/error.rs` | index refusals | `crates/codebase/contract.yaml` |
 | `crates/codebase/src/testing.rs` | gated index inspection | `crates/codebase/contract.yaml` |
