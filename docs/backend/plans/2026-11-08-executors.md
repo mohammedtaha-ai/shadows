@@ -95,7 +95,7 @@ unasked, a Write to `web/` was refused, Bash ran. B-90 and B-92 below are writte
   - `Threads::create_executor_in(conn, project: &ProjectId, title: String, harness: &str) -> ThreadId`.
   - `GrantKind::Executor` (`as_str`: `executor`), beside `Thread` and `Project`.
     `Grants::tools_for(GrantKind::Executor)` returns exactly `task_context`, `where_is`,
-    `who_uses` and `outline`; B-92 adds the commit tool when it implements it (`task_commit` then; `task_report` since B-95 at `617d806f`). `server.rs` builds
+    `who_uses` and `outline` (B-89's list; at `db760593` the name index is suspended and the list is `task_context`, `code_lsp` and `task_report`); B-92 adds the commit tool when it implements it (`task_commit` then; `task_report` since B-95 at `617d806f`). `server.rs` builds
     its router from that list, as it does for the other two kinds. Every other tool is absent.
   - Startup revocation (`revoke_thread_grants`, called in `AppCore::start`) revokes live
     `executor` grants with the `thread` ones: every executor's adapter died with the old daemon.

@@ -47,6 +47,8 @@ B-95 to B-136. Their entries are in this file at `617d806f`. Their plans,
 `docs/frontend/plans/2026-11-11-task-page-review-and-diff.md` and `docs/frontend/plans/2026-11-11-shadows-notices.md`,
 are at `617d806f`. PR #66 (`5a52a06a`) removed dead web exports and type aliases and has no `F-` task.
 
+Conversation images, the question card and Settings › Code (PR #67, `db760593`): F-114 (image tiles with a corner ✕ in the composer, and a viewer for every conversation image), F-115 (the question card, the Planner's permission cards and Shadows' notices) and F-116 (Settings › Code) shipped with B-137 and B-138a to B-146 (`docs/backend/stages.md` at `db760593`). Their entries are in this file at `db760593`. The plan `docs/frontend/plans/2026-11-12-conversation-images.md` at `db760593` was its brief for F-114; the slice 2 plan `docs/backend/plans/2026-11-13-slice-2-language-servers.md` stays open for B-145. The image tiles' look in the browser is not recorded here.
+
 Still open outside any task: the light palette and the real desktop login-item behaviour need
 their own app and OS acceptance.
 
@@ -145,29 +147,3 @@ These tasks are blocked until their named backend API exists; no component imple
 - Touch: exact Create/Modify/Test file list of Task 7; no other source paths.
 - Needs: B-118, F-104; accepted shared API/model agreement. Backend must expose its generated API before this task starts.
 - Done when: all named RED/GREEN steps and focused verification commands in Task 7 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
-
-
-## Conversation images, 2026-11-12
-
-### F-114 · Image tiles with a corner ✕ in the composer, and a viewer for every conversation image
-
-- Status: done (start after the frontend-fixer's `crossOrigin="anonymous"` image fix is committed)
-- Plan: [plans/2026-11-12-conversation-images.md](plans/2026-11-12-conversation-images.md)
-- Read: the plan; `web/src/app/conversation/contract.yaml` (`image_attachments`); `web/src/components/ui/dialog.tsx`; code-map rows for `pending-images.tsx`, `entry.tsx`, `waiting-messages.tsx`.
-- Touch: `web/src/app/conversation/image-zoom.tsx` (new), `web/src/app/conversation/image-zoom.test.tsx` (new), `web/src/app/conversation/pending-images.tsx`, `web/src/app/conversation/entry.tsx`, `web/src/app/conversation/waiting-messages.tsx`, `web/src/app/conversation/composer-images.test.tsx`, `web/src/app/conversation/waiting-messages.test.tsx`, `web/src/app/conversation/contract.yaml`, `docs/frontend/codebase/README.md`, `docs/frontend/stages.md` (this status only).
-- Needs: none (no API change); the crossOrigin fix commit first.
-- Done when: from `web/`, `npx vitest run src/app/conversation/image-zoom.test.tsx src/app/conversation/composer-images.test.tsx src/app/conversation/waiting-messages.test.tsx` passes with the test names in the plan's Tests section, and `npm run typecheck`, `npm run lint`, `npm run build`, `npx vitest run src/codemap.test.ts src/architecture` pass.
-
-## Slice 2: the question card and Settings › Code (2026-11-13)
-
-Design: [language servers](../backend/specs/2026-11-13-language-servers-design.md). Plan: [slice 2](../backend/plans/2026-11-13-slice-2-language-servers.md); each entry's Touch, tests and Done when are its task there.
-
-### F-115 · The question card, the Planner's permission cards, and Shadows' notices
-
-- Status: done.
-- Plan: [Task F-115](../backend/plans/2026-11-13-slice-2-language-servers.md#task-f-115-the-question-card-the-planners-permission-cards-and-shadows-notices).
-
-### F-116 · Settings › Code
-
-- Status: done.
-- Plan: [Task F-116](../backend/plans/2026-11-13-slice-2-language-servers.md#task-f-116-settings--code).

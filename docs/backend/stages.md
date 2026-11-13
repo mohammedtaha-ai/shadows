@@ -118,6 +118,8 @@ Review fixes (PR #66, `5a52a06a`): no task. The attempt watcher waits on the com
 its tags in batches, a turn's entries share one transaction, dependencies no crate uses are dropped, and the
 route table is built in groups.
 
+Codex images and language servers, slice 2 (PR #67, `db760593`): B-137 (a Codex conversation takes images), B-138a (`core-code` becomes `codebase`), B-138 (the `shadows-lsp` client), B-139 to B-144 and B-146 (the language-server catalog and a project's servers, activity as a sent message with an idle stop, `code_lsp`, the person's server settings, `person_ask`, the Planner's shell and its changes, Codex's two modes), with the review notes on B-139 to B-142, shipped. Their entries, and the commits outside their `Touch:` lists, are in this file at `db760593`; F-114 to F-116 are in `docs/frontend/stages.md` at `db760593`. The slice 2 plan `docs/backend/plans/2026-11-13-slice-2-language-servers.md` stays for B-145: its live tests are in `db760593`, its browser acceptance on `testing3` is open. B-97, B-98 and B-119 were replaced by the slice 2 tasks on 2026-11-13 and none was built as written: the catalog is B-139, the person's server routes are B-142, and no bounded semantic query (B-98) exists. Open: B-145 (browser acceptance), B-88 and B-94.
+
 ## Tasks
 
 ### B-88 · Accept Codex in the real Planner
@@ -147,7 +149,7 @@ Order and rulings: [the program](plans/2026-11-09-local-delivery-program.md). Sl
 
 ### B-97 · Server catalog and controlled process lifecycle
 
-- Status: replaced (2026-11-13) by B-138 to B-145, [slice 2 plan](plans/2026-11-13-slice-2-language-servers.md), from the [language servers design](specs/2026-11-13-language-servers-design.md).
+- Status: replaced (2026-11-13) by the slice 2 tasks, `docs/backend/stages.md` at `db760593` (B-145 open), [slice 2 plan](plans/2026-11-13-slice-2-language-servers.md), from the [language servers design](specs/2026-11-13-language-servers-design.md).
 - Plan: [Task 2](plans/2026-11-09-repository-discovery.md#task-2-b-97-server-catalog-and-controlled-process-lifecycle), changed by the [program's slice 2 changes](plans/2026-11-09-local-delivery-program.md) (Mohammed, 2026-11-11): the catalog is the twelve `lspServers` of claude-plugins-official (`*-lsp/.claude-plugin/plugin.json`: command, args, extensionToLanguage; Apache-2.0) copied as one data file; a project's servers are chosen from its files' extensions in the inventory of `docs/backend/stages.md` at `617d806f` (B-96); a server not installed shows "not installed" with its install command. Not PHP-only.
 - Owner: Code.
 - Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
@@ -157,7 +159,7 @@ Order and rulings: [the program](plans/2026-11-09-local-delivery-program.md). Sl
 
 ### B-98 · Verified semantic queries with bounded results
 
-- Status: replaced (2026-11-13) by B-138 to B-145, [slice 2 plan](plans/2026-11-13-slice-2-language-servers.md), from the [language servers design](specs/2026-11-13-language-servers-design.md).
+- Status: replaced (2026-11-13) by the slice 2 tasks, `docs/backend/stages.md` at `db760593` (B-145 open), [slice 2 plan](plans/2026-11-13-slice-2-language-servers.md), from the [language servers design](specs/2026-11-13-language-servers-design.md).
 - Plan: [Task 3](plans/2026-11-09-repository-discovery.md#task-3-b-98-verified-semantic-queries-with-bounded-results).
 - Owner: Code.
 - Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
@@ -167,7 +169,7 @@ Order and rulings: [the program](plans/2026-11-09-local-delivery-program.md). Sl
 
 ### B-119 · Language-server status and question routes reach the Planner
 
-- Status: replaced (2026-11-13) by B-138 to B-145, [slice 2 plan](plans/2026-11-13-slice-2-language-servers.md), from the [language servers design](specs/2026-11-13-language-servers-design.md).
+- Status: replaced (2026-11-13) by the slice 2 tasks, `docs/backend/stages.md` at `db760593` (B-145 open), [slice 2 plan](plans/2026-11-13-slice-2-language-servers.md), from the [language servers design](specs/2026-11-13-language-servers-design.md).
 - Plan: draft, the language-server part of [Task 4](plans/2026-11-09-repository-discovery.md#task-4-b-99-repository-and-lsp-apis-reach-the-planner), which `docs/backend/stages.md` at `617d806f` (B-99) no longer carries.
 - Owner: Code, Grants and adapters.
 - Read, Touch, Done when: written when slice 2 is detailed.
@@ -307,112 +309,16 @@ Order and rulings: [the program](plans/2026-11-09-local-delivery-program.md). Sl
 - Needs: B-117, F-104; accepted shared API/model agreement. 
 - Done when: all named RED/GREEN steps and focused verification commands in Task 4 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
 
-## Codex images (2026-11-12)
+## Slice 2: language servers (2026-11-13)
 
-Mohammed, 2026-11-12: a person can send images to a Codex conversation, as with Claude Code.
-Codex 0.167's app-server takes an image turn input as `{"type":"image","url":<data URL>}`
-(`UserInput::Image`, from `codex app-server generate-json-schema`), and its models list
-`inputModalities` with `["text","image"]` as the default. The web composer already enables
-its image button from the session's `capabilities.image`, so no web change.
-
-### B-137 · A Codex conversation takes images
-
-- Status: done. Live, 2026-11-12, real signed-in Codex (dedicated home `%LOCALAPPDATA%/Shadows/codex-home`): `live_a_codex_turn_sees_an_image` 1 passed (14.5 s). A 1x1 PNG reached Codex but read as "White", so the live test sends a 64x64 red fixture (`crates/shadows-core/tests/fixtures/red-64.png`). Browser: Mohammed attached an image in a Codex conversation on 2026-11-12, and it was answered.
-- Owner: `shadows-agent`'s Codex connection (`crates/shadows-agent/src/codex/prompt.rs`): `prompt_capabilities` reports `image: true` with no reason, and `input` maps `PromptBlock::Image { media_type, bytes }` to `{"type":"image","url":"data:<media_type>;base64,<bytes>"}`, for both `prompt_blocks` and `steer_blocks`. The capability is the connection's, not the model's: a model that refuses images answers with its own provider error, which already reaches the person (simple boundary, 2026-11-08).
-- Read: `crates/core-harness/contract.yaml` (`require_images`, `image_input`); `crates/shadows-agent/src/acp/prompt.rs` (how the ACP side maps an image); `crates/shadows-core/tests/codex_session.rs` (`codex_choices_follow_the_model_catalog`, `live_a_codex_planner_reads_a_file_and_writes_none`).
-- Touch: `crates/shadows-agent/src/codex/prompt.rs`; `crates/shadows-agent/contract.yaml` (only if it names the Codex image refusal); `crates/core-harness/contract.yaml` (the `image_input` lines, if they name Codex); `crates/shadows-core/tests/codex_session.rs`; `docs/backend/stages.md` (this entry). If `fake-codex` refuses an image turn in a test that is not live, stop and name it; no new fake-codex behaviour.
-- Tests:
-  - `codex_choices_follow_the_model_catalog` asserts `capabilities.image` is true and `image_reason` is `None`.
-  - New live test `live_a_codex_turn_sees_an_image`, `#[ignore]` with the same reason as the live Planner test: send `crates/shadows/tests/fixtures/red.png` with "What colour is this image? Answer with one word.", wait up to 180 s, the operation completes and the reply contains "red" (case-insensitive).
-- Needs: nothing.
-- Done when: `cargo test -p shadows-agent`; `cargo test -p shadows-core --test codex_session`; `cargo test -p shadows-core --test codex_session -- --ignored --test-threads=1 live_a_codex_turn_sees_an_image` passes against the signed-in Codex; `cargo test -p shadows-core --test contracts`; `cargo test -p shadows --test architecture --test codemap --test contract_tests`; fmt and the 100-column check on changed files. One commit, `feat(backend): B-137 a Codex conversation takes images`. Browser check: attach an image in a Codex conversation, and the reply describes it.
-
-## Slice 2: language servers, the question card and Settings › Code (2026-11-13)
-
-Design: [language servers](specs/2026-11-13-language-servers-design.md) (Mohammed, 2026-11-13). Plan: [slice 2](plans/2026-11-13-slice-2-language-servers.md). Each entry's Touch is its task's Files; its Done when is its task's run steps, plus `cargo test -p shadows --test architecture --test codemap --test contract_tests`, fmt and the 100-column check. One commit each, as the task names it. Order: B-138a, B-138, B-139, B-140, B-141, B-142, B-143, B-144, F-115, F-116, B-145.
-
-
-### B-138a · `core-code` becomes `codebase`
-
-- Status: done (Mohammed, 2026-11-13: the service is named without `core-`).
-- Plan: [Task B-138a](plans/2026-11-13-slice-2-language-servers.md#task-b-138a-core-code-becomes-codebase).
-- Needs: none. Every later slice 2 task reads `crates/codebase/` and `Codebase`.
-### B-138 · The shadows-lsp client
-
-- Status: done.
-- Plan: [Task B-138](plans/2026-11-13-slice-2-language-servers.md#task-b-138-the-shadows-lsp-client).
-- Needs: B-138a.
-
-### B-139 · The catalog and a project's servers
-
-- Status: done.
-- Plan: [Task B-139](plans/2026-11-13-slice-2-language-servers.md#task-b-139-the-catalog-and-a-projects-servers).
-- Needs: B-138.
-
-### B-140 · Activity is a sent message, with an idle stop
-
-- Status: done.
-- Plan: [Task B-140](plans/2026-11-13-slice-2-language-servers.md#task-b-140-activity-is-a-sent-message-with-an-idle-stop).
-- Needs: B-139.
-
-### B-141 · code_lsp, and the name index suspended
-
-- Status: done.
-- Plan: [Task B-141](plans/2026-11-13-slice-2-language-servers.md#task-b-141-code_lsp-and-the-name-index-suspended).
-- Needs: B-139, B-140.
-
-### B-142 · The person's server settings over HTTP
-
-- Status: done.
-- Plan: [Task B-142](plans/2026-11-13-slice-2-language-servers.md#task-b-142-the-persons-server-settings-over-http).
-- Needs: B-139.
-
-### Review notes on B-139..B-142
-
-- Status: done (`fix(backend): B-139..B-142 review notes`).
-- Plan: the "Review fix" and "Review notes" lines of Tasks B-139, B-141 and B-142.
-- Done: a scan's changed paths reach the running servers
-  (`a_scanned_change_reaches_the_server`); `LANGUAGE_SERVER_UNAVAILABLE` with the server's
-  state in its text; `add_server_for_test` and `ask_server_for_test` gone; Lua's id stays
-  `lua` (spec amended).
-
-### B-143 · person_ask, the question card
-
-- Status: done.
-- Plan: [Task B-143](plans/2026-11-13-slice-2-language-servers.md#task-b-143-person_ask-the-question-card).
-- Needs: none.
-
-### B-144 · The Planner's shell, its permission cards, and the end-of-turn check
-
-- Status: done (the live `planner_permissions` tests are written and ignored; not run, since no signed-in Claude Code or Codex was available).
-- Plan: [Task B-144](plans/2026-11-13-slice-2-language-servers.md#task-b-144-the-planners-shell-its-permission-cards-and-the-end-of-turn-check).
-- Needs: B-138a, B-140 (`ActiveHold`), B-141 (`code_lsp`'s path check).
-- Ruling: Mohammed, 2026-11-13. A Claude Code Planner opens in `auto` by default
-  (`policy::default_mode`), as the design and plan say; Claude Code decides its shell
-  commands itself and no card waits (`a_planner_in_its_default_auto_runs_the_command_itself`).
-  Accept edits stays on offer, and its requests still wait for the person
-  (`a_planner_permission_request_waits_for_the_person`). A project that does not allow
-  `auto` opens on its first allowed mode, as Codex does.
-
-### B-146 · A Codex conversation's two modes
-
-- Status: done.
-- Ruling: Mohammed, 2026-11-13, amending B-144. "Approve for me" (`ask`, default:
-  `workspace-write`, `on-request`, approvals reviewer `auto_review`: Codex's reviewer
-  allows or denies each request itself, none is held (codex-cli 0.167.0 answers only
-  allow or deny; `codex_reviewer_approves_for_the_person`); renamed from "Ask to
-  approve" by a second ruling the same day, the id kept) and "Read only" (`read-only`, `never`); the mode is
-  sent on every `turn/start`. In Read only the Planner offers no install of its own.
-- Older projects: a project made before B-146 allows `read-only` only and opens there,
-  not on `ask` (`codex_opens_on_the_projects_mode_when_the_default_is_not_allowed`).
-- Design: [language servers](specs/2026-11-13-language-servers-design.md), "The Planner's shell and its changes".
+Design: [language servers](specs/2026-11-13-language-servers-design.md). Plan: [slice 2](plans/2026-11-13-slice-2-language-servers.md), open for B-145. The other slice 2 tasks (B-137, B-138a to B-144 and B-146) are in this file at `db760593`.
 
 ### B-145 · Live acceptance
 
-- Status: done (2026-11-13) for the live tests: `crates/shadows/tests/language_servers_live.rs`,
+- Status: todo, browser acceptance only. The live tests (2026-11-13) are in `db760593`: `crates/shadows/tests/language_servers_live.rs`,
   `live_a_planner_asks_gopls` (Claude Code) and `live_a_codex_planner_asks_gopls` (Codex),
   2 passed with gopls; each turn called `code_lsp` and named `b.go` and `c.go`. B-144's
   `planner_permissions` live tests: 2 passed (Codex's first cold start timed out once, then
-  passed). Left: the browser acceptance on `testing3` (Mohammed), to be recorded here.
+  passed). Left: the browser acceptance on `testing3` (Mohammed), to be recorded here when it is done.
 - Plan: [Task B-145](plans/2026-11-13-slice-2-language-servers.md#task-b-145-live-acceptance).
-- Needs: B-141, B-144, F-115, F-116.
+- Needs: `docs/backend/stages.md` at `db760593` (B-141, B-144); `docs/frontend/stages.md` at `db760593` (F-115, F-116).
