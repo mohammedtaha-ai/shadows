@@ -102,10 +102,18 @@ fn launched(dir: tempfile::TempDir, env: Vec<(String, String)>) -> LiveAdapter {
         ),
     )
     .unwrap();
+    // The person's Windows install unless the machine names its own, as
+    // `planner_permissions` reads them.
+    let installed = |var: &str, default: &str| {
+        std::env::var_os(var).map_or_else(|| PathBuf::from(default), PathBuf::from)
+    };
     let adapter = ClaudeAdapter::new(
-        r"C:\Program Files\nodejs\node.exe".into(),
+        installed("SHADOWS_NODE_PATH", r"C:\Program Files\nodejs\node.exe"),
         launcher,
-        r"C:\Users\Mohammed\.local\bin\claude.exe".into(),
+        installed(
+            "SHADOWS_HARNESS_PATH",
+            r"C:\Users\Mohammed\.local\bin\claude.exe",
+        ),
         ADAPTER_VERSION.into(),
         CLAUDE_VERSION.into(),
     );
