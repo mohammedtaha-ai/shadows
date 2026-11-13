@@ -379,7 +379,9 @@ functions:
       signature: "ActiveHold::changed(&self) -> Vec<String>"
       # The paths the project's watcher reported while the hold lived (`forward`
       # tells `saw` every path it keeps, before the pause flag), sorted, `.git`
-      # and `.git/` left out, and nothing under target/ or node_modules/. A change
+      # and `.git/` left out, and nothing under target/ or node_modules/, and no
+      # existing folder modified in place (Windows reports a folder whose file
+      # was only read; its files report their own changes). A change
       # before the watcher started, or one it lost, is not among them. Turns
       # reads it when a Planner turn settles.
     saw:
@@ -889,8 +891,9 @@ enums:
 obligations:
   - rule: >
       A hold keeps the paths the project's watcher saw change while it lived, git's
-      own bookkeeping left out.
-    tested_by: [an_unnoted_shell_change_is_recorded_and_asked_about, a_turn_with_no_change_sends_nothing]
+      own bookkeeping and a folder modified in place left out.
+    tested_by: [an_unnoted_shell_change_is_recorded_and_asked_about, a_turn_with_no_change_sends_nothing,
+      a_folder_modified_in_place_is_not_a_hold_change, live_a_codex_planner_reads_a_file_and_writes_none]
   - rule: >
       The person's server settings change only by command (CodeServerSwitch,
       CodeServerAdd, CodeServerRemove), each one write with its replay, event

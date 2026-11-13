@@ -26,7 +26,7 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
-use notify::event::{AccessKind, AccessMode};
+use notify::event::{AccessKind, AccessMode, ModifyKind};
 use notify::{EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use tokio::sync::{Notify, mpsc, oneshot};
 use tokio::task::JoinHandle;
@@ -642,7 +642,8 @@ impl Run {
 /// build sends hundreds); a changed
 /// `.gitignore`, an error or `need_rescan` asks for a scan; the rest go on,
 /// relative to the folder. Every path kept is also told to the project's holds
-/// (`saw`), which keep what changed while they live.
+/// (`saw`), which keep what changed while they live, except an existing folder
+/// modified in place (not renamed).
 fn forward(
     dir: &Path,
     seen: &mpsc::Sender<Seen>,
@@ -671,6 +672,10 @@ fn forward(
     {
         return;
     }
+    // Windows reports a folder as modified when a file in it is only read; the
+    // files under it report their own changes, so the holds skip the folder.
+    let in_place = matches!(event.kind, EventKind::Modify(kind)
+        if !matches!(kind, ModifyKind::Name(_)));
     for path in &event.paths {
         let Some(rel) = Codebase::relative(dir, path) else {
             continue;
@@ -678,7 +683,7 @@ fn forward(
         if rel.split('/').any(Codebase::never_walked) {
             continue;
         }
-        if !rel.is_empty() {
+        if !rel.is_empty() && !(in_place && path.is_dir()) {
             saw(&rel);
         }
         if rel.rsplit('/').next() == Some(".gitignore") {
