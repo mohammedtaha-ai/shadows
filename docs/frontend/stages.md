@@ -47,7 +47,7 @@ B-95 to B-136. Their entries are in this file at `617d806f`. Their plans,
 `docs/frontend/plans/2026-11-11-task-page-review-and-diff.md` and `docs/frontend/plans/2026-11-11-shadows-notices.md`,
 are at `617d806f`. PR #66 (`5a52a06a`) removed dead web exports and type aliases and has no `F-` task.
 
-Conversation images, the question card and Settings › Code (PR #67, `db760593`): F-114 (image tiles with a corner ✕ in the composer, and a viewer for every conversation image), F-115 (the question card, the Planner's permission cards and Shadows' notices) and F-116 (Settings › Code) shipped with B-137 and B-138a to B-146 (`docs/backend/stages.md` at `db760593`). Their entries are in this file at `db760593`. The plan `docs/frontend/plans/2026-11-12-conversation-images.md` at `db760593` was its brief for F-114; the slice 2 plan `docs/backend/plans/2026-11-13-slice-2-language-servers.md` stays open for B-145. The image tiles' look in the browser is not recorded here.
+Conversation images, the question card and Settings › Code (PR #67, `db760593`): F-114 (image tiles with a corner ✕ in the composer, and a viewer for every conversation image), F-115 (the question card, the Planner's permission cards and Shadows' notices) and F-116 (Settings › Code) shipped with B-137 and B-138a to B-146 (`docs/backend/stages.md` at `db760593`). Their entries are in this file at `db760593`. The plan `docs/frontend/plans/2026-11-12-conversation-images.md` at `db760593` was its brief for F-114; the slice 2 plan is in Git at `db760593`. The image tiles' look in the browser is not recorded here.
 
 Still open outside any task: the light palette and the real desktop login-item behaviour need
 their own app and OS acceptance.

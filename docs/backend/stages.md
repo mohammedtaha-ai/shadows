@@ -118,7 +118,7 @@ Review fixes (PR #66, `5a52a06a`): no task. The attempt watcher waits on the com
 its tags in batches, a turn's entries share one transaction, dependencies no crate uses are dropped, and the
 route table is built in groups.
 
-Codex images and language servers, slice 2 (PR #67, `db760593`): B-137 (a Codex conversation takes images), B-138a (`core-code` becomes `codebase`), B-138 (the `shadows-lsp` client), B-139 to B-144 and B-146 (the language-server catalog and a project's servers, activity as a sent message with an idle stop, `code_lsp`, the person's server settings, `person_ask`, the Planner's shell and its changes, Codex's two modes), with the review notes on B-139 to B-142, shipped. Their entries, and the commits outside their `Touch:` lists, are in this file at `db760593`; F-114 to F-116 are in `docs/frontend/stages.md` at `db760593`. The slice 2 plan `docs/backend/plans/2026-11-13-slice-2-language-servers.md` stays for B-145: its live tests are in `db760593`, its browser acceptance on `testing3` is open. B-97, B-98 and B-119 were replaced by the slice 2 tasks on 2026-11-13 and none was built as written: the catalog is B-139, the person's server routes are B-142, and no bounded semantic query (B-98) exists. Open: B-145 (browser acceptance), B-88 and B-94.
+Codex images and language servers, slice 2 (PR #67, `db760593`): B-137 (a Codex conversation takes images), B-138a (`core-code` becomes `codebase`), B-138 (the `shadows-lsp` client), B-139 to B-146 (the language-server catalog and a project's servers, activity as a sent message with an idle stop, `code_lsp`, the person's server settings, `person_ask`, the Planner's shell and its changes, the live acceptance, Codex's two modes), with the review notes on B-139 to B-142, shipped. Their entries, and the commits outside their `Touch:` lists, are in this file at `db760593`; F-114 to F-116 are in `docs/frontend/stages.md` at `db760593`. B-145's live tests are in `db760593`, and its browser acceptance ran on `testing4` (2026-11-13); the slice 2 plan is in Git at `db760593`. B-97, B-98 and B-119 were replaced by the slice 2 tasks on 2026-11-13 and none was built as written: the catalog is B-139, the person's server routes are B-142, and no bounded semantic query (B-98) exists. Open: B-88 and B-94.
 
 ## Tasks
 
@@ -149,7 +149,7 @@ Order and rulings: [the program](plans/2026-11-09-local-delivery-program.md). Sl
 
 ### B-97 · Server catalog and controlled process lifecycle
 
-- Status: replaced (2026-11-13) by the slice 2 tasks, `docs/backend/stages.md` at `db760593` (B-145 open), [slice 2 plan](plans/2026-11-13-slice-2-language-servers.md), from the [language servers design](specs/2026-11-13-language-servers-design.md).
+- Status: replaced (2026-11-13) by the slice 2 tasks, `docs/backend/stages.md` at `db760593`, from the [language servers design](specs/2026-11-13-language-servers-design.md).
 - Plan: [Task 2](plans/2026-11-09-repository-discovery.md#task-2-b-97-server-catalog-and-controlled-process-lifecycle), changed by the [program's slice 2 changes](plans/2026-11-09-local-delivery-program.md) (Mohammed, 2026-11-11): the catalog is the twelve `lspServers` of claude-plugins-official (`*-lsp/.claude-plugin/plugin.json`: command, args, extensionToLanguage; Apache-2.0) copied as one data file; a project's servers are chosen from its files' extensions in the inventory of `docs/backend/stages.md` at `617d806f` (B-96); a server not installed shows "not installed" with its install command. Not PHP-only.
 - Owner: Code.
 - Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
@@ -159,7 +159,7 @@ Order and rulings: [the program](plans/2026-11-09-local-delivery-program.md). Sl
 
 ### B-98 · Verified semantic queries with bounded results
 
-- Status: replaced (2026-11-13) by the slice 2 tasks, `docs/backend/stages.md` at `db760593` (B-145 open), [slice 2 plan](plans/2026-11-13-slice-2-language-servers.md), from the [language servers design](specs/2026-11-13-language-servers-design.md).
+- Status: replaced (2026-11-13) by the slice 2 tasks, `docs/backend/stages.md` at `db760593`, from the [language servers design](specs/2026-11-13-language-servers-design.md).
 - Plan: [Task 3](plans/2026-11-09-repository-discovery.md#task-3-b-98-verified-semantic-queries-with-bounded-results).
 - Owner: Code.
 - Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
@@ -169,7 +169,7 @@ Order and rulings: [the program](plans/2026-11-09-local-delivery-program.md). Sl
 
 ### B-119 · Language-server status and question routes reach the Planner
 
-- Status: replaced (2026-11-13) by the slice 2 tasks, `docs/backend/stages.md` at `db760593` (B-145 open), [slice 2 plan](plans/2026-11-13-slice-2-language-servers.md), from the [language servers design](specs/2026-11-13-language-servers-design.md).
+- Status: replaced (2026-11-13) by the slice 2 tasks, `docs/backend/stages.md` at `db760593`, from the [language servers design](specs/2026-11-13-language-servers-design.md).
 - Plan: draft, the language-server part of [Task 4](plans/2026-11-09-repository-discovery.md#task-4-b-99-repository-and-lsp-apis-reach-the-planner), which `docs/backend/stages.md` at `617d806f` (B-99) no longer carries.
 - Owner: Code, Grants and adapters.
 - Read, Touch, Done when: written when slice 2 is detailed.
@@ -308,17 +308,3 @@ Order and rulings: [the program](plans/2026-11-09-local-delivery-program.md). Sl
 - Touch: exact Create/Modify/Test file list of Task 4; no other source paths.
 - Needs: B-117, F-104; accepted shared API/model agreement. 
 - Done when: all named RED/GREEN steps and focused verification commands in Task 4 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
-
-## Slice 2: language servers (2026-11-13)
-
-Design: [language servers](specs/2026-11-13-language-servers-design.md). Plan: [slice 2](plans/2026-11-13-slice-2-language-servers.md), open for B-145. The other slice 2 tasks (B-137, B-138a to B-144 and B-146) are in this file at `db760593`.
-
-### B-145 · Live acceptance
-
-- Status: todo, browser acceptance only. The live tests (2026-11-13) are in `db760593`: `crates/shadows/tests/language_servers_live.rs`,
-  `live_a_planner_asks_gopls` (Claude Code) and `live_a_codex_planner_asks_gopls` (Codex),
-  2 passed with gopls; each turn called `code_lsp` and named `b.go` and `c.go`. B-144's
-  `planner_permissions` live tests: 2 passed (Codex's first cold start timed out once, then
-  passed). Left: the browser acceptance on `testing3` (Mohammed), to be recorded here when it is done.
-- Plan: [Task B-145](plans/2026-11-13-slice-2-language-servers.md#task-b-145-live-acceptance).
-- Needs: `docs/backend/stages.md` at `db760593` (B-141, B-144); `docs/frontend/stages.md` at `db760593` (F-115, F-116).
