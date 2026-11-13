@@ -8,7 +8,10 @@ use std::time::Duration;
 
 use shadows_agent::claude::ClaudeAdapter;
 use shadows_core::testing::{CommandContext, ProjectDirectory, Storage, acp};
-use shadows_core::{AppCore, Asker, Codebase, CodebaseConfig, CoreParts, ProjectId};
+use shadows_core::{
+    AddedServer, AppCore, Asker, Codebase, CodebaseConfig, CoreParts, LspAnswer, LspOperation,
+    LspQuestion, ProjectId,
+};
 
 const A_GO: &str = "package demo\n\nfunc Hello() string {\n\treturn \"hi\"\n}\n";
 const A_GO_MOVED: &str =
@@ -170,46 +173,94 @@ async fn a_watched_change_reaches_the_server() {
         state(&core, &project, "gopls").await == "running"
     })
     .await;
-    let line = || async {
-        let at = serde_json::json!({
-            "textDocument": { "uri": url(&dir.path().canonicalize().unwrap().join("b.go")) },
-            "position": { "line": 3, "character": 9 },
-        });
-        let answer = core
-            .codebase()
-            .ask_server_for_test(&project, "gopls", "b.go", "textDocument/definition", at)
-            .await
-            .unwrap();
-        let first = answer
-            .as_array()
-            .map_or(answer.clone(), |all| all[0].clone());
-        first["range"]["start"]["line"].as_u64().unwrap()
-    };
-    assert_eq!(line().await, 2);
+    assert_eq!(hello_line(&core, &project).await, 3);
     write(dir.path(), "a.go", A_GO_MOVED);
     // The watcher reports the write; no question comes between.
     tokio::time::sleep(Duration::from_secs(1)).await;
-    assert_eq!(line().await, 4);
+    assert_eq!(hello_line(&core, &project).await, 5);
     core.codebase().shut_down_for_test().await;
 }
 
-fn url(path: &Path) -> String {
-    let text = path.to_string_lossy().replace('\\', "/");
-    let text = text.trim_start_matches("//?/");
-    if text.starts_with('/') {
-        format!("file://{text}")
-    } else {
-        format!("file:///{text}")
-    }
+#[tokio::test]
+#[ignore = "needs gopls on PATH"]
+async fn a_scanned_change_reaches_the_server() {
+    let (core, project, dir, _db) = core_with_project().await;
+    write(dir.path(), "go.mod", "module example.com/demo\n\ngo 1.21\n");
+    write(dir.path(), "a.go", A_GO);
+    write(dir.path(), "b.go", B_GO);
+    // No periodic scan within the test: only the refresh below scans.
+    let config = CodebaseConfig {
+        debounce: Duration::from_millis(200),
+        ..CodebaseConfig::default()
+    };
+    core.codebase().start(config).await.unwrap();
+    core.codebase().touch(&project).await;
+    eventually(60, || async {
+        state(&core, &project, "gopls").await == "running"
+    })
+    .await;
+    assert_eq!(hello_line(&core, &project).await, 3);
+    // The watcher's report is dropped: only the scan can tell gopls.
+    core.codebase().pause_watcher_for_test(&project).await;
+    write(dir.path(), "a.go", A_GO_MOVED);
+    tokio::time::sleep(Duration::from_secs(1)).await;
+    assert_eq!(
+        hello_line(&core, &project).await,
+        3,
+        "gopls was told before the scan"
+    );
+    core.codebase()
+        .refresh_inventory(Asker::Person(&project))
+        .await
+        .unwrap();
+    assert_eq!(hello_line(&core, &project).await, 5);
+    core.codebase().shut_down_for_test().await;
+}
+
+/// The one-based line `code_lsp` answers for `Hello`'s definition, asked from its
+/// call in b.go.
+async fn hello_line(core: &AppCore, project: &ProjectId) -> u64 {
+    let question = LspQuestion {
+        operation: LspOperation::GoToDefinition,
+        file: Some("b.go".into()),
+        line: Some(4),
+        character: Some(10),
+        query: None,
+        project: None,
+    };
+    let answer = core
+        .codebase()
+        .lsp(Asker::Person(project), question)
+        .await
+        .unwrap();
+    let LspAnswer::Answered { result, .. } = answer else {
+        panic!("no server answered: {answer:?}");
+    };
+    let first = result
+        .as_array()
+        .map_or(result.clone(), |all| all[0].clone());
+    assert_eq!(first["path"], "a.go", "{result}");
+    first["line"].as_u64().unwrap()
+}
+
+/// Adds a server beside the catalog, as the person does.
+async fn add(core: &AppCore, id: &str, command: &str, args: &[&str], extension: &str) {
+    let server = AddedServer {
+        id: id.into(),
+        command: command.into(),
+        args: args.iter().map(|a| a.to_string()).collect(),
+        extensions: vec![extension.into()],
+    };
+    core.codebase()
+        .add_server(format!("add-{id}"), server)
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
 async fn a_missing_command_reads_not_installed() {
     let (core, project, dir, _db) = core_with_project().await;
-    core.codebase()
-        .add_server_for_test("zz-server", "no-such-server-xyz", &[], &[".zz"])
-        .await
-        .unwrap();
+    add(&core, "zz-server", "no-such-server-xyz", &[], ".zz").await;
     write(dir.path(), "x.zz", "zz\n");
     active(&core, &project).await;
     core.codebase().scan_for_test(&project).await.unwrap();
@@ -225,10 +276,7 @@ async fn a_server_that_exits_reads_failed() {
     } else {
         ("sh", &["-c", "exit 3"])
     };
-    core.codebase()
-        .add_server_for_test("quits", command, args, &[".yy"])
-        .await
-        .unwrap();
+    add(&core, "quits", command, args, ".yy").await;
     write(dir.path(), "x.yy", "yy\n");
     active(&core, &project).await;
     eventually(30, || async {

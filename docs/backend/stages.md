@@ -367,6 +367,15 @@ Design: [language servers](specs/2026-11-13-language-servers-design.md) (Mohamme
 - Plan: [Task B-142](plans/2026-11-13-slice-2-language-servers.md#task-b-142-the-persons-server-settings-over-http).
 - Needs: B-139.
 
+### Review notes on B-139..B-142
+
+- Status: done (`fix(backend): B-139..B-142 review notes`).
+- Plan: the "Review fix" and "Review notes" lines of Tasks B-139, B-141 and B-142.
+- Done: a scan's changed paths reach the running servers
+  (`a_scanned_change_reaches_the_server`); `LANGUAGE_SERVER_UNAVAILABLE` with the server's
+  state in its text; `add_server_for_test` and `ask_server_for_test` gone; Lua's id stays
+  `lua` (spec amended).
+
 ### B-143 · person_ask, the question card
 
 - Status: ready.

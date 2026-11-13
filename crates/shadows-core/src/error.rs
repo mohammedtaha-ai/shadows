@@ -62,6 +62,9 @@ pub enum ErrorCode {
     OriginRefused,
     /// The thread's harness is listed but not runnable.
     HarnessUnavailable,
+    /// A project's language server could not answer a question; the text says how
+    /// it stands (running but silent, failed with its last error line, not startable).
+    LanguageServerUnavailable,
     /// A model, mode or effort the session does not offer, or a mode outside
     /// Shadows' policy.
     SettingNotOffered,
@@ -376,9 +379,8 @@ impl From<codebase::CodebaseError> for CoreError {
                 code: ErrorCode::InventoryStale,
                 message: error.to_string(),
             },
-            // A language server is a program on this machine, as a harness is.
             CodebaseError::LanguageServer(message) => Self::Refused {
-                code: ErrorCode::HarnessUnavailable,
+                code: ErrorCode::LanguageServerUnavailable,
                 message,
             },
             CodebaseError::Projects(error) => error.into(),

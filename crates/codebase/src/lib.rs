@@ -134,7 +134,7 @@ impl Codebase {
         }
     }
 
-    /// Test only: `project`'s worker drops every `Files` job from now on.
+    /// Test only: `project`'s worker drops every path its watcher reports from now on.
     #[cfg(feature = "test-support")]
     pub(crate) async fn pause_watcher(&self, project: &ProjectId) {
         if let Some(worker) = self.inner.active.lock().await.worker(project) {

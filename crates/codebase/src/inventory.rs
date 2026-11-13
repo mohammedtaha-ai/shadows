@@ -5,7 +5,7 @@
 //! an ignore file names, a secret's name and a link are each one `excluded`
 //! entry, never entered, so a huge dependency folder is one line.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
@@ -28,7 +28,42 @@ const MAX_LIMIT: u16 = 200;
 /// What one listing found, and whether any entry could not be read.
 struct Listed {
     rows: Vec<InventoryRow>,
+    /// Each listed file's size and modified time, by its path.
+    stamps: HashMap<String, (i64, i64)>,
     incomplete: bool,
+}
+
+/// The files one listing found, with their stamps: what a project's worker
+/// compares with its last scan to tell the language servers what changed.
+pub(super) struct FileStamps {
+    files: HashMap<String, (i64, i64)>,
+    complete: bool,
+}
+
+impl FileStamps {
+    /// The paths added, changed or removed since `known`, which becomes this
+    /// listing. An incomplete listing removes nothing: a file it could not read
+    /// may still be there.
+    pub(super) fn follow(self, known: &mut HashMap<String, (i64, i64)>) -> Vec<String> {
+        let mut changed: Vec<String> = self
+            .files
+            .iter()
+            .filter(|(path, stamp)| known.get(*path) != Some(*stamp))
+            .map(|(path, _)| path.clone())
+            .collect();
+        if self.complete {
+            changed.extend(
+                known
+                    .keys()
+                    .filter(|path| !self.files.contains_key(*path))
+                    .cloned(),
+            );
+            *known = self.files;
+        } else {
+            known.extend(self.files);
+        }
+        changed
+    }
 }
 
 /// A name whose file holds a secret: its name is listed, its content never.
@@ -66,6 +101,7 @@ fn listed(dir: &Path) -> Listed {
         }
     }
     let mut rows = Vec::new();
+    let mut stamps = HashMap::new();
     let mut folders = vec![String::new()];
     while let Some(folder) = folders.pop() {
         let Ok(children) = std::fs::read_dir(dir.join(&folder)) else {
@@ -104,6 +140,10 @@ fn listed(dir: &Path) -> Listed {
                 folders.push(path.clone());
                 Some(("directory", None))
             } else if kind.is_file() {
+                // Asked of the file itself: Windows' directory entry can lag a write.
+                if let Ok(meta) = std::fs::symlink_metadata(dir.join(&path)) {
+                    stamps.insert(path.clone(), Codebase::stamp(&meta));
+                }
                 Some(("file", None))
             } else {
                 None
@@ -118,7 +158,11 @@ fn listed(dir: &Path) -> Listed {
             }
         }
     }
-    Listed { rows, incomplete }
+    Listed {
+        rows,
+        stamps,
+        incomplete,
+    }
 }
 
 impl Codebase {
@@ -242,20 +286,29 @@ impl Codebase {
     }
 
     /// Lists `dir` and stores what it found; a failure is logged, never
-    /// answered, so a scan never fails because of its listing.
-    pub(super) async fn record_inventory(&self, project: &ProjectId, dir: &Path) {
+    /// answered, so a scan never fails because of its listing. Answers the
+    /// listed files' stamps, or `None` when nothing was listed.
+    pub(super) async fn record_inventory(
+        &self,
+        project: &ProjectId,
+        dir: &Path,
+    ) -> Option<FileStamps> {
         let owned: PathBuf = dir.to_path_buf();
         let found = match tokio::task::spawn_blocking(move || listed(&owned)).await {
             Ok(found) => found,
             Err(error) => {
                 tracing::warn!(project = project.as_str(), error = %error, "code.inventory_failed");
-                return;
+                return None;
             }
         };
         // A folder that vanished while it was listed keeps its stored list.
         if !Codebase::folder_exists(dir).await {
-            return;
+            return None;
         }
+        let stamps = FileStamps {
+            files: found.stamps,
+            complete: !found.incomplete,
+        };
         let store = &self.inner.store;
         if let Err(error) = store
             .write_inventory(project, found.rows, found.incomplete, &Storage::now())
@@ -263,6 +316,7 @@ impl Codebase {
         {
             tracing::warn!(project = project.as_str(), error = %error, "code.inventory_failed");
         }
+        Some(stamps)
     }
 }
 

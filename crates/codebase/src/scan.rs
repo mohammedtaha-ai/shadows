@@ -16,6 +16,7 @@ use shadows_index::{extract, language_for};
 use tokio::io::AsyncReadExt;
 
 use super::Codebase;
+use super::inventory::FileStamps;
 use super::store::FileRow;
 use crate::CodebaseError;
 use core_projects::ProjectId;
@@ -46,6 +47,15 @@ pub(super) struct Known {
     /// Every stored stamp of the project, by file key.
     stamps: HashMap<String, (String, i64, i64)>,
     canonical_dir: PathBuf,
+}
+
+/// What one scan did and saw.
+#[derive(Default)]
+pub(super) struct Scanned {
+    /// Index rows written or deleted.
+    pub(super) indexed: u32,
+    /// The listing's files with their stamps; `None` when it was not listed.
+    pub(super) files: Option<FileStamps>,
 }
 
 /// The paths a walk is limited to: those files, and the folders above them.
@@ -229,20 +239,21 @@ impl Codebase {
     /// Indexes the project's folder, one file after another, reporting
     /// into `progress` and ending early when it says stop. A project with no
     /// folder, or whose folder is missing, keeps its index untouched. Logs
-    /// `code.scan`; answers how many files it wrote or deleted.
+    /// `code.scan`; answers how many files it wrote or deleted, and the
+    /// listing's file stamps, from which the worker finds what changed.
     pub(super) async fn scan_project(
         &self,
         project: &ProjectId,
         progress: &Progress,
-    ) -> Result<u32, CodebaseError> {
+    ) -> Result<Scanned, CodebaseError> {
         let started = Instant::now();
         let store = &self.inner.store;
         let Some(directory) = self.inner.projects.get(project).await?.directory else {
-            return Ok(0);
+            return Ok(Scanned::default());
         };
         let dir = PathBuf::from(directory);
         if !Codebase::folder_exists(&dir).await {
-            return Ok(0);
+            return Ok(Scanned::default());
         }
         let walked = {
             let dir = dir.clone();
@@ -250,7 +261,7 @@ impl Codebase {
                 Ok(walked) => walked,
                 Err(error) => {
                     tracing::warn!(project = project.as_str(), error = %error, "code.walk_failed");
-                    return Ok(0);
+                    return Ok(Scanned::default());
                 }
             }
         };
@@ -274,7 +285,10 @@ impl Codebase {
         let mut indexed = 0;
         for path in &walked.paths {
             if progress.stop.load(Ordering::Relaxed) {
-                return Ok(indexed);
+                return Ok(Scanned {
+                    indexed,
+                    files: None,
+                });
             }
             seen.insert(Codebase::path_key(path));
             match self.index_known(project, &dir, path, known.as_ref()).await {
@@ -290,13 +304,13 @@ impl Codebase {
             }
             progress.done.fetch_add(1, Ordering::Relaxed);
         }
-        self.record_inventory(project, &dir).await;
+        let files = self.record_inventory(project, &dir).await;
         // A walk that could not read an entry may have missed files
         // that are still there, so it deletes nothing; the next scan does.
         // Nor does a folder that vanished during the scan: its index is kept.
         if walked.incomplete || !Codebase::folder_exists(&dir).await {
             tracing::warn!(project = project.as_str(), "code.walk_incomplete");
-            return Ok(indexed);
+            return Ok(Scanned { indexed, files });
         }
         for key in store.code_file_keys(project).await? {
             if seen.contains(&key) {
@@ -321,7 +335,7 @@ impl Codebase {
             elapsed_ms = started.elapsed().as_millis() as u64,
             "code.scan"
         );
-        Ok(indexed)
+        Ok(Scanned { indexed, files })
     }
 }
 

@@ -175,7 +175,8 @@ shapes:
     scanning: AtomicBool
     scanned: AtomicBool
     missing: AtomicBool
-    paused: AtomicBool   # test only
+    paused: AtomicBool   # test only: every path the watcher reports is dropped
+    servers: Mutex<HashMap<String, ServerState>>  # each wanted server's state
     updated_at: Mutex<Option<String>>
     stopping: Notify
   Run:
@@ -188,6 +189,19 @@ shapes:
     seen: mpsc::Sender<Seen>       # bounded, 8192; kept so it outlives a watcher
     lost: Arc<AtomicBool>
     pending: HashSet<String>
+    servers: HashMap<String, (Wanted, Arc<Server>)>
+    extra: HashSet<String>         # extensions the watcher saw since the last listing
+    files: HashMap<String, (i64, i64)>  # every file the last scan listed, its stamp
+    started: mpsc::UnboundedSender<Started>
+  Scanned:
+    # What `scan_project` answers.
+    indexed: u32                   # index rows written or deleted
+    files: Option<FileStamps>      # None when nothing was listed
+  FileStamps:
+    # The listing's files by path (as written) with (size, modified ms), and
+    # whether the listing read every entry.
+    files: HashMap<String, (i64, i64)>
+    complete: bool
   InventoryQuery:
     # Built by an adapter; never deserialized. Default: "", None, 100.
     prefix: String         # a folder relative to the project's folder; "" for all
@@ -283,8 +297,6 @@ functions:
       signature: "(&self, project: &ProjectId, id: &str) -> Option<(Wanted, Arc<Server>)>"
       # Through the worker's `Job::Lsp`, so the changes it gathered reach the
       # servers before the question.
-    add_server_for_test: "test-support: store an added server with no command"
-    ask_server_for_test: "test-support: one request to a running server"
     catalog_for_test: "test-support: the catalog's ids and extensions"
     set_server_off:
       signature: "(&self, command_id: String, id: &str, off: bool) -> Result<(), CodebaseError>"
@@ -316,8 +328,16 @@ functions:
       # its install line. The file's current text goes with the request
       # (`Server::ask`, 20 s); incomingCalls and outgoingCalls prepare the call
       # hierarchy first. A server failure (no answer in time, exit, an error) is
-      # `LanguageServer`. Locations become `{ project, path, line, character }`,
+      # `LanguageServer` (LANGUAGE_SERVER_UNAVAILABLE), its text from `unavailable`.
+      # Locations become `{ project, path, line, character }`,
       # one-based; one outside the scope is dropped; 100 items, 32 KiB.
+    unavailable:
+      signature: "(id: &str, error: LspError) -> CodebaseError"
+      private: true
+      # "the language server <id> " and how it stands: "is running but did not
+      # answer in time (20 s)", "failed: it exited, its last line: …" (or "with
+      # no error line"), "failed: it refused to initialize: …", "is not installed
+      # or could not start: …", "is running and refused this request (<code>): …".
     real_file:
       signature: "(dir: &Path, rel: &str) -> Result<PathBuf, CodebaseError>"
       private: true
@@ -330,7 +350,7 @@ functions:
   construction:
     new: "(storage: Arc<Storage>, projects: Projects) -> Code"
     scan_for_test: "test-support: synchronous fixture scan"
-    pause_watcher_for_test: "test-support: pause watcher file jobs"
+    pause_watcher_for_test: "test-support: drop every path the watcher reports"
     active_for_test: "test-support: active project order"
     shut_down_for_test: "test-support: await index workers"
   lifecycle:
@@ -452,11 +472,17 @@ functions:
       signature: "(after: &str, prefix: &str) -> Result<(i64, String), CodebaseError>"
       private: true
     record_inventory:
-      signature: "(&self, project: &ProjectId, dir: &Path)"
+      signature: "(&self, project: &ProjectId, dir: &Path) -> Option<FileStamps>"
       private: true
       # `listed` on a blocking thread; nothing when the folder vanished;
       # then `write_inventory` stamped Storage::now(). A failure is
-      # `code.inventory_failed`, never the scan's.
+      # `code.inventory_failed`, never the scan's. Answers the listed files'
+      # stamps (None when the listing failed or the folder vanished).
+    follow:
+      signature: "(self: FileStamps, known: &mut HashMap<String, (i64, i64)>) -> Vec<String>"
+      # The paths added or changed (stamp differs) since `known`, and, when the
+      # listing is complete, those removed; `known` becomes the listing (an
+      # incomplete one only adds to it).
     listed:
       signature: "(dir: &Path) -> Listed"
       private: true
@@ -468,7 +494,9 @@ functions:
       # dependencies; a secret name (`secret_name`) excluded secret; a link
       # or junction excluded link; a key not in `seen` excluded ignored;
       # none of them entered. Else a folder is a directory, entered; a
-      # regular file a file; anything else, or a name not UTF-8, not listed.
+      # regular file a file, its stamp read by `symlink_metadata` on the file
+      # (Windows' directory entry can lag a write); anything else, or a name
+      # not UTF-8, not listed.
     secret_name:
       signature: "(name: &str) -> bool"
       private: true
@@ -504,7 +532,7 @@ functions:
       # `refresh_inventory` calls it with no worker. A worker calls
       # `scan_project` with its own `Progress`.
     scan_project:
-      signature: "(&self, project: &ProjectId, progress: &Progress) -> Result<u32, CodebaseError>"
+      signature: "(&self, project: &ProjectId, progress: &Progress) -> Result<Scanned, CodebaseError>"
       # No folder, or a missing one: nothing changes. Walks on a blocking
       # thread, reads `code_file_stamps` and the folder's canonical path
       # once for the walk (either unread: each file reads its own), sets
@@ -513,7 +541,8 @@ functions:
       # returns early once `stop` is set; then `record_inventory`; then deletes the rows of every key
       # the walk did not see, unless the walk was incomplete or the folder
       # vanished during the scan. Logs `code.scan` { project, seen,
-      # indexed, elapsed_ms }. Answers the files written or deleted.
+      # indexed, elapsed_ms }. Answers `Scanned`: the files written or deleted,
+      # and `record_inventory`'s file stamps (none when stopped early).
     index_file:
       signature: "(&self, project: &ProjectId, dir: &Path, path: &str) -> anyhow::Result<bool>"
       # Gone, or not a regular file (`symlink_metadata`: a link is never
@@ -615,7 +644,8 @@ functions:
       signature: "(mut self, jobs, seen, config: CodebaseConfig)"
       private: true
       # One select, biased: stop; a job; the interval (its first tick, at
-      # once, is the first scan); a seen path (into `pending`) or Rescan (a
+      # once, is the first scan); a seen path (into `pending`, dropped while
+      # `paused`) or Rescan (a
       # scan); `debounce` with no new path: `folder_changed` makes the batch
       # one scan (`code.folder_changed`), else `pending` through `keeps`, as
       # `Files`. After each, a set `lost` means a scan
@@ -623,16 +653,19 @@ functions:
     scan:
       signature: "(&mut self)"
       private: true
-      # Clears `pending`; a missing folder is `folder_missing`; a folder back
+      # Takes `pending`; a missing folder is `folder_missing`; a folder back
       # gets a new watcher. After `scan_project`, one that wrote or deleted
       # files while no path was pending restarts the watcher
       # (`code.watcher_restarted`: notify can stop without a word), the new
-      # one made before the old is dropped. A scan cut short by `stop` does
-      # neither, and marks nothing scanned.
+      # one made before the old is dropped. Then the taken paths and what the
+      # listing changed since the last scan (`follow` over `files`) go to the
+      # running servers (`tell_servers`), before `sync_servers(true)`: a change
+      # the watcher never reported reaches them before the next `Job::Lsp`. A
+      # scan cut short by `stop` does none of this, and marks nothing scanned.
     handle:
       signature: "(&mut self, job: Job)"
       private: true
-      # Files are dropped while `paused`; Recheck replies after its files;
+      # Recheck replies after its files;
       # Refresh after its scan.
     files:
       signature: "(&mut self, paths: Vec<String>)"
@@ -685,9 +718,10 @@ functions:
     tell_servers:
       signature: "(&mut self, paths: &[String])"
       private: true
-      # Every watcher batch's paths, and those gathered when a `Job::Lsp` arrives,
-      # go to each running server that reads them as `files_changed` (Changed, or
-      # Deleted when gone); a new file's extension joins `extra`.
+      # Every watcher batch's paths, a scan's (see `scan`), and those gathered
+      # when a `Job::Lsp` arrives, go to each running server that reads them as
+      # `files_changed` (Changed, or Deleted when gone); a new file's extension
+      # joins `extra`.
     stop_servers:
       signature: "(&mut self)"
       private: true
@@ -845,7 +879,8 @@ obligations:
     note: also code_lsp_refuses_a_path_outside_the_project.
   - rule: >
       A server that does not answer never holds a question: each request ends
-      after 20 s with LanguageServer "the language server did not answer in time".
+      after 20 s with LanguageServer, refused LANGUAGE_SERVER_UNAVAILABLE "the
+      language server <id> is running but did not answer in time (20 s)".
     tested_by: a_slow_answer_times_out
   - rule: >
       A file whose language has no running server is answered NoServer, never
@@ -864,6 +899,12 @@ obligations:
       watcher sees goes to the running servers that read it before the next
       question reaches them.
     tested_by: a_watched_change_reaches_the_server
+  - rule: >
+      A change the watcher never reported reaches the servers through the scan:
+      each scan's listing is compared with the last one, and the paths added,
+      changed or removed go to the running servers that read them before any
+      later question, whatever the index's languages.
+    tested_by: a_scanned_change_reaches_the_server
   - rule: >
       A server that exits or does not initialize reads Failed, never Running,
       and is tried again at the next scan; one whose command is not found reads
@@ -885,7 +926,7 @@ obligations:
       `rescan_every`.
     tested_by: watching_and_the_periodic_scan_keep_the_index_true
     note: >
-      The body pauses the worker's `Files` jobs (not its watcher) before
+      The body drops every path the worker's watcher reports before
       writing b.rs, so only the periodic scan can index it. The watcher's
       own path (create, delete, a `.gitignore` starting a scan) was run once
       by hand and is held by no test.
@@ -1184,9 +1225,13 @@ tests:
   - name: a_watched_change_reaches_the_server
     checks: >
       Ignored, needs gopls. Hello moved two lines down in a.go on disk with no
-      question between; the next definition from b.go answers the new line.
+      question between; the next definition (`lsp`) from b.go answers line 5.
+  - name: a_scanned_change_reaches_the_server
+    checks: >
+      Ignored, needs gopls. With the watcher's reports dropped, Hello moved in
+      a.go still answers line 3; after `refresh_inventory`'s scan, line 5.
   - name: a_missing_command_reads_not_installed
-    checks: An added server `no-such-server-xyz` for `.zz`, with x.zz, reads NotInstalled.
+    checks: An added server (`add_server`) `no-such-server-xyz` for `.zz`, with x.zz, reads NotInstalled.
   - name: a_server_that_exits_reads_failed
     checks: An added server whose command exits at once (`cmd /c exit 3`) reads Failed.
   - name: a_cmd_shim_on_path_is_found
@@ -1200,7 +1245,9 @@ tests:
   - name: code_lsp_refuses_a_link_out_of_the_project
     checks: src/out, a junction (symlink on Unix) out of the folder; src/out/x.go is refused.
   - name: a_slow_answer_times_out
-    checks: An added server that answers initialize only; hover errs "did not answer in time" within 25 s.
+    checks: >
+      An added server (`add_server`) that answers initialize only; hover is
+      LANGUAGE_SERVER_UNAVAILABLE "… silent is running but did not answer in time" within 25 s.
   - name: the_removed_code_tools_are_listed_nowhere
     checks: No grant kind lists where_is, who_uses or outline; all three list code_lsp.
   - name: the_name_index_is_off_by_default

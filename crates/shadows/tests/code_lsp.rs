@@ -7,7 +7,7 @@ use std::time::{Duration, Instant};
 use serde_json::json;
 #[allow(unused_imports)]
 use shadows_core::testing::acp;
-use shadows_core::{CodebaseConfig, GrantKind, Grants};
+use shadows_core::{AddedServer, CodebaseConfig, GrantKind, Grants};
 
 #[path = "fixtures/app.rs"]
 mod app;
@@ -173,10 +173,16 @@ async fn a_slow_answer_times_out() {
     let scripts = tempfile::tempdir().unwrap();
     let script = scripts.path().join("silent.js");
     std::fs::write(&script, SILENT_SERVER).unwrap();
+    let silent = AddedServer {
+        id: "silent".into(),
+        command: "node".into(),
+        args: vec![script.to_string_lossy().into_owned()],
+        extensions: vec![".slow".into()],
+    };
     l.app
         .core
         .codebase()
-        .add_server_for_test("silent", "node", &[script.to_str().unwrap()], &[".slow"])
+        .add_server("add-silent".into(), silent)
         .await
         .unwrap();
     write(&folder(&l).await, "x.slow", "slow\n");
@@ -186,7 +192,11 @@ async fn a_slow_answer_times_out() {
     let began = Instant::now();
     let (is_error, text) = call(&client, "code_lsp", args).await;
     assert!(is_error, "{text}");
-    assert!(text.contains("did not answer in time"), "{text}");
+    assert!(
+        text.starts_with("LANGUAGE_SERVER_UNAVAILABLE: the language server silent is running")
+            && text.contains("did not answer in time"),
+        "{text}"
+    );
     assert!(
         began.elapsed() < Duration::from_secs(25),
         "{:?}",

@@ -103,11 +103,12 @@ impl Codebase {
                 language.clone(),
                 text.clone(),
             );
+            let id = wanted.id.clone();
             async move {
                 running
                     .ask(&full, &language, text, method, params, ANSWER_WAIT)
                     .await
-                    .map_err(|e| CodebaseError::LanguageServer(e.to_string()))
+                    .map_err(|e| Codebase::unavailable(&id, e))
             }
         };
         let result = match (question.operation, position) {
@@ -170,7 +171,7 @@ impl Codebase {
             let answer = running
                 .request("workspace/symbol", json!({ "query": query }), ANSWER_WAIT)
                 .await
-                .map_err(|e| CodebaseError::LanguageServer(e.to_string()))?;
+                .map_err(|e| Codebase::unavailable(&wanted.id, e))?;
             merged.extend(answer.as_array().cloned().unwrap_or_default());
             servers.push(wanted.id);
         }
@@ -234,6 +235,28 @@ impl Codebase {
             state,
             install,
         })
+    }
+
+    /// A request to server `id` that failed, in words that tell the model how the
+    /// server stands: running but silent, failed with its last error line, or not
+    /// startable.
+    fn unavailable(id: &str, error: shadows_lsp::LspError) -> CodebaseError {
+        use shadows_lsp::LspError;
+        let state = match error {
+            LspError::Timeout => format!(
+                "is running but did not answer in time ({} s); ask again, or ask something \
+                 narrower",
+                ANSWER_WAIT.as_secs()
+            ),
+            LspError::Exited(Some(line)) => format!("failed: it exited, its last line: {line}"),
+            LspError::Exited(None) => "failed: it exited with no error line".into(),
+            LspError::Spawn(why) => format!("is not installed or could not start: {why}"),
+            LspError::Initialize(why) => format!("failed: it refused to initialize: {why}"),
+            LspError::Server { code, message } => {
+                format!("is running and refused this request ({code}): {message}")
+            }
+        };
+        CodebaseError::LanguageServer(format!("the language server {id} {state}"))
     }
 
     /// The running server `id`, waiting up to `START_WAIT` while it starts.

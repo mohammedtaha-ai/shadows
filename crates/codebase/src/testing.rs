@@ -8,9 +8,9 @@ impl crate::Codebase {
         self.scan(project).await
     }
 
-    /// That project's worker drops every `Files` job until shutdown; its
-    /// watcher and its periodic scan keep running, so a change the scan
-    /// finds proves the scan, not the watcher.
+    /// That project's worker drops every path its watcher reports until
+    /// shutdown; its periodic scan and a refresh keep running, so a change the
+    /// index or a language server then sees proves the scan, not the watcher.
     pub async fn pause_watcher_for_test(&self, project: &core_projects::ProjectId) {
         self.pause_watcher(project).await
     }

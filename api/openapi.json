@@ -2405,6 +2405,7 @@
           "PATH_UNAVAILABLE",
           "ORIGIN_REFUSED",
           "HARNESS_UNAVAILABLE",
+          "LANGUAGE_SERVER_UNAVAILABLE",
           "SETTING_NOT_OFFERED",
           "MODE_NOT_ALLOWED",
           "HARNESS_LOCKED",

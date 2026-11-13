@@ -36,6 +36,11 @@ vision_propose_args: 'vision_propose names which arguments each action takes: fi
 
 layout_only: Map records contain no starter files; the stage has no Structure step or file count, and no HTTP structure-write route exists. Roadmap follows map approval.
 
+# code_lsp translates { operation, file, line, character, query, project } to
+# Codebase::lsp with Asker::Grant(grant.project_id). A server that could not answer is
+# LANGUAGE_SERVER_UNAVAILABLE through the generic refusal mapping, its text naming the
+# server and how it stands (running but silent, failed with its last line, not startable).
+# Tested by code_lsp::a_slow_answer_times_out.
 # project_files translates { prefix, after, limit } to Code::inventory and project_refresh
 # (no arguments) to Code::refresh_inventory, both with Asker::Grant(grant.project_id), and
 # answer the InventoryPage as JSON. A stale cursor is INVENTORY_STALE; only the Planner's

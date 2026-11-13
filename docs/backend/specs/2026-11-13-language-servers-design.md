@@ -206,7 +206,7 @@ its own only when it needs it.
   | gopls | `gopls` | `go install golang.org/x/tools/gopls@latest` |
   | jdtls | `jdtls` | none known |
   | kotlin-lsp | `kotlin-lsp --stdio` | none known |
-  | lua-language-server | `lua-language-server` | `winget install LuaLS.lua-language-server` |
+  | lua | `lua-language-server` | `winget install LuaLS.lua-language-server` |
   | intelephense | `intelephense --stdio` | `npm install -g intelephense` |
   | pyright | `pyright-langserver --stdio` | `npm install -g pyright` |
   | ruby-lsp | `ruby-lsp` | `gem install ruby-lsp` |
@@ -214,7 +214,10 @@ its own only when it needs it.
   | sourcekit-lsp | `sourcekit-lsp` | none known |
   | typescript | `typescript-language-server --stdio` | `npm install -g typescript-language-server typescript` |
 
-  The winget ids are mine and are checked by the builder before they go in.
+  The winget ids are mine and are checked by the builder before they go in. The first
+  column is the server's id as the upstream catalog writes it: Lua's is `lua` (its
+  command is `lua-language-server`), kept so the catalog matches upstream (Mohammed,
+  2026-11-13).
 
 ### Settings › Code (web)
 

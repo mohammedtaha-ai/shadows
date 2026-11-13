@@ -168,6 +168,8 @@ renamed service crate takes its name without `core-`. Every later task in this p
   `{ "id", "command", "args", "extensions": { ".go": "go" }, "install": { "windows": "…" | null, "macos": null, "linux": null }, "source": "<plugin>@<commit>" }`,
   the twelve entries and Windows install lines of the spec's table (builder checks the two
   winget ids with `winget show <id>` and writes `null` for one that does not resolve).
+  Ids are upstream's: Lua's is `lua`, its command `lua-language-server` (Mohammed,
+  2026-11-13, review of B-139: the catalog matches upstream; the spec's table says so).
 - Migration `0058_code_servers.sql`: `code_server_off(server_id TEXT PRIMARY KEY, at TEXT NOT NULL)`
   and `code_server_added(id TEXT PRIMARY KEY, command TEXT NOT NULL, args TEXT NOT NULL,
   extensions TEXT NOT NULL, at TEXT NOT NULL)` (JSON text for the lists). Rows are the
@@ -196,6 +198,14 @@ renamed service crate takes its name without `core-`. Every later task in this p
   (Codex's review, 2026-11-13);
   `Worker::stop` shuts every server down. A start failure is `Failed` with
   `last_error_line`, retried at the next scan.
+- **Review fix (Mohammed, 2026-11-13): a scan's changed paths.** The index reads only the
+  languages `shadows-index` knows (Go is not one), so a scan's changes come from its
+  listing: `record_inventory` answers each listed file's stamp (`FileStamps`),
+  `scan_project` answers them in `Scanned`, and the worker compares them with its last
+  scan (`FileStamps::follow`); the paths added, changed or removed go to the running
+  servers as a watcher batch's do, inside the worker, so a later `Job::Lsp` sees them.
+  `pause_watcher_for_test` now drops every path the watcher reports (not only the index
+  writes), so a test proves the scan. Test: `a_scanned_change_reaches_the_server`.
 
 - [ ] **Step 1: Write the failing tests** in `code_servers.rs`:
   - `the_catalog_has_the_twelve_servers`: 12 ids; clangd's extensions hold `.C` and `.c`.
@@ -311,6 +321,13 @@ renamed service crate takes its name without `core-`. Every later task in this p
   `name_index: true` and the three tools back in the grant lists. Test:
   `the_name_index_is_off_by_default` (a project with a `.rs` file scanned: its file row
   exists, it has no tags). Files add: `crates/shadows-core/src/app.rs` (the config line).
+- **Review notes (Mohammed, 2026-11-13).** A server that fails a request is
+  `CodebaseError::LanguageServer`, refused with its own code `LANGUAGE_SERVER_UNAVAILABLE`
+  (not `HARNESS_UNAVAILABLE`); its text names the server and how it stands (running but did
+  not answer in time, failed with its last error line, not startable). Left as built: a
+  question waits up to 20 s for a server that is starting (`START_WAIT` in `lsp/ask.rs`),
+  then answers `NoServer` with state `starting`. Tests ask through `Codebase::lsp`; the
+  test-only `ask_server_for_test` is gone.
 - `prompt.txt`: a short section naming `code_lsp`, and that a language with no running
   server is answered "no server" (B-144 adds the install lines). `executor.md:21` becomes
   "Ask `code_lsp` (definitions, references, symbols) before you search the tree yourself."
@@ -356,6 +373,9 @@ renamed service crate takes its name without `core-`. Every later task in this p
   `POST /api/code/servers` `{ command_id, id, command, args, extensions }`;
   `DELETE /api/code/servers/{server}` `{ command_id }`.
   Switching off stops the server in every active worker at its next recompute; on starts it.
+- **Review notes (Mohammed, 2026-11-13).** Left as built: `DELETE /api/code/servers/{server}`
+  takes `command_id` in the query, as the link DELETE does, not in a body. The test-only
+  `add_server_for_test` is gone: tests add a server with `add_server` and a command id.
 
 - [ ] **Step 1: Failing tests**: `switching_a_server_off_lists_it_off`,
   `an_added_server_is_listed_and_removable`, `a_catalog_id_cannot_be_added`,

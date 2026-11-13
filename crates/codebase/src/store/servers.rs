@@ -63,30 +63,6 @@ impl CodeStore {
             })
             .collect())
     }
-
-    /// Test only: stores an added server with no command record.
-    #[cfg(feature = "test-support")]
-    pub(in super::super) async fn add_server_row(&self, row: AddedRow) -> Result<(), StorageError> {
-        let at = core_db::Storage::now();
-        self.storage
-            .write_txn(move |conn| {
-                Box::pin(async move {
-                    sqlx::query(
-                        "INSERT INTO code_server_added (id, command, args, extensions, at)
-                         VALUES (?,?,?,?,?)",
-                    )
-                    .bind(&row.id)
-                    .bind(&row.command)
-                    .bind(serde_json::to_string(&row.args).unwrap_or_default())
-                    .bind(serde_json::to_string(&row.extensions).unwrap_or_default())
-                    .bind(&at)
-                    .execute(&mut *conn)
-                    .await?;
-                    Ok(())
-                })
-            })
-            .await
-    }
 }
 
 /// One change to the person's server settings, as one command writes it.

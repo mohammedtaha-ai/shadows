@@ -79,7 +79,8 @@ struct Shared {
     scanning: AtomicBool,
     scanned: AtomicBool,
     missing: AtomicBool,
-    /// Test only: every `Files` job is dropped (`pause_watcher_for_test`).
+    /// Test only: every path the watcher reports is dropped, so neither the index
+    /// nor a server hears of it (`pause_watcher_for_test`).
     paused: AtomicBool,
     updated_at: Mutex<Option<String>>,
     stopping: Notify,
@@ -120,6 +121,7 @@ impl Worker {
             pending: HashSet::new(),
             servers: HashMap::new(),
             extra: HashSet::new(),
+            files: HashMap::new(),
             started,
         };
         let task = tokio::spawn(async move {
@@ -158,7 +160,7 @@ impl Worker {
         self.jobs.clone()
     }
 
-    /// Test only: drop every `Files` job from now on.
+    /// Test only: drop every path the watcher reports from now on.
     #[cfg(feature = "test-support")]
     pub(super) fn pause(&self) {
         self.shared.paused.store(true, Ordering::Relaxed);
@@ -192,6 +194,9 @@ struct Run {
     servers: HashMap<String, (Wanted, Arc<shadows_lsp::Server>)>,
     /// Extensions of files the watcher saw since the last listing.
     extra: HashSet<String>,
+    /// Each file the last scan listed, with its size and modified time: what the
+    /// next scan compares against to tell the servers what changed.
+    files: HashMap<String, (i64, i64)>,
     /// Where a server's start task reports.
     started: mpsc::UnboundedSender<Started>,
 }
@@ -220,8 +225,10 @@ impl Run {
                 _ = interval.tick() => self.handle(Job::Scan).await,
                 s = seen.recv() => match s {
                     Some(Seen::Path(path)) => {
-                        self.pending.insert(path);
-                        last = Instant::now();
+                        if !self.shared.paused.load(Ordering::Relaxed) {
+                            self.pending.insert(path);
+                            last = Instant::now();
+                        }
                     }
                     Some(Seen::Rescan) | None => self.handle(Job::Scan).await,
                 },
@@ -261,11 +268,7 @@ impl Run {
     async fn handle(&mut self, job: Job) {
         match job {
             Job::Scan => self.scan().await,
-            Job::Files(paths) => {
-                if !self.shared.paused.load(Ordering::Relaxed) {
-                    self.files(paths).await;
-                }
-            }
+            Job::Files(paths) => self.files(paths).await,
             Job::Recheck(paths, reply) => {
                 self.recheck(paths).await;
                 let _ = reply.send(());
@@ -288,9 +291,10 @@ impl Run {
     /// A scan that finds changes nobody reported restarts the watcher: it may
     /// have stopped without telling.
     async fn scan(&mut self) {
-        // The scan covers every path still gathered.
+        // The scan covers every path still gathered; the servers hear of them with
+        // what the scan finds, as a watcher batch's would.
         let unreported = self.pending.is_empty();
-        self.pending.clear();
+        let gathered: Vec<String> = self.pending.drain().collect();
         if !Codebase::folder_exists(&self.dir).await {
             self.folder_missing();
             return;
@@ -315,23 +319,34 @@ impl Run {
         if let Ok(mut at) = s.updated_at.lock() {
             *at = Some(core_db::Storage::now());
         }
-        match result {
-            Ok(indexed) if indexed > 0 && watched && unreported => {
-                tracing::info!(
-                    project = self.project.as_str(),
-                    indexed,
-                    "code.watcher_restarted"
-                );
-                // The new one watches before the old one is dropped, so no
-                // change falls between them; a failure keeps the old one.
-                if let Some(new) = self.watch() {
-                    self.watcher = Some(new);
-                }
-            }
-            Ok(_) => {}
+        let scanned = match result {
+            Ok(scanned) => scanned,
             Err(error) => {
-                tracing::warn!(project = self.project.as_str(), error = %error, "code.scan_failed")
+                tracing::warn!(project = self.project.as_str(), error = %error, "code.scan_failed");
+                Default::default()
             }
+        };
+        if scanned.indexed > 0 && watched && unreported {
+            tracing::info!(
+                project = self.project.as_str(),
+                indexed = scanned.indexed,
+                "code.watcher_restarted"
+            );
+            // The new one watches before the old one is dropped, so no
+            // change falls between them; a failure keeps the old one.
+            if let Some(new) = self.watch() {
+                self.watcher = Some(new);
+            }
+        }
+        // What the listing finds changed since the last scan reaches the running
+        // servers before any later job, so a `Job::Lsp` queued after it sees it.
+        let mut told: HashSet<String> = gathered.into_iter().collect();
+        if let Some(files) = scanned.files {
+            told.extend(files.follow(&mut self.files));
+        }
+        if !self.servers.is_empty() {
+            let told: Vec<String> = told.into_iter().collect();
+            self.tell_servers(&told).await;
         }
         // The listing is current again; a failed server is tried once more.
         self.extra.clear();

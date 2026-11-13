@@ -204,43 +204,6 @@ impl Codebase {
         answer.await.ok().flatten()
     }
 
-    /// Test only: asks the project's running server `id` one request about `path`
-    /// (project-relative), sending the file's current text.
-    #[cfg(feature = "test-support")]
-    pub async fn ask_server_for_test(
-        &self,
-        project: &core_projects::ProjectId,
-        id: &str,
-        path: &str,
-        method: &str,
-        params: serde_json::Value,
-    ) -> Result<serde_json::Value, String> {
-        let (server, running) = self
-            .running_server(project, id)
-            .await
-            .ok_or("the server is not running")?;
-        let dir = self
-            .inner
-            .projects
-            .get(project)
-            .await
-            .map_err(|e| e.to_string())?;
-        let full = PathBuf::from(dir.directory.ok_or("no folder")?).join(path);
-        let text = std::fs::read_to_string(&full).map_err(|e| e.to_string())?;
-        let language = server.language(path).ok_or("not this server's file")?;
-        running
-            .ask(
-                &full,
-                language,
-                text,
-                method,
-                params,
-                std::time::Duration::from_secs(30),
-            )
-            .await
-            .map_err(|e| e.to_string())
-    }
-
     /// "CodeServerSwitch", params { server, off }: switches a catalog or added server
     /// off or back on, for every project. A running one stops at its worker's next
     /// recompute; one switched on starts then.
@@ -331,24 +294,6 @@ impl Codebase {
             .change_servers(&ctx, ServerChange::Remove(id.to_string()))
             .await?
             .map_err(CodebaseError::InvalidCommand)
-    }
-
-    /// Test only: stores an added server with no command record.
-    #[cfg(feature = "test-support")]
-    pub async fn add_server_for_test(
-        &self,
-        id: &str,
-        command: &str,
-        args: &[&str],
-        extensions: &[&str],
-    ) -> Result<(), CodebaseError> {
-        let row = Added {
-            id: id.into(),
-            command: command.into(),
-            args: args.iter().map(|a| a.to_string()).collect(),
-            extensions: extensions.iter().map(|e| e.to_string()).collect(),
-        };
-        Ok(self.inner.store.add_server_row(row).await?)
     }
 
     /// Test only: the catalog's ids and extensions.
