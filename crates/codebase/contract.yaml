@@ -769,9 +769,6 @@ functions:
     file_extensions:
       signature: "(&self, project: &ProjectId) -> Result<HashSet<String>, StorageError>"
       # The extensions of the listing's files (`code_inventory`), as written.
-    add_server_row:
-      signature: "(&self, row: AddedRow) -> Result<(), StorageError>"
-      # test-support only.
     code_file_stamp:
       signature: "(&self, project: &ProjectId, path_key: &str) -> Result<Option<(String, i64, i64)>, StorageError>"
     code_file_stamps:

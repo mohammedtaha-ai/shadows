@@ -355,17 +355,25 @@ fn every_contract_matches_its_service() {
     let tests = all_tests();
     let mut problems = Vec::new();
     let mut found = BTreeSet::new();
+    // Every service has a contract. A folder without one is skipped below, so the
+    // services are read from the code: `AppCore`'s accessors (`core.plans()`), each
+    // named after its crate. A new service is required the day its accessor exists.
+    let services = accessors(&src.join("app.rs"));
     let mut directories: Vec<_> = std::fs::read_dir(&src)
         .unwrap()
         .map(|entry| entry.unwrap().path())
         .collect();
+    // A service crate is `core-<name>`, or a new or renamed one named after its accessor
+    // with no prefix (`codebase`), so `AppCore` stays the one list of services.
     directories.extend(
         std::fs::read_dir(workspace().join("crates"))
             .unwrap()
             .map(|entry| entry.unwrap().path())
             .filter(|path| {
-                path.file_name()
-                    .is_some_and(|name| name.to_string_lossy().starts_with("core-"))
+                path.file_name().is_some_and(|name| {
+                    let name = name.to_string_lossy();
+                    name.starts_with("core-") || services.contains(&name.replace('-', "_"))
+                })
             }),
     );
     for dir in directories {
@@ -523,10 +531,6 @@ fn every_contract_matches_its_service() {
             ))
         }
     }
-    // Every service has a contract. A folder without one is skipped above, so the
-    // services are read from the code: `AppCore`'s accessors (`core.plans()`), each
-    // named after its folder. A ninth service is required the day its accessor exists.
-    let services = accessors(&src.join("app.rs"));
     if services.is_empty() {
         problems.push("app.rs: no `AppCore` accessor found, so no service is checked".into())
     }

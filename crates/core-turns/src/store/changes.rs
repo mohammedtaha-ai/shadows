@@ -26,7 +26,7 @@ fn planner() -> Actor {
 
 impl super::TurnsStore {
     /// The project `thread` belongs to.
-    pub(crate) async fn thread_project(
+    pub async fn thread_project(
         &self,
         thread: &ThreadId,
     ) -> Result<core_projects::ProjectId, TurnsError> {
@@ -36,7 +36,7 @@ impl super::TurnsStore {
 
     /// Records the Planner's note in its thread, on its running turn; an
     /// executor's thread notes nothing.
-    pub(crate) async fn note_change(
+    pub async fn note_change(
         &self,
         thread: &ThreadId,
         paths: &[String],
@@ -78,7 +78,7 @@ impl super::TurnsStore {
     /// In one transaction: the unnoted paths' entry on `operation`, and the
     /// notice that asks why, waiting in the thread's queue. Nothing for an
     /// executor's or AYLUL's thread, or a removed one. Answers whether it wrote.
-    pub(crate) async fn record_unnoted(
+    pub async fn record_unnoted(
         &self,
         thread: &ThreadId,
         operation: &OperationId,

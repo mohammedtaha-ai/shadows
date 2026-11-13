@@ -33,7 +33,7 @@ fn card(
 impl super::TurnsStore {
     /// Records the question and its entry in one transaction; an executor's
     /// thread asks no one.
-    pub(crate) async fn ask_question(
+    pub async fn ask_question(
         &self,
         thread: &ThreadId,
         question: &str,
@@ -94,7 +94,7 @@ impl super::TurnsStore {
     /// person's message waiting to be sent. Answers the message and whether
     /// the thread was idle; a replay answers the first message, idle, so the
     /// caller asks for its turn again.
-    pub(crate) async fn answer_question(
+    pub async fn answer_question(
         &self,
         ctx: &CommandContext,
         thread: &ThreadId,
