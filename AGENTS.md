@@ -37,13 +37,16 @@ Each workspace has its own lockfile, `target/` and gate. A crate in one workspac
 never reaches into another's source; it depends on it as a library.
 
 ```text
-shadows ─┬─► shadows-http ─┐                 ┌─► shadows-agent ─► shadows-process
-         ├─► shadows-mcp  ─┼─► shadows-core ─┤
-         └────────────────►┘                 └─► shadows-index
+shadows ─┬─► shadows-http ─┐                 ┌─► shadows-agent ─────────────► shadows-process
+         ├─► shadows-mcp  ─┼─► shadows-core ─┤                                     ▲
+         └────────────────►┘                 └─► codebase ─┬─► shadows-lsp ─────────┘
+                                                           └─► shadows-index
 ```
 
 Dependencies point one way. An adapter (`shadows-http`, `shadows-mcp`, the binary)
-depends on `shadows-core` only. `shadows-index` depends on no Shadows crate.
+depends on `shadows-core` only. `codebase`, the code service, reaches the language
+servers through `shadows-lsp` and the tags through `shadows-index`.
+`shadows-index` depends on no Shadows crate.
 
 | Crate | Sole owner of |
 |---|---|
@@ -52,6 +55,8 @@ depends on `shadows-core` only. `shadows-index` depends on no Shadows crate.
 | `shadows-mcp` | Shadows' MCP server at `/mcp` |
 | `shadows-core` | The application. SQLite lives here only, in `db/` and the stores. |
 | `shadows-agent` | The AI subprocess harness (the ACP `Connection`) |
+| `codebase` | The code service: a project's file list, index and language servers |
+| `shadows-lsp` | One language server's process and its requests (through `shadows-process`) |
 | `shadows-index` | tree-sitter: a file's text in, its tags out |
 | `shadows-process` | `tokio::process` / `process-wrap` |
 
@@ -65,7 +70,8 @@ with hard boundaries. The compiler holds the boundaries, not good intentions.
                                   │
    composition   shadows-core = AppCore                          builds and wires
                                   │
-   services      core-<service> crates: turns, harness, threads, plans, design, ...
+   services      core-<service> crates, and a new or renamed service crate named without
+                 `core-`, such as `codebase`: turns, harness, threads, plans, design, ...
                  each one: its service, its model, its store (private)
                                   │
    foundation    core-db: the pool, the transaction, the journal

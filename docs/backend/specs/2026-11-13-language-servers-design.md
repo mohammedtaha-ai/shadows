@@ -1,7 +1,7 @@
 # Language servers, the person's question card, and the Code settings (slice 2)
 
 Status: approved by Mohammed, 2026-11-13. Replaces slice 2's B-97, B-98 and B-119 as
-written in [repository discovery](../plans/2026-11-09-repository-discovery.md) (Tasks 2 and 3):
+written in repository discovery (`docs/backend/plans/2026-11-09-repository-discovery.md` at `db760593`) (Tasks 2 and 3):
 their per-person server configuration, `configure_server`, the PHP focus, the
 thirteen-descriptor catalog and the `Stale`/`Ambiguous` machinery are not built.
 

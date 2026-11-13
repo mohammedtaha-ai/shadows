@@ -5,74 +5,43 @@ here and set its status. Task shape: [`AGENTS.md`](./AGENTS.md#a-task-in-stagesm
 
 ## Now
 
-F-62 to F-76 and F-68 shipped in PR #49 (`b40e077b`), on `main`: the web half of the AYLUL
-agents and panel design, and the AI Studio UI migration that replaced F-68's look. Their
-entries are in this file at `b40e077b`. The AYLUL panel plan (`docs/frontend/plans/2026-11-01-aylul-agents-panel-frontend.md` at `b40e077b`)
-and the neon plan (`docs/frontend/plans/2026-11-01-neon-clarity.md` at `b40e077b`) are deleted.
-F-77 (the whole web client after the migration) was accepted by Mohammed's visual check on 2026-11-03;
-its entry is in this file at `a7b4009c`, and the AI Studio plan (`docs/frontend/plans/2026-11-02-ai-studio-ui-migration.md`) at `a7b4009c`.
-The migration's facts are in `docs/evidence/2026-11-02-ai-studio-ui-analysis.md` at `f1459dcc`.
+### Shipped
 
-F-78 and F-79 (the agent form starts empty; the background tasks panel) shipped in PR #51
-(`2790473b`); their entries are in this file at `16da6b8c`.
+A shipped task's entry, and its plan once deleted, are in this file in Git at the commit named.
 
-F-80 (per-tool permissions in the agent form) shipped in PR #52 (`6b2c66ed`); its entry is in
-this file at `9c7c7e5a`.
-A click during a save is now queued and built on the saved rules (PR #53, `349606bf`).
+| PR | Work | Tasks | Entries at |
+|---|---|---|---|
+| #40 | The settings dialog | F-2 to F-12, F-14, F-15 | `1a2b601` |
+| #41 | Architecture restructuring, web side | F-1, F-23 to F-25 | `c7e7bac4` |
+| #43 | W-1 to W-8 | F-16, F-17, F-26, F-27, F-29 to F-32 | `ca618f89` |
+| #44 | W-9, W-10, W-12, W-13 | F-20, F-21, F-33 to F-44 | `4d5c022d` |
+| #45 | The context ring shows the summary only | F-22 | `29ddfd88` |
+| #46 | Each settings form saves only what changed | F-28 | `e95b79c3` |
+| #47 | W-11, with B-14 to B-18 | F-45 to F-49 | `4f23c717` |
+| #48 | Web polish | F-50 to F-61 | `ce31036d` |
+| #49 | AYLUL agents and panel, and the AI Studio UI migration | F-62 to F-76, F-77 (accepted 2026-11-03) | `b40e077b`, `a7b4009c` |
+| #51 | The agent form starts empty; the background tasks panel | F-78, F-79 | `16da6b8c` |
+| #52, #53 | Per-tool permissions in the agent form | F-80 | `9c7c7e5a` |
+| #54 | Agent groups in the main window | F-81 to F-85 | `9e5b9ab2` |
+| #57 | Planner context, the inspection view | F-86 to F-89 | `1b413fc4` |
+| #60, #61 | Structure and depth, slices 2 to 5 (tried in the browser 2026-11-07) | F-90 to F-95 | `b64242a7`, `a4f89386` |
+| #62 to #64 | Conversation order, Codex, the task page | F-96, F-97, F-98 | `3a443ea0`, `217d7540`, `c71b263d` |
+| #65 | Task page review, the Diff tab, the Planner's notices | F-106 to F-113 | `617d806f` |
+| #67 | Conversation images, the question card, Settings › Code | F-114 to F-116 | `db760593` |
 
-F-81 to F-85 (agent groups in the main window) shipped in PR #54 (`9e5b9ab2`), with
-B-40 to B-46; their entries are in this file at `9e5b9ab2`. The plan was
-`docs/frontend/plans/2026-11-03-agent-groups-ui.md` at `9e5b9ab2`.
+PRs #59 and #66 have no `F-` task. Two composer fixes in PR #61 have none either: `1b85b6e6`
+(the textarea grows to 192px) and `e6e6e9cf` (`dir="auto"`, so Arabic runs right to left).
 
-Planner context, slice 3 (the inspection view): F-86 to F-89 shipped in PR #57 (`1b413fc4`), with
-B-59; their entries are in this file at `1b413fc4`. The plan was
-`docs/frontend/plans/2026-11-05-planner-context-view.md` at `1b413fc4`.
+### Known and left
 
-Structure and depth, slice 1 (PR #59, `26bf739e`) is backend-only. Its only web change is a test
-fixture in `web/src/app/design/create-structure.test.tsx`, with no `F-` task.
+- The light palette and the real desktop login-item behaviour need their own app and OS acceptance.
+- The image tiles' look in the browser (F-114) is not recorded.
 
-Structure and depth, slice 2 (PR #60, `b64242a7`): F-90 and F-91 shipped with B-63 to B-70. Their
-entries, and the web fix `fb46cac4` outside their `Touch:` lists, are in this file at `b64242a7`.
-The plan is at `a4f89386`, deleted after the merge.
+### Before a new task
 
-Structure and depth, slices 3 to 5 (PR #61, `a4f89386`): F-92 to F-95 shipped with B-71 to B-82.
-Their entries are in this file at `a4f89386`. Mohammed tried them in the browser on 2026-11-07.
-
-Conversation order and Codex: F-96 (the conversation refreshes its order after an assistant reply) shipped in
-PR #62 (`3a443ea0`) with B-83; F-97 (Codex in the conversation flow) in PR #63 (`217d7540`) with B-85 to B-87;
-F-98 (the task page) in PR #64 (`c71b263d`) with B-89 to B-93. Their entries are in this file at those commits.
-
-Task page review, the Diff tab and the Planner's notices: F-106 to F-113 shipped in PR #65 (`617d806f`) with
-B-95 to B-136. Their entries are in this file at `617d806f`. Their plans,
-`docs/frontend/plans/2026-11-11-task-page-review-and-diff.md` and `docs/frontend/plans/2026-11-11-shadows-notices.md`,
-are at `617d806f`. PR #66 (`5a52a06a`) removed dead web exports and type aliases and has no `F-` task.
-
-Conversation images, the question card and Settings › Code (PR #67, `db760593`): F-114 (image tiles with a corner ✕ in the composer, and a viewer for every conversation image), F-115 (the question card, the Planner's permission cards and Shadows' notices) and F-116 (Settings › Code) shipped with B-137 and B-138a to B-146 (`docs/backend/stages.md` at `db760593`). Their entries are in this file at `db760593`. The plan `docs/frontend/plans/2026-11-12-conversation-images.md` at `db760593` was its brief for F-114; the slice 2 plan is in Git at `db760593`. The image tiles' look in the browser is not recorded here.
-
-Still open outside any task: the light palette and the real desktop login-item behaviour need
-their own app and OS acceptance.
-
-Finished work: F-50 to F-61 (branch `feature/web-polish`, PR #48) are in this file at `ce31036d`;
-F-45 to F-49 (W-11, with B-14 to B-18, PR #47) are in this file at `4f23c717`;
-F-28 (each settings form saves only the fields it changed, with the glass
-theme selector, PR #46) is in this file at `e95b79c3`; F-22 (the context ring shows the summary only, PR #45) is in this file at
-`29ddfd88`; F-20, F-21 and F-33 to F-44 (W-9, W-10, W-12 and W-13, PR #44) are in this
-file at `4d5c022d`; F-16, F-17, F-26, F-27 and F-29 to F-32 (W-1 to W-8, PR #43) at
-`ca618f89`; F-1 and F-23 to F-25 (PR #41) at `c7e7bac4`; F-2 to F-12, F-14 and F-15 (the
-settings dialog, PR #40) at `1a2b601`.
-
-## Tasks
-
-Two composer fixes in PR #61 have no `F-` task: `1b85b6e6` (the textarea grows to
-192px) and `e6e6e9cf` (`dir="auto"`, so Arabic runs right to left).
-
-Structure and planning depth: slices 1 to 5 are on `main`; slice 1 needs no web task. The
-[workspace behavior](../backend/specs/2026-11-05-structure-and-depth-design.md#6-what-the-person-sees)
-is the review target. Before a new `F-` task is dispatched, its shared
-request must be accepted and its backend response must exist. Expand the API hooks,
-routing, event refresh, contracts and code-map paths first.
-Use Roadmap for outcome coverage and Project map for ownership. The old
-mockup's `Built` label cannot be used as evidence of completion.
+Its shared request must be accepted and its backend response must exist. Expand the API hooks,
+routing, event refresh, contracts and code-map paths first. The old mockup's `Built` label is not
+evidence of completion.
 
 ## Approved local delivery UI, 2026-11-09
 
@@ -95,7 +64,7 @@ These tasks are blocked until their named backend API exists; no component imple
 - Owner: web API and design UI.
 - Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
 - Touch: exact Create/Modify/Test file list of Task 2; no other source paths.
-- Needs: B-102, F-99; accepted shared API/model agreement. Backend must expose its generated API before this task starts.
+- Needs: F-99 (B-102 was dropped 2026-11-11: the setup plan is read through the plan and task routes); accepted shared API/model agreement. Backend must expose its generated API before this task starts.
 - Done when: all named RED/GREEN steps and focused verification commands in Task 2 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
 
 ### F-101 · Readable task contract and decision pins
