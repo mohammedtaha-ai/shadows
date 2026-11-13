@@ -15,6 +15,8 @@ const answerRoute = 'POST /api/threads/t1/questions/q1/answer'
 let app: TestApp | null = null
 afterEach(() => { app?.unmount(); app = null })
 async function open(entry: ReturnType<typeof asked>, overrides: Record<string, Answer> = {}) {
+  // One app at a time: a second one would find the first one's text and buttons.
+  app?.unmount()
   const a = app = await startApp('/projects/p1/threads/t1', { ...answers(), 'GET /api/threads/t1/entries': [entry], ...overrides })
   await until(() => a.text().includes('Which database?'))
   return a

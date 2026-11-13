@@ -508,7 +508,7 @@ impl Codebase {
 
 #[cfg(test)]
 mod tests {
-    use super::{Codebase, Root};
+    use super::Codebase;
 
     #[test]
     fn a_percent_encoded_drive_is_decoded() {
@@ -527,7 +527,7 @@ mod tests {
     #[cfg(windows)]
     #[test]
     fn a_percent_encoded_drive_is_placed_in_its_project() {
-        let roots = [Root {
+        let roots = [super::Root {
             slug: "testing4".into(),
             dirs: vec![Codebase::comparable(r"F:\p")],
         }];
