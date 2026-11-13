@@ -3,7 +3,7 @@
 # Operations lifecycle and transaction reads are imported from core-operations.
 # Grant authority and approval provenance are imported from core-grants.
 # Thread identities and transaction methods are imported from core-threads.
-# Index access and project reach use core-code.
+# Index access and project reach use codebase.
 # Project identities and registration methods are imported from core-projects.
 # Durable journal publication converts owned ids directly to core-db JournalEntry.
 # Durable operation ids are imported from Operations, never the Turns re-export.
@@ -101,7 +101,10 @@ shapes:
     title: String
     change: String
   DesignOp: Workspace edits with typed PlanId associations; wire fields and command fingerprints unchanged.
-  PlansError: Plan lifecycle failures translated by Core without persistence imports in models.
+  PlansError: >
+    Plan lifecycle failures translated by Core without persistence imports in models.
+    A codebase LanguageServer failure stays LanguageServer (Core's
+    LANGUAGE_SERVER_UNAVAILABLE), never InvalidCommand: the server failed, not the command.
   AgreementBinding:
     task: u32
     agreement_id: AgreementId
@@ -403,8 +406,8 @@ functions:
     review_agreement: Agreement impact review composed from Design versions and plan participants in one
     agree_agreement: Person agreement command; replay before recomputing the complete review in its write
     review_agreement_for: Live grant scope check before the snapshot agreement review.
-    link_projects: ProjectLinkPut command; Code writes the link and Plans notifies dependencies in the
-    unlink_projects: ProjectLinkRemove command; Code removes the link and Plans notifies dependencies atomically.
+    link_projects: ProjectLinkPut command; Codebase writes the link and Plans notifies dependencies in the
+    unlink_projects: ProjectLinkRemove command; Codebase removes the link and Plans notifies dependencies atomically.
     approve_roadmap_proposal: Person RoadmapProposalApprove; one write reads the outcomes plans link to, then Design approves with them.
     approve_roadmap_proposal_as_planner: Same write with Design's planner approver and command; planner:<harness> provenance.
   # Person binding edits use the same write/replay/approval validation as MCP.
@@ -1153,7 +1156,7 @@ dependencies:
   operations: crates/core-operations/contract.yaml
   grants: crates/core-grants/contract.yaml
   design: crates/core-design/contract.yaml
-  code: crates/core-code/contract.yaml
+  code: crates/codebase/contract.yaml
 
 # task_context is a read: same-project named Frozen version only. Scope::named_or_own
 # lets an executor grant name none (its TaskScope's version is read: it has no

@@ -207,7 +207,11 @@ impl Sessions {
                     ManagedConnection::open(
                         &mut handle,
                         is_codex,
-                        if context.harness == policy::AYLUL {
+                        // AYLUL's and the Planner's requests wait for the person; an
+                        // executor runs in `auto`, and what it still asks is refused.
+                        if context.harness == policy::AYLUL
+                            || context.kind == core_threads::ThreadKind::Planning
+                        {
                             shadows_agent::acp::PermissionPolicy::Ask
                         } else {
                             shadows_agent::acp::PermissionPolicy::Refuse

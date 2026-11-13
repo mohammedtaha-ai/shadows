@@ -14,7 +14,7 @@ workspace = true
 [dependencies]
 time = { workspace = true }
 core-db = { path = "../core-db" }
-core-code = { path = "../core-code" }
+codebase = { path = "../codebase" }
 core-design = { path = "../core-design" }
 core-grants = { path = "../core-grants" }
 core-harness = { path = "../core-harness" }

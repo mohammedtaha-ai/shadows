@@ -12,7 +12,7 @@ commit on the Diff tab and marks the task done by hand.
 **Architecture:** A new service, Runs (`core-runs`), owns attempts and git. An executor session
 is a Thread of kind `executor`, opened by Harness the way a Planner session is, with its own
 built-in instructions, tool list, permission policy and a grant scoped to its task. The executor
-reads its task through the existing `task_context` and commits through a new `task_commit` MCP
+reads its task through the existing `task_context` and commits through a new `task_report` MCP (named `task_commit` in the first draft; B-95 at `617d806f` renamed it)
 tool. The web gets a task page with tabs.
 
 **Tech Stack:** Rust 1.94+, SQLx 0.9/SQLite, Tokio, ACP over the Claude adapter 0.101.0,
@@ -28,7 +28,7 @@ browser.
   new owner; no other owner is added. A change to a module updates its `contract.yaml` and the code
   map (`docs/codebase/README.md`) in the same commit.
 - Nothing is written into the person's project folder except the task's own code (D12). The
-  executor instructions live in `crates/core-harness/src/executor.txt`, compiled in.
+  executor instructions live in `crates/core-harness/src/executor.md`, compiled in.
 - Executor sessions use `setting_sources: []` and `strictMcpConfig: true`, as the Planner's do:
   the project's `.claude/` settings, agents and hooks are not loaded.
 - Commits go to the branch the folder has checked out; Shadows never switches, creates or pushes
@@ -70,7 +70,7 @@ unasked, a Write to `web/` was refused, Bash ran. B-90 and B-92 below are writte
 ### B-90: The executor session
 
 **Files:**
-- Create: `crates/core-harness/src/executor.txt`, `crates/core-harness/src/executor.rs`,
+- Create: `crates/core-harness/src/executor.md`, `crates/core-harness/src/executor.rs`,
   `crates/shadows-core/tests/executor_session.rs`
 - Modify: `crates/core-threads/src/model.rs` (`ThreadKind`), `src/store/` (kind column read and
   written; `list` and `list_for_profile` return `planning` threads only), `contract.yaml`;
@@ -95,7 +95,7 @@ unasked, a Write to `web/` was refused, Bash ran. B-90 and B-92 below are writte
   - `Threads::create_executor_in(conn, project: &ProjectId, title: String, harness: &str) -> ThreadId`.
   - `GrantKind::Executor` (`as_str`: `executor`), beside `Thread` and `Project`.
     `Grants::tools_for(GrantKind::Executor)` returns exactly `task_context`, `where_is`,
-    `who_uses` and `outline`; B-92 adds `task_commit` when it implements it. `server.rs` builds
+    `who_uses` and `outline`; B-92 adds the commit tool when it implements it (`task_commit` then; `task_report` since B-95 at `617d806f`). `server.rs` builds
     its router from that list, as it does for the other two kinds. Every other tool is absent.
   - Startup revocation (`revoke_thread_grants`, called in `AppCore::start`) revokes live
     `executor` grants with the `thread` ones: every executor's adapter died with the old daemon.
@@ -110,7 +110,7 @@ unasked, a Write to `web/` was refused, Bash ran. B-90 and B-92 below are writte
   - `Harness::open_executor(thread: &ThreadId, root: &Path, writes: &[String], grant: TaskScope,
     model: String)`: the session opens with `EXECUTOR_TOOLS` (`Read, Grep, Glob, Edit, Write,
     MultiEdit, Bash, TodoWrite`), its grant's MCP server pre-approved as the Planner's is,
-    `executor.txt` appended, `setting_sources: []`, `strictMcpConfig: true`, and the task's rules
+    `executor.md` appended, `setting_sources: []`, `strictMcpConfig: true`, and the task's rules
     in `_meta.claudeCode.options.settings.permissions.allow`: `Read`, `Grep`, `Glob`, `TodoWrite`,
     `Bash`, and `Edit(p)`, `Write(p)`, `MultiEdit(p)` for each pattern `p` of `writes`. Its policy
     is `PermissionPolicy::Refuse`, as the Planner's. The mode is set to `default` explicitly.
@@ -120,7 +120,7 @@ unasked, a Write to `web/` was refused, Bash ran. B-90 and B-92 below are writte
 - [ ] **Step 1: Write the failing tests** in `crates/shadows-core/tests/executor_session.rs`
   (fake-acp):
   - `an_executor_session_opens_with_its_instructions_tools_and_rules`: the setup's append starts
-    with `executor.txt`, `tools == EXECUTOR_TOOLS`, `setting_sources` empty, the allow rules hold
+    with `executor.md`, `tools == EXECUTOR_TOOLS`, `setting_sources` empty, the allow rules hold
     `Edit(backend/**)`, `Write(backend/**)`, `MultiEdit(backend/**)` and `Bash` for a task whose
     `writes` is `backend/**`, the policy is `Refuse`, and the mode is set to `default`.
   - `a_request_outside_the_rules_is_refused`: fake-acp asks to write `web/a.ts` → refused, and
@@ -136,10 +136,10 @@ unasked, a Write to `web/` was refused, Bash ran. B-90 and B-92 below are writte
   - `an_executor_grant_cannot_write_the_plan`: a plan-writing tool → unknown tool.
   - `executor_threads_are_not_listed_as_conversations`: `Threads::list` returns the planning thread only.
 - [ ] **Step 2:** Run `cargo test -p shadows-core --test executor_session`. Expected: FAIL.
-- [ ] **Step 3:** Write `executor.txt` from the design §8 (stay in `writes`; build nothing you do
+- [ ] **Step 3:** Write `executor.md` from the design §8 (stay in `writes`; build nothing you do
   not own; no mocks for another task's code; a test failing on another task's missing code is
   expected and is named in your report; if the plan is wrong, stop and say why; read your task
-  with `task_context` first; ask `where_is` before searching; commit with `task_commit`).
+  with `task_context` first; ask `where_is` before searching; commit, then report with `task_report`).
 - [ ] **Step 4:** Implement the kind, the setup branch and the grant scope.
 - [ ] **Step 5:** Run the new test and `cargo test -p shadows-core --test planner_isolation --test sessions --test thread_session`
   and `cargo test -p shadows --test planner_mcp --test mcp_tools`. Expected: PASS; Planner behaviour unchanged.
@@ -176,7 +176,7 @@ unasked, a Write to `web/` was refused, Bash ran. B-90 and B-92 below are writte
     |---|---|---|---|
     | — | Start accepted | `Running` | — |
     | `Running` | session fails to open | `Failed` | `session did not open: {error}`; grant revoked |
-    | `Running` | `task_commit` succeeds | `Committed` | — |
+    | `Running` | `task_report` accepted | `Committed` | — |
     | `Running` | turn ends, no commit | `Failed` | `ended without a commit` |
     | `Running` | turn fails | `Failed` | the turn's failure |
     | `Running` | Stop confirmed | `Stopped` | — |
@@ -184,7 +184,7 @@ unasked, a Write to `web/` was refused, Bash ran. B-90 and B-92 below are writte
     | `Running` | found at startup, no such commit | `Interrupted` | — |
     | `Committed` | turn ends or is stopped | `Committed` | unchanged |
 
-    One commit per attempt; a second `task_commit` is `AlreadyCommitted`.
+    One commit per attempt; a second `task_commit` (before B-95 at `617d806f`) is `AlreadyCommitted`.
   - `pub struct TaskRun { task: u32, done: bool, done_at: Option<String>, latest: Option<Attempt> }`.
   - `Runs::start(&self, command: CommandId, workflow: &WorkflowId, version: i64, task: u32, model: String) -> Result<Attempt, RunsError>`
   - `Runs::stop(&self, attempt: &AttemptId) -> Result<Attempt, RunsError>` (waits for the turn's
@@ -255,7 +255,9 @@ unasked, a Write to `web/` was refused, Bash ran. B-90 and B-92 below are writte
 
 ---
 
-### B-92: Git and `task_commit`
+### B-92: Git and the commit check
+
+Removed by B-95 at `617d806f`: `Runs::commit`, its commit queue, the temporary index and the Shadows-Attempt trailer. `Runs::report` and `task_report` replace them. The lines below describe the first build.
 
 **Files:**
 - Create: `crates/core-runs/src/git.rs`, `crates/core-runs/src/commit.rs`, `crates/core-runs/tests/commit.rs`
@@ -299,7 +301,7 @@ Shadows-Attempt: {attempt id}`.
     and `git show` of the attempt's commit; bounded at 2,000 lines per file, then truncated with a marker.
   - Start preconditions (§12.2) added to B-91's `start`: `NotGit`; `DirtyScope` when `git status
     --porcelain` lists paths inside `writes`.
-  - MCP tool `task_commit { message: string }` → `{ commit, files, left }`.
+  - MCP tool `task_commit { message: string }` → `{ commit, files, left }`; B-95 at `617d806f` replaced it with `task_report`.
 
 - [ ] **Step 1: Write the failing tests** in `crates/core-runs/tests/commit.rs` (a temp git repo):
   - `commit_takes_only_the_paths_in_writes`: `backend/a.php` and `web/b.ts` are modified → the
@@ -321,7 +323,7 @@ Shadows-Attempt: {attempt id}`.
   - `start_refuses_a_folder_that_is_not_git` and `start_refuses_uncommitted_changes_in_writes`.
   - `diff_returns_each_files_counts_and_patch`.
   - In `crates/shadows-core/tests/executor_session.rs`, `an_executor_grant_lists_only_its_tools`
-    now expects the five names, `task_commit` included.
+    now expects the five names, `task_commit` included (B-95 at `617d806f` renamed it `task_report`).
 - [ ] **Step 2:** Run `cargo test -p core-runs --test commit`. Expected: FAIL.
 - [ ] **Step 3:** Implement `git.rs` (each git call through `shadows-process`, with the project
   folder as `cwd`; no shell) and `commit.rs`; add the MCP tool.
@@ -340,12 +342,12 @@ Shadows-Attempt: {attempt id}`.
 
 **Interfaces:**
 - Consumes: B-91 and B-92; the accepted shared request
-  `docs/shared/requests/2026-11-08-task-run-page.md`, which fixes the read's shape.
+  `docs/shared/requests/2026-11-08-task-run-page.md` at `c71b263d`, which fixes the read's shape.
 - Produces (all under `/api/projects/{project}/workflows/{workflow}/versions/{version}/tasks/{task}`):
   - `GET` → `TaskRun` with the request's added fields: `needs` (each `{ task, title, done }`),
     `start` (`{ allowed, code, reason }`, Core's answer to "may Start run now", using the same
     checks as `Runs::start` without writing) and `suggested_model` (the plan thread's remembered
-    model, §12.6). `Runs::can_start(&self, workflow, version, task) -> StartAnswer` serves it.
+    model, §12.6). `Runs::start_answer` serves it (`Runs::can_start` was removed at `5a52a06a`).
   - `GET /attempts` → `Attempt[]`.
   - `POST /attempts` `{ command_id, model }` → `Attempt` (201); errors map `Waiting`, `TaskBusy`,
     `Overlap`, `NotGit`, `DirtyScope`, `NotFrozen`, `Superseded`, `Archived` to 409 with Core's
@@ -374,7 +376,7 @@ Shadows-Attempt: {attempt id}`.
 
 **Interfaces:**
 - Consumes: B-93's routes and generated types; the accepted shared request
-  `docs/shared/requests/2026-11-08-task-run-page.md`. The page computes no readiness: Start's
+  `docs/shared/requests/2026-11-08-task-run-page.md` at `c71b263d`. The page computes no readiness: Start's
   enabled state and reason are `start.allowed` and `start.reason`; the `needs` row is `needs`.
 - Produces: route `/projects/$projectId/workflows/$workflowId/versions/$version/tasks/$task`.
   - Header: plan title link, `T{n} · {title}`, the latest attempt's state label, each `needs` task

@@ -199,6 +199,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "async-lsp"
+version = "0.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c8b8fd1e175c5ee3108095da452e816519de618beccea23aa053c00cf5e344b9"
+dependencies = [
+ "futures",
+ "lsp-types",
+ "pin-project-lite",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tower-layer",
+ "tower-service",
+]
+
+[[package]]
 name = "async-task"
 version = "4.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -559,6 +575,29 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0c9ea0ac24bc397ab3c98583a3c9ba74fa56b09a4449bbe172b9b1ddb016027a"
 
 [[package]]
+name = "codebase"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "codebase",
+ "core-db",
+ "core-projects",
+ "ignore",
+ "lsp-types",
+ "notify",
+ "serde",
+ "serde_json",
+ "shadows-index",
+ "shadows-lsp",
+ "sqlx",
+ "tempfile",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "utoipa",
+]
+
+[[package]]
 name = "color_quant"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -613,27 +652,6 @@ dependencies = [
  "tempfile",
  "thiserror",
  "tokio",
- "utoipa",
-]
-
-[[package]]
-name = "core-code"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "core-code",
- "core-db",
- "core-projects",
- "ignore",
- "notify",
- "serde",
- "serde_json",
- "shadows-index",
- "sqlx",
- "tempfile",
- "thiserror",
- "tokio",
- "tracing",
  "utoipa",
 ]
 
@@ -748,7 +766,7 @@ checksum = "773648b94d0e5d620f64f280777445740e61fe701025087ec8b57f45c791888b"
 name = "core-grants"
 version = "0.1.0"
 dependencies = [
- "core-code",
+ "codebase",
  "core-db",
  "core-grants",
  "core-projects",
@@ -819,8 +837,8 @@ dependencies = [
 name = "core-messages"
 version = "0.1.0"
 dependencies = [
+ "codebase",
  "core-agents",
- "core-code",
  "core-db",
  "core-events",
  "core-projects",
@@ -879,7 +897,7 @@ dependencies = [
 name = "core-plans"
 version = "0.1.0"
 dependencies = [
- "core-code",
+ "codebase",
  "core-db",
  "core-design",
  "core-grants",
@@ -904,7 +922,7 @@ dependencies = [
 name = "core-project-lifecycle"
 version = "0.1.0"
 dependencies = [
- "core-code",
+ "codebase",
  "core-db",
  "core-grants",
  "core-plans",
@@ -959,7 +977,7 @@ dependencies = [
 name = "core-runs"
 version = "0.1.0"
 dependencies = [
- "core-code",
+ "codebase",
  "core-db",
  "core-grants",
  "core-harness",
@@ -1039,7 +1057,6 @@ name = "core-threads"
 version = "0.1.0"
 dependencies = [
  "core-agents",
- "core-code",
  "core-db",
  "core-projects",
  "core-threads",
@@ -1060,7 +1077,7 @@ dependencies = [
 name = "core-turns"
 version = "0.1.0"
 dependencies = [
- "core-code",
+ "codebase",
  "core-db",
  "core-design",
  "core-grants",
@@ -2562,6 +2579,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4050469837a6ff301cd14c1f8f24f88549e6d548f24f64e2148eb0f72cebc51f"
 
 [[package]]
+name = "lsp-types"
+version = "0.95.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8e34d33a8e9b006cd3fc4fe69a921affa097bae4bb65f76271f4644f9a334365"
+dependencies = [
+ "bitflags 1.3.2",
+ "serde",
+ "serde_json",
+ "serde_repr",
+ "url",
+]
+
+[[package]]
 name = "matchers"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3608,6 +3638,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde_repr"
+version = "0.1.21"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8d3b1629de253c70a0508c3899572da79ca359fdab27c7920ff00406df418906"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 3.0.6",
+]
+
+[[package]]
 name = "serde_urlencoded"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3747,8 +3788,8 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "axum",
+ "codebase",
  "core-agents",
- "core-code",
  "core-db",
  "core-design",
  "core-events",
@@ -3822,6 +3863,20 @@ dependencies = [
  "tree-sitter-rust",
  "tree-sitter-tags",
  "tree-sitter-typescript",
+]
+
+[[package]]
+name = "shadows-lsp"
+version = "0.1.0"
+dependencies = [
+ "async-lsp",
+ "lsp-types",
+ "serde_json",
+ "shadows-process",
+ "tempfile",
+ "thiserror",
+ "tokio",
+ "tokio-util",
 ]
 
 [[package]]
@@ -4659,6 +4714,7 @@ dependencies = [
  "idna",
  "percent-encoding",
  "serde",
+ "serde_derive",
 ]
 
 [[package]]

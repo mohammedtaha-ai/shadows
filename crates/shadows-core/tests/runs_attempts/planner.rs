@@ -388,7 +388,7 @@ async fn a_notice_waits_on_a_busy_planner_in_the_executors_name() {
         client_tab: None,
     };
     let notice = shadows_core::Notice {
-        executor: executor.clone(),
+        executor: Some(executor.clone()),
         card: serde_json::json!({ "task": 3, "attempt": 1, "outcome": "committed" }),
     };
     let turns = f.core.turns();
@@ -451,5 +451,33 @@ async fn a_notice_waits_on_a_busy_planner_in_the_executors_name() {
         principal,
         ("Executor".into(), executor.as_str().to_string())
     );
+    f.finish().await;
+}
+
+/// A refused answer is Start's own refusal: the same code, and Start writes
+/// nothing. T3 is busy with a committed attempt; T6 waits on T1.
+#[tokio::test]
+async fn a_refused_answer_is_starts_refusal() {
+    let f = fixture().await;
+    f.committed_attempt().await;
+    let runs = f.core.runs();
+    for task in [3, 6] {
+        let answer = runs.task(&f.workflow, 1, task).await.unwrap().start;
+        assert!(!answer.allowed, "T{task}: {answer:?}");
+        let started = runs
+            .start(
+                format!("start-{task}"),
+                &f.workflow,
+                1,
+                task,
+                "fake-large".into(),
+            )
+            .await;
+        let Err(error) = started else {
+            panic!("T{task} started though refused: {started:?}")
+        };
+        assert_eq!(answer.code.as_deref(), Some(error.code()), "T{task}");
+    }
+    assert!(runs.attempts(&f.workflow, 1, 6).await.unwrap().is_empty());
     f.finish().await;
 }

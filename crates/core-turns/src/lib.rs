@@ -8,7 +8,8 @@
 //! atomically; only then does the turn run. `stop` is Stop as the local user.
 //!
 //! `record` is the checks and the one transaction, `queue` the waiting
-//! messages. `spawn` registers a committed turn and commits `Running`, `turn` records
+//! messages, `changes` the Planner's project changes and their end-of-turn
+//! check. `spawn` registers a committed turn and commits `Running`, `turn` records
 //! its ending and arbitrates it with Stop, `handles` is the registry of live
 //! turns, `entries` turns harness events into entries, `subagents` gathers a
 //! subagent's calls into its card, `shutdown` stops every
@@ -16,6 +17,7 @@
 //! `store` the turn queries. All are private: a caller starts or stops a turn
 //! through `Turns` only.
 
+mod changes;
 mod entries;
 mod error;
 mod handles;
@@ -24,6 +26,7 @@ mod model;
 mod plan_show;
 mod planning;
 mod prompt;
+mod questions;
 mod queue;
 mod record;
 mod remove;
@@ -46,7 +49,8 @@ use shadows_agent::TurnSettings;
 
 pub use handles::LiveHandles;
 pub use model::{
-    InvocationView, Notice, Operation, OperationId, Queued, QueuedMessage, QueuedMessageId, SentNow,
+    Asked, InvocationView, Notice, Operation, OperationId, QuestionId, QuestionOption, Queued,
+    QueuedMessage, QueuedMessageId, SentNow,
 };
 pub use spawn::{OnCompleted, PlannerTurnRequest, StartError};
 pub use store::{NewQueued, QueueAnswer};
@@ -61,7 +65,7 @@ pub use turn::StopOutcome;
 /// A running turn's live harness events, for every live subscriber.
 pub type Bus =
     tokio::sync::broadcast::Sender<(ThreadId, OperationId, shadows_agent::events::HarnessEvent)>;
-use core_code::Code;
+use codebase::Codebase;
 use core_db::{Actor, CommandContext, Storage, StorageError};
 use core_harness::{Harness, LeaseError};
 use core_instructions::Instructions;
@@ -97,7 +101,7 @@ pub struct Turns {
     sessions: Arc<Harness>,
     handles: Arc<LiveHandles>,
     bus: Bus,
-    code: Code,
+    code: Codebase,
     instructions: Instructions,
     standards: Standards,
     projects: Projects,
@@ -191,7 +195,7 @@ impl Turns {
         sessions: Arc<Harness>,
         handles: Arc<LiveHandles>,
         bus: Bus,
-        code: Code,
+        code: Codebase,
         instructions: Instructions,
         standards: Standards,
         projects: Projects,
@@ -318,8 +322,9 @@ impl Turns {
             None => None,
         };
         self.sessions.check_idle(&thread_id, &context).await?;
-        // The checks passed: a turn starts in this project, which is used.
-        self.code.touch(&context.project_id).await;
+        // The checks passed: a turn starts in this project, which it keeps active
+        // until it settles.
+        let hold = self.code.hold(&context.project_id).await;
         let opened = self
             .sessions
             .open_for_images(&thread_id, !attachments.is_empty())
@@ -403,6 +408,7 @@ impl Turns {
                 client_tab,
                 events,
                 on_completed: Some(self.on_completed()),
+                hold: Some(hold),
             },
             self.bus.clone(),
         )

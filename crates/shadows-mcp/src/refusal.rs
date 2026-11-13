@@ -38,8 +38,8 @@ impl From<StorageError> for Refusal {
     }
 }
 
-impl From<shadows_core::CodeError> for Refusal {
-    fn from(error: shadows_core::CodeError) -> Self {
+impl From<shadows_core::CodebaseError> for Refusal {
+    fn from(error: shadows_core::CodebaseError) -> Self {
         CoreError::from(error).into()
     }
 }
@@ -140,14 +140,6 @@ pub(super) fn answer<T: serde::Serialize>(outcome: Result<T, Refusal>) -> CallTo
         Err(refusal) => refusal,
     };
     refused(refusal)
-}
-
-/// The tool result for `outcome`: its text as it is, or the refusal's text.
-pub(super) fn text(outcome: Result<String, Refusal>) -> CallToolResult {
-    match outcome {
-        Ok(text) => CallToolResult::success(vec![ContentBlock::text(text)]),
-        Err(refusal) => refused(refusal),
-    }
 }
 
 /// `isError`, with the code a client matches on, then what to do.

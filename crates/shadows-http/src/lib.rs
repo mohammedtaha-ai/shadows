@@ -283,6 +283,7 @@ fn session_routes(table: OpenApiRouter<AppState>) -> OpenApiRouter<AppState> {
             thread::remove_thread
         ))
         .routes(routes!(thread::fork_thread))
+        .routes(routes!(thread::answer_question))
         .routes(routes!(
             planning_context::get_anchor,
             planning_context::set_anchor
@@ -323,15 +324,15 @@ fn run_routes(table: OpenApiRouter<AppState>) -> OpenApiRouter<AppState> {
 #[inline(never)]
 fn code_routes(table: OpenApiRouter<AppState>) -> OpenApiRouter<AppState> {
     table
-        .routes(routes!(code::definitions))
-        .routes(routes!(code::references))
-        .routes(routes!(code::outline))
         .routes(routes!(code::status))
         .routes(routes!(code::files))
         .routes(routes!(code::refresh))
         .routes(routes!(code::links))
         .routes(routes!(code::put_link, code::remove_link))
-        .routes(routes!(code::get_settings, code::put_settings))
+        .routes(routes!(code::servers))
+        .routes(routes!(code::post_server))
+        .routes(routes!(code::put_server_off))
+        .routes(routes!(code::remove_server))
         .routes(routes!(sse::subscribe))
         .routes(routes!(sse::subscribe_project))
         .routes(routes!(fs::list_dirs, fs::create_dir))

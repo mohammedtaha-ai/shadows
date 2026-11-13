@@ -1,9 +1,11 @@
 // Resume from the last applied `seq` so reconnects never apply a durable event twice.
 //
-// A hidden page holds no connection: the browser allows six connections to
-// one host across all its tabs, and each open stream keeps one, so a few
-// tabs left open would starve every other request. Hidden, the
-// stream lets go; shown again, it resumes from the last applied `seq`.
+// A page hidden for a while holds no connection: the browser allows six
+// connections to one host across all its tabs, and each open stream keeps
+// one, so a few tabs left open would starve every other request. Hidden past
+// a grace period, the stream lets go; shown again, it resumes from the last
+// applied `seq`. Shown before the grace ends, nothing happens: a page whose
+// visibility flickers would otherwise reconnect and refetch at every flicker.
 //
 // Plain TypeScript with the EventSource injected, so it is tested without a
 // browser; `use-thread-stream.ts` is its React binding. Closing it closes the
@@ -118,6 +120,8 @@ export interface Options {
   /** The page whose visibility holds the connection. Defaults to `document`;
    * `null` keeps the connection whatever the page shows. */
   page?: PageLike | null
+  /** How long a hidden page keeps its connection before letting it go. */
+  hiddenGraceMs?: number
 }
 
 /** Everything transient: a break or a hidden page never resends it. */
@@ -132,6 +136,8 @@ export class ThreadStream {
   #timer: ReturnType<typeof setTimeout> | null = null
   /** A notice of streamed text, waiting for the current task to end. */
   #notice: ReturnType<typeof setTimeout> | null = null
+  /** The end of a hidden page's grace, after which the connection is let go. */
+  #grace: ReturnType<typeof setTimeout> | null = null
   #failures = 0
   #wanted = false
 
@@ -143,6 +149,7 @@ export class ThreadStream {
       maxDelayMs: 10_000,
       maxFailures: 10,
       page: typeof document === 'undefined' ? null : document,
+      hiddenGraceMs: 30_000,
       ...options,
     }
     this.#state = {
@@ -163,6 +170,7 @@ export class ThreadStream {
   /** Opens the stream, or waits until the page is shown. Calling it again
    * after `close()` resumes from `lastSeq`. */
   start(): void {
+    this.#endGrace()
     this.#disconnect()
     if (!this.#wanted) this.#options.page?.addEventListener('visibilitychange', this.#onPage)
     this.#wanted = true
@@ -174,6 +182,7 @@ export class ThreadStream {
   close(): void {
     if (this.#wanted) this.#options.page?.removeEventListener('visibilitychange', this.#onPage)
     this.#wanted = false
+    this.#endGrace()
     this.#disconnect()
   }
 
@@ -181,17 +190,32 @@ export class ThreadStream {
     return this.#options.page?.visibilityState === 'hidden'
   }
 
-  /** Hidden, the connection is let go; shown, it resumes with a fresh failure
-   * budget. A `failed` stream stays failed: only `retry()` leaves it. */
+  /** Hidden, the connection is kept for `hiddenGraceMs`, then let go if the
+   * page is still hidden. Shown within the grace, nothing changes; shown after
+   * it, the stream resumes with a fresh failure budget. A `failed` stream
+   * stays failed: only `retry()` leaves it. */
   readonly #onPage = (): void => {
     if (!this.#wanted || this.#state.connection === 'failed') return
     if (this.#hidden()) {
-      this.#disconnect()
-      this.#set(CLEARED)
+      if (this.#grace !== null) return
+      this.#grace = setTimeout(() => {
+        this.#grace = null
+        if (!this.#wanted || this.#state.connection === 'failed' || !this.#hidden()) return
+        this.#disconnect()
+        this.#set(CLEARED)
+      }, this.#options.hiddenGraceMs)
+    } else if (this.#grace !== null) {
+      this.#endGrace()
     } else if (this.#source === null && this.#timer === null) {
       this.#failures = 0
       this.#open(this.#state.caughtUp ? 'reconnecting' : 'connecting')
     }
+  }
+
+  #endGrace(): void {
+    if (this.#grace === null) return
+    clearTimeout(this.#grace)
+    this.#grace = null
   }
 
   #disconnect(): void {
@@ -205,6 +229,7 @@ export class ThreadStream {
 
   /** Leaves `failed` by reconnecting now, with a fresh failure budget. */
   readonly retry = (): void => {
+    this.#endGrace()
     this.#disconnect()
     this.#failures = 0
     this.#open(this.#state.caughtUp ? 'reconnecting' : 'connecting')

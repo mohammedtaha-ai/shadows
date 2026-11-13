@@ -188,10 +188,14 @@ it is that folder's `contract.yaml`.
 | `web/src/app/agents/color-swatches.tsx` | Character colour controls | `web/src/app/agents/contract.yaml` |
 | `web/src/app/agents/outfits.ts` | Studio outfit preview lookup | `web/src/app/agents/contract.yaml` |
 | `web/src/api/extensions.test.ts` | MCP library transport checks | `web/src/api/contract.yaml` |
+| `web/src/api/questions.ts` | The person's answer to the Planner's question | `web/src/api/contract.yaml` |
+| `web/src/api/questions.test.ts` | Question transport checks | `web/src/api/contract.yaml` |
 | `web/src/api/permissions.ts` | Waiting permission transport | `web/src/api/contract.yaml` |
 | `web/src/api/permissions.test.ts` | Permission transport checks | `web/src/api/contract.yaml` |
 | `web/src/app/conversation/background-tasks.tsx` | Background task side panel | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/background-tasks.test.tsx` | Background task interaction test | `web/src/app/conversation/contract.yaml` |
+| `web/src/app/conversation/person-question-card.tsx` | The Planner's question as buttons, then the choice | `web/src/app/conversation/contract.yaml` |
+| `web/src/app/conversation/person-question-card.test.tsx` | Question card checks | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/permission-card.tsx` | Permission request interaction | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/permission-answer.tsx` | Shared permission option submission | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/permission-answer.test.tsx` | Shared permission option submission checks | `web/src/app/conversation/contract.yaml` |
@@ -231,7 +235,7 @@ it is that folder's `contract.yaml`.
 | `web/src/app/conversation/activity-text.ts` | Words a tool group with its steps | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/tool-group.tsx` | A run of tool calls drawn as one line | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/tool-diff.tsx` | An edit's hunks drawn with line numbers | `web/src/app/conversation/contract.yaml` |
-| `web/src/app/conversation/notice-item.tsx` | An executor's notice drawn as an activity item | `web/src/app/conversation/contract.yaml` |
+| `web/src/app/conversation/notice-item.tsx` | A notice from an executor or Shadows drawn as an activity item | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/turn-blocks.ts` | Groups a turn's activity rows into boxes, split at the Planner's text | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/turn-box.tsx` | One run of a turn's activity as a collapsible box | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/todo-card.tsx` | The agent's task list drawn as a checklist | `web/src/app/conversation/contract.yaml` |
@@ -268,6 +272,7 @@ it is that folder's `contract.yaml`.
 | `web/src/app/conversation/use-conversation.ts` | Binds an open conversation to its stream, entries, turns | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/use-images.ts` | Own selected image uploads | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/pending-images.tsx` | Present selected image previews | `web/src/app/conversation/contract.yaml` |
+| `web/src/app/conversation/image-zoom.tsx` | Opens one conversation image large in a dialog | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/use-session-settings.ts` | Own session-setting changes | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/use-send.ts` | Deliver the composed message | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/use-stop.ts` | Stop the running turn | `web/src/app/conversation/contract.yaml` |
@@ -313,7 +318,6 @@ it is that folder's `contract.yaml`.
 | `web/src/app/project-settings/remove-project.tsx` | Danger-zone control that removes the project | `web/src/app/project-settings/contract.yaml` |
 | `web/src/app/project-settings/when.ts` | Formats a stored time for the settings page | `web/src/app/project-settings/contract.yaml` |
 | `web/src/app/project-settings/index.ts` | Declare lazy route surfaces | `web/src/app/project-settings/contract.yaml` |
-| `web/src/app/settings/active-projects.tsx` | Editor for how many projects the index keeps active | `web/src/app/settings/contract.yaml` |
 | `web/src/app/settings/settings-dialog.tsx` | URL-selected settings dialog | `web/src/app/settings/contract.yaml` |
 | `web/src/app/settings/sections.ts` | Settings section availability | `web/src/app/settings/contract.yaml` |
 | `web/src/app/navigation/index.ts` | Settings URL navigation hooks | `web/src/app/navigation/contract.yaml` |
@@ -335,6 +339,7 @@ it is that folder's `contract.yaml`.
 | `web/src/api/usage.ts` | Usage report server state | `web/src/api/contract.yaml` |
 | `web/src/api/extensions.ts` | Extension library server state | `web/src/api/contract.yaml` |
 | `web/src/app/settings/sections/plugins.tsx` | Extension library navigation | `web/src/app/settings/contract.yaml` |
+| `web/src/app/settings/sections/code.tsx` | Language servers panel | `web/src/app/settings/contract.yaml` |
 | `web/src/app/settings/extension-import.tsx` | Daemon folder import form | `web/src/app/settings/contract.yaml` |
 | `web/src/app/settings/extension-list.tsx` | Shared extension removal controls | `web/src/app/settings/contract.yaml` |
 | `web/src/app/agents/agent-extensions.tsx` | Per-agent extension enablement | `web/src/app/agents/contract.yaml` |

@@ -13,7 +13,8 @@ async fn the_harness_list_carries_the_policy_modes() {
         .map(|h| h["kind"].as_str().unwrap())
         .collect();
     assert_eq!(kinds, ["claude-code", "codex", "aylul"]);
-    for i in [0, 2] {
+    // A Claude Code Planner starts in auto; AYLUL stays in Accept edits.
+    for (i, initial) in [(0, "auto"), (2, "acceptEdits")] {
         let ids: Vec<_> = list[i]["modes"]
             .as_array()
             .unwrap()
@@ -22,11 +23,12 @@ async fn the_harness_list_carries_the_policy_modes() {
             .collect();
         assert_eq!(ids, ["acceptEdits", "auto"]);
         assert_eq!(list[i]["modes"][0]["label"], "Accept edits");
-        assert_eq!(list[i]["initial_mode"], "acceptEdits");
+        assert_eq!(list[i]["initial_mode"], initial);
         assert_eq!(list[i]["unattended_mode"], "auto");
     }
-    assert_eq!(list[1]["modes"][0]["id"], "read-only");
-    assert_eq!(list[1]["initial_mode"], "read-only");
+    assert_eq!(list[1]["modes"][0]["id"], "ask");
+    assert_eq!(list[1]["modes"][1]["id"], "read-only");
+    assert_eq!(list[1]["initial_mode"], "ask");
     assert!(list[1]["unattended_mode"].is_null());
     assert_eq!(list[1]["available"], false, "Codex needs its configuration");
     assert!(

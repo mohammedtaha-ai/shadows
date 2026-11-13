@@ -3,7 +3,7 @@ use axum::extract::{Request, State};
 use axum::middleware::{self, Next};
 use axum::response::Response;
 use serde_json::{Value, json};
-use shadows_agent::policy::CODEX_READ_ONLY;
+use shadows_agent::policy::{CODEX_ASK, CODEX_READ_ONLY};
 use shadows_core::{
     AppCore, KeySource, Operation, OperationId, ProjectId, Queued, SendTurn, SentNow, StartConfig,
     ThreadId, TurnsError,
@@ -188,6 +188,19 @@ impl World {
             .await
     }
 
+    /// A turn in `mode`, on the fixture model.
+    async fn send_in(&self, mode: &str, command: &str, prompt: &str) -> OperationId {
+        let send = SendTurn {
+            mode: mode.into(),
+            ..turn(command, prompt, "fixture-model", Some("low"))
+        };
+        self.core
+            .turns()
+            .send(self.thread.clone(), send)
+            .await
+            .unwrap()
+    }
+
     async fn done(&self, operation: &OperationId) -> Operation {
         self.settled(&self.thread, operation).await
     }
@@ -316,9 +329,29 @@ async fn codex_failed_setup_revokes_the_grant() {
 }
 
 #[tokio::test]
-async fn codex_refuses_forbidden_authority() {
+async fn codex_approval_waits_for_the_person() {
     let w = World::start(false).await;
-    let operation = w.start_turn("refusal", "approval").await;
+    let operation = w.send_in(CODEX_ASK, "refusal", "approval").await;
+    let mut waiting = Vec::new();
+    for _ in 0..200 {
+        waiting = w.core.harness().waiting_permissions().await;
+        if !waiting.is_empty() {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(25)).await;
+    }
+    let [held] = waiting.as_slice() else {
+        panic!("one held request: {waiting:?}");
+    };
+    assert_eq!(held.thread_id, w.thread);
+    assert_eq!(held.agent, "Planner");
+    let options: Vec<&str> = held.options.iter().map(|o| o.option_id.as_str()).collect();
+    assert_eq!(options, ["accept", "decline"]);
+    w.core
+        .harness()
+        .answer_permission("no".into(), &w.thread, &held.request_id, "decline")
+        .await
+        .unwrap();
     assert_eq!(w.done(&operation).await.status_kind, "Completed");
     let entries = w.core.threads().entries(&w.thread).await.unwrap();
     assert!(entries.iter().any(|entry| entry.body == "refused"));
@@ -381,8 +414,9 @@ async fn codex_choices_follow_the_model_catalog() {
     let listed = w.codex_listed().await;
     assert_eq!(listed["available"], true);
     assert!(listed["reason"].is_null());
-    assert_eq!(listed["modes"][0]["id"], CODEX_READ_ONLY);
-    assert_eq!(listed["initial_mode"], CODEX_READ_ONLY);
+    assert_eq!(listed["modes"][0]["id"], CODEX_ASK);
+    assert_eq!(listed["modes"][1]["id"], CODEX_READ_ONLY);
+    assert_eq!(listed["initial_mode"], CODEX_ASK);
     let choices = w.core.harness().open_session(&w.thread).await.unwrap();
     assert_eq!(
         ids(&choices.models),
@@ -390,7 +424,7 @@ async fn codex_choices_follow_the_model_catalog() {
         "both catalog pages, in the catalog's order"
     );
     assert_eq!(ids(&choices.efforts), ["low", "high"]);
-    assert_eq!(ids(&choices.modes), [CODEX_READ_ONLY]);
+    assert_eq!(ids(&choices.modes), [CODEX_ASK, CODEX_READ_ONLY]);
     assert!(choices.modes[0].enabled);
     assert_eq!(choices.current.model, "fixture-model");
     assert_eq!(
@@ -398,8 +432,8 @@ async fn codex_choices_follow_the_model_catalog() {
         Some("low"),
         "an opening without an effort runs at the model default"
     );
-    assert!(!choices.capabilities.image);
-    assert!(choices.capabilities.image_reason.is_some());
+    assert!(choices.capabilities.image);
+    assert_eq!(choices.capabilities.image_reason, None);
     w.close().await;
 }
 
@@ -520,9 +554,47 @@ async fn codex_project_modes_are_enforced() {
 async fn codex_new_projects_use_the_declared_mode_policy() {
     let w = World::start(false).await;
     let project = w.core.projects().get(&w.project).await.unwrap();
-    assert_eq!(project.allowed_modes["codex"], [CODEX_READ_ONLY]);
+    assert_eq!(project.allowed_modes["codex"], [CODEX_ASK, CODEX_READ_ONLY]);
     let choices = w.core.harness().open_session(&w.thread).await.unwrap();
-    assert_eq!(choices.current.mode, CODEX_READ_ONLY);
+    assert_eq!(choices.current.mode, CODEX_ASK);
+    w.close().await;
+}
+
+#[tokio::test]
+async fn codex_each_mode_sends_its_sandbox_and_approval() {
+    let w = World::start(false).await;
+    for (mode, words) in [
+        (
+            CODEX_READ_ONLY,
+            r#"sandbox="readOnly" approval="never" reviewer="user""#,
+        ),
+        (
+            CODEX_ASK,
+            r#"sandbox="workspaceWrite" approval="on-request" reviewer="auto_review""#,
+        ),
+    ] {
+        let op = w.send_in(mode, mode, "settings").await;
+        assert_eq!(w.done(&op).await.status_kind, "Completed");
+        let written = w.written(&w.thread, &op).await;
+        assert!(
+            written.iter().any(|body| body.contains(words)),
+            "{mode}: {written:?}"
+        );
+    }
+    w.close().await;
+}
+
+#[tokio::test]
+async fn codex_read_only_holds_no_approval() {
+    let w = World::start(false).await;
+    let op = w.send_in(CODEX_READ_ONLY, "quiet", "approval").await;
+    assert_eq!(w.done(&op).await.status_kind, "Completed");
+    assert!(w.core.harness().waiting_permissions().await.is_empty());
+    let written = w.written(&w.thread, &op).await;
+    assert!(
+        written.iter().any(|body| body == "refused without asking"),
+        "{written:?}"
+    );
     w.close().await;
 }
 
@@ -542,6 +614,27 @@ async fn codex_modes_migrate_without_granting_write_access() {
     assert_eq!(ordinary.allowed_modes["claude-code"], ["acceptEdits"]);
     let assistant = w.core.projects().by_slug("aylul").await.unwrap().unwrap();
     assert!(assistant.allowed_modes["codex"].is_empty());
+    w.close().await;
+}
+
+/// A project that allows only Codex's `read-only` opens a new conversation
+/// there, not on the default `ask` it never allowed.
+#[tokio::test]
+async fn codex_opens_on_the_projects_mode_when_the_default_is_not_allowed() {
+    let w = World::start(false).await;
+    w.core
+        .projects()
+        .set_modes(
+            "read-only-only".into(),
+            &w.project,
+            [("codex".into(), vec![CODEX_READ_ONLY.into()])].into(),
+        )
+        .await
+        .unwrap();
+    let choices = w.core.harness().open_session(&w.thread).await.unwrap();
+    assert_eq!(choices.current.mode, CODEX_READ_ONLY);
+    let op = w.send_in(CODEX_READ_ONLY, "opened", "settings").await;
+    assert_eq!(w.done(&op).await.status_kind, "Completed");
     w.close().await;
 }
 
@@ -882,6 +975,61 @@ async fn live_a_codex_planner_reads_a_file_and_writes_none() {
     println!(
         "live codex write: {} tool entries, {failed} failed, made.txt absent",
         tried.len()
+    );
+    w.close().await;
+}
+
+/// A Codex turn receives an attached image and names its colour.
+#[ignore = "live: needs codex (SHADOWS_CODEX_PATH) signed in to a dedicated home \
+            (SHADOWS_CODEX_HOME)"]
+#[tokio::test]
+async fn live_a_codex_turn_sees_an_image() {
+    let root = tempfile::tempdir().unwrap();
+    std::fs::create_dir_all(root.path().join("project")).unwrap();
+    let w = World::start_live(root).await;
+    let choices = w.core.harness().open_session(&w.thread).await.unwrap();
+    // The thread opens in Approve for me, and the opening is refused unless
+    // Codex answers that mode's approvalsReviewer, auto_review: an open thread
+    // in this mode is Codex's word that its reviewer approves for the person.
+    assert_eq!(choices.current.mode, CODEX_ASK);
+    assert!(choices.capabilities.image);
+    let current = choices.current;
+    let red = include_bytes!("fixtures/red-64.png").to_vec();
+    let image = w
+        .core
+        .threads()
+        .upload_attachment("red".into(), &w.thread, "image/png", None, red)
+        .await
+        .unwrap();
+    let mut send = turn(
+        "see",
+        "What colour is this image? Answer with one word.",
+        &current.model,
+        current.effort.as_deref(),
+    );
+    send.attachments = vec![image.id];
+    let operation = w.core.turns().send(w.thread.clone(), send).await.unwrap();
+    let done = w
+        .settled_within(&w.thread, &operation, Duration::from_secs(180))
+        .await;
+    assert_eq!(done.status_kind, "Completed", "{done:?}");
+    let reply = w
+        .core
+        .threads()
+        .entries(&w.thread)
+        .await
+        .unwrap()
+        .into_iter()
+        .rev()
+        .find(|entry| {
+            entry.kind == shadows_core::ThreadEntryKind::AgentMessage
+                && entry.operation_id.as_deref() == Some(operation.as_str())
+        })
+        .expect("the image turn's reply");
+    assert!(
+        reply.body.to_lowercase().contains("red"),
+        "{:?}",
+        reply.body
     );
     w.close().await;
 }

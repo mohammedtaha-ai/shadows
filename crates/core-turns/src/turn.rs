@@ -74,6 +74,10 @@ pub(crate) struct TurnWatch {
     pub cancel_requested: Arc<AtomicBool>,
     /// called after a `Completed` is recorded, and after nothing else.
     pub on_completed: Option<OnCompleted>,
+    /// Dropped when the watch ends: the project's idle time starts then. What
+    /// its watcher saw change is checked against `noted` when the turn settles.
+    pub hold: Option<codebase::ActiveHold>,
+    pub noted: super::handles::Noted,
     pub span: tracing::Span,
 }
 
@@ -403,6 +407,12 @@ impl PlannerTurn {
                 }
             }
             w.sessions.touch(&w.thread_id).await;
+            // Before the ending is claimed, so a Stop's ending is checked too, and
+            // the notice waits in the queue before `on_completed` sends the next.
+            if let Some(hold) = &w.hold {
+                super::Turns::check_changes(&w.store(), &w.thread_id, &w.op_id, hold, &w.noted)
+                    .await;
+            }
             if w.handles.claim(&w.op_id).await.is_none() {
                 return;
             }

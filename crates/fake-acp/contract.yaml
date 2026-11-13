@@ -21,7 +21,7 @@ obligations:
   - rule: A project marker can make the fake report acceptEdits on resume, including after fork.
     tested_by: [fork_copies_the_mode_and_removal_deletes_only_its_row, a_turn_start_remembers_its_explicit_mode_in_its_transaction]
   - rule: The report prompt exposes the fake's actual session state, including how it opened and its mode.
-    tested_by: [opening_twice_reuses_one_adapter_and_starts_in_accept_edits]
+    tested_by: [opening_twice_reuses_one_adapter_and_starts_in_auto]
   - rule: The report fixture exposes MCP configuration without printing header values.
     tested_by: [report_mcp_records_hashes_and_finds_shadows]
 

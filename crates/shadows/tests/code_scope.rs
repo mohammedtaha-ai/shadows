@@ -7,7 +7,7 @@ use serde_json::{Value, json};
 use shadows_agent::policy;
 use shadows_core::testing::ProjectDirectory;
 use shadows_core::testing::acp;
-use shadows_core::{CodeConfig, IndexState, ProjectId};
+use shadows_core::{CodebaseConfig, IndexState, ProjectId};
 
 #[path = "fixtures/app.rs"]
 mod app;
@@ -17,9 +17,7 @@ mod listening;
 mod plan;
 
 use app::{ctx, fresh_command};
-use listening::{
-    Client, Listening, call, listening_app, ok, project_client, refused, thread_client,
-};
+use listening::{Listening, listening_app, ok, project_client, refused, thread_client};
 
 /// The status `shadows-http/src/failure.rs` gives a service's own refusal.
 const REFUSED: u16 = 422;
@@ -58,16 +56,9 @@ async fn get(l: &Listening, path: &str) -> (u16, Value) {
     app::call(&l.app, "GET", path, None).await
 }
 
-/// The text a tool call answered, asserting it succeeded.
-async fn text(client: &Client, tool: &str, args: Value) -> String {
-    let (is_error, text) = call(client, tool, args).await;
-    assert!(!is_error, "{tool} failed: {text}");
-    text
-}
-
 /// Touches each project, then waits until every one's index is `Ready`.
 async fn settle_index(l: &Listening, projects: &[&ProjectId]) {
-    let code = l.app.core.code();
+    let code = l.app.core.codebase();
     for p in projects {
         code.touch(p).await;
     }
@@ -98,8 +89,8 @@ async fn the_scope_is_the_project_and_its_links_only() {
     // `assemble` does not start the workers.
     l.app
         .core
-        .code()
-        .start(CodeConfig::default())
+        .codebase()
+        .start(CodebaseConfig::default())
         .await
         .unwrap();
 
@@ -109,39 +100,15 @@ async fn the_scope_is_the_project_and_its_links_only() {
     assert_eq!(status, 200, "{body}");
     settle_index(&l, &[&a, &b, &c]).await;
 
-    let found = text(&client, "where_is", json!({ "name": "orders" })).await;
-    assert!(
-        found.contains("backend: src/api.rs:1 function orders"),
-        "{found}"
-    );
-    let args = json!({ "name": "orders", "project": "backend" });
-    let only_b = text(&client, "where_is", args).await;
-    assert!(only_b.contains("src/api.rs:1"), "{only_b}");
-
-    // Unlinked: GRANT_SCOPE over MCP, INVALID_COMMAND over HTTP, and never its content.
-    let args = json!({ "name": "key", "project": "secret" });
-    let refused_c = refused(&client, "where_is", args).await;
+    // Unlinked: GRANT_SCOPE over MCP, before any server is asked.
+    let args = json!({ "operation": "documentSymbol", "file": "src/k.rs", "project": "secret" });
+    let refused_c = refused(&client, "code_lsp", args).await;
     assert!(refused_c.contains("GRANT_SCOPE"), "{refused_c}");
-    let all = text(&client, "where_is", json!({ "name": "key" })).await;
-    assert!(!all.contains("secret"), "{all}");
-    let path = format!("/api/projects/{a}/code/definitions?name=key&project=secret");
-    let (status, body) = get(&l, &path).await;
-    assert_eq!(
-        (status, body["code"].as_str()),
-        (REFUSED, Some("INVALID_COMMAND"))
-    );
 
     // A path out of the folder is refused.
-    let out = refused(&client, "outline", json!({ "path": "../" })).await;
+    let args = json!({ "operation": "documentSymbol", "file": "../x.rs" });
+    let out = refused(&client, "code_lsp", args).await;
     assert!(out.contains("the path must be inside the project"), "{out}");
-
-    // One way: B does not see A.
-    let path = format!("/api/projects/{b}/code/definitions?name=orders&project=demo");
-    let (status, body) = get(&l, &path).await;
-    assert_eq!(
-        (status, body["code"].as_str()),
-        (REFUSED, Some("INVALID_COMMAND"))
-    );
 
     l.app
         .core

@@ -13,9 +13,9 @@ pub use core_grants::{ApprovalRequest, ApprovedBy, Approver, Writer};
 #[cfg(feature = "test-support")]
 pub use app::CoreParts;
 pub use app::{AppCore, StartConfig};
-pub use core_code::{
-    Answer, Asker, Code, CodeConfig, CodeSettings, Hit, IndexState, ProjectLink, ProjectStatus,
-    Skipped,
+pub use codebase::{
+    ActiveHold, Answer, Asker, Codebase, CodebaseConfig, Hit, IndexState, ProjectLink,
+    ProjectStatus, Skipped,
 };
 // `StorageError`, `StartError` and `DirectoryError` are what `CoreError`
 // carries, which each adapter maps.
@@ -80,8 +80,8 @@ pub use core_threads::{
     WorkflowRef,
 };
 pub use core_turns::{
-    InvocationView, Notice, Operation, Queued, QueuedMessage, QueuedMessageId, SendTurn, SentNow,
-    StartError, Turns,
+    Asked, InvocationView, Notice, Operation, QuestionId, QuestionOption, Queued, QueuedMessage,
+    QueuedMessageId, SendTurn, SentNow, StartError, Turns,
 };
 pub use core_usage::{ModelUsage, ProviderUsage, Usage, UsageReport};
 pub use error::{CoreError, ErrorCode};
@@ -115,8 +115,9 @@ pub use core_instructions::InstructionsError;
 
 pub use core_standards::StandardsError;
 
-pub use core_code::{
-    CodeError, InventoryEntry, InventoryKind, InventoryPage, InventoryQuery, InventoryState,
+pub use codebase::{
+    AddedServer, CodebaseError, InventoryEntry, InventoryKind, InventoryPage, InventoryQuery,
+    InventoryState, LspAnswer, LspOperation, LspQuestion, ServerState, ServerStatus,
 };
 
 pub use core_threads::ThreadsError;

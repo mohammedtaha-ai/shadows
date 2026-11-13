@@ -59,6 +59,17 @@ it('the_planner_text_between_tools_stays_outside_and_splits_the_box', async () =
   expect(a.text()).not.toContain('Read one.ts')
 })
 
+it('a_shadows_notice_is_named_shadows_in_the_summary', async () => {
+  const notice: ThreadEntry = {
+    ...entryOfKind('n1', 'UserMessage', 'The language server stopped.'),
+    author: { kind: 'Shadows', id: 'shadows' },
+  }
+  const t1 = toolEntry('t-one', 'Read one.ts')
+  const a = (open = await startApp('/projects/p1/threads/t1', answers({ entries: [notice, t1] })))
+  await until(() => a.button('Received a notice from Shadows, ran 1 tool') !== undefined)
+  expect(a.text()).not.toContain('Executor')
+})
+
 it('a_running_turn_is_open_and_folds_when_it_ends', async () => {
   let setLive: (live: boolean) => void = () => {}
   function Harness() {

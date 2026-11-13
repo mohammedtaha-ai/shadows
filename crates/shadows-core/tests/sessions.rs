@@ -90,7 +90,7 @@ async fn prompt_text(fx: &Fixture, s: &OpenSession, text: &str) -> String {
 }
 
 #[tokio::test]
-async fn opening_twice_reuses_one_adapter_and_starts_in_accept_edits() {
+async fn opening_twice_reuses_one_adapter_and_starts_in_auto() {
     let fx = fixture(SessionsConfig::default()).await;
     let a = fx.sessions.open(&fx.thread).await.unwrap();
     let b = fx.sessions.open(&fx.thread).await.unwrap();
@@ -98,7 +98,7 @@ async fn opening_twice_reuses_one_adapter_and_starts_in_accept_edits() {
     assert_eq!(fx.sessions.live_count().await, 1);
     let report: serde_json::Value =
         serde_json::from_str(&prompt_text(&fx, &a, "report").await).unwrap();
-    assert_eq!(report["mode"], "acceptEdits");
+    assert_eq!(report["mode"], "auto");
     assert_eq!(report["how"], "new");
     fx.sessions.close_all().await.unwrap();
     fx.storage.close().await.unwrap();

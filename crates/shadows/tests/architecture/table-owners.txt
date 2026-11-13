@@ -17,11 +17,12 @@ aylul_mcp_server :: extensions
 aylul_person :: person
 aylul_provider :: providers
 aylul_usage :: usage
-code_file :: code
-code_inventory :: code
-code_inventory_scan :: code
-code_setting :: code
-code_tag :: code
+code_file :: codebase
+code_inventory :: codebase
+code_inventory_scan :: codebase
+code_server_added :: codebase
+code_server_off :: codebase
+code_tag :: codebase
 command_record :: db
 design_command_result :: design
 design_map_proposal :: design
@@ -52,11 +53,12 @@ message_delivery :: messages
 message_group :: messages
 message_group_member :: messages
 operation :: operations
+person_question :: turns
 plan :: plans
 planner_instructions_version :: instructions
 planning_thread :: threads
 project :: projects
-project_link :: code
+project_link :: codebase
 project_mode :: projects
 queued_message :: turns
 runtime_instance :: runtime
@@ -84,7 +86,7 @@ workflow :: plans
 
 # standards SQL lives in crates/core-standards/src/store/.
 
-# code SQL lives in crates/core-code/src/store/.
+# code SQL lives in crates/codebase/src/store/.
 
 # agents SQL lives in crates/core-agents/src/store/.
 

@@ -89,6 +89,19 @@ it('a_waiting_notice_is_not_drawn_as_the_persons_message', async () => {
   expect(names(person)).toEqual(['Send now', 'Remove'])
 })
 
+it('a waiting message image opens large and has no remove button on it', async () => {
+  const a = app = await startApp('/projects/p1/threads/t1', {
+    ...DAEMON,
+    'GET /api/threads/t1/queue': [{ ...waiting, attachments: ['image-1'] }],
+  })
+  await until(() => a.button('View Queued image') !== undefined)
+  const row = a.container.querySelector('ul[aria-label="Waiting messages"] > li')
+  const names = [...row!.querySelectorAll('button')].map(b => b.getAttribute('aria-label') ?? b.textContent)
+  expect(names).toEqual(['View Queued image', 'Send now', 'Remove'])
+  act(() => a.button('View Queued image')!.click())
+  await until(() => document.body.querySelector('[role="dialog"] img[alt="Queued image"]') !== null)
+})
+
 it.each(['INVALID_COMMAND', 'COMMAND_CONFLICT'] as const)('Send now preserves queued images and retries %s with the correct command', async code => {
   const requests: { command_id: string }[] = []
   const a = app = await startApp('/projects/p1/threads/t1', {
@@ -103,7 +116,7 @@ it.each(['INVALID_COMMAND', 'COMMAND_CONFLICT'] as const)('Send now preserves qu
   await until(() => a.button('Send now') !== undefined)
   act(() => a.button('Send now')!.click())
   await until(() => a.text().includes('Core refused Send now') && a.button('Send now')?.disabled === false)
-  expect(a.container.querySelectorAll('img[alt="Queued image"]')).toHaveLength(2)
+  expect(a.container.querySelectorAll('img[alt="Queued image"][crossorigin="anonymous"]')).toHaveLength(2)
   act(() => a.button('Send now')!.click())
   await until(() => requests.length === 2)
   if (code === 'COMMAND_CONFLICT') expect(requests[1]?.command_id).not.toBe(requests[0]?.command_id)

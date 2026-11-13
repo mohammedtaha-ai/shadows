@@ -120,7 +120,8 @@ fn assert_locked(r: &Value) {
             "WebFetch",
             "ToolSearch",
             "Agent",
-            "TodoWrite"
+            "TodoWrite",
+            "Bash"
         ]),
         "{r}"
     );

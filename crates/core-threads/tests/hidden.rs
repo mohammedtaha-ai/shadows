@@ -1,4 +1,3 @@
-use core_code::Code;
 use core_db::Storage;
 use core_projects::Projects;
 use core_threads::{PlanningThread, Threads};
@@ -20,11 +19,7 @@ async fn fixture() -> Fixture {
         .ensure_assistant("aylul", "AYLUL", tmp.path())
         .await
         .unwrap();
-    let threads = Threads::new(
-        storage.clone(),
-        Code::new(storage.clone(), projects.clone()),
-        projects,
-    );
+    let threads = Threads::new(storage.clone(), projects);
     let project_id = project.id.clone();
     let hidden = storage
         .write_txn_as(move |conn| {

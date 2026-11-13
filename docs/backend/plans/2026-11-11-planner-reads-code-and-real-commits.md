@@ -60,7 +60,7 @@ executor anything a commit does not show.
 
 ## Global Constraints
 
-- The same as [slice 1b](2026-11-11-slice-1b-planner-runs-tasks.md#global-constraints): real
+- The same as slice 1b (`docs/backend/plans/2026-11-11-slice-1b-planner-runs-tasks.md` at `617d806f`, its Global Constraints): real
   tests (live or no agent), never a new fake-acp test; only the tests named, with `-p`; no
   `crates/**/*.rs` line over 100 columns; commit by path.
 - The Codex sandbox, approval policy and tool gate do not change. If the live test shows a

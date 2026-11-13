@@ -62,6 +62,9 @@ pub enum ErrorCode {
     OriginRefused,
     /// The thread's harness is listed but not runnable.
     HarnessUnavailable,
+    /// A project's language server could not answer a question; the text says how
+    /// it stands (running but silent, failed with its last error line, not startable).
+    LanguageServerUnavailable,
     /// A model, mode or effort the session does not offer, or a mode outside
     /// Shadows' policy.
     SettingNotOffered,
@@ -360,24 +363,28 @@ impl From<core_standards::StandardsError> for CoreError {
     }
 }
 
-impl From<core_code::CodeError> for CoreError {
-    fn from(error: core_code::CodeError) -> Self {
-        use core_code::CodeError;
+impl From<codebase::CodebaseError> for CoreError {
+    fn from(error: codebase::CodebaseError) -> Self {
+        use codebase::CodebaseError;
         match error {
-            CodeError::InvalidCommand(message) => Self::Refused {
+            CodebaseError::InvalidCommand(message) => Self::Refused {
                 code: ErrorCode::InvalidCommand,
                 message,
             },
-            CodeError::GrantScope(message) => Self::Refused {
+            CodebaseError::GrantScope(message) => Self::Refused {
                 code: ErrorCode::GrantScope,
                 message,
             },
-            CodeError::InventoryStale => Self::Refused {
+            CodebaseError::InventoryStale => Self::Refused {
                 code: ErrorCode::InventoryStale,
                 message: error.to_string(),
             },
-            CodeError::Projects(error) => error.into(),
-            CodeError::Storage(error) => Self::Storage(error),
+            CodebaseError::LanguageServer(message) => Self::Refused {
+                code: ErrorCode::LanguageServerUnavailable,
+                message,
+            },
+            CodebaseError::Projects(error) => error.into(),
+            CodebaseError::Storage(error) => Self::Storage(error),
         }
     }
 }
@@ -569,6 +576,10 @@ impl From<core_plans::PlansError> for CoreError {
             },
             PlansError::GrantInvalid => Self::Refused {
                 code: ErrorCode::GrantInvalid,
+                message,
+            },
+            PlansError::LanguageServer(message) => Self::Refused {
+                code: ErrorCode::LanguageServerUnavailable,
                 message,
             },
             PlansError::Design(error) => error.into(),

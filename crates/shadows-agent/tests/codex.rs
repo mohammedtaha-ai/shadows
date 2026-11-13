@@ -140,15 +140,31 @@ async fn codex_unknown_notifications_are_ignored() {
 }
 
 #[tokio::test]
-async fn codex_server_requests_do_not_deadlock() {
+async fn codex_approvals_wait_for_the_person() {
     let mut peer = Peer::start().await;
-    assert_eq!(
-        tokio::time::timeout(Duration::from_secs(3), peer.prompt("approval"))
-            .await
-            .unwrap()
-            .unwrap(),
-        TurnEnd::Ended
-    );
+    let answer = async {
+        loop {
+            if let Some(held) = peer.connection.held_permissions().into_iter().next() {
+                let options: Vec<_> = held.options.iter().map(|o| o.option_id.clone()).collect();
+                assert_eq!(options, ["accept", "decline"]);
+                peer.connection
+                    .prepare_permission_answer(&held.request, "decline")
+                    .await
+                    .unwrap()
+                    .commit()
+                    .unwrap();
+                return;
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    };
+    let (ended, ()) = tokio::time::timeout(Duration::from_secs(3), async {
+        tokio::join!(peer.prompt("approval"), answer)
+    })
+    .await
+    .unwrap();
+    assert_eq!(ended.unwrap(), TurnEnd::Ended);
+    assert!(peer.connection.held_permissions().is_empty());
     assert_eq!(peer.chunks(), ["refused"]);
 }
 

@@ -54,6 +54,8 @@ pub struct PlannerTurnRequest {
     pub events: mpsc::UnboundedReceiver<HarnessEvent>,
     /// Sends the thread's next waiting message once this turn completes.
     pub on_completed: Option<OnCompleted>,
+    /// Keeps the project active until the turn settles.
+    pub hold: Option<codebase::ActiveHold>,
 }
 
 impl PlannerTurn {
@@ -80,6 +82,7 @@ impl PlannerTurn {
             client_tab,
             events,
             on_completed,
+            hold,
         } = request;
         let span = tracing::info_span!(
             parent: None,
@@ -148,6 +151,7 @@ impl PlannerTurn {
         let turn_end_seen = Arc::new(AtomicBool::new(false));
         let cancel_requested = Arc::new(AtomicBool::new(false));
         let (steer, steers) = mpsc::unbounded_channel();
+        let noted = super::handles::Noted::default();
         if let Err(_turn) = handles
             .register(
                 op_id.clone(),
@@ -160,6 +164,7 @@ impl PlannerTurn {
                     steer,
                     span: span.clone(),
                     activity: activity.clone(),
+                    noted: noted.clone(),
                 },
             )
             .await
@@ -246,6 +251,8 @@ impl PlannerTurn {
                 turn_end_seen,
                 cancel_requested,
                 on_completed,
+                hold,
+                noted,
                 span,
             },
             events,

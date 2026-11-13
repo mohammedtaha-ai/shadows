@@ -25,7 +25,13 @@ pub(crate) struct LiveTurn {
     pub(crate) steer: mpsc::UnboundedSender<SteerRequest>,
     pub(crate) span: tracing::Span,
     pub(crate) activity: ActivityState,
+    /// The project paths the Planner said why it changed in this turn.
+    pub(crate) noted: Noted,
 }
+
+/// The paths a turn's `project_change_note`s named, shared by its registration
+/// and its watcher, which compares them with what changed when the turn settles.
+pub(crate) type Noted = Arc<std::sync::Mutex<std::collections::BTreeSet<String>>>;
 
 /// What Send now needs of the running turn of a thread.
 pub(crate) struct SteerTarget {
@@ -108,6 +114,14 @@ impl LiveHandles {
                 cancel_requested: t.cancel_requested.clone(),
                 steer: t.steer.clone(),
             })
+    }
+    /// The noted paths of the turn running on `thread`, if one is.
+    pub(crate) async fn noted_for(&self, thread: &ThreadId) -> Option<Noted> {
+        let r = self.0.lock().await;
+        r.turns
+            .values()
+            .find(|t| &t.thread_id == thread)
+            .map(|t| t.noted.clone())
     }
     pub async fn is_closed(&self) -> bool {
         self.0.lock().await.closed

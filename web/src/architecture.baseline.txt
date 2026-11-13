@@ -3,7 +3,6 @@ cache_write :: app/agents/provider-picker.test.tsx :: setQueryData #1
 cache_write :: app/conversation/use-conversation.test.tsx :: setQueryData #1
 cache_write :: app/conversation/use-conversation.test.tsx :: setQueryData #2
 cache_write :: app/settings/desktop-preferences.test.tsx :: setQueryData #1
-cache_write :: app/settings/desktop-preferences.test.tsx :: setQueryData #2
 cache_write :: app/settings/general-preferences.test.tsx :: setQueryData #1
 cache_write :: app/settings/person-theme.test.tsx :: setQueryData #1
 cache_write :: app/settings/person-theme.test.tsx :: setQueryData #2

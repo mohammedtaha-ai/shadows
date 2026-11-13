@@ -7,7 +7,7 @@ use std::time::Duration;
 
 use shadows_agent::claude::ClaudeAdapter;
 use shadows_core::testing::{CommandContext, ProjectDirectory, Storage, acp};
-use shadows_core::{AppCore, Asker, CodeConfig, CoreParts, IndexState, ProjectId};
+use shadows_core::{AppCore, Asker, CodebaseConfig, CoreParts, IndexState, ProjectId};
 
 /// A core over a temporary database in `db`, with one project whose folder is `dir`.
 async fn core_with_project() -> (
@@ -117,16 +117,20 @@ async fn indexing_follows_the_files() {
     w("big.rs", &"// x\n".repeat(300_000)); // > 1 MB
     let me = shadows_core::Asker::Person(&project);
 
-    core.code().scan_for_test(&project).await.unwrap();
-    let a = core.code().definitions(me, None, "alpha").await.unwrap();
+    core.codebase().scan_for_test(&project).await.unwrap();
+    let a = core
+        .codebase()
+        .definitions(me, None, "alpha")
+        .await
+        .unwrap();
     assert_eq!((a.hits[0].path.as_str(), a.hits[0].line), ("src/a.rs", 1));
     assert_eq!(a.hits[0].signature.as_deref(), Some("pub fn alpha() {}"));
-    let r = core.code().references(me, None, "alpha").await.unwrap();
+    let r = core.codebase().references(me, None, "alpha").await.unwrap();
     assert_eq!(r.hits[0].path, "src/b.rs");
     assert_eq!(r.hits[0].matched_by.as_deref(), Some("name"));
     for hidden in ["hidden_in_target", "hidden_by_nested_ignore"] {
         assert!(
-            core.code()
+            core.codebase()
                 .definitions(me, None, hidden)
                 .await
                 .unwrap()
@@ -135,7 +139,7 @@ async fn indexing_follows_the_files() {
             "{hidden}"
         );
     }
-    let s = core.code().status(&project).await.unwrap();
+    let s = core.codebase().status(&project).await.unwrap();
     assert!(
         s.skipped
             .iter()
@@ -146,9 +150,9 @@ async fn indexing_follows_the_files() {
     w("src/a.rs", "\n\npub fn alpha() {}\n");
     std::fs::remove_file(dir.path().join("src/b.rs")).unwrap();
     w("src/c.ts", "export function gamma() {}\n");
-    core.code().scan_for_test(&project).await.unwrap();
+    core.codebase().scan_for_test(&project).await.unwrap();
     assert_eq!(
-        core.code()
+        core.codebase()
             .definitions(me, None, "alpha")
             .await
             .unwrap()
@@ -157,7 +161,7 @@ async fn indexing_follows_the_files() {
         3
     );
     assert!(
-        core.code()
+        core.codebase()
             .references(me, None, "alpha")
             .await
             .unwrap()
@@ -165,7 +169,7 @@ async fn indexing_follows_the_files() {
             .is_empty()
     );
     assert_eq!(
-        core.code()
+        core.codebase()
             .definitions(me, None, "gamma")
             .await
             .unwrap()
@@ -173,12 +177,12 @@ async fn indexing_follows_the_files() {
             .len(),
         1
     );
-    let o = core.code().outline(me, None, "src").await.unwrap();
+    let o = core.codebase().outline(me, None, "src").await.unwrap();
     assert_eq!(
         o.hits.iter().map(|h| h.name.as_str()).collect::<Vec<_>>(),
         ["alpha", "gamma"]
     );
-    let near = core.code().definitions(me, None, "amm").await.unwrap();
+    let near = core.codebase().definitions(me, None, "amm").await.unwrap();
     assert!(near.hits.is_empty() && near.suggestions == ["gamma"]);
 
     core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
@@ -191,14 +195,15 @@ async fn watching_and_the_periodic_scan_keep_the_index_true() {
     let (core, project, dir, _db) = core_with_project().await;
     std::fs::create_dir_all(dir.path().join("src")).unwrap();
     std::fs::write(dir.path().join("src/a.rs"), "fn one() {}\n").unwrap();
-    let fast = CodeConfig {
+    let fast = CodebaseConfig {
         rescan_every: Duration::from_millis(400),
         debounce: Duration::from_millis(100),
+        ..CodebaseConfig::default()
     };
-    core.code().start(fast).await.unwrap();
-    core.code().touch(&project).await;
+    core.codebase().start(fast).await.unwrap();
+    core.codebase().touch(&project).await;
     let me = Asker::Person(&project);
-    let code = core.code();
+    let code = core.codebase();
     let defined = |name: &'static str| async move {
         !code
             .definitions(me, None, name)
@@ -214,49 +219,157 @@ async fn watching_and_the_periodic_scan_keep_the_index_true() {
     std::fs::write(&tmp, "\nfn one() {}\n").unwrap();
     std::fs::rename(&tmp, dir.path().join("src/a.rs")).unwrap();
     // The re-check answers the new line at once, without waiting for the watcher.
-    let a = core.code().definitions(me, None, "one").await.unwrap();
+    let a = core.codebase().definitions(me, None, "one").await.unwrap();
     assert_eq!(a.hits[0].line, 2);
 
     // A file the watcher never reports: the periodic scan finds it.
-    core.code().pause_watcher_for_test(&project).await;
+    core.codebase().pause_watcher_for_test(&project).await;
     std::fs::write(dir.path().join("src/b.rs"), "fn two() {}\n").unwrap();
     eventually(|| defined("two")).await;
-    core.code().shut_down_for_test().await;
+    core.codebase().shut_down_for_test().await;
 
     core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
         .await
         .unwrap();
 }
 
-#[tokio::test]
-async fn only_the_most_recent_projects_are_watched() {
-    let (core, projects, _dirs) = core_with_projects(6).await;
-    core.code().start(CodeConfig::default()).await.unwrap();
-    let active = core.code().active_for_test().await;
-    assert_eq!(active.len(), 5);
-    let sixth = projects.iter().find(|p| !active.contains(p)).unwrap();
-    // Asking the sixth brings it in: its answer says it is indexing, not an error.
-    let a = core.code().status(sixth).await.unwrap();
-    assert!(matches!(a.state, IndexState::Inactive));
-    let q = core
-        .code()
-        .definitions(Asker::Person(sixth), None, "p0")
+/// Sends one message in a new thread of `project`. No adapter runs here, so the
+/// turn itself fails to open its session; the use is what counts.
+async fn send_a_message(core: &AppCore, project: &ProjectId) {
+    let thread = core
+        .threads()
+        .create("t-send".into(), project, "Chat", None, None)
         .await
         .unwrap();
-    assert!(matches!(
-        q.status[0].state,
-        IndexState::Indexing { .. } | IndexState::Ready
-    ));
-    let now = core.code().active_for_test().await;
-    assert_eq!(now.len(), 5);
-    assert!(now.contains(sixth));
-    assert!(
-        !now.contains(&active[active.len() - 1]),
-        "the least recently used left"
-    );
-    core.code().shut_down_for_test().await;
+    let _ = core
+        .turns()
+        .send(
+            thread.id.clone(),
+            shadows_core::SendTurn {
+                command_id: "send-1".into(),
+                prompt: "hello".into(),
+                attachments: vec![],
+                model: "default".into(),
+                mode: "default".into(),
+                effort: None,
+                focus: None,
+                plan: None,
+                client_tab: None,
+            },
+        )
+        .await;
+}
 
-    core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
+async fn inactive(core: &AppCore, project: &ProjectId) -> bool {
+    matches!(
+        core.codebase().status(project).await.unwrap().state,
+        IndexState::Inactive
+    )
+}
+
+#[tokio::test]
+async fn a_sent_message_activates_its_project() {
+    let (core, project, _dir, _db) = core_with_project().await;
+    core.codebase()
+        .start(CodebaseConfig::default())
+        .await
+        .unwrap();
+    assert!(inactive(&core, &project).await);
+    send_a_message(&core, &project).await;
+    assert!(!inactive(&core, &project).await);
+    core.codebase().shut_down_for_test().await;
+}
+
+#[tokio::test]
+async fn listing_threads_does_not_activate() {
+    let (core, project, _dir, _db) = core_with_project().await;
+    core.codebase()
+        .start(CodebaseConfig::default())
+        .await
+        .unwrap();
+    core.threads().list(&project).await.unwrap();
+    assert!(inactive(&core, &project).await);
+    core.codebase().shut_down_for_test().await;
+}
+
+#[tokio::test]
+async fn an_idle_project_stops() {
+    let (core, project, _dir, _db) = core_with_project().await;
+    core.codebase().idle_for_test(Duration::from_secs(1));
+    core.codebase()
+        .start(CodebaseConfig::default())
+        .await
+        .unwrap();
+    core.codebase().touch(&project).await;
+    assert!(!inactive(&core, &project).await);
+    tokio::time::sleep(Duration::from_secs(3)).await;
+    assert!(inactive(&core, &project).await);
+    assert!(core.codebase().active_for_test().await.is_empty());
+    core.codebase().shut_down_for_test().await;
+}
+
+#[tokio::test]
+async fn a_touch_does_not_activate_links() {
+    let (core, projects, _dirs) = core_with_projects(2).await;
+    core.plans()
+        .link_projects("link-1".into(), &projects[0], &projects[1])
+        .await
+        .unwrap();
+    core.codebase()
+        .start(CodebaseConfig::default())
+        .await
+        .unwrap();
+    core.codebase().touch(&projects[0]).await;
+    assert_eq!(
+        core.codebase().active_for_test().await,
+        [projects[0].clone()]
+    );
+    core.codebase().shut_down_for_test().await;
+}
+
+#[tokio::test]
+async fn a_held_project_outlives_the_idle_time() {
+    let (core, project, _dir, _db) = core_with_project().await;
+    core.codebase().idle_for_test(Duration::from_secs(1));
+    core.codebase()
+        .start(CodebaseConfig::default())
+        .await
+        .unwrap();
+    let hold = core.codebase().hold(&project).await;
+    tokio::time::sleep(Duration::from_secs(3)).await;
+    assert!(!inactive(&core, &project).await, "held past the idle time");
+    drop(hold);
+    tokio::time::sleep(Duration::from_millis(500)).await;
+    assert!(!inactive(&core, &project).await, "the drop is a use");
+    tokio::time::sleep(Duration::from_secs(3)).await;
+    assert!(inactive(&core, &project).await);
+    core.codebase().shut_down_for_test().await;
+}
+
+#[tokio::test]
+async fn the_name_index_is_off_by_default() {
+    let db = tempfile::tempdir().unwrap();
+    let core = shadows_core::testing::app(db.path().join("s.sqlite3"))
+        .await
+        .unwrap();
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(dir.path().join("lib.rs"), "pub fn answer() {}\n").unwrap();
+    let project = core
+        .projects()
+        .create("c-off".into(), "off", "Off", dir.path().to_str().unwrap())
+        .await
+        .unwrap()
+        .id;
+    core.codebase().scan_for_test(&project).await.unwrap();
+    let status = core.codebase().status(&project).await.unwrap();
+    assert_eq!(status.files, 1, "the file row is written");
+    let found = core
+        .codebase()
+        .definitions(Asker::Person(&project), None, "answer")
+        .await
+        .unwrap();
+    assert!(found.hits.is_empty(), "no tag is extracted");
+    core.shut_down(Duration::from_secs(5), std::future::pending())
         .await
         .unwrap();
 }

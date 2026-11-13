@@ -40,7 +40,7 @@ pub use model::{
     LessonAttempt, LessonCommand, Need, RecoverReport, StartAnswer, TaskLesson, TaskRun,
 };
 
-use core_code::Code;
+use codebase::Codebase;
 use core_db::{CommandContext, Storage};
 use core_harness::Harness;
 use core_plans::{Plans, PlansError, WorkflowId};
@@ -73,7 +73,7 @@ struct Inner {
     threads: Arc<Threads>,
     /// Lists a project's files, so a first commit leaves out secrets and
     /// dependencies.
-    code: Code,
+    code: Codebase,
     /// Replaces the first prompt, so a test can script the fake adapter.
     prompt: Mutex<Option<String>>,
 }
@@ -92,7 +92,7 @@ impl Runs {
         turns: Turns,
         projects: Projects,
         threads: Arc<Threads>,
-        code: Code,
+        code: Codebase,
     ) -> Self {
         Self {
             inner: Arc::new(Inner {

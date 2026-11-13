@@ -1,6 +1,6 @@
 # Grant authority and approval provenance are imported from core-grants.
 # Thread identities and transaction methods are imported from core-threads.
-# Index access and project reach use core-code.
+# Index access and project reach use codebase.
 # Project identities and registration methods are imported from core-projects.
 # Database infrastructure: core-db; domain rules and private stores remain here.
 name: project_lifecycle
@@ -15,7 +15,7 @@ dependencies:
   projects: crates/core-projects/contract.yaml
   threads: crates/core-threads/contract.yaml
   plans: crates/core-plans/contract.yaml
-  code: crates/core-code/contract.yaml
+  code: crates/codebase/contract.yaml
   grants: crates/core-grants/contract.yaml
 shapes:
   ProjectLifecycle:
@@ -27,7 +27,7 @@ functions:
   service:
     create:
       signature: "(&self, command_id, slug, name, directory) -> Result<Project, ProjectLifecycleError>"
-      rule: Projects resolves and registers the directory, then Code is touched, including replay.
+      rule: Projects resolves and registers the directory; creating does not activate the project.
     remove:
       signature: "(&self, command_id, project) -> Result<Project, ProjectLifecycleError>"
       rule: >
@@ -37,8 +37,8 @@ functions:
         A replay returns retained project metadata without another write.
         After commit a detached task forgets its Code worker, even if the client disconnects.
 obligations:
-  - rule: Creation and replay each activate the project's code index.
-    tested_by: creation_and_replay_activate_the_project_index
+  - rule: Neither creation nor its replay activates the project's code index.
+    tested_by: creation_and_replay_leave_the_project_inactive
   - rule: A project holding a live planning thread is refused with PROJECT_HAS_THREADS.
     tested_by: a_project_with_a_thread_is_not_removed
   - rule: Removal atomically removes the index, links and grants, then stops the worker.

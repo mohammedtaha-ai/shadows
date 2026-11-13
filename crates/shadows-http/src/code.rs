@@ -1,5 +1,5 @@
-//! One job: the routes over the code index — a project's three
-//! questions, its index status, its file list, its links, and the active limit.
+//! One job: the routes over a project's code — its index status, its file
+//! list and its links.
 //!
 //! A person asks over HTTP, so a question is `Asker::Person`: a project
 //! outside the scope is refused INVALID_COMMAND, never GRANT_SCOPE. Every
@@ -12,116 +12,9 @@ use axum::http::StatusCode;
 use super::failure::ErrorBody;
 use super::{AppState, Failure};
 use shadows_core::{
-    Answer, Asker, CodeSettings, InventoryPage, InventoryQuery, ProjectId, ProjectLink,
-    ProjectStatus,
+    AddedServer, Asker, InventoryPage, InventoryQuery, ProjectId, ProjectLink, ProjectStatus,
+    ServerStatus,
 };
-
-#[derive(serde::Deserialize, utoipa::IntoParams)]
-#[into_params(parameter_in = Query)]
-pub(super) struct NameQuery {
-    /// The exact name, case-sensitively.
-    name: String,
-    /// A linked project's slug, to ask only it; none asks the project and
-    /// every project it links to.
-    project: Option<String>,
-}
-
-#[derive(serde::Deserialize, utoipa::IntoParams)]
-#[into_params(parameter_in = Query)]
-pub(super) struct PathQuery {
-    /// A file or folder relative to the project's folder; "" for all of it.
-    path: String,
-    /// As for `definitions`.
-    project: Option<String>,
-}
-
-/// Where a name is defined: per hit, its project, path, line, kind and
-/// signature.
-#[utoipa::path(
-    get,
-    path = "/api/projects/{id}/code/definitions",
-    tag = "code",
-    params(("id" = ProjectId, Path, description = "The project asked from"), NameQuery),
-    responses(
-        (status = 200, body = Answer),
-        (status = 400, description = "INVALID_COMMAND: no `name`", body = ErrorBody),
-        (status = 404, description = "INVALID_COMMAND: no such project", body = ErrorBody),
-        (
-            status = 422,
-            description = "INVALID_COMMAND: the project named is not linked",
-            body = ErrorBody,
-        ),
-        (status = 500, description = "STORAGE_UNAVAILABLE", body = ErrorBody),
-    )
-)]
-pub(super) async fn definitions(
-    State(s): State<AppState>,
-    Path(project): Path<ProjectId>,
-    Query(q): Query<NameQuery>,
-) -> Result<Json<Answer>, Failure> {
-    let asker = Asker::Person(&project);
-    let only = q.project.as_deref();
-    Ok(Json(s.core.code().definitions(asker, only, &q.name).await?))
-}
-
-/// Where a name is used, matched by name only: every hit says
-/// `matched_by: "name"`.
-#[utoipa::path(
-    get,
-    path = "/api/projects/{id}/code/references",
-    tag = "code",
-    params(("id" = ProjectId, Path, description = "The project asked from"), NameQuery),
-    responses(
-        (status = 200, body = Answer),
-        (status = 400, description = "INVALID_COMMAND: no `name`", body = ErrorBody),
-        (status = 404, description = "INVALID_COMMAND: no such project", body = ErrorBody),
-        (
-            status = 422,
-            description = "INVALID_COMMAND: the project named is not linked",
-            body = ErrorBody,
-        ),
-        (status = 500, description = "STORAGE_UNAVAILABLE", body = ErrorBody),
-    )
-)]
-pub(super) async fn references(
-    State(s): State<AppState>,
-    Path(project): Path<ProjectId>,
-    Query(q): Query<NameQuery>,
-) -> Result<Json<Answer>, Failure> {
-    let asker = Asker::Person(&project);
-    let only = q.project.as_deref();
-    Ok(Json(s.core.code().references(asker, only, &q.name).await?))
-}
-
-/// The definitions in a file or folder. It reads the index and
-/// opens no path.
-#[utoipa::path(
-    get,
-    path = "/api/projects/{id}/code/outline",
-    tag = "code",
-    params(("id" = ProjectId, Path, description = "The project asked from"), PathQuery),
-    responses(
-        (status = 200, body = Answer),
-        (status = 400, description = "INVALID_COMMAND: no `path`", body = ErrorBody),
-        (status = 404, description = "INVALID_COMMAND: no such project", body = ErrorBody),
-        (
-            status = 422,
-            description = "INVALID_COMMAND: the path must be inside the project, or the project \
-                           named is not linked",
-            body = ErrorBody,
-        ),
-        (status = 500, description = "STORAGE_UNAVAILABLE", body = ErrorBody),
-    )
-)]
-pub(super) async fn outline(
-    State(s): State<AppState>,
-    Path(project): Path<ProjectId>,
-    Query(q): Query<PathQuery>,
-) -> Result<Json<Answer>, Failure> {
-    let asker = Asker::Person(&project);
-    let only = q.project.as_deref();
-    Ok(Json(s.core.code().outline(asker, only, &q.path).await?))
-}
 
 /// How the project's index stands. Asking does not make it active.
 #[utoipa::path(
@@ -139,7 +32,7 @@ pub(super) async fn status(
     State(s): State<AppState>,
     Path(project): Path<ProjectId>,
 ) -> Result<Json<ProjectStatus>, Failure> {
-    Ok(Json(s.core.code().status(&project).await?))
+    Ok(Json(s.core.codebase().status(&project).await?))
 }
 
 #[derive(serde::Deserialize, utoipa::IntoParams)]
@@ -190,7 +83,7 @@ pub(super) async fn files(
         limit: q.limit.unwrap_or(default.limit),
     };
     let asker = Asker::Person(&project);
-    Ok(Json(s.core.code().inventory(asker, query).await?))
+    Ok(Json(s.core.codebase().inventory(asker, query).await?))
 }
 
 /// Lists the project's folder again now, and answers the first page.
@@ -210,7 +103,7 @@ pub(super) async fn refresh(
     Path(project): Path<ProjectId>,
 ) -> Result<Json<InventoryPage>, Failure> {
     let asker = Asker::Person(&project);
-    Ok(Json(s.core.code().refresh_inventory(asker).await?))
+    Ok(Json(s.core.codebase().refresh_inventory(asker).await?))
 }
 
 /// The projects this project reads, by slug.
@@ -228,7 +121,7 @@ pub(super) async fn links(
     State(s): State<AppState>,
     Path(project): Path<ProjectId>,
 ) -> Result<Json<Vec<ProjectLink>>, Failure> {
-    Ok(Json(s.core.code().links(&project).await?))
+    Ok(Json(s.core.codebase().links(&project).await?))
 }
 
 #[derive(serde::Deserialize, utoipa::ToSchema)]
@@ -315,53 +208,128 @@ pub(super) async fn remove_link(
     Ok(StatusCode::NO_CONTENT)
 }
 
-/// The code index's settings.
+/// Every catalog and added server, as this project sees it: whether its files
+/// want it, and its state. Asking does not make the project active.
 #[utoipa::path(
     get,
-    path = "/api/code/settings",
+    path = "/api/projects/{id}/code/servers",
     tag = "code",
+    params(("id" = ProjectId, Path, description = "The project")),
     responses(
-        (status = 200, body = CodeSettings),
+        (status = 200, body = Vec<ServerStatus>),
+        (status = 404, description = "INVALID_COMMAND: no such project", body = ErrorBody),
         (status = 500, description = "STORAGE_UNAVAILABLE", body = ErrorBody),
     )
 )]
-pub(super) async fn get_settings(State(s): State<AppState>) -> Result<Json<CodeSettings>, Failure> {
-    Ok(Json(s.core.code().settings().await?))
-}
-
-#[derive(serde::Deserialize, utoipa::ToSchema)]
-pub(super) struct PutSettings {
-    /// The idempotency key.
-    command_id: String,
-    /// How many projects are active at once: 1 to 20.
-    active_limit: u32,
-}
-
-/// Sets how many projects are active at once. Lowering it stops the
-/// least recently used projects' watchers at once.
-#[utoipa::path(
-    put,
-    path = "/api/code/settings",
-    tag = "code",
-    request_body = PutSettings,
-    responses(
-        (status = 200, description = "Set, or the replay of the same command", body = CodeSettings),
-        (status = 409, description = "COMMAND_CONFLICT", body = ErrorBody),
-        (status = 422, description = "INVALID_COMMAND: outside 1 to 20", body = ErrorBody),
-        (status = 500, description = "STORAGE_UNAVAILABLE", body = ErrorBody),
-    )
-)]
-pub(super) async fn put_settings(
+pub(super) async fn servers(
     State(s): State<AppState>,
-    Json(body): Json<PutSettings>,
-) -> Result<Json<CodeSettings>, Failure> {
-    let code = s.core.code();
+    Path(project): Path<ProjectId>,
+) -> Result<Json<Vec<ServerStatus>>, Failure> {
     Ok(Json(
-        code.set_active_limit(body.command_id, body.active_limit)
-            .await?,
+        s.core.codebase().servers(Asker::Person(&project)).await?,
     ))
 }
 
-#[cfg(test)]
-#[path = "code_tests.rs"]
-mod code_tests;
+#[derive(serde::Deserialize, utoipa::ToSchema)]
+pub(super) struct PutServerOff {
+    /// The idempotency key.
+    command_id: String,
+    /// `true` switches the server off for every project; `false` back on.
+    off: bool,
+}
+
+/// Switches a server off, or back on. Shadows' code answers get worse without it.
+#[utoipa::path(
+    put,
+    path = "/api/code/servers/{server}/off",
+    tag = "code",
+    params(("server" = String, Path, description = "The server's id")),
+    request_body = PutServerOff,
+    responses(
+        (status = 204, description = "Set, or the replay of the same command"),
+        (status = 409, description = "COMMAND_CONFLICT", body = ErrorBody),
+        (status = 422, description = "INVALID_COMMAND: no such server", body = ErrorBody),
+        (status = 500, description = "STORAGE_UNAVAILABLE", body = ErrorBody),
+    )
+)]
+pub(super) async fn put_server_off(
+    State(s): State<AppState>,
+    Path(server): Path<String>,
+    Json(body): Json<PutServerOff>,
+) -> Result<StatusCode, Failure> {
+    let code = s.core.codebase();
+    code.set_server_off(body.command_id, &server, body.off)
+        .await?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+#[derive(serde::Deserialize, utoipa::ToSchema)]
+pub(super) struct PostServer {
+    /// The idempotency key.
+    command_id: String,
+    #[serde(flatten)]
+    server: AddedServer,
+}
+
+/// Adds a server beside the catalog, on the person's own responsibility.
+#[utoipa::path(
+    post,
+    path = "/api/code/servers",
+    tag = "code",
+    request_body = PostServer,
+    responses(
+        (
+            status = 200,
+            description = "Added, or the replay of the same command",
+            body = ServerStatus,
+        ),
+        (status = 409, description = "COMMAND_CONFLICT", body = ErrorBody),
+        (
+            status = 422,
+            description = "INVALID_COMMAND: a catalog id, an id already added, or an extension \
+                           without a dot",
+            body = ErrorBody,
+        ),
+        (status = 500, description = "STORAGE_UNAVAILABLE", body = ErrorBody),
+    )
+)]
+pub(super) async fn post_server(
+    State(s): State<AppState>,
+    Json(body): Json<PostServer>,
+) -> Result<Json<ServerStatus>, Failure> {
+    let code = s.core.codebase();
+    Ok(Json(code.add_server(body.command_id, body.server).await?))
+}
+
+/// A `DELETE` has no body, so its idempotency key rides in the query.
+#[derive(serde::Deserialize, utoipa::IntoParams)]
+#[into_params(parameter_in = Query)]
+pub(super) struct RemoveServerQuery {
+    /// The idempotency key.
+    command_id: String,
+}
+
+/// Removes a server the person added.
+#[utoipa::path(
+    delete,
+    path = "/api/code/servers/{server}",
+    tag = "code",
+    params(("server" = String, Path, description = "The added server's id"), RemoveServerQuery),
+    responses(
+        (status = 204, description = "Removed, or the replay of the same command"),
+        (status = 409, description = "COMMAND_CONFLICT", body = ErrorBody),
+        (status = 422, description = "INVALID_COMMAND: no such added server", body = ErrorBody),
+        (status = 500, description = "STORAGE_UNAVAILABLE", body = ErrorBody),
+    )
+)]
+pub(super) async fn remove_server(
+    State(s): State<AppState>,
+    Path(server): Path<String>,
+    Query(q): Query<RemoveServerQuery>,
+) -> Result<StatusCode, Failure> {
+    s.core
+        .codebase()
+        .remove_server(q.command_id, &server)
+        .await?;
+    Ok(StatusCode::NO_CONTENT)
+}

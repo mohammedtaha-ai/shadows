@@ -13,8 +13,13 @@ use std::collections::BTreeMap;
 pub const CLAUDE_CODE: &str = "claude-code";
 /// Codex Planner, run through native app-server when explicitly configured.
 pub const CODEX: &str = "codex";
-/// Codex's only measured mode: filesystem read-only, no approval prompts.
+/// Codex reads only: sandbox read-only, nothing asked.
 pub const CODEX_READ_ONLY: &str = "read-only";
+/// Approve for me, Codex's own mode: Codex writes inside the project and its
+/// reviewer (approvalsReviewer auto_review) allows or denies each request
+/// after a risk review, so none waits for the person. The id stays `ask`, the
+/// one stored in projects and threads made before the mode was renamed.
+pub const CODEX_ASK: &str = "ask";
 
 /// AYLUL's brain: Claude Code on its own profile, opened without Planner setup.
 pub const AYLUL: &str = "aylul";
@@ -38,13 +43,13 @@ pub struct Mode {
 
 // Claude Code's own acceptEdits runs file commands inside the project folder
 // without a permission request, so Shadows never sees them; anything else is
-// asked, and Shadows refuses it.
+// asked, and the request waits for the person's answer.
 const CLAUDE_CODE_MODES: [Mode; 2] = [
     Mode {
         id: "acceptEdits",
         label: "Accept edits",
         description: "Claude Code edits, creates and deletes files in the project folder \
-                      without asking. Other commands are refused.",
+                      without asking. Other commands ask you first.",
     },
     Mode {
         id: "auto",
@@ -55,12 +60,21 @@ const CLAUDE_CODE_MODES: [Mode; 2] = [
 
 // The ids are read out of the table above, so a mode is named once.
 const CLAUDE_CODE_MODE_IDS: [&str; CLAUDE_CODE_MODES.len()] = ids(&CLAUDE_CODE_MODES);
-const CODEX_MODES: [Mode; 1] = [Mode {
-    id: CODEX_READ_ONLY,
-    label: "Read only",
-    description: "Codex reads files and uses Shadows planning tools. \
-                  Filesystem writes are refused.",
-}];
+const CODEX_MODES: [Mode; 2] = [
+    Mode {
+        id: CODEX_ASK,
+        label: "Approve for me",
+        description: "Codex's shell writes inside the project folder. Codex reviews \
+                      anything more itself, allowing low-risk requests and refusing \
+                      risky ones.",
+    },
+    Mode {
+        id: CODEX_READ_ONLY,
+        label: "Read only",
+        description: "Codex reads files and uses Shadows planning tools. \
+                      Filesystem writes are refused and nothing is asked.",
+    },
+];
 const CODEX_MODE_IDS: [&str; CODEX_MODES.len()] = ids(&CODEX_MODES);
 
 const fn ids<const N: usize>(modes: &[Mode; N]) -> [&'static str; N] {
@@ -103,11 +117,13 @@ pub fn unattended_mode(kind: &str) -> Option<&'static str> {
 }
 
 /// The mode a new conversation on `kind` starts in, also used when its
-/// remembered mode is disallowed.
+/// remembered mode is disallowed. A Planner on Claude Code starts in `auto`, so
+/// Claude Code decides its own shell commands; AYLUL stays in `acceptEdits`.
 pub fn default_mode(kind: &str) -> Option<&'static str> {
     match kind {
-        CLAUDE_CODE | AYLUL => Some("acceptEdits"),
-        CODEX => Some(CODEX_READ_ONLY),
+        CLAUDE_CODE => Some("auto"),
+        AYLUL => Some("acceptEdits"),
+        CODEX => Some(CODEX_ASK),
         _ => None,
     }
 }
@@ -164,12 +180,14 @@ mod tests {
             }
         }
         assert_eq!(unattended_mode(AYLUL), Some("auto"));
-        assert_eq!(allowed_modes(CODEX), [CODEX_READ_ONLY]);
+        assert_eq!(default_mode(CLAUDE_CODE), Some("auto"));
+        assert_eq!(allowed_modes(CODEX), [CODEX_ASK, CODEX_READ_ONLY]);
+        assert_eq!(default_mode(CODEX), Some(CODEX_ASK));
         assert_eq!(unattended_mode(CODEX), None);
     }
 
     #[test]
-    fn new_projects_allow_only_codex_read_only() {
-        assert_eq!(default_modes()[CODEX], [CODEX_READ_ONLY]);
+    fn new_projects_allow_both_codex_modes() {
+        assert_eq!(default_modes()[CODEX], [CODEX_ASK, CODEX_READ_ONLY]);
     }
 }

@@ -41,8 +41,7 @@ export function taskRunQuery(workflowId: string, version: number, task: number) 
 }
 
 /** Whether the task waits for the Planner's judgment: its latest attempt is committed, the task is not marked done and Core
- * still refuses Start as busy. A task stopped on the Planner's cap is committed and not done but may be started, so it does not wait.
- * Read as the planner review request states it (docs/shared/requests/2026-11-11-planner-review.md). */
+ * still refuses Start as busy. A task stopped on the Planner's cap is committed and not done but may be started, so it does not wait. */
 export function awaitingJudgment(run: TaskRun): boolean {
   return run.latest !== null && run.latest.state === 'committed' && !run.done && run.start.code === 'task_busy'
 }

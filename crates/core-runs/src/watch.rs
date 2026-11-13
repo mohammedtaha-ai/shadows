@@ -12,10 +12,20 @@ use core_threads::ThreadId;
 const RECHECK: Duration = Duration::from_secs(1);
 
 impl Runs {
-    /// Follows the turn in the background until it ends.
-    pub(crate) fn watch(&self, attempt: AttemptId, thread: ThreadId, operation: OperationId) {
+    /// Follows the turn in the background until it ends; `hold` keeps the
+    /// project active until then.
+    pub(crate) fn watch(
+        &self,
+        attempt: AttemptId,
+        thread: ThreadId,
+        operation: OperationId,
+        hold: codebase::ActiveHold,
+    ) {
         let runs = self.clone();
-        tokio::spawn(async move { runs.observe(attempt, thread, operation).await });
+        tokio::spawn(async move {
+            runs.observe(attempt, thread, operation).await;
+            drop(hold);
+        });
     }
 
     async fn observe(&self, attempt: AttemptId, thread: ThreadId, operation: OperationId) {

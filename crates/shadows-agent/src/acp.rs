@@ -16,6 +16,7 @@ use agent_client_protocol::{Agent, v1::ConnectionTo};
 pub use permissions::{
     PermissionError, PermissionPolicy, PreparedPermissionAnswer, WaitingPermission,
 };
+pub(crate) use permissions::{Permissions, Respond};
 
 #[derive(Debug, thiserror::Error)]
 pub enum AcpError {

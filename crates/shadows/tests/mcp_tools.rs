@@ -758,16 +758,7 @@ async fn an_executor_grant_lists_its_tools_and_reads_only_its_task() {
         .map(|tool| tool.name.to_string())
         .collect();
     names.sort();
-    assert_eq!(
-        names,
-        [
-            "outline",
-            "task_context",
-            "task_report",
-            "where_is",
-            "who_uses"
-        ]
-    );
+    assert_eq!(names, ["code_lsp", "task_context", "task_report"]);
     let own = json!({ "workflow_id": workflow, "task_number": 1 });
     assert_eq!(
         ok(&executor, "task_context", own).await["task"]["number"],
@@ -1025,12 +1016,42 @@ fn the_planner_reads_the_code_before_it_plans() {
     let prompt = shadows_core::testing::PROMPT;
     assert!(!prompt.contains("you cannot run commands"));
     for text in [
-        "on Codex with read-only shell commands in the project's folder",
-        "Never run a command that writes, installs, builds, starts a server or reaches the network",
+        "on Codex with shell commands in the project's folder",
+        "Your shell is for installing tools and preparing the environment",
+        "call project_change_note with the paths and why",
         "the composition root, where the application is wired",
         "and every file the task modifies, whole",
         "A plan written from file names alone is not ready.",
     ] {
         assert!(prompt.contains(text), "{text}");
     }
+}
+
+#[tokio::test]
+async fn the_planner_has_bash_and_project_change_note() {
+    let l = listening_app().await;
+    let planner = thread_client(&l, &l.app.thread).await;
+    let tools = planner.list_all_tools().await.unwrap();
+    let note = tools
+        .iter()
+        .find(|t| t.name == "project_change_note")
+        .expect("the Planner notes its changes");
+    assert!(
+        note.description
+            .as_deref()
+            .unwrap()
+            .contains("asked about when your turn ends")
+    );
+    assert!(
+        !shadows_core::Grants::tools_for(shadows_core::GrantKind::Executor)
+            .contains(&"project_change_note")
+    );
+    let prompt = shadows_core::testing::PROMPT;
+    assert!(prompt.contains("Your shell is for installing tools"));
+    assert!(prompt.contains("ask the person with person_ask whether you install it"));
+    l.app
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }

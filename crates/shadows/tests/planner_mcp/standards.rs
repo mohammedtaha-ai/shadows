@@ -150,6 +150,7 @@ async fn a_pending_turn_delivers_the_standards_version_it_recorded() {
             client_tab: None,
             events: leased,
             on_completed: None,
+            hold: None,
         },
         app.bus.clone(),
     )

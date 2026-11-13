@@ -6,16 +6,19 @@ import { useLocation } from '@tanstack/react-router'
 import { ChevronRight, LoaderCircle, Terminal } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
 import { noticeName } from './notice-item'
-import type { TurnSummary } from './turn-blocks'
+import type { BoxNotice, TurnSummary } from './turn-blocks'
 
 const plural = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`
+
+/** Shadows' notices carry no attempt card, so they are named by their sender. */
+const senderName = (notice: BoxNotice) => (notice.sender === 'Shadows' ? 'Shadows' : noticeName(notice.card))
 
 /** "Received a notice from Executor (sonnet), ran 5 tools": the parts that apply. */
 function summaryLine(summary: TurnSummary): string {
   const parts = [
     ...(summary.notices.length === 0
       ? []
-      : [`received a notice from ${summary.notices.map(noticeName).join(' and ')}`]),
+      : [`received a notice from ${summary.notices.map(senderName).join(' and ')}`]),
     ...(summary.tools === 0 ? [] : [`ran ${plural(summary.tools, 'tool', 'tools')}`]),
   ]
   const line = parts.join(', ')

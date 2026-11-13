@@ -60,7 +60,20 @@ permission_cards:
   authority: "Only a matching thread/request in the live waiting list offers option buttons; malformed and historical cards offer no actions. The project stream refreshes the list without polling."
   answers: "A button sends its offered option id; one answer stays in flight. Equal retries reuse the command id; a settled/not-found error refetches and keeps Core's message."
   entries: "entry.tsx renders PermissionAsked through PermissionCard, PermissionAnswered with its body and by you, and held PermissionRefused with its reason; Planner's legacy mode hint remains for unstructured refusals."
-  tested_by: ["only a live matching request offers option buttons and a click answers it", "an uncertain failed answer retries with the same command id", "the project event removes a request settled by another surface", "one answer stays in flight and every option is disabled until it settles"]
+  tested_by: ["only a live matching request offers option buttons and a click answers it", "an uncertain failed answer retries with the same command id", "the project event removes a request settled by another surface", "one answer stays in flight and every option is disabled until it settles", a_planner_permission_request_shows_its_card]
+
+question_cards:
+  owner: person-question-card.tsx
+  card: "PersonQuestionCard draws a PersonQuestion entry's question with one button per option, read through api/questions readQuestionCard; an unreadable card shows the entry's body."
+  answers: "A click posts answerQuestion with a retry-stable command id, one answer in flight; on success saveAnsweredQuestion writes the choice and the card shows 'You chose: <label>' with no buttons."
+  authority: "Buttons show only while the card has no choice; Core's COMMAND_CONFLICT (answered) or INVALID_COMMAND (another conversation's) closes them, and a card whose thread_id is not the entry's thread (a fork's copy) never offers them."
+  tested_by: [renders_the_planners_options, a_click_answers_once, an_answered_question_has_no_buttons, a_forked_question_has_no_buttons]
+
+shadows_notices:
+  owner: notice-item.tsx
+  notices: "noticeOf reads the author: Executor notices keep their attempt card; Shadows' notices carry none and are drawn under the sender name Shadows."
+  changes: "ProjectChangeLine draws a ProjectChange entry's paths and its reason, or 'no reason given'."
+  tested_by: [a_shadows_notice_names_shadows, a_project_change_shows_its_reason]
 
 
 # ── shapes ───────────────────────────────────────────────────────────────────
@@ -588,8 +601,10 @@ queries_and_mutations:
 
 obligations:
   - rule: >
-      A turn box holds only what comes to the Planner from others (the executor notices) and its
-      tool groups, with a one-line summary of notices and tools that counts no text. The
+      A turn box holds only what comes to the Planner from others (the executor's and Shadows'
+      notices) and its tool groups, with a one-line summary of notices and tools that counts no
+      text; the summary names each notice by its sender, an executor by its model and Shadows'
+      own notice as "Shadows", never as an executor. The
       Planner's own text is never inside a box: it is drawn in its place in the turn's order, and
       each piece of it ends the run of notices and tools before it, so a turn with text between
       tool calls draws one box per run. The prompt stays above; a card the person acts on stays
@@ -597,7 +612,7 @@ obligations:
       by itself; the person's click overrides. A message the person steers in mid-turn stays
       where it was sent: the activity before it has ended, and the turn goes on below it. AYLUL
       conversations draw no box.
-    tested_by: [a_finished_turn_folds_its_notice_and_tools_and_keeps_its_final_answer, the_planner_text_between_tools_stays_outside_and_splits_the_box, only_the_last_box_of_a_running_turn_is_live, a_turn_with_no_activity_has_no_box, a_proposal_card_stays_outside_the_box, the_person_prompt_stays_above_the_box, a_message_steered_in_mid_turn_stays_where_it_was_sent, a_finished_turn_shows_one_summary_line_and_opens_on_click, a_running_turn_is_open_and_folds_when_it_ends]
+    tested_by: [a_finished_turn_folds_its_notice_and_tools_and_keeps_its_final_answer, the_planner_text_between_tools_stays_outside_and_splits_the_box, only_the_last_box_of_a_running_turn_is_live, a_turn_with_no_activity_has_no_box, a_proposal_card_stays_outside_the_box, the_person_prompt_stays_above_the_box, a_message_steered_in_mid_turn_stays_where_it_was_sent, a_finished_turn_shows_one_summary_line_and_opens_on_click, a_shadows_notice_is_named_shadows_in_the_summary, a_running_turn_is_open_and_folds_when_it_ends]
 
   - rule: >
       An entry whose author is an Executor draws as a notice item of the turn's activity, never
@@ -1656,14 +1671,15 @@ provider_models: Agent drafts project provider model objects into picker choices
 
 
 image_attachments:
-  tested_by: [web/src/app/conversation/composer-images.test.tsx]
-  owner: "useImages in use-images.ts owns selection, capability reason, intake, retry, removal and dropping sent images; PendingImages in pending-images.tsx owns previews and image controls; PendingImage in upload-images.ts carries file identity, upload command, answer, error and in-flight promise"
+  tested_by: [web/src/app/conversation/composer-images.test.tsx, web/src/app/conversation/image-zoom.test.tsx, web/src/app/conversation/waiting-messages.test.tsx]
+  owner: "useImages in use-images.ts owns selection, capability reason, intake, retry, removal and dropping sent images; PendingImages in pending-images.tsx owns the composer tiles and their controls; ImageZoom in image-zoom.tsx owns the thumbnail button and the viewer dialog; PendingImage in upload-images.ts carries file identity, upload command, answer, error and in-flight promise"
   useImages: "(choices, threadId, inFlight, changed, refuse, initialImages?) => { images, imageReason, filePicker, add, pick, retry, remove, drop, imagesChanged }; changed clears the pending send on add/remove; refuse delivers Core capability refusal to the composer error line"
-  PendingImages: "({ images, threadId, inFlight, onRetry, onRemove }) => JSX.Element | null; owns ImagePreview and its object URL cleanup"
+  PendingImages: "({ images, threadId, inFlight, onRetry, onRemove }) => JSX.Element | null; each image is a size-16 square tile in a wrapping row: a corner remove button shown on hover or keyboard focus (still in the tab order), a dimmed tile with a spinner while uploading, a destructive ring with a centred retry button (title = Core message) when failed, and Core message as one line under the row; the tile li carries data-upload local|uploading|uploaded|failed and aria-busy while uploading; no status text; its preview hook owns the object URL cleanup"
+  ImageZoom: "({ alt, src?, image?, className?, loading?: lazy }) => JSX.Element; a button named View <alt> holding the thumbnail img and a Dialog holding the whole image fitted to the screen; src is an attachmentUrl, or image is a callback that sets and cleans up a node src (the composer local file); loading applies to the thumbnail only; closes on Esc, outside click and Close, and focus returns to the thumbnail; holds no upload state"
   uploadImages: "upload-images.ts; (threadId, images, changed) => Promise<string[]>; reuses in-flight uploads and immutable answers; returns ids in selection order; preserves Core errors"
   intake: "Paste intercepts only image clipboard files in clipboard order; other paste keeps browser behavior. Paste, drop, Add photos and Ctrl+U hand files or picking to useImages; existing threads upload immediately; draft files stay local until its first send creates a thread"
   validation: "Core alone accepts content, media type and size. No frontend type list or size limit. Session capabilities disable intake with image_reason. Draft capability is provisional until the first opened session answers."
-  previews: "Local object URLs are revoked on removal/unmount; uploaded previews, queued images and durable user entries use attachmentUrl from the API owner"
+  previews: "Sent and queued images open the ImageZoom viewer and are no longer links. Local object URLs are revoked on removal/unmount; uploaded previews, queued images and durable user entries use attachmentUrl from the API owner"
   sending: "Send awaits uploads; empty text with images is valid; send/queue carries ordered ids. Text and images survive failure. Only accepted sends clear text and images. Text and files cannot change during a pending send or queue request."
   replay: "Stable local image keys participate in the turn attempt; upload command ids survive retries and draft handoff. A command conflict requires a fresh id on the next explicit retry."
   tests:
@@ -1677,7 +1693,13 @@ image_attachments:
     - "Core capability disables image paste, drop and Ctrl+U with its reason"
     - "removing an uploading image prevents its late answer from being sent"
     - "draft first-send images survive %s"
+    - "an uploading image is a quiet busy tile with no status text"
+    - "clicking a composer tile opens the image large"
     - "the transcript renders ordered message images from the thread byte route"
+    - "clicking a sent image opens it large"
+    - "a waiting message image opens large and has no remove button on it"
+    - "the thumbnail opens the whole image in a named dialog"
+    - "%s closes the viewer and focus returns to the thumbnail"
     - "queue preserves ordered image ids and Send now uses the saved queued images"
     - "command conflict retains the message and makes the next explicit send a new command"
     - "a refused queue keeps text and images and its unchanged retry command"

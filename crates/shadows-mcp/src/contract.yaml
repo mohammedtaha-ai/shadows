@@ -6,7 +6,7 @@
 # OperationsError is translated through CoreError with unchanged responses.
 # GrantsError is translated through CoreError with unchanged responses.
 # ThreadsError is translated through CoreError with unchanged responses.
-# CodeError converts through CoreError to preserve the MCP scope and storage envelope.
+# CodebaseError converts through CoreError to preserve the MCP scope and storage envelope.
 name: shadows-mcp
 version: 1
 status: current
@@ -36,8 +36,21 @@ vision_propose_args: 'vision_propose names which arguments each action takes: fi
 
 layout_only: Map records contain no starter files; the stage has no Structure step or file count, and no HTTP structure-write route exists. Roadmap follows map approval.
 
-# project_files translates { prefix, after, limit } to Code::inventory and project_refresh
-# (no arguments) to Code::refresh_inventory, both with Asker::Grant(grant.project_id), and
+# person_ask translates { question, options: [{ label }] } to Turns::ask on the thread grant's
+# thread and answers { question_id }; another grant kind is GRANT_SCOPE, and only the
+# Planner's grant lists it (Grants::tools_for). Tested by person_questions::an_executor_cannot_ask
+# and mcp_server's tool lists.
+# project_change_note translates { paths, reason } to Turns::note_change on the thread
+# grant's thread and answers { noted: true }; another grant kind is GRANT_SCOPE, and only the
+# Planner's grant lists it. Tested by mcp_tools::the_planner_has_bash_and_project_change_note
+# and mcp_server's tool lists.
+# code_lsp translates { operation, file, line, character, query, project } to
+# Codebase::lsp with Asker::Grant(grant.project_id). A server that could not answer is
+# LANGUAGE_SERVER_UNAVAILABLE through the generic refusal mapping, its text naming the
+# server and how it stands (running but silent, failed with its last line, not startable).
+# Tested by code_lsp::a_slow_answer_times_out.
+# project_files translates { prefix, after, limit } to Codebase::inventory and project_refresh
+# (no arguments) to Codebase::refresh_inventory, both with Asker::Grant(grant.project_id), and
 # answer the InventoryPage as JSON. A stale cursor is INVENTORY_STALE; only the Planner's
 # grant lists them (Grants::tools_for). Tested by
 # code_scope::the_person_and_the_planner_see_the_same_files.

@@ -94,3 +94,8 @@ it('answered and refused entries display the chosen option and refusal reason', 
   expect(a.text()).toContain('cancelled')
   expect(a.text()).not.toContain('would allow it')
 })
+it('a_planner_permission_request_shows_its_card', async () => {
+  const a = await open({ 'GET /api/aylul/permissions': [{ ...request, agent: 'Planner' }] })
+  await until(() => a.button('Allow once') !== undefined)
+  expect(a.button('Reject')).toBeDefined()
+})

@@ -427,8 +427,10 @@ impl Setups {
     }
 }
 
-/// Built-in tools permitted in every Planner session.
-pub const PLANNER_TOOLS: [&str; 8] = [
+/// Built-in tools permitted in every Planner session. `Bash` is its shell, for
+/// installing tools and preparing the environment; what its program asks about
+/// waits for the person.
+pub const PLANNER_TOOLS: [&str; 9] = [
     "Read",
     "Grep",
     "Glob",
@@ -437,6 +439,7 @@ pub const PLANNER_TOOLS: [&str; 8] = [
     "ToolSearch",
     "Agent",
     "TodoWrite",
+    "Bash",
 ];
 
 /// `prompt.txt` without its closing newline.

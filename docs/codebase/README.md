@@ -25,8 +25,7 @@ does not exist or misses a module that does, and
 service does not have (spec §14.7), so neither can go stale quietly. The map
 spans the whole workspace: every path below is relative to the repository
 root. *Does this already exist, and with what signature?* is not written down:
-the Rust LSP, or `where_is`, `who_uses` and `outline` when the `shadows` MCP
-server is connected, answer it from the code.
+the Rust LSP (or the TypeScript one through Serena) answers it from the code.
 
 ## Architecture Invariants
 
@@ -46,6 +45,8 @@ What the code keeps true, in rust-analyzer's style. Spec §14.6 owns them.
 - `shadows-core` never imports `axum` or `rmcp`.
 - `shadows-index` knows nothing of SQLite or projects. It depends on no
   Shadows crate, nor on a database library; spec §15.2 owns this one.
+- `shadows-lsp` knows no project, grant, task or table. It depends on no
+  Shadows crate but `shadows-process`; the language servers design owns this one.
 - Another service calls a service's `store` only through a function or method
   that store's contract declares, under `shared_in_transaction` (inside one
   write) or `called_by_other_services`. These are existing migration exceptions:
@@ -156,7 +157,6 @@ pattern to follow, not merely an example.
 | `crates/shadows-http/src/roadmap.rs` | the routes over roadmap proposals | `crates/shadows-http/src/roadmap.rs` |
 | `crates/shadows-http/src/agreements.rs` | the routes over shared API agreements | `crates/shadows-http/src/agreements.rs` |
 | `crates/shadows-http/src/code.rs` | the routes over the code index | `crates/shadows-http/src/code.rs` |
-| `crates/shadows-http/src/code_tests.rs` | the tests of the code index routes | `crates/shadows-http/src/code_tests.rs` |
 | `crates/shadows-http/src/sse.rs` | the replay-then-live stream's SSE framing | `crates/shadows-http/src/sse.rs` |
 | `crates/shadows-http/src/fs.rs` | choosing a project directory on this machine | `crates/shadows-http/src/fs.rs` |
 | `crates/shadows-http/src/openapi.rs` | the OpenAPI document describing this API | `crates/shadows-http/src/openapi.rs` |
@@ -173,7 +173,7 @@ pattern to follow, not merely an example.
 | `crates/shadows-mcp/src/plan_tools.rs` | plan MCP translation | `crates/shadows-mcp/src/contract.yaml` |
 | `crates/shadows-mcp/src/agreement_tools.rs` | agreement tool translation | `crates/shadows-mcp/src/agreement_tools.rs` |
 | `crates/shadows-mcp/src/workspace_tools.rs` | workspace read tool translation | `crates/shadows-mcp/src/workspace_tools.rs` |
-| `crates/shadows-mcp/src/run_tools.rs` | task commit tool translation | `crates/shadows-mcp/src/contract.yaml` |
+| `crates/shadows-mcp/src/run_tools.rs` | task run tool translation | `crates/shadows-mcp/src/contract.yaml` |
 | `crates/shadows-mcp/src/refusal.rs` | what an MCP tool call answers | `crates/shadows-mcp/src/refusal.rs` |
 | `crates/shadows-core/src/lib.rs` | the application behind `AppCore` | `crates/shadows-core/src/app.rs` |
 | `crates/shadows-core/src/app.rs` | the application's composition root | `crates/shadows-core/src/app.rs` |
@@ -233,6 +233,8 @@ pattern to follow, not merely an example.
 | `crates/core-turns/src/model.rs` | the operation types callers meet | `crates/core-turns/src/model.rs` |
 | `crates/core-turns/src/store/` | turn command persistence | `crates/core-turns/src/store/turn.rs` |
 | `crates/core-turns/src/store/queue.rs` | the queue's SQLite queries | `crates/core-turns/src/store/queue.rs` |
+| `crates/core-turns/src/store/questions.rs` | the person_question SQLite queries | `crates/core-turns/src/store/questions.rs` |
+| `crates/core-turns/src/store/changes.rs` | the stored Planner project changes | `crates/core-turns/src/store/changes.rs` |
 | `crates/core-turns/src/store/steer.rs` | recording a steered message | `crates/core-turns/src/store/steer.rs` |
 | `crates/core-turns/src/queue.rs` | the waiting messages of a conversation | `crates/core-turns/src/queue.rs` |
 | `crates/core-turns/src/record.rs` | the checks that commit a turn's start | `crates/core-turns/src/record.rs` |
@@ -323,16 +325,16 @@ pattern to follow, not merely an example.
 | `crates/core-design/src/store/part_edit.rs` | transactional part mutations | `crates/core-design/src/store/part_edit.rs` |
 | `crates/core-design/src/store/` | persistence of the design workspace | `crates/core-design/src/store/vision.rs` |
 | `crates/core-design/src/store/vision.rs` | atomic workspace edits with immutable replay results | `crates/core-design/src/store/vision.rs` |
-| `crates/core-code/src/` | the code index of each project's folder | `crates/core-code/src/lib.rs` |
-| `crates/core-code/src/model.rs` | the code index types callers meet | `crates/core-code/src/model.rs` |
-| `crates/core-code/src/store/` | private CodeStore index persistence | `crates/core-code/src/store/mod.rs` |
-| `crates/core-code/src/store/links.rs` | transactional code link persistence | `crates/core-code/src/store/links.rs` |
-| `crates/core-code/src/store/reach.rs` | live one-way project reach in a snapshot | `crates/core-code/src/store/reach.rs` |
-| `crates/core-code/src/scan.rs` | walking a project's folder into the index | `crates/core-code/src/scan.rs` |
-| `crates/core-code/src/scope.rs` | what a code question may read | `crates/core-code/src/scope.rs` |
-| `crates/core-code/src/watch.rs` | keeping one active project's index current | `crates/core-code/src/watch.rs` |
-| `crates/core-code/src/active.rs` | which projects are active, in order of use | `crates/core-code/src/active.rs` |
-| `crates/core-code/src/links.rs` | the commands over links or the active limit | `crates/core-code/src/links.rs` |
+| `crates/codebase/src/` | a project's code on disk | `crates/codebase/src/lib.rs` |
+| `crates/codebase/src/model.rs` | the code index types callers meet | `crates/codebase/src/model.rs` |
+| `crates/codebase/src/store/` | private CodeStore index persistence | `crates/codebase/src/store/mod.rs` |
+| `crates/codebase/src/store/links.rs` | transactional code link persistence | `crates/codebase/src/store/links.rs` |
+| `crates/codebase/src/store/reach.rs` | live one-way project reach in a snapshot | `crates/codebase/src/store/reach.rs` |
+| `crates/codebase/src/scan.rs` | walking a project's folder into the index | `crates/codebase/src/scan.rs` |
+| `crates/codebase/src/scope.rs` | what a code question may read | `crates/codebase/src/scope.rs` |
+| `crates/codebase/src/watch.rs` | one active project's worker | `crates/codebase/src/watch.rs` |
+| `crates/codebase/src/active.rs` | which projects are active | `crates/codebase/src/active.rs` |
+| `crates/codebase/src/links.rs` | reading a project's links | `crates/codebase/src/links.rs` |
 | `crates/core-events/src/` | what clients watch live | `crates/core-events/src/lib.rs` |
 | `crates/core-events/src/model.rs` | journal replay cursor | `crates/core-events/src/model.rs` |
 | `crates/core-events/src/subscription.rs` | one subscriber's replay-then-live stream | `crates/core-events/src/subscription.rs` |
@@ -374,6 +376,8 @@ pattern to follow, not merely an example.
 | `crates/shadows-process/src/launch.rs` | child launch configuration | `crates/shadows-process/src/lib.rs` |
 | `crates/shadows-process/src/persistent.rs` | independent process lifetime | `crates/shadows-process/src/lib.rs` |
 | `crates/shadows-process/src/bin/` | test apparatus that no product code links | `crates/shadows-process/src/bin/tree_probe.rs` |
+| `crates/shadows-lsp/src/lib.rs` | one language server, spoken to over stdio | `crates/shadows-lsp/src/lib.rs` |
+| `crates/shadows-lsp/src/client.rs` | the JSON-RPC client loop over a server's stdio | `crates/shadows-lsp/src/lib.rs` |
 | `crates/fake-acp/src/main.rs` | test apparatus that no product code links | `crates/fake-acp/contract.yaml` |
 | `crates/fake-acp/src/handlers.rs` | fake protocol handler registration | `crates/fake-acp/src/main.rs` |
 | `crates/fake-acp/src/handlers/` | fake protocol request handling | `crates/fake-acp/src/main.rs` |
@@ -407,7 +411,7 @@ file disagrees with either, they are right and this file is the defect.
 - **Built / not-built status.** The tree answers it and
   each side's `stages.md` lists what is left. A third copy would record
   one fact in three places.
-- **A list of declarations or signatures.** The LSP and `where_is` answer it
+- **A list of declarations or signatures.** The LSP answers it
   exactly. A generated inventory did this until 2026-10-01, and cost every
   change a regeneration step.
 - **Explanations of declarations.** Those live as doc comments on the
@@ -438,6 +442,8 @@ file disagrees with either, they are right and this file is the defect.
 | `crates/core-plans/src/store/project_links.rs` | project links boundary | `crates/core-plans/contract.yaml` |
 | `crates/core-plans/src/testing.rs` | testing boundary | `crates/core-plans/contract.yaml` |
 | `crates/core-turns/src/plan_show.rs` | plan show boundary | `crates/core-turns/contract.yaml` |
+| `crates/core-turns/src/questions.rs` | the Planner's questions to the person | `crates/core-turns/contract.yaml` |
+| `crates/core-turns/src/changes.rs` | the Planner's project file changes | `crates/core-turns/contract.yaml` |
 
 | `crates/core-turns/src/remove.rs` | thread removal orchestration | `crates/core-turns/contract.yaml` |
 | `crates/core-turns/src/error.rs` | turn refusal mapping | `crates/core-turns/contract.yaml` |
@@ -503,12 +509,16 @@ file disagrees with either, they are right and this file is the defect.
 | `crates/core-standards/src/error.rs` | standards refusals | `crates/core-standards/contract.yaml` |
 | `crates/core-standards/src/standards.yaml` | bundled standards definition | `crates/core-standards/contract.yaml` |
 
-| `crates/core-code/src/lib.rs` | code indexing boundary | `crates/core-code/contract.yaml` |
-| `crates/core-code/tests/recheck/` | question refresh race regression | `crates/core-code/tests/recheck/invariants.rs` |
-| `crates/core-code/src/error.rs` | index refusals | `crates/core-code/contract.yaml` |
-| `crates/core-code/src/testing.rs` | gated index inspection | `crates/core-code/contract.yaml` |
-| `crates/core-code/src/inventory.rs` | the paged file inventory of a project's folder | `crates/core-code/contract.yaml` |
-| `crates/core-code/src/store/inventory.rs` | file inventory persistence | `crates/core-code/contract.yaml` |
+| `crates/codebase/src/lib.rs` | the Codebase service boundary | `crates/codebase/contract.yaml` |
+| `crates/codebase/tests/recheck/` | question refresh race regression | `crates/codebase/tests/recheck/invariants.rs` |
+| `crates/codebase/src/error.rs` | index refusals | `crates/codebase/contract.yaml` |
+| `crates/codebase/src/testing.rs` | gated index inspection | `crates/codebase/contract.yaml` |
+| `crates/codebase/src/inventory.rs` | the paged file inventory of a project's folder | `crates/codebase/contract.yaml` |
+| `crates/codebase/src/store/inventory.rs` | file inventory persistence | `crates/codebase/contract.yaml` |
+| `crates/codebase/src/lsp/` | the language servers a project's files want | `crates/codebase/contract.yaml` |
+| `crates/codebase/src/lsp/catalog.rs` | the language-server catalog | `crates/codebase/contract.yaml` |
+| `crates/codebase/src/lsp/ask.rs` | answering a code_lsp question | `crates/codebase/contract.yaml` |
+| `crates/codebase/src/store/servers.rs` | the person's server settings persistence | `crates/codebase/contract.yaml` |
 
 | `crates/core-agents/assets/aylul-profile/CLAUDE.md` | bundled agent home instructions | `crates/core-agents/contract.yaml` |
 | `crates/core-agents/assets/aylul-profile/settings.json` | bundled agent home settings | `crates/core-agents/contract.yaml` |

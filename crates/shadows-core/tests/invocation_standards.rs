@@ -121,7 +121,7 @@ async fn invocation_standards_preserve_pins_nulls_and_missing_results() {
         shadows_core::Turns::standards_for_invocation_in(&mut conn, &started.operation_id).await,
         Err(StorageError::NotFound("invocation"))
     ));
-    core.code().shut_down().await;
+    core.codebase().shut_down().await;
 
     drop(conn);
     core.shut_down(std::time::Duration::from_secs(5), std::future::pending())

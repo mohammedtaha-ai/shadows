@@ -294,13 +294,7 @@ async fn an_executor_grant_reads_only_its_own_task() {
 async fn an_executor_grant_lists_only_its_tools() {
     assert_eq!(
         Grants::tools_for(GrantKind::Executor),
-        [
-            "task_context",
-            "where_is",
-            "who_uses",
-            "outline",
-            "task_report"
-        ]
+        ["task_context", "code_lsp", "task_report"]
     );
 }
 
@@ -442,11 +436,7 @@ async fn executor_threads_are_not_listed_as_conversations() {
     .unwrap();
 
     let projects = shadows_core::Projects::new(f.storage.clone());
-    let threads = Threads::new(
-        f.storage.clone(),
-        core_code::Code::new(f.storage.clone(), projects.clone()),
-        projects,
-    );
+    let threads = Threads::new(f.storage.clone(), projects);
     let listed = threads.list(&f.project).await.unwrap();
     let ids: Vec<_> = listed.iter().map(|t| t.id.clone()).collect();
     assert_eq!(ids, vec![planning.id]);

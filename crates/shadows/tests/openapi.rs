@@ -116,6 +116,37 @@ fn every_operation_id_is_unique() {
     }
 }
 
+/// Clients generate their types from the document, and a generator stops at a
+/// `$ref` that names no schema, so every `$ref` must name one.
+#[test]
+fn every_ref_names_a_schema() {
+    fn refs<'a>(value: &'a Value, at: &mut Vec<&'a str>) {
+        match value {
+            Value::Object(map) => {
+                if let Some(Value::String(target)) = map.get("$ref") {
+                    at.push(target);
+                }
+                map.values().for_each(|v| refs(v, at));
+            }
+            Value::Array(items) => items.iter().for_each(|v| refs(v, at)),
+            _ => {}
+        }
+    }
+    let doc = document();
+    let mut found = Vec::new();
+    refs(&doc, &mut found);
+    assert!(!found.is_empty(), "the document has no $ref at all");
+    let unresolved: std::collections::BTreeSet<&str> = found
+        .into_iter()
+        .filter(|target| {
+            target
+                .strip_prefix("#/components/schemas/")
+                .is_none_or(|name| doc["components"]["schemas"].get(name).is_none())
+        })
+        .collect();
+    assert!(unresolved.is_empty(), "unresolved $ref: {unresolved:?}");
+}
+
 /// Every route a client needs, by method and path.
 #[test]
 fn the_document_names_every_route() {
@@ -140,6 +171,7 @@ fn the_document_names_every_route() {
             "DELETE /api/aylul/extensions/{kind}/{id}",
             "DELETE /api/aylul/providers/{slug}",
             "DELETE /api/aylul/providers/{slug}/key",
+            "DELETE /api/code/servers/{server}",
             "DELETE /api/mcp-grants/{id}",
             "DELETE /api/projects/{id}",
             "DELETE /api/projects/{id}/code/links/{linked}",
@@ -158,7 +190,6 @@ fn the_document_names_every_route() {
             "GET /api/aylul/provider-presets",
             "GET /api/aylul/providers",
             "GET /api/aylul/usage",
-            "GET /api/code/settings",
             "GET /api/fs/dirs",
             "GET /api/groups",
             "GET /api/groups/{id}",
@@ -172,11 +203,9 @@ fn the_document_names_every_route() {
             "GET /api/projects/{id}/agreements",
             "GET /api/projects/{id}/agreements/{agreement}",
             "GET /api/projects/{id}/agreements/{agreement}/review",
-            "GET /api/projects/{id}/code/definitions",
             "GET /api/projects/{id}/code/files",
             "GET /api/projects/{id}/code/links",
-            "GET /api/projects/{id}/code/outline",
-            "GET /api/projects/{id}/code/references",
+            "GET /api/projects/{id}/code/servers",
             "GET /api/projects/{id}/code/status",
             "GET /api/projects/{id}/design/outcomes",
             "GET /api/projects/{id}/design/outcomes/{outcome}",
@@ -215,6 +244,7 @@ fn the_document_names_every_route() {
             "POST /api/aylul/providers",
             "POST /api/aylul/providers/test",
             "POST /api/aylul/providers/{slug}/test",
+            "POST /api/code/servers",
             "POST /api/fs/dirs",
             "POST /api/groups",
             "POST /api/groups/{id}/messages",
@@ -234,6 +264,7 @@ fn the_document_names_every_route() {
             "POST /api/threads/{id}/attachments",
             "POST /api/threads/{id}/context/resend",
             "POST /api/threads/{id}/fork",
+            "POST /api/threads/{id}/questions/{question}/answer",
             "POST /api/threads/{id}/queue",
             "POST /api/threads/{id}/queue/{qid}/send-now",
             "POST /api/threads/{id}/session",
@@ -250,7 +281,7 @@ fn the_document_names_every_route() {
             "PUT /api/aylul/extensions/mcp/{id}",
             "PUT /api/aylul/providers/{slug}",
             "PUT /api/aylul/providers/{slug}/key",
-            "PUT /api/code/settings",
+            "PUT /api/code/servers/{server}/off",
             "PUT /api/projects/{id}/agreements/{agreement}",
             "PUT /api/projects/{id}/code/links/{linked}",
             "PUT /api/projects/{id}/planner-instructions",

@@ -2,7 +2,6 @@
 #![allow(dead_code)]
 
 use core_agents::{AgentInput, Agents};
-use core_code::Code;
 use core_db::Storage;
 use core_messages::Messages;
 use core_projects::Projects;
@@ -62,11 +61,7 @@ pub async fn fixture() -> Fixture {
             .await
             .unwrap();
     }
-    let threads = Arc::new(Threads::new(
-        storage.clone(),
-        Code::new(storage.clone(), projects.clone()),
-        projects,
-    ));
+    let threads = Arc::new(Threads::new(storage.clone(), projects));
     let messages = Messages::new(storage.clone(), agents.clone());
     Fixture {
         _tmp: tmp,

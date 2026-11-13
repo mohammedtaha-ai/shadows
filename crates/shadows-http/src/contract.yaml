@@ -8,7 +8,7 @@
 # ThreadsError is translated through CoreError with unchanged responses.
 # Extension library methods and refusals are imported from core-extensions.
 # AgentsError is translated through CoreError with unchanged responses.
-# CodeError converts through CoreError to preserve index and scope refusals.
+# CodebaseError converts through CoreError to preserve index and scope refusals.
 # StandardsError converts through CoreError to preserve InvalidCommand refusals.
 # InstructionsError converts through CoreError to preserve HTTP refusals.
 # PersonError converts through CoreError to preserve HTTP refusals.
@@ -116,18 +116,31 @@ runs:
 code_inventory:
   module: code.rs
   routes:
-    - 'GET /api/projects/{id}/code/files -> Code::inventory (Asker::Person; absent prefix, after, limit take InventoryQuery::default())'
-    - 'POST /api/projects/{id}/code/refresh -> Code::refresh_inventory (Asker::Person), no body'
+    - 'GET /api/projects/{id}/code/files -> Codebase::inventory (Asker::Person; absent prefix, after, limit take InventoryQuery::default())'
+    - 'POST /api/projects/{id}/code/refresh -> Codebase::refresh_inventory (Asker::Person), no body'
   refusals: >
     INVENTORY_STALE is 409 (a cursor of another generation, files only); a limit outside 1 to
     200, a path outside the project or a foreign cursor is 422 INVALID_COMMAND; no such
     project is 404.
   tested_by: [the_person_and_the_planner_see_the_same_files]
 
+code_servers:
+  module: code.rs
+  routes:
+    - 'GET /api/projects/{id}/code/servers -> Codebase::servers (Asker::Person); asking does not activate'
+    - 'PUT /api/code/servers/{server}/off { command_id, off } -> Codebase::set_server_off, 204'
+    - 'POST /api/code/servers { command_id, id, command, args, extensions } -> Codebase::add_server, 200 ServerStatus'
+    - 'DELETE /api/code/servers/{server}?command_id -> Codebase::remove_server, 204'
+  refusals: >
+    An unknown server, a catalog id added or removed, or an extension without a dot is 422
+    INVALID_COMMAND; a replay with another body is 409 COMMAND_CONFLICT.
+  tested_by: [an_added_server_is_listed_and_removable]
+
 map_refusals: 'MAP_REFUSED is HTTP 422 with the rule-prefixed domain message; shared adapter fixtures cover it.'
 
 layout_only: Map records contain no starter files; the stage has no Structure step or file count, and no HTTP structure-write route exists. Roadmap follows map approval.
 
+question_answer: 'POST /api/threads/{id}/questions/{question}/answer { command_id, option } calls Turns::answer and answers 202 Queued; a second answer is 409 COMMAND_CONFLICT, a question of another thread or an option out of range 422 INVALID_COMMAND.'
 queued_notices: 'QUEUED_NOTICE_KEPT is 409: DELETE of a waiting executor notice removes nothing. QueuedMessage.notice and the Notice and AttemptNotice schemas (the latter listed in openapi.rs, as the card a notice entry carries) describe it.'
 
 route_table:

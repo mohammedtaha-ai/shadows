@@ -345,6 +345,7 @@ impl Index {
             || self.types.contains_key(&direct)
             || path.starts_with("shadows_")
             || path.starts_with("core_")
+            || super::service_crate(&path.split("::").next().unwrap_or("").replace('_', "-"))
         {
             return direct;
         }
@@ -718,9 +719,12 @@ pub(super) fn check(source: &Source, node: Node<'_>, index: &Index, recorder: &m
         if path.contains("::store::") {
             let mut parts = path.split("::");
             let krate = parts.next().unwrap_or("");
-            let owner = krate
-                .strip_prefix("core_")
-                .unwrap_or_else(|| parts.next().unwrap_or(""));
+            let owner =
+                if krate.starts_with("core_") || super::service_crate(&krate.replace('_', "-")) {
+                    krate.strip_prefix("core_").unwrap_or(krate)
+                } else {
+                    parts.next().unwrap_or("")
+                };
             if source.adapter || (source.service && owner != source.owner) {
                 recorder.at(
                     "ownership",

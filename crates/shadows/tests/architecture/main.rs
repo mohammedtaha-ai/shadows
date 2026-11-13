@@ -76,7 +76,7 @@ fn database_foundation_depends_on_no_service() {
     {
         let name = line.trim().trim_matches(',').trim_matches('"');
         assert!(
-            !name.starts_with("shadows") && (!name.starts_with("core-") || name == "core-db"),
+            !name.starts_with("shadows") && (!scanner::service_crate(name) || name == "core-db"),
             "foundation must not depend on a service: {name}"
         );
     }
@@ -96,7 +96,7 @@ fn extracted_runtime_depends_only_on_the_foundation() {
     {
         let name = line.trim().trim_matches(',').trim_matches('"');
         assert!(
-            !name.starts_with("shadows") && (!name.starts_with("core-") || name == "core-db"),
+            !name.starts_with("shadows") && (!scanner::service_crate(name) || name == "core-db"),
             "runtime must not depend on a service or composition: {name}"
         );
     }
@@ -116,7 +116,7 @@ fn extracted_secrets_depends_only_on_the_foundation() {
     {
         let name = line.trim().trim_matches(',').trim_matches('"');
         assert!(
-            !name.starts_with("shadows") && (!name.starts_with("core-") || name == "core-db"),
+            !name.starts_with("shadows") && (!scanner::service_crate(name) || name == "core-db"),
             "secrets must not depend on a service or composition: {name}"
         );
     }
@@ -141,7 +141,7 @@ fn extracted_providers_depends_only_on_declared_lower_owners() {
         let name = line.trim().trim_matches(',').trim_matches('"');
         assert!(
             !name.starts_with("shadows")
-                && (!name.starts_with("core-") || ["core-db", "core-secrets"].contains(&name)),
+                && (!scanner::service_crate(name) || ["core-db", "core-secrets"].contains(&name)),
             "providers must depend only on lower owners and infrastructure: {name}"
         );
     }
@@ -166,7 +166,7 @@ fn extracted_projects_depends_only_on_declared_lower_owners() {
         let name = line.trim().trim_matches(',').trim_matches('"');
         assert!(
             (!name.starts_with("shadows") || name == "shadows-agent")
-                && (!name.starts_with("core-") || ["core-db", "core-projects"].contains(&name)),
+                && (!scanner::service_crate(name) || ["core-db", "core-projects"].contains(&name)),
             "projects must depend only on lower owners and infrastructure: {name}"
         );
     }
@@ -186,7 +186,7 @@ fn extracted_usage_depends_only_on_the_foundation() {
     {
         let name = line.trim().trim_matches(',').trim_matches('"');
         assert!(
-            !name.starts_with("shadows") && (!name.starts_with("core-") || name == "core-db"),
+            !name.starts_with("shadows") && (!scanner::service_crate(name) || name == "core-db"),
             "usage must not depend on a service or composition: {name}"
         );
     }
@@ -206,7 +206,7 @@ fn extracted_person_depends_only_on_the_foundation() {
     {
         let name = line.trim().trim_matches(',').trim_matches('"');
         assert!(
-            !name.starts_with("shadows") && (!name.starts_with("core-") || name == "core-db"),
+            !name.starts_with("shadows") && (!scanner::service_crate(name) || name == "core-db"),
             "person must not depend on a service or composition: {name}"
         );
     }
@@ -231,7 +231,7 @@ fn extracted_instructions_depends_only_on_declared_lower_owners() {
         let name = line.trim().trim_matches(',').trim_matches('"');
         assert!(
             !name.starts_with("shadows")
-                && (!name.starts_with("core-") || ["core-db", "core-projects"].contains(&name)),
+                && (!scanner::service_crate(name) || ["core-db", "core-projects"].contains(&name)),
             "instructions must depend only on lower owners and infrastructure: {name}"
         );
     }
@@ -256,7 +256,7 @@ fn extracted_standards_depends_only_on_declared_lower_owners() {
         let name = line.trim().trim_matches(',').trim_matches('"');
         assert!(
             !name.starts_with("shadows")
-                && (!name.starts_with("core-") || ["core-db", "core-projects"].contains(&name)),
+                && (!scanner::service_crate(name) || ["core-db", "core-projects"].contains(&name)),
             "standards must depend only on lower owners and infrastructure: {name}"
         );
     }
@@ -268,17 +268,17 @@ fn extracted_code_depends_only_on_declared_lower_owners() {
     let lock = std::fs::read_to_string(root.join("Cargo.lock")).unwrap();
     let package = lock
         .split("[[package]]")
-        .find(|entry| entry.lines().any(|line| line == r#"name = "core-code""#))
-        .expect("core-code is a workspace package");
+        .find(|entry| entry.lines().any(|line| line == r#"name = "codebase""#))
+        .expect("codebase is a workspace package");
     for line in package
         .lines()
         .filter(|line| line.trim_start().starts_with('"'))
     {
         let name = line.trim().trim_matches(',').trim_matches('"');
         assert!(
-            (!name.starts_with("shadows") || name == "shadows-index")
-                && (!name.starts_with("core-")
-                    || ["core-db", "core-projects", "core-code"].contains(&name)),
+            (!name.starts_with("shadows") || ["shadows-index", "shadows-lsp"].contains(&name))
+                && (!scanner::service_crate(name)
+                    || ["core-db", "core-projects", "codebase"].contains(&name)),
             "code must depend only on lower owners and infrastructure: {name}"
         );
     }
@@ -299,7 +299,7 @@ fn extracted_agents_depends_only_on_declared_lower_owners() {
         let name = line.trim().trim_matches(',').trim_matches('"');
         assert!(
             !name.starts_with("shadows")
-                && (!name.starts_with("core-")
+                && (!scanner::service_crate(name)
                     || ["core-db", "core-projects", "core-providers", "core-secrets"]
                         .contains(&name)),
             "agents must depend only on lower owners and infrastructure: {name}"
@@ -326,7 +326,7 @@ fn extracted_extensions_depends_only_on_declared_lower_owners() {
         let name = line.trim().trim_matches(',').trim_matches('"');
         assert!(
             (!name.starts_with("shadows") || name == "shadows-process")
-                && (!name.starts_with("core-")
+                && (!scanner::service_crate(name)
                     || [
                         "core-db",
                         "core-agents",
@@ -355,12 +355,12 @@ fn extracted_threads_depends_only_on_declared_lower_owners() {
         let name = line.trim().trim_matches(',').trim_matches('"');
         assert!(
             (!name.starts_with("shadows") || name == "shadows-agent")
-                && (!name.starts_with("core-")
+                && (!scanner::service_crate(name)
                     || [
                         "core-db",
                         "core-projects",
                         "core-agents",
-                        "core-code",
+                        "codebase",
                         "core-threads"
                     ]
                     .contains(&name)),
@@ -384,12 +384,12 @@ fn extracted_grants_depends_only_on_declared_lower_owners() {
         let name = line.trim().trim_matches(',').trim_matches('"');
         assert!(
             (!name.starts_with("shadows") || name == "shadows-agent")
-                && (!name.starts_with("core-")
+                && (!scanner::service_crate(name)
                     || [
                         "core-db",
                         "core-projects",
                         "core-threads",
-                        "core-code",
+                        "codebase",
                         "core-grants"
                     ]
                     .contains(&name)),
@@ -417,7 +417,7 @@ fn extracted_operations_depends_only_on_declared_lower_owners() {
         let name = line.trim().trim_matches(',').trim_matches('"');
         assert!(
             (!name.starts_with("shadows") || name == "shadows-agent")
-                && (!name.starts_with("core-")
+                && (!scanner::service_crate(name)
                     || [
                         "core-db",
                         "core-runtime",
@@ -446,7 +446,7 @@ fn extracted_harness_depends_only_on_declared_lower_owners() {
         let name = line.trim().trim_matches(',').trim_matches('"');
         assert!(
             (!name.starts_with("shadows") || ["shadows-agent", "shadows-process"].contains(&name))
-                && (!name.starts_with("core-")
+                && (!scanner::service_crate(name)
                     || [
                         "core-db",
                         "core-agents",
@@ -484,7 +484,7 @@ fn extracted_design_depends_only_on_declared_lower_owners() {
         assert!(
             (!name.starts_with("shadows")
                 || ["shadows-agent", "shadows-process", "shadows-index"].contains(&name))
-                && (!name.starts_with("core-")
+                && (!scanner::service_crate(name)
                     || [
                         "core-db",
                         "core-projects",
@@ -517,10 +517,10 @@ fn extracted_plans_depends_only_on_declared_lower_owners() {
         assert!(
             (!name.starts_with("shadows")
                 || ["shadows-agent", "shadows-process", "shadows-index"].contains(&name))
-                && (!name.starts_with("core-")
+                && (!scanner::service_crate(name)
                     || [
                         "core-db",
-                        "core-code",
+                        "codebase",
                         "core-design",
                         "core-grants",
                         "core-operations",
@@ -551,10 +551,10 @@ fn extracted_turns_depends_only_on_declared_lower_owners() {
         assert!(
             (!name.starts_with("shadows")
                 || ["shadows-agent", "shadows-process", "shadows-index"].contains(&name))
-                && (!name.starts_with("core-")
+                && (!scanner::service_crate(name)
                     || [
                         "core-db",
-                        "core-code",
+                        "codebase",
                         "core-design",
                         "core-grants",
                         "core-harness",
@@ -594,10 +594,10 @@ fn extracted_project_lifecycle_depends_only_on_declared_lower_owners() {
         assert!(
             (!name.starts_with("shadows")
                 || ["shadows-agent", "shadows-process", "shadows-index"].contains(&name))
-                && (!name.starts_with("core-")
+                && (!scanner::service_crate(name)
                     || [
                         "core-db",
-                        "core-code",
+                        "codebase",
                         "core-grants",
                         "core-plans",
                         "core-projects",
@@ -626,7 +626,7 @@ fn extracted_events_depends_only_on_declared_lower_owners() {
         assert!(
             (!name.starts_with("shadows")
                 || ["shadows-agent", "shadows-process", "shadows-index"].contains(&name))
-                && (!name.starts_with("core-")
+                && (!scanner::service_crate(name)
                     || [
                         "core-db",
                         "core-harness",

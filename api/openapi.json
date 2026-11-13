@@ -69,6 +69,38 @@
         ],
         "type": "object"
       },
+      "AddedServer": {
+        "description": "A server the person adds beside the catalog, on their own responsibility.",
+        "properties": {
+          "args": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "command": {
+            "description": "The program, by name on PATH or by path.",
+            "type": "string"
+          },
+          "extensions": {
+            "description": "The file extensions it reads, each starting with `.`.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "id": {
+            "description": "Its name; not a catalog id.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "command",
+          "extensions"
+        ],
+        "type": "object"
+      },
       "AdditionalPart": {
         "properties": {
           "name": {
@@ -718,40 +750,21 @@
         ],
         "type": "object"
       },
-      "Answer": {
-        "description": "What a question answers.",
+      "AnswerBody": {
         "properties": {
-          "hits": {
-            "description": "At most 50, by project (the asker's first, then its links by slug),\npath and line.",
-            "items": {
-              "$ref": "#/components/schemas/Hit"
-            },
-            "type": "array"
+          "command_id": {
+            "description": "The idempotency key.",
+            "type": "string"
           },
-          "more": {
-            "description": "More hits than the 50 answered.",
-            "type": "boolean"
-          },
-          "status": {
-            "description": "One per project in the scope.",
-            "items": {
-              "$ref": "#/components/schemas/ProjectStatus"
-            },
-            "type": "array"
-          },
-          "suggestions": {
-            "description": "Up to 10 names containing the text, only when `hits` is empty.",
-            "items": {
-              "type": "string"
-            },
-            "type": "array"
+          "option": {
+            "description": "The chosen option, by its index in the question's card.",
+            "minimum": 0,
+            "type": "integer"
           }
         },
         "required": [
-          "hits",
-          "more",
-          "suggestions",
-          "status"
+          "command_id",
+          "option"
         ],
         "type": "object"
       },
@@ -1358,35 +1371,6 @@
           "description",
           "enabled",
           "reason"
-        ],
-        "type": "object"
-      },
-      "CodeSettings": {
-        "description": "The code index's settings.",
-        "properties": {
-          "active_limit": {
-            "description": "How many projects are active at once: 1 to 20, default 5.",
-            "format": "int32",
-            "minimum": 0,
-            "type": "integer"
-          },
-          "active_limit_max": {
-            "description": "The most `active_limit` Core accepts.",
-            "format": "int32",
-            "minimum": 0,
-            "type": "integer"
-          },
-          "active_limit_min": {
-            "description": "The least `active_limit` Core accepts.",
-            "format": "int32",
-            "minimum": 0,
-            "type": "integer"
-          }
-        },
-        "required": [
-          "active_limit",
-          "active_limit_min",
-          "active_limit_max"
         ],
         "type": "object"
       },
@@ -2439,6 +2423,7 @@
           "PATH_UNAVAILABLE",
           "ORIGIN_REFUSED",
           "HARNESS_UNAVAILABLE",
+          "LANGUAGE_SERVER_UNAVAILABLE",
           "SETTING_NOT_OFFERED",
           "MODE_NOT_ALLOWED",
           "HARNESS_LOCKED",
@@ -2781,51 +2766,6 @@
           "id",
           "label",
           "description"
-        ],
-        "type": "object"
-      },
-      "Hit": {
-        "description": "One tag an answer points at.",
-        "properties": {
-          "kind": {
-            "type": "string"
-          },
-          "line": {
-            "format": "int32",
-            "minimum": 0,
-            "type": "integer"
-          },
-          "matched_by": {
-            "description": "`Some(\"name\")` on every `references` hit: matched by name only.",
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "name": {
-            "type": "string"
-          },
-          "path": {
-            "description": "Relative to the project's folder, with '/'.",
-            "type": "string"
-          },
-          "project": {
-            "description": "The project's slug.",
-            "type": "string"
-          },
-          "signature": {
-            "type": [
-              "string",
-              "null"
-            ]
-          }
-        },
-        "required": [
-          "project",
-          "path",
-          "line",
-          "kind",
-          "name"
         ],
         "type": "object"
       },
@@ -4064,15 +4004,22 @@
         "type": "object"
       },
       "Notice": {
-        "description": "A message an executor's attempt sends the Planner through Shadows: the\nturn it starts is recorded in the executor's name, with its card.",
+        "description": "A message sent to the Planner in another's name: an executor's attempt's,\nor Shadows' own. The turn it starts is recorded in that name, with its card.",
         "properties": {
           "card": {
             "description": "The facts the conversation draws, as the sender shaped them.",
             "type": "object"
           },
           "executor": {
-            "$ref": "#/components/schemas/ThreadId",
-            "description": "The executor's thread, its identity."
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ThreadId",
+                "description": "The executor's thread, its identity; `null` when Shadows sends it."
+              }
+            ]
           }
         },
         "required": [
@@ -5373,6 +5320,25 @@
         ],
         "type": "object"
       },
+      "PostServer": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/AddedServer"
+          },
+          {
+            "properties": {
+              "command_id": {
+                "description": "The idempotency key.",
+                "type": "string"
+              }
+            },
+            "required": [
+              "command_id"
+            ],
+            "type": "object"
+          }
+        ]
+      },
       "Presence": {
         "description": "How a part kind's presence is decided.",
         "enum": [
@@ -5967,24 +5933,26 @@
         ],
         "type": "object"
       },
-      "PutSettings": {
+      "PutServerOff": {
         "properties": {
-          "active_limit": {
-            "description": "How many projects are active at once: 1 to 20.",
-            "format": "int32",
-            "minimum": 0,
-            "type": "integer"
-          },
           "command_id": {
             "description": "The idempotency key.",
             "type": "string"
+          },
+          "off": {
+            "description": "`true` switches the server off for every project; `false` back on.",
+            "type": "boolean"
           }
         },
         "required": [
           "command_id",
-          "active_limit"
+          "off"
         ],
         "type": "object"
+      },
+      "QuestionId": {
+        "format": "uuid",
+        "type": "string"
       },
       "Queued": {
         "description": "What queueing answers.",
@@ -6388,6 +6356,147 @@
             "type": "object"
           }
         ]
+      },
+      "ServerState": {
+        "description": "How one language server stands for one project.",
+        "oneOf": [
+          {
+            "description": "Not running: the project is not active, or its files do not need it.",
+            "properties": {
+              "state": {
+                "enum": [
+                  "idle"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "state": {
+                "enum": [
+                  "starting"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "state": {
+                "enum": [
+                  "running"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "Its command is not found on this machine.",
+            "properties": {
+              "state": {
+                "enum": [
+                  "not_installed"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "The person switched it off.",
+            "properties": {
+              "state": {
+                "enum": [
+                  "off"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "It exited or did not initialize; its last error line, when it wrote one.",
+            "properties": {
+              "error": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "state": {
+                "enum": [
+                  "failed"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "error",
+              "state"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "ServerStatus": {
+        "description": "One catalog or added server, as a project sees it.",
+        "properties": {
+          "added": {
+            "description": "The person added it; it is not in the catalog.",
+            "type": "boolean"
+          },
+          "extensions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "id": {
+            "type": "string"
+          },
+          "install": {
+            "description": "The command that installs it on this system; null when none is known.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "state": {
+            "$ref": "#/components/schemas/ServerState"
+          },
+          "wanted": {
+            "description": "The project holds a file with one of its extensions.",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "added",
+          "wanted",
+          "extensions",
+          "state",
+          "install"
+        ],
+        "type": "object"
       },
       "SessionChoices": {
         "description": "What the thread's session offers now. `efforts` are the\ncurrent model's. `modes` are after Shadows' policy; a mode the project does\nnot allow is present with `enabled: false` and `reason: \"Not allowed in\nthis project\"`.",
@@ -7222,7 +7331,9 @@
           "PlanApproved",
           "VisionProposal",
           "MapProposal",
-          "RoadmapProposal"
+          "RoadmapProposal",
+          "PersonQuestion",
+          "ProjectChange"
         ],
         "type": "string"
       },
@@ -9935,19 +10046,49 @@
         ]
       }
     },
-    "/api/code/settings": {
-      "get": {
-        "operationId": "get_settings",
+    "/api/code/servers": {
+      "post": {
+        "operationId": "post_server",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PostServer"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CodeSettings"
+                  "$ref": "#/components/schemas/ServerStatus"
                 }
               }
             },
-            "description": ""
+            "description": "Added, or the replay of the same command"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "COMMAND_CONFLICT"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "INVALID_COMMAND: a catalog id, an id already added, or an extension without a dot"
           },
           "500": {
             "content": {
@@ -9960,32 +10101,102 @@
             "description": "STORAGE_UNAVAILABLE"
           }
         },
-        "summary": "The code index's settings.",
+        "summary": "Adds a server beside the catalog, on the person's own responsibility.",
         "tags": [
           "code"
         ]
-      },
+      }
+    },
+    "/api/code/servers/{server}": {
+      "delete": {
+        "operationId": "remove_server",
+        "parameters": [
+          {
+            "description": "The added server's id",
+            "in": "path",
+            "name": "server",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "The idempotency key.",
+            "in": "query",
+            "name": "command_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Removed, or the replay of the same command"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "COMMAND_CONFLICT"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "INVALID_COMMAND: no such added server"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          }
+        },
+        "summary": "Removes a server the person added.",
+        "tags": [
+          "code"
+        ]
+      }
+    },
+    "/api/code/servers/{server}/off": {
       "put": {
-        "operationId": "put_settings",
+        "operationId": "put_server_off",
+        "parameters": [
+          {
+            "description": "The server's id",
+            "in": "path",
+            "name": "server",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/PutSettings"
+                "$ref": "#/components/schemas/PutServerOff"
               }
             }
           },
           "required": true
         },
         "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CodeSettings"
-                }
-              }
-            },
+          "204": {
             "description": "Set, or the replay of the same command"
           },
           "409": {
@@ -10006,7 +10217,7 @@
                 }
               }
             },
-            "description": "INVALID_COMMAND: outside 1 to 20"
+            "description": "INVALID_COMMAND: no such server"
           },
           "500": {
             "content": {
@@ -10019,7 +10230,7 @@
             "description": "STORAGE_UNAVAILABLE"
           }
         },
-        "summary": "Sets how many projects are active at once. Lowering it stops the\nleast recently used projects' watchers at once.",
+        "summary": "Switches a server off, or back on. Shadows' code answers get worse without it.",
         "tags": [
           "code"
         ]
@@ -11701,96 +11912,6 @@
         ]
       }
     },
-    "/api/projects/{id}/code/definitions": {
-      "get": {
-        "operationId": "definitions",
-        "parameters": [
-          {
-            "description": "The project asked from",
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "$ref": "#/components/schemas/ProjectId"
-            }
-          },
-          {
-            "description": "The exact name, case-sensitively.",
-            "in": "query",
-            "name": "name",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "description": "A linked project's slug, to ask only it; none asks the project and\nevery project it links to.",
-            "in": "query",
-            "name": "project",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Answer"
-                }
-              }
-            },
-            "description": ""
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            },
-            "description": "INVALID_COMMAND: no `name`"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            },
-            "description": "INVALID_COMMAND: no such project"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            },
-            "description": "INVALID_COMMAND: the project named is not linked"
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            },
-            "description": "STORAGE_UNAVAILABLE"
-          }
-        },
-        "summary": "Where a name is defined: per hit, its project, path, line, kind and\nsignature.",
-        "tags": [
-          "code"
-        ]
-      }
-    },
     "/api/projects/{id}/code/files": {
       "get": {
         "operationId": "files",
@@ -12109,186 +12230,6 @@
         ]
       }
     },
-    "/api/projects/{id}/code/outline": {
-      "get": {
-        "operationId": "outline",
-        "parameters": [
-          {
-            "description": "The project asked from",
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "$ref": "#/components/schemas/ProjectId"
-            }
-          },
-          {
-            "description": "A file or folder relative to the project's folder; \"\" for all of it.",
-            "in": "query",
-            "name": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "description": "As for `definitions`.",
-            "in": "query",
-            "name": "project",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Answer"
-                }
-              }
-            },
-            "description": ""
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            },
-            "description": "INVALID_COMMAND: no `path`"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            },
-            "description": "INVALID_COMMAND: no such project"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            },
-            "description": "INVALID_COMMAND: the path must be inside the project, or the project named is not linked"
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            },
-            "description": "STORAGE_UNAVAILABLE"
-          }
-        },
-        "summary": "The definitions in a file or folder. It reads the index and\nopens no path.",
-        "tags": [
-          "code"
-        ]
-      }
-    },
-    "/api/projects/{id}/code/references": {
-      "get": {
-        "operationId": "references",
-        "parameters": [
-          {
-            "description": "The project asked from",
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "$ref": "#/components/schemas/ProjectId"
-            }
-          },
-          {
-            "description": "The exact name, case-sensitively.",
-            "in": "query",
-            "name": "name",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "description": "A linked project's slug, to ask only it; none asks the project and\nevery project it links to.",
-            "in": "query",
-            "name": "project",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Answer"
-                }
-              }
-            },
-            "description": ""
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            },
-            "description": "INVALID_COMMAND: no `name`"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            },
-            "description": "INVALID_COMMAND: no such project"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            },
-            "description": "INVALID_COMMAND: the project named is not linked"
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            },
-            "description": "STORAGE_UNAVAILABLE"
-          }
-        },
-        "summary": "Where a name is used, matched by name only: every hit says\n`matched_by: \"name\"`.",
-        "tags": [
-          "code"
-        ]
-      }
-    },
     "/api/projects/{id}/code/refresh": {
       "post": {
         "operationId": "refresh",
@@ -12336,6 +12277,61 @@
           }
         },
         "summary": "Lists the project's folder again now, and answers the first page.",
+        "tags": [
+          "code"
+        ]
+      }
+    },
+    "/api/projects/{id}/code/servers": {
+      "get": {
+        "operationId": "servers",
+        "parameters": [
+          {
+            "description": "The project",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ProjectId"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ServerStatus"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "INVALID_COMMAND: no such project"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          }
+        },
+        "summary": "Every catalog and added server, as this project sees it: whether its files\nwant it, and its state. Asking does not make the project active.",
         "tags": [
           "code"
         ]
@@ -14633,6 +14629,117 @@
           }
         },
         "summary": "A thread's operations — its turns — newest first, each as it now stands.\nA client opening a thread reads this to learn whether a turn is running and\nwhich one (so it can offer Stop), then follows it on `/api/subscribe`,\nwhose durable frames name their `operation_id`.",
+        "tags": [
+          "turns"
+        ]
+      }
+    },
+    "/api/threads/{id}/questions/{question}/answer": {
+      "post": {
+        "operationId": "answer_question",
+        "parameters": [
+          {
+            "description": "The thread",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ThreadId"
+            }
+          },
+          {
+            "description": "The question",
+            "in": "path",
+            "name": "question",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/QuestionId"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnswerBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Queued"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "no such thread or question"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "COMMAND_CONFLICT: already answered"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "INVALID_COMMAND: no such option, or the question was asked in another conversation"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "HARNESS_START_FAILED"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "RUNTIME_STOPPING"
+          }
+        },
+        "summary": "The person's click on a question's option: their message to the Planner,\nsent at once on an idle thread, waiting while a turn runs.",
         "tags": [
           "turns"
         ]

@@ -6,7 +6,7 @@ use serde_json::{Value, json};
 use shadows_agent::policy;
 use shadows_core::testing::ProjectDirectory;
 use shadows_core::testing::acp;
-use shadows_core::{CodeConfig, ProjectId};
+use shadows_core::{CodebaseConfig, ProjectId};
 
 #[path = "fixtures/app.rs"]
 mod app;
@@ -17,7 +17,7 @@ use app::{App, call, ctx, fresh_command, test_app};
 async fn index_file(app: &App, project: &ProjectId, dir: &std::path::Path, name: &str) {
     std::fs::create_dir_all(dir.join("src")).unwrap();
     std::fs::write(dir.join("src/lib.rs"), format!("pub fn {name}() {{}}\n")).unwrap();
-    app.core.code().scan_for_test(project).await.unwrap();
+    app.core.codebase().scan_for_test(project).await.unwrap();
 }
 
 /// A project with no thread, whose folder holds `pub fn <slug>_fn`, indexed.
@@ -126,9 +126,13 @@ async fn a_project_without_threads_is_removed_with_its_index_links_and_grants() 
         .unwrap();
     let token = issued.token.unwrap();
     assert!(app.core.grants().authorize(&token).await.unwrap().is_some());
-    app.core.code().start(CodeConfig::default()).await.unwrap();
-    app.core.code().touch(&gone).await;
-    assert!(app.core.code().active_for_test().await.contains(&gone));
+    app.core
+        .codebase()
+        .start(CodebaseConfig::default())
+        .await
+        .unwrap();
+    app.core.codebase().touch(&gone).await;
+    assert!(app.core.codebase().active_for_test().await.contains(&gone));
 
     let (status, body) = remove(&app, &gone, &fresh_command()).await;
     assert_eq!((status, body["id"].as_str()), (200, Some(gone.as_str())));
@@ -139,8 +143,8 @@ async fn a_project_without_threads_is_removed_with_its_index_links_and_grants() 
     assert_eq!(rows(&app, LINKS, &gone).await, 0);
     assert_eq!(rows(&app, FILES, &other).await, 1, "another index stays");
     assert!(app.core.grants().authorize(&token).await.unwrap().is_none());
-    assert!(!app.core.code().active_for_test().await.contains(&gone));
-    app.core.code().shut_down_for_test().await;
+    assert!(!app.core.codebase().active_for_test().await.contains(&gone));
+    app.core.codebase().shut_down_for_test().await;
 
     app.core
         .shut_down(std::time::Duration::from_secs(5), std::future::pending())
@@ -206,7 +210,7 @@ async fn a_removed_project_is_not_found() {
         (404, Some("INVALID_COMMAND"))
     );
 
-    let path = format!("/api/projects/{gone}/code/definitions?name=gone_fn");
+    let path = format!("/api/projects/{gone}/code/status");
     let (status, body) = call(&app, "GET", &path, None).await;
     assert_eq!(
         (status, body["code"].as_str()),

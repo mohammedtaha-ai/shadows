@@ -69,7 +69,12 @@ layer_catalog: 'Planner standards text lists every kind presence and its layers 
 # Extensions' resolved MCP snapshots carry per-agent rules beside transport facts.
 # Every new, resumed or forked Planner session sends PLANNER_TOOLS,
 # settingSources [] and strictMcpConfig true (the three planner_mcp opening tests).
-# Harness opens AYLUL with PermissionPolicy::Ask and Planner with Refuse.
+# Harness opens AYLUL and Planner sessions with PermissionPolicy::Ask (a Codex Planner holds its
+# approvals the same way) and an executor with Refuse. PLANNER_TOOLS ends with Bash, the
+# Planner's shell; what its program asks about waits for the person. prompt.txt says the shell is
+# for installing and the environment, and that a changed project file is noted with
+# project_change_note. In a read-only sandbox (Codex's Read only mode) it offers no install of
+# its own: the person installs the server or it is left.
 # `open_executor(thread, grant, model)` opens an executor the same way, from its one compiled-in
 # file, executor.md: the front matter's `tools:` (Read, Grep, Glob, Edit, Write, MultiEdit, Bash,
 # TodoWrite) as the session's tools, the body appended; settingSources [] and strictMcpConfig true,
@@ -91,6 +96,10 @@ layer_catalog: 'Planner standards text lists every kind presence and its layers 
 # executor.md's "Tools" section (no Python; files through Write, Edit and MultiEdit, never the
 # shell) is held by executor::tests::the_executor_file_parses_and_names_its_eight_tools.
 # executor.md's contract bullets are held, live, by runs_routes::live_an_executor_builds_the_function_its_contract_names.
+# executor.md asks for `code_lsp` before searching the tree; prompt.txt names `code_lsp`, and that
+# a language with no running server is answered "no server".
+# The prompt asks the Planner to ask a choice with person_ask and wait, never the same thing in
+# text; held by person_questions::an_executor_cannot_ask.
 # The prompt's "Look before you write a path" section is held by code_scope::the_planner_is_told_to_look_at_the_real_files.
 # The prompt's project_files line says what each page state means and that indexing is not a complete listing; held by mcp_tools::the_planner_is_told_an_indexing_listing_is_not_complete.
 # The prompt's task_add/task_update line says a task_update without the task's contract leaves it with none; held by mcp_tools::the_planner_is_told_what_a_contract_holds.
@@ -280,10 +289,10 @@ functions:
     context_record: "Reads the prepared context and acknowledgement flag, or None when no row exists."
     answer_permission:
       signature: "(&self, command_id: String, thread: &ThreadId, request: &str, option: &str) -> Result<PermissionAnswer, HarnessError>"
-      note: Replay first, validate a live AYLUL request and offered option, durably record, then answer; only one settlement wins.
+      note: Replay first, validate a live AYLUL or Planner request and offered option, durably record, then answer; only one settlement wins.
     waiting_permissions:
       signature: "(&self) -> Vec<WaitingPermission>"
-      note: Current AYLUL requests sorted by UTC asked_at then request id; empty without configuration.
+      note: Current AYLUL and Planner requests sorted by UTC asked_at then request id; a Planner's agent is Planner.
     fork_thread:
       signature: "(&self, command_id, source, at) -> Result<PlanningThread, HarnessError>"
       # Replay first, Operations eligibility, Threads fork, then mode copy in one write.
@@ -295,7 +304,9 @@ functions:
       # Equal replay preserves later choices; a different mode is CommandConflict.
     selected_mode_in:
       signature: "(conn, thread) -> Result<String, HarnessError>"
-      # Harness-only: remembered mode when still allowed, otherwise policy default.
+      # Harness-only: remembered mode when still allowed, otherwise the policy default
+      # when the project allows it, otherwise the project's first allowed mode in policy
+      # order (a project that predates Codex's `ask` opens on `read-only`).
     copy_mode_in:
       signature: "(conn, source, fork) -> Result<(), StorageError>"
       # Harness composes this after Threads::fork_in in the same transaction.
@@ -622,8 +633,20 @@ obligations:
     tested_by: [shutdown_is_bounded_while_group_settings_are_unanswered]
   - rule: The connection settles a prompt session's outstanding requests before returning its result or disconnect error, so Turns drains and journals their end in the same turn.
     tested_by: [ending_a_turn_settles_its_unanswered_requests, disconnecting_settles_requests_before_the_turn_is_collected]
-  - rule: AYLUL holds permission requests for offered-option answers; replay returns its first result after session close, while Planner refuses immediately.
-    tested_by: [an_aylul_request_waits_and_is_listed, answering_runs_the_tool_and_records_by_you, a_rejected_request_ends_rejected_and_the_turn_goes_on, an_option_not_offered_is_refused, a_second_answer_is_settled, an_equal_replay_answers_the_first_result]
+  - rule: AYLUL and the Planner hold permission requests for offered-option answers; replay returns its first result after session close, while an executor refuses immediately.
+    tested_by: [an_aylul_request_waits_and_is_listed, answering_runs_the_tool_and_records_by_you, a_rejected_request_ends_rejected_and_the_turn_goes_on, an_option_not_offered_is_refused, a_second_answer_is_settled, an_equal_replay_answers_the_first_result, a_planner_permission_request_waits_for_the_person]
+  - rule: >
+      A Claude Code Planner opens in `auto` by default: Claude Code decides its shell
+      commands itself and no card waits for the person; Accept edits stays on offer.
+    tested_by: [a_planner_in_its_default_auto_runs_the_command_itself,
+      opening_twice_reuses_one_adapter_and_starts_in_auto]
+  - rule: >
+      Opening and an idle session set the conversation's mode through
+      `Sessions::settle_mode`: a mode the harness refuses for the session's model
+      (`auto` on a model without it) leaves the adapter's mode, as a refused remembered
+      model or effort does. A turn that asks for it is still refused at prepare.
+    tested_by: [picking_a_model_answers_that_models_efforts,
+      auto_on_a_model_without_it_fails_at_prepare_with_the_harness_message]
   - rule: Cancellation and session closure refuse waiting requests before stopping the adapter; project events carry the durable change.
     tested_by: [cancelling_while_asked_ends_refused_and_publishes, closing_the_session_while_asked_ends_refused, permissions_changed_reaches_the_aylul_project_stream, waiting_is_listed_oldest_first_across_agents]
   - rule: A failed durable answer leaves the request waiting; shutdown refuses requests before stopping their adapters.
@@ -648,7 +671,7 @@ obligations:
       one stays refused. Stop settles one Cancelled ending while a tool call
       is pending, and refused permission requests write nothing.
     tested_by: [codex_uses_shadows_mcp, codex_resume_rotates_the_grant,
-      codex_failed_setup_revokes_the_grant, codex_refuses_forbidden_authority,
+      codex_failed_setup_revokes_the_grant, codex_approval_waits_for_the_person,
       codex_stop_during_a_tool_call]
   - rule: >
       Configured Codex runs the existing choice, remembering, busy and mode
@@ -840,10 +863,12 @@ obligations:
 
   - rule: >
       Opening is idempotent: an open session answers the choices it holds,
-      on one adapter, and starts in the remembered allowed mode or the policy default.
+      on one adapter, and starts in the remembered allowed mode or the policy default
+      (`auto` for a Claude Code Planner; a project that does not allow it opens on its
+      first allowed mode).
     tested_by:
       - opening_a_session_answers_the_harness_choices_after_the_policy
-      - opening_twice_reuses_one_adapter_and_starts_in_accept_edits
+      - opening_twice_reuses_one_adapter_and_starts_in_auto
 
   - rule: >
       An opening that cannot finish leaves no adapter: a missing project
@@ -985,13 +1010,14 @@ tests:
   - name: the_harness_list_carries_the_policy_modes
     checks: >
       tests/list.rs: claude-code and aylul list acceptEdits then auto with
-      initial acceptEdits and unattended auto; unconfigured codex lists
+      unattended auto, claude-code initial auto and aylul initial acceptEdits; unconfigured
+      codex lists
       read-only, initial read-only, no unattended mode, unavailable with
       a reason naming --codex.
   - name: idle_choices_report_the_adapters_mode
     checks: Idle choices expose an adapter mode change without overwriting the saved pick.
-  - name: picking_auto_without_sending_survives_reopen_and_core_restart
-    checks: Saving Auto sends no turn and survives adapter replacement and a Core restart.
+  - name: picking_a_mode_without_sending_survives_reopen_and_core_restart
+    checks: Saving Accept edits sends no turn and survives adapter replacement and a Core restart.
   - name: disallowed_mode_is_refused_before_any_write
     checks: Policy refusal creates no preference, command, or live adapter.
   - name: disallowed_remembered_mode_falls_back_on_open
@@ -1134,9 +1160,9 @@ tests:
   - name: opening_a_session_answers_the_harness_choices_after_the_policy
     checks: >
       POST session lists the fake's models, efforts and policy modes in
-      acceptEdits; a second POST answers the same; one session live.
-  - name: opening_twice_reuses_one_adapter_and_starts_in_accept_edits
-    checks: Two opens share one session id and one adapter, in acceptEdits, "new".
+      auto; a second POST answers the same; one session live.
+  - name: opening_twice_reuses_one_adapter_and_starts_in_auto
+    checks: Two opens share one session id and one adapter, in auto, "new".
   - name: a_project_without_its_directory_does_not_start_an_adapter
     checks: A removed directory is OpenError::Workspace "missing" and no adapter.
   - name: a_harness_slower_than_setup_wait_fails_and_leaves_no_adapter

@@ -2,7 +2,7 @@
 mod error;
 mod store;
 
-use core_code::Code;
+use codebase::Codebase;
 use core_db::{CommandContext, Storage};
 use core_projects::{Project, ProjectId, Projects};
 pub use error::ProjectLifecycleError;
@@ -13,11 +13,11 @@ use store::ProjectLifecycleStore;
 pub struct ProjectLifecycle {
     store: ProjectLifecycleStore,
     projects: Projects,
-    code: Code,
+    code: Codebase,
 }
 
 impl ProjectLifecycle {
-    pub fn new(storage: Arc<Storage>, projects: Projects, code: Code) -> Self {
+    pub fn new(storage: Arc<Storage>, projects: Projects, code: Codebase) -> Self {
         Self {
             store: ProjectLifecycleStore::with_storage(storage),
             projects,
@@ -25,7 +25,7 @@ impl ProjectLifecycle {
         }
     }
 
-    /// A successful creation, including a replay, makes the project active in the index.
+    /// Registers the project; only a sent message makes it active in the index.
     pub async fn create(
         &self,
         command_id: String,
@@ -37,7 +37,6 @@ impl ProjectLifecycle {
             .projects
             .create(command_id, slug, name, directory)
             .await?;
-        self.code.touch(&project.id).await;
         Ok(project)
     }
 

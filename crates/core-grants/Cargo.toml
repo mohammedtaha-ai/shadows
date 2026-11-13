@@ -29,7 +29,7 @@ test-support = ["core-db/test-support"]
 
 [dev-dependencies]
 core-grants = { path = ".", features = ["test-support"] }
-core-code = { path = "../core-code" }
+codebase = { path = "../codebase" }
 shadows-agent = { path = "../shadows-agent" }
 tempfile = { workspace = true }
 tokio = { workspace = true }

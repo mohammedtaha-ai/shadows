@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use shadows_core::testing::{self, LiveHandles, Storage, acp};
-use shadows_core::{AppCore, Code, CoreError, CoreParts, ErrorCode};
+use shadows_core::{AppCore, Codebase, CoreError, CoreParts, ErrorCode};
 
 struct World {
     core: Arc<AppCore>,
@@ -52,15 +52,15 @@ async fn link_writes_rollback_with_the_callers_transaction() {
                 .id,
         );
     }
-    let code = core.code();
+    let code = core.codebase();
     let storage = &w.storage;
     let [home, linked] = [ids[0].clone(), ids[1].clone()];
     let (source, target) = (home.clone(), linked.clone());
     let result: Result<(), core_db::StorageError> = storage
         .write_txn(move |conn| {
             Box::pin(async move {
-                assert!(Code::put_link_in(conn, &source, &target, "test").await?);
-                assert!(!Code::put_link_in(conn, &source, &target, "test").await?);
+                assert!(Codebase::put_link_in(conn, &source, &target, "test").await?);
+                assert!(!Codebase::put_link_in(conn, &source, &target, "test").await?);
                 Err(core_db::StorageError::NotFound("force rollback"))
             })
         })
@@ -74,15 +74,15 @@ async fn link_writes_rollback_with_the_callers_transaction() {
     let result: Result<(), core_db::StorageError> = storage
         .write_txn(move |conn| {
             Box::pin(async move {
-                assert!(Code::remove_link_in(conn, &home, &linked).await?);
-                assert!(!Code::remove_link_in(conn, &home, &linked).await?);
+                assert!(Codebase::remove_link_in(conn, &home, &linked).await?);
+                assert!(!Codebase::remove_link_in(conn, &home, &linked).await?);
                 Err(core_db::StorageError::NotFound("force rollback"))
             })
         })
         .await;
     assert!(result.is_err());
     assert_eq!(code.links(&ids[0]).await.unwrap().len(), 1);
-    core.code().shut_down().await;
+    core.codebase().shut_down().await;
 
     w.core
         .shut_down(std::time::Duration::from_secs(5), std::future::pending())
@@ -110,7 +110,7 @@ async fn link_reads_keep_the_callers_snapshot_and_replay_removed_projects() {
         )
         .await
         .unwrap();
-    let code = core.code();
+    let code = core.codebase();
     let first = core
         .plans()
         .link_projects("link".into(), &home.id, &linked.id)
@@ -119,7 +119,7 @@ async fn link_reads_keep_the_callers_snapshot_and_replay_removed_projects() {
     let storage = &w.storage;
     let mut snapshot = storage.reader().begin().await.unwrap();
     assert!(
-        Code::project_reachable_in(&mut snapshot, &home.id, &linked.id)
+        Codebase::project_reachable_in(&mut snapshot, &home.id, &linked.id)
             .await
             .unwrap()
     );
@@ -128,7 +128,7 @@ async fn link_reads_keep_the_callers_snapshot_and_replay_removed_projects() {
         .await
         .unwrap();
     assert_eq!(
-        Code::selected_project_in(&mut snapshot, &home.id, Some("linked"))
+        Codebase::selected_project_in(&mut snapshot, &home.id, Some("linked"))
             .await
             .unwrap(),
         linked.id,
@@ -137,12 +137,12 @@ async fn link_reads_keep_the_callers_snapshot_and_replay_removed_projects() {
     snapshot.commit().await.unwrap();
     let mut snapshot = storage.reader().begin().await.unwrap();
     assert!(
-        !Code::project_reachable_in(&mut snapshot, &home.id, &linked.id)
+        !Codebase::project_reachable_in(&mut snapshot, &home.id, &linked.id)
             .await
             .unwrap()
     );
     assert!(matches!(
-        Code::selected_project_in(&mut snapshot, &home.id, Some("linked"))
+        Codebase::selected_project_in(&mut snapshot, &home.id, Some("linked"))
             .await
             .map_err(CoreError::from),
         Err(CoreError::Refused {
@@ -160,7 +160,7 @@ async fn link_reads_keep_the_callers_snapshot_and_replay_removed_projects() {
     assert_eq!(replay.linked, first.linked);
     assert_eq!(replay.created_at, first.created_at);
     assert!(code.links(&home.id).await.unwrap().is_empty());
-    core.code().shut_down().await;
+    core.codebase().shut_down().await;
 
     w.core
         .shut_down(std::time::Duration::from_secs(5), std::future::pending())

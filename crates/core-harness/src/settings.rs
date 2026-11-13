@@ -47,6 +47,27 @@ impl Sessions {
             .map_err(refused)
     }
 
+    /// Sets the conversation's mode on an idle or opening session. A mode the
+    /// harness refuses for the model the session holds (Claude Code's `auto` on a
+    /// model without it) leaves the adapter's own mode, as a refused remembered
+    /// model or effort does; a turn that asks for it is still refused at prepare.
+    pub(super) async fn settle_mode(
+        &self,
+        thread: &ThreadId,
+        opened: &OpenSession,
+        offered: Offered,
+        mode: &str,
+    ) -> Result<Offered, SettingRefused> {
+        let current = offered.clone();
+        match self.set_mode(thread, opened, offered, mode).await {
+            Err(SettingRefused::Harness(message)) => {
+                tracing::info!(mode, %message, "sessions.mode_refused: kept the adapter's");
+                Ok(current)
+            }
+            other => other,
+        }
+    }
+
     /// Sets one of the session's options. The harness answers the complete
     /// set, which becomes the thread's latest offer and is published.
     pub async fn set_option(
@@ -216,7 +237,7 @@ impl Sessions {
         offered = self
             .remembered_effort(thread, opened, offered, effort)
             .await?;
-        self.set_mode(thread, opened, offered, mode)
+        self.settle_mode(thread, opened, offered, mode)
             .await
             .map_err(|error| ConnectionError::Rpc(error.to_string()))?;
         Ok(())

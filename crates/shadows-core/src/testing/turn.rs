@@ -119,6 +119,7 @@ pub async fn start_direct(
             client_tab: None,
             events,
             on_completed: None,
+            hold: None,
         },
         bus.clone(),
     )

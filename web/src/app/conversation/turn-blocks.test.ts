@@ -34,7 +34,7 @@ describe('turnBlocks', () => {
     const blocks = turnBlocks(rows, null, entries)
     expect(shape(blocks)).toEqual(['turn(3)', 'a2'])
     const box = blocks[0]
-    expect(box?.kind === 'turn' && box.summary).toEqual({ notices: [null], tools: 2 })
+    expect(box?.kind === 'turn' && box.summary).toEqual({ notices: [{ card: null, sender: 'Executor' }], tools: 2 })
   })
 
   it('the_planner_text_between_tools_stays_outside_and_splits_the_box', () => {
@@ -49,7 +49,7 @@ describe('turnBlocks', () => {
     const blocks = turnBlocks(rows, null, entries)
     expect(shape(blocks)).toEqual(['turn(2)', 'a1', 'turn(2)', 'a2'])
     const [first, , second] = blocks
-    expect(first?.kind === 'turn' && first.summary).toEqual({ notices: [null], tools: 1 })
+    expect(first?.kind === 'turn' && first.summary).toEqual({ notices: [{ card: null, sender: 'Executor' }], tools: 1 })
     expect(second?.kind === 'turn' && second.summary).toEqual({ notices: [], tools: 2 })
     expect(first?.kind === 'turn' && second?.kind === 'turn' && first.key !== second.key).toBe(true)
   })

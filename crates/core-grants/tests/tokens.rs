@@ -26,8 +26,7 @@ async fn world() -> World {
         .await
         .unwrap()
         .id;
-    let code = core_code::Code::new(storage.clone(), projects.clone());
-    let threads = Threads::new(storage.clone(), code, projects);
+    let threads = Threads::new(storage.clone(), projects);
     let thread = threads
         .create("thread".into(), &project, "Chat", None, None)
         .await

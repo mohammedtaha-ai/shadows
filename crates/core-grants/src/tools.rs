@@ -1,7 +1,7 @@
 //! The tools each grant kind permits.
 use super::{GrantKind, Grants};
 /// Only the Planner may show a plan in a person's conversation.
-const THREAD_TOOLS: [&str; 29] = [
+const THREAD_TOOLS: [&str; 32] = [
     "vision_approve",
     "map_approve",
     "roadmap_approve",
@@ -24,6 +24,7 @@ const THREAD_TOOLS: [&str; 29] = [
     "workspace_get",
     "project_files",
     "project_refresh",
+    "code_lsp",
     "project_git_init",
     "task_start",
     "task_done",
@@ -31,10 +32,12 @@ const THREAD_TOOLS: [&str; 29] = [
     "task_lessons",
     "task_diff",
     "task_file",
+    "person_ask",
+    "project_change_note",
 ];
 
 /// External agents can edit project plans and read reachable project code.
-const PROJECT_TOOLS: [&str; 16] = [
+const PROJECT_TOOLS: [&str; 14] = [
     "agreement_list",
     "agreement_get",
     "agreement_start",
@@ -47,21 +50,13 @@ const PROJECT_TOOLS: [&str; 16] = [
     "draft_prepare",
     "draft_start",
     "plan_edit",
-    "where_is",
-    "who_uses",
-    "outline",
+    "code_lsp",
     "workspace_get",
 ];
 
 /// An executor reads its task and the code it needs, and reports the commit
 /// it made.
-const EXECUTOR_TOOLS: [&str; 5] = [
-    "task_context",
-    "where_is",
-    "who_uses",
-    "outline",
-    "task_report",
-];
+const EXECUTOR_TOOLS: [&str; 3] = ["task_context", "code_lsp", "task_report"];
 
 impl Grants {
     pub fn tools_for(kind: GrantKind) -> &'static [&'static str] {

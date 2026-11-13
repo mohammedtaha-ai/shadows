@@ -1,4 +1,5 @@
-//! One job: the routes that change a planning thread itself — its harness, or a fork of it.
+//! One job: the routes that change a planning thread itself — its harness, a fork of it,
+//! or the person's answer to a question asked in it.
 
 use axum::Json;
 use axum::extract::{Path, Query, State};
@@ -6,7 +7,7 @@ use axum::http::StatusCode;
 
 use super::failure::ErrorBody;
 use super::{AppState, Failure};
-use shadows_core::{PlanningThread, ThreadEntryId, ThreadId};
+use shadows_core::{PlanningThread, QuestionId, Queued, ThreadEntryId, ThreadId};
 
 /// The idempotency key for conversation deletion.
 #[derive(serde::Deserialize, utoipa::IntoParams)]
@@ -149,4 +150,48 @@ pub(super) async fn fork_thread(
         .fork_thread(body.command_id, &thread, &body.at_entry_id)
         .await?;
     Ok((StatusCode::CREATED, Json(fork)))
+}
+
+#[derive(serde::Deserialize, utoipa::ToSchema)]
+pub(super) struct AnswerBody {
+    /// The idempotency key.
+    command_id: String,
+    /// The chosen option, by its index in the question's card.
+    option: usize,
+}
+
+/// The person's click on a question's option: their message to the Planner,
+/// sent at once on an idle thread, waiting while a turn runs.
+#[utoipa::path(
+    post, path = "/api/threads/{id}/questions/{question}/answer", tag = "turns",
+    params(
+        ("id" = ThreadId, Path, description = "The thread"),
+        ("question" = QuestionId, Path, description = "The question"),
+    ),
+    request_body = AnswerBody,
+    responses(
+        (status = 202, body = Queued),
+        (status = 404, description = "no such thread or question", body = ErrorBody),
+        (status = 409, description = "COMMAND_CONFLICT: already answered", body = ErrorBody),
+        (status = 422, description = "INVALID_COMMAND: no such option, or the question was \
+                                      asked in another conversation", body = ErrorBody),
+        (status = 500, description = "STORAGE_UNAVAILABLE", body = ErrorBody),
+        (status = 502, description = "HARNESS_START_FAILED", body = ErrorBody),
+        (status = 503, description = "RUNTIME_STOPPING", body = ErrorBody),
+    )
+)]
+pub(super) async fn answer_question(
+    State(s): State<AppState>,
+    Path((thread, question)): Path<(ThreadId, QuestionId)>,
+    Json(body): Json<AnswerBody>,
+) -> Result<(StatusCode, Json<Queued>), Failure> {
+    let core = s.core.clone();
+    let answer = super::transport::Transport::detached(async move {
+        core.turns()
+            .answer(body.command_id, &thread, &question, body.option)
+            .await
+            .map_err(Failure::from)
+    })
+    .await?;
+    Ok((StatusCode::ACCEPTED, Json(answer)))
 }

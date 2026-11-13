@@ -198,8 +198,8 @@ impl From<shadows_core::StandardsError> for Failure {
     }
 }
 
-impl From<shadows_core::CodeError> for Failure {
-    fn from(error: shadows_core::CodeError) -> Self {
+impl From<shadows_core::CodebaseError> for Failure {
+    fn from(error: shadows_core::CodebaseError) -> Self {
         CoreError::from(error).into()
     }
 }

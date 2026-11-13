@@ -8,15 +8,17 @@ import { type Plan, type PlanTask } from '@/api/workflows'
 import { attachmentUrl, type ThreadEntry } from '@/api/threads'
 import { readTodoList } from '@/stream'
 import { type HarnessPolicy, modeLabel } from '@/api/harnesses'
+import { ImageZoom } from './image-zoom'
 import { PlanCard } from './plan-card'
 import { SubagentCardView } from './subagent-card'
 import { VisionProposalCard } from './vision-proposal-card'
 import { MapProposalCard } from './map-proposal-card'
 import { RoadmapProposalCard } from './roadmap-proposal-card'
 import { TodoCard } from './todo-card'
-import { NoticeItem } from './notice-item'
+import { NoticeItem, ProjectChangeLine } from './notice-item'
 import { noticeOf, subagentOf } from './tool-text'
 import { PermissionCard } from './permission-card'
+import { PersonQuestionCard } from './person-question-card'
 
 // Streamdown and its code highlighting are most of this app's weight, so they
 // are a chunk of their own, and not in the one every screen waits for. The
@@ -62,7 +64,7 @@ export function Entry({
 }) {
   if (entry.kind === 'UserMessage') {
     const notice = noticeOf(entry)
-    if (notice !== null) return <NoticeItem body={entry.body} card={notice.card} />
+    if (notice !== null) return <NoticeItem body={entry.body} card={notice.card} sender={notice.sender} />
     return (
       <div className="flex justify-end">
         <div
@@ -71,19 +73,13 @@ export function Entry({
         >
           {entry.attachments.length > 0 && <div className="mb-2 flex flex-wrap gap-2">
             {entry.attachments.map(image => (
-              <a
+              <ImageZoom
                 key={image.id}
-                href={attachmentUrl(entry.thread_id, image.id)}
-                target="_blank"
-                rel="noreferrer"
-              >
-                <img
-                  src={attachmentUrl(entry.thread_id, image.id)}
-                  alt={image.name ?? 'Attached image'}
-                  loading="lazy"
-                  className="max-h-48 max-w-64 rounded-lg border border-accent-line/25 object-contain"
-                />
-              </a>
+                src={attachmentUrl(entry.thread_id, image.id)}
+                alt={image.name ?? 'Attached image'}
+                loading="lazy"
+                className="max-h-48 max-w-64 rounded-lg border border-accent-line/25 object-contain"
+              />
             ))}
           </div>}
           <p>{entry.body}</p>
@@ -92,6 +88,8 @@ export function Entry({
     )
   }
   if (entry.kind === 'AgentMessage') return <ReplyText text={entry.body} />
+  if (entry.kind === 'PersonQuestion') return <PersonQuestionCard entry={entry} />
+  if (entry.kind === 'ProjectChange') return <ProjectChangeLine entry={entry} />
   if (entry.kind === 'PermissionAsked') {
     return <PermissionCard entry={entry} projectId={projectId} />
   }

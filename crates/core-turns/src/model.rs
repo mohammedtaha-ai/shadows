@@ -33,12 +33,13 @@ pub struct QueuedMessage {
     pub notice: Option<Notice>,
 }
 
-/// A message an executor's attempt sends the Planner through Shadows: the
-/// turn it starts is recorded in the executor's name, with its card.
+/// A message sent to the Planner in another's name: an executor's attempt's,
+/// or Shadows' own. The turn it starts is recorded in that name, with its card.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
 pub struct Notice {
-    /// The executor's thread, its identity.
-    pub executor: ThreadId,
+    /// The executor's thread, its identity; `null` when Shadows sends it.
+    #[schema(required)]
+    pub executor: Option<ThreadId>,
     /// The facts the conversation draws, as the sender shaped them.
     #[schema(value_type = Object)]
     pub card: serde_json::Value,
@@ -47,9 +48,15 @@ pub struct Notice {
 impl Notice {
     /// The author of the entries and the principal of the commands it makes.
     pub(crate) fn actor(&self) -> core_db::Actor {
-        core_db::Actor {
-            kind: "Executor".into(),
-            id: self.executor.as_str().to_string(),
+        match &self.executor {
+            Some(executor) => core_db::Actor {
+                kind: "Executor".into(),
+                id: executor.as_str().to_string(),
+            },
+            None => core_db::Actor {
+                kind: "Shadows".into(),
+                id: "shadows".into(),
+            },
         }
     }
 }
@@ -147,4 +154,21 @@ pub struct LiveActivity {
     pub op: OperationId,
     pub tools: Vec<shadows_agent::events::ToolLive>,
     pub todos: Option<Vec<shadows_agent::events::TodoItem>>,
+}
+
+newtype_id! {
+    /// A question the Planner asked the person with `person_ask`.
+    QuestionId
+}
+
+/// One option of a question: the text of the button the person clicks.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+pub struct QuestionOption {
+    pub label: String,
+}
+
+/// What `person_ask` answers the Planner.
+#[derive(Debug, Clone, serde::Serialize, utoipa::ToSchema)]
+pub struct Asked {
+    pub question_id: QuestionId,
 }

@@ -127,7 +127,13 @@ impl Runs {
         {
             tracing::warn!(attempt = %attempt.id, %error, "runs.late_stop_failed");
         }
-        self.watch(attempt.id.clone(), attempt.thread_id.clone(), operation);
+        let hold = self.inner.code.hold(&attempt.project_id).await;
+        self.watch(
+            attempt.id.clone(),
+            attempt.thread_id.clone(),
+            operation,
+            hold,
+        );
         self.inner.store.get(&attempt.id).await
     }
 

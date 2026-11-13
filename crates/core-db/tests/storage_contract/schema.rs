@@ -50,7 +50,8 @@ async fn fresh_database_migrates_and_applies_the_connection_policy() {
             "code_file",
             "code_inventory",
             "code_inventory_scan",
-            "code_setting",
+            "code_server_added",
+            "code_server_off",
             "code_tag",
             "command_record",
             "context_forget",
@@ -82,6 +83,7 @@ async fn fresh_database_migrates_and_applies_the_connection_policy() {
             "message_group",
             "message_group_member",
             "operation",
+            "person_question",
             "plan",
             "planner_instructions_version",
             "planning_thread",
@@ -115,7 +117,9 @@ async fn fresh_database_migrates_and_applies_the_connection_policy() {
          0036 the remembered conversation mode, \
          0039 the MCP library, its per-agent switches and declined bundled names, \
          0040 the per-agent MCP tool rules, 0042 agent groups and their delivery journal, \
-         0054 the project's file inventory, 0056 the lessons record)"
+         0054 the project's file inventory, 0056 the lessons record, \
+         0058 the language servers turned off and added, \
+         0060 the person's questions)"
     );
 
     storage.close().await.unwrap();

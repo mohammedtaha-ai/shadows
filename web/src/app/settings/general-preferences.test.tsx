@@ -187,3 +187,8 @@ it.each([0, 1])('both forms save from the same snapshot with patch %s applied fi
     await act(async () => root.unmount()); client.clear(); host.remove()
   }
 })
+it('general_has_no_active_projects', async () => {
+  await open()
+  expect(document.querySelector('[aria-label="Active projects"]')).toBeNull()
+  expect(app?.text()).not.toContain('Active projects')
+})

@@ -263,20 +263,23 @@ async fn acknowledged(mut phase: watch::Receiver<Phase>) -> Option<String> {
 impl Connection {
     pub fn prompt_capabilities(&self) -> PromptCapabilities {
         PromptCapabilities {
-            image: false,
-            image_reason: Some("Codex does not support image prompts in Shadows".into()),
+            image: true,
+            image_reason: None,
         }
     }
 
     fn input(blocks: &[PromptBlock]) -> Result<Vec<Value>, ConnectionError> {
+        use base64::Engine as _;
         blocks
             .iter()
             .map(|block| match block {
                 PromptBlock::Text(text) => {
                     Ok(json!({"type":"text","text":text,"text_elements":[]}))
                 }
-                PromptBlock::Image(_) => {
-                    Err(ConnectionError::Rpc("Codex images are unavailable".into()))
+                PromptBlock::Image(image) => {
+                    let data = base64::engine::general_purpose::STANDARD.encode(&image.bytes);
+                    let url = format!("data:{};base64,{data}", image.media_type);
+                    Ok(json!({"type":"image","url":url}))
                 }
             })
             .collect()
@@ -290,14 +293,27 @@ impl Connection {
         let settings = self.settings(thread)?;
         let input = Self::input(blocks)?;
         let (_lease, end) = self.prompts.begin(thread, &settings.model)?;
-        let started: Value = self.rpc.request("turn/start", json!({
+        let policy = super::session::Policy::of(&settings.mode)
+            .ok_or(ConnectionError::Protocol("unknown Codex mode"))?;
+        let mut params = json!({
             "threadId":thread, "input":input, "model":settings.model, "effort":settings.effort
-        })).await?;
+        });
+        if let (Value::Object(params), Value::Object(mode)) = (&mut params, policy.turn_params()) {
+            params.extend(mode);
+        }
+        let started: Value = self.rpc.request("turn/start", params).await?;
         let id = started.pointer("/turn/id").and_then(Value::as_str).ok_or(
             ConnectionError::Protocol("Codex did not acknowledge a turn ID"),
         )?;
         self.prompts.bind(id.into());
-        end.await.map_err(|_| ConnectionError::Closed)?
+        let answer = end.await.map_err(|_| ConnectionError::Closed)?;
+        // A request still held belongs to the turn that ended: it is refused, not left.
+        {
+            let _guard = self.permissions.settlement.lock().await;
+            let reason = if answer.is_err() { "closed" } else { "ended" };
+            self.permissions.refuse_session(thread, reason);
+        }
+        answer
     }
 
     /// Adds the person's message to the running turn, which then answers for
