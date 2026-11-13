@@ -151,6 +151,7 @@ impl PlannerTurn {
         let turn_end_seen = Arc::new(AtomicBool::new(false));
         let cancel_requested = Arc::new(AtomicBool::new(false));
         let (steer, steers) = mpsc::unbounded_channel();
+        let noted = super::handles::Noted::default();
         if let Err(_turn) = handles
             .register(
                 op_id.clone(),
@@ -163,6 +164,7 @@ impl PlannerTurn {
                     steer,
                     span: span.clone(),
                     activity: activity.clone(),
+                    noted: noted.clone(),
                 },
             )
             .await
@@ -249,7 +251,8 @@ impl PlannerTurn {
                 turn_end_seen,
                 cancel_requested,
                 on_completed,
-                _hold: hold,
+                hold,
+                noted,
                 span,
             },
             events,

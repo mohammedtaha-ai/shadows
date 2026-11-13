@@ -162,6 +162,7 @@ shapes:
     MapProposal: unit # Immutable map snapshot; current status belongs to Design.
     RoadmapProposal: unit # Immutable roadmap snapshot; current status belongs to Design.
     PersonQuestion: "{ question_id, question, options, chosen } card; chosen is rewritten once, by Turns"
+    ProjectChange: "{ paths, reason, noted } card; Turns writes it for a note (noted, author Agent/Planner) or an unnoted change at a turn's end (reason null, author Shadows/shadows)"
   CreatedTitle:
     # Private: who named a thread at create, its first `title_source`.
     # `Client` (create_thread) is replaced by the first message and the

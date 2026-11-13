@@ -276,11 +276,17 @@ impl Peer {
             }
         }
         let thread = self.thread.clone();
+        // What it was asked for, as Codex answers it.
+        let sandbox = match params["sandbox"].as_str() {
+            Some("workspace-write") => "workspaceWrite",
+            _ => "readOnly",
+        };
         self.result(
             id,
             json!({
-                "thread": {"id": thread}, "sandbox": {"type":"readOnly"},
-                "approvalPolicy": "never", "model": "fixture-model", "reasoningEffort": null
+                "thread": {"id": thread}, "sandbox": {"type": sandbox},
+                "approvalPolicy": params["approvalPolicy"], "model": "fixture-model",
+                "reasoningEffort": null
             }),
         )
     }

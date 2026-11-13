@@ -300,7 +300,14 @@ impl Connection {
             ConnectionError::Protocol("Codex did not acknowledge a turn ID"),
         )?;
         self.prompts.bind(id.into());
-        end.await.map_err(|_| ConnectionError::Closed)?
+        let answer = end.await.map_err(|_| ConnectionError::Closed)?;
+        // A request still held belongs to the turn that ended: it is refused, not left.
+        {
+            let _guard = self.permissions.settlement.lock().await;
+            let reason = if answer.is_err() { "closed" } else { "ended" };
+            self.permissions.refuse_session(thread, reason);
+        }
+        answer
     }
 
     /// Adds the person's message to the running turn, which then answers for

@@ -177,6 +177,10 @@ pub enum ThreadEntryKind {
     /// A question the Planner asked the person; card is `{ question_id, question,
     /// options, chosen }`, `chosen` null until the person picks an option.
     PersonQuestion,
+    /// Project files the Planner changed in a turn; card is `{ paths, reason,
+    /// noted }`: `noted` when it said why with `project_change_note`, else
+    /// recorded by Shadows at the turn's end with `reason` null.
+    ProjectChange,
 }
 
 impl ThreadEntryKind {
@@ -197,6 +201,7 @@ impl ThreadEntryKind {
             Self::MapProposal => "MapProposal",
             Self::RoadmapProposal => "RoadmapProposal",
             Self::PersonQuestion => "PersonQuestion",
+            Self::ProjectChange => "ProjectChange",
         }
     }
 
@@ -217,6 +222,7 @@ impl ThreadEntryKind {
             Self::MapProposal,
             Self::RoadmapProposal,
             Self::PersonQuestion,
+            Self::ProjectChange,
         ]
         .into_iter()
         .find(|kind| kind.as_str() == s)

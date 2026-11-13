@@ -1,3 +1,4 @@
+mod changes;
 mod images;
 mod operation;
 mod operation_read;

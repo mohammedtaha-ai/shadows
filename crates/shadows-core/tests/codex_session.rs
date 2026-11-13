@@ -316,9 +316,29 @@ async fn codex_failed_setup_revokes_the_grant() {
 }
 
 #[tokio::test]
-async fn codex_refuses_forbidden_authority() {
+async fn codex_approval_waits_for_the_person() {
     let w = World::start(false).await;
     let operation = w.start_turn("refusal", "approval").await;
+    let mut waiting = Vec::new();
+    for _ in 0..200 {
+        waiting = w.core.harness().waiting_permissions().await;
+        if !waiting.is_empty() {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(25)).await;
+    }
+    let [held] = waiting.as_slice() else {
+        panic!("one held request: {waiting:?}");
+    };
+    assert_eq!(held.thread_id, w.thread);
+    assert_eq!(held.agent, "Planner");
+    let options: Vec<&str> = held.options.iter().map(|o| o.option_id.as_str()).collect();
+    assert_eq!(options, ["accept", "decline"]);
+    w.core
+        .harness()
+        .answer_permission("no".into(), &w.thread, &held.request_id, "decline")
+        .await
+        .unwrap();
     assert_eq!(w.done(&operation).await.status_kind, "Completed");
     let entries = w.core.threads().entries(&w.thread).await.unwrap();
     assert!(entries.iter().any(|entry| entry.body == "refused"));

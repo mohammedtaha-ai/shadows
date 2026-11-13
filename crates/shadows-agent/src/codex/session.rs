@@ -5,6 +5,11 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 
 use super::{Connection, GRANT_ENV, MODE, planner_server};
+
+/// The Planner's shell writes inside the project, and Codex asks the person
+/// (through Shadows' held request) when it judges a command needs it.
+const SANDBOX: &str = "workspace-write";
+const APPROVAL: &str = "on-request";
 use crate::TurnSettings;
 use crate::choices::{Choice, Offered, OptionIds};
 use crate::connection::{ConnectionError, Opened, SessionSetup, SessionStart};
@@ -134,8 +139,8 @@ impl Connection {
             .collect();
         let mut params = json!({
             "cwd": cwd,
-            "sandbox": MODE,
-            "approvalPolicy": "never",
+            "sandbox": SANDBOX,
+            "approvalPolicy": APPROVAL,
             "developerInstructions": setup.append,
             "config": {
                 "mcp_servers.shadows": {
@@ -189,8 +194,8 @@ impl Connection {
                 prompts.first_limits(&limits["rateLimits"]);
             }
         });
-        if opened.pointer("/sandbox/type").and_then(Value::as_str) != Some("readOnly")
-            || opened["approvalPolicy"].as_str() != Some("never")
+        if opened.pointer("/sandbox/type").and_then(Value::as_str) != Some("workspaceWrite")
+            || opened["approvalPolicy"].as_str() != Some(APPROVAL)
         {
             return Err(ConnectionError::Protocol(
                 "Codex did not accept the Planner sandbox policy",

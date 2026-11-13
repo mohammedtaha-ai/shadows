@@ -359,16 +359,45 @@ async fn a_refused_stop_reason_fails_the_turn_naming_it() {
 }
 
 #[tokio::test]
-async fn a_permission_request_is_refused_and_recorded() {
+async fn a_planner_permission_request_waits_for_the_person() {
     let app = test_app().await;
-    wait_terminal(&app, &start_prompt(&app, "ask-permission").await).await;
-    let refused: Vec<_> = entries(&app)
+    let op = start_prompt(&app, "ask-permission").await;
+    let mut waiting = Vec::new();
+    for _ in 0..200 {
+        waiting = app.sessions.waiting_permissions().await;
+        if !waiting.is_empty() {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(25)).await;
+    }
+    let [held] = waiting.as_slice() else {
+        panic!("one held request: {waiting:?}");
+    };
+    assert_eq!(held.agent, "Planner");
+    assert_eq!(held.title, "Run echo probe");
+    app.sessions
+        .answer_permission(
+            "reject".into(),
+            &app.thread,
+            &held.request_id,
+            "reject_once",
+        )
         .await
-        .into_iter()
-        .filter(|e| e.kind == ThreadEntryKind::PermissionRefused)
-        .collect();
-    assert_eq!(refused.len(), 1);
-    assert_eq!(refused[0].body, "Run echo probe");
+        .unwrap();
+    wait_terminal(&app, &op).await;
+    let kinds: Vec<_> = entries(&app).await.into_iter().map(|e| e.kind).collect();
+    assert!(
+        kinds.contains(&ThreadEntryKind::PermissionAsked),
+        "{kinds:?}"
+    );
+    assert!(
+        kinds.contains(&ThreadEntryKind::PermissionAnswered),
+        "{kinds:?}"
+    );
+    assert!(
+        !kinds.contains(&ThreadEntryKind::PermissionRefused),
+        "{kinds:?}"
+    );
 
     app.sessions.close_all().await.unwrap();
     app.runtime.storage_for_test().close().await.unwrap();

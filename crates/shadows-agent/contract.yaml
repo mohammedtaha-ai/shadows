@@ -10,7 +10,7 @@ modules:
   acp/connection.rs: Transport initialization and ordered inbound dispatch.
   acp/session.rs: Session opening and configuration requests.
   acp/prompt.rs: Prompt, steering and cancellation requests.
-  acp/permissions.rs: Settlement of held ACP permission requests.
+  acp/permissions.rs: Settlement of held permission requests.
   acp/mapping.rs: Translation of session updates to HarnessEvent.
   codex.rs: The configured Codex executable, its process-local Planner launch policy and handshake.
   codex/connection.rs: Ordered JSONL dispatch for one app-server child.
@@ -33,8 +33,8 @@ functions:
   ManagedConnection: >
     A finite ACP or Codex enum with the same session, prompt, option, cancel,
     steering, task and permission operations. Errors are ConnectionError;
-    Codex answers task stop with an Rpc refusal and holds no permission
-    requests.
+    Codex answers task stop with an Rpc refusal. Both hold permission requests
+    the same way (acp::Permissions), each answered back in its own protocol.
   policy::EXECUTOR_MODE: >
     `auto`, the one mode an executor thread runs in: nothing is asked or
     refused while it works, and Runs' check on its reported commit is its write
@@ -48,8 +48,9 @@ functions:
   codex::Connection::open: Initializes app-server and refuses a CLI other than 0.167.0.
   codex::Connection::start_session: >
     Refuses a dedicated home with MCP configuration or without a ChatGPT
-    sign-in, opens or resumes the thread in read-only with approvalPolicy
-    never and the one required Shadows server, then refuses any inventory
+    sign-in, opens or resumes the thread with sandbox workspace-write and
+    approvalPolicy on-request (refused unless Codex answers workspaceWrite and
+    on-request) and the one required Shadows server, then refuses any inventory
     beyond the permitted tools. A thread opened without an effort reports its
     model's catalog default, which Codex applies.
   codex::Connection::prompt_blocks: >
@@ -93,8 +94,12 @@ obligations:
       acknowledgment or another turn's terminal event does not settle it.
     tested_by: [codex_interrupt_waits_for_the_matching_terminal_event,
       codex_cannot_finish_a_replacement_generation]
-  - rule: Codex approval requests are declined at once and reported as refusals.
-    tested_by: [codex_server_requests_do_not_deadlock]
+  - rule: >
+      A Codex command or file-change approval is held with Allow (accept,
+      allow_once) and Decline (decline, reject_once) until the person answers;
+      the answer goes back as its decision, a refusal or the turn's end as
+      decline. A permissions approval is still answered empty at once.
+    tested_by: [codex_approvals_wait_for_the_person, codex_approval_waits_for_the_person]
   - rule: The Codex grant reaches only the child environment, under the isolation settings.
     tested_by: [the_codex_grant_reaches_only_the_child_environment]
   - rule: >

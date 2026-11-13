@@ -70,6 +70,7 @@ modules:
   steer.rs: steering orchestration
   plan_show.rs: plan card live signal composition
   questions.rs: person question orchestration
+  changes.rs: Planner project change checks
   stage.rs: shared normal/steered stage fact composition
   turn.rs: live completion arbitration
   entries.rs: harness entry collection
@@ -84,6 +85,7 @@ modules:
   store/turn.rs: turn command persistence
   store/queue.rs: queue persistence
   store/questions.rs: person question persistence
+  store/changes.rs: project change persistence
   store/remove.rs: atomic thread removal composition
   store/steer.rs: steer persistence
   store/standards.rs: invocation standards composition
@@ -236,9 +238,10 @@ shapes:
     # The executor's notice this row is (queued_message.notice_json); null for the person's.
     notice: Option<Notice>
   Notice:
-    # A message an executor's attempt sends the Planner through Shadows: its
-    # thread is its identity, the card (an object the sender shapes) is drawn.
-    executor: ThreadId
+    # A message sent to the Planner in another's name: an executor's attempt's
+    # (its thread is its identity) or Shadows' own (executor null, actor
+    # Shadows/shadows); the card (an object the sender shapes) is drawn.
+    executor: Option<ThreadId>
     card: serde_json::Value
   Queued:
     # What queueing answers, tagged "status": Waiting { message } or
@@ -373,6 +376,30 @@ functions:
       # thread is InvalidCommand. One write: a person_question row and a
       # PersonQuestion entry authored Agent/Planner, in the running turn when
       # one runs, whose card is { question_id, question, options, chosen: null }.
+    note_change:
+      signature: "(&self, thread: &ThreadId, paths: Vec<String>, reason: String) -> Result<(), TurnsError>"
+      # project_change_note. Trimmed, the reason is 1 to 2000 characters and
+      # 1 to 100 paths; each is checked as code_lsp's file is
+      # (Codebase::project_file: inside the project, by real path when it is on
+      # disk), InvalidCommand otherwise; an executor thread is InvalidCommand.
+      # One write: a ProjectChange entry authored Agent/Planner, in the running
+      # turn when one runs, card { paths, reason, noted: true }; the running
+      # turn's noted set takes the paths.
+    check_changes:
+      signature: "(store: &TurnsStore, thread: &ThreadId, operation: &OperationId, hold: &ActiveHold, noted: &Noted)"
+      private: true
+      # The end-of-turn check, called by the turn's watcher before it claims
+      # its ending (so a Stop's ending is checked too, and the notice waits
+      # before on_completed sends the next message). ActiveHold::changed less
+      # the noted paths; none is nothing. Else, in one write (record_unnoted),
+      # a ProjectChange entry on the turn authored Shadows/shadows, card
+      # { paths, reason: null, noted: false }, and a waiting notice
+      # (insert_queued_in) with executor null, card { kind: "project_change",
+      # paths }, the turn's requested settings and the text "You changed these
+      # project files in your last turn without project_change_note: <paths>.
+      # Say why with project_change_note." An executor's, AYLUL's or removed
+      # thread writes nothing. At most one notice per turn; the notice's own
+      # turn is checked the same way. A failure is logged.
     answer:
       signature: "(&self, command: String, thread: &ThreadId, question: &QuestionId, option: usize) -> Result<Queued, TurnsError>"
       # "question.answer", params { thread_id, question_id, option }. The click
@@ -587,13 +614,22 @@ functions:
     insert_queued_in:
       signature: "(conn, ctx, thread, id, fields, attachments, notice, ts) -> Result<QueuedMessage, StorageError>"
       # pub(super): the row last in position order, MessageQueued, and the
-      # command recorded with the row as its outcome; queue and answer share it.
+      # command recorded with the row as its outcome; queue, answer and the
+      # end-of-turn notice share it.
     ask_question:
       signature: "(&self, thread: &ThreadId, question: &str, options: &[QuestionOption]) -> Result<QuestionId, TurnsError>"
     answer_question:
       signature: "(&self, ctx: &CommandContext, thread: &ThreadId, question: &QuestionId, option: usize, settings: AnswerSettings) -> Result<(QueuedMessage, bool), TurnsError>"
       # The bool says the thread was idle; a replay answers true so the caller
       # asks for its turn again, which answers the turn already started.
+    thread_project:
+      signature: "(&self, thread: &ThreadId) -> Result<ProjectId, TurnsError>"
+    note_change:
+      signature: "(&self, thread: &ThreadId, paths: &[String], reason: &str) -> Result<(), TurnsError>"
+    record_unnoted:
+      signature: "(&self, thread: &ThreadId, operation: &OperationId, paths: &[String], settings: NoticeSettings) -> Result<bool, TurnsError>"
+      # One write: the ProjectChange entry and the notice through insert_queued_in,
+      # under command "project_change:<operation>" in Shadows' name; true when written.
     queued_messages:
       signature: "(&self, thread: &ThreadId) -> Result<Vec<QueuedMessage>, StorageError>"
       # In `position` order; none for a removed thread.
@@ -659,6 +695,15 @@ called_by_other_services:
 
 
 obligations:
+  - rule: >
+      A Planner turn's project changes are known: a noted change is a
+      ProjectChange entry with its reason; a change the project's watcher saw
+      during the turn and the turn did not note is recorded with no reason and
+      asked about in one Shadows notice; a turn with no change sends nothing.
+    tested_by:
+      - a_noted_change_is_recorded_with_its_reason
+      - an_unnoted_shell_change_is_recorded_and_asked_about
+      - a_turn_with_no_change_sends_nothing
   - rule: An executor's notice waits on a busy Planner with its notice, under the executor's principal, and the person cannot remove it while their own messages stay removable.
     tested_by: [a_notice_waits_on_a_busy_planner_in_the_executors_name]
   - rule: Permission asks and answers become ordered entries; unfinished asks end refused and Planner refusal stays unchanged.

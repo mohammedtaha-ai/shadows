@@ -244,7 +244,7 @@ impl ManagedConnection {
     pub fn held_permissions(&self) -> Vec<WaitingPermission> {
         match self {
             Self::Acp(connection) => connection.held_permissions(),
-            Self::Codex(_) => Vec::new(),
+            Self::Codex(connection) => connection.held_permissions(),
         }
     }
 
@@ -255,13 +255,14 @@ impl ManagedConnection {
     ) -> Result<PreparedPermissionAnswer, PermissionError> {
         match self {
             Self::Acp(connection) => connection.prepare_permission_answer(request, option).await,
-            Self::Codex(_) => Err(PermissionError::Unknown),
+            Self::Codex(connection) => connection.prepare_permission_answer(request, option).await,
         }
     }
 
     pub async fn refuse_held(&self, reason: &str) {
-        if let Self::Acp(connection) = self {
-            connection.refuse_held(reason).await;
+        match self {
+            Self::Acp(connection) => connection.refuse_held(reason).await,
+            Self::Codex(connection) => connection.refuse_held(reason).await,
         }
     }
 }

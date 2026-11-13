@@ -4004,15 +4004,22 @@
         "type": "object"
       },
       "Notice": {
-        "description": "A message an executor's attempt sends the Planner through Shadows: the\nturn it starts is recorded in the executor's name, with its card.",
+        "description": "A message sent to the Planner in another's name: an executor's attempt's,\nor Shadows' own. The turn it starts is recorded in that name, with its card.",
         "properties": {
           "card": {
             "description": "The facts the conversation draws, as the sender shaped them.",
             "type": "object"
           },
           "executor": {
-            "$ref": "#/components/schemas/ThreadId",
-            "description": "The executor's thread, its identity."
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ThreadId",
+                "description": "The executor's thread, its identity; `null` when Shadows sends it."
+              }
+            ]
           }
         },
         "required": [
@@ -7321,7 +7328,8 @@
           "VisionProposal",
           "MapProposal",
           "RoadmapProposal",
-          "PersonQuestion"
+          "PersonQuestion",
+          "ProjectChange"
         ],
         "type": "string"
       },

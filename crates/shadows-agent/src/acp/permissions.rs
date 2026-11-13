@@ -1,4 +1,5 @@
-//! In-flight adapter permission requests and their single-settlement lifecycle.
+//! In-flight permission requests and their single-settlement lifecycle: an ACP
+//! adapter's and a Codex app-server's are held alike until the person answers.
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -36,9 +37,13 @@ pub enum PermissionError {
     OptionNotOffered,
 }
 
+/// How a held request is answered back to its program: the chosen option, or
+/// `None` when it is refused unanswered.
+pub(crate) type Respond = Box<dyn FnOnce(Option<&PermissionOption>) + Send>;
+
 struct Held {
     waiting: WaitingPermission,
-    responder: Responder<RequestPermissionResponse>,
+    respond: Respond,
 }
 #[derive(Default)]
 struct State {
@@ -46,13 +51,13 @@ struct State {
     settled: HashSet<String>,
 }
 #[derive(Clone)]
-pub(super) struct Permissions {
+pub(crate) struct Permissions {
     state: Arc<Mutex<State>>,
-    pub(super) settlement: Arc<tokio::sync::Mutex<()>>,
+    pub(crate) settlement: Arc<tokio::sync::Mutex<()>>,
     events: Arc<dyn Fn(HarnessEvent) + Send + Sync>,
 }
 impl Permissions {
-    pub(super) fn new(events: impl Fn(HarnessEvent) + Send + Sync + 'static) -> Self {
+    pub(crate) fn new(events: impl Fn(HarnessEvent) + Send + Sync + 'static) -> Self {
         Self {
             state: Arc::default(),
             settlement: Arc::default(),
@@ -64,15 +69,41 @@ impl Permissions {
         request: RequestPermissionRequest,
         responder: Responder<RequestPermissionResponse>,
     ) {
+        let options = request
+            .options
+            .into_iter()
+            .map(PermissionOption::from)
+            .collect();
+        let respond: Respond = Box::new(move |choice| {
+            let outcome = match choice {
+                Some(choice) => RequestPermissionOutcome::Selected(SelectedPermissionOutcome::new(
+                    choice.option_id.clone(),
+                )),
+                None => RequestPermissionOutcome::Cancelled,
+            };
+            let _ = responder.respond(RequestPermissionResponse::new(outcome));
+        });
+        self.hold_with(
+            request.session_id.to_string(),
+            request.tool_call.fields.title.unwrap_or_default(),
+            options,
+            respond,
+        );
+    }
+
+    /// Holds one request for the person and tells the turn it waits.
+    pub(crate) fn hold_with(
+        &self,
+        session: String,
+        title: String,
+        options: Vec<PermissionOption>,
+        respond: Respond,
+    ) {
         let waiting = WaitingPermission {
             request: uuid::Uuid::new_v4().to_string(),
-            session: request.session_id.to_string(),
-            title: request.tool_call.fields.title.unwrap_or_default(),
-            options: request
-                .options
-                .into_iter()
-                .map(PermissionOption::from)
-                .collect(),
+            session,
+            title,
+            options,
             asked_at: SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .unwrap_or_default()
@@ -87,7 +118,7 @@ impl Permissions {
         let mut state = self.state.lock().unwrap();
         state
             .waiting
-            .insert(waiting.request.clone(), Held { waiting, responder });
+            .insert(waiting.request.clone(), Held { waiting, respond });
         (self.events)(event);
     }
     fn answer(&self, request: &str, option: &str) -> Result<(), PermissionError> {
@@ -105,26 +136,26 @@ impl Permissions {
             .iter()
             .find(|o| o.option_id == option)
             .ok_or(PermissionError::OptionNotOffered)?;
-        let id = choice.option_id.clone();
-        let name = choice.name.clone();
-        let kind = choice.kind.clone();
+        let choice = choice.clone();
         let held = state.waiting.remove(request).unwrap();
         state.settled.insert(request.to_owned());
         (self.events)(HarnessEvent::PermissionAnswered {
             request: request.into(),
             option: option.into(),
-            kind,
-            name,
+            kind: choice.kind.clone(),
+            name: choice.name.clone(),
         });
-        let _ = held.responder.respond(RequestPermissionResponse::new(
-            RequestPermissionOutcome::Selected(SelectedPermissionOutcome::new(id)),
-        ));
+        (held.respond)(Some(&choice));
         Ok(())
     }
-    pub(super) fn refuse_session(&self, session: &str, reason: &str) {
+    pub(crate) fn refuse_session(&self, session: &str, reason: &str) {
         self.refuse_matching(reason, |w| w.session == session);
     }
-    fn refuse_matching(&self, reason: &str, matches: impl Fn(&WaitingPermission) -> bool) {
+    pub(crate) fn refuse_matching(
+        &self,
+        reason: &str,
+        matches: impl Fn(&WaitingPermission) -> bool,
+    ) {
         let mut state = self.state.lock().unwrap();
         let mut ids: Vec<_> = state
             .waiting
@@ -141,16 +172,13 @@ impl Permissions {
                 request: Some(id),
                 reason: Some(reason.into()),
             });
-            let _ = held.responder.respond(RequestPermissionResponse::new(
-                RequestPermissionOutcome::Cancelled,
-            ));
+            (held.respond)(None);
         }
     }
 }
-impl Connection {
-    pub fn held_permissions(&self) -> Vec<WaitingPermission> {
-        self.permissions
-            .state
+impl Permissions {
+    pub(crate) fn held(&self) -> Vec<WaitingPermission> {
+        self.state
             .lock()
             .unwrap()
             .waiting
@@ -158,13 +186,16 @@ impl Connection {
             .map(|h| h.waiting.clone())
             .collect()
     }
-    pub async fn prepare_permission_answer(
+
+    /// Pins the request's option; `closed` is whether its program is gone.
+    pub(crate) async fn prepare(
         &self,
         request: &str,
         option: &str,
+        closed: bool,
     ) -> Result<PreparedPermissionAnswer, PermissionError> {
-        let guard = self.permissions.settlement.clone().lock_owned().await;
-        let state = self.permissions.state.lock().unwrap();
+        let guard = self.settlement.clone().lock_owned().await;
+        let state = self.state.lock().unwrap();
         let held = state.waiting.get(request).ok_or_else(|| {
             if state.settled.contains(request) {
                 PermissionError::Settled
@@ -172,7 +203,7 @@ impl Connection {
                 PermissionError::Unknown
             }
         })?;
-        if self.is_closed() {
+        if closed {
             return Err(PermissionError::Settled);
         }
         let choice = held
@@ -183,11 +214,31 @@ impl Connection {
             .cloned()
             .ok_or(PermissionError::OptionNotOffered)?;
         Ok(PreparedPermissionAnswer {
-            permissions: self.permissions.clone(),
+            permissions: self.clone(),
             request: request.into(),
             choice,
             _guard: guard,
         })
+    }
+
+    pub(crate) async fn refuse_all(&self, reason: &str) {
+        let _guard = self.settlement.lock().await;
+        self.refuse_matching(reason, |_| true);
+    }
+}
+
+impl Connection {
+    pub fn held_permissions(&self) -> Vec<WaitingPermission> {
+        self.permissions.held()
+    }
+    pub async fn prepare_permission_answer(
+        &self,
+        request: &str,
+        option: &str,
+    ) -> Result<PreparedPermissionAnswer, PermissionError> {
+        self.permissions
+            .prepare(request, option, self.is_closed())
+            .await
     }
     pub async fn answer_permission(
         &self,
@@ -199,8 +250,7 @@ impl Connection {
             .commit()
     }
     pub async fn refuse_held(&self, reason: &str) {
-        let _guard = self.permissions.settlement.lock().await;
-        self.permissions.refuse_matching(reason, |_| true);
+        self.permissions.refuse_all(reason).await;
     }
 }
 

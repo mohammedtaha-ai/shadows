@@ -388,7 +388,7 @@ async fn a_notice_waits_on_a_busy_planner_in_the_executors_name() {
         client_tab: None,
     };
     let notice = shadows_core::Notice {
-        executor: executor.clone(),
+        executor: Some(executor.clone()),
         card: serde_json::json!({ "task": 3, "attempt": 1, "outcome": "committed" }),
     };
     let turns = f.core.turns();

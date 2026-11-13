@@ -69,7 +69,11 @@ layer_catalog: 'Planner standards text lists every kind presence and its layers 
 # Extensions' resolved MCP snapshots carry per-agent rules beside transport facts.
 # Every new, resumed or forked Planner session sends PLANNER_TOOLS,
 # settingSources [] and strictMcpConfig true (the three planner_mcp opening tests).
-# Harness opens AYLUL with PermissionPolicy::Ask and Planner with Refuse.
+# Harness opens AYLUL and Planner sessions with PermissionPolicy::Ask (a Codex Planner holds its
+# approvals the same way) and an executor with Refuse. PLANNER_TOOLS ends with Bash, the
+# Planner's shell; what its program asks about waits for the person. prompt.txt says the shell is
+# for installing and the environment, and that a changed project file is noted with
+# project_change_note.
 # `open_executor(thread, grant, model)` opens an executor the same way, from its one compiled-in
 # file, executor.md: the front matter's `tools:` (Read, Grep, Glob, Edit, Write, MultiEdit, Bash,
 # TodoWrite) as the session's tools, the body appended; settingSources [] and strictMcpConfig true,
@@ -284,10 +288,10 @@ functions:
     context_record: "Reads the prepared context and acknowledgement flag, or None when no row exists."
     answer_permission:
       signature: "(&self, command_id: String, thread: &ThreadId, request: &str, option: &str) -> Result<PermissionAnswer, HarnessError>"
-      note: Replay first, validate a live AYLUL request and offered option, durably record, then answer; only one settlement wins.
+      note: Replay first, validate a live AYLUL or Planner request and offered option, durably record, then answer; only one settlement wins.
     waiting_permissions:
       signature: "(&self) -> Vec<WaitingPermission>"
-      note: Current AYLUL requests sorted by UTC asked_at then request id; empty without configuration.
+      note: Current AYLUL and Planner requests sorted by UTC asked_at then request id; a Planner's agent is Planner.
     fork_thread:
       signature: "(&self, command_id, source, at) -> Result<PlanningThread, HarnessError>"
       # Replay first, Operations eligibility, Threads fork, then mode copy in one write.
@@ -626,8 +630,8 @@ obligations:
     tested_by: [shutdown_is_bounded_while_group_settings_are_unanswered]
   - rule: The connection settles a prompt session's outstanding requests before returning its result or disconnect error, so Turns drains and journals their end in the same turn.
     tested_by: [ending_a_turn_settles_its_unanswered_requests, disconnecting_settles_requests_before_the_turn_is_collected]
-  - rule: AYLUL holds permission requests for offered-option answers; replay returns its first result after session close, while Planner refuses immediately.
-    tested_by: [an_aylul_request_waits_and_is_listed, answering_runs_the_tool_and_records_by_you, a_rejected_request_ends_rejected_and_the_turn_goes_on, an_option_not_offered_is_refused, a_second_answer_is_settled, an_equal_replay_answers_the_first_result]
+  - rule: AYLUL and the Planner hold permission requests for offered-option answers; replay returns its first result after session close, while an executor refuses immediately.
+    tested_by: [an_aylul_request_waits_and_is_listed, answering_runs_the_tool_and_records_by_you, a_rejected_request_ends_rejected_and_the_turn_goes_on, an_option_not_offered_is_refused, a_second_answer_is_settled, an_equal_replay_answers_the_first_result, a_planner_permission_request_waits_for_the_person]
   - rule: Cancellation and session closure refuse waiting requests before stopping the adapter; project events carry the durable change.
     tested_by: [cancelling_while_asked_ends_refused_and_publishes, closing_the_session_while_asked_ends_refused, permissions_changed_reaches_the_aylul_project_stream, waiting_is_listed_oldest_first_across_agents]
   - rule: A failed durable answer leaves the request waiting; shutdown refuses requests before stopping their adapters.
@@ -652,7 +656,7 @@ obligations:
       one stays refused. Stop settles one Cancelled ending while a tool call
       is pending, and refused permission requests write nothing.
     tested_by: [codex_uses_shadows_mcp, codex_resume_rotates_the_grant,
-      codex_failed_setup_revokes_the_grant, codex_refuses_forbidden_authority,
+      codex_failed_setup_revokes_the_grant, codex_approval_waits_for_the_person,
       codex_stop_during_a_tool_call]
   - rule: >
       Configured Codex runs the existing choice, remembering, busy and mode

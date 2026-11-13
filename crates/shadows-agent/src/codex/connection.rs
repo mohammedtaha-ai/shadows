@@ -44,6 +44,7 @@ impl Rpc {
         handle: &mut ProcessHandle,
         notify: impl Fn(&str, Value) + Send + Sync + 'static,
         close: impl Fn(ConnectionError) + Send + Sync + 'static,
+        held: crate::acp::Permissions,
     ) -> Result<Self, ConnectionError> {
         let (mut stdin, stdout, mut stderr) = handle.take_stdio().ok_or(ConnectionError::Closed)?;
         let (outgoing, mut writes) = mpsc::unbounded_channel::<Value>();
@@ -84,7 +85,9 @@ impl Rpc {
                         let (reply, refused) = match method {
                             "item/commandExecution/requestApproval"
                             | "item/fileChange/requestApproval" => {
-                                (json!({"id":id,"result":{"decision":"decline"}}), true)
+                                let params = frame.get("params").cloned().unwrap_or_default();
+                                Rpc::hold(&held, method, &params, id.clone(), responses.clone());
+                                continue;
                             }
                             "item/permissions/requestApproval" => (
                                 json!({"id":id,"result":{"permissions":{},"scope":"turn"}}),
@@ -140,6 +143,42 @@ impl Rpc {
             pending,
             next_id: Arc::default(),
         })
+    }
+
+    /// Holds a command or file-change approval for the person, with Allow and
+    /// Decline; their answer, or a refusal, goes back as Codex's `decision`.
+    fn hold(
+        held: &crate::acp::Permissions,
+        method: &str,
+        params: &Value,
+        id: Value,
+        writer: mpsc::WeakUnboundedSender<Value>,
+    ) {
+        let session = params["threadId"].as_str().unwrap_or_default().to_owned();
+        let title = match (method, params["command"].as_str()) {
+            ("item/commandExecution/requestApproval", Some(command)) => format!("Run {command}"),
+            ("item/commandExecution/requestApproval", None) => "Run a command".into(),
+            _ => "Change files".into(),
+        };
+        let option = |id: &str, name: &str, kind: &str| crate::events::PermissionOption {
+            option_id: id.into(),
+            name: name.into(),
+            kind: kind.into(),
+        };
+        let options = vec![
+            option("accept", "Allow", "allow_once"),
+            option("decline", "Decline", "reject_once"),
+        ];
+        let respond: crate::acp::Respond = Box::new(move |choice| {
+            let decision = match choice {
+                Some(choice) if choice.kind.starts_with("allow") => "accept",
+                _ => "decline",
+            };
+            if let Some(writer) = writer.upgrade() {
+                let _ = writer.send(json!({"id":id,"result":{"decision":decision}}));
+            }
+        });
+        held.hold_with(session, title, options, respond);
     }
 
     pub(super) fn is_closed(&self) -> bool {

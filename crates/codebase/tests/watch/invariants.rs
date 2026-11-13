@@ -19,7 +19,7 @@ fn a_read_is_not_a_change() {
         EventKind::Access(AccessKind::Open(AccessMode::Any)),
         EventKind::Access(AccessKind::Close(AccessMode::Read)),
     ] {
-        forward(dir, &seen, &lost, event(kind));
+        forward(dir, &seen, &lost, &|_: &str| {}, event(kind));
     }
     assert!(rx.try_recv().is_err());
     assert!(!lost.load(Ordering::Relaxed));
@@ -27,7 +27,7 @@ fn a_read_is_not_a_change() {
         EventKind::Modify(ModifyKind::Data(DataChange::Any)),
         EventKind::Access(AccessKind::Close(AccessMode::Write)),
     ] {
-        forward(dir, &seen, &lost, event(kind));
+        forward(dir, &seen, &lost, &|_: &str| {}, event(kind));
         assert!(matches!(rx.try_recv(), Ok(Seen::Path(p)) if p == "src/a.rs"));
     }
 }

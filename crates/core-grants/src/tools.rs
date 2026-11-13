@@ -1,7 +1,7 @@
 //! The tools each grant kind permits.
 use super::{GrantKind, Grants};
 /// Only the Planner may show a plan in a person's conversation.
-const THREAD_TOOLS: [&str; 31] = [
+const THREAD_TOOLS: [&str; 32] = [
     "vision_approve",
     "map_approve",
     "roadmap_approve",
@@ -33,6 +33,7 @@ const THREAD_TOOLS: [&str; 31] = [
     "task_diff",
     "task_file",
     "person_ask",
+    "project_change_note",
 ];
 
 /// External agents can edit project plans and read reachable project code.

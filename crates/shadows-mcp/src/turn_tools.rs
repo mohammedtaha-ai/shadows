@@ -40,6 +40,14 @@ struct PersonAskArgs {
     options: Vec<PersonAskOption>,
 }
 
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+struct ProjectChangeNoteArgs {
+    /// The project files you changed, relative to the project's folder.
+    paths: Vec<String>,
+    /// Why you changed them, 1 to 2000 characters.
+    reason: String,
+}
+
 #[tool_router(router = turn_tool_router, vis = "pub(super)")]
 impl Shadows {
     #[tool(
@@ -93,6 +101,31 @@ impl Shadows {
                 .ask(&thread, args.question, options)
                 .await
                 .map(|question_id| shadows_core::Asked { question_id })
+                .map_err(Refusal::from),
+        )
+    }
+
+    #[tool(
+        description = "Say why you changed project files yourself (executors change them through \
+                       commits): the paths, relative to the project, and the reason. It is \
+                       recorded in the conversation. A change you made without it is asked \
+                       about when your turn ends."
+    )]
+    async fn project_change_note(
+        &self,
+        Extension(grant): Extension<Grant>,
+        Parameters(args): Parameters<ProjectChangeNoteArgs>,
+    ) -> CallToolResult {
+        let thread = match (grant.kind, &grant.thread_id) {
+            (GrantKind::Thread, Some(thread)) => thread.clone(),
+            _ => return answer::<()>(Err(Refusal::scope("only the Planner notes its changes"))),
+        };
+        answer(
+            self.core
+                .turns()
+                .note_change(&thread, args.paths, args.reason)
+                .await
+                .map(|()| serde_json::json!({ "noted": true }))
                 .map_err(Refusal::from),
         )
     }

@@ -384,7 +384,7 @@ Design: [language servers](specs/2026-11-13-language-servers-design.md) (Mohamme
 
 ### B-144 · The Planner's shell, its permission cards, and the end-of-turn check
 
-- Status: ready.
+- Status: done (the live `planner_permissions` tests are written and ignored; not run, since no signed-in Claude Code or Codex was available).
 - Plan: [Task B-144](plans/2026-11-13-slice-2-language-servers.md#task-b-144-the-planners-shell-its-permission-cards-and-the-end-of-turn-check).
 - Needs: B-138a, B-140 (`ActiveHold`), B-141 (`code_lsp`'s path check).
 

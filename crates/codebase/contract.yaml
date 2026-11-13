@@ -154,9 +154,11 @@ shapes:
     last: Instant
     holds: usize
   ActiveHold:
-    # Keeps its project active while it lives; its drop is a use.
+    # Keeps its project active while it lives; its drop is a use. It keeps the
+    # project-relative paths the watcher saw change while it lived (`changed`).
     code: Codebase
     project: ProjectId
+    seen: Arc<Mutex<BTreeSet<String>>>
   Job:
     Scan: unit
     Files: Vec<String>
@@ -371,7 +373,26 @@ functions:
     hold:
       signature: "(&self, project: &ProjectId) -> ActiveHold"
       # `Uses::hold` and `activate`: the project stays active while the
-      # answer lives, whatever the idle time; its drop is a use.
+      # answer lives, whatever the idle time; its drop is a use. Uses keeps the
+      # hold's seen set weakly, by project.
+    changed:
+      signature: "ActiveHold::changed(&self) -> Vec<String>"
+      # The paths the project's watcher reported while the hold lived (`forward`
+      # tells `saw` every path it keeps, before the pause flag), sorted, `.git`
+      # and `.git/` left out, and nothing under target/ or node_modules/. A change
+      # before the watcher started, or one it lost, is not among them. Turns
+      # reads it when a Planner turn settles.
+    saw:
+      signature: "(&self, project: &ProjectId, path: &str)"
+      private: true
+      # On notify's thread: every living hold of the project keeps the path.
+    project_file:
+      signature: "(&self, project: &ProjectId, path: &str) -> Result<String, CodebaseError>"
+      # The path relative to the project's folder, checked as `lsp`'s file is:
+      # `inside` (no absolute, drive or ..), not the folder itself, and, when it
+      # is on disk, its real path inside the folder's real path (`real_file`); a
+      # path not on disk passes on its text. InvalidCommand otherwise.
+      # Turns checks project_change_note's paths with it.
     sweep:
       signature: "(&self)"
       private: true
@@ -845,6 +866,8 @@ shared_in_transaction:
 called_by_other_services:
   touch: "Turns send records a use of the thread's project without waiting for indexing."
   hold: "Turns holds one per running turn, Runs one per running attempt, until it settles."
+  changed: "Turns compares a settled Planner turn's changes with its notes."
+  project_file: "Turns checks project_change_note's paths."
   forget: "ProjectLifecycle removal stops the worker after its committed removal write."
 
 
@@ -864,6 +887,10 @@ enums:
 
 
 obligations:
+  - rule: >
+      A hold keeps the paths the project's watcher saw change while it lived, git's
+      own bookkeeping left out.
+    tested_by: [an_unnoted_shell_change_is_recorded_and_asked_about, a_turn_with_no_change_sends_nothing]
   - rule: >
       The person's server settings change only by command (CodeServerSwitch,
       CodeServerAdd, CodeServerRemove), each one write with its replay, event

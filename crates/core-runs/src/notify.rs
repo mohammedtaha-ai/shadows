@@ -134,7 +134,7 @@ impl Runs {
             }
         };
         let notice = Notice {
-            executor: attempt.thread_id.clone(),
+            executor: Some(attempt.thread_id.clone()),
             card,
         };
         let queued = self

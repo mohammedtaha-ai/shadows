@@ -286,6 +286,30 @@ impl Codebase {
         }
     }
 
+    /// `path` relative to `project`'s folder, checked as `lsp`'s file is: inside
+    /// the project, and, when it is there, by its real path. A path not on
+    /// disk (a deleted file) passes on its text alone, since nothing is read.
+    pub async fn project_file(
+        &self,
+        project: &ProjectId,
+        path: &str,
+    ) -> Result<String, CodebaseError> {
+        let rel = Codebase::inside(path)?;
+        if rel.is_empty() {
+            return Err(CodebaseError::InvalidCommand(
+                "the path must name a file in the project".into(),
+            ));
+        }
+        let dir = self
+            .folder(project)
+            .await
+            .ok_or_else(|| CodebaseError::InvalidCommand("the project has no folder".into()))?;
+        if tokio::fs::symlink_metadata(dir.join(&rel)).await.is_ok() {
+            Codebase::real_file(&dir, &rel).await?;
+        }
+        Ok(rel)
+    }
+
     /// `rel` under `dir`, refused unless its real path is that path inside the
     /// folder's real path: a link or junction out of the project is never read.
     async fn real_file(dir: &Path, rel: &str) -> Result<PathBuf, CodebaseError> {

@@ -111,6 +111,8 @@ fn planner_server(setup: &SessionSetup) -> Result<(&str, &str), ConnectionError>
 #[derive(Clone)]
 pub struct Connection {
     rpc: Rpc,
+    /// `requestApproval`s waiting for the person, held as ACP's are.
+    permissions: crate::acp::Permissions,
     prompts: Arc<Prompts>,
     selection: Arc<Mutex<Option<Selection>>>,
 }
@@ -118,15 +120,21 @@ pub struct Connection {
 impl Connection {
     pub async fn open(
         handle: &mut ProcessHandle,
-        events: impl Fn(HarnessEvent) + Send + Sync + 'static,
+        events: impl Fn(HarnessEvent) + Clone + Send + Sync + 'static,
     ) -> Result<Self, ConnectionError> {
+        let permissions = crate::acp::Permissions::new(events.clone());
         let prompts = Arc::new(Prompts::new(events));
         let notify = prompts.clone();
         let closed = prompts.clone();
+        let refused = permissions.clone();
         let rpc = Rpc::open(
             handle,
             move |method, params| notify.notification(method, params),
-            move |error| closed.close(error),
+            move |error| {
+                refused.refuse_matching("the program closed", |_| true);
+                closed.close(error)
+            },
+            permissions.clone(),
         )?;
         let init: Value = rpc
             .request(
@@ -150,6 +158,7 @@ impl Connection {
         rpc.notify("initialized")?;
         Ok(Self {
             rpc,
+            permissions,
             prompts,
             selection: Arc::default(),
         })
@@ -157,5 +166,23 @@ impl Connection {
 
     pub fn is_closed(&self) -> bool {
         self.rpc.is_closed()
+    }
+
+    pub fn held_permissions(&self) -> Vec<crate::acp::WaitingPermission> {
+        self.permissions.held()
+    }
+
+    pub async fn prepare_permission_answer(
+        &self,
+        request: &str,
+        option: &str,
+    ) -> Result<crate::acp::PreparedPermissionAnswer, crate::acp::PermissionError> {
+        self.permissions
+            .prepare(request, option, self.is_closed())
+            .await
+    }
+
+    pub async fn refuse_held(&self, reason: &str) {
+        self.permissions.refuse_all(reason).await;
     }
 }

@@ -233,6 +233,7 @@ pattern to follow, not merely an example.
 | `crates/core-turns/src/store/` | turn command persistence | `crates/core-turns/src/store/turn.rs` |
 | `crates/core-turns/src/store/queue.rs` | the queue's SQLite queries | `crates/core-turns/src/store/queue.rs` |
 | `crates/core-turns/src/store/questions.rs` | the person_question SQLite queries | `crates/core-turns/src/store/questions.rs` |
+| `crates/core-turns/src/store/changes.rs` | the stored Planner project changes | `crates/core-turns/src/store/changes.rs` |
 | `crates/core-turns/src/store/steer.rs` | recording a steered message | `crates/core-turns/src/store/steer.rs` |
 | `crates/core-turns/src/queue.rs` | the waiting messages of a conversation | `crates/core-turns/src/queue.rs` |
 | `crates/core-turns/src/record.rs` | the checks that commit a turn's start | `crates/core-turns/src/record.rs` |
@@ -441,6 +442,7 @@ file disagrees with either, they are right and this file is the defect.
 | `crates/core-plans/src/testing.rs` | testing boundary | `crates/core-plans/contract.yaml` |
 | `crates/core-turns/src/plan_show.rs` | plan show boundary | `crates/core-turns/contract.yaml` |
 | `crates/core-turns/src/questions.rs` | the Planner's questions to the person | `crates/core-turns/contract.yaml` |
+| `crates/core-turns/src/changes.rs` | the Planner's project file changes | `crates/core-turns/contract.yaml` |
 
 | `crates/core-turns/src/remove.rs` | thread removal orchestration | `crates/core-turns/contract.yaml` |
 | `crates/core-turns/src/error.rs` | turn refusal mapping | `crates/core-turns/contract.yaml` |

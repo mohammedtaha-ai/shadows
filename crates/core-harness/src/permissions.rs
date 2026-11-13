@@ -1,20 +1,20 @@
-//! Person answers to live AYLUL permission requests.
+//! Person answers to the permission requests of live AYLUL and Planner sessions.
 use crate::{Harness, HarnessError, PermissionAnswer, WaitingPermission};
 use core_db::{CommandContext, Storage};
 use core_threads::ThreadId;
 use shadows_agent::acp::PermissionError;
 
 impl Harness {
+    /// Every request a live AYLUL or Planner session holds, oldest first; a
+    /// Planner's is named `Planner`. An executor's session holds none.
     pub async fn waiting_permissions(&self) -> Vec<WaitingPermission> {
-        if self.sessions.config.aylul.is_none() {
-            return Vec::new();
-        }
         let mut out = Vec::new();
         for (thread_id, slot) in self.sessions.slots().await {
             let live = slot.lock().await;
             let Some(item) = live.as_ref() else { continue };
-            let Some(usage) = &item.opened.aylul_usage else {
-                continue;
+            let agent = match &item.opened.aylul_usage {
+                Some(usage) => usage.agent_slug.clone(),
+                None => "Planner".to_string(),
             };
             if item.opened.connection.is_closed() {
                 continue;
@@ -27,7 +27,7 @@ impl Harness {
                     .unwrap_or(time::OffsetDateTime::UNIX_EPOCH);
                 out.push(WaitingPermission {
                     thread_id: thread_id.clone(),
-                    agent: usage.agent_slug.clone(),
+                    agent: agent.clone(),
                     request_id: waiting.request,
                     title: waiting.title,
                     options: waiting.options,
@@ -70,10 +70,7 @@ impl Harness {
         if let Some(answer) = self.store.permission_replay(&command, thread).await? {
             return Ok(answer);
         }
-        let item = live
-            .as_ref()
-            .filter(|item| item.opened.aylul_usage.is_some())
-            .ok_or(HarnessError::PermissionNotFound)?;
+        let item = live.as_ref().ok_or(HarnessError::PermissionNotFound)?;
         let prepared = item
             .opened
             .connection

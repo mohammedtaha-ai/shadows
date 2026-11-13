@@ -6,8 +6,9 @@
 //! exactly one worker. Nothing is stored: after a restart a project waits for
 //! its next use.
 
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 use std::path::PathBuf;
+use std::sync::{Arc, Mutex, Weak};
 use std::time::{Duration, Instant};
 
 use tokio::task::JoinHandle;
@@ -34,6 +35,8 @@ pub(super) struct Usage {
 #[derive(Default)]
 pub(super) struct Uses {
     by_project: HashMap<ProjectId, Usage>,
+    /// What each living hold of a project has seen change, by project.
+    seen: HashMap<ProjectId, Vec<Weak<Mutex<BTreeSet<String>>>>>,
 }
 
 impl Uses {
@@ -70,14 +73,57 @@ impl Uses {
 
     pub(super) fn forget(&mut self, project: &ProjectId) {
         self.by_project.remove(project);
+        self.seen.remove(project);
+    }
+
+    /// The watcher saw `path` change: every living hold of the project keeps
+    /// it; a path under `.git/` is git's own bookkeeping, not a project file.
+    pub(super) fn saw(&mut self, project: &ProjectId, path: &str) {
+        if path == ".git" || path.starts_with(".git/") {
+            return;
+        }
+        if let Some(holds) = self.seen.get_mut(project) {
+            holds.retain(|hold| match hold.upgrade() {
+                Some(seen) => {
+                    if let Ok(mut seen) = seen.lock() {
+                        seen.insert(path.to_string());
+                    }
+                    true
+                }
+                None => false,
+            });
+        }
+    }
+
+    fn watch_for(&mut self, project: &ProjectId) -> Arc<Mutex<BTreeSet<String>>> {
+        let seen = Arc::new(Mutex::new(BTreeSet::new()));
+        self.seen
+            .entry(project.clone())
+            .or_default()
+            .push(Arc::downgrade(&seen));
+        seen
     }
 }
 
 /// Keeps a project active while it lives: a running turn or attempt holds one.
-/// Its drop counts as a use, so the idle time starts when the work ends.
+/// Its drop counts as a use, so the idle time starts when the work ends. It
+/// also keeps the paths the project's watcher saw change while it lived.
 pub struct ActiveHold {
     code: Codebase,
     project: ProjectId,
+    seen: Arc<Mutex<BTreeSet<String>>>,
+}
+
+impl ActiveHold {
+    /// The project-relative paths the watcher saw change while this hold
+    /// lived, sorted, `.git/` left out. A change made before the project's
+    /// watcher started, or that the watcher lost, is not among them.
+    pub fn changed(&self) -> Vec<String> {
+        self.seen
+            .lock()
+            .map(|seen| seen.iter().cloned().collect())
+            .unwrap_or_default()
+    }
 }
 
 impl Drop for ActiveHold {
@@ -99,13 +145,25 @@ impl std::fmt::Debug for ActiveHold {
 impl Codebase {
     /// Keeps `project` active until the answer drops; activates it now.
     pub async fn hold(&self, project: &ProjectId) -> ActiveHold {
-        if let Ok(mut uses) = self.inner.uses.lock() {
-            uses.hold(project);
-        }
+        let seen = match self.inner.uses.lock() {
+            Ok(mut uses) => {
+                uses.hold(project);
+                uses.watch_for(project)
+            }
+            Err(_) => Arc::default(),
+        };
         self.activate(project).await;
         ActiveHold {
             code: self.clone(),
             project: project.clone(),
+            seen,
+        }
+    }
+
+    /// The watcher of `project` saw `path` change; called on `notify`'s thread.
+    pub(super) fn saw(&self, project: &ProjectId, path: &str) {
+        if let Ok(mut uses) = self.inner.uses.lock() {
+            uses.saw(project, path);
         }
     }
 

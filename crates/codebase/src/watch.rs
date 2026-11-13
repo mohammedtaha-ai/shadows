@@ -617,8 +617,11 @@ impl Run {
     /// periodic scan tries again.
     fn watch(&self) -> Option<RecommendedWatcher> {
         let (dir, seen, lost) = (self.dir.clone(), self.seen.clone(), self.lost.clone());
-        let made = notify::recommended_watcher(move |event| forward(&dir, &seen, &lost, event))
-            .and_then(|mut w| w.watch(&self.dir, RecursiveMode::Recursive).map(|()| w));
+        let (code, project) = (self.code.clone(), self.project.clone());
+        let saw = move |rel: &str| code.saw(&project, rel);
+        let made =
+            notify::recommended_watcher(move |event| forward(&dir, &seen, &lost, &saw, event))
+                .and_then(|mut w| w.watch(&self.dir, RecursiveMode::Recursive).map(|()| w));
         match made {
             Ok(w) => Some(w),
             Err(error) => {
@@ -638,11 +641,13 @@ impl Run {
 /// changes. A path under `target/` or `node_modules/` is dropped next (a
 /// build sends hundreds); a changed
 /// `.gitignore`, an error or `need_rescan` asks for a scan; the rest go on,
-/// relative to the folder.
+/// relative to the folder. Every path kept is also told to the project's holds
+/// (`saw`), which keep what changed while they live.
 fn forward(
     dir: &Path,
     seen: &mpsc::Sender<Seen>,
     lost: &AtomicBool,
+    saw: &impl Fn(&str),
     event: notify::Result<notify::Event>,
 ) {
     let send = |s: Seen| {
@@ -672,6 +677,9 @@ fn forward(
         };
         if rel.split('/').any(Codebase::never_walked) {
             continue;
+        }
+        if !rel.is_empty() {
+            saw(&rel);
         }
         if rel.rsplit('/').next() == Some(".gitignore") {
             send(Seen::Rescan);
