@@ -288,7 +288,9 @@ functions:
     catalog:
       signature: "() -> &'static [CatalogEntry]"
       # `catalog.json`, parsed once: the twelve upstream definitions
-      # (LICENSE-claude-plugins-official) with Shadows' install lines.
+      # (LICENSE-claude-plugins-official) with Shadows' install lines. typescript
+      # departs: it runs TypeScript 7's `tsc --lsp --stdio`, since TypeScript 7 ships
+      # no tsserver.js (spec 2026-11-13-language-servers-design, Install lines).
     extension:
       signature: "(path: &str) -> Option<&str>"
     find_command:
@@ -346,6 +348,11 @@ functions:
     located:
       signature: "(value: Value, roots: &[Root], file: &str) -> Value"
       private: true
+    drive_decoded:
+      signature: "(uri: &str) -> String"
+      private: true
+      # A location's `file:///f%3A/...` (typescript-go) becomes `file:///f:/...`
+      # before `place` makes it a path; `comparable` then matches its case.
     bounded:
       signature: "(value: Value) -> (Value, bool)"
       private: true
@@ -941,7 +948,10 @@ obligations:
       shadows-lsp holds the start's side: a server that refuses initialize or
       exits at once is that error and leaves no panic, since its client loop
       keeps a socket to itself and ends with the server's stdout
-      (crates/shadows-lsp/tests/start.rs).
+      (crates/shadows-lsp/tests/start.rs). A server's own requests
+      (client/registerCapability, workspace/configuration one null per item,
+      window/workDoneProgress/create, any other) are answered null, so one that
+      waits for them goes on (crates/shadows-lsp/tests/requests.rs).
   - rule: >
       The index follows the files: a scan indexes a new file, re-indexes a
       changed one (its size or modified time differs), and deletes the rows
@@ -1270,6 +1280,16 @@ tests:
     checks: Windows only. `fake-ls.cmd` in a folder on the given PATH is found for `fake-ls`.
   - name: code_lsp_finds_references_with_gopls
     checks: Ignored, needs gopls. findReferences at a.go Hello (3:6) answers a.go and b.go, b.go at 4:9.
+  - name: code_lsp_answers_typescript_with_tsc
+    checks: >
+      Ignored, needs TypeScript 7. lib.ts defines greet, main.ts imports and calls it,
+      with a tsconfig.json: definition answers lib.ts:1; findReferences lib.ts:1,
+      main.ts:1 and main.ts:4; documentSymbol lib.ts:1; workspaceSymbol greet
+      holds lib.ts:1; incomingCalls is from main.ts:3.
+  - name: a_percent_encoded_drive_is_decoded
+    checks: >
+      A unit test in lsp/ask.rs: file:///f%3A/... decodes to file:///f:/..., other
+      URIs unchanged; on Windows it is placed in its project, path web/greet.ts.
   - name: code_lsp_answers_no_server_for_an_unknown_extension
     checks: x.zz answers no_server with extension .zz and no server.
   - name: code_lsp_refuses_a_path_outside_the_project

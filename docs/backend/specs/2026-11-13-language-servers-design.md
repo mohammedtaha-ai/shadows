@@ -225,12 +225,22 @@ its own only when it needs it.
   | ruby-lsp | `ruby-lsp` | `gem install ruby-lsp` |
   | rust-analyzer | `rust-analyzer` | `rustup component add rust-analyzer` |
   | sourcekit-lsp | `sourcekit-lsp` | none known |
-  | typescript | `typescript-language-server --stdio` | `npm install -g typescript-language-server typescript` |
+  | typescript | `tsc --lsp --stdio` | `npm install -g typescript` |
 
   The winget ids are mine and are checked by the builder before they go in. The first
   column is the server's id as the upstream catalog writes it: Lua's is `lua` (its
   command is `lua-language-server`), kept so the catalog matches upstream (Mohammed,
   2026-11-13).
+
+  **typescript departs from upstream** (Mohammed, 2026-11-13). Upstream runs
+  `typescript-language-server --stdio`, which needs TypeScript's `lib/tsserver.js`.
+  TypeScript 7, what `npm install -g typescript` now installs, ships no `tsserver.js`, so
+  that server refused to start in any project without its own TypeScript 6 or older
+  ("Could not find a valid TypeScript installation"). TypeScript 7's own language server,
+  `tsc --lsp --stdio` (`typescript-go`), runs instead; the entry keeps upstream's id and
+  extensions. If it falls short (an operation the Planner needs that it does not answer),
+  the fallback is upstream's server with an older TypeScript:
+  `npm install -g typescript-language-server typescript@6`.
 
 ### Settings › Code (web)
 
@@ -262,7 +272,7 @@ three removed tools are removed with them.
 
 Acceptance in the browser on `testing3` (Go): a conversation starts gopls; the Planner's
 `code_lsp` `findReferences` answers from it; adding a `.ts` file makes the Planner ask about
-typescript-language-server on a card; choosing "install it" makes the Planner run the
+the TypeScript server on a card; choosing "install it" makes the Planner run the
 install line (with Claude Code's or Codex's permission card when it asks) and the server
 starts; a file the Planner edits without a note brings Shadows' question; switching gopls off in Settings › Code shows the warning, and `code_lsp` then
 answers "no server (off)".

@@ -89,6 +89,83 @@ async fn code_lsp_finds_references_with_gopls() {
     shut_down(l).await;
 }
 
+const LIB_TS: &str = "export function greet(name: string): string {\n  return \"hi \" + name;\n}\n";
+const MAIN_TS: &str = concat!(
+    "import { greet } from \"./lib\";\n\n",
+    "export function run(): string {\n  return greet(\"x\");\n}\n",
+);
+
+/// Each location of an answer (`from` for a call), as (path, line).
+fn places(answer: &serde_json::Value) -> Vec<(String, u64)> {
+    answer["result"]
+        .as_array()
+        .unwrap_or_else(|| panic!("{answer}"))
+        .iter()
+        .map(|item| {
+            if item["from"].is_object() {
+                &item["from"]
+            } else {
+                item
+            }
+        })
+        .map(|l| {
+            (
+                l["path"].as_str().unwrap_or("").to_owned(),
+                l["line"].as_u64().unwrap_or(0),
+            )
+        })
+        .collect()
+}
+
+#[tokio::test]
+#[ignore = "needs TypeScript 7 (npm install -g typescript)"]
+async fn code_lsp_answers_typescript_with_tsc() {
+    let l = listening_app().await;
+    let dir = folder(&l).await;
+    write(&dir, "lib.ts", LIB_TS);
+    write(&dir, "main.ts", MAIN_TS);
+    // Without a tsconfig.json TypeScript knows only the open file and what it imports,
+    // so the uses in main.ts are found only by chance (main.ts not yet closed).
+    write(&dir, "tsconfig.json", "{}\n");
+    start(&l).await;
+    let (_, client) = project_client(&l).await;
+    let ask = |args: serde_json::Value| {
+        let client = &client;
+        async move {
+            let answer = ok(client, "code_lsp", args).await;
+            assert_eq!(answer["answer"], "answered", "{answer}");
+            assert_eq!(answer["server"], "typescript", "{answer}");
+            places(&answer)
+        }
+    };
+    let lib = |line: u64| ("lib.ts".to_owned(), line);
+    let main = |line: u64| ("main.ts".to_owned(), line);
+
+    let definition = json!({
+        "operation": "goToDefinition", "file": "main.ts", "line": 4, "character": 10,
+    });
+    assert_eq!(ask(definition).await, vec![lib(1)]);
+
+    let references = json!({
+        "operation": "findReferences", "file": "lib.ts", "line": 1, "character": 17,
+    });
+    let mut found = ask(references).await;
+    found.sort();
+    assert_eq!(found, vec![lib(1), main(1), main(4)]);
+
+    let symbols = ask(json!({ "operation": "documentSymbol", "file": "lib.ts" })).await;
+    assert_eq!(symbols, vec![lib(1)]);
+
+    let named = ask(json!({ "operation": "workspaceSymbol", "query": "greet" })).await;
+    assert!(named.contains(&lib(1)), "{named:?}");
+
+    let calls = json!({
+        "operation": "incomingCalls", "file": "lib.ts", "line": 1, "character": 17,
+    });
+    assert_eq!(ask(calls).await, vec![main(3)]);
+    shut_down(l).await;
+}
+
 #[tokio::test]
 async fn code_lsp_answers_no_server_for_an_unknown_extension() {
     let l = listening_app().await;

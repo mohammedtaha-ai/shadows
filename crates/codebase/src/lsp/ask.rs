@@ -367,7 +367,10 @@ impl Codebase {
     /// The project and project-relative path of a `file://` URI, or `None`
     /// outside every project in scope.
     fn place(uri: &str, roots: &[Root]) -> Option<(String, String)> {
-        let path = lsp_types::Url::parse(uri).ok()?.to_file_path().ok()?;
+        let path = lsp_types::Url::parse(&Codebase::drive_decoded(uri))
+            .ok()?
+            .to_file_path()
+            .ok()?;
         let original = path.to_string_lossy().replace('\\', "/");
         let original = original
             .strip_prefix("//?/")
@@ -383,6 +386,23 @@ impl Codebase {
             }
         }
         None
+    }
+
+    /// `uri` with a percent-encoded drive colon decoded: `typescript-go` writes
+    /// `file:///f%3A/x`, and a file URL is a path only with `f:` as written.
+    fn drive_decoded(uri: &str) -> String {
+        let Some(rest) = uri.strip_prefix("file:///") else {
+            return uri.to_string();
+        };
+        let bytes = rest.as_bytes();
+        let encoded = bytes.len() >= 4
+            && bytes[0].is_ascii_alphabetic()
+            && bytes[1..4].eq_ignore_ascii_case(b"%3A");
+        if encoded {
+            format!("file:///{}:{}", &rest[..1], &rest[4..])
+        } else {
+            uri.to_string()
+        }
     }
 
     /// The answer with every location rewritten to `{ project, path, line,
@@ -483,5 +503,35 @@ impl Codebase {
             truncated = true;
         }
         (Value::Array(items), truncated)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Codebase, Root};
+
+    #[test]
+    fn a_percent_encoded_drive_is_decoded() {
+        let decoded = Codebase::drive_decoded("file:///f%3A/p/web/greet.ts");
+        assert_eq!(decoded, "file:///f:/p/web/greet.ts");
+        assert_eq!(
+            Codebase::drive_decoded("file:///f:/a.ts"),
+            "file:///f:/a.ts"
+        );
+        assert_eq!(
+            Codebase::drive_decoded("file:///home/a.ts"),
+            "file:///home/a.ts"
+        );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn a_percent_encoded_drive_is_placed_in_its_project() {
+        let roots = [Root {
+            slug: "testing4".into(),
+            dirs: vec![Codebase::comparable(r"F:\p")],
+        }];
+        let place = Codebase::place("file:///f%3A/p/web/greet.ts", &roots);
+        assert_eq!(place, Some(("testing4".into(), "web/greet.ts".into())));
     }
 }

@@ -177,8 +177,9 @@
   },
   {
     "id": "typescript",
-    "command": "typescript-language-server",
+    "command": "tsc",
     "args": [
+      "--lsp",
       "--stdio"
     ],
     "extensions": {
@@ -192,10 +193,10 @@
       ".cjs": "javascript"
     },
     "install": {
-      "windows": "npm install -g typescript-language-server typescript",
+      "windows": "npm install -g typescript",
       "macos": null,
       "linux": null
     },
-    "source": "typescript-lsp@23c304a6387ed2fa207ceff27646d8514ee75235"
+    "source": "typescript-lsp@23c304a6387ed2fa207ceff27646d8514ee75235, its command changed: docs/backend/specs/2026-11-13-language-servers-design.md"
   }
 ]
