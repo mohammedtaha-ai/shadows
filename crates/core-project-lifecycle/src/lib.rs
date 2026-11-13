@@ -25,7 +25,7 @@ impl ProjectLifecycle {
         }
     }
 
-    /// A successful creation, including a replay, makes the project active in the index.
+    /// Registers the project; only a sent message makes it active in the index.
     pub async fn create(
         &self,
         command_id: String,

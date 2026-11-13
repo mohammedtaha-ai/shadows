@@ -72,7 +72,7 @@ delivered, and a plan whose tasks are all done; its commit names the PR, and Git
 ## Rules for the builder and the fixer
 
 1. Read this file, then the task, then only what the task's `Read:` names.
-   Find a symbol with the LSP (or `where_is` when the `shadows` MCP server is
+   Find a symbol with the LSP (or `code_lsp` when the `shadows` MCP server is
    connected) and open the file at that line. Do not crawl the tree.
 2. Change only the files in `Touch:`. If the work needs another file, stop and
    report it: Hamoud updates the task, you do not widen it yourself.

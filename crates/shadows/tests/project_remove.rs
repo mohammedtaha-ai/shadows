@@ -210,7 +210,7 @@ async fn a_removed_project_is_not_found() {
         (404, Some("INVALID_COMMAND"))
     );
 
-    let path = format!("/api/projects/{gone}/code/definitions?name=gone_fn");
+    let path = format!("/api/projects/{gone}/code/status");
     let (status, body) = call(&app, "GET", &path, None).await;
     assert_eq!(
         (status, body["code"].as_str()),

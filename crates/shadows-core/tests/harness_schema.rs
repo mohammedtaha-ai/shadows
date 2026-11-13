@@ -78,10 +78,7 @@ fn claude_policy_is_accept_edits_and_auto_and_codex_is_read_only() {
         policy::allowed_modes(policy::CLAUDE_CODE),
         ["acceptEdits", "auto"]
     );
-    assert_eq!(
-        policy::default_mode(policy::CLAUDE_CODE),
-        Some("acceptEdits")
-    );
+    assert_eq!(policy::default_mode(policy::CLAUDE_CODE), Some("auto"));
     assert_eq!(policy::allowed_modes(policy::CODEX), ["ask", "read-only"]);
     assert_eq!(policy::default_mode(policy::CODEX), Some("ask"));
     assert!(!policy::is_known("gemini"));

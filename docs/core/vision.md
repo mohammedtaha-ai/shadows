@@ -89,8 +89,10 @@ reduces these risks; it cannot guarantee their absence.
 of tasks and links, with versions, Approve and freezing. Tasks do not yet carry
 contracts or function specifications. Milestone 3 answers "Where is X?": a code
 index built with tree-sitter, kept current by watching the files, and asked
-over the MCP server by an external agent's grant, with the tools `where_is`,
-`who_uses` and `outline` ([spec §15](specs/2026-09-30-code-index-design.md)).
+over the MCP server by an external agent's grant
+([spec §15](specs/2026-09-30-code-index-design.md)). The tools are now
+`code_lsp`, which asks the project's language server, and `project_files` and
+`project_refresh`, which list the project's files.
 The Planner and executors do not ask it yet.
 
 ## 3. A failing test that belongs to another task

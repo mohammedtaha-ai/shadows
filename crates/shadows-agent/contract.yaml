@@ -39,6 +39,10 @@ functions:
     `auto`, the one mode an executor thread runs in: nothing is asked or
     refused while it works, and Runs' check on its reported commit is its write
     boundary. Offered::refusal accepts it beside the policy's allowed modes.
+  policy::default_mode: >
+    The mode a new conversation starts in: `auto` for a Claude Code Planner, `acceptEdits`
+    for AYLUL, `ask` for Codex. Tested by the_initial_and_unattended_modes_are_allowed and
+    claude_policy_is_accept_edits_and_auto_and_codex_is_read_only.
   CodexProgram::new: Holds the configured executable and dedicated Codex home.
   CodexProgram::process_spec: >
     `app-server --listen stdio://` with apps, plugins, hooks, multi-agent and

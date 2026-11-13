@@ -96,7 +96,7 @@ impl Harness {
                 HarnessError::HarnessStartFailed("the harness session closed".into())
             })?;
         self.sessions
-            .set_mode(thread, &item.opened, offered, &mode)
+            .settle_mode(thread, &item.opened, offered, &mode)
             .await
             .map_err(|r| refusal("mode", &mode, r))?;
         Ok(())

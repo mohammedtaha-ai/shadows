@@ -387,6 +387,12 @@ Design: [language servers](specs/2026-11-13-language-servers-design.md) (Mohamme
 - Status: done (the live `planner_permissions` tests are written and ignored; not run, since no signed-in Claude Code or Codex was available).
 - Plan: [Task B-144](plans/2026-11-13-slice-2-language-servers.md#task-b-144-the-planners-shell-its-permission-cards-and-the-end-of-turn-check).
 - Needs: B-138a, B-140 (`ActiveHold`), B-141 (`code_lsp`'s path check).
+- Ruling: Mohammed, 2026-11-13. A Claude Code Planner opens in `auto` by default
+  (`policy::default_mode`), as the design and plan say; Claude Code decides its shell
+  commands itself and no card waits (`a_planner_in_its_default_auto_runs_the_command_itself`).
+  Accept edits stays on offer, and its requests still wait for the person
+  (`a_planner_permission_request_waits_for_the_person`). A project that does not allow
+  `auto` opens on its first allowed mode, as Codex does.
 
 ### B-146 · A Codex conversation's two modes
 

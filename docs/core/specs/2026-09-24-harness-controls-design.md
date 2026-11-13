@@ -333,7 +333,8 @@ in the Phase B run (`docs/evidence/milestone1/PHASE_B_RUN.md` at `92e6dae`): in 
 Claude Code runs file commands inside the project directory without a
 permission request — `rm -rf ./README.md` deleted a file that was never
 committed, and Shadows never saw a request. A command outside that, such as
-`curl` to the network, is asked, and Shadows refuses it (§12.2). Decided with
+`curl` to the network, is asked, and the request waits for the person to allow
+or refuse it. Decided with
 Mohammed on 2026-09-24: Shadows keeps the harness's behaviour and does not add
 a boundary of its own here (the OPEN block above still names when it must).
 The mode menu states, on the mode itself, what each mode lets the harness do

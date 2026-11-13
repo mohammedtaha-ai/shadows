@@ -117,10 +117,12 @@ pub fn unattended_mode(kind: &str) -> Option<&'static str> {
 }
 
 /// The mode a new conversation on `kind` starts in, also used when its
-/// remembered mode is disallowed.
+/// remembered mode is disallowed. A Planner on Claude Code starts in `auto`, so
+/// Claude Code decides its own shell commands; AYLUL stays in `acceptEdits`.
 pub fn default_mode(kind: &str) -> Option<&'static str> {
     match kind {
-        CLAUDE_CODE | AYLUL => Some("acceptEdits"),
+        CLAUDE_CODE => Some("auto"),
+        AYLUL => Some("acceptEdits"),
         CODEX => Some(CODEX_ASK),
         _ => None,
     }
@@ -178,6 +180,7 @@ mod tests {
             }
         }
         assert_eq!(unattended_mode(AYLUL), Some("auto"));
+        assert_eq!(default_mode(CLAUDE_CODE), Some("auto"));
         assert_eq!(allowed_modes(CODEX), [CODEX_ASK, CODEX_READ_ONLY]);
         assert_eq!(default_mode(CODEX), Some(CODEX_ASK));
         assert_eq!(unattended_mode(CODEX), None);

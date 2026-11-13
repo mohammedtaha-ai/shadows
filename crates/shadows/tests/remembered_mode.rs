@@ -44,16 +44,17 @@ async fn prompt_reports_mode(app: &App, thread: &ThreadId, how: &str, mode: &str
 }
 
 #[tokio::test]
-async fn picking_auto_without_sending_survives_reopen_and_core_restart() {
+async fn picking_a_mode_without_sending_survives_reopen_and_core_restart() {
     let dir = tempfile::tempdir().unwrap();
     let app = app::test_app_at(dir.path()).await;
-    let (status, choices) = pick(&app, "pick", "auto").await;
+    // Accept edits, since auto is the default and would survive unpicked.
+    let (status, choices) = pick(&app, "pick", "acceptEdits").await;
     assert_eq!(status, 200, "{choices}");
-    assert_eq!(choices["current"]["mode"], "auto");
+    assert_eq!(choices["current"]["mode"], "acceptEdits");
     app.sessions.terminate(&app.thread).await.unwrap();
     assert_eq!(
         open(&app, app.thread.as_str()).await["current"]["mode"],
-        "auto"
+        "acceptEdits"
     );
     let entries: Vec<Value> = get_json(&app, &format!("/api/threads/{}/entries", app.thread)).await;
     assert!(entries.is_empty(), "a pick sends no turn");
@@ -61,7 +62,7 @@ async fn picking_auto_without_sending_survives_reopen_and_core_restart() {
     let app = app::test_app_at(dir.path()).await;
     assert_eq!(
         open(&app, app.thread.as_str()).await["current"]["mode"],
-        "auto"
+        "acceptEdits"
     );
 
     app.core
@@ -153,15 +154,15 @@ async fn disallowed_remembered_mode_falls_back_on_open() {
 #[tokio::test]
 async fn a_new_conversation_including_a_draft_uses_its_own_default() {
     let app = test_app().await;
-    assert_eq!(pick(&app, "auto", "auto").await.0, 200);
+    assert_eq!(pick(&app, "accept", "acceptEdits").await.0, 200);
     let other = app::create_thread(&app, json!({"command_id":"draft", "title":"Draft"})).await;
     assert_eq!(
         open(&app, other["id"].as_str().unwrap()).await["current"]["mode"],
-        "acceptEdits"
+        "auto"
     );
     assert_eq!(
         open(&app, app.thread.as_str()).await["current"]["mode"],
-        "auto"
+        "acceptEdits"
     );
 
     app.core

@@ -635,6 +635,18 @@ obligations:
     tested_by: [ending_a_turn_settles_its_unanswered_requests, disconnecting_settles_requests_before_the_turn_is_collected]
   - rule: AYLUL and the Planner hold permission requests for offered-option answers; replay returns its first result after session close, while an executor refuses immediately.
     tested_by: [an_aylul_request_waits_and_is_listed, answering_runs_the_tool_and_records_by_you, a_rejected_request_ends_rejected_and_the_turn_goes_on, an_option_not_offered_is_refused, a_second_answer_is_settled, an_equal_replay_answers_the_first_result, a_planner_permission_request_waits_for_the_person]
+  - rule: >
+      A Claude Code Planner opens in `auto` by default: Claude Code decides its shell
+      commands itself and no card waits for the person; Accept edits stays on offer.
+    tested_by: [a_planner_in_its_default_auto_runs_the_command_itself,
+      opening_twice_reuses_one_adapter_and_starts_in_auto]
+  - rule: >
+      Opening and an idle session set the conversation's mode through
+      `Sessions::settle_mode`: a mode the harness refuses for the session's model
+      (`auto` on a model without it) leaves the adapter's mode, as a refused remembered
+      model or effort does. A turn that asks for it is still refused at prepare.
+    tested_by: [picking_a_model_answers_that_models_efforts,
+      auto_on_a_model_without_it_fails_at_prepare_with_the_harness_message]
   - rule: Cancellation and session closure refuse waiting requests before stopping the adapter; project events carry the durable change.
     tested_by: [cancelling_while_asked_ends_refused_and_publishes, closing_the_session_while_asked_ends_refused, permissions_changed_reaches_the_aylul_project_stream, waiting_is_listed_oldest_first_across_agents]
   - rule: A failed durable answer leaves the request waiting; shutdown refuses requests before stopping their adapters.
@@ -851,10 +863,12 @@ obligations:
 
   - rule: >
       Opening is idempotent: an open session answers the choices it holds,
-      on one adapter, and starts in the remembered allowed mode or the policy default.
+      on one adapter, and starts in the remembered allowed mode or the policy default
+      (`auto` for a Claude Code Planner; a project that does not allow it opens on its
+      first allowed mode).
     tested_by:
       - opening_a_session_answers_the_harness_choices_after_the_policy
-      - opening_twice_reuses_one_adapter_and_starts_in_accept_edits
+      - opening_twice_reuses_one_adapter_and_starts_in_auto
 
   - rule: >
       An opening that cannot finish leaves no adapter: a missing project
@@ -996,13 +1010,14 @@ tests:
   - name: the_harness_list_carries_the_policy_modes
     checks: >
       tests/list.rs: claude-code and aylul list acceptEdits then auto with
-      initial acceptEdits and unattended auto; unconfigured codex lists
+      unattended auto, claude-code initial auto and aylul initial acceptEdits; unconfigured
+      codex lists
       read-only, initial read-only, no unattended mode, unavailable with
       a reason naming --codex.
   - name: idle_choices_report_the_adapters_mode
     checks: Idle choices expose an adapter mode change without overwriting the saved pick.
-  - name: picking_auto_without_sending_survives_reopen_and_core_restart
-    checks: Saving Auto sends no turn and survives adapter replacement and a Core restart.
+  - name: picking_a_mode_without_sending_survives_reopen_and_core_restart
+    checks: Saving Accept edits sends no turn and survives adapter replacement and a Core restart.
   - name: disallowed_mode_is_refused_before_any_write
     checks: Policy refusal creates no preference, command, or live adapter.
   - name: disallowed_remembered_mode_falls_back_on_open
@@ -1145,9 +1160,9 @@ tests:
   - name: opening_a_session_answers_the_harness_choices_after_the_policy
     checks: >
       POST session lists the fake's models, efforts and policy modes in
-      acceptEdits; a second POST answers the same; one session live.
-  - name: opening_twice_reuses_one_adapter_and_starts_in_accept_edits
-    checks: Two opens share one session id and one adapter, in acceptEdits, "new".
+      auto; a second POST answers the same; one session live.
+  - name: opening_twice_reuses_one_adapter_and_starts_in_auto
+    checks: Two opens share one session id and one adapter, in auto, "new".
   - name: a_project_without_its_directory_does_not_start_an_adapter
     checks: A removed directory is OpenError::Workspace "missing" and no adapter.
   - name: a_harness_slower_than_setup_wait_fails_and_leaves_no_adapter

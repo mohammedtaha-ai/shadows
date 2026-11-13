@@ -29,8 +29,8 @@ async fn opening_a_session_answers_the_harness_choices_after_the_policy() {
     assert_eq!(names(&c["efforts"]), ["low", "high", "max"]);
     assert_eq!(names(&c["modes"]), ["acceptEdits", "auto"]);
     assert_eq!(
-        c["current"]["mode"], "acceptEdits",
-        "the fake starts in auto, as the real adapter does; opening sets the default"
+        c["current"]["mode"], "auto",
+        "a Claude Code Planner opens in the policy default, auto"
     );
     let (s2, again) = post(&app, &session_path(&app), json!({})).await;
     assert_eq!(
@@ -130,7 +130,8 @@ async fn a_new_session_starts_at_the_remembered_model_and_effort() {
             c["current"]["effort"].as_str(),
             c["current"]["mode"].as_str()
         ),
-        (Some("fake-small"), Some("low"), Some("acceptEdits"))
+        (Some("fake-small"), Some("low"), Some("acceptEdits")),
+        "fake-small has no auto, so the default auto leaves the adapter's mode"
     );
     assert_eq!(
         names(&c["efforts"]),

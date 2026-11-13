@@ -1,7 +1,7 @@
 //! A Planner program's permission requests wait for the person, as AYLUL's do:
 //! listed by `Harness::waiting_permissions` and answered through
-//! `Harness::answer_permission`; Codex in Approve for me has its own reviewer
-//! answer instead. Live only: run with `-- --ignored` and
+//! `Harness::answer_permission`. A Claude Code Planner in its default `auto`,
+//! and Codex in Approve for me, decide themselves instead. Live only: run with `-- --ignored` and
 //! `--test-threads=1` once the programs below are signed in.
 
 use std::path::PathBuf;
@@ -190,6 +190,36 @@ async fn a_planner_permission_request_waits_for_the_person() {
         w.directory.join("asked.txt").exists(),
         "the allowed command ran"
     );
+    w.close().await;
+}
+
+// Live: needs the signed-in Claude Code (SHADOWS_NODE_PATH, SHADOWS_ADAPTER_PATH,
+// SHADOWS_HARNESS_PATH).
+#[tokio::test]
+#[ignore = "live: needs the signed-in Claude Code"]
+async fn a_planner_in_its_default_auto_runs_the_command_itself() {
+    let w = World::start(shadows_agent::policy::CLAUDE_CODE, false).await;
+    let mode = shadows_agent::policy::default_mode(shadows_agent::policy::CLAUDE_CODE).unwrap();
+    assert_eq!(mode, "auto");
+    // In auto Claude Code decides each command itself, so no card waits for
+    // the person: the command runs and the turn completes.
+    let op = w
+        .send(
+            "Run exactly this with your Bash tool, once, and then say done: \
+             node -e \"require('fs').writeFileSync('auto.txt','yes')\"",
+            mode,
+        )
+        .await;
+    let done = tokio::time::timeout(Duration::from_secs(300), w.settled(&op))
+        .await
+        .expect("the turn settles");
+    assert_eq!(done.status_kind, "Completed", "{done:?}");
+    let waiting = w.core.harness().waiting_permissions().await;
+    assert!(
+        waiting.iter().all(|held| held.thread_id != w.thread),
+        "nothing waits for the person: {waiting:?}"
+    );
+    assert!(w.directory.join("auto.txt").exists(), "the command ran");
     w.close().await;
 }
 
