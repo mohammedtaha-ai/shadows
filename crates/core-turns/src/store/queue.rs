@@ -147,14 +147,7 @@ impl super::TurnsStore {
         let (ctx, thread, ts) = (ctx.clone(), thread.clone(), Storage::now());
         let id = QueuedMessageId::generate();
         let attachments = new.attachments.to_vec();
-        let fields = (
-            new.prompt.to_owned(),
-            new.model.to_owned(),
-            new.mode.to_owned(),
-            new.effort.map(str::to_owned),
-            new.focus.map(serde_json::to_string).transpose()?,
-            new.plan.map(|p| p.as_str().to_owned()),
-        );
+        let fields = Self::queued_fields(&new)?;
         let notice = notice.map(serde_json::to_string).transpose()?;
         self.storage
             .write_txn(move |conn| {
@@ -170,57 +163,14 @@ impl super::TurnsStore {
                     if idle && notice.is_none() {
                         return Ok(None);
                     }
-                    let position: i64 = sqlx::query_scalar(
-                    "SELECT COALESCE(MAX(position), 0) + 1 FROM queued_message WHERE thread_id = ?",
-                )
-                .bind(thread.as_str())
-                .fetch_one(&mut *conn)
-                .await?;
-                    let (prompt, model, mode, effort, focus, plan) = &fields;
-                    sqlx::query(
-                        "INSERT INTO queued_message
-                       (id, thread_id, position, prompt, model, mode, effort,
-                        focus_json, plan_id, last_error, created_at, attachments_json,
-                        notice_json)
-                     VALUES (?,?,?,?,?,?,?,?,?,NULL,?,?,?)",
-                    )
-                    .bind(id.as_str())
-                    .bind(thread.as_str())
-                    .bind(position)
-                    .bind(prompt)
-                    .bind(model)
-                    .bind(mode)
-                    .bind(effort)
-                    .bind(focus)
-                    .bind(plan)
-                    .bind(&ts)
-                    .bind(serde_json::to_string(&attachments)?)
-                    .bind(&notice)
-                    .execute(&mut *conn)
-                    .await?;
-                    let row: Row = sqlx::query_as(
-                        "SELECT id,thread_id,position,prompt,model,mode,effort,focus_json,plan_id,
-                last_error,created_at,attachments_json,notice_json FROM queued_message
-                        WHERE id=?",
-                    )
-                    .bind(id.as_str())
-                    .fetch_one(&mut *conn)
-                    .await?;
-                    let queued = message(row)?;
-                    let actor = Actor {
-                        kind: ctx.principal_kind.clone(),
-                        id: ctx.principal_id.clone(),
-                    };
-                    let payload = serde_json::json!({ "queued_id": id.as_str() });
-                    Self::event(conn, "MessageQueued", &thread, actor, payload, &ts).await?;
-                    let outcome = serde_json::to_string(&queued)?;
-                    CommandContext::record_command(
+                    let queued = Self::insert_queued_in(
                         conn,
                         &ctx,
-                        SCOPE,
-                        thread.as_str(),
-                        "QueuedMessage",
-                        &outcome,
+                        &thread,
+                        &id,
+                        &fields,
+                        &attachments,
+                        notice.as_deref(),
                         &ts,
                     )
                     .await?;
@@ -374,5 +324,100 @@ impl super::TurnsStore {
             .await?
             .map(|answer| serde_json::from_str(&answer).map_err(StorageError::from))
             .transpose()
+    }
+}
+
+/// A waiting message's settings as stored: prompt, model, mode, effort,
+/// focus JSON and plan id.
+pub(super) type QueuedFields = (
+    String,
+    String,
+    String,
+    Option<String>,
+    Option<String>,
+    Option<String>,
+);
+
+impl super::TurnsStore {
+    /// `new`'s settings as stored.
+    pub(super) fn queued_fields(new: &NewQueued<'_>) -> Result<QueuedFields, StorageError> {
+        Ok((
+            new.prompt.to_owned(),
+            new.model.to_owned(),
+            new.mode.to_owned(),
+            new.effort.map(str::to_owned),
+            new.focus.map(serde_json::to_string).transpose()?,
+            new.plan.map(|p| p.as_str().to_owned()),
+        ))
+    }
+
+    /// Writes a waiting message last in `position` order inside the caller's
+    /// transaction, journals it, and records the row as `ctx`'s outcome.
+    #[allow(clippy::too_many_arguments)]
+    pub(super) async fn insert_queued_in(
+        conn: &mut SqliteConnection,
+        ctx: &CommandContext,
+        thread: &ThreadId,
+        id: &QueuedMessageId,
+        fields: &QueuedFields,
+        attachments: &[core_threads::AttachmentId],
+        notice: Option<&str>,
+        ts: &str,
+    ) -> Result<QueuedMessage, StorageError> {
+        let position: i64 = sqlx::query_scalar(
+            "SELECT COALESCE(MAX(position), 0) + 1 FROM queued_message WHERE thread_id = ?",
+        )
+        .bind(thread.as_str())
+        .fetch_one(&mut *conn)
+        .await?;
+        let (prompt, model, mode, effort, focus, plan) = fields;
+        sqlx::query(
+            "INSERT INTO queued_message
+               (id, thread_id, position, prompt, model, mode, effort,
+                focus_json, plan_id, last_error, created_at, attachments_json,
+                notice_json)
+             VALUES (?,?,?,?,?,?,?,?,?,NULL,?,?,?)",
+        )
+        .bind(id.as_str())
+        .bind(thread.as_str())
+        .bind(position)
+        .bind(prompt)
+        .bind(model)
+        .bind(mode)
+        .bind(effort)
+        .bind(focus)
+        .bind(plan)
+        .bind(ts)
+        .bind(serde_json::to_string(attachments)?)
+        .bind(notice)
+        .execute(&mut *conn)
+        .await?;
+        let row: Row = sqlx::query_as(
+            "SELECT id,thread_id,position,prompt,model,mode,effort,focus_json,plan_id,
+                last_error,created_at,attachments_json,notice_json FROM queued_message
+                WHERE id=?",
+        )
+        .bind(id.as_str())
+        .fetch_one(&mut *conn)
+        .await?;
+        let queued = message(row)?;
+        let actor = Actor {
+            kind: ctx.principal_kind.clone(),
+            id: ctx.principal_id.clone(),
+        };
+        let payload = serde_json::json!({ "queued_id": id.as_str() });
+        Self::event(conn, "MessageQueued", thread, actor, payload, ts).await?;
+        let outcome = serde_json::to_string(&queued)?;
+        CommandContext::record_command(
+            conn,
+            ctx,
+            SCOPE,
+            thread.as_str(),
+            "QueuedMessage",
+            &outcome,
+            ts,
+        )
+        .await?;
+        Ok(queued)
     }
 }

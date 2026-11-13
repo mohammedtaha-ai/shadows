@@ -378,7 +378,7 @@ Design: [language servers](specs/2026-11-13-language-servers-design.md) (Mohamme
 
 ### B-143 · person_ask, the question card
 
-- Status: ready.
+- Status: done.
 - Plan: [Task B-143](plans/2026-11-13-slice-2-language-servers.md#task-b-143-person_ask-the-question-card).
 - Needs: none.
 

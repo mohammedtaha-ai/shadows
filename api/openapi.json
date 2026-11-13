@@ -750,6 +750,24 @@
         ],
         "type": "object"
       },
+      "AnswerBody": {
+        "properties": {
+          "command_id": {
+            "description": "The idempotency key.",
+            "type": "string"
+          },
+          "option": {
+            "description": "The chosen option, by its index in the question's card.",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "command_id",
+          "option"
+        ],
+        "type": "object"
+      },
       "AnswerPermission": {
         "properties": {
           "command_id": {
@@ -7302,7 +7320,8 @@
           "PlanApproved",
           "VisionProposal",
           "MapProposal",
-          "RoadmapProposal"
+          "RoadmapProposal",
+          "PersonQuestion"
         ],
         "type": "string"
       },
@@ -14598,6 +14617,117 @@
           }
         },
         "summary": "A thread's operations — its turns — newest first, each as it now stands.\nA client opening a thread reads this to learn whether a turn is running and\nwhich one (so it can offer Stop), then follows it on `/api/subscribe`,\nwhose durable frames name their `operation_id`.",
+        "tags": [
+          "turns"
+        ]
+      }
+    },
+    "/api/threads/{id}/questions/{question}/answer": {
+      "post": {
+        "operationId": "answer_question",
+        "parameters": [
+          {
+            "description": "The thread",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ThreadId"
+            }
+          },
+          {
+            "description": "The question",
+            "in": "path",
+            "name": "question",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/QuestionId"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnswerBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Queued"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "no such thread or question"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "COMMAND_CONFLICT: already answered"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "INVALID_COMMAND: no such option, or the question was asked in another conversation"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "HARNESS_START_FAILED"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "RUNTIME_STOPPING"
+          }
+        },
+        "summary": "The person's click on a question's option: their message to the Planner,\nsent at once on an idle thread, waiting while a turn runs.",
         "tags": [
           "turns"
         ]

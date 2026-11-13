@@ -148,3 +148,20 @@ pub struct LiveActivity {
     pub tools: Vec<shadows_agent::events::ToolLive>,
     pub todos: Option<Vec<shadows_agent::events::TodoItem>>,
 }
+
+newtype_id! {
+    /// A question the Planner asked the person with `person_ask`.
+    QuestionId
+}
+
+/// One option of a question: the text of the button the person clicks.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+pub struct QuestionOption {
+    pub label: String,
+}
+
+/// What `person_ask` answers the Planner.
+#[derive(Debug, Clone, serde::Serialize, utoipa::ToSchema)]
+pub struct Asked {
+    pub question_id: QuestionId,
+}

@@ -132,6 +132,27 @@ impl crate::Threads {
         )
     }
 
+    /// Replaces the card of an entry of `thread`, inside the caller's
+    /// transaction: a question's card records the person's choice.
+    pub async fn set_card_in(
+        conn: &mut SqliteConnection,
+        thread: &ThreadId,
+        entry: &ThreadEntryId,
+        card: &serde_json::Value,
+    ) -> Result<(), StorageError> {
+        let changed = sqlx::query("UPDATE thread_entry SET card_json=? WHERE id=? AND thread_id=?")
+            .bind(serde_json::to_string(card)?)
+            .bind(entry.as_str())
+            .bind(thread.as_str())
+            .execute(conn)
+            .await?
+            .rows_affected();
+        if changed == 0 {
+            return Err(StorageError::NotFound("thread_entry"));
+        }
+        Ok(())
+    }
+
     /// User entries retain operation provenance, even when copied by a fork.
     pub async fn user_operations_in(
         conn: &mut SqliteConnection,

@@ -69,6 +69,7 @@ modules:
   spawn.rs: live registration
   steer.rs: steering orchestration
   plan_show.rs: plan card live signal composition
+  questions.rs: person question orchestration
   stage.rs: shared normal/steered stage fact composition
   turn.rs: live completion arbitration
   entries.rs: harness entry collection
@@ -82,6 +83,7 @@ modules:
   store/operation_read.rs: operation composition with Harness batched reads
   store/turn.rs: turn command persistence
   store/queue.rs: queue persistence
+  store/questions.rs: person question persistence
   store/remove.rs: atomic thread removal composition
   store/steer.rs: steer persistence
   store/standards.rs: invocation standards composition
@@ -243,6 +245,10 @@ shapes:
     # Started { operation_id } when the thread was idle.
     Waiting: QueuedMessage
     Started: OperationId
+  QuestionOption:
+    label: String # 1 to 80 characters.
+  Asked:
+    question_id: QuestionId # What person_ask answers.
   SentNow:
     # What Send now answers, tagged "status": Steered { entry_id } or
     # Started { operation_id } when the thread had gone idle.
@@ -360,6 +366,26 @@ functions:
       # once with `send_queued`; ThreadBusy or QueuedMessageGone leaves it Waiting,
       # any other refusal is recorded as its last_error and answered. The turn's
       # prompt entry (and a steered one) has author Executor/<thread> and the card.
+    ask:
+      signature: "(&self, thread: &ThreadId, question: String, options: Vec<QuestionOption>) -> Result<QuestionId, TurnsError>"
+      # person_ask. Trimmed, the question is 1 to 500 characters, 2 to 5
+      # options, each label 1 to 80 (InvalidCommand otherwise); an executor
+      # thread is InvalidCommand. One write: a person_question row and a
+      # PersonQuestion entry authored Agent/Planner, in the running turn when
+      # one runs, whose card is { question_id, question, options, chosen: null }.
+    answer:
+      signature: "(&self, command: String, thread: &ThreadId, question: &QuestionId, option: usize) -> Result<Queued, TurnsError>"
+      # "question.answer", params { thread_id, question_id, option }. The click
+      # is the person's message. One write records chosen, rewrites the
+      # entry's card to chosen: option (Threads::set_card_in) and writes the
+      # waiting message `Answer to "<question>": <label>` under the settings of
+      # the thread's latest turn; then, as `queue_notice` does, an idle thread
+      # starts it with `send_queued` (its turn records the user entry, author
+      # User), a busy one leaves it Waiting, and a failed start keeps the row
+      # with its last_error. Refusals: NotFound for no such question;
+      # InvalidCommand for a question of another thread (a fork's copied card),
+      # an option out of range, or a thread with no turn yet; CommandConflict
+      # for a second answer. A replay answers as the first did.
     queued:
       signature: "(&self, thread: &ThreadId) -> Result<Vec<QueuedMessage>, TurnsError>"
       # §20.5: the thread's waiting messages in `position` order.
@@ -558,6 +584,16 @@ functions:
       # pub(crate): `queue_message` storing the notice, written on an idle thread
       # too; the bool says the thread was idle. MessageQueued's actor is the
       # command's principal.
+    insert_queued_in:
+      signature: "(conn, ctx, thread, id, fields, attachments, notice, ts) -> Result<QueuedMessage, StorageError>"
+      # pub(super): the row last in position order, MessageQueued, and the
+      # command recorded with the row as its outcome; queue and answer share it.
+    ask_question:
+      signature: "(&self, thread: &ThreadId, question: &str, options: &[QuestionOption]) -> Result<QuestionId, TurnsError>"
+    answer_question:
+      signature: "(&self, ctx: &CommandContext, thread: &ThreadId, question: &QuestionId, option: usize, settings: AnswerSettings) -> Result<(QueuedMessage, bool), TurnsError>"
+      # The bool says the thread was idle; a replay answers true so the caller
+      # asks for its turn again, which answers the turn already started.
     queued_messages:
       signature: "(&self, thread: &ThreadId) -> Result<Vec<QueuedMessage>, StorageError>"
       # In `position` order; none for a removed thread.
@@ -943,6 +979,19 @@ not_the_caller's:
 
 
 tests:
+  - name: a_question_is_a_stored_entry
+    checks: A question is a PersonQuestion entry with its card, read again from a new storage; too few options or a long label is InvalidCommand.
+  - name: an_answer_reaches_the_planner_as_the_persons_message
+    checks: >
+      On an idle thread the answer starts a turn whose user entry, authored User, reads Answer to "<question>": <label>; on a busy one it waits with the latest turn's settings.
+  - name: a_question_is_answered_once
+    checks: A replay answers the first waiting message; another command is CommandConflict and queues nothing.
+  - name: an_answered_card_reads_chosen_after_a_reload
+    checks: The question entry's card reads chosen from a new storage.
+  - name: a_forked_question_cannot_be_answered_in_the_fork
+    checks: A fork copies the card; answering it in the fork is InvalidCommand.
+  - name: an_executor_cannot_ask
+    checks: person_ask is a thread grant's tool only, and the Planner prompt names it.
   - name: listing_keeps_order_and_missing_invocations_without_other_threads
     checks: A batched listing preserves newest-first order and missing invocations, excluding other threads.
   - name: invocation_standards_preserve_pins_nulls_and_missing_results

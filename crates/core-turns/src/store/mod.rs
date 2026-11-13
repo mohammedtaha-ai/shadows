@@ -1,6 +1,7 @@
 mod images;
 mod operation;
 mod operation_read;
+mod questions;
 mod queue;
 mod remove;
 mod standards;
@@ -8,6 +9,7 @@ mod steer;
 mod turn;
 mod usage;
 
+pub(crate) use questions::AnswerSettings;
 pub use queue::{NewQueued, QueueAnswer};
 #[cfg(feature = "test-support")]
 pub use turn::InvocationVersions;

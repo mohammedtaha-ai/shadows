@@ -233,6 +233,7 @@ fn the_document_names_every_route() {
             "POST /api/threads/{id}/attachments",
             "POST /api/threads/{id}/context/resend",
             "POST /api/threads/{id}/fork",
+            "POST /api/threads/{id}/questions/{question}/answer",
             "POST /api/threads/{id}/queue",
             "POST /api/threads/{id}/queue/{qid}/send-now",
             "POST /api/threads/{id}/session",

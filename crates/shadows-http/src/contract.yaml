@@ -128,6 +128,7 @@ map_refusals: 'MAP_REFUSED is HTTP 422 with the rule-prefixed domain message; sh
 
 layout_only: Map records contain no starter files; the stage has no Structure step or file count, and no HTTP structure-write route exists. Roadmap follows map approval.
 
+question_answer: 'POST /api/threads/{id}/questions/{question}/answer { command_id, option } calls Turns::answer and answers 202 Queued; a second answer is 409 COMMAND_CONFLICT, a question of another thread or an option out of range 422 INVALID_COMMAND.'
 queued_notices: 'QUEUED_NOTICE_KEPT is 409: DELETE of a waiting executor notice removes nothing. QueuedMessage.notice and the Notice and AttemptNotice schemas (the latter listed in openapi.rs, as the card a notice entry carries) describe it.'
 
 route_table:

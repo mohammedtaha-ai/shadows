@@ -283,6 +283,7 @@ fn session_routes(table: OpenApiRouter<AppState>) -> OpenApiRouter<AppState> {
             thread::remove_thread
         ))
         .routes(routes!(thread::fork_thread))
+        .routes(routes!(thread::answer_question))
         .routes(routes!(
             planning_context::get_anchor,
             planning_context::set_anchor

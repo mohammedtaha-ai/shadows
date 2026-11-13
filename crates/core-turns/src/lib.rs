@@ -24,6 +24,7 @@ mod model;
 mod plan_show;
 mod planning;
 mod prompt;
+mod questions;
 mod queue;
 mod record;
 mod remove;
@@ -46,7 +47,8 @@ use shadows_agent::TurnSettings;
 
 pub use handles::LiveHandles;
 pub use model::{
-    InvocationView, Notice, Operation, OperationId, Queued, QueuedMessage, QueuedMessageId, SentNow,
+    Asked, InvocationView, Notice, Operation, OperationId, QuestionId, QuestionOption, Queued,
+    QueuedMessage, QueuedMessageId, SentNow,
 };
 pub use spawn::{OnCompleted, PlannerTurnRequest, StartError};
 pub use store::{NewQueued, QueueAnswer};

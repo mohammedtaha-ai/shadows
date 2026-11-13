@@ -80,8 +80,8 @@ pub use core_threads::{
     WorkflowRef,
 };
 pub use core_turns::{
-    InvocationView, Notice, Operation, Queued, QueuedMessage, QueuedMessageId, SendTurn, SentNow,
-    StartError, Turns,
+    Asked, InvocationView, Notice, Operation, QuestionId, QuestionOption, Queued, QueuedMessage,
+    QueuedMessageId, SendTurn, SentNow, StartError, Turns,
 };
 pub use core_usage::{ModelUsage, ProviderUsage, Usage, UsageReport};
 pub use error::{CoreError, ErrorCode};

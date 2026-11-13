@@ -161,6 +161,7 @@ shapes:
     VisionProposal: unit # Immutable proposed content; live status belongs to Design.
     MapProposal: unit # Immutable map snapshot; current status belongs to Design.
     RoadmapProposal: unit # Immutable roadmap snapshot; current status belongs to Design.
+    PersonQuestion: "{ question_id, question, options, chosen } card; chosen is rewritten once, by Turns"
   CreatedTitle:
     # Private: who named a thread at create, its first `title_source`.
     # `Client` (create_thread) is replaced by the first message and the
@@ -303,6 +304,7 @@ functions:
     turn_context_in: "(conn, thread) -> Result<TurnContext, StorageError>; same snapshot as Projects::get_in"
     list_for_profile_in: "(conn, slug) -> Result<Vec<PlanningThread>, StorageError>; live threads newest first"
     card_in: "(conn, entry) -> Result<String, StorageError>; immutable proposal replay payload"
+    set_card_in: "(conn, thread, entry, card) -> Result<(), StorageError>; NotFound(thread_entry) when the entry is not the thread's"
     user_operations_in: "(conn, thread) -> Result<Vec<String>, StorageError>; UserMessage operation ids by descending ordinal"
     record_harness_session_in: "(conn, thread, session) -> Result<bool, StorageError>; first write wins"
 
@@ -340,6 +342,7 @@ shared_in_transaction:
   create_executor_in: Creates the executor-kind thread an executor session runs in, in the caller's transaction; no list returns it.
   create_hidden_in: Creates an AYLUL member thread for a live agent in the caller's transaction.
   card_in: Design reads an immutable entry card during proposal command replay.
+  set_card_in: Turns records a question's chosen option in its card, in the answer transaction.
   user_operations_in: Turns reads user-entry operation ids in descending ordinal order.
   record_harness_session_in: Turns records the first completed session without replacing it.
   title_from_harness_in: Harness writes generated titles in dispatch order in its own transaction.

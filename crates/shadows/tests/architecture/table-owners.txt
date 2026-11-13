@@ -53,6 +53,7 @@ message_delivery :: messages
 message_group :: messages
 message_group_member :: messages
 operation :: operations
+person_question :: turns
 plan :: plans
 planner_instructions_version :: instructions
 planning_thread :: threads
