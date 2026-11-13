@@ -95,3 +95,23 @@ it('an_old_notice_from_the_person_stays_a_bubble', async () => {
   expect(host.textContent).toContain('[Shadows] Task 2 is done')
   expect(host.querySelector('button[aria-expanded]')).toBeNull()
 })
+
+it('a_shadows_notice_names_shadows', async () => {
+  const entry = { ...notice('You changed files without a reason', null, 'Shadows') }
+  const host = await draw(entry)
+  expect(header(host).textContent).toBe('Shadows')
+  expect(host.textContent).toContain('You changed files without a reason')
+})
+
+it('a_project_change_shows_its_reason', async () => {
+  const change = (reason: string | null, noted: boolean) => ({
+    ...entryOfKind('c1', 'ProjectChange', 'x'),
+    card: { paths: ['src/a.ts', 'src/b.ts'], reason, noted },
+  })
+  const noted = await draw(change('Renamed the helper', true))
+  expect(noted.textContent).toContain('src/a.ts')
+  expect(noted.textContent).toContain('src/b.ts')
+  expect(noted.textContent).toContain('Renamed the helper')
+  const unnoted = await draw(change(null, false))
+  expect(unnoted.textContent).toContain('no reason given')
+})

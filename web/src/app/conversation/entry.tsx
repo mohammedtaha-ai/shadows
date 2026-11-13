@@ -15,9 +15,10 @@ import { VisionProposalCard } from './vision-proposal-card'
 import { MapProposalCard } from './map-proposal-card'
 import { RoadmapProposalCard } from './roadmap-proposal-card'
 import { TodoCard } from './todo-card'
-import { NoticeItem } from './notice-item'
+import { NoticeItem, ProjectChangeLine } from './notice-item'
 import { noticeOf, subagentOf } from './tool-text'
 import { PermissionCard } from './permission-card'
+import { PersonQuestionCard } from './person-question-card'
 
 // Streamdown and its code highlighting are most of this app's weight, so they
 // are a chunk of their own, and not in the one every screen waits for. The
@@ -63,7 +64,7 @@ export function Entry({
 }) {
   if (entry.kind === 'UserMessage') {
     const notice = noticeOf(entry)
-    if (notice !== null) return <NoticeItem body={entry.body} card={notice.card} />
+    if (notice !== null) return <NoticeItem body={entry.body} card={notice.card} sender={notice.sender} />
     return (
       <div className="flex justify-end">
         <div
@@ -87,6 +88,8 @@ export function Entry({
     )
   }
   if (entry.kind === 'AgentMessage') return <ReplyText text={entry.body} />
+  if (entry.kind === 'PersonQuestion') return <PersonQuestionCard entry={entry} />
+  if (entry.kind === 'ProjectChange') return <ProjectChangeLine entry={entry} />
   if (entry.kind === 'PermissionAsked') {
     return <PermissionCard entry={entry} projectId={projectId} />
   }

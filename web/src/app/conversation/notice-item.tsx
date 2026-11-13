@@ -6,6 +6,7 @@ import { cn } from 'cn'
 import { Bell, ChevronRight } from 'lucide-react'
 import { Suspense, lazy, useState } from 'react'
 import type { AttemptNotice } from '@/api/runs'
+import type { ThreadEntry } from '@/api/threads'
 
 const LazyReplyText = lazy(async () => ({ default: (await import('./reply-text')).ReplyText }))
 
@@ -48,15 +49,19 @@ function Report({ text }: { text: string }) {
   )
 }
 
-/** An executor's notice. `body` is shown only when the card is missing or unreadable. */
-export function NoticeItem({ body, card }: { body: string; card: AttemptNotice | null }) {
+/** A notice from an executor, or from Shadows itself. `body` is shown only when the card is missing or unreadable. */
+export function NoticeItem({ body, card, sender = 'Executor' }: {
+  body: string
+  card: AttemptNotice | null
+  sender?: 'Executor' | 'Shadows'
+}) {
   const [open, setOpen] = useState(true)
   const hasBody = card === null || card.report != null || card.reason != null
   const header = (
     <>
       <Bell aria-hidden className="size-3.5 shrink-0 text-accent-line/85" />
       <span dir="auto" className={cn('font-medium text-foreground')}>
-        {card === null ? 'Executor' : (
+        {card === null ? sender : (
           <>
             {noticeName(card)} · T{card.task} · attempt {card.attempt}{' '}
             <span className={cn(card.outcome === 'failed' && 'text-destructive')}>{card.outcome}</span>
@@ -109,5 +114,24 @@ export function NoticeItem({ body, card }: { body: string; card: AttemptNotice |
         </div>
       )}
     </div>
+  )
+}
+
+/** The paths the Planner changed in its turn, with its reason, or that it gave none. */
+export function ProjectChangeLine({ entry }: { entry: ThreadEntry }) {
+  const paths = Array.isArray(entry.card?.paths)
+    ? entry.card.paths.filter((path): path is string => typeof path === 'string')
+    : []
+  const reason = typeof entry.card?.reason === 'string' && entry.card.reason !== '' ? entry.card.reason : null
+  return (
+    <section aria-label="Project change" className="surface-panel space-y-1.5 rounded-xl p-3 text-xs">
+      <p className="font-medium text-secondary-foreground">Changed project files</p>
+      <ul className="space-y-0.5 font-mono text-2xs text-muted-foreground">
+        {paths.map(path => <li key={path} className="break-all">{path}</li>)}
+      </ul>
+      <p dir="auto" className={cn('text-foreground', reason === null && 'text-faint-foreground')}>
+        {reason ?? 'no reason given'}
+      </p>
+    </section>
   )
 }

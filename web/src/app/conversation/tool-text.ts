@@ -49,11 +49,13 @@ export function subagentOf(entry: ThreadEntry): SubagentCard | null {
   }
 }
 
-/** An executor's notice: a message whose author is an Executor, never decided from its text.
- * `card` is null when the entry has none or it cannot be read. */
-export function noticeOf(entry: ThreadEntry): { card: AttemptNotice | null } | null {
-  if (entry.kind !== 'UserMessage' || entry.author.kind !== 'Executor') return null
-  return { card: readAttemptNotice(entry.card) }
+/** A notice: a message whose author is an Executor or Shadows, never decided from its text.
+ * `card` is null when the entry has none or it cannot be read (Shadows' notices carry none an attempt reads). */
+export function noticeOf(entry: ThreadEntry): { card: AttemptNotice | null; sender: 'Executor' | 'Shadows' } | null {
+  if (entry.kind !== 'UserMessage') return null
+  if (entry.author.kind === 'Shadows') return { card: null, sender: 'Shadows' }
+  if (entry.author.kind !== 'Executor') return null
+  return { card: readAttemptNotice(entry.card), sender: 'Executor' }
 }
 
 /** An entry that adds no line: a tool call whose result is another entry. */

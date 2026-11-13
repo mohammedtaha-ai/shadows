@@ -164,7 +164,7 @@ Design: [language servers](../backend/specs/2026-11-13-language-servers-design.m
 
 ### F-115 · The question card, the Planner's permission cards, and Shadows' notices
 
-- Status: ready after B-143 and B-144.
+- Status: done.
 - Plan: [Task F-115](../backend/plans/2026-11-13-slice-2-language-servers.md#task-f-115-the-question-card-the-planners-permission-cards-and-shadows-notices).
 
 ### F-116 · Settings › Code

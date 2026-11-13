@@ -188,10 +188,14 @@ it is that folder's `contract.yaml`.
 | `web/src/app/agents/color-swatches.tsx` | Character colour controls | `web/src/app/agents/contract.yaml` |
 | `web/src/app/agents/outfits.ts` | Studio outfit preview lookup | `web/src/app/agents/contract.yaml` |
 | `web/src/api/extensions.test.ts` | MCP library transport checks | `web/src/api/contract.yaml` |
+| `web/src/api/questions.ts` | The person's answer to the Planner's question | `web/src/api/contract.yaml` |
+| `web/src/api/questions.test.ts` | Question transport checks | `web/src/api/contract.yaml` |
 | `web/src/api/permissions.ts` | Waiting permission transport | `web/src/api/contract.yaml` |
 | `web/src/api/permissions.test.ts` | Permission transport checks | `web/src/api/contract.yaml` |
 | `web/src/app/conversation/background-tasks.tsx` | Background task side panel | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/background-tasks.test.tsx` | Background task interaction test | `web/src/app/conversation/contract.yaml` |
+| `web/src/app/conversation/person-question-card.tsx` | The Planner's question as buttons, then the choice | `web/src/app/conversation/contract.yaml` |
+| `web/src/app/conversation/person-question-card.test.tsx` | Question card checks | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/permission-card.tsx` | Permission request interaction | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/permission-answer.tsx` | Shared permission option submission | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/permission-answer.test.tsx` | Shared permission option submission checks | `web/src/app/conversation/contract.yaml` |
@@ -231,7 +235,7 @@ it is that folder's `contract.yaml`.
 | `web/src/app/conversation/activity-text.ts` | Words a tool group with its steps | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/tool-group.tsx` | A run of tool calls drawn as one line | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/tool-diff.tsx` | An edit's hunks drawn with line numbers | `web/src/app/conversation/contract.yaml` |
-| `web/src/app/conversation/notice-item.tsx` | An executor's notice drawn as an activity item | `web/src/app/conversation/contract.yaml` |
+| `web/src/app/conversation/notice-item.tsx` | A notice from an executor or Shadows drawn as an activity item | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/turn-blocks.ts` | Groups a turn's activity rows into boxes, split at the Planner's text | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/turn-box.tsx` | One run of a turn's activity as a collapsible box | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/todo-card.tsx` | The agent's task list drawn as a checklist | `web/src/app/conversation/contract.yaml` |

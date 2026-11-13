@@ -1502,6 +1502,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/threads/{id}/questions/{question}/answer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * The person's click on a question's option: their message to the Planner,
+         *     sent at once on an idle thread, waiting while a turn runs.
+         */
+        post: operations["answer_question"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/threads/{id}/queue": {
         parameters: {
             query?: never;
@@ -2015,6 +2035,12 @@ export interface components {
         };
         AnchorResponse: {
             anchor: null | components["schemas"]["ThreadPlanningAnchor"];
+        };
+        AnswerBody: {
+            /** @description The idempotency key. */
+            command_id: string;
+            /** @description The chosen option, by its index in the question's card. */
+            option: number;
         };
         AnswerPermission: {
             command_id: string;
@@ -2920,14 +2946,13 @@ export interface components {
             title: string;
         };
         /**
-         * @description A message an executor's attempt sends the Planner through Shadows: the
-         *     turn it starts is recorded in the executor's name, with its card.
+         * @description A message sent to the Planner in another's name: an executor's attempt's,
+         *     or Shadows' own. The turn it starts is recorded in that name, with its card.
          */
         Notice: {
             /** @description The facts the conversation draws, as the sender shaped them. */
             card: Record<string, never>;
-            /** @description The executor's thread, its identity. */
-            executor: components["schemas"]["ThreadId"];
+            executor: null | components["schemas"]["ThreadId"];
         };
         /** @description The durable operation record; its thread reference is stored as plain text. */
         Operation: {
@@ -3434,6 +3459,8 @@ export interface components {
             /** @description `true` switches the server off for every project; `false` back on. */
             off: boolean;
         };
+        /** Format: uuid */
+        QuestionId: string;
         /** @description What queueing answers. */
         Queued: {
             message: components["schemas"]["QueuedMessage"];
@@ -3808,7 +3835,7 @@ export interface components {
          *     Each variant uses its name for storage and serialization.
          * @enum {string}
          */
-        ThreadEntryKind: "UserMessage" | "AgentMessage" | "ToolCall" | "TodoList" | "Subagent" | "PermissionRefused" | "PermissionAsked" | "PermissionAnswered" | "PlanView" | "PlanApproved" | "VisionProposal" | "MapProposal" | "RoadmapProposal";
+        ThreadEntryKind: "UserMessage" | "AgentMessage" | "ToolCall" | "TodoList" | "Subagent" | "PermissionRefused" | "PermissionAsked" | "PermissionAnswered" | "PlanView" | "PlanApproved" | "VisionProposal" | "MapProposal" | "RoadmapProposal" | "PersonQuestion" | "ProjectChange";
         /** Format: uuid */
         ThreadId: string;
         ThreadPlanningAnchor: {
@@ -8818,6 +8845,88 @@ export interface operations {
             };
             /** @description STORAGE_UNAVAILABLE */
             500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    answer_question: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The thread */
+                id: components["schemas"]["ThreadId"];
+                /** @description The question */
+                question: components["schemas"]["QuestionId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AnswerBody"];
+            };
+        };
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Queued"];
+                };
+            };
+            /** @description no such thread or question */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description COMMAND_CONFLICT: already answered */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description INVALID_COMMAND: no such option, or the question was asked in another conversation */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description STORAGE_UNAVAILABLE */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description HARNESS_START_FAILED */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description RUNTIME_STOPPING */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
