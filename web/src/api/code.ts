@@ -4,7 +4,7 @@ import type { components } from './schema'
 import { client, unwrap, unwrapEmpty } from './transport'
 
 export const codeKeys = {
-  settings: () => ['code', 'settings'],
+  servers: (projectId: string) => ['projects', projectId, 'code', 'servers'],
   status: (projectId: string) => ['projects', projectId, 'code', 'status'],
   links: (projectId: string) => ['projects', projectId, 'code', 'links'],
 }
@@ -25,13 +25,13 @@ export function codeLinksQuery(projectId: string) {
   })
 }
 
-/** Code index settings apply to the whole daemon. */
-export const codeSettingsQuery = queryOptions({
-  queryKey: codeKeys.settings(),
-  queryFn: getCodeSettings,
-})
-export function saveCodeSettingsAnswer(client: QueryClient, settings: CodeSettings) {
-  return writeSaved(client, codeKeys.settings(), settings)
+export function codeServersQuery(projectId: string) {
+  return queryOptions({
+    queryKey: codeKeys.servers(projectId),
+    queryFn: () => listServers(projectId),
+    // A server starts or fails on its own, so a shown list follows it.
+    refetchInterval: 5_000,
+  })
 }
 export function saveUnlinkedCodeAnswer(client: QueryClient, projectId: string, linked: string) {
   return writeSaved<ProjectLink[]>(client, codeKeys.links(projectId), links => links?.filter(value => value.linked !== linked))
@@ -42,7 +42,9 @@ export type ProjectStatus = components['schemas']['ProjectStatus']
 
 export type ProjectLink = components['schemas']['ProjectLink']
 
-export type CodeSettings = components['schemas']['CodeSettings']
+export type ServerStatus = components['schemas']['ServerStatus']
+
+export type AddedServer = components['schemas']['AddedServer']
 
 /** How a project's code index stands. Asking does not make it active. */
 function getCodeStatus(projectId: string): Promise<ProjectStatus> {
@@ -85,16 +87,35 @@ export function removeCodeLink(
   )
 }
 
-/** The code index's settings: how many projects are active at once. */
-function getCodeSettings(): Promise<CodeSettings> {
-  return unwrap(client.GET('/api/code/settings'))
+/** Every catalog and added server as the project sees it. Asking does not make it active. */
+function listServers(projectId: string): Promise<ServerStatus[]> {
+  return unwrap(
+    client.GET('/api/projects/{id}/code/servers', { params: { path: { id: projectId } } }),
+  )
 }
 
-/** Sets how many projects are active at once, 1 to 20. */
-export function setActiveLimit(commandId: string, activeLimit: number): Promise<CodeSettings> {
+/** Switches a server off for every project, or back on. */
+export function setServerOff(serverId: string, off: boolean, commandId: string): Promise<void> {
+  return unwrapEmpty(
+    client.PUT('/api/code/servers/{server}/off', {
+      params: { path: { server: serverId } },
+      body: { command_id: commandId, off },
+    }),
+  )
+}
+
+/** Adds a server beside the catalog, on the person's own responsibility. */
+export function addServer(server: AddedServer, commandId: string): Promise<ServerStatus> {
   return unwrap(
-    client.PUT('/api/code/settings', {
-      body: { command_id: commandId, active_limit: activeLimit },
+    client.POST('/api/code/servers', { body: { ...server, command_id: commandId } }),
+  )
+}
+
+/** Removes a server the person added. */
+export function removeServer(serverId: string, commandId: string): Promise<void> {
+  return unwrapEmpty(
+    client.DELETE('/api/code/servers/{server}', {
+      params: { path: { server: serverId }, query: { command_id: commandId } },
     }),
   )
 }

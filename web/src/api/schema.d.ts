@@ -418,20 +418,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/code/settings": {
+    "/api/code/servers": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** The code index's settings. */
-        get: operations["get_settings"];
-        /**
-         * Sets how many projects are active at once. Lowering it stops the
-         *     least recently used projects' watchers at once.
-         */
-        put: operations["put_settings"];
+        get?: never;
+        put?: never;
+        /** Adds a server beside the catalog, on the person's own responsibility. */
+        post: operations["post_server"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/code/servers/{server}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Removes a server the person added. */
+        delete: operations["remove_server"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/code/servers/{server}/off": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Switches a server off, or back on. Shadows' code answers get worse without it. */
+        put: operations["put_server_off"];
         post?: never;
         delete?: never;
         options?: never;
@@ -788,26 +818,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/projects/{id}/code/definitions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Where a name is defined: per hit, its project, path, line, kind and
-         *     signature.
-         */
-        get: operations["definitions"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/projects/{id}/code/files": {
         parameters: {
             query?: never;
@@ -867,46 +877,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/projects/{id}/code/outline": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * The definitions in a file or folder. It reads the index and
-         *     opens no path.
-         */
-        get: operations["outline"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/projects/{id}/code/references": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Where a name is used, matched by name only: every hit says
-         *     `matched_by: "name"`.
-         */
-        get: operations["references"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/projects/{id}/code/refresh": {
         parameters: {
             query?: never;
@@ -918,6 +888,26 @@ export interface paths {
         put?: never;
         /** Lists the project's folder again now, and answers the first page. */
         post: operations["refresh"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{id}/code/servers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Every catalog and added server, as this project sees it: whether its files
+         *     want it, and its state. Asking does not make the project active.
+         */
+        get: operations["servers"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1864,6 +1854,16 @@ export interface components {
             id: string;
             kind: string;
         };
+        /** @description A server the person adds beside the catalog, on their own responsibility. */
+        AddedServer: {
+            args?: string[];
+            /** @description The program, by name on PATH or by path. */
+            command: string;
+            /** @description The file extensions it reads, each starting with `.`. */
+            extensions: string[];
+            /** @description Its name; not a catalog id. */
+            id: string;
+        };
         AdditionalPart: {
             name: string;
             owns: string;
@@ -2015,20 +2015,6 @@ export interface components {
         };
         AnchorResponse: {
             anchor: null | components["schemas"]["ThreadPlanningAnchor"];
-        };
-        /** @description What a question answers. */
-        Answer: {
-            /**
-             * @description At most 50, by project (the asker's first, then its links by slug),
-             *     path and line.
-             */
-            hits: components["schemas"]["Hit"][];
-            /** @description More hits than the 50 answered. */
-            more: boolean;
-            /** @description One per project in the scope. */
-            status: components["schemas"]["ProjectStatus"][];
-            /** @description Up to 10 names containing the text, only when `hits` is empty. */
-            suggestions: string[];
         };
         AnswerPermission: {
             command_id: string;
@@ -2219,24 +2205,6 @@ export interface components {
             id: string;
             label: string;
             reason: string | null;
-        };
-        /** @description The code index's settings. */
-        CodeSettings: {
-            /**
-             * Format: int32
-             * @description How many projects are active at once: 1 to 20, default 5.
-             */
-            active_limit: number;
-            /**
-             * Format: int32
-             * @description The most `active_limit` Core accepts.
-             */
-            active_limit_max: number;
-            /**
-             * Format: int32
-             * @description The least `active_limit` Core accepts.
-             */
-            active_limit_min: number;
         };
         ContextResponse: {
             carried: components["schemas"]["CarriedContext"];
@@ -2517,7 +2485,7 @@ export interface components {
          *     `Blocked`/`Rejected` are domain outcomes and never appear here.
          * @enum {string}
          */
-        ErrorCode: "CONTEXT_NOT_CARRIED" | "MAP_REFUSED" | "PERMISSION_NOT_FOUND" | "PERMISSION_SETTLED" | "PERMISSION_OPTION_NOT_OFFERED" | "EXTENSION_NOT_FOUND" | "EXTENSION_NAME_CONFLICT" | "RUNTIME_NOT_CONFIGURED" | "AYLUL_PROFILE_NOT_FOUND" | "AYLUL_PROVIDER_NOT_FOUND" | "PROVIDER_IN_USE" | "PROFILE_INVALID" | "SECRET_NAME_RESERVED" | "SECRET_NAME_INVALID" | "SECRET_VALUE_INVALID" | "SECRET_UNREADABLE" | "SECRETS_UNAVAILABLE" | "AYLUL_KEY_MISSING" | "AYLUL_NOT_CONFIGURED" | "STAGE_BLOCKED" | "HARNESS_START_FAILED" | "PROCESS_SPAWN_FAILED" | "PROCESS_TERMINATED" | "PROCESS_TERMINATION_FAILED" | "RUNTIME_STOPPING" | "STORAGE_UNAVAILABLE" | "STORAGE_MIGRATION_FAILED" | "STORAGE_CONSTRAINT_VIOLATION" | "COMMAND_CONFLICT" | "IDEMPOTENCY_KEY_REQUIRED" | "INVALID_COMMAND" | "INVALID_CURSOR" | "INVENTORY_STALE" | "AGENT_AUTH_FAILED" | "AGENT_UNSUPPORTED_PROFILE" | "PATH_INVALID" | "PATH_NOT_FOUND" | "PATH_NOT_A_DIRECTORY" | "PATH_ACCESS_DENIED" | "PATH_ALREADY_EXISTS" | "PATH_UNAVAILABLE" | "ORIGIN_REFUSED" | "HARNESS_UNAVAILABLE" | "SETTING_NOT_OFFERED" | "MODE_NOT_ALLOWED" | "HARNESS_LOCKED" | "THREAD_BUSY" | "QUEUED_MESSAGE_GONE" | "QUEUED_NOTICE_KEPT" | "FORK_POINT_NOT_SUPPORTED" | "WORKFLOW_FROZEN_IMMUTABLE" | "WORKFLOW_VALIDATION_FAILED" | "REVISION_CONFLICT" | "PROJECT_HAS_THREADS" | "GRANT_SCOPE" | "GRANT_INVALID";
+        ErrorCode: "CONTEXT_NOT_CARRIED" | "MAP_REFUSED" | "PERMISSION_NOT_FOUND" | "PERMISSION_SETTLED" | "PERMISSION_OPTION_NOT_OFFERED" | "EXTENSION_NOT_FOUND" | "EXTENSION_NAME_CONFLICT" | "RUNTIME_NOT_CONFIGURED" | "AYLUL_PROFILE_NOT_FOUND" | "AYLUL_PROVIDER_NOT_FOUND" | "PROVIDER_IN_USE" | "PROFILE_INVALID" | "SECRET_NAME_RESERVED" | "SECRET_NAME_INVALID" | "SECRET_VALUE_INVALID" | "SECRET_UNREADABLE" | "SECRETS_UNAVAILABLE" | "AYLUL_KEY_MISSING" | "AYLUL_NOT_CONFIGURED" | "STAGE_BLOCKED" | "HARNESS_START_FAILED" | "PROCESS_SPAWN_FAILED" | "PROCESS_TERMINATED" | "PROCESS_TERMINATION_FAILED" | "RUNTIME_STOPPING" | "STORAGE_UNAVAILABLE" | "STORAGE_MIGRATION_FAILED" | "STORAGE_CONSTRAINT_VIOLATION" | "COMMAND_CONFLICT" | "IDEMPOTENCY_KEY_REQUIRED" | "INVALID_COMMAND" | "INVALID_CURSOR" | "INVENTORY_STALE" | "AGENT_AUTH_FAILED" | "AGENT_UNSUPPORTED_PROFILE" | "PATH_INVALID" | "PATH_NOT_FOUND" | "PATH_NOT_A_DIRECTORY" | "PATH_ACCESS_DENIED" | "PATH_ALREADY_EXISTS" | "PATH_UNAVAILABLE" | "ORIGIN_REFUSED" | "HARNESS_UNAVAILABLE" | "LANGUAGE_SERVER_UNAVAILABLE" | "SETTING_NOT_OFFERED" | "MODE_NOT_ALLOWED" | "HARNESS_LOCKED" | "THREAD_BUSY" | "QUEUED_MESSAGE_GONE" | "QUEUED_NOTICE_KEPT" | "FORK_POINT_NOT_SUPPORTED" | "WORKFLOW_FROZEN_IMMUTABLE" | "WORKFLOW_VALIDATION_FAILED" | "REVISION_CONFLICT" | "PROJECT_HAS_THREADS" | "GRANT_SCOPE" | "GRANT_INVALID";
         /** @enum {string} */
         ExtensionKind: "plugin" | "skill" | "mcp";
         ExtensionLibrary: {
@@ -2620,20 +2588,6 @@ export interface components {
             description: string;
             id: string;
             label: string;
-        };
-        /** @description One tag an answer points at. */
-        Hit: {
-            kind: string;
-            /** Format: int32 */
-            line: number;
-            /** @description `Some("name")` on every `references` hit: matched by name only. */
-            matched_by?: string | null;
-            name: string;
-            /** @description Relative to the project's folder, with '/'. */
-            path: string;
-            /** @description The project's slug. */
-            project: string;
-            signature?: string | null;
         };
         Import: {
             command_id: string;
@@ -3301,6 +3255,10 @@ export interface components {
             status: string;
             title: string;
         };
+        PostServer: components["schemas"]["AddedServer"] & {
+            /** @description The idempotency key. */
+            command_id: string;
+        };
         /**
          * @description How a part kind's presence is decided.
          * @enum {string}
@@ -3470,14 +3428,11 @@ export interface components {
             /** @description The idempotency key, scoped to the project. */
             command_id: string;
         };
-        PutSettings: {
-            /**
-             * Format: int32
-             * @description How many projects are active at once: 1 to 20.
-             */
-            active_limit: number;
+        PutServerOff: {
             /** @description The idempotency key. */
             command_id: string;
+            /** @description `true` switches the server off for every project; `false` back on. */
+            off: boolean;
         };
         /** @description What queueing answers. */
         Queued: {
@@ -3580,6 +3535,39 @@ export interface components {
             operation_id: components["schemas"]["OperationId"];
             /** @enum {string} */
             status: "started";
+        };
+        /** @description How one language server stands for one project. */
+        ServerState: {
+            /** @enum {string} */
+            state: "idle";
+        } | {
+            /** @enum {string} */
+            state: "starting";
+        } | {
+            /** @enum {string} */
+            state: "running";
+        } | {
+            /** @enum {string} */
+            state: "not_installed";
+        } | {
+            /** @enum {string} */
+            state: "off";
+        } | {
+            error: string | null;
+            /** @enum {string} */
+            state: "failed";
+        };
+        /** @description One catalog or added server, as a project sees it. */
+        ServerStatus: {
+            /** @description The person added it; it is not in the catalog. */
+            added: boolean;
+            extensions: string[];
+            id: string;
+            /** @description The command that installs it on this system; null when none is known. */
+            install: string | null;
+            state: components["schemas"]["ServerState"];
+            /** @description The project holds a file with one of its extensions. */
+            wanted: boolean;
         };
         /**
          * @description What the thread's session offers now. `efforts` are the
@@ -5475,21 +5463,44 @@ export interface operations {
             };
         };
     };
-    get_settings: {
+    post_server: {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PostServer"];
+            };
+        };
         responses: {
+            /** @description Added, or the replay of the same command */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CodeSettings"];
+                    "application/json": components["schemas"]["ServerStatus"];
+                };
+            };
+            /** @description COMMAND_CONFLICT */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description INVALID_COMMAND: a catalog id, an id already added, or an extension without a dot */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
                 };
             };
             /** @description STORAGE_UNAVAILABLE */
@@ -5503,27 +5514,27 @@ export interface operations {
             };
         };
     };
-    put_settings: {
+    remove_server: {
         parameters: {
-            query?: never;
+            query: {
+                /** @description The idempotency key. */
+                command_id: string;
+            };
             header?: never;
-            path?: never;
+            path: {
+                /** @description The added server's id */
+                server: string;
+            };
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PutSettings"];
-            };
-        };
+        requestBody?: never;
         responses: {
-            /** @description Set, or the replay of the same command */
-            200: {
+            /** @description Removed, or the replay of the same command */
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["CodeSettings"];
-                };
+                content?: never;
             };
             /** @description COMMAND_CONFLICT */
             409: {
@@ -5534,7 +5545,59 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
-            /** @description INVALID_COMMAND: outside 1 to 20 */
+            /** @description INVALID_COMMAND: no such added server */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description STORAGE_UNAVAILABLE */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    put_server_off: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The server's id */
+                server: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PutServerOff"];
+            };
+        };
+        responses: {
+            /** @description Set, or the replay of the same command */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description COMMAND_CONFLICT */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description INVALID_COMMAND: no such server */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -6822,72 +6885,6 @@ export interface operations {
             };
         };
     };
-    definitions: {
-        parameters: {
-            query: {
-                /** @description The exact name, case-sensitively. */
-                name: string;
-                /**
-                 * @description A linked project's slug, to ask only it; none asks the project and
-                 *     every project it links to.
-                 */
-                project?: string;
-            };
-            header?: never;
-            path: {
-                /** @description The project asked from */
-                id: components["schemas"]["ProjectId"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Answer"];
-                };
-            };
-            /** @description INVALID_COMMAND: no `name` */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-            /** @description INVALID_COMMAND: no such project */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-            /** @description INVALID_COMMAND: the project named is not linked */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-            /** @description STORAGE_UNAVAILABLE */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-        };
-    };
     files: {
         parameters: {
             query?: {
@@ -7111,135 +7108,6 @@ export interface operations {
             };
         };
     };
-    outline: {
-        parameters: {
-            query: {
-                /** @description A file or folder relative to the project's folder; "" for all of it. */
-                path: string;
-                /** @description As for `definitions`. */
-                project?: string;
-            };
-            header?: never;
-            path: {
-                /** @description The project asked from */
-                id: components["schemas"]["ProjectId"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Answer"];
-                };
-            };
-            /** @description INVALID_COMMAND: no `path` */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-            /** @description INVALID_COMMAND: no such project */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-            /** @description INVALID_COMMAND: the path must be inside the project, or the project named is not linked */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-            /** @description STORAGE_UNAVAILABLE */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-        };
-    };
-    references: {
-        parameters: {
-            query: {
-                /** @description The exact name, case-sensitively. */
-                name: string;
-                /**
-                 * @description A linked project's slug, to ask only it; none asks the project and
-                 *     every project it links to.
-                 */
-                project?: string;
-            };
-            header?: never;
-            path: {
-                /** @description The project asked from */
-                id: components["schemas"]["ProjectId"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Answer"];
-                };
-            };
-            /** @description INVALID_COMMAND: no `name` */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-            /** @description INVALID_COMMAND: no such project */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-            /** @description INVALID_COMMAND: the project named is not linked */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-            /** @description STORAGE_UNAVAILABLE */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-        };
-    };
     refresh: {
         parameters: {
             query?: never;
@@ -7258,6 +7126,46 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["InventoryPage"];
+                };
+            };
+            /** @description INVALID_COMMAND: no such project */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description STORAGE_UNAVAILABLE */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    servers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The project */
+                id: components["schemas"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServerStatus"][];
                 };
             };
             /** @description INVALID_COMMAND: no such project */

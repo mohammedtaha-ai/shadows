@@ -164,8 +164,10 @@ projects_and_code:
   listCodeLinks: "(projectId: string) -> Promise<ProjectLink[]>"
   putCodeLink: "(projectId: string, linkedId: string, commandId: string) -> Promise<ProjectLink>"
   removeCodeLink: "(projectId: string, linkedId: string, commandId: string) -> Promise<void>"
-  getCodeSettings: "() -> Promise<CodeSettings>"
-  setActiveLimit: "(commandId: string, activeLimit: number) -> Promise<CodeSettings>"
+  codeServersQuery: "(projectId: string) -> queryOptions<ServerStatus[]>; polls every 5 s"
+  setServerOff: "(serverId: string, off: boolean, commandId: string) -> Promise<void>"
+  addServer: "(server: AddedServer, commandId: string) -> Promise<ServerStatus>"
+  removeServer: "(serverId: string, commandId: string) -> Promise<void>"
 
 plans:
   listPlans: "(projectId: string, archived?: boolean) -> Promise<PlanListing[]>"
@@ -286,7 +288,7 @@ query_keys:
   codeStatusQuery: "(projectId: string) -> queryOptions; ['projects', id, 'code', 'status']; 2 s
       while indexing, else 10 s"
   codeLinksQuery: "(projectId: string) -> queryOptions; ['projects', id, 'code', 'links']"
-  codeSettingsQuery: "const; ['code', 'settings']"
+  codeServersQuery: "(projectId) -> options; ['projects', id, 'code', 'servers']"
   dirsQuery: "(path: string | null) -> queryOptions; ['fs', 'dirs', path]; retry false"
 
 
@@ -719,7 +721,7 @@ project_cache:
 code_cache:
   owner: code.ts
   keys: "codeKeys preserves settings, per-project status and link arrays; status polling intervals remain unchanged"
-  saved_answers: "saveCodeSettingsAnswer stores Core's answer and saveUnlinkedCodeAnswer filters one link through writeSaved, cancelling the exact prior read"
+  saved_answers: "saveUnlinkedCodeAnswer filters one link through writeSaved, cancelling the exact prior read"
 
 directory_cache:
   owner: directories.ts
@@ -774,8 +776,8 @@ projects_operations:
 
 code_operations:
   owner: code.ts
-  operations: "getCodeStatus listCodeLinks putCodeLink removeCodeLink getCodeSettings setActiveLimit"
-  types: "ProjectStatus ProjectLink CodeSettings; generated schema aliases"
+  operations: "getCodeStatus listCodeLinks putCodeLink removeCodeLink listServers setServerOff addServer removeServer"
+  types: "ProjectStatus ProjectLink ServerStatus AddedServer; generated schema aliases"
   transport: "transport/index.ts owns the shared generated client and error mapping"
 
 workflows_operations:

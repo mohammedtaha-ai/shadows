@@ -169,5 +169,5 @@ Design: [language servers](../backend/specs/2026-11-13-language-servers-design.m
 
 ### F-116 · Settings › Code
 
-- Status: ready after B-140 and B-142.
+- Status: done.
 - Plan: [Task F-116](../backend/plans/2026-11-13-slice-2-language-servers.md#task-f-116-settings--code).

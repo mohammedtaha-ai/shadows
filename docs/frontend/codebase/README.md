@@ -314,7 +314,6 @@ it is that folder's `contract.yaml`.
 | `web/src/app/project-settings/remove-project.tsx` | Danger-zone control that removes the project | `web/src/app/project-settings/contract.yaml` |
 | `web/src/app/project-settings/when.ts` | Formats a stored time for the settings page | `web/src/app/project-settings/contract.yaml` |
 | `web/src/app/project-settings/index.ts` | Declare lazy route surfaces | `web/src/app/project-settings/contract.yaml` |
-| `web/src/app/settings/active-projects.tsx` | Editor for how many projects the index keeps active | `web/src/app/settings/contract.yaml` |
 | `web/src/app/settings/settings-dialog.tsx` | URL-selected settings dialog | `web/src/app/settings/contract.yaml` |
 | `web/src/app/settings/sections.ts` | Settings section availability | `web/src/app/settings/contract.yaml` |
 | `web/src/app/navigation/index.ts` | Settings URL navigation hooks | `web/src/app/navigation/contract.yaml` |
@@ -336,6 +335,7 @@ it is that folder's `contract.yaml`.
 | `web/src/api/usage.ts` | Usage report server state | `web/src/api/contract.yaml` |
 | `web/src/api/extensions.ts` | Extension library server state | `web/src/api/contract.yaml` |
 | `web/src/app/settings/sections/plugins.tsx` | Extension library navigation | `web/src/app/settings/contract.yaml` |
+| `web/src/app/settings/sections/code.tsx` | Language servers panel | `web/src/app/settings/contract.yaml` |
 | `web/src/app/settings/extension-import.tsx` | Daemon folder import form | `web/src/app/settings/contract.yaml` |
 | `web/src/app/settings/extension-list.tsx` | Shared extension removal controls | `web/src/app/settings/contract.yaml` |
 | `web/src/app/agents/agent-extensions.tsx` | Per-agent extension enablement | `web/src/app/agents/contract.yaml` |

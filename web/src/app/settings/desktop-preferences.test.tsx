@@ -4,10 +4,9 @@ import { createRoot, type Root } from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { personQuery } from '@/api/person'
-import { codeKeys } from '@/api/code'
 import { GeneralSection } from './sections/general'
 import { DesktopPreferencesControls } from './desktop-preferences'
-import { until, typeInto } from '@/test/test-app'
+import { until } from '@/test/test-app'
 
 const { invoke } = vi.hoisted(() => ({ invoke: vi.fn() }))
 vi.mock('@tauri-apps/api/core', () => ({ invoke }))
@@ -22,7 +21,6 @@ beforeEach(() => {
   host = document.createElement('div'); document.body.append(host); root = createRoot(host)
   client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } })
   client.setQueryData(personQuery.queryKey, { name: 'Name', aylul_calls_me: null, language: null, theme: 'system', updated_at: null })
-  client.setQueryData(codeKeys.settings(), { active_limit: 5, active_limit_min: 1, active_limit_max: 20 })
   invoke.mockReset().mockResolvedValue(defaults)
   vi.stubGlobal('fetch', vi.fn(async (request: Request) => {
     const body = await request.json()
@@ -41,7 +39,7 @@ it('browser General has no native preferences', async () => {
   await render()
   expect(launch()).toBeNull(); expect(tray()).toBeNull(); expect(invoke).not.toHaveBeenCalled()
   for (const name of ['Language', 'Theme']) expect(host.querySelector(`[aria-label="${name}"]`)).not.toBeNull()
-  expect(host.querySelector('[aria-label="Active projects"]')).not.toBeNull()
+  expect(host.querySelector('[aria-label="Active projects"]')).toBeNull()
 })
 it('desktop defaults come from native without a write', async () => {
   let finish!: (value: typeof defaults) => void
@@ -115,7 +113,6 @@ it.each(['desktop_preferences_load_failed', 'desktop_preferences_autostart_faile
   await render(); await until(() => host.textContent?.includes('Could not load desktop settings.') === true)
   expect(launch().disabled).toBe(true); expect(host.textContent).not.toContain(code)
   expect(host.querySelector<HTMLSelectElement>('[aria-label="Theme"]')?.closest('fieldset')?.disabled).toBe(false)
-  expect(host.querySelector<HTMLInputElement>('[aria-label="Active projects"]')?.disabled).toBe(false)
   invoke.mockResolvedValue(defaults); act(() => button('Retry desktop settings').click()); await until(() => !launch().disabled)
   expect(invoke.mock.calls.every(([command]) => command === 'desktop_preferences')).toBe(true)
 })
@@ -126,7 +123,4 @@ it('a failed Core save does not disable or invoke native switches', async () => 
   await until(() => host.textContent?.includes('Core save failed.') === true)
   expect(launch().disabled).toBe(false); expect(tray().disabled).toBe(false)
   expect(invoke.mock.calls).toEqual([['desktop_preferences', undefined]])
-  // The ordinary code-index form also remains independent.
-  typeInto(host.querySelector<HTMLInputElement>('[aria-label="Active projects"]')!, '8')
-  expect(button('Save').disabled).toBe(false)
 })

@@ -1,5 +1,4 @@
 # Owns the global Settings dialog: URL-selected sections over the current page.
-# The active-projects limit belongs to the code index (§15.6).
 #
 # Trap: the form keeps the person's typed number until it is saved or the saved value
 # changes while the field is untouched. The save's success clears that edit without
@@ -21,7 +20,7 @@ shapes: {}
 # ── external types ───────────────────────────────────────────────────────────────
 
 external:
-  CodeSettings: "web/src/api/code; active_limit and its bounds active_limit_min, active_limit_max"
+  ServerStatus: "web/src/api/code; one catalog or added language server as the open project sees it"
 
 
 # ── functions ────────────────────────────────────────────────────────────────────
@@ -49,7 +48,7 @@ components:
     # pill-active item; the library sections (tabs, list rows, MCP form boxes) use the same surfaces.
   GeneralSection:
     signature: "() => JSX.Element"
-    note: Active projects stays independent of Core language/theme and desktop-only machine preferences.
+    note: General holds only Core language/theme and desktop-only machine preferences.
   GeneralPreferences:
     signature: "() => JSX.Element"
     note: Uses personQuery/savePerson and savePersonAnswer; each pick queues only its theme or language field, with one save in flight. The glass circles remain interactive during saves.
@@ -70,13 +69,16 @@ components:
   AgentsSection:
     signature: "() => JSX.Element"
     note: Each list row shows its resolved colour dot; the bound agent has a Companion tag on desktop only.
-  ActiveProjects:
+  CodeSection:
     signature: "() => JSX.Element"
-    # Reads the code settings; renders the form once they load.
+    note: Lists the open project's language servers with a switch (off warns first), install line with copy, Remove for added ones, and an add form.
 
 private_helpers:
-  LimitForm:
-    # The form. `edited` is null until the person types; it then holds their text.
+  Servers:
+    private: true
+  ServerRow:
+    private: true
+  AddServer:
     private: true
 
 functions:
@@ -207,11 +209,12 @@ open_questions: []
 # ── tests ────────────────────────────────────────────────────────────────────────
 
 tests:
-  - name: "saves the active limit"
-    checks: >
-      Typing 25 shows the range message and disables Save; typing 8 and saving sends
-      active_limit 8 with a command id; after the refetched value reaches the cache the
-      field shows 8 and Save is disabled.
+  - name: "lists_the_servers_with_their_state"
+    checks: Each server shows its id, extensions and state; a not-installed one shows its install line with a copy button.
+  - name: "switching_off_warns_first"
+    checks: Switching a server off shows the warning with Cancel and Switch off; only Switch off sends the request.
+  - name: "adds_and_removes_a_server"
+    checks: The add form needs dotted extensions; a valid one posts the server; Remove deletes an added one.
   - name: "follows a value changed elsewhere while the field is untouched"
     checks: >
       After another tab's 7 is refetched, the untouched field shows 7 and Save is disabled.

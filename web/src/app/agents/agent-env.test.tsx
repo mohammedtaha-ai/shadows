@@ -43,7 +43,7 @@ it('adding_clears_the_input', async () => {
 
 it('general_settings_has_no_agent_environment', async () => {
   const app = (open = await startApp('/settings', base()))
-  await until(() => app.text().includes('Active projects'))
+  await until(() => app.text().includes('Language and theme'))
   expect(app.calls).not.toContain('GET /api/aylul/agents/aylul/env')
 })
 it('shows_unavailable_error', async () => {
