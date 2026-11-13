@@ -4,12 +4,7 @@ use std::path::Path;
 use serde::Deserialize;
 use serde_json::{Value, json};
 
-use super::{Connection, GRANT_ENV, MODE, planner_server};
-
-/// The Planner's shell writes inside the project, and Codex asks the person
-/// (through Shadows' held request) when it judges a command needs it.
-const SANDBOX: &str = "workspace-write";
-const APPROVAL: &str = "on-request";
+use super::{Connection, GRANT_ENV, planner_server};
 use crate::TurnSettings;
 use crate::choices::{Choice, Offered, OptionIds};
 use crate::connection::{ConnectionError, Opened, SessionSetup, SessionStart};
@@ -86,6 +81,39 @@ impl Selection {
     }
 }
 
+/// What one Codex mode asks of Codex: the thread's sandbox as requested, the
+/// same sandbox as Codex reports it, and the approval policy. Read only asks
+/// nothing; Ask to approve writes inside the project and holds every request
+/// for the person.
+pub(super) struct Policy {
+    pub(super) sandbox: &'static str,
+    pub(super) sandbox_type: &'static str,
+    pub(super) approval: &'static str,
+}
+
+impl Policy {
+    pub(super) fn of(mode: &str) -> Option<Self> {
+        match mode {
+            crate::policy::CODEX_READ_ONLY => Some(Self {
+                sandbox: "read-only",
+                sandbox_type: "readOnly",
+                approval: "never",
+            }),
+            crate::policy::CODEX_ASK => Some(Self {
+                sandbox: "workspace-write",
+                sandbox_type: "workspaceWrite",
+                approval: "on-request",
+            }),
+            _ => None,
+        }
+    }
+
+    /// The per-turn override, which moves an open thread to this mode.
+    pub(super) fn turn_params(&self) -> Value {
+        json!({"approvalPolicy": self.approval, "sandboxPolicy": {"type": self.sandbox_type}})
+    }
+}
+
 fn choice(id: &str, label: &str, description: Option<String>) -> Choice {
     Choice {
         id: id.into(),
@@ -137,10 +165,15 @@ impl Connection {
             .filter(|name| !name.ends_with("_approve"))
             .map(|name| (name.to_string(), json!({"approval_mode":"approve"})))
             .collect();
+        // A thread opens in the default mode; the person's mode, set after
+        // opening, reaches Codex on every turn (`Policy::turn_params`).
+        let mode = crate::policy::default_mode(crate::policy::CODEX)
+            .ok_or(ConnectionError::Protocol("Codex has no default mode"))?;
+        let policy = Policy::of(mode).ok_or(ConnectionError::Protocol("unknown Codex mode"))?;
         let mut params = json!({
             "cwd": cwd,
-            "sandbox": SANDBOX,
-            "approvalPolicy": APPROVAL,
+            "sandbox": policy.sandbox,
+            "approvalPolicy": policy.approval,
             "developerInstructions": setup.append,
             "config": {
                 "mcp_servers.shadows": {
@@ -194,8 +227,8 @@ impl Connection {
                 prompts.first_limits(&limits["rateLimits"]);
             }
         });
-        if opened.pointer("/sandbox/type").and_then(Value::as_str) != Some("workspaceWrite")
-            || opened["approvalPolicy"].as_str() != Some(APPROVAL)
+        if opened.pointer("/sandbox/type").and_then(Value::as_str) != Some(policy.sandbox_type)
+            || opened["approvalPolicy"].as_str() != Some(policy.approval)
         {
             return Err(ConnectionError::Protocol(
                 "Codex did not accept the Planner sandbox policy",
@@ -221,7 +254,7 @@ impl Connection {
             catalog,
             current: TurnSettings {
                 model: model.into(),
-                mode: MODE.into(),
+                mode: mode.into(),
                 effort,
             },
         };
@@ -352,7 +385,7 @@ impl Connection {
                 }
                 selection.current.effort = Some(value.into());
             }
-            "mode" if value == MODE => {}
+            "mode" if Policy::of(value).is_some() => selection.current.mode = value.into(),
             _ => return Err(unavailable()),
         }
         selection.offered()

@@ -13,8 +13,11 @@ use std::collections::BTreeMap;
 pub const CLAUDE_CODE: &str = "claude-code";
 /// Codex Planner, run through native app-server when explicitly configured.
 pub const CODEX: &str = "codex";
-/// Codex's only measured mode: filesystem read-only, no approval prompts.
+/// Codex reads only: sandbox read-only, nothing asked.
 pub const CODEX_READ_ONLY: &str = "read-only";
+/// Codex writes inside the project and asks the person for anything more:
+/// sandbox workspace-write, approval on request, each request a held card.
+pub const CODEX_ASK: &str = "ask";
 
 /// AYLUL's brain: Claude Code on its own profile, opened without Planner setup.
 pub const AYLUL: &str = "aylul";
@@ -55,12 +58,20 @@ const CLAUDE_CODE_MODES: [Mode; 2] = [
 
 // The ids are read out of the table above, so a mode is named once.
 const CLAUDE_CODE_MODE_IDS: [&str; CLAUDE_CODE_MODES.len()] = ids(&CLAUDE_CODE_MODES);
-const CODEX_MODES: [Mode; 1] = [Mode {
-    id: CODEX_READ_ONLY,
-    label: "Read only",
-    description: "Codex reads files and uses Shadows planning tools. \
-                  Filesystem writes are refused.",
-}];
+const CODEX_MODES: [Mode; 2] = [
+    Mode {
+        id: CODEX_ASK,
+        label: "Ask to approve",
+        description: "Codex's shell writes inside the project folder. \
+                      Anything more waits for your approval.",
+    },
+    Mode {
+        id: CODEX_READ_ONLY,
+        label: "Read only",
+        description: "Codex reads files and uses Shadows planning tools. \
+                      Filesystem writes are refused and nothing is asked.",
+    },
+];
 const CODEX_MODE_IDS: [&str; CODEX_MODES.len()] = ids(&CODEX_MODES);
 
 const fn ids<const N: usize>(modes: &[Mode; N]) -> [&'static str; N] {
@@ -107,7 +118,7 @@ pub fn unattended_mode(kind: &str) -> Option<&'static str> {
 pub fn default_mode(kind: &str) -> Option<&'static str> {
     match kind {
         CLAUDE_CODE | AYLUL => Some("acceptEdits"),
-        CODEX => Some(CODEX_READ_ONLY),
+        CODEX => Some(CODEX_ASK),
         _ => None,
     }
 }
@@ -164,12 +175,13 @@ mod tests {
             }
         }
         assert_eq!(unattended_mode(AYLUL), Some("auto"));
-        assert_eq!(allowed_modes(CODEX), [CODEX_READ_ONLY]);
+        assert_eq!(allowed_modes(CODEX), [CODEX_ASK, CODEX_READ_ONLY]);
+        assert_eq!(default_mode(CODEX), Some(CODEX_ASK));
         assert_eq!(unattended_mode(CODEX), None);
     }
 
     #[test]
-    fn new_projects_allow_only_codex_read_only() {
-        assert_eq!(default_modes()[CODEX], [CODEX_READ_ONLY]);
+    fn new_projects_allow_both_codex_modes() {
+        assert_eq!(default_modes()[CODEX], [CODEX_ASK, CODEX_READ_ONLY]);
     }
 }

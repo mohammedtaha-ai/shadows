@@ -388,6 +388,14 @@ Design: [language servers](specs/2026-11-13-language-servers-design.md) (Mohamme
 - Plan: [Task B-144](plans/2026-11-13-slice-2-language-servers.md#task-b-144-the-planners-shell-its-permission-cards-and-the-end-of-turn-check).
 - Needs: B-138a, B-140 (`ActiveHold`), B-141 (`code_lsp`'s path check).
 
+### B-146 · A Codex conversation's two modes
+
+- Status: done.
+- Ruling: Mohammed, 2026-11-13, amending B-144. "Ask to approve" (`ask`, default:
+  `workspace-write`, `on-request`) and "Read only" (`read-only`, `never`); the mode is
+  sent on every `turn/start`. In Read only the Planner offers no install of its own.
+- Design: [language servers](specs/2026-11-13-language-servers-design.md), "The Planner's shell and its changes".
+
 ### B-145 · Live acceptance
 
 - Status: ready.

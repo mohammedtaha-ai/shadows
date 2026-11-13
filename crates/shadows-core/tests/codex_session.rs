@@ -3,7 +3,7 @@ use axum::extract::{Request, State};
 use axum::middleware::{self, Next};
 use axum::response::Response;
 use serde_json::{Value, json};
-use shadows_agent::policy::CODEX_READ_ONLY;
+use shadows_agent::policy::{CODEX_ASK, CODEX_READ_ONLY};
 use shadows_core::{
     AppCore, KeySource, Operation, OperationId, ProjectId, Queued, SendTurn, SentNow, StartConfig,
     ThreadId, TurnsError,
@@ -188,6 +188,19 @@ impl World {
             .await
     }
 
+    /// A turn in `mode`, on the fixture model.
+    async fn send_in(&self, mode: &str, command: &str, prompt: &str) -> OperationId {
+        let send = SendTurn {
+            mode: mode.into(),
+            ..turn(command, prompt, "fixture-model", Some("low"))
+        };
+        self.core
+            .turns()
+            .send(self.thread.clone(), send)
+            .await
+            .unwrap()
+    }
+
     async fn done(&self, operation: &OperationId) -> Operation {
         self.settled(&self.thread, operation).await
     }
@@ -318,7 +331,7 @@ async fn codex_failed_setup_revokes_the_grant() {
 #[tokio::test]
 async fn codex_approval_waits_for_the_person() {
     let w = World::start(false).await;
-    let operation = w.start_turn("refusal", "approval").await;
+    let operation = w.send_in(CODEX_ASK, "refusal", "approval").await;
     let mut waiting = Vec::new();
     for _ in 0..200 {
         waiting = w.core.harness().waiting_permissions().await;
@@ -401,8 +414,9 @@ async fn codex_choices_follow_the_model_catalog() {
     let listed = w.codex_listed().await;
     assert_eq!(listed["available"], true);
     assert!(listed["reason"].is_null());
-    assert_eq!(listed["modes"][0]["id"], CODEX_READ_ONLY);
-    assert_eq!(listed["initial_mode"], CODEX_READ_ONLY);
+    assert_eq!(listed["modes"][0]["id"], CODEX_ASK);
+    assert_eq!(listed["modes"][1]["id"], CODEX_READ_ONLY);
+    assert_eq!(listed["initial_mode"], CODEX_ASK);
     let choices = w.core.harness().open_session(&w.thread).await.unwrap();
     assert_eq!(
         ids(&choices.models),
@@ -410,7 +424,7 @@ async fn codex_choices_follow_the_model_catalog() {
         "both catalog pages, in the catalog's order"
     );
     assert_eq!(ids(&choices.efforts), ["low", "high"]);
-    assert_eq!(ids(&choices.modes), [CODEX_READ_ONLY]);
+    assert_eq!(ids(&choices.modes), [CODEX_ASK, CODEX_READ_ONLY]);
     assert!(choices.modes[0].enabled);
     assert_eq!(choices.current.model, "fixture-model");
     assert_eq!(
@@ -540,9 +554,44 @@ async fn codex_project_modes_are_enforced() {
 async fn codex_new_projects_use_the_declared_mode_policy() {
     let w = World::start(false).await;
     let project = w.core.projects().get(&w.project).await.unwrap();
-    assert_eq!(project.allowed_modes["codex"], [CODEX_READ_ONLY]);
+    assert_eq!(project.allowed_modes["codex"], [CODEX_ASK, CODEX_READ_ONLY]);
     let choices = w.core.harness().open_session(&w.thread).await.unwrap();
-    assert_eq!(choices.current.mode, CODEX_READ_ONLY);
+    assert_eq!(choices.current.mode, CODEX_ASK);
+    w.close().await;
+}
+
+#[tokio::test]
+async fn codex_each_mode_sends_its_sandbox_and_approval() {
+    let w = World::start(false).await;
+    for (mode, words) in [
+        (CODEX_READ_ONLY, r#"sandbox="readOnly" approval="never""#),
+        (
+            CODEX_ASK,
+            r#"sandbox="workspaceWrite" approval="on-request""#,
+        ),
+    ] {
+        let op = w.send_in(mode, mode, "settings").await;
+        assert_eq!(w.done(&op).await.status_kind, "Completed");
+        let written = w.written(&w.thread, &op).await;
+        assert!(
+            written.iter().any(|body| body.contains(words)),
+            "{mode}: {written:?}"
+        );
+    }
+    w.close().await;
+}
+
+#[tokio::test]
+async fn codex_read_only_holds_no_approval() {
+    let w = World::start(false).await;
+    let op = w.send_in(CODEX_READ_ONLY, "quiet", "approval").await;
+    assert_eq!(w.done(&op).await.status_kind, "Completed");
+    assert!(w.core.harness().waiting_permissions().await.is_empty());
+    let written = w.written(&w.thread, &op).await;
+    assert!(
+        written.iter().any(|body| body == "refused without asking"),
+        "{written:?}"
+    );
     w.close().await;
 }
 

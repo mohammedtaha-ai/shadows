@@ -16,6 +16,8 @@ struct Peer {
     thread: String,
     turn: usize,
     pending_approval: bool,
+    /// The approval policy in force: the thread's, then the last turn's override.
+    approval: Value,
     pending_steer: bool,
     mcp: Option<String>,
     pending_tool: Option<tokio::task::JoinHandle<()>>,
@@ -124,6 +126,9 @@ impl Peer {
             return Ok(true);
         }
         self.result(id, json!({"turn": {"id": turn, "status": "inProgress"}}))?;
+        if !params["approvalPolicy"].is_null() {
+            self.approval = params["approvalPolicy"].clone();
+        }
         if params["model"] == "fixture-locked" {
             // The provider's words include a credential-shaped tail that must
             // never reach a person.
@@ -136,7 +141,13 @@ impl Peer {
             "eof" => return Ok(false),
             "interrupt" => self.chunk("waiting")?,
             "settings" => {
-                let words = format!("model={} effort={}", params["model"], params["effort"]);
+                let words = format!(
+                    "model={} effort={} sandbox={} approval={}",
+                    params["model"],
+                    params["effort"],
+                    params["sandboxPolicy"]["type"],
+                    params["approvalPolicy"]
+                );
                 self.chunk(&words)?;
                 self.complete("completed")?;
             }
@@ -180,6 +191,11 @@ impl Peer {
                         let _ = mcp_tool(&url, "workspace_get", json!({})).await;
                     }));
                 }
+            }
+            // Codex asks nothing under `never`: the command is refused at once.
+            "approval" if self.approval == "never" => {
+                self.chunk("refused without asking")?;
+                self.complete("completed")?;
             }
             "approval" => {
                 self.pending_approval = true;
@@ -276,6 +292,7 @@ impl Peer {
             }
         }
         let thread = self.thread.clone();
+        self.approval = params["approvalPolicy"].clone();
         // What it was asked for, as Codex answers it.
         let sandbox = match params["sandbox"].as_str() {
             Some("workspace-write") => "workspaceWrite",
@@ -397,6 +414,7 @@ fn main() -> io::Result<()> {
         thread: THREAD.into(),
         turn: 0,
         pending_approval: false,
+        approval: Value::Null,
         pending_steer: false,
         mcp: None,
         pending_tool: None,

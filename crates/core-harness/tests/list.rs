@@ -25,8 +25,9 @@ async fn the_harness_list_carries_the_policy_modes() {
         assert_eq!(list[i]["initial_mode"], "acceptEdits");
         assert_eq!(list[i]["unattended_mode"], "auto");
     }
-    assert_eq!(list[1]["modes"][0]["id"], "read-only");
-    assert_eq!(list[1]["initial_mode"], "read-only");
+    assert_eq!(list[1]["modes"][0]["id"], "ask");
+    assert_eq!(list[1]["modes"][1]["id"], "read-only");
+    assert_eq!(list[1]["initial_mode"], "ask");
     assert!(list[1]["unattended_mode"].is_null());
     assert_eq!(list[1]["available"], false, "Codex needs its configuration");
     assert!(

@@ -201,7 +201,7 @@ async fn codex_approval_is_held_not_declined() {
         .send(
             "Run this shell command once, asking for escalated permissions since it needs \
              the network: curl -sI https://example.com. Then say what it answered.",
-            shadows_agent::policy::CODEX_READ_ONLY,
+            shadows_agent::policy::CODEX_ASK,
         )
         .await;
     let held = w.held().await;

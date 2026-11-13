@@ -293,9 +293,15 @@ impl Connection {
         let settings = self.settings(thread)?;
         let input = Self::input(blocks)?;
         let (_lease, end) = self.prompts.begin(thread, &settings.model)?;
-        let started: Value = self.rpc.request("turn/start", json!({
+        let policy = super::session::Policy::of(&settings.mode)
+            .ok_or(ConnectionError::Protocol("unknown Codex mode"))?;
+        let mut params = json!({
             "threadId":thread, "input":input, "model":settings.model, "effort":settings.effort
-        })).await?;
+        });
+        if let (Value::Object(params), Value::Object(mode)) = (&mut params, policy.turn_params()) {
+            params.extend(mode);
+        }
+        let started: Value = self.rpc.request("turn/start", params).await?;
         let id = started.pointer("/turn/id").and_then(Value::as_str).ok_or(
             ConnectionError::Protocol("Codex did not acknowledge a turn ID"),
         )?;

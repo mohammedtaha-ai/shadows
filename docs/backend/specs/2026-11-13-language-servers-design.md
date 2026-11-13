@@ -181,9 +181,15 @@ its own only when it needs it.
 
 ### The Planner's shell and its changes
 
-- **Shell:** `Bash` joins `PLANNER_TOOLS` on Claude Code, in `auto` mode; on Codex the
-  Planner's sandbox becomes `workspaceWrite` with approval `onRequest` (today `readOnly`
-  and `never`, `shadows-agent/src/codex/session.rs`).
+- **Shell:** `Bash` joins `PLANNER_TOOLS` on Claude Code, in `auto` mode. A Codex
+  conversation has two modes, the person's choice (Mohammed, 2026-11-13, B-146):
+  "Ask to approve" (`ask`, the default: sandbox `workspace-write`, approval `on-request`,
+  each request a held card) and "Read only" (`read-only`: sandbox `read-only`, approval
+  `never`, nothing asked). A thread opens in the default mode; the picked mode is sent
+  with every `turn/start` as `sandboxPolicy` and `approvalPolicy`
+  (`shadows-agent/src/codex/session.rs`). In Read only the Planner cannot install a
+  missing server, so its `person_ask` offers only "you install it" (with the install
+  line) or "leave it"; the prompt states this against the Planner's own sandbox.
 - **Permission cards:** `Harness::waiting_permissions` holds and lists requests from Planner
   sessions as well as AYLUL's; Codex's `requestApproval` is held with its options instead
   of declined. The person's answer goes back through the route that exists

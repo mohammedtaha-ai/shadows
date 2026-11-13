@@ -73,7 +73,8 @@ layer_catalog: 'Planner standards text lists every kind presence and its layers 
 # approvals the same way) and an executor with Refuse. PLANNER_TOOLS ends with Bash, the
 # Planner's shell; what its program asks about waits for the person. prompt.txt says the shell is
 # for installing and the environment, and that a changed project file is noted with
-# project_change_note.
+# project_change_note. In a read-only sandbox (Codex's Read only mode) it offers no install of
+# its own: the person installs the server or it is left.
 # `open_executor(thread, grant, model)` opens an executor the same way, from its one compiled-in
 # file, executor.md: the front matter's `tools:` (Read, Grep, Glob, Edit, Write, MultiEdit, Bash,
 # TodoWrite) as the session's tools, the body appended; settingSources [] and strictMcpConfig true,

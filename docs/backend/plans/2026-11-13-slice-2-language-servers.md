@@ -443,7 +443,7 @@ unexplained ones. This replaces `code_server_install` and its consent.
 - Modify: `crates/core-harness/src/setup.rs` (`Bash` in `PLANNER_TOOLS`; the Planner's Claude
   Code mode `auto`), `crates/shadows-agent/src/codex/session.rs` (the Planner's
   `sandbox: workspaceWrite`, `approvalPolicy: onRequest`, and the check of what Codex
-  accepted), `crates/shadows-agent/src/codex/connection.rs` (`requestApproval` held with its
+  accepted; amended by B-146: this is the "Ask to approve" mode, beside a "Read only" mode), `crates/shadows-agent/src/codex/connection.rs` (`requestApproval` held with its
   options and answered by the person, not declined), `crates/shadows-agent/src/acp/permissions.rs`
   (only if Planner sessions do not already hold), `crates/core-harness/src/permissions.rs`
   (`waiting_permissions` lists Planner sessions too), `crates/core-harness/contract.yaml`,

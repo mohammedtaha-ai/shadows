@@ -17,7 +17,6 @@ use prompt::Prompts;
 use session::Selection;
 
 const GRANT_ENV: &str = "SHADOWS_CODEX_MCP_TOKEN";
-const MODE: &str = crate::policy::CODEX_READ_ONLY;
 const VERSION: &str = "0.167.0";
 
 #[derive(Debug)]
