@@ -303,8 +303,14 @@ renamed service crate takes its name without `core-`. Every later task in this p
   Description: "Ask the project's language server: goToDefinition, findReferences, hover,
   documentSymbol, workspaceSymbol, goToImplementation, incomingCalls, outgoingCalls. Lines
   and characters are one-based, as an editor shows them."
-- Suspended index: `index_known` writes the file row with no tags (the inventory and the
-  file rows stay); `Codebase::definitions`, `references`, `outline` stay, called by nothing.
+- Suspended index, **by one switch in AppCore** (Mohammed, 2026-11-13: no code commented
+  out or removed): `CodebaseConfig` gains `pub name_index: bool`; `AppCore::start` passes
+  `false`. `index_known` extracts tags only when `name_index` is true, and otherwise writes
+  the file row with no tags (the inventory and the file rows stay). `Codebase::definitions`,
+  `references`, `outline` and `shadows-index` stay as they are. Turning it back on is
+  `name_index: true` and the three tools back in the grant lists. Test:
+  `the_name_index_is_off_by_default` (a project with a `.rs` file scanned: its file row
+  exists, it has no tags). Files add: `crates/shadows-core/src/app.rs` (the config line).
 - `prompt.txt`: a short section naming `code_lsp`, and that a language with no running
   server is answered "no server" (B-144 adds the install lines). `executor.md:21` becomes
   "Ask `code_lsp` (definitions, references, symbols) before you search the tree yourself."
