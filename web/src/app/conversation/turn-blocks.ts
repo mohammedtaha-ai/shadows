@@ -1,14 +1,16 @@
 // One job: grouping a Planner turn's notices and tool calls into boxes, leaving
 // the person's messages, the Planner's text and the cards they act on in place.
 
-import type { AttemptNotice } from '@/api/runs'
 import type { ThreadEntry } from '@/api/threads'
 import type { Row } from './activity-rows'
 import { noticeOf } from './tool-text'
 
+/** A notice in the box: who sent it, and its card (null where it has none or it could not be read). */
+export type BoxNotice = NonNullable<ReturnType<typeof noticeOf>>
+
 export interface TurnSummary {
-  /** One card per notice the turn received; null where a card could not be read. */
-  notices: readonly (AttemptNotice | null)[]
+  /** One per notice the turn received, in order. */
+  notices: readonly BoxNotice[]
   tools: number
 }
 
@@ -59,11 +61,12 @@ function rowKey(row: Row): string {
 /** One run of activity as its box, or as plain rows when it holds no notice or tool call. */
 function boxOf(inside: Row[], roles: readonly Role[], live: boolean): Block[] {
   if (!roles.includes('item')) return inside.map((row) => ({ kind: 'row', row }))
-  const notices: (AttemptNotice | null)[] = []
+  const notices: BoxNotice[] = []
   let tools = 0
   inside.forEach((row, index) => {
     if (row.kind === 'tools') tools += row.steps.length
-    if (row.kind === 'entry' && roles[index] === 'item') notices.push(noticeOf(row.entry)?.card ?? null)
+    const notice = row.kind === 'entry' && roles[index] === 'item' ? noticeOf(row.entry) : null
+    if (notice !== null) notices.push(notice)
   })
   const first = inside[0]
   return [{

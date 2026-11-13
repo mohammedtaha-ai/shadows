@@ -6,9 +6,11 @@ import { client, unwrap } from './transport'
 
 type Queued = components['schemas']['Queued']
 
-/** A question the Planner asked, as its entry's card carries it. `chosen` is the answered option's index. */
+/** A question the Planner asked, as its entry's card carries it. `chosen` is the answered option's index.
+ * `threadId` is the thread asked, which a fork's copy keeps; null on a card written before it was recorded. */
 export interface QuestionCard {
   questionId: string
+  threadId: string | null
   question: string
   options: string[]
   chosen: number | null
@@ -17,11 +19,17 @@ export interface QuestionCard {
 /** The card of a `PersonQuestion` entry, or `null` when it is missing or unreadable. */
 export function readQuestionCard(card: ThreadEntry['card']): QuestionCard | null {
   if (card === null) return null
-  const { question_id: questionId, question, options, chosen } = card
+  const { question_id: questionId, thread_id: threadId, question, options, chosen } = card
   if (typeof questionId !== 'string' || typeof question !== 'string' || !Array.isArray(options)) return null
   const labels = options.map(option => (option as { label?: unknown } | null)?.label)
   if (!labels.every((label): label is string => typeof label === 'string')) return null
-  return { questionId, question, options: labels, chosen: typeof chosen === 'number' ? chosen : null }
+  return {
+    questionId,
+    threadId: typeof threadId === 'string' ? threadId : null,
+    question,
+    options: labels,
+    chosen: typeof chosen === 'number' ? chosen : null,
+  }
 }
 
 /** The person's click on option `option`: their message to the Planner. A second answer is refused as a conflict. */

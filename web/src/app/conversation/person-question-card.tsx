@@ -46,7 +46,9 @@ export function PersonQuestionCard({ entry }: { entry: ThreadEntry }) {
     return <p dir="auto" className="text-xs text-faint-foreground">{entry.body}</p>
   }
   const chosen = card.chosen ?? (answer.isSuccess ? answer.variables.option : null)
-  const offering = chosen === null && !closed
+  // A fork's copy names the thread asked; only that thread may answer it.
+  const forked = card.threadId !== null && card.threadId !== entry.thread_id
+  const offering = chosen === null && !closed && !forked
   const refused = daemonCode(answer.error) === 'INVALID_COMMAND' ? null : answer.error
   return (
     <section aria-label="Question" className="surface-glow space-y-3 rounded-lg p-4">

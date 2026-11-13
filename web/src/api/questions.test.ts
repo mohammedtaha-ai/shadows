@@ -21,7 +21,8 @@ it('answers through the generated route with the caller command', async () => {
 })
 
 it('reads a question card and refuses a broken one', () => {
-  expect(readQuestionCard(card)).toEqual({ questionId: 'q1', question: 'Which?', options: ['A', 'B'], chosen: null })
+  expect(readQuestionCard(card)).toEqual({ questionId: 'q1', threadId: null, question: 'Which?', options: ['A', 'B'], chosen: null })
+  expect(readQuestionCard({ ...card, thread_id: 't0' })?.threadId).toBe('t0')
   expect(readQuestionCard({ ...card, chosen: 1 })?.chosen).toBe(1)
   expect(readQuestionCard({ ...card, options: [1] })).toBeNull()
   expect(readQuestionCard(null)).toBeNull()
