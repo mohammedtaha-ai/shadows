@@ -161,7 +161,7 @@ shapes:
     VisionProposal: unit # Immutable proposed content; live status belongs to Design.
     MapProposal: unit # Immutable map snapshot; current status belongs to Design.
     RoadmapProposal: unit # Immutable roadmap snapshot; current status belongs to Design.
-    PersonQuestion: "{ question_id, question, options, chosen } card; chosen is rewritten once, by Turns"
+    PersonQuestion: "{ question_id, thread_id, question, options, chosen } card; thread_id is the thread asked, kept by a fork's copy; chosen is rewritten once, by Turns"
     ProjectChange: "{ paths, reason, noted } card; Turns writes it for a note (noted, author Agent/Planner) or an unnoted change at a turn's end (reason null, author Shadows/shadows)"
   CreatedTitle:
     # Private: who named a thread at create, its first `title_source`.

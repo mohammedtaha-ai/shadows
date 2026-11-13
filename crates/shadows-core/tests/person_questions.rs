@@ -298,6 +298,11 @@ async fn a_forked_question_cannot_be_answered_in_the_fork() {
         id.as_str(),
         "the fork keeps the card as history"
     );
+    assert_eq!(
+        card["thread_id"],
+        w.thread.as_str(),
+        "the copied card names the thread asked, not the fork"
+    );
     let refused = w.core.turns().answer("a1".into(), &fork.id, &id, 0).await;
     assert!(
         matches!(refused, Err(TurnsError::InvalidCommand(_))),

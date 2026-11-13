@@ -116,6 +116,37 @@ fn every_operation_id_is_unique() {
     }
 }
 
+/// Clients generate their types from the document, and a generator stops at a
+/// `$ref` that names no schema, so every `$ref` must name one.
+#[test]
+fn every_ref_names_a_schema() {
+    fn refs<'a>(value: &'a Value, at: &mut Vec<&'a str>) {
+        match value {
+            Value::Object(map) => {
+                if let Some(Value::String(target)) = map.get("$ref") {
+                    at.push(target);
+                }
+                map.values().for_each(|v| refs(v, at));
+            }
+            Value::Array(items) => items.iter().for_each(|v| refs(v, at)),
+            _ => {}
+        }
+    }
+    let doc = document();
+    let mut found = Vec::new();
+    refs(&doc, &mut found);
+    assert!(!found.is_empty(), "the document has no $ref at all");
+    let unresolved: std::collections::BTreeSet<&str> = found
+        .into_iter()
+        .filter(|target| {
+            target
+                .strip_prefix("#/components/schemas/")
+                .is_none_or(|name| doc["components"]["schemas"].get(name).is_none())
+        })
+        .collect();
+    assert!(unresolved.is_empty(), "unresolved $ref: {unresolved:?}");
+}
+
 /// Every route a client needs, by method and path.
 #[test]
 fn the_document_names_every_route() {

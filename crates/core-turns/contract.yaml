@@ -375,7 +375,8 @@ functions:
       # options, each label 1 to 80 (InvalidCommand otherwise); an executor
       # thread is InvalidCommand. One write: a person_question row and a
       # PersonQuestion entry authored Agent/Planner, in the running turn when
-      # one runs, whose card is { question_id, question, options, chosen: null }.
+      # one runs, whose card is { question_id, thread_id, question, options,
+      # chosen: null }; thread_id is the thread asked, which a fork's copy keeps.
     note_change:
       signature: "(&self, thread: &ThreadId, paths: Vec<String>, reason: String) -> Result<(), TurnsError>"
       # project_change_note. Trimmed, the reason is 1 to 2000 characters and
@@ -404,7 +405,7 @@ functions:
       signature: "(&self, command: String, thread: &ThreadId, question: &QuestionId, option: usize) -> Result<Queued, TurnsError>"
       # "question.answer", params { thread_id, question_id, option }. The click
       # is the person's message. One write records chosen, rewrites the
-      # entry's card to chosen: option (Threads::set_card_in) and writes the
+      # entry's card to chosen: option, thread_id kept (Threads::set_card_in), and writes the
       # waiting message `Answer to "<question>": <label>` under the settings of
       # the thread's latest turn; then, as `queue_notice` does, an idle thread
       # starts it with `send_queued` (its turn records the user entry, author
@@ -1034,7 +1035,7 @@ tests:
   - name: an_answered_card_reads_chosen_after_a_reload
     checks: The question entry's card reads chosen from a new storage.
   - name: a_forked_question_cannot_be_answered_in_the_fork
-    checks: A fork copies the card; answering it in the fork is InvalidCommand.
+    checks: A fork copies the card unchanged, its thread_id still the source thread; answering it in the fork is InvalidCommand.
   - name: an_executor_cannot_ask
     checks: person_ask is a thread grant's tool only, and the Planner prompt names it.
   - name: listing_keeps_order_and_missing_invocations_without_other_threads

@@ -5950,6 +5950,10 @@
         ],
         "type": "object"
       },
+      "QuestionId": {
+        "format": "uuid",
+        "type": "string"
+      },
       "Queued": {
         "description": "What queueing answers.",
         "oneOf": [

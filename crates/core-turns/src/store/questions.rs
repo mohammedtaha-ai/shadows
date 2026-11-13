@@ -12,14 +12,18 @@ use crate::model::{QuestionId, QuestionOption, QueuedMessage, QueuedMessageId};
 pub(crate) type AnswerSettings = (String, String, Option<String>);
 
 /// A question's card: what the conversation draws, `chosen` null until answered.
+/// `thread_id` is the thread asked: a fork copies the card unchanged, so a
+/// card whose thread is not its conversation's is history, not a question.
 fn card(
     id: &QuestionId,
+    thread: &ThreadId,
     question: &str,
     options: &[QuestionOption],
     chosen: Option<usize>,
 ) -> serde_json::Value {
     serde_json::json!({
         "question_id": id,
+        "thread_id": thread,
         "question": question,
         "options": options,
         "chosen": chosen,
@@ -48,7 +52,7 @@ impl super::TurnsStore {
                     }
                     let operation = Operations::pending_or_running_in(conn, &thread).await?;
                     let id = QuestionId::generate();
-                    let card = card(&id, &question, &options, None);
+                    let card = card(&id, &thread, &question, &options, None);
                     let entry = Threads::append_entry_in(
                         conn,
                         &thread,
@@ -142,7 +146,7 @@ impl super::TurnsStore {
                     .execute(&mut *conn)
                     .await?;
                     let entry = ThreadEntryId::from_recorded(entry);
-                    let card = card(&question, &text, &options, Some(option));
+                    let card = card(&question, &thread, &text, &options, Some(option));
                     Threads::set_card_in(conn, &thread, &entry, &card).await?;
                     let idle = !Operations::has_open_in(conn, &thread).await?;
                     let (model, mode, effort) = settings;
