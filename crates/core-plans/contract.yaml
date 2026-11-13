@@ -101,7 +101,10 @@ shapes:
     title: String
     change: String
   DesignOp: Workspace edits with typed PlanId associations; wire fields and command fingerprints unchanged.
-  PlansError: Plan lifecycle failures translated by Core without persistence imports in models.
+  PlansError: >
+    Plan lifecycle failures translated by Core without persistence imports in models.
+    A codebase LanguageServer failure stays LanguageServer (Core's
+    LANGUAGE_SERVER_UNAVAILABLE), never InvalidCommand: the server failed, not the command.
   AgreementBinding:
     task: u32
     agreement_id: AgreementId

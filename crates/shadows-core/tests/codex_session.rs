@@ -564,10 +564,13 @@ async fn codex_new_projects_use_the_declared_mode_policy() {
 async fn codex_each_mode_sends_its_sandbox_and_approval() {
     let w = World::start(false).await;
     for (mode, words) in [
-        (CODEX_READ_ONLY, r#"sandbox="readOnly" approval="never""#),
+        (
+            CODEX_READ_ONLY,
+            r#"sandbox="readOnly" approval="never" reviewer="user""#,
+        ),
         (
             CODEX_ASK,
-            r#"sandbox="workspaceWrite" approval="on-request""#,
+            r#"sandbox="workspaceWrite" approval="on-request" reviewer="auto_review""#,
         ),
     ] {
         let op = w.send_in(mode, mode, "settings").await;
@@ -985,6 +988,10 @@ async fn live_a_codex_turn_sees_an_image() {
     std::fs::create_dir_all(root.path().join("project")).unwrap();
     let w = World::start_live(root).await;
     let choices = w.core.harness().open_session(&w.thread).await.unwrap();
+    // The thread opens in Approve for me, and the opening is refused unless
+    // Codex answers that mode's approvalsReviewer, auto_review: an open thread
+    // in this mode is Codex's word that its reviewer approves for the person.
+    assert_eq!(choices.current.mode, CODEX_ASK);
     assert!(choices.capabilities.image);
     let current = choices.current;
     let red = include_bytes!("fixtures/red-64.png").to_vec();

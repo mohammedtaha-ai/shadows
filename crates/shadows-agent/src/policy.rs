@@ -15,8 +15,10 @@ pub const CLAUDE_CODE: &str = "claude-code";
 pub const CODEX: &str = "codex";
 /// Codex reads only: sandbox read-only, nothing asked.
 pub const CODEX_READ_ONLY: &str = "read-only";
-/// Codex writes inside the project and asks the person for anything more:
-/// sandbox workspace-write, approval on request, each request a held card.
+/// Approve for me, Codex's own mode: Codex writes inside the project and its
+/// reviewer (approvalsReviewer auto_review) allows or denies each request
+/// after a risk review, so none waits for the person. The id stays `ask`, the
+/// one stored in projects and threads made before the mode was renamed.
 pub const CODEX_ASK: &str = "ask";
 
 /// AYLUL's brain: Claude Code on its own profile, opened without Planner setup.
@@ -61,9 +63,10 @@ const CLAUDE_CODE_MODE_IDS: [&str; CLAUDE_CODE_MODES.len()] = ids(&CLAUDE_CODE_M
 const CODEX_MODES: [Mode; 2] = [
     Mode {
         id: CODEX_ASK,
-        label: "Ask to approve",
-        description: "Codex's shell writes inside the project folder. \
-                      Anything more waits for your approval.",
+        label: "Approve for me",
+        description: "Codex's shell writes inside the project folder. Codex reviews \
+                      anything more itself, allowing low-risk requests and refusing \
+                      risky ones.",
     },
     Mode {
         id: CODEX_READ_ONLY,

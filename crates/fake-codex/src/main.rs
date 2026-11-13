@@ -142,11 +142,12 @@ impl Peer {
             "interrupt" => self.chunk("waiting")?,
             "settings" => {
                 let words = format!(
-                    "model={} effort={} sandbox={} approval={}",
+                    "model={} effort={} sandbox={} approval={} reviewer={}",
                     params["model"],
                     params["effort"],
                     params["sandboxPolicy"]["type"],
-                    params["approvalPolicy"]
+                    params["approvalPolicy"],
+                    params["approvalsReviewer"]
                 );
                 self.chunk(&words)?;
                 self.complete("completed")?;
@@ -302,7 +303,9 @@ impl Peer {
             id,
             json!({
                 "thread": {"id": thread}, "sandbox": {"type": sandbox},
-                "approvalPolicy": params["approvalPolicy"], "model": "fixture-model",
+                "approvalPolicy": params["approvalPolicy"],
+                "approvalsReviewer": params["approvalsReviewer"].as_str().unwrap_or("user"),
+                "model": "fixture-model",
                 "reasoningEffort": null
             }),
         )

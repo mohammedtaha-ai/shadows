@@ -20,6 +20,10 @@ pub enum PlansError {
     InvalidCommand(String),
     #[error("{0}")]
     GrantScope(String),
+    /// A language server the plan's code question needed did not answer: a
+    /// failure of the server, not of the command.
+    #[error("{0}")]
+    LanguageServer(String),
     #[error("that task is outside this executor grant")]
     OutsideGrant,
     #[error("the grant is unknown or revoked")]
@@ -74,7 +78,7 @@ impl From<codebase::CodebaseError> for PlansError {
             codebase::CodebaseError::InvalidCommand(message) => Self::InvalidCommand(message),
             codebase::CodebaseError::GrantScope(message) => Self::GrantScope(message),
             codebase::CodebaseError::InventoryStale => Self::InvalidCommand(error.to_string()),
-            codebase::CodebaseError::LanguageServer(message) => Self::InvalidCommand(message),
+            codebase::CodebaseError::LanguageServer(message) => Self::LanguageServer(message),
             codebase::CodebaseError::Storage(error) => Self::Storage(error),
             codebase::CodebaseError::Projects(error) => error.into(),
         }

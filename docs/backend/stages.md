@@ -391,8 +391,11 @@ Design: [language servers](specs/2026-11-13-language-servers-design.md) (Mohamme
 ### B-146 · A Codex conversation's two modes
 
 - Status: done.
-- Ruling: Mohammed, 2026-11-13, amending B-144. "Ask to approve" (`ask`, default:
-  `workspace-write`, `on-request`) and "Read only" (`read-only`, `never`); the mode is
+- Ruling: Mohammed, 2026-11-13, amending B-144. "Approve for me" (`ask`, default:
+  `workspace-write`, `on-request`, approvals reviewer `auto_review`: Codex's reviewer
+  allows or denies each request itself, none is held (codex-cli 0.167.0 answers only
+  allow or deny; `codex_reviewer_approves_for_the_person`); renamed from "Ask to
+  approve" by a second ruling the same day, the id kept) and "Read only" (`read-only`, `never`); the mode is
   sent on every `turn/start`. In Read only the Planner offers no install of its own.
 - Older projects: a project made before B-146 allows `read-only` only and opens there,
   not on `ask` (`codex_opens_on_the_projects_mode_when_the_default_is_not_allowed`).

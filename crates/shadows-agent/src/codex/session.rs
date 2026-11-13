@@ -82,13 +82,15 @@ impl Selection {
 }
 
 /// What one Codex mode asks of Codex: the thread's sandbox as requested, the
-/// same sandbox as Codex reports it, and the approval policy. Read only asks
-/// nothing; Ask to approve writes inside the project and holds every request
+/// same sandbox as Codex reports it, the approval policy, and who reviews a
+/// request. Read only asks nothing; Approve for me writes inside the project,
+/// and Codex's reviewer allows or denies each request itself, so none is held
 /// for the person.
 pub(super) struct Policy {
     pub(super) sandbox: &'static str,
     pub(super) sandbox_type: &'static str,
     pub(super) approval: &'static str,
+    pub(super) reviewer: &'static str,
 }
 
 impl Policy {
@@ -98,11 +100,13 @@ impl Policy {
                 sandbox: "read-only",
                 sandbox_type: "readOnly",
                 approval: "never",
+                reviewer: "user",
             }),
             crate::policy::CODEX_ASK => Some(Self {
                 sandbox: "workspace-write",
                 sandbox_type: "workspaceWrite",
                 approval: "on-request",
+                reviewer: "auto_review",
             }),
             _ => None,
         }
@@ -110,7 +114,11 @@ impl Policy {
 
     /// The per-turn override, which moves an open thread to this mode.
     pub(super) fn turn_params(&self) -> Value {
-        json!({"approvalPolicy": self.approval, "sandboxPolicy": {"type": self.sandbox_type}})
+        json!({
+            "approvalPolicy": self.approval,
+            "approvalsReviewer": self.reviewer,
+            "sandboxPolicy": {"type": self.sandbox_type}
+        })
     }
 }
 
@@ -174,6 +182,7 @@ impl Connection {
             "cwd": cwd,
             "sandbox": policy.sandbox,
             "approvalPolicy": policy.approval,
+            "approvalsReviewer": policy.reviewer,
             "developerInstructions": setup.append,
             "config": {
                 "mcp_servers.shadows": {
@@ -229,6 +238,7 @@ impl Connection {
         });
         if opened.pointer("/sandbox/type").and_then(Value::as_str) != Some(policy.sandbox_type)
             || opened["approvalPolicy"].as_str() != Some(policy.approval)
+            || opened["approvalsReviewer"].as_str() != Some(policy.reviewer)
         {
             return Err(ConnectionError::Protocol(
                 "Codex did not accept the Planner sandbox policy",

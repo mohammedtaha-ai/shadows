@@ -1,6 +1,7 @@
 //! A Planner program's permission requests wait for the person, as AYLUL's do:
 //! listed by `Harness::waiting_permissions` and answered through
-//! `Harness::answer_permission`. Live only: run with `-- --ignored` and
+//! `Harness::answer_permission`; Codex in Approve for me has its own reviewer
+//! answer instead. Live only: run with `-- --ignored` and
 //! `--test-threads=1` once the programs below are signed in.
 
 use std::path::PathBuf;
@@ -195,8 +196,11 @@ async fn a_planner_permission_request_waits_for_the_person() {
 #[tokio::test]
 #[ignore = "live: needs codex (SHADOWS_CODEX_PATH) signed in to a dedicated home \
             (SHADOWS_CODEX_HOME)"]
-async fn codex_approval_is_held_not_declined() {
+async fn codex_reviewer_approves_for_the_person() {
     let w = World::start(shadows_agent::policy::CODEX, true).await;
+    // Approve for me opens with approvalsReviewer auto_review (the opening is
+    // refused unless Codex answers it): Codex's reviewer, not the person,
+    // answers the escalation, so no card is ever held for this thread.
     let op = w
         .send(
             "Run this shell command once, asking for escalated permissions since it needs \
@@ -204,11 +208,26 @@ async fn codex_approval_is_held_not_declined() {
             shadows_agent::policy::CODEX_ASK,
         )
         .await;
-    let held = w.held().await;
-    assert_eq!(held.agent, "Planner");
-    let ids: Vec<&str> = held.options.iter().map(|o| o.option_id.as_str()).collect();
-    assert_eq!(ids, ["accept", "decline"]);
-    w.answer(&held, "reject").await;
-    assert_eq!(w.settled(&op).await.status_kind, "Completed");
+    let settled = async {
+        loop {
+            let waiting = w.core.harness().waiting_permissions().await;
+            assert!(
+                waiting.iter().all(|held| held.thread_id != w.thread),
+                "the reviewer answers, not the person: {waiting:?}"
+            );
+            let operations = w.core.turns().operations(&w.thread).await.unwrap();
+            if let Some(done) = operations
+                .into_iter()
+                .find(|o| o.id == op && o.finished_at.is_some())
+            {
+                return done;
+            }
+            tokio::time::sleep(Duration::from_millis(100)).await;
+        }
+    };
+    let done = tokio::time::timeout(Duration::from_secs(300), settled)
+        .await
+        .expect("the turn settles");
+    assert_eq!(done.status_kind, "Completed", "{done:?}");
     w.close().await;
 }

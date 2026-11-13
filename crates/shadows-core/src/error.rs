@@ -578,6 +578,10 @@ impl From<core_plans::PlansError> for CoreError {
                 code: ErrorCode::GrantInvalid,
                 message,
             },
+            PlansError::LanguageServer(message) => Self::Refused {
+                code: ErrorCode::LanguageServerUnavailable,
+                message,
+            },
             PlansError::Design(error) => error.into(),
             PlansError::Projects(error) => error.into(),
             PlansError::Storage(error) => error.into(),

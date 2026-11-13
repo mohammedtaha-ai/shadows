@@ -183,13 +183,17 @@ its own only when it needs it.
 
 - **Shell:** `Bash` joins `PLANNER_TOOLS` on Claude Code, in `auto` mode. A Codex
   conversation has two modes, the person's choice (Mohammed, 2026-11-13, B-146):
-  "Ask to approve" (`ask`, the default: sandbox `workspace-write`, approval `on-request`,
-  each request a held card) and "Read only" (`read-only`: sandbox `read-only`, approval
-  `never`, nothing asked). A thread opens in the default mode when its project allows it,
+  "Approve for me" (`ask`, the default; renamed from "Ask to approve" by Mohammed,
+  2026-11-13: sandbox `workspace-write`, approval `on-request`, approvals reviewer
+  `auto_review`, so Codex's own reviewer allows or denies each request and none
+  reaches the person as a held card, since codex-cli 0.167.0's reviewer answers only
+  allow or deny; the id stays `ask`, the one stored projects and threads hold) and "Read only" (`read-only`: sandbox `read-only`, approval
+  `never`, reviewer `user`, nothing asked). A thread opens in the default mode when its project allows it,
   otherwise in the project's first allowed mode: a project made before B-146 allows
   `read-only` only (migration 0050) and keeps it until the person adds `ask`. The picked
   mode is sent
-  with every `turn/start` as `sandboxPolicy` and `approvalPolicy`
+  with every `turn/start` as `sandboxPolicy`, `approvalPolicy` and `approvalsReviewer`,
+  and the opening refuses a thread whose answer does not echo the default mode's three
   (`shadows-agent/src/codex/session.rs`). In Read only the Planner cannot install a
   missing server, so its `person_ask` offers only "you install it" (with the install
   line) or "leave it"; the prompt states this against the Planner's own sandbox.

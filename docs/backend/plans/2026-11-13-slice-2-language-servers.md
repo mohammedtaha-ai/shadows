@@ -443,7 +443,7 @@ unexplained ones. This replaces `code_server_install` and its consent.
 - Modify: `crates/core-harness/src/setup.rs` (`Bash` in `PLANNER_TOOLS`; the Planner's Claude
   Code mode `auto`), `crates/shadows-agent/src/codex/session.rs` (the Planner's
   `sandbox: workspaceWrite`, `approvalPolicy: onRequest`, and the check of what Codex
-  accepted; amended by B-146: this is the "Ask to approve" mode, beside a "Read only" mode), `crates/shadows-agent/src/codex/connection.rs` (`requestApproval` held with its
+  accepted; amended by B-146: this is the "Approve for me" mode, with approvals reviewer `auto_review`, beside a "Read only" mode), `crates/shadows-agent/src/codex/connection.rs` (`requestApproval` held with its
   options and answered by the person, not declined), `crates/shadows-agent/src/acp/permissions.rs`
   (only if Planner sessions do not already hold), `crates/core-harness/src/permissions.rs`
   (`waiting_permissions` lists Planner sessions too), `crates/core-harness/contract.yaml`,
@@ -489,7 +489,9 @@ unexplained ones. This replaces `code_server_install` and its consent.
     naming it), `a_turn_with_no_change_sends_nothing`.
   - `planner_permissions.rs` (ignored, live programs): `a_planner_permission_request_waits_for_the_person`
     (Claude Code: a Planner asked to run a command its program asks about; the request is
-    listed and the person's allow lets it run), `codex_approval_is_held_not_declined`.
+    listed and the person's allow lets it run), `codex_approval_is_held_not_declined` (amended
+    with "Approve for me": `codex_reviewer_approves_for_the_person`, Codex's reviewer answers
+    and nothing is held).
   - `mcp_tools`: `the_planner_has_bash_and_project_change_note`.
 - [ ] **Step 2–4: Run** `cargo test -p shadows-core --test planner_changes --test planner_permissions`
   (`-- --include-ignored` where the live programs are set), `cargo test -p shadows --test
