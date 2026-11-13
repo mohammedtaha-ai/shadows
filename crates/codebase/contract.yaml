@@ -286,6 +286,23 @@ functions:
     add_server_for_test: "test-support: store an added server with no command"
     ask_server_for_test: "test-support: one request to a running server"
     catalog_for_test: "test-support: the catalog's ids and extensions"
+    set_server_off:
+      signature: "(&self, command_id: String, id: &str, off: bool) -> Result<(), CodebaseError>"
+      # "CodeServerSwitch" { server, off }, scope Code "servers": a known catalog or
+      # added id, else INVALID_COMMAND; event CodeServerSwitched. Every worker
+      # follows at its next recompute.
+    add_server:
+      signature: "(&self, command_id: String, server: AddedServer) -> Result<ServerStatus, CodebaseError>"
+      # "CodeServerAdd": an id, a command, extensions each starting with a dot; a
+      # catalog id or one already added is INVALID_COMMAND; event CodeServerAdded.
+    remove_server:
+      signature: "(&self, command_id: String, id: &str) -> Result<(), CodebaseError>"
+      # "CodeServerRemove": added servers only, else INVALID_COMMAND; its off row
+      # goes too; event CodeServerRemoved.
+    change_servers:
+      signature: "(&self, ctx: &CommandContext, change: ServerChange) -> Result<Result<(), String>, StorageError>"
+      # Store: one write, classify (a replay answers at once), the change, its
+      # event, the command record; Err(String) is a refusal with nothing written.
     lsp:
       signature: "(&self, asker: Asker<'_>, question: LspQuestion) -> Result<LspAnswer, CodebaseError>"
       # The scope (its refusals first), `touch` of the asker's project; the
@@ -814,6 +831,13 @@ enums:
 
 obligations:
   - rule: >
+      The person's server settings change only by command (CodeServerSwitch,
+      CodeServerAdd, CodeServerRemove), each one write with its replay, event
+      and command record; a catalog id is never added, and only an added server
+      is removed.
+    tested_by: a_replayed_command_changes_nothing
+    note: also switching_a_server_off_lists_it_off, an_added_server_is_listed_and_removable, a_catalog_id_cannot_be_added.
+  - rule: >
       A code_lsp file is read and sent to a server only when it is inside the
       project by its real path: `../`, an absolute path and a link or junction
       out of the folder are refused INVALID_COMMAND before any server is asked.
@@ -1181,6 +1205,14 @@ tests:
     checks: No grant kind lists where_is, who_uses or outline; all three list code_lsp.
   - name: the_name_index_is_off_by_default
     checks: Through AppCore::start, a scanned .rs file has its row and no definition.
+  - name: switching_a_server_off_lists_it_off
+    checks: PUT /api/code/servers/gopls/off true lists gopls off; false lists it not off.
+  - name: an_added_server_is_listed_and_removable
+    checks: POST adds zz (not_installed), GET lists it, DELETE removes it; DELETE gopls is 422.
+  - name: a_catalog_id_cannot_be_added
+    checks: Adding gopls, or an extension with no dot, is 422 INVALID_COMMAND.
+  - name: a_replayed_command_changes_nothing
+    checks: The same POST twice is 200 twice and one row; the id with another body is 409.
   - name: an_incomplete_listing_deletes_nothing
     checks: >
       A unit test in inventory.rs: an incomplete write without b.txt keeps

@@ -24,9 +24,9 @@ use std::time::Duration;
 
 pub use active::ActiveHold;
 pub use model::{
-    Answer, CodebaseConfig, Hit, IndexState, InventoryEntry, InventoryKind, InventoryPage,
-    InventoryQuery, InventoryState, LspAnswer, LspOperation, LspQuestion, ProjectLink,
-    ProjectStatus, ServerState, ServerStatus, Skipped,
+    AddedServer, Answer, CodebaseConfig, Hit, IndexState, InventoryEntry, InventoryKind,
+    InventoryPage, InventoryQuery, InventoryState, LspAnswer, LspOperation, LspQuestion,
+    ProjectLink, ProjectStatus, ServerState, ServerStatus, Skipped,
 };
 pub use scope::Asker;
 

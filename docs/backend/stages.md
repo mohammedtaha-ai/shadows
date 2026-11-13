@@ -363,7 +363,7 @@ Design: [language servers](specs/2026-11-13-language-servers-design.md) (Mohamme
 
 ### B-142 · The person's server settings over HTTP
 
-- Status: ready.
+- Status: done.
 - Plan: [Task B-142](plans/2026-11-13-slice-2-language-servers.md#task-b-142-the-persons-server-settings-over-http).
 - Needs: B-139.
 

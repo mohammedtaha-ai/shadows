@@ -259,3 +259,16 @@ pub enum LspAnswer {
         install: Option<String>,
     },
 }
+
+/// A server the person adds beside the catalog, on their own responsibility.
+#[derive(Debug, Clone, serde::Deserialize, utoipa::ToSchema)]
+pub struct AddedServer {
+    /// Its name; not a catalog id.
+    pub id: String,
+    /// The program, by name on PATH or by path.
+    pub command: String,
+    #[serde(default)]
+    pub args: Vec<String>,
+    /// The file extensions it reads, each starting with `.`.
+    pub extensions: Vec<String>,
+}

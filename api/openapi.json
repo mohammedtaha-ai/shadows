@@ -69,6 +69,38 @@
         ],
         "type": "object"
       },
+      "AddedServer": {
+        "description": "A server the person adds beside the catalog, on their own responsibility.",
+        "properties": {
+          "args": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "command": {
+            "description": "The program, by name on PATH or by path.",
+            "type": "string"
+          },
+          "extensions": {
+            "description": "The file extensions it reads, each starting with `.`.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "id": {
+            "description": "Its name; not a catalog id.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "command",
+          "extensions"
+        ],
+        "type": "object"
+      },
       "AdditionalPart": {
         "properties": {
           "name": {
@@ -5262,6 +5294,25 @@
         ],
         "type": "object"
       },
+      "PostServer": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/AddedServer"
+          },
+          {
+            "properties": {
+              "command_id": {
+                "description": "The idempotency key.",
+                "type": "string"
+              }
+            },
+            "required": [
+              "command_id"
+            ],
+            "type": "object"
+          }
+        ]
+      },
       "Presence": {
         "description": "How a part kind's presence is decided.",
         "enum": [
@@ -5856,6 +5907,23 @@
         ],
         "type": "object"
       },
+      "PutServerOff": {
+        "properties": {
+          "command_id": {
+            "description": "The idempotency key.",
+            "type": "string"
+          },
+          "off": {
+            "description": "`true` switches the server off for every project; `false` back on.",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "command_id",
+          "off"
+        ],
+        "type": "object"
+      },
       "Queued": {
         "description": "What queueing answers.",
         "oneOf": [
@@ -6258,6 +6326,147 @@
             "type": "object"
           }
         ]
+      },
+      "ServerState": {
+        "description": "How one language server stands for one project.",
+        "oneOf": [
+          {
+            "description": "Not running: the project is not active, or its files do not need it.",
+            "properties": {
+              "state": {
+                "enum": [
+                  "idle"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "state": {
+                "enum": [
+                  "starting"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "state": {
+                "enum": [
+                  "running"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "Its command is not found on this machine.",
+            "properties": {
+              "state": {
+                "enum": [
+                  "not_installed"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "The person switched it off.",
+            "properties": {
+              "state": {
+                "enum": [
+                  "off"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "It exited or did not initialize; its last error line, when it wrote one.",
+            "properties": {
+              "error": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "state": {
+                "enum": [
+                  "failed"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "error",
+              "state"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "ServerStatus": {
+        "description": "One catalog or added server, as a project sees it.",
+        "properties": {
+          "added": {
+            "description": "The person added it; it is not in the catalog.",
+            "type": "boolean"
+          },
+          "extensions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "id": {
+            "type": "string"
+          },
+          "install": {
+            "description": "The command that installs it on this system; null when none is known.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "state": {
+            "$ref": "#/components/schemas/ServerState"
+          },
+          "wanted": {
+            "description": "The project holds a file with one of its extensions.",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "added",
+          "wanted",
+          "extensions",
+          "state",
+          "install"
+        ],
+        "type": "object"
       },
       "SessionChoices": {
         "description": "What the thread's session offers now. `efforts` are the\ncurrent model's. `modes` are after Shadows' policy; a mode the project does\nnot allow is present with `enabled: false` and `reason: \"Not allowed in\nthis project\"`.",
@@ -9805,6 +10014,196 @@
         ]
       }
     },
+    "/api/code/servers": {
+      "post": {
+        "operationId": "post_server",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PostServer"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServerStatus"
+                }
+              }
+            },
+            "description": "Added, or the replay of the same command"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "COMMAND_CONFLICT"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "INVALID_COMMAND: a catalog id, an id already added, or an extension without a dot"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          }
+        },
+        "summary": "Adds a server beside the catalog, on the person's own responsibility.",
+        "tags": [
+          "code"
+        ]
+      }
+    },
+    "/api/code/servers/{server}": {
+      "delete": {
+        "operationId": "remove_server",
+        "parameters": [
+          {
+            "description": "The added server's id",
+            "in": "path",
+            "name": "server",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "The idempotency key.",
+            "in": "query",
+            "name": "command_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Removed, or the replay of the same command"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "COMMAND_CONFLICT"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "INVALID_COMMAND: no such added server"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          }
+        },
+        "summary": "Removes a server the person added.",
+        "tags": [
+          "code"
+        ]
+      }
+    },
+    "/api/code/servers/{server}/off": {
+      "put": {
+        "operationId": "put_server_off",
+        "parameters": [
+          {
+            "description": "The server's id",
+            "in": "path",
+            "name": "server",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PutServerOff"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Set, or the replay of the same command"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "COMMAND_CONFLICT"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "INVALID_COMMAND: no such server"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          }
+        },
+        "summary": "Switches a server off, or back on. Shadows' code answers get worse without it.",
+        "tags": [
+          "code"
+        ]
+      }
+    },
     "/api/fs/dirs": {
       "get": {
         "description": "Exposes the machine's directory names to any client the CORS list admits.",
@@ -11846,6 +12245,61 @@
           }
         },
         "summary": "Lists the project's folder again now, and answers the first page.",
+        "tags": [
+          "code"
+        ]
+      }
+    },
+    "/api/projects/{id}/code/servers": {
+      "get": {
+        "operationId": "servers",
+        "parameters": [
+          {
+            "description": "The project",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ProjectId"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ServerStatus"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "INVALID_COMMAND: no such project"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          }
+        },
+        "summary": "Every catalog and added server, as this project sees it: whether its files\nwant it, and its state. Asking does not make the project active.",
         "tags": [
           "code"
         ]

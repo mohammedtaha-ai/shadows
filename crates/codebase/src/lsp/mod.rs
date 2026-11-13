@@ -11,10 +11,12 @@ use std::collections::{BTreeMap, HashSet};
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 
-use crate::model::{ServerState, ServerStatus};
+use crate::model::{AddedServer, ServerState, ServerStatus};
 use crate::scope::Asker;
 use crate::store::AddedRow as Added;
+use crate::store::ServerChange;
 use crate::{Codebase, CodebaseError};
+use core_db::CommandContext;
 
 /// One server a project may run: a catalog entry or one the person added.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -237,6 +239,98 @@ impl Codebase {
             )
             .await
             .map_err(|e| e.to_string())
+    }
+
+    /// "CodeServerSwitch", params { server, off }: switches a catalog or added server
+    /// off or back on, for every project. A running one stops at its worker's next
+    /// recompute; one switched on starts then.
+    pub async fn set_server_off(
+        &self,
+        command_id: String,
+        id: &str,
+        off: bool,
+    ) -> Result<(), CodebaseError> {
+        let added = self.inner.store.servers_added().await?;
+        if !Codebase::every_server(&added).iter().any(|s| s.id == id) {
+            return Err(CodebaseError::InvalidCommand(format!(
+                "no server {id} is known"
+            )));
+        }
+        let params = serde_json::json!({ "server": id, "off": off });
+        let ctx = CommandContext::user(command_id, "CodeServerSwitch", params);
+        let change = ServerChange::Off(id.to_string(), off);
+        self.inner
+            .store
+            .change_servers(&ctx, change)
+            .await?
+            .map_err(CodebaseError::InvalidCommand)
+    }
+
+    /// "CodeServerAdd": a server beside the catalog. Its id must be new and not a
+    /// catalog id, its command named, and each extension start with `.`.
+    pub async fn add_server(
+        &self,
+        command_id: String,
+        server: AddedServer,
+    ) -> Result<ServerStatus, CodebaseError> {
+        let refuse = |m: String| Err(CodebaseError::InvalidCommand(m));
+        let id = server.id.trim();
+        if id.is_empty() || server.command.trim().is_empty() {
+            return refuse("a server needs an id and a command".into());
+        }
+        if Codebase::catalog().iter().any(|e| e.id == id) {
+            return refuse(format!(
+                "{id} is a catalog server; switch it on or off instead"
+            ));
+        }
+        if server.extensions.is_empty()
+            || server
+                .extensions
+                .iter()
+                .any(|e| !e.starts_with('.') || e.len() < 2)
+        {
+            return refuse("each extension must start with a dot, as .go".into());
+        }
+        let params = serde_json::json!({
+            "id": id, "command": server.command, "args": server.args,
+            "extensions": server.extensions,
+        });
+        let ctx = CommandContext::user(command_id, "CodeServerAdd", params);
+        let row = Added {
+            id: id.to_string(),
+            command: server.command.clone(),
+            args: server.args.clone(),
+            extensions: server.extensions.clone(),
+        };
+        self.inner
+            .store
+            .change_servers(&ctx, ServerChange::Add(row))
+            .await?
+            .map_err(CodebaseError::InvalidCommand)?;
+        let path = std::env::var_os("PATH").unwrap_or_default();
+        let state = match Codebase::find_command(&server.command, &path) {
+            Some(_) => ServerState::Idle,
+            None => ServerState::NotInstalled,
+        };
+        Ok(ServerStatus {
+            id: id.to_string(),
+            added: true,
+            wanted: false,
+            extensions: server.extensions,
+            state,
+            install: None,
+        })
+    }
+
+    /// "CodeServerRemove": an added server goes; a catalog one cannot.
+    pub async fn remove_server(&self, command_id: String, id: &str) -> Result<(), CodebaseError> {
+        let params = serde_json::json!({ "server": id });
+        let ctx = CommandContext::user(command_id, "CodeServerRemove", params);
+        self.inner
+            .store
+            .change_servers(&ctx, ServerChange::Remove(id.to_string()))
+            .await?
+            .map_err(CodebaseError::InvalidCommand)
     }
 
     /// Test only: stores an added server with no command record.

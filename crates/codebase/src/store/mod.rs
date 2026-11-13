@@ -6,7 +6,7 @@ mod reach;
 mod servers;
 
 pub(crate) use inventory::InventoryRow;
-pub(crate) use servers::AddedRow;
+pub(crate) use servers::{AddedRow, ServerChange};
 
 use std::collections::HashMap;
 use std::sync::Arc;

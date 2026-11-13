@@ -11,7 +11,10 @@ use axum::http::StatusCode;
 
 use super::failure::ErrorBody;
 use super::{AppState, Failure};
-use shadows_core::{Asker, InventoryPage, InventoryQuery, ProjectId, ProjectLink, ProjectStatus};
+use shadows_core::{
+    AddedServer, Asker, InventoryPage, InventoryQuery, ProjectId, ProjectLink, ProjectStatus,
+    ServerStatus,
+};
 
 /// How the project's index stands. Asking does not make it active.
 #[utoipa::path(
@@ -201,6 +204,132 @@ pub(super) async fn remove_link(
     s.core
         .plans()
         .unlink_projects(q.command_id, &project, &linked)
+        .await?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+/// Every catalog and added server, as this project sees it: whether its files
+/// want it, and its state. Asking does not make the project active.
+#[utoipa::path(
+    get,
+    path = "/api/projects/{id}/code/servers",
+    tag = "code",
+    params(("id" = ProjectId, Path, description = "The project")),
+    responses(
+        (status = 200, body = Vec<ServerStatus>),
+        (status = 404, description = "INVALID_COMMAND: no such project", body = ErrorBody),
+        (status = 500, description = "STORAGE_UNAVAILABLE", body = ErrorBody),
+    )
+)]
+pub(super) async fn servers(
+    State(s): State<AppState>,
+    Path(project): Path<ProjectId>,
+) -> Result<Json<Vec<ServerStatus>>, Failure> {
+    Ok(Json(
+        s.core.codebase().servers(Asker::Person(&project)).await?,
+    ))
+}
+
+#[derive(serde::Deserialize, utoipa::ToSchema)]
+pub(super) struct PutServerOff {
+    /// The idempotency key.
+    command_id: String,
+    /// `true` switches the server off for every project; `false` back on.
+    off: bool,
+}
+
+/// Switches a server off, or back on. Shadows' code answers get worse without it.
+#[utoipa::path(
+    put,
+    path = "/api/code/servers/{server}/off",
+    tag = "code",
+    params(("server" = String, Path, description = "The server's id")),
+    request_body = PutServerOff,
+    responses(
+        (status = 204, description = "Set, or the replay of the same command"),
+        (status = 409, description = "COMMAND_CONFLICT", body = ErrorBody),
+        (status = 422, description = "INVALID_COMMAND: no such server", body = ErrorBody),
+        (status = 500, description = "STORAGE_UNAVAILABLE", body = ErrorBody),
+    )
+)]
+pub(super) async fn put_server_off(
+    State(s): State<AppState>,
+    Path(server): Path<String>,
+    Json(body): Json<PutServerOff>,
+) -> Result<StatusCode, Failure> {
+    let code = s.core.codebase();
+    code.set_server_off(body.command_id, &server, body.off)
+        .await?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+#[derive(serde::Deserialize, utoipa::ToSchema)]
+pub(super) struct PostServer {
+    /// The idempotency key.
+    command_id: String,
+    #[serde(flatten)]
+    server: AddedServer,
+}
+
+/// Adds a server beside the catalog, on the person's own responsibility.
+#[utoipa::path(
+    post,
+    path = "/api/code/servers",
+    tag = "code",
+    request_body = PostServer,
+    responses(
+        (
+            status = 200,
+            description = "Added, or the replay of the same command",
+            body = ServerStatus,
+        ),
+        (status = 409, description = "COMMAND_CONFLICT", body = ErrorBody),
+        (
+            status = 422,
+            description = "INVALID_COMMAND: a catalog id, an id already added, or an extension \
+                           without a dot",
+            body = ErrorBody,
+        ),
+        (status = 500, description = "STORAGE_UNAVAILABLE", body = ErrorBody),
+    )
+)]
+pub(super) async fn post_server(
+    State(s): State<AppState>,
+    Json(body): Json<PostServer>,
+) -> Result<Json<ServerStatus>, Failure> {
+    let code = s.core.codebase();
+    Ok(Json(code.add_server(body.command_id, body.server).await?))
+}
+
+/// A `DELETE` has no body, so its idempotency key rides in the query.
+#[derive(serde::Deserialize, utoipa::IntoParams)]
+#[into_params(parameter_in = Query)]
+pub(super) struct RemoveServerQuery {
+    /// The idempotency key.
+    command_id: String,
+}
+
+/// Removes a server the person added.
+#[utoipa::path(
+    delete,
+    path = "/api/code/servers/{server}",
+    tag = "code",
+    params(("server" = String, Path, description = "The added server's id"), RemoveServerQuery),
+    responses(
+        (status = 204, description = "Removed, or the replay of the same command"),
+        (status = 409, description = "COMMAND_CONFLICT", body = ErrorBody),
+        (status = 422, description = "INVALID_COMMAND: no such added server", body = ErrorBody),
+        (status = 500, description = "STORAGE_UNAVAILABLE", body = ErrorBody),
+    )
+)]
+pub(super) async fn remove_server(
+    State(s): State<AppState>,
+    Path(server): Path<String>,
+    Query(q): Query<RemoveServerQuery>,
+) -> Result<StatusCode, Failure> {
+    s.core
+        .codebase()
+        .remove_server(q.command_id, &server)
         .await?;
     Ok(StatusCode::NO_CONTENT)
 }
