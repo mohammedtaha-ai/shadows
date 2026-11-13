@@ -76,7 +76,9 @@ open for B-94. Its tasks are in PR #64 (`c71b263d`) and PR #65 (`617d806f`), as 
 
 ## Approved local delivery implementation, 2026-11-09
 
-Order and rulings: [the program](plans/2026-11-09-local-delivery-program.md). The tasks below are blocked until a later slice details them; they keep their draft pointers.
+Order and rulings: [the program](plans/2026-11-09-local-delivery-program.md). Slice 4 is
+detailed in its [plan](plans/2026-11-14-slice-4-task-questions.md): B-108, B-107, B-109,
+B-147, B-148, F-102, B-149. B-108 is ready; later-slice tasks retain blocked draft pointers.
 
 ### B-105 · Minimal accepted decision revisions
 
@@ -90,33 +92,63 @@ Order and rulings: [the program](plans/2026-11-09-local-delivery-program.md). Th
 
 ### B-107 · Store a simple brief on each attempt
 
-- Status: blocked (prerequisites below must ship first)
-- Plan: [Task 1](plans/2026-11-09-execution-briefs.md#task-1-b-107-store-a-simple-brief-on-each-attempt).
-- Owner: Runs.
-- Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
-- Touch: exact Create/Modify/Test file list of Task 1; no other source paths.
-- Needs: `docs/backend/stages.md` at `617d806f` (B-101, B-106); accepted shared API/model agreement (B-102 dropped).
-- Done when: all named RED/GREEN steps and focused verification commands in Task 1 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
+- Status: blocked until B-108.
+- Plan: [B-107](plans/2026-11-14-slice-4-task-questions.md#task-b-107-saved-attempt-context-and-task_brief).
+- Owner: Runs and Plans; grants/adapters translate.
+- Read: [approved design](specs/2026-11-14-task-questions-design.md), [wire agreement](../shared/requests/2026-11-14-task-questions.md), owning contracts and the task's Interfaces.
+- Touch: exact Files of B-107 plus the plan's Common Touch paths; no other sources.
+- Needs: B-108; accepted slice 4 agreement.
+- Done when: B-107's five steps and common checks pass, current contracts/maps updated, scoped commit recorded. Live/browser acceptance is B-149.
 
 ### B-108 · Readiness from real inputs and current plan state
 
-- Status: blocked (prerequisites below must ship first)
-- Plan: [Task 2](plans/2026-11-09-execution-briefs.md#task-2-b-108-readiness-from-real-inputs-and-current-plan-state).
-- Owner: Runs with Plans.
-- Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
-- Touch: exact Create/Modify/Test file list of Task 2; no other source paths.
-- Needs: B-107; accepted shared API/model agreement. 
-- Done when: all named RED/GREEN steps and focused verification commands in Task 2 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
+- Status: ready; first task of slice 4.
+- Plan: [B-108](plans/2026-11-14-slice-4-task-questions.md#task-b-108-authoritative-admission-and-exact-required-files).
+- Owner: Plans, Runs and Codebase.
+- Read: AppCore, [approved design](specs/2026-11-14-task-questions-design.md), [wire agreement](../shared/requests/2026-11-14-task-questions.md), owner contracts and Interfaces.
+- Touch: exact Files of B-108 plus the plan's Common Touch paths; no other sources.
+- Needs: none; slice 2 shipped in #67 and the slice 4 design/agreement are accepted for planning.
+- Done when: B-108's five steps and common checks pass, no refused admission inserts an attempt, scoped commit recorded.
 
 ### B-109 · Task-aware questions and executor tools
 
-- Status: blocked (prerequisites below must ship first)
-- Plan: [Task 3](plans/2026-11-09-execution-briefs.md#task-3-b-109-task-aware-questions-and-executor-tools).
-- Owner: Runs, Grants and adapters.
-- Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
-- Touch: exact Create/Modify/Test file list of Task 3; no other source paths.
-- Needs: B-108; accepted shared API/model agreement. 
-- Done when: all named RED/GREEN steps and focused verification commands in Task 3 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
+- Status: blocked until B-107.
+- Plan: [B-109](plans/2026-11-14-slice-4-task-questions.md#task-b-109-questions-about-source-and-planned-consumers).
+- Owner: Plans relationships, Runs composition, Grants authority and adapters.
+- Read: approved slice 4 design/agreement, task Interfaces and owner contracts.
+- Touch: exact Files of B-109 plus Common Touch paths; no other sources.
+- Needs: B-107.
+- Done when: B-109's five steps/common checks pass, source/planned facts stay distinct, scoped commit recorded.
+
+### B-147 · Durable contract conflicts and selective stops
+
+- Status: blocked until B-109.
+- Plan: [B-147](plans/2026-11-14-slice-4-task-questions.md#task-b-147-durable-conflicts-confirmed-stops-and-planner-delivery).
+- Owner: Runs; existing Grants, Turns and Harness lifecycles.
+- Read: approved slice 4 design/agreement, task Interfaces, owner contracts and executor cancellation ruling.
+- Touch: exact Files of B-147 plus Common Touch paths; no other sources.
+- Needs: B-107, B-109.
+- Done when: B-147's five steps/common checks pass, race/recovery/termination cases keep their invariants, scoped commit recorded. Untested live cases stay explicit.
+
+### B-148 · Compatible ready groups
+
+- Status: blocked until B-147.
+- Plan: [B-148](plans/2026-11-14-slice-4-task-questions.md#task-b-148-compatible-ready-groups).
+- Owner: Runs, with Plans admission and existing scope matcher.
+- Read: approved slice 4 design/agreement, task Interfaces and owner contracts.
+- Touch: exact Files of B-148 plus Common Touch paths; no other sources.
+- Needs: B-108, B-147.
+- Done when: B-148's five steps/common checks pass, groups are pairwise compatible and do not retry attempted tasks, scoped commit recorded.
+
+### B-149 · Real slice 4 acceptance
+
+- Status: blocked until B-148 and F-102.
+- Plan: [B-149](plans/2026-11-14-slice-4-task-questions.md#task-b-149-real-slice-acceptance).
+- Owner: integration acceptance through AppCore and the actual UI.
+- Read: approved design's Acceptance, B-149 steps and the live test patterns it names.
+- Touch: exact Files of B-149 plus Common Touch paths; acceptance entries only in frontend stages.
+- Needs: B-107, B-108, B-109, B-147, B-148, F-102.
+- Done when: named live tests and disposable browser/log scenarios pass with dated evidence and scoped commit; unavailable checks remain reported, not passed.
 
 ### B-111 · Run required checks with source provenance
 

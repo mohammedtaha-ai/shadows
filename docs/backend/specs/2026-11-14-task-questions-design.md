@@ -1,15 +1,14 @@
 # Slice 4: attempt context, task questions and parallel work
 
-Status: draft for Mohammed's approval, 2026-11-14. No implementation is authorized by
-this draft. The decisions in the next section were settled in the conversation; the
-remaining choices are proposals for this revision.
+Status: approved by Mohammed, 2026-11-14, with the request to prepare its implementation
+plan. This approval covers the design; product implementation has not started here.
 
-This is the proposed slice 4 revision of [17.0](../../core/specs/2026-10-01-task-contracts-and-evidence-design.md#170-approved-local-delivery-revision-2026-11-09).
+This is the slice 4 revision of [17.0](../../core/specs/2026-10-01-task-contracts-and-evidence-design.md#170-approved-local-delivery-revision-2026-11-09).
 It builds on the shipped [executor design](2026-11-08-executors-design.md) and
 [language-server design](2026-11-13-language-servers-design.md). The
 [delivery program](../plans/2026-11-09-local-delivery-program.md) owns ordering. The
-old [execution-briefs plan](../plans/2026-11-09-execution-briefs.md) remains draft
-material, not an executable plan for this revision.
+old [execution-briefs plan](../plans/2026-11-09-execution-briefs.md) is superseded by the
+[detailed slice 4 plan](../plans/2026-11-14-slice-4-task-questions.md).
 
 ## Decisions settled with Mohammed
 
@@ -88,7 +87,7 @@ consumers and code itself. This uses fewer product operations, but leaves the co
 the person asked Shadows to supply to each model. Planned consumers are still a separate
 discovery job, and conflict reports have no structured delivery path.
 
-### Runs answers in the attempt's context — proposed
+### Runs answers in the attempt's context — selected
 
 Runs reads the attempt's saved brief, asks Plans for contract relationships and asks
 Codebase for source facts. It returns each source distinctly. A separate conflict command
@@ -114,7 +113,7 @@ use each owner's transaction-local methods.
 
 ## One brief per attempt
 
-Proposed operation: `task_brief`, an executor read whose attempt is obtained from its
+Operation: `task_brief`, an executor read whose attempt is obtained from its
 authenticated grant and thread, never a client-selected attempt id.
 
 - Reuse `TaskContext` for the approved task, resolved contracts, selected parts and path
@@ -141,7 +140,7 @@ every byte of the provider's conversation, tools or internal model state.
 
 ## Task questions
 
-Proposed operation: `task_question`, an executor read bound to its current Running attempt.
+Operation: `task_question`, an executor read bound to its current Running attempt.
 The detailed plan will define typed selectors for contract lookup, producer lookup,
 consumer lookup and an optional native LSP question. Backend code does not interpret an
 arbitrary natural-language question or ask another model to answer it.
@@ -182,7 +181,7 @@ code in Shadows does not attempt general semantic equivalence across languages.
 
 ## Contract conflicts
 
-Proposed operation: `task_conflict`, a mutating executor command. It is separate from the
+Operation: `task_conflict`, a mutating executor command. It is separate from the
 read-only question and from a successful `task_report`.
 
 - It identifies the expected contract or missing instruction, the observed fact, the
@@ -240,7 +239,7 @@ attempt after the appropriate contract is approved. No automatic retry is added.
 ## Parallel groups
 
 Runs continues to admit one Start at a time through its existing transaction; it does
-not need a batch-start engine. Proposed `task_ready` is a Planner read for one exact
+not need a batch-start engine. `task_ready` is a Planner read for one exact
 Frozen plan version. After a done mark, the existing `next` answer becomes a group using
 the same selection method.
 
@@ -282,7 +281,7 @@ contracts remain supported and expose that limitation.
 
 Do not infer a missing function from empty/incomplete LSP results or introduce a universal
 signature validator at Start. File existence is an admission check; unresolved symbols and
-contract mismatches use the question/conflict path. This is a proposed refinement of
+contract mismatches use the question/conflict path. This refines
 17.0's earlier blanket wording about missing required symbols.
 
 Filesystem observations describe when the check ran; they do not create read locks or

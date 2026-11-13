@@ -79,13 +79,13 @@ These tasks are blocked until their named backend API exists; no component imple
 
 ### F-102 · Attempt brief and scoped question results
 
-- Status: blocked (prerequisites below must ship first)
-- Plan: [Task 4](plans/2026-11-09-local-delivery-ui.md#task-4-f-102-attempt-brief-and-scoped-question-results).
-- Owner: web API and task UI.
-- Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
-- Touch: exact Create/Modify/Test file list of Task 4; no other source paths.
-- Needs: B-109, F-101; accepted shared API/model agreement. Backend must expose its generated API before this task starts.
-- Done when: all named RED/GREEN steps and focused verification commands in Task 4 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
+- Status: blocked until B-107 and B-147 expose generated API.
+- Plan: [F-102](../backend/plans/2026-11-14-slice-4-task-questions.md#task-f-102-saved-brief-and-conflict-presentation).
+- Owner: web API, tasks and conversation presentation.
+- Read: [approved design](../backend/specs/2026-11-14-task-questions-design.md), [accepted agreement](../shared/requests/2026-11-14-task-questions.md), frontend code map and the task's owner contracts/Interfaces.
+- Touch: exact Files of F-102 in the detailed slice 4 plan; no other sources.
+- Needs: B-107, B-147 (including B-109), accepted agreement and generated OpenAPI. No dependency on the superseded F-102 draft or a new F-101 implementation.
+- Done when: F-102's five steps, focused tests, typecheck/lint/build and codemap/architecture pass; generated schema and current contracts/maps updated; scoped commit recorded. Browser acceptance is B-149.
 
 ### F-103 · Check evidence, critic model and acceptance
 

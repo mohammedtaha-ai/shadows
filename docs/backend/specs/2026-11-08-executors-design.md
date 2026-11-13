@@ -458,8 +458,8 @@ Unaffected running attempts retain their original Frozen contract and are judged
 their attempts and done marks are not automatically transferred to the replacement version.
 A newer Draft still blocks new Starts on the old version, and work on the corrected version
 requires its normal approval. The proposed slice 4 operations are described in
-[task questions and parallel work](2026-11-14-task-questions-design.md), still a draft pending
-approval of the full design. This ruling replaces the earlier automatic whole-plan stop.
+[task questions and parallel work](2026-11-14-task-questions-design.md), approved 2026-11-14.
+This ruling replaces the earlier automatic whole-plan stop.
 
 ## 13. Documents this changed on approval
 
