@@ -162,6 +162,12 @@ Use current section 24 approval attribution; no executor/critic approval tools.
 
 ### Execution brief and code questions
 
+A proposed slice 4 revision is in
+[attempt context, task questions and parallel work](../../backend/specs/2026-11-14-task-questions-design.md)
+(draft, 2026-11-14). It records the current design discussion, including task-aware
+answers, conflict escalation and compatible ready groups. It is not yet an approved
+replacement for this section; the earlier execution-briefs plan remains draft material.
+
 Runs stores a brief once per attempt: exact approved task and referenced
 contracts/decisions, map/standards revisions, base Git SHA and requested model.
 It is keyed by attempt identity, not a new digest system. Missing required

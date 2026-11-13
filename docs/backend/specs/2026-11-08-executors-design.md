@@ -449,13 +449,17 @@ this spec; each is marked as the controller's, not his.
    page then starts on the Planner thread's model. Mohammed's choice is recorded on each attempt
    and remembered per task for the next Start; it never changes the plan version.
 
-**When the plan is wrong (Mohammed, 2026-11-08).** The Planner edits only the task or tasks the
-problem touches; it does not rewrite the plan. The edit is still the next version (v2 = v1 with
-those tasks changed), so history and approval work as today, and Mohammed sees only the changed
-tasks marked. Because one task's change may touch others, **every task of that plan stops** the
-moment the Planner starts the Draft: running attempts are stopped and confirmed ended, and no task
-of the plan may start. Committed work stays. After Mohammed approves the new version, the plan's
-tasks are ready again under it and he starts them; nothing restarts on its own.
+**When the plan is wrong (Mohammed, 2026-11-08; amended 2026-11-14).** The Planner edits only
+the tasks the problem touches. A correction is still a new version, preserving history and
+normal approval. A contract problem stops its own attempt and notifies the Planner; other
+attempts continue. The Planner assesses which tasks are affected and explicitly stops those
+attempts. Creating the corrective Draft does not itself stop every attempt of the plan.
+Unaffected running attempts retain their original Frozen contract and are judged against it;
+their attempts and done marks are not automatically transferred to the replacement version.
+A newer Draft still blocks new Starts on the old version, and work on the corrected version
+requires its normal approval. The proposed slice 4 operations are described in
+[task questions and parallel work](2026-11-14-task-questions-design.md), still a draft pending
+approval of the full design. This ruling replaces the earlier automatic whole-plan stop.
 
 ## 13. Documents this changed on approval
 
