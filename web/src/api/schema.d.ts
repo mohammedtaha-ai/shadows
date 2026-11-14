@@ -4,6 +4,48 @@
  */
 
 export interface paths {
+    "/api/attempts/{id}/brief": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The brief the attempt was given: the attempt and the task context saved
+         *     when it was admitted, unchanged by any later map or standards. An attempt
+         *     begun before briefs were saved is 409 `context_not_recorded`.
+         */
+        get: operations["brief"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/attempts/{id}/conflict": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The contract conflict the attempt's executor reported, with the attempt's
+         *     current state, whether it still holds its scope and whether the Planner's
+         *     notice was queued; null when it reported none.
+         */
+        get: operations["conflict"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/attempts/{id}/diff": {
         parameters: {
             query?: never;
@@ -2128,6 +2170,24 @@ export interface components {
             version: number;
             workflow_id: components["schemas"]["WorkflowId"];
         };
+        /**
+         * @description What an attempt was given: the attempt itself, the task context saved when
+         *     it was admitted, and when that was. The attempt stays the source of its
+         *     identity, model, base commit and addition.
+         */
+        AttemptBrief: {
+            attempt: components["schemas"]["Attempt"];
+            captured_at: string;
+            /**
+             * @description The tasks of the attempt's own version that plan to use this task's
+             *     outputs, by task then use: the first 50. Plans in other versions or
+             *     other plans are not listed, so an empty list is not proof of no use.
+             */
+            consumers: components["schemas"]["ConsumerRef"][];
+            /** @description More planned consumers than `consumers` lists. */
+            consumers_more: boolean;
+            context: components["schemas"]["TaskContext"];
+        };
         /** @description One file as an attempt's commit holds it; deleted or binary files have no text. */
         AttemptFile: {
             cut: boolean;
@@ -2146,6 +2206,7 @@ export interface components {
             attempt: number;
             attempt_id: components["schemas"]["AttemptId"];
             commit?: string | null;
+            conflict?: null | components["schemas"]["TaskConflict"];
             /** @description The attempt carried the task's third and last addition. */
             last_addition: boolean;
             model: string;
@@ -2232,6 +2293,51 @@ export interface components {
             label: string;
             reason: string | null;
         };
+        /**
+         * @description Whether the Planner's notice of a conflict was enqueued on its
+         *     conversation. `delivered` is a durable enqueue, not a reply.
+         * @enum {string}
+         */
+        ConflictDelivery: "pending" | "delivered" | "no_planner";
+        /**
+         * @description One piece of a conflict's evidence: a project-relative path, an optional
+         *     one-based line, and what it shows. A reference, not copied source.
+         */
+        ConflictEvidence: {
+            /**
+             * Format: int32
+             * @description The one-based line it is about, if one.
+             */
+            line: number | null;
+            /** @description A path inside the project, as `project_files` names it. */
+            path: string;
+            /** @description What this place shows, in a sentence or two. */
+            summary: string;
+        };
+        /**
+         * @description A task of the same version that plans to use what was selected: a
+         *     reference to its use, never a source location.
+         */
+        ConsumerRef: {
+            /** @description The producer's output the use names; null for a use of existing code. */
+            output: string | null;
+            purpose: string;
+            /** Format: int32 */
+            task: number;
+            title: string;
+            /**
+             * Format: int32
+             * @description Where the use stands in the consumer's `uses`, from 0.
+             */
+            use_index: number;
+        };
+        ContextPlan: {
+            plan_id: components["schemas"]["PlanId"];
+            title: string;
+            /** Format: int64 */
+            version: number;
+            workflow_id: components["schemas"]["WorkflowId"];
+        };
         ContextResponse: {
             carried: components["schemas"]["CarriedContext"];
             heard: boolean;
@@ -2241,6 +2347,12 @@ export interface components {
             kind: string;
             /** Format: int64 */
             version: number;
+        };
+        ContextStandards: {
+            /** Format: int64 */
+            additions?: number | null;
+            /** Format: int64 */
+            base: number;
         };
         ContractHead: {
             header: string;
@@ -3095,6 +3207,12 @@ export interface components {
             title: string;
             waits_for: components["schemas"]["PhaseRef"][];
         };
+        PhaseDependency: {
+            broken?: string | null;
+            phase?: null | components["schemas"]["Phase"];
+            reference: components["schemas"]["PhaseRef"];
+            target?: null | components["schemas"]["PhaseEndpoint"];
+        };
         PhaseEndpoint: {
             phase_id: components["schemas"]["PhaseId"];
             /** Format: int32 */
@@ -3733,6 +3851,29 @@ export interface components {
             path: string;
             returns?: null | components["schemas"]["ContractValue"];
         };
+        /**
+         * @description An attempt's accepted contract conflict, with the attempt's current state
+         *     and whether it still holds its scope. Accepting it asked the executor to
+         *     end its turn; only `attempt_state` says whether it did.
+         */
+        TaskConflict: {
+            attempt_id: components["schemas"]["AttemptId"];
+            attempt_state: components["schemas"]["AttemptState"];
+            /** @description When the conflict was accepted. */
+            created_at: string;
+            delivery: components["schemas"]["ConflictDelivery"];
+            evidence: components["schemas"]["ConflictEvidence"][];
+            expected: string;
+            observed: string;
+            project_id: components["schemas"]["ProjectId"];
+            /** @description The attempt still holds its scope: its executor may still write. */
+            scope_held: boolean;
+            /** Format: int32 */
+            task: number;
+            /** Format: int64 */
+            version: number;
+            workflow_id: components["schemas"]["WorkflowId"];
+        };
         /** @description A task as the plan holds it, shown as `T{number}`. */
         TaskContent: {
             acceptance: components["schemas"]["AcceptanceItem"][];
@@ -3746,6 +3887,18 @@ export interface components {
             title: string;
             /** @description Paths the task may change (its declared scope). */
             writes: string[];
+        };
+        TaskContext: {
+            contracts?: Record<string, never>[];
+            /** Format: int64 */
+            map_revision: number;
+            parts: components["schemas"]["TaskPart"][];
+            phase?: null | components["schemas"]["Phase"];
+            phase_dependencies?: components["schemas"]["PhaseDependency"][];
+            plan: components["schemas"]["ContextPlan"];
+            standards: components["schemas"]["ContextStandards"];
+            task: components["schemas"]["TaskContent"];
+            unowned_paths: string[];
         };
         /** @description What a task builds, named exactly: the executor's brief beside the goal. */
         TaskContract: {
@@ -3767,6 +3920,14 @@ export interface components {
             plan_id: components["schemas"]["PlanId"];
             /** Format: int32 */
             task: number;
+        };
+        TaskPart: {
+            part: Record<string, never>;
+            paths: components["schemas"]["TaskPath"][];
+        };
+        TaskPath: {
+            path: string;
+            via: Record<string, never>;
         };
         TaskPreview: {
             acceptance: components["schemas"]["AcceptanceItem"][];
@@ -4033,6 +4194,95 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    brief: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The attempt */
+                id: components["schemas"]["AttemptId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttemptBrief"];
+                };
+            };
+            /** @description no such attempt */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description context_not_recorded */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunRefusal"];
+                };
+            };
+            /** @description STORAGE_UNAVAILABLE */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    conflict: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The attempt */
+                id: components["schemas"]["AttemptId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": null | components["schemas"]["TaskConflict"];
+                };
+            };
+            /** @description no such attempt */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description STORAGE_UNAVAILABLE */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     diff: {
         parameters: {
             query?: never;
@@ -9903,7 +10153,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
-            /** @description Start refused, with the code a task's `start` answers: waiting, task_busy, overlap, not_git, dirty_scope, not_frozen, superseded, archived, bad_scope; or command_conflict */
+            /** @description Start refused, with the code a task's `start` answers: waiting, task_busy, overlap, not_git, dirty_scope, missing_input, input_unavailable, not_frozen, superseded, archived, bad_scope; or command_conflict */
             409: {
                 headers: {
                     [name: string]: unknown;

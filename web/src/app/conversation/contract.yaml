@@ -73,7 +73,8 @@ shadows_notices:
   owner: notice-item.tsx
   notices: "noticeOf reads the author: Executor notices keep their attempt card; Shadows' notices carry none and are drawn under the sender name Shadows."
   changes: "ProjectChangeLine draws a ProjectChange entry's paths and its reason, or 'no reason given'."
-  tested_by: [a_shadows_notice_names_shadows, a_project_change_shows_its_reason]
+  conflicts: "A notice card's optional conflict is drawn by ConflictNotice as a history copy (expected, observed, evidence, plain text, no controls) with a link to the attempt's Report (#attempt-<id>); current stop and delivery are ConflictPanel's."
+  tested_by: [a_shadows_notice_names_shadows, a_project_change_shows_its_reason, conflict_notice_keeps_executor_attribution, ordinary_notices_still_render]
 
 
 # ── shapes ───────────────────────────────────────────────────────────────────

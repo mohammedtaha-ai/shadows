@@ -79,7 +79,7 @@ These tasks are blocked until their named backend API exists; no component imple
 
 ### F-102 · Attempt brief and scoped question results
 
-- Status: blocked until B-107 and B-147 expose generated API.
+- Status: blocked: the Planner notice never reaches ConflictNotice, since `readAttemptNotice` in web/src/stream/frames.ts (outside Touch) drops the card's `conflict`; it must keep it. Everything else is built.
 - Plan: [F-102](../backend/plans/2026-11-14-slice-4-task-questions.md#task-f-102-saved-brief-and-conflict-presentation).
 - Owner: web API, tasks and conversation presentation.
 - Read: [approved design](../backend/specs/2026-11-14-task-questions-design.md), [accepted agreement](../shared/requests/2026-11-14-task-questions.md), frontend code map and the task's owner contracts/Interfaces.

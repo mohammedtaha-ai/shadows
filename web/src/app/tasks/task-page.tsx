@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { getRouteApi } from '@tanstack/react-router'
+import { getRouteApi, useLocation } from '@tanstack/react-router'
 import { useState } from 'react'
 import { planQuery } from '@/api/workflows'
 import { ErrorLine } from '../error-line'
@@ -26,7 +26,9 @@ function TaskView({ projectId, workflowId, version, taskNumber }: {
 }) {
   const plan = useQuery(planQuery(workflowId))
   const { run, attempts, start, stop, done } = useTaskRun(workflowId, version, taskNumber)
-  const [tab, setTab] = useState<Tab>('Details')
+  // A link to one attempt's report (`#attempt-<id>`) opens the Report tab.
+  const hash = useLocation({ select: (l) => l.hash })
+  const [tab, setTab] = useState<Tab>(hash.replace(/^#/, '').startsWith('attempt-') ? 'Report' : 'Details')
   // The person's choice, once they make one; until then Core's suggestion.
   const [chosen, setChosen] = useState<string | null>(null)
 
