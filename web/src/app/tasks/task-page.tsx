@@ -1,3 +1,4 @@
+import { SkeletonContent } from '@/components/ui/skeleton'
 import { useQuery } from '@tanstack/react-query'
 import { getRouteApi, useLocation } from '@tanstack/react-router'
 import { useState } from 'react'
@@ -36,7 +37,7 @@ function TaskView({ projectId, workflowId, version, taskNumber }: {
   if (run.data === undefined || plan.data === undefined) {
     return (
       <div className="p-6 text-sm text-faint-foreground">
-        {failure !== null ? <ErrorLine error={failure} /> : 'Reading the task…'}
+        {failure !== null ? <ErrorLine error={failure} /> : <SkeletonContent label="Reading the task…" layout="detail" />}
       </div>
     )
   }

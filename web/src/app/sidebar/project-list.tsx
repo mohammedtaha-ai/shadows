@@ -7,13 +7,15 @@ import { Link, useLocation, useParams } from '@tanstack/react-router'
 import { ChevronRight, Folder, FolderOpen, Layers, Plus, Settings } from 'lucide-react'
 import type { Project } from '@/api/projects'
 import { projectsQuery } from '@/api/projects'
+import { SkeletonContent } from '@/components/ui/skeleton'
 import { useOpenProjects } from './open-projects'
 import { ThreadList } from './thread-list'
 import { WorkflowList } from './workflow-list'
 
 export function ProjectList({ filter = '' }: { filter?: string }) {
   // The hidden assistant project belongs to the AYLUL workspace.
-  const allProjects = useQuery(projectsQuery).data?.filter((p) => !p.assistant)
+  const query = useQuery(projectsQuery)
+  const allProjects = query.data?.filter((p) => !p.assistant)
   const q = filter.trim().toLowerCase()
   const projects = allProjects === undefined || q === ''
     ? allProjects
@@ -21,6 +23,7 @@ export function ProjectList({ filter = '' }: { filter?: string }) {
   const { projectId, threadId, workflowId } = useParams({ strict: false })
   const { isOpen, toggle } = useOpenProjects(projectId)
 
+  if (query.isPending) return <SkeletonContent label="Loading project list…" className="px-2" />
   if (allProjects === undefined || projects === undefined) return null
   if (allProjects.length === 0) {
     return <EmptyLine>No projects yet.</EmptyLine>

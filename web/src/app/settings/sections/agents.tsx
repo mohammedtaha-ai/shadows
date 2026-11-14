@@ -1,3 +1,4 @@
+import { SkeletonContent } from '@/components/ui/skeleton'
 import { useQuery } from '@tanstack/react-query'
 import { useSearch } from '@tanstack/react-router'
 import { agentsQuery, providersQuery, providerPresetsQuery } from '@/api/aylul-profiles'
@@ -28,6 +29,7 @@ export function AgentsSection() {
   return <div className="space-y-4">
     {slug && agents.data && <p role="status" className="text-sm text-muted-foreground">This agent no longer exists.</p>}
     <Button type="button" onClick={() => open('agents', 'new')}>New agent</Button>
+    {agents.isPending && <SkeletonContent label="Loading saved agents…" />}
     {live && <ul aria-label="Saved agents" className="divide-y divide-border">
       {live.map(agent => <li key={agent.slug} className="flex flex-wrap items-start gap-3 py-3">
         <span className="flex flex-1 items-center gap-2"><ColorDot id={agent.character_color} />{agent.name}{capabilities.companion && binding?.agent === agent.slug && <span className="rounded bg-secondary px-1 text-xs">Companion</span>}</span>

@@ -6,6 +6,7 @@ import { ArrowUpRight, Compass, FolderGit2, FolderPlus, Sparkles } from 'lucide-
 import { projectsQuery } from '@/api/projects'
 import { Button } from '@/components/ui/button'
 import { Panel } from '@/components/ui/panel'
+import { SkeletonContent } from '@/components/ui/skeleton'
 import { DaemonProblem } from './daemon-status'
 import { useOpenNewProject } from '@/app/new-project'
 
@@ -42,9 +43,7 @@ export function Home() {
 
   if (status === 'pending') {
     return (
-      <div className="flex flex-1 items-center justify-center p-8">
-        <p className="text-sm text-faint-foreground">Looking for the daemon…</p>
-      </div>
+      <SkeletonContent label="Loading projects…" layout="cards" className="flex-1 overflow-y-auto px-8 py-8" />
     )
   }
 

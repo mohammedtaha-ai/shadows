@@ -2,6 +2,7 @@ name: web-groups
 version: 1
 status: current
 source: web/src/app/groups
+loading: Initial content reads use labelled SkeletonContent regions; placeholder shapes are decorative, motion respects reduced-motion preferences, and cached content stays visible during background reads. Errors and mutation progress keep their own presentation.
 responsibility: Create and open AYLUL agent groups and render their durable conversation.
 obligations:
   - Creation and send keep the command id for an unchanged retry after a lost answer.

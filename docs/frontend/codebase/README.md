@@ -409,6 +409,7 @@ it is that folder's `contract.yaml`.
 | `web/src/components/ui/dialog.tsx` | Modal dialog built on Base UI's Dialog | `web/src/components/ui/button.tsx` |
 | `web/src/components/ui/dropdown-menu.tsx` | Dropdown menu built on Base UI's Menu | `web/src/components/ui/button.tsx` |
 | `web/src/components/ui/input.tsx` | Text input styled for the app | `web/src/components/ui/button.tsx` |
+| `web/src/components/ui/skeleton.tsx` | Accessible content loading placeholders | `-` |
 | `web/src/components/ui/panel.tsx` | Surface box styled by its tone | `-` |
 | `web/src/components/ui/planned.tsx` | Marker around a block with no backend yet | `-` |
 | `web/src/components/ui/popover.tsx` | Popover built on Base UI's Popover | `web/src/components/ui/button.tsx` |

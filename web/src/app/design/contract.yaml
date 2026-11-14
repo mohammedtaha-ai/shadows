@@ -23,6 +23,7 @@ name: web-design
 version: 1
 status: current
 source: web/src/app/design
+loading: Initial content reads use labelled SkeletonContent regions; placeholder shapes are decorative, motion respects reduced-motion preferences, and cached content stays visible during background reads. Errors and mutation progress keep their own presentation.
 planning_draft_link: Selected part and outcome details link to a new Planner draft with that item as its anchor.
 
 

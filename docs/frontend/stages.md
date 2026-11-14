@@ -5,6 +5,16 @@ here and set its status. Task shape: [`AGENTS.md`](./AGENTS.md#a-task-in-stagesm
 
 ## Now
 
+### F-117 · Content-shaped skeleton loading
+
+- Status: done. Initial loading, success, failure and background-refresh checks passed. The user reports trying the interface in the browser.
+- Design: approved in the current conversation; implemented directly by the controller.
+- Read: frontend code map and the touched feature contracts.
+- Touch: `docs/frontend/codebase/README.md`, `docs/frontend/stages.md`, `web/src/app/agents/agent-env.tsx`, `web/src/app/agents/agent-extensions.tsx`, `web/src/app/agents/agent-settings.tsx`, `web/src/app/agents/contract.yaml`, `web/src/app/agents/home.tsx`, `web/src/app/agents/tool-rules.tsx`, `web/src/app/agreements/agreements-page.tsx`, `web/src/app/agreements/contract.yaml`, `web/src/app/conversation/context-record-panel.tsx`, `web/src/app/conversation/contract.yaml`, `web/src/app/conversation/conversation.tsx`, `web/src/app/conversation/draft.tsx`, `web/src/app/conversation/plan-card.tsx`, `web/src/app/conversation/plan-side-panel.tsx`, `web/src/app/design/contract.yaml`, `web/src/app/design/parts-view.tsx`, `web/src/app/design/roadmap-view.tsx`, `web/src/app/design/standards-view.tsx`, `web/src/app/design/vision-editor.tsx`, `web/src/app/design/workspace-plans.tsx`, `web/src/app/groups/contract.yaml`, `web/src/app/groups/group-page.tsx`, `web/src/app/home.tsx`, `web/src/app/page-pending.tsx`, `web/src/app/project-settings/contract.yaml`, `web/src/app/project-settings/instructions-editor.tsx`, `web/src/app/settings/contract.yaml`, `web/src/app/settings/general-preferences.tsx`, `web/src/app/settings/general-preferences.test.tsx`, `web/src/app/settings/sections/agents.tsx`, `web/src/app/settings/sections/code.tsx`, `web/src/app/settings/sections/plugins.tsx`, `web/src/app/settings/sections/providers.tsx`, `web/src/app/settings/sections/usage.tsx`, `web/src/app/settings/you-card.tsx`, `web/src/app/sidebar/agent-list.tsx`, `web/src/app/sidebar/contract.yaml`, `web/src/app/sidebar/group-list.tsx`, `web/src/app/sidebar/project-list.test.tsx`, `web/src/app/sidebar/project-list.tsx`, `web/src/app/sidebar/thread-list.tsx`, `web/src/app/sidebar/workflow-list.tsx`, `web/src/app/tasks/brief-panel.tsx`, `web/src/app/tasks/contract.yaml`, `web/src/app/tasks/diff-tab.tsx`, `web/src/app/tasks/run-tab.tsx`, `web/src/app/tasks/task-page.tsx`, `web/src/app/workflows/contract.yaml`, `web/src/app/workflows/plan-map.tsx`, `web/src/app/workflows/plan-page.tsx`, `web/src/components/ui/skeleton.tsx`.
+- Needs: none; existing API reads only.
+- Done when: initial loading renders accessible skeletons, success and errors replace them, background refresh keeps existing content, reduced motion disables the pulse; affected interaction tests, typecheck, lint, build, codemap and architecture pass; browser acceptance is reported by the user in the current conversation.
+
+
 ### Shipped
 
 A shipped task's entry, and its plan once deleted, are in this file in Git at the commit named.

@@ -1,3 +1,4 @@
+import { SkeletonContent } from '@/components/ui/skeleton'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRef, useState, type FormEvent } from 'react'
 import { personQuery, savePerson, savePersonAnswer, type Person, type PersonPatch } from '@/api/person'
@@ -11,6 +12,7 @@ type NameDraft = Partial<{ name: string; calls: string }>
 export function YouCard() {
   const person = useQuery(personQuery)
   if (person.error) return <ErrorLine error={person.error} />
+  if (person.isPending) return <SkeletonContent label="Loading your profile…" layout="form" />
   return <YouForm saved={person.data} />
 }
 

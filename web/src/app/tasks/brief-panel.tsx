@@ -1,3 +1,4 @@
+import { SkeletonContent } from '@/components/ui/skeleton'
 // One job: an attempt's saved context drawn as Core recorded it, from the plan version the attempt began on.
 
 import { useQuery } from '@tanstack/react-query'
@@ -155,7 +156,7 @@ function Brief({ brief }: { brief: AttemptBrief }) {
 export function BriefPanel({ attemptId }: { attemptId: string }) {
   const brief = useQuery(attemptBriefQuery(attemptId))
   if (brief.data !== undefined) return <Brief brief={brief.data} />
-  if (brief.error === null) return <p className="text-faint-foreground">Reading the brief…</p>
+  if (brief.error === null) return <SkeletonContent label="Reading the brief…" layout="detail" />
   if (contextNotRecorded(brief.error)) {
     return <p>This attempt began before its context was saved, so there is no brief to show.</p>
   }

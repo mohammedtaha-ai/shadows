@@ -1,3 +1,4 @@
+import { SkeletonContent } from '@/components/ui/skeleton'
 import { useQuery } from '@tanstack/react-query'
 import { X } from 'lucide-react'
 import { carriedContextQuery } from '@/api/planning-context'
@@ -24,7 +25,7 @@ export function ContextRecordPanel({ operationId, state, onClose }: {
       </button>
     </header>
     <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-3 text-xs">
-      {record.isPending && <p>Reading planning context…</p>}
+      {record.isPending && <SkeletonContent label="Reading planning context…" layout="detail" />}
       {record.error !== null && <ErrorLine error={record.error} />}
       {record.data === null && <p>No planning context record is available for this turn.</p>}
       {carried !== undefined && <>

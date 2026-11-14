@@ -139,12 +139,15 @@ it('an old read cannot undo saved preferences', async () => {
   expect(a.queryClient.getQueryData<Person>(personQuery.queryKey)?.theme).toBe('light')
   expect(theme()).toBe('light')
 })
-it('loading preferences disables the fields', async () => {
+it('loading preferences shows an accessible skeleton without editable invented values', async () => {
   const host = document.createElement('div'); document.body.append(host); const root = createRoot(host)
   const client = new QueryClient({ defaultOptions: { queries: { enabled: false } } })
   try {
     await act(async () => root.render(<QueryClientProvider client={client}><GeneralPreferences /></QueryClientProvider>))
-    expect(host.querySelector('fieldset')?.disabled).toBe(true)
+    const loading = host.querySelector('[role="status"][aria-label="Loading preferences…"]')
+    expect(loading?.getAttribute('aria-busy')).toBe('true')
+    expect(loading?.querySelector('[data-slot="skeleton"]')?.getAttribute('aria-hidden')).toBe('true')
+    expect(host.querySelector('input, select, button')).toBeNull()
   } finally { await act(async () => root.unmount()); client.clear(); host.remove() }
 })
 it('failed preference loading shows no editable invented values', async () => {

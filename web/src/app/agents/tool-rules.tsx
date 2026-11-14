@@ -1,3 +1,4 @@
+import { SkeletonContent } from '@/components/ui/skeleton'
 import { useIsMutating, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRef } from 'react'
 import { Ban, Check, Hand } from 'lucide-react'
@@ -49,7 +50,7 @@ export function ToolRules({ slug, id }: { slug: string; id: string }) {
     if (locked.current || pending) queued.current.push(edit)
     else start(edit)
   }
-  if (state.isPending) return <p role="status" className="text-xs text-muted-foreground">Loading tools…</p>
+  if (state.isPending) return <SkeletonContent label="Loading tools…" />
   if (state.error) return <div className="space-y-2"><ErrorLine error={state.error} /><Button type="button" variant="outline" disabled={state.isFetching} onClick={() => { void state.refetch() }}>Retry tools</Button></div>
   const { tools, rules, list_error: listError } = state.data
   const missing = rules.filter(rule => !tools.some(tool => tool.name === rule.tool))

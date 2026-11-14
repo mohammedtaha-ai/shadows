@@ -36,6 +36,7 @@ permission_answer: Conversations and groups share option submission, replay and 
 composer_surface: Conversations and groups render the same frame, input and send control; the input takes its text's direction (dir=auto), like replies.
 turn_state: Groups read whether a member thread runs through the same running-turn rule as a conversation.
 source: web/src/app/conversation
+loading: Initial content reads use labelled SkeletonContent regions; placeholder shapes are decorative, motion respects reduced-motion preferences, and cached content stays visible during background reads. Errors and mutation progress keep their own presentation.
 planning_context_record:
   mark: A Planner user message shows its operation's heard or prepared state. A missing record has no mark.
   panel: Fetch the selected operation's immutable record only on open. Read acknowledgement from the refreshed operations list.

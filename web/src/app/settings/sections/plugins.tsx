@@ -1,3 +1,4 @@
+import { SkeletonContent } from '@/components/ui/skeleton'
 import { useId, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { cn } from 'cn'
@@ -50,7 +51,7 @@ export function PluginsSection() {
       aria-labelledby={`${id}-${kind}`}
       className="space-y-4"
     >
-      {library.isPending ? <p role="status">Loading library…</p> : library.error ? (
+      {library.isPending ? <SkeletonContent label="Loading library…" /> : library.error ? (
         <div className="space-y-3">
           <ErrorLine error={library.error} />
           <Button

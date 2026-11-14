@@ -2,6 +2,7 @@ name: web-tasks
 version: 1
 status: current
 source: web/src/app/tasks
+loading: Initial content reads use labelled SkeletonContent regions; placeholder shapes are decorative, motion respects reduced-motion preferences, and cached content stays visible during background reads. Errors and mutation progress keep their own presentation.
 responsibility: Show one task of a plan version to run and to read, over Core's answers.
 obligations:
   - Each Report attempt says "Began from Start" for a null addition or "Carried on with the Planner's addition" with the addition shown as plain preserved text under its heading, dir auto, never markup (the_report_shows_the_planners_addition_as_plain_text).

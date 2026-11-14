@@ -1,3 +1,4 @@
+import { SkeletonContent } from '@/components/ui/skeleton'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { type Attempt, type DiffHunk, attemptDiffQuery, attemptFileQuery } from '@/api/runs'
@@ -15,7 +16,7 @@ export function DiffTab({ attempt }: { attempt: Attempt | null }) {
 function OpenFile({ attemptId, path, hunks }: { attemptId: string; path: string; hunks: readonly DiffHunk[] }) {
   const file = useQuery(attemptFileQuery(attemptId, path))
   if (file.isError) return <div className="px-3 py-2"><ErrorLine error={file.error} /></div>
-  if (file.data === undefined) return <p className="px-3 py-2 text-muted-foreground">Reading the file…</p>
+  if (file.data === undefined) return <SkeletonContent label="Reading the file…" className="px-3 py-2" />
   return <FileView file={file.data} hunks={hunks} />
 }
 
@@ -23,7 +24,7 @@ function Files({ attemptId }: { attemptId: string }) {
   const diff = useQuery(attemptDiffQuery(attemptId))
   const [chosen, setChosen] = useState<string | null>(null)
   if (diff.isError) return <div className="px-6 py-4"><ErrorLine error={diff.error} /></div>
-  if (diff.data === undefined) return <p className="px-6 py-4 text-sm text-faint-foreground">Reading the diff…</p>
+  if (diff.data === undefined) return <SkeletonContent label="Reading the diff…" layout="detail" className="px-6 py-4" />
   const files = diff.data
   const open = files.find((file) => file.path === chosen) ?? files[0] ?? null
   return (
