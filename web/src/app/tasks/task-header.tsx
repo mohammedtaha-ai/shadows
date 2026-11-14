@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import { Check } from 'lucide-react'
+import { Check, CircleCheck } from 'lucide-react'
 import { awaitingJudgment, stoppedOnAdditionCap, type Need, type TaskRun } from '@/api/runs'
 import { Button } from '@/components/ui/button'
 import { ErrorLine } from '../error-line'
@@ -45,7 +45,9 @@ export function TaskHeader({ projectId, workflowId, planTitle, task, title, run,
             Stopped after the Planner's third addition; back to you
           </span>
         )}
-        {run.done && <span className="text-xs text-muted-foreground">Done</span>}
+        {run.done && <span className="inline-flex items-center gap-1.5 rounded-full border border-success/35 bg-success/15 px-2.5 py-1 text-xs font-semibold text-success">
+          <CircleCheck aria-hidden className="size-3.5" />Done
+        </span>}
       </div>
       {run.needs.length > 0 && (
         <ul aria-label="Needs" className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">

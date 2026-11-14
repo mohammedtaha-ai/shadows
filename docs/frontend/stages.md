@@ -5,6 +5,15 @@ here and set its status. Task shape: [`AGENTS.md`](./AGENTS.md#a-task-in-stagesm
 
 ## Now
 
+### F-118 · Clear attempt reports and completion badge
+
+- Status: done. The 115 focused task/architecture/code-map checks, typecheck, lint and build passed. Browser review is left to the user at their request.
+- Design: direct browser feedback from the user; clarify the report heading and expansion control, and make Done green.
+- Read: frontend code map; web/src/app/tasks/contract.yaml.
+- Touch: `web/src/app/tasks/report-tab.tsx`, `web/src/app/tasks/task-header.tsx`, `web/src/app/tasks/brief-panel.test.tsx`, `web/src/app/tasks/contract.yaml`, `docs/frontend/stages.md`.
+- Needs: none; existing Core answers only.
+- Done when: the report toggle visibly says Show details or Hide details with a chevron and accessible region linkage; attempt metadata and report are readable; Done has a green check badge; task/brief/conflict tests, typecheck, lint, build, codemap and architecture pass; verify the updated report in the browser.
+
 ### F-117 · Content-shaped skeleton loading
 
 - Status: done. Initial loading, success, failure and background-refresh checks passed. The user reports trying the interface in the browser.
