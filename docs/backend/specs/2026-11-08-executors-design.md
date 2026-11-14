@@ -268,6 +268,33 @@ task's three additions. Its tool is `message_agent`; the answer reaches the Plan
 - **The Planner only, for now.** The person asking a task's agent from the task page, and other
   askers, come later with their own additions (Mohammed, 2026-11-14).
 
+### 5.4 Checks Shadows runs (Mohammed, 2026-11-15)
+
+A task's acceptance items say what must hold; until now the executor ran what it chose and its
+report was the only evidence. A task now carries **checks**: commands Shadows runs itself after
+the executor's commit, so the Planner judges on results Shadows recorded, not on the agent's word.
+This replaces the critic's evidence role (§5.1 already replaced its judgment).
+
+- **The Planner writes them.** A task's contract holds `checks`, each a command (a program and
+  its arguments, never a shell line), an optional folder inside the project, an optional time
+  limit, and the acceptance items it proves. A task with no command that can prove it has none.
+- **Shadows runs them, after the commit, once.** When the attempt's turn ends committed, Runs
+  runs each check in the project folder at that moment and records its outcome, its exit code,
+  the HEAD before and after, and the end of its output; then the Planner's notice carries the
+  results. No run before the work and no baseline: a check that also failed before is the
+  Planner's to judge from the output.
+- **One check at a time per project.** Executors share one folder (D3) and its build, ports and
+  test database, so a project runs its checks one after another. A HEAD that moved while a check
+  ran makes it *inconclusive*, never passed: the exit code no longer speaks for the commit.
+- **Outcomes:** passed, failed, timed out, inconclusive, or not run (the program could not start).
+  Only passed counts as passed.
+- **Done with a failed check needs a reason.** A done mark on a task whose judged attempt has any
+  check that did not pass is refused unless it carries a reason, which is recorded and shown with
+  the mark. The Planner still judges (§5.1); the record says it judged over a failure.
+- **A restart loses nothing.** A committed attempt whose checks did not all finish runs them again
+  at startup, then sends its notice, which is a replay if it was already sent.
+- **An addition is a new attempt,** with its own commit and its own checks.
+
 ## 6. Running together in one folder (D2, D3)
 
 - A task is **ready** when its plan version is Frozen, its `needs` links are complete, and no

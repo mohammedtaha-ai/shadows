@@ -86,45 +86,54 @@ retain blocked draft pointers.
 - Needs: the slice 4 tasks and F-102, all shipped in `docs/backend/stages.md` at `d73bb646` (PR #68).
 - Done when: named live tests and disposable browser/log scenarios pass with dated evidence and scoped commit; unavailable checks remain reported, not passed.
 
+## Slice 5: checks and messages to a task's agent
+
+Design: [executors §5.4 and §5.3](specs/2026-11-08-executors-design.md#54-checks-shadows-runs-mohammed-2026-11-15),
+Mohammed, 2026-11-14 and 2026-11-15. Plan: [slice 5](plans/2026-11-15-slice-5-checks.md). Order: B-111 → B-113 → B-114 →
+B-150 → F-103 → B-151. Each task's files, interfaces, tests and commit are in the plan.
+
+### B-111 · Checks in the task contract
+
+- Status: todo
+- Plan: [B-111](plans/2026-11-15-slice-5-checks.md#b-111--checks-in-the-task-contract).
+- Owner: Plans; Harness for the instruction text.
+- Needs: `d73bb646` (slice 4).
+- Done when: `TaskContract.checks` is validated as the plan says, existing contracts still read, both instructions name it; `task_contract` and `planner_instructions` tests pass; OpenAPI regenerated.
+
+### B-113 · Runs runs a task's checks after its commit
+
+- Status: todo
+- Plan: [B-113](plans/2026-11-15-slice-5-checks.md#b-113--runs-runs-a-tasks-checks-after-its-commit).
+- Owner: Runs.
+- Needs: B-111.
+- Done when: a committed attempt's checks run one at a time per project and are recorded with their outcome, exit code, HEAD and output end; a moved HEAD is inconclusive; a restart reruns unfinished checks; the committed notice lists the results; `attempt_checks` passes.
+
+### B-114 · The Planner reads checks and judges on them
+
+- Status: todo
+- Plan: [B-114](plans/2026-11-15-slice-5-checks.md#b-114--the-planner-reads-checks-and-judges-on-them).
+- Owner: Runs, with its HTTP and MCP adapters.
+- Needs: B-113.
+- Done when: `task_checks` and `GET /api/attempts/{id}/checks` answer the results; a done mark over a check that did not pass needs a reason, recorded on the task; the named route, MCP and core tests pass.
+
 ### B-150 · The Planner messages a task's agent
 
-- Status: todo; part of slice 5, to be detailed with it.
+- Status: todo
+- Plan: [B-150](plans/2026-11-15-slice-5-checks.md#b-150--the-planner-messages-a-tasks-agent).
 - Design: [executors design §5.3](specs/2026-11-08-executors-design.md#53-the-planner-messages-a-tasks-agent-mohammed-2026-11-14).
-- Owner: Runs (the attempt's executor thread and its reply notice), through Turns' queue and Harness's session.
-- Read: AppCore, the Runs contract (`amend`, `run_turn`, `notify`), the Turns contract (`queue_notice`).
-- Touch: to be listed when the slice 5 plan is written.
-- Needs: `docs/backend/stages.md` at `d73bb646` (slice 4).
-- Done when: the Planner's `message_agent` reaches a task's executor while it runs (queued until its turn ends), after it committed, and after a done mark (session reopened); the reply reaches the Planner as "Reply from task agent · T<n>"; no attempt, addition count or plan changes; tried live in the browser.
+- Owner: Runs, through Turns' send and notice and Harness's executor session.
+- Needs: B-114 (same files in Runs and `run_tools.rs`).
+- Done when: the Planner's `message_agent` reaches a task's executor while it runs (waiting until its turn ends), after it committed, and after a done mark (session reopened); the reply reaches the Planner as "Reply from task agent · T<n>"; no attempt, addition count or plan changes; `agent_messages` passes.
 
-### B-111 · Run required checks with source provenance
+### B-151 · Real slice 5 acceptance
 
-- Status: blocked (prerequisites below must ship first)
-- Plan: [Task 2](plans/2026-11-09-checks-and-critic.md#task-2-b-111-run-required-checks-with-source-provenance).
-- Owner: Runs.
-- Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
-- Touch: exact Create/Modify/Test file list of Task 2; no other source paths.
-- Needs: `docs/backend/stages.md` at `d73bb646` (B-109); accepted shared API/model agreement (B-110 dropped with the critic).
-- Done when: all named RED/GREEN steps and focused verification commands in Task 2 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
+- Status: todo
+- Plan: [B-151](plans/2026-11-15-slice-5-checks.md#b-151--real-slice-5-acceptance).
+- Owner: integration acceptance through AppCore and the real UI.
+- Needs: B-111, B-113, B-114, B-150, F-103.
+- Done when: `checks_live` passes on the signed-in subscription and the browser journey, with its logs, is recorded in evidence.
 
-### B-113 · Evidence-backed outputs and honest task acceptance
-
-- Status: blocked; re-scoped when slice 5 is detailed: honest task acceptance is the Planner's done mark (`docs/backend/stages.md` at `617d806f`, B-124, B-125); evidence-backed outputs remain, with no critic review as input.
-- Plan: [Task 4](plans/2026-11-09-checks-and-critic.md#task-4-b-113-evidence-backed-outputs-and-honest-task-acceptance).
-- Owner: Runs.
-- Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
-- Touch: exact Create/Modify/Test file list of Task 4; no other source paths.
-- Needs: B-111; accepted shared API/model agreement (B-112 replaced).
-- Done when: all named RED/GREEN steps and focused verification commands in Task 4 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
-
-### B-114 · Expose checks, critic and result detail
-
-- Status: blocked (prerequisites below must ship first)
-- Plan: [Task 5](plans/2026-11-09-checks-and-critic.md#task-5-b-114-expose-checks-critic-and-result-detail).
-- Owner: Runs adapters.
-- Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
-- Touch: exact Create/Modify/Test file list of Task 5; no other source paths.
-- Needs: B-113; accepted shared API/model agreement. 
-- Done when: all named RED/GREEN steps and focused verification commands in Task 5 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
+## Slice 6: stop control and full acceptance
 
 ### B-117 · Stop obsolete plans and rerun pending evidence
 

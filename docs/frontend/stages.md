@@ -80,15 +80,13 @@ These tasks are blocked until their named backend API exists; no component imple
 - Needs: `docs/backend/stages.md` at `617d806f` (B-106), F-99; accepted shared API/model agreement. Backend must expose its generated API before this task starts.
 - Done when: all named RED/GREEN steps and focused verification commands in Task 3 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
 
-### F-103 · Check evidence, critic model and acceptance
+### F-103 · Checks and replies in the task page
 
-- Status: blocked (prerequisites below must ship first)
-- Plan: [Task 5](plans/2026-11-09-local-delivery-ui.md#task-5-f-103-check-evidence-critic-model-and-acceptance).
+- Status: blocked (B-114 and B-150 must ship first); Masada details it.
+- Plan: [F-103](../backend/plans/2026-11-15-slice-5-checks.md#f-103--checks-and-replies-in-the-task-page) in the slice 5 plan.
 - Owner: web API and task UI.
-- Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
-- Touch: exact Create/Modify/Test file list of Task 5; no other source paths.
-- Needs: B-114; F-102 (`docs/frontend/stages.md` at `d73bb646`, shipped); accepted shared API/model agreement. Backend must expose its generated API before this task starts.
-- Done when: all named RED/GREEN steps and focused verification commands in Task 5 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
+- Needs: B-111, B-113, B-114, B-150; F-102 (`docs/frontend/stages.md` at `d73bb646`, shipped). Backend must expose its generated API before this task starts.
+- Done when: the brief shows a task's checks; the Report tab shows each check's outcome, exit code, HEAD and its output on request; a done mark shows its reason; the Planner conversation shows the reply card; tried in the browser.
 
 ### F-104 · Repair state and replan controls
 
