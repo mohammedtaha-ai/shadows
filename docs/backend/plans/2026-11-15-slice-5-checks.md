@@ -72,7 +72,8 @@ for the critic, which §5.1 replaced. Its steps are not executable.
    and `missing_program_is_not_run`.
 2. Two attempts finishing together never run Shadows' checks at once, and a turn that starts
    during a check never lends it a result: B-113's `checks_of_one_project_run_one_at_a_time`,
-   `quiet_is_checked_again_under_the_lock` and `turn_during_check_reruns_it`.
+   `quiet_is_checked_again_under_the_lock`, `turn_during_check_reruns_it` and
+   `turn_begun_and_ended_during_check_reruns_it`.
 3. A restart neither loses nor doubles results or notices, including a stop between the last
    result and the notice: B-113's `restart_reruns_unfinished_checks_and_notifies_once` and
    `restart_sends_an_unsent_notice`; B-150's `restart_delivers_an_undelivered_reply` and
@@ -259,6 +260,8 @@ for the critic, which §5.1 replaced. Its steps are not executable.
      Shadows columns where `finished_at IS NULL`;
    - `quiet_threads(&self, project) -> Result<Vec<ThreadId>, RunsError>`: `thread_id` of every
      attempt of the project with `released_at IS NULL` (B-150 adds threads with a `sent` message);
+   - `executor_threads(&self, project) -> Result<Vec<ThreadId>, RunsError>`: the distinct
+     `thread_id` of every attempt of the project, any state, released or not;
    - `attempt_writes(&self, project) -> Result<Vec<Vec<String>>, RunsError>`: `writes_json` of
      every attempt of the project, any state, distinct;
    - `latest_committed(&self, workflow, version, task) -> Result<Option<AttemptId>, RunsError>`:
@@ -307,10 +310,13 @@ for the critic, which §5.1 replaced. Its steps are not executable.
         stdout and stderr together into a buffer that keeps the last 65 536 bytes (`truncated`
         when more came); `tokio::time::timeout(check.timeout(), handle.wait())`, on expiry
         `handle.terminate_tree()`; then read HEAD, `changed` and hashes again, and the project's
-        executor operations: Start and messages are not blocked during a check, so a turn that
-        began or was still running at any point of it (an operation of a `quiet_threads` thread
-        whose `started_at` is after the check's start, or whose `finished_at` is `None`) is
-        found here. Such a check is not recorded: Runs waits for quiet again and runs it once
+        executor operations: Start and messages are not blocked during a check, so a turn whose
+        time overlapped the check's is found here, even one that began and ended inside it and
+        whose attempt was released since. The threads are `store.executor_threads(project)`,
+        every attempt's thread of the project in any state, released or not (messages run on
+        those same threads); the operations, `turns.operations(thread)` for each; an operation
+        overlaps when its `started_at` is before the check's end and its `finished_at` is `None`
+        or after the check's start. Such a check is not recorded: Runs waits for quiet again and runs it once
         more, three times at most; the third such run is `Inconclusive` with output
         `another executor's turn ran during the check`. `env`: `PATH`,
         `HOME`, and every daemon variable whose name starts with `GO`, `CARGO_`, `RUSTUP_`,
@@ -374,7 +380,9 @@ the builder picks one that prints over 65 536 bytes), `checks_wait_for_a_quiet_p
 `uncommitted_change_in_writes_is_inconclusive`, `stopped_attempts_leftover_is_inconclusive`,
 `person_files_do_not_count`, `content_change_during_check_is_inconclusive`,
 `head_moved_during_check_is_inconclusive`, `quiet_is_checked_again_under_the_lock`,
-`turn_during_check_reruns_it`, `checks_of_one_project_run_one_at_a_time`,
+`turn_during_check_reruns_it`, `turn_begun_and_ended_during_check_reruns_it` (another task's
+turn starts and ends inside the check, its attempt released, HEAD and files unchanged),
+`checks_of_one_project_run_one_at_a_time`,
 `used_tasks_checks_run_too`, `failed_confirmation_returns_to_executor`,
 `two_returns_then_planner`, `returns_are_not_additions`,
 `return_without_change_reconfirms_previous_commit`, `repeated_return_answers_the_same_attempt`
