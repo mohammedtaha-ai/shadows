@@ -4,9 +4,50 @@ import { useQuery } from '@tanstack/react-query'
 import { attemptBriefQuery, contextNotRecorded, type AttemptBrief } from '@/api/runs'
 import { ErrorLine } from '../error-line'
 
+type TaskContract = NonNullable<AttemptBrief['context']['task']['contract']>
+type ProducedOutput = NonNullable<TaskContract['produces']>[number]
+type ContractUse = NonNullable<TaskContract['uses']>[number]
+
 /** Fields Core gives as open objects; shown as the plain text they carry, never interpreted. */
 function loose(value: unknown): string {
   return JSON.stringify(value)
+}
+
+/**
+ * An open object as readable text: each key with its value, nested objects in brackets,
+ * nulls left out. It names only the keys Core sent and reads no meaning into them.
+ */
+function plain(value: unknown): string {
+  if (value === null || value === undefined) return ''
+  if (Array.isArray(value)) return value.map(plain).join(', ')
+  if (typeof value === 'object') {
+    return Object.entries(value as Record<string, unknown>)
+      .filter(([, v]) => v !== null && v !== undefined)
+      .map(([k, v]) => (typeof v === 'object' ? `${k} (${plain(v)})` : `${k} ${plain(v)}`))
+      .join(', ')
+  }
+  return String(value)
+}
+
+/** One planned output: its id, the symbol or file it names in the same contract, and the acceptance items that prove it. */
+function produced(output: ProducedOutput, contract: TaskContract): string {
+  const symbol = output.symbol_id == null ? undefined : contract.symbols?.find((s) => s.id === output.symbol_id)
+  const what = symbol !== undefined
+    ? `${symbol.kind} ${symbol.name} in ${symbol.path}`
+    : output.symbol_id != null ? `symbol ${output.symbol_id}` : output.artifact ?? null
+  const parts = [output.id]
+  if (what !== null) parts.push(what)
+  if (symbol !== undefined && output.artifact != null) parts.push(`artifact ${output.artifact}`)
+  const proof = output.acceptance !== undefined && output.acceptance.length > 0 ? ` (acceptance ${output.acceptance.join(', ')})` : ''
+  return `${parts.join(': ')}${proof}`
+}
+
+/** One thing the task relies on: an existing path and symbol, or another task's output; then why. */
+function used(use: ContractUse): string {
+  const source = use.source.kind === 'existing'
+    ? `existing ${use.source.path}${use.source.symbol !== undefined ? ` ${use.source.symbol}` : ''}`
+    : `output ${use.source.output} of T${use.source.target.task}`
+  return `${source}: ${use.purpose}`
 }
 
 function List({ label, items }: { label: string; items: readonly string[] | undefined }) {
@@ -45,11 +86,11 @@ function Brief({ brief }: { brief: AttemptBrief }) {
           <List label="Steps" items={contract.steps} />
           <List label="Invariants" items={contract.invariants} />
           <List label="Forbidden" items={contract.forbidden} />
-          <List label="Produces" items={contract.produces?.map(loose)} />
-          <List label="Uses" items={contract.uses?.map(loose)} />
+          <List label="Produces" items={contract.produces?.map((o) => produced(o, contract))} />
+          <List label="Uses" items={contract.uses?.map(used)} />
         </div>
       )}
-      <List label="Resolved contracts" items={context.contracts?.map(loose)} />
+      <List label="Resolved contracts" items={context.contracts?.map(plain)} />
       <div aria-label="Original layout" className="space-y-1">
         <List label="Parts" items={context.parts.map((p) => `${loose(p.part)}: ${p.paths.map((x) => `${x.path} (${loose(x.via)})`).join(', ')}`)} />
         <List label="Unowned paths" items={context.unowned_paths} />

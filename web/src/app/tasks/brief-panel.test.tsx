@@ -26,7 +26,18 @@ const brief = (a: Attempt, extra: Partial<AttemptBrief> = {}): AttemptBrief => (
     parts: [{ part: { name: 'api' }, paths: [{ path: 'src/api.rs', via: { kind: 'direct' } }] }],
     plan: { plan_id: 'plan1', title: 'Original plan', version: 1, workflow_id: 'w1' },
     standards: { base: 7, additions: 2 },
-    task: { acceptance: [], goal: 'Original goal', number: 1, reads: [], title: 'Login', writes: ['src/api.rs'] },
+    task: {
+      acceptance: [], goal: 'Original goal', number: 1, reads: [], title: 'Login', writes: ['src/api.rs'],
+      contract: {
+        symbols: [{ id: 's1', path: 'src/api.rs', kind: 'method', name: 'Count', behavior: [] }],
+        produces: [{ id: 'o1', symbol_id: 's1', artifact: null, acceptance: [1, 2] }],
+        uses: [
+          { source: { kind: 'existing', path: 'src/store.rs', symbol: 'Store' }, purpose: 'Reads the list' },
+          { source: { kind: 'task', output: 'send', target: { kind: 'local', task: 2 } }, purpose: 'Sends mail' },
+        ],
+      },
+    },
+    contracts: [{ reference: { kind: 'existing', path: 'src/store.rs', symbol: 'Store' }, producer_title: null, symbol: null }],
     unowned_paths: ['docs/x.md'],
   } as unknown as AttemptBrief['context'],
   ...extra,
@@ -63,6 +74,24 @@ it('brief_view_keeps_original_version', async () => {
   expect(text).toContain('Planned consumers of the original version')
   expect(text).toContain('more')
   expect(text).not.toContain('every consumer')
+})
+
+it('brief_contract_items_read_as_text', async () => {
+  const a1 = attempt('a1', 1)
+  app = await startApp(PAGE, {
+    ...answers({ attempts: [a1] }),
+    'GET /api/attempts/a1/brief': brief(a1),
+  })
+  await reportTab()
+  await until(() => heading(1) !== undefined)
+  await click(heading(1))
+  await until(() => document.querySelector('[aria-label="Attempt brief"]') !== null)
+  const items = [...document.querySelectorAll('[aria-label="Attempt brief"] li')].map((li) => li.textContent)
+  expect(items).toContain('o1: method Count in src/api.rs (acceptance 1, 2)')
+  expect(items).toContain('existing src/store.rs Store: Reads the list')
+  expect(items).toContain('output send of T2: Sends mail')
+  expect(items).toContain('reference (kind existing, path src/store.rs, symbol Store)')
+  expect(items.some((t) => /"(source|reference|symbol_id)"/.test(t))).toBe(false)
 })
 
 it('historical_context_is_labelled', async () => {
