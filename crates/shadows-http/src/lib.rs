@@ -313,6 +313,7 @@ fn run_routes(table: OpenApiRouter<AppState>) -> OpenApiRouter<AppState> {
         .routes(routes!(runs::stop))
         .routes(routes!(runs::diff))
         .routes(routes!(runs::brief))
+        .routes(routes!(runs::conflict))
         .routes(routes!(runs::file))
         .routes(routes!(grants::list_grants, grants::issue_grant))
         .routes(routes!(grants::revoke_grant))

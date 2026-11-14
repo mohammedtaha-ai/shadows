@@ -144,4 +144,5 @@ pub use core_plans::{Phase, PhaseId, PhaseInput, PhaseRef};
 pub use core_runs::{Attempt, AttemptId, AttemptState, RecoverReport, Runs, RunsError, TaskRun};
 pub use core_runs::{AttemptBrief, StartAnswer};
 pub use core_runs::{AttemptFile, AttemptNotice, DoneMark, FileDiff, Need, ReadyGroup, ReadyTask};
+pub use core_runs::{ConflictDelivery, ConflictEvidence, ConflictInput, TaskConflict};
 pub use core_runs::{PlannedScope, ProducerStatus, TaskAnswer, TaskQuestion};

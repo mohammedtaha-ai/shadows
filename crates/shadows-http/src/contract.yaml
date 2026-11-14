@@ -100,6 +100,7 @@ runs:
     - 'PUT /api/workflows/{workflow}/versions/{version}/tasks/{task}/done -> Runs::mark_done'
     - 'POST /api/attempts/{id}/stop -> Runs::stop, run detached'
     - 'GET /api/attempts/{id}/brief -> Runs::brief (AttemptBrief with its version''s planned consumers; 409 context_not_recorded is a RunRefusal)'
+    - 'GET /api/attempts/{id}/conflict -> Runs::conflict (TaskConflict, or null for an attempt with none; unknown attempt 404)'
     - 'GET /api/attempts/{id}/diff -> Runs::diff'
     - 'GET /api/attempts/{id}/files?path= -> Runs::file (AttemptFile; 409 outside_writes is a RunRefusal)'
   refusals: >

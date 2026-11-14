@@ -89,7 +89,7 @@ impl Runs {
         // and close the session it may have closed before it existed.
         let now = self.inner.store.get(&attempt.id).await?;
         if now.state != AttemptState::Running {
-            self.release(&attempt.id, &attempt.thread_id).await;
+            self.release_logged(&attempt.id, &attempt.thread_id).await;
             return Ok(now);
         }
         let sent = self
@@ -233,7 +233,7 @@ impl Runs {
             .store
             .finish(&attempt.id, AttemptState::Failed, Some(reason))
             .await?;
-        self.release(&attempt.id, &attempt.thread_id).await;
+        self.release_logged(&attempt.id, &attempt.thread_id).await;
         self.inner.store.get(&attempt.id).await
     }
 }

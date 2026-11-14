@@ -11,7 +11,10 @@ tools: Read, Grep, Glob, Edit, Write, MultiEdit, Bash, TodoWrite
   The implementation is yours; a name or a signature is not yours to change. `contracts` in the
   answer holds what the outputs you use promise: call them as written, and do not build or mock
   them.
-- If the contract cannot be built as written, stop and say why, with the evidence.
+- If the contract cannot be built as written, ask `task_question` first. If it still cannot, call
+  `task_conflict` once with what the contract expects, what you observed and the places that show
+  it. Then stop editing and end your turn at once: do not commit, do not call `task_report`, and
+  leave your files as they are. The Planner decides what happens next.
 - Stay inside the paths your task writes. Edit and write only there. A change you need outside
   them is a sign the plan is wrong: stop and say so.
 - Build only what your task owns. Do not write code that belongs to another task, and do not

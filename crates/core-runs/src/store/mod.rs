@@ -1,10 +1,11 @@
-//! Runs' private persistence: attempts, their saved contexts, task marks and
-//! lessons records.
+//! Runs' private persistence: attempts with their contract conflicts, their
+//! saved contexts, task marks and lessons records.
 //!
 //! `RunsStore` is private to the crate, so its methods are `pub` only to
 //! the service; no other service's write calls into it, and nothing here is
-//! `pub(crate)` or declared under `shared_in_transaction`.
+//! declared under `shared_in_transaction`.
 mod brief;
+mod conflict;
 mod lessons;
 mod marks;
 mod recover;
@@ -449,9 +450,10 @@ impl RunsStore {
         head.ok_or(RunsError::NotFound)
     }
 
-    /// Records the accepted commit and report: a `Running` attempt becomes
-    /// `Committed`. Answers whether this call moved it; one that left
-    /// `Running` meanwhile keeps its state.
+    /// Records the accepted commit and report: a `Running` attempt with no
+    /// accepted conflict becomes `Committed`. Answers whether this call moved
+    /// it; one that left `Running` or took a conflict meanwhile keeps its
+    /// state, so a report and a conflict have one winner.
     pub async fn record_report(
         &self,
         id: &AttemptId,
@@ -466,7 +468,7 @@ impl RunsStore {
                     let moved = sqlx::query(
                         "UPDATE run_attempts
                          SET state = 'committed', commit_sha = ?, report = ?, ended_at = ?
-                         WHERE id = ? AND state = 'running'",
+                         WHERE id = ? AND state = 'running' AND conflict_json IS NULL",
                     )
                     .bind(&sha)
                     .bind(&report)

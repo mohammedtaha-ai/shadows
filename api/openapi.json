@@ -1105,6 +1105,17 @@
               "null"
             ]
           },
+          "conflict": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TaskConflict",
+                "description": "The executor's contract conflict as it stood when the notice was\nfirst resolved; left out of an ordinary notice. A report from the\nexecutor, never the person's approval."
+              }
+            ]
+          },
           "last_addition": {
             "description": "The attempt carried the task's third and last addition.",
             "type": "boolean"
@@ -1404,6 +1415,43 @@
           "description",
           "enabled",
           "reason"
+        ],
+        "type": "object"
+      },
+      "ConflictDelivery": {
+        "description": "Whether the Planner's notice of a conflict was enqueued on its\nconversation. `delivered` is a durable enqueue, not a reply.",
+        "enum": [
+          "pending",
+          "delivered",
+          "no_planner"
+        ],
+        "type": "string"
+      },
+      "ConflictEvidence": {
+        "description": "One piece of a conflict's evidence: a project-relative path, an optional\none-based line, and what it shows. A reference, not copied source.",
+        "properties": {
+          "line": {
+            "description": "The one-based line it is about, if one.",
+            "format": "int32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "path": {
+            "description": "A path inside the project, as `project_files` names it.",
+            "type": "string"
+          },
+          "summary": {
+            "description": "What this place shows, in a sentence or two.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "line",
+          "summary"
         ],
         "type": "object"
       },
@@ -7131,6 +7179,70 @@
         ],
         "type": "object"
       },
+      "TaskConflict": {
+        "description": "An attempt's accepted contract conflict, with the attempt's current state\nand whether it still holds its scope. Accepting it asked the executor to\nend its turn; only `attempt_state` says whether it did.",
+        "properties": {
+          "attempt_id": {
+            "$ref": "#/components/schemas/AttemptId"
+          },
+          "attempt_state": {
+            "$ref": "#/components/schemas/AttemptState"
+          },
+          "created_at": {
+            "description": "When the conflict was accepted.",
+            "type": "string"
+          },
+          "delivery": {
+            "$ref": "#/components/schemas/ConflictDelivery"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/ConflictEvidence"
+            },
+            "type": "array"
+          },
+          "expected": {
+            "type": "string"
+          },
+          "observed": {
+            "type": "string"
+          },
+          "project_id": {
+            "$ref": "#/components/schemas/ProjectId"
+          },
+          "scope_held": {
+            "description": "The attempt still holds its scope: its executor may still write.",
+            "type": "boolean"
+          },
+          "task": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "version": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "workflow_id": {
+            "$ref": "#/components/schemas/WorkflowId"
+          }
+        },
+        "required": [
+          "attempt_id",
+          "project_id",
+          "workflow_id",
+          "version",
+          "task",
+          "expected",
+          "observed",
+          "evidence",
+          "attempt_state",
+          "scope_held",
+          "delivery",
+          "created_at"
+        ],
+        "type": "object"
+      },
       "TaskContent": {
         "additionalProperties": false,
         "description": "A task as the plan holds it, shown as `T{number}`.",
@@ -8374,6 +8486,65 @@
           }
         },
         "summary": "The brief the attempt was given: the attempt and the task context saved\nwhen it was admitted, unchanged by any later map or standards. An attempt\nbegun before briefs were saved is 409 `context_not_recorded`.",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/attempts/{id}/conflict": {
+      "get": {
+        "operationId": "conflict",
+        "parameters": [
+          {
+            "description": "The attempt",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/AttemptId"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "$ref": "#/components/schemas/TaskConflict"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "no such attempt"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          }
+        },
+        "summary": "The contract conflict the attempt's executor reported, with the attempt's\ncurrent state, whether it still holds its scope and whether the Planner's\nnotice was queued; null when it reported none.",
         "tags": [
           "runs"
         ]

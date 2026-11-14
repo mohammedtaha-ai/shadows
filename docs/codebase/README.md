@@ -199,6 +199,8 @@ pattern to follow, not merely an example.
 | `crates/core-runs/src/brief.rs` | reading the context an attempt was given | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/question.rs` | answering an executor's question about its own attempt | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/store/brief.rs` | saved attempt context SQL | `crates/core-runs/contract.yaml` |
+| `crates/core-runs/src/conflict.rs` | an executor's contract conflict on its own attempt | `crates/core-runs/contract.yaml` |
+| `crates/core-runs/src/store/conflict.rs` | attempt conflict SQL | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/stop.rs` | stopping an attempt | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/git.rs` | git calls in a project folder | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/init.rs` | giving a project folder its repository | `crates/core-runs/contract.yaml` |

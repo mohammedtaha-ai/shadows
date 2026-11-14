@@ -194,6 +194,97 @@ pub struct AttemptNotice {
     pub reason: Option<String>,
     /// The attempt carried the task's third and last addition.
     pub last_addition: bool,
+    /// The executor's contract conflict as it stood when the notice was
+    /// first resolved; left out of an ordinary notice. A report from the
+    /// executor, never the person's approval.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub conflict: Option<TaskConflict>,
+}
+
+/// One piece of a conflict's evidence: a project-relative path, an optional
+/// one-based line, and what it shows. A reference, not copied source.
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    schemars::JsonSchema,
+    utoipa::ToSchema,
+)]
+pub struct ConflictEvidence {
+    /// A path inside the project, as `project_files` names it.
+    pub path: String,
+    /// The one-based line it is about, if one.
+    #[serde(default)]
+    #[schema(required)]
+    pub line: Option<u32>,
+    /// What this place shows, in a sentence or two.
+    pub summary: String,
+}
+
+/// What an executor reports when its task cannot be built as its contract
+/// says: what the contract or instructions expect, what it observed instead,
+/// and where.
+#[derive(Debug, Clone, serde::Deserialize, schemars::JsonSchema)]
+pub struct ConflictInput {
+    /// The idempotency key: the same key and input answer the first report.
+    pub command_id: String,
+    /// What the contract or the task's instructions expect, 1 to 2,000
+    /// characters.
+    pub expected: String,
+    /// What you observed instead, 1 to 2,000 characters.
+    pub observed: String,
+    /// 1 to 10 places that show it, in the order to read them.
+    pub evidence: Vec<ConflictEvidence>,
+}
+
+/// Whether the Planner's notice of a conflict was enqueued on its
+/// conversation. `delivered` is a durable enqueue, not a reply.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, utoipa::ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ConflictDelivery {
+    Pending,
+    Delivered,
+    NoPlanner,
+}
+
+impl ConflictDelivery {
+    pub(crate) fn as_str(self) -> &'static str {
+        match self {
+            Self::Pending => "pending",
+            Self::Delivered => "delivered",
+            Self::NoPlanner => "no_planner",
+        }
+    }
+
+    pub(crate) fn parse(text: &str) -> Option<Self> {
+        [Self::Pending, Self::Delivered, Self::NoPlanner]
+            .into_iter()
+            .find(|delivery| delivery.as_str() == text)
+    }
+}
+
+/// An attempt's accepted contract conflict, with the attempt's current state
+/// and whether it still holds its scope. Accepting it asked the executor to
+/// end its turn; only `attempt_state` says whether it did.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, utoipa::ToSchema)]
+pub struct TaskConflict {
+    pub attempt_id: AttemptId,
+    pub project_id: ProjectId,
+    pub workflow_id: WorkflowId,
+    pub version: i64,
+    pub task: u32,
+    pub expected: String,
+    pub observed: String,
+    pub evidence: Vec<ConflictEvidence>,
+    pub attempt_state: AttemptState,
+    /// The attempt still holds its scope: its executor may still write.
+    pub scope_held: bool,
+    pub delivery: ConflictDelivery,
+    /// When the conflict was accepted.
+    pub created_at: String,
 }
 
 /// One file as an attempt's commit holds it; deleted or binary files have no text.

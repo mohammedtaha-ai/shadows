@@ -114,9 +114,10 @@ functions:
   reads:
     tools_for:
       signature: "(kind: GrantKind) -> &'static [&'static str]"
-      # The Planner's (Thread) list holds 33 tools; only it holds project_files,
-      # project_refresh, project_git_init, task_ready, task_start, task_done, task_amend and
-      # task_lessons, task_diff and task_file. code_lsp is in all three lists;
+      # The Planner's (Thread) list holds 34 tools; only it holds project_files,
+      # project_refresh, project_git_init, task_ready, task_start, task_stop, task_done,
+      # task_amend and task_lessons, task_diff and task_file. Only the executor's holds
+      # task_conflict. code_lsp is in all three lists;
       # the name index's where_is, who_uses and outline are in none.
     read_in:
       signature: "(conn, principal, agent, request) -> Result<Option<ApprovedBy>, StorageError>"
@@ -500,6 +501,7 @@ tests:
 # The Thread and Project allowlists include task_context, a read with no execution authority.
 # The executor allowlist is task_brief (Runs::brief_for, the context saved for its own attempt;
 # never a fresh task_context), task_question (Runs::question, its own running attempt only), code_lsp
-# and task_report
-# (Runs::report, which accepts the executor's own commit only inside the task's writes); startup and
+# task_report
+# (Runs::report, which accepts the executor's own commit only inside the task's writes) and
+# task_conflict (Runs::conflict_for, its own attempt's contract conflict only); startup and
 # thread removal revoke executor grants with the thread ones (executor_session tests).

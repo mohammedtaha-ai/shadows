@@ -4,7 +4,7 @@
 //! An attempt is one executor session on one task. It holds its scope, the
 //! `writes` it may change, from Start until its task is judged (marked done)
 //! or it is stopped, and for an attempt without a commit until its turn has
-//! ended; Start refuses a task whose `writes` may meet a held scope.
+//! ended and its session is closed; Start refuses a task whose `writes` may meet a held scope.
 //! `model` holds the types, `store` the SQL, `scope` the pattern matcher,
 //! `ready` the rule for links, `ready_group` the tasks the Planner may start
 //! together, `git` the git calls, `init` a folder's first
@@ -12,12 +12,13 @@
 //! Planner's notice of an ended attempt, `amend` the Planner's addition,
 //! `lessons` the record a task leaves when it stops on the cap, `brief` the
 //! context each attempt was given, `question` an executor's question about
-//! its own attempt, `start`,
+//! its own attempt, `conflict` an executor's contract conflict, `start`,
 //! `stop`, `report`, `watch` and `recover` the transitions, `diff` the
 //! reading of a commit.
 
 mod amend;
 mod brief;
+mod conflict;
 mod diff;
 mod error;
 mod git;
@@ -43,9 +44,9 @@ use std::sync::{Arc, Mutex};
 pub use brief::AttemptBrief;
 pub use error::RunsError;
 pub use model::{
-    Attempt, AttemptFile, AttemptId, AttemptNotice, AttemptState, DoneMark, FileDiff,
-    LessonAttempt, LessonCommand, Need, ReadyGroup, ReadyTask, RecoverReport, StartAnswer,
-    TaskLesson, TaskRun,
+    Attempt, AttemptFile, AttemptId, AttemptNotice, AttemptState, ConflictDelivery,
+    ConflictEvidence, ConflictInput, DoneMark, FileDiff, LessonAttempt, LessonCommand, Need,
+    ReadyGroup, ReadyTask, RecoverReport, StartAnswer, TaskConflict, TaskLesson, TaskRun,
 };
 pub use question::{PlannedScope, ProducerStatus, TaskAnswer, TaskQuestion};
 
@@ -250,7 +251,7 @@ impl Runs {
             && let Some((attempt, thread)) =
                 self.inner.store.awaiting(workflow, version, task).await?
         {
-            self.release(&attempt, &thread).await;
+            self.release_logged(&attempt, &thread).await;
         }
         self.task(workflow, version, task).await
     }

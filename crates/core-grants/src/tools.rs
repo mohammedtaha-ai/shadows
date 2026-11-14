@@ -1,7 +1,7 @@
 //! The tools each grant kind permits.
 use super::{GrantKind, Grants};
 /// Only the Planner may show a plan in a person's conversation.
-const THREAD_TOOLS: [&str; 33] = [
+const THREAD_TOOLS: [&str; 34] = [
     "vision_approve",
     "map_approve",
     "roadmap_approve",
@@ -28,6 +28,7 @@ const THREAD_TOOLS: [&str; 33] = [
     "project_git_init",
     "task_ready",
     "task_start",
+    "task_stop",
     "task_done",
     "task_amend",
     "task_lessons",
@@ -56,9 +57,16 @@ const PROJECT_TOOLS: [&str; 14] = [
 ];
 
 /// An executor reads the brief its attempt was given, asks about its task's
-/// contract and the code it needs, and reports the commit it made. It has no
-/// fresh `task_context`, so it never reads a layout its attempt was not given.
-const EXECUTOR_TOOLS: [&str; 4] = ["task_brief", "task_question", "code_lsp", "task_report"];
+/// contract and the code it needs, and reports the commit it made or the
+/// contract conflict that stops it. It has no fresh `task_context`, so it
+/// never reads a layout its attempt was not given.
+const EXECUTOR_TOOLS: [&str; 5] = [
+    "task_brief",
+    "task_question",
+    "code_lsp",
+    "task_report",
+    "task_conflict",
+];
 
 impl Grants {
     pub fn tools_for(kind: GrantKind) -> &'static [&'static str] {

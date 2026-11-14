@@ -28,6 +28,14 @@
 # An addition is a new attempt on the same executor thread, carrying the Planner's text; the
 # frozen plan version never changes. A task takes three additions after its Start (Mohammed,
 # 2026-11-11); a fourth stops the waiting attempt and the task goes back to the person.
+#
+# A contract conflict is the executor's report, on its own attempt, that its task cannot be
+# built as written. It is kept on the attempt's row (conflict_json, conflict_at,
+# conflict_delivery, conflict_notice_json); no table or stop state machine of its own.
+# Accepting it stops nothing: the executor is told to end its turn, the Planner is told at
+# once through notify, the existing watcher settles the attempt Stopped when the turn's end is
+# confirmed, and the Planner stops affected attempts with stop_for. A session that could not
+# be closed or terminated keeps its scope held. Runs stops no sibling and follows no link.
 
 name: runs
 version: 1
@@ -50,6 +58,7 @@ modules:
   amend.rs: carrying an attempt on with the Planner's addition
   brief.rs: reading the context an attempt was given
   question.rs: answering an executor's question about its own attempt
+  conflict.rs: an executor's contract conflict on its own attempt
   lessons.rs: the record a task leaves when it stops on the cap
   stop.rs: stopping an attempt
   report.rs: accepting an attempt's reported commit
@@ -61,6 +70,7 @@ modules:
   store/marks.rs: done marks SQL
   store/lessons.rs: lessons records SQL
   store/brief.rs: saved attempt context SQL
+  store/conflict.rs: attempt conflict SQL
   store/recover.rs: startup SQL
 
 dependencies:
@@ -68,9 +78,9 @@ dependencies:
   harness: Harness opens the executor session in its project's folder, releases it, and names the model last used on the executor's harness.
   turns: Turns sends the first turn and stops it, and queues the Planner's notice in the executor's name (Turns::queue_notice).
   threads: Threads creates the executor thread inside the Start write, and reads the executor's entries for a lessons record and a failed notice's last message.
-  grants: Grants revokes an interrupted attempt's grant at startup; an executor grant names the attempt's task. Grants::check_live_in rechecks a task question's grant inside a read RunsStore opens on the shared storage; no Grants SQL is in Runs.
+  grants: Grants revokes an interrupted attempt's grant at startup; an executor grant names the attempt's task. Grants::check_live_in rechecks a task question's grant inside a read RunsStore opens on the shared storage, and a conflict's grant inside the conflict's own write; no Grants SQL is in Runs.
   projects: Projects names the folder git runs in.
-  code: Codebase answers a task question's language-server question (Codebase::lsp, Asker::Grant). Codebase lists the project's files, to leave secret and dependency files out of the first commit (Codebase::refresh_inventory and Codebase::inventory, asked with Asker::Grant), and answers which of a task's required files are absent (Codebase::missing_inputs, Asker::Grant).
+  code: Codebase answers a task question's language-server question (Codebase::lsp, Asker::Grant). Codebase lists the project's files, to leave secret and dependency files out of the first commit (Codebase::refresh_inventory and Codebase::inventory, asked with Asker::Grant), and answers which of a task's required files are absent (Codebase::missing_inputs, Asker::Grant); the same check refuses a conflict's evidence path outside the project or holding a secret, an absent path being evidence too.
   # A running attempt holds `Codebase::hold` of its project until its turn ends, so the project stays active.
 
 shapes:
@@ -90,7 +100,15 @@ shapes:
   ReadyTask: "{ task, title, suggested_model }: one task of a ready group; suggested_model is the plan's suggested model or null"
   ReadyGroup: "{ workflow_id, version, tasks: [ReadyTask] }: tasks ascending by number, pairwise write-compatible; an observation, never a reservation"
   FileDiff: "{ path, added, removed, patch, hunks }: the patch cut at 2,000 lines with a marker; hunks (shadows-agent DiffHunk) read from the same patch before the cut, lines stopping at 2,000 in all, none for a binary file"
-  AttemptNotice: "{ workflow_id, version, task, title, attempt, attempt_id, model, outcome, commit, report, reason, last_addition }: the card of an executor's notice; title is the task's or T{task}; report is the executor's report when committed, its last message (cut at 4,000 chars) when failed, else null"
+  AttemptNotice: "{ workflow_id, version, task, title, attempt, attempt_id, model, outcome, commit, report, reason, last_addition, conflict? }: the card of an executor's notice; title is the task's or T{task}; report is the executor's report when committed, its last message (cut at 4,000 chars) when failed, else null; conflict, left out of an ordinary notice, is the TaskConflict as it stood when the conflict's notice was first resolved, outcome then its attempt_state"
+  ConflictEvidence: "{ path, line: Option<u32>, summary }: a project-relative path, a one-based line or null, what it shows"
+  ConflictInput: "{ command_id, expected, observed, evidence: [ConflictEvidence] }: deserialized from task_conflict's input"
+  ConflictDelivery: "[pending, delivered, no_planner]: delivered is a durable enqueue on the Planner's conversation, not a reply; no_planner when the plan has no live Planner conversation"
+  TaskConflict: "{ attempt_id, project_id, workflow_id, version, task, expected, observed, evidence, attempt_state, scope_held, delivery, created_at }: identity from the attempt, never the input; attempt_state the attempt's current state and scope_held its released_at null, read with the conflict in one snapshot"
+  # InvalidConflict (invalid_conflict): an empty command_id, expected or observed not 1..2,000
+  # trimmed chars, evidence not 1..10, a summary not 1..1,000, a path empty or over 1,024 bytes,
+  # a line 0, or the normalized conflict over 16 KiB. ContractConflict (contract_conflict): the
+  # attempt already accepted a conflict: another conflict command, or a report losing to it.
   AttemptFile: "{ path, text, cut }: a file at an attempt's commit; text null for deleted, binary or non-UTF-8 files; text cut on a line and char boundary at 2,000 lines or 200,000 bytes, whichever comes first"
   RecoverReport: "{ interrupted }"
   AttemptBrief: "{ attempt: Attempt, context: TaskContext, captured_at, consumers: [ConsumerRef], consumers_more }: what an attempt was given; context is Plans' TaskContext saved in run_attempt_context when the attempt was admitted, captured_at its insert time; the attempt stays the source of identity, model, base commit and addition. consumers are Plans::contract_facts(own, first 50) of the attempt's own version at read time, never saved into context; consumers_more says more exist"
@@ -102,7 +120,7 @@ shapes:
   TaskLesson: "{ workflow_id, version, task, title, attempts: [LessonAttempt], commands: [LessonCommand], stopped_by, plan_should_have_said, recorded_at }: the record a task leaves when it stops on the cap, stored as run_lessons.record_json; the two Planner fields null until it writes them. No route serves it"
   LessonAttempt: "{ number, addition, commit, report }: the chain from the Start to the stopped attempt, oldest first; addition is what was missing"
   LessonCommand: "{ command, status, error }: a ToolCall entry of kind execute on the executor's thread: its title, its card's status as its wire text and its error; no output is stored"
-  RunsError: [NotFrozen, Superseded, Archived, Waiting, TaskBusy, Overlap, NotGit, DirtyScope, MissingInput, InputUnavailable, AlreadyCommitted, UnknownCommit, NotOnBranch, NotNew, EmptyCommit, OutsideWrites, BinaryFiles, AlreadyGit, NoFolder, NotListed, NoModel, NotAwaiting, EmptyAddition, AdditionsSpent, NoLesson, EmptyLesson, CommandConflict, ContextNotRecorded, InvalidQuestion, QuestionTooLarge, NotFound, BadScope, Unavailable, Grants, Code, Storage]
+  RunsError: [NotFrozen, Superseded, Archived, Waiting, TaskBusy, Overlap, NotGit, DirtyScope, MissingInput, InputUnavailable, AlreadyCommitted, UnknownCommit, NotOnBranch, NotNew, EmptyCommit, OutsideWrites, BinaryFiles, AlreadyGit, NoFolder, NotListed, NoModel, NotAwaiting, EmptyAddition, AdditionsSpent, NoLesson, EmptyLesson, CommandConflict, ContextNotRecorded, InvalidQuestion, QuestionTooLarge, InvalidConflict, ContractConflict, NotFound, BadScope, Unavailable, Grants, Code, Storage]
   # InvalidQuestion (invalid_question): a selector, after or limit Plans refused. QuestionTooLarge
   # (question_too_large): the answer is over 64 KiB; nothing is cut, a narrower selector is asked
   # for. Grants (grant) and Code (code) carry the owner's own refusal, which adapters translate
@@ -126,8 +144,11 @@ functions:
   admit_in: "private: (tx, workflow, version, task) -> (Plan, TaskContent); Plans::execution_plan_in's refusal mapped to Archived, NotFrozen or Superseded, another version NotFound, the task NotFound, BadScope, then Waiting from needs_in; the one durable admission check of the preflight and of begin_attempt"
   needs_in: "private: (tx, plan, task) -> Vec<Need>; the version's needs links in link order, each local mark and each linked plan's reached mark as tx sees it (RunsStore::done_in); task's needs read it on a reader connection"
   start_answer: "private: (plan, task) -> StartAnswer; Start's checks in Start's order (admission, the folder, the required files, then the busy and overlap check read without writing); a refusal is an answer with RunsError::code and its text, a failure to read is an error"
-  stop: "(attempt) -> Attempt; waits for the turn's confirmed end"
-  report: "(grant, commit, report) -> Attempt; the executor grant's attempt must be Running (Committed is AlreadyCommitted); then, in order: commit is a hex SHA git resolves to a commit (UnknownCommit), reachable from HEAD (NotOnBranch), not reachable from start_head (NotNew); changes at least one file (EmptyCommit with its full sha when Git::changes is empty); every path it changes against its first parent (a root commit against nothing, a rename as both ends) lies inside writes, a path outside the project folder outside them (OutsideWrites, all listed); none it adds or modifies is binary by git's numstat (BinaryFiles, all listed), a check skipped when the attempt's plan version (read_plan) is the setup plan, is_setup: its title trimmed equals Setup in any case; last, dirty finds nothing uncommitted inside writes (DirtyScope, all listed; a change outside writes does not refuse it). A refusal leaves the attempt Running. On acceptance the attempt becomes Committed with the full sha and the trimmed report; only a Running attempt moves"
+  stop: "(attempt) -> Attempt; waits for the turn's confirmed end: Turns::stop's TerminationFailed is Unavailable before anything is written; then Running becomes Stopped (another state is kept) and release, whose failure is Unavailable with the scope still held; then a pending conflict notice is retried (retry_conflict_notice), its failure logged"
+  stop_for: "(grant, command_id, attempt) -> Attempt; unknown attempt NotFound; planner_plan of the attempt's version (a Thread grant of its project, else NotFound); command run.stop schema 1, principal Thread/<grant thread>, scope Attempt/<attempt>, fingerprint { attempt }: a replay answers the attempt as it stands, the same id with other input is CommandConflict; else stop, then the command recorded. MCP task_stop"
+  conflict_for: "(grant, ConflictInput) -> TaskConflict; an Executor grant with a thread and scope, else NotFound; the attempt is executor_attempt of that thread and scope, never one the caller names; then the input normalized (trimmed texts, paths with forward slashes, no leading ./ or doubled slash, evidence order kept; InvalidConflict); Codebase::missing_inputs with Asker::Grant over the evidence paths (its refusal is Code; a missing path is accepted); then record_conflict, one write: Grants::check_live_in, the command (run.conflict schema 1, principal Executor/<thread>, scope Attempt/<attempt>, fingerprint of the normalized conflict) classified before any state (a replay writes nothing; other input is CommandConflict), an accepted conflict ContractConflict, Committed AlreadyCommitted, any other non-Running NotFound, then conflict_json, conflict_at and conflict_delivery pending with the command record. A new conflict calls notify while the attempt may still run; its failure leaves delivery pending and is logged. Answers conflict. MCP task_conflict"
+  conflict: "(attempt) -> Option<TaskConflict>; unknown attempt NotFound; null for an attempt with no conflict. Reads only"
+  report: "(grant, commit, report) -> Attempt; the executor grant's attempt must be Running (Committed is AlreadyCommitted); then, in order: commit is a hex SHA git resolves to a commit (UnknownCommit), reachable from HEAD (NotOnBranch), not reachable from start_head (NotNew); changes at least one file (EmptyCommit with its full sha when Git::changes is empty); every path it changes against its first parent (a root commit against nothing, a rename as both ends) lies inside writes, a path outside the project folder outside them (OutsideWrites, all listed); none it adds or modifies is binary by git's numstat (BinaryFiles, all listed), a check skipped when the attempt's plan version (read_plan) is the setup plan, is_setup: its title trimmed equals Setup in any case; last, dirty finds nothing uncommitted inside writes (DirtyScope, all listed; a change outside writes does not refuse it). A refusal leaves the attempt Running. On acceptance the attempt becomes Committed with the full sha and the trimmed report; only a Running attempt with no conflict_json moves, in the record's own write; a report that loses to an accepted conflict, even one accepted after its preflight, is ContractConflict"
   init_git: "(grant) -> String; a Thread (Planner) grant only, else NotFound; the folder from Projects (NoFolder when none); a folder inside any work tree, its own or a parent's, is AlreadyGit; then Codebase::refresh_inventory and Codebase::inventory page by page (prefix empty, limit 200, after the page's next), collecting every entry whose excluded_reason is secret or dependencies; a page Indexing or Missing, or InventoryStale after one fresh start from the first page, is NotListed, nothing written yet; then git init; Git::exclude appends one line per collected path to .git/info/exclude (`/` + the path, its backslash, star, question mark, brackets, bang and hash escaped by a backslash, a trailing `/` for a path that is a folder on disk, a link not followed); then Git::commit_all, git add -A and one commit `Initial commit` as Shadows <shadows@localhost> with --allow-empty, so an empty folder gets one; a git failure Unavailable; answers the full sha, writes no project file, logs runs.git_initialised with the commit and the number of paths left out"
   start_for: "(grant, workflow, task, model?) -> Attempt; the Planner's grant checked (a Thread grant of the plan's project, else NotFound), then start with the trimmed model, else the task's suggested model, else NoModel; the command id is fresh"
   mark_done_for: "(grant, workflow, task, done) -> DoneMark; the Planner's grant checked as start_for, then mark_done; a done mark answers next from ready_group, which the Planner starts on its own (Mohammed, 2026-11-11); a mark on a version that admits no new attempt still succeeds, with next empty, and starts nothing"
@@ -138,7 +159,9 @@ functions:
   question: "(grant, TaskQuestion) -> TaskAnswer; the attempt is executor_attempt of an Executor grant's thread and scope and must be Running, else NotFound; its saved context (ContextNotRecorded) gives plan; Plans::contract_facts for the attempt's workflow and task (its InvalidCommand is InvalidQuestion); an optional Codebase::lsp with Asker::Grant: Answered is code, NoServer or a LanguageServer failure is code_error (never an empty answer), any other CodebaseError is Code; then Grants::check_live_in in a fresh read and the attempt again Running and the same, after the awaited code work; producer_status per producer from Runs' own mark and attempts; observed_at now; over 64 KiB is QuestionTooLarge. Reads only. MCP task_question"
   capture_in: "private: (tx, attempt, (project, workflow, task), captured_at); Plans::task_context_in for the task (no phase) inside begin_attempt's and continue_attempt's write, after the insert and before commit, then one INSERT into run_attempt_context (capture_context_in); any failure rolls back the attempt, its thread and an addition's release. A replay returns before it, so it captures nothing"
   run_turn: "private: (attempt, prompt) -> Attempt; open_executor with the attempt's TaskScope and model, reopening the thread whether its session is live, closed or gone (a failure abandons it `session did not open: ...`), the still-Running check, the turn in mode auto, set_operation, the late Stop, watch. Start and amend both end here"
-  watch: "private: (attempt, thread, operation) follows the turn in the background: it reads the thread's operations after each journal commit, and at least once a second, until the operation has finished_at, then settles the attempt as the transitions say"
+  watch: "private: (attempt, thread, operation) follows the turn in the background: it reads the thread's operations after each journal commit, and at least once a second, until the operation has finished_at, then settles the attempt as the transitions say: settle_ended is one write deciding Stopped (reason `contract conflict`) when conflict_json is set, else Failed; a Stop's earlier state is kept. Release follows; a release that fails keeps the scope held and is logged"
+  release: "private: (attempt, thread) -> Result; Harness::release_executor first: a session that could not be closed is Unavailable and the scope stays held; then released_at is set. Stop answers its failure; watch, mark_done, run_turn and abandon log it (release_logged)"
+  retry_conflict_notice: "private: (attempt) notify for an attempt whose conflict notice is pending, nothing otherwise"
   additions_since_start: "private: how many of the task's attempts, newest first, carry an addition before the first that does not (the one a Start began); a new Start begins a new count"
   record_lesson: "private: (plan, stopped) puts the task's TaskLesson in run_lessons keyed by the stopped attempt: the chain from the newest attempt down to the one a Start began, oldest first, the execute calls from Threads::entries of its thread in ordinal order, the task's title, both Planner fields null; a failure is logged runs.lesson_failed and never changes the cap's answer, success logs runs.lesson_recorded"
   write_lesson: "(grant, workflow, task, stopped_by, plan_should_have_said) -> TaskLesson; the Planner's grant checked as start_for; both trimmed and non-empty, else EmptyLesson; the task's latest record (by created_at, then attempt_id), else NoLesson; sets the two fields and stores it; writing again replaces them. No read method, route or tool lists the records: the main session reads run_lessons.record_json"
@@ -153,9 +176,9 @@ functions:
   attempt: "(attempt) -> Attempt; one attempt as it stands, NotFound for an unknown id"
   set_first_prompt_for_tests: "test-support only: (prompt) scripts the first prompt of later attempts"
   mark_done: "(command, workflow, version, task, done) -> TaskRun; the command record keeps every mark command: a replay writes nothing, the same id with other input is CommandConflict; a done mark releases the task's latest attempt when it is Committed and still holds its scope (closes its session, frees its scope); a not-done mark releases nothing"
-  notify: "private: (attempt) queues with Turns::queue_notice, as Notice { executor: the attempt's thread, card: its AttemptNotice }, on the plan's Planner thread (WrittenBy::Planner, not removed) a [Shadows] notice with the settings of that thread's last turn and command id notify-<attempt>: committed with its sha, files (path +added -removed) and report, or failed with its reason and its operation's last AgentMessage from Threads::entries, cut at 4,000 chars with [cut] appended when cut; an absent message or unreadable entries adds nothing and logs runs.notify_no_message; a committed notice says to read with task_diff and task_file before judging, and one whose attempt carried the task's third addition says it was the last; any failure is logged, never fails the watcher"
+  notify: "private: (attempt) queues with Turns::queue_notice, as Notice { executor: the attempt's thread, card: its AttemptNotice }, on the plan's Planner thread (WrittenBy::Planner, not removed) a [Shadows] notice with the settings of that thread's last turn and command id notify-<attempt>: committed with its sha, files (path +added -removed) and report, or failed with its reason and its operation's last AgentMessage from Threads::entries, cut at 4,000 chars with [cut] appended when cut; an absent message or unreadable entries adds nothing and logs runs.notify_no_message; a committed notice says to read with task_diff and task_file before judging, and one whose attempt carried the task's third addition says it was the last; answers its failure, which callers log, never failing the watcher. An attempt with a conflict gets only the conflict's notice, never a generic one: sent only while delivery is pending; resolved once (a ConflictNoticeIntent of the Planner thread, body, model, mode, effort and card) and saved in conflict_notice_json before the first enqueue, then every retry rebuilds the same SendTurn (notify-<attempt>, no attachments, focus, plan or client_tab) and Notice in the executor's name from it; an enqueue or its replay marks delivered; no live Planner (plan gone, external writer, thread removed) marks no_planner; any other failure keeps pending. The body names expected, observed and evidence and asks the Planner to assess impact and task_stop this or another affected attempt that has not ended"
   failed_message: "private: (attempt) -> Option<String>; the failed notice's last AgentMessage for attempt.operation_id, through Threads::entries in ordinal order; no operation, no message or a read failure logs runs.notify_no_message and answers None; text cut after 4,000 chars with [cut] when cut"
-  recover: "() -> RecoverReport; every Running attempt becomes Interrupted, its grant revoked and its scope freed; every other held scope is freed except a Committed attempt's, which keeps waiting for its judgment; none restarted, git not read"
+  recover: "() -> RecoverReport; every Running attempt becomes Interrupted, its grant revoked and its scope freed; every other held scope is freed except a Committed attempt's, which keeps waiting for its judgment; none restarted, git not read; conflicts and saved notices are kept. Then one spawned pass, off startup, retries each pending conflict notice oldest first; it waits for no reply and is not repeated"
 
 transitions:
   - "Start accepted: Running"
@@ -168,6 +191,9 @@ transitions:
   - "found Running at startup: Interrupted"
   - "turn ends after an accepted report: stays Committed, holds its scope, the Planner is told"
   - "turn ends without a commit: Failed, scope freed, the Planner is told"
+  - "conflict accepted: stays Running and holds its scope; the Planner is told once"
+  - "turn ends after an accepted conflict: Stopped with reason `contract conflict`, session closed, scope freed; no second notice"
+  - "session close or termination fails: the scope stays held"
   - "marked done: the awaiting attempt's session closes and its scope is freed"
   - "an addition: the waiting attempt is released into a new Running attempt on the same thread"
   - "a fourth addition: the waiting attempt is stopped, the task goes back to the person"
@@ -235,6 +261,27 @@ agreements:
       Both call the one private ready_group on the plan version; ready_for alone refuses a
       version that admits no new attempt, where ready_group answers empty.
     tested_by: [first_group_has_two_independent_tasks, judging_old_work_returns_no_old_next, the_next_task_is_one_that_never_ran]
+  - between: [report, conflict_for]
+    rule: A report and a conflict on one attempt have one winner.
+    holds: true
+    why: >
+      record_report moves only an attempt with no conflict_json, and record_conflict refuses a
+      Committed one, each inside its own write; the loser answers ContractConflict or
+      AlreadyCommitted and changes nothing.
+    tested_by: conflict_and_report_admit_one_outcome
+  - between: [notify, recover, stop, watch]
+    rule: A conflict's notice is resolved once and every retry sends that same payload.
+    holds: true
+    why: >
+      notify saves the resolved ConflictNoticeIntent before its first enqueue and rebuilds the
+      same command and payload from it, so a replay after changed Planner settings, a later
+      attempt state or a crash between enqueue and its mark adds no second message.
+    tested_by: [changed_planner_settings_keep_original_notice, restart_replays_pending_conflict_once]
+  - between: [stop, stop_for]
+    rule: The person's Stop and the Planner's task_stop run one method.
+    holds: true
+    why: stop_for checks the Planner's grant and its command replay, then calls stop.
+    tested_by: [planner_can_stop_a_nonending_executor, stop_ends_the_attempt_and_closes_its_session]
   - between: [start, amend]
     rule: One run_turn opens the session and sends the turn.
     holds: true
@@ -358,8 +405,22 @@ obligations:
     tested_by: [a_star_does_not_cross_a_separator, no_patterns_admit_nothing, an_invalid_pattern_is_an_error, windows_separators_are_normalised]
   - rule: Two patterns may overlap unless their literal prefixes are disjoint folders; a pattern led by a glob or climbing out with `..` may overlap anything.
     tested_by: [a_folder_and_its_subfolder_may_overlap, a_folder_overlaps_its_subfolder_not_its_sibling, disjoint_folders_do_not_overlap, a_pattern_without_a_folder_may_overlap_anything, a_pattern_that_climbs_out_may_overlap_anything]
+  - rule: An accepted conflict is not a confirmed stop; the attempt keeps running and holding its scope until its turn's end is confirmed, and its Planner is told while it runs.
+    tested_by: [conflict_ack_is_not_a_confirmed_stop, conflict_notifies_while_its_executor_is_running]
+  - rule: The watcher settles a conflicted attempt Stopped once its turn ends, closing its session and freeing its scope, and stops no sibling.
+    tested_by: [watch_settles_conflict_without_stopping_siblings]
+  - rule: A Stop or a session close that could not terminate the executor keeps its scope held.
+    tested_by: [failed_stop_or_close_keeps_the_scope]
+  - rule: The Planner's task_stop ends an executor that does not end itself; only a Planner's grant of the project may.
+    tested_by: [planner_can_stop_a_nonending_executor]
+  - rule: A conflict stop keeps the executor's uncommitted files; nothing is reset or committed, and the next Start sees them.
+    tested_by: [conflict_keeps_uncommitted_files]
+  - rule: A conflict is the executor's report on its own attempt, never an approval; only an executor grant files it, and invalid input or paths are refused before anything is written.
+    tested_by: [executor_conflicts_cannot_approve, invalid_conflicts_are_refused]
 
 tests:
+  shadows-core/tests/task_conflicts.rs: contract conflicts through AppCore over the fake adapter in real git; report races, acknowledgment without a stop, notices while running, the watcher's settle beside a running sibling, failed termination, restart delivery, changed Planner settings, the Planner's Stop, kept files and refused input
+  shadows/tests/task_conflict_routes.rs: the conflict read over HTTP and task_conflict and task_stop over the real /mcp, each for its own grant kind only
   shadows-core/tests/task_questions.rs: task questions through AppCore over the fake adapter in real git; planned consumers apart from code, the attempt's own version, a use's producer and its status, an unavailable server as code_error, project code outside reads, refused projects and links, stable pages, an oversized contract refused, a non-executor refused; the gopls case is ignored until gopls is on PATH
   shadows-core/tests/attempt_briefs.rs: each attempt's saved brief through AppCore over the fake adapter in real git; fixed after a layout change, one per replay, its own per addition, rolled back with a failed capture, never invented, read only by its own executor
   shadows-core/tests/runs_attempts.rs: attempts through AppCore over the fake adapter, in a real git repository

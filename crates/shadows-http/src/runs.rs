@@ -1,6 +1,6 @@
 //! One job: the routes over a task's attempts — the task's run state,
-//! Start, Stop, an attempt's brief, its diff, a file at its commit, and the person's
-//! done mark.
+//! Start, Stop, an attempt's brief, its contract conflict, its diff, a file at
+//! its commit, and the person's done mark.
 //!
 //! Each handler reads the request, calls one `Runs` method and shapes the
 //! answer. A refused Start is 409 with Runs' own `code` and `reason`.
@@ -13,7 +13,9 @@ use axum::http::StatusCode;
 use super::AppState;
 use super::failure::{ErrorBody, RunFailure, RunRefusal};
 use super::transport::Transport;
-use shadows_core::{Attempt, AttemptBrief, AttemptFile, AttemptId, FileDiff, TaskRun, WorkflowId};
+use shadows_core::{
+    Attempt, AttemptBrief, AttemptFile, AttemptId, FileDiff, TaskConflict, TaskRun, WorkflowId,
+};
 
 /// A task of a plan version: `/api/workflows/{workflow}/versions/{version}/tasks/{task}`.
 type TaskPath = Path<(WorkflowId, i64, u32)>;
@@ -259,4 +261,25 @@ pub(super) async fn brief(
     Path(attempt): Path<AttemptId>,
 ) -> Result<Json<AttemptBrief>, RunFailure> {
     Ok(Json(s.core.runs().brief(&attempt).await?))
+}
+
+/// The contract conflict the attempt's executor reported, with the attempt's
+/// current state, whether it still holds its scope and whether the Planner's
+/// notice was queued; null when it reported none.
+#[utoipa::path(
+    get,
+    path = "/api/attempts/{id}/conflict",
+    tag = "runs",
+    params(("id" = AttemptId, Path, description = "The attempt")),
+    responses(
+        (status = 200, body = Option<TaskConflict>),
+        (status = 404, description = "no such attempt", body = ErrorBody),
+        (status = 500, description = "STORAGE_UNAVAILABLE", body = ErrorBody),
+    )
+)]
+pub(super) async fn conflict(
+    State(s): State<AppState>,
+    Path(attempt): Path<AttemptId>,
+) -> Result<Json<Option<TaskConflict>>, RunFailure> {
+    Ok(Json(s.core.runs().conflict(&attempt).await?))
 }

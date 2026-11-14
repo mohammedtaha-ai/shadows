@@ -760,7 +760,13 @@ async fn an_executor_grant_lists_its_tools_and_reads_only_its_task() {
     names.sort();
     assert_eq!(
         names,
-        ["code_lsp", "task_brief", "task_question", "task_report"]
+        [
+            "code_lsp",
+            "task_brief",
+            "task_conflict",
+            "task_question",
+            "task_report"
+        ]
     );
     // The grant holds no attempt, so it has no brief of its own to read and
     // nothing of its own to report.

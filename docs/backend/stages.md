@@ -122,7 +122,7 @@ B-109, B-147, F-102, B-149. B-108 is ready; later-slice tasks retain blocked dra
 
 ### B-147 · Durable contract conflicts and selective stops
 
-- Status: blocked until B-109.
+- Status: done (Touch extended mechanically: migration checksum fixture and count, tool lists in `crates/shadows/tests/mcp_server.rs`, `mcp_tools.rs` and `crates/shadows-core/tests/executor_session.rs`, the route list in `crates/shadows/tests/openapi.rs`).
 - Plan: [B-147](plans/2026-11-14-slice-4-task-questions.md#task-b-147-conflicts-through-the-existing-attempt-lifecycle).
 - Owner: Runs; existing Grants, Turns and Harness lifecycles.
 - Read: approved slice 4 design/agreement, task Interfaces, owner contracts and executor cancellation ruling.

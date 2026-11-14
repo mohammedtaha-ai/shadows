@@ -10,7 +10,7 @@ use rmcp::{
 };
 use serde::Deserialize;
 use serde_json::json;
-use shadows_core::{Grant, TaskQuestion, WorkflowId};
+use shadows_core::{AttemptId, ConflictInput, Grant, TaskQuestion, WorkflowId};
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 struct TaskReportArgs {
@@ -49,6 +49,15 @@ struct TaskReadyArgs {
     /// The approved plan version.
     #[schemars(with = "String")]
     workflow_id: WorkflowId,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+struct TaskStopArgs {
+    /// The idempotency key: the same key and attempt answer the first Stop.
+    command_id: String,
+    /// The attempt to stop, as a conflict notice or task_start named it.
+    #[schemars(with = "String")]
+    attempt_id: AttemptId,
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
@@ -210,6 +219,30 @@ impl Shadows {
     }
 
     #[tool(
+        description = "Report that your task cannot be built as its contract or instructions \
+                       say: expected is what they promise, observed what you found instead, \
+                       and evidence 1 to 10 places (a project path, an optional line and a \
+                       summary each). Ask task_question first; a missing symbol in an empty \
+                       answer is not proof. Shadows records it on your attempt and tells the \
+                       Planner. Then stop editing and end your turn at once: do not commit, do \
+                       not call task_report, and leave your uncommitted files as they are. One \
+                       conflict per attempt; the same command_id repeats the first answer."
+    )]
+    async fn task_conflict(
+        &self,
+        Extension(grant): Extension<Grant>,
+        Parameters(input): Parameters<ConflictInput>,
+    ) -> CallToolResult {
+        answer(
+            self.core
+                .runs()
+                .conflict_for(&grant, input)
+                .await
+                .map_err(Refusal::from),
+        )
+    }
+
+    #[tool(
         description = "Make this project's folder a git repository when Start says it is not \
                        one: git init and a first commit, made in Shadows' name, of the files \
                        the folder already holds (none in an empty folder). It leaves out what \
@@ -270,6 +303,28 @@ impl Shadows {
             self.core
                 .runs()
                 .start_for(&grant, &args.workflow_id, args.task_number, args.model)
+                .await
+                .map_err(Refusal::from),
+        )
+    }
+
+    #[tool(
+        description = "Stop one executor's attempt of this project's plans, by its attempt id, \
+                       and answer the attempt once its end is confirmed. Use it on the attempt \
+                       of a contract conflict that has not ended, and on any other attempt the \
+                       conflict affects; leave independent work running. A session that could \
+                       not be terminated is refused and keeps its files' scope held. The same \
+                       command_id answers the first Stop."
+    )]
+    async fn task_stop(
+        &self,
+        Extension(grant): Extension<Grant>,
+        Parameters(args): Parameters<TaskStopArgs>,
+    ) -> CallToolResult {
+        answer(
+            self.core
+                .runs()
+                .stop_for(&grant, args.command_id, &args.attempt_id)
                 .await
                 .map_err(Refusal::from),
         )

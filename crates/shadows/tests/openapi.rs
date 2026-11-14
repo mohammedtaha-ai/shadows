@@ -178,6 +178,7 @@ fn the_document_names_every_route() {
             "DELETE /api/threads/{id}",
             "DELETE /api/threads/{id}/queue/{qid}",
             "GET /api/attempts/{id}/brief",
+            "GET /api/attempts/{id}/conflict",
             "GET /api/attempts/{id}/diff",
             "GET /api/attempts/{id}/files",
             "GET /api/aylul/agent-template",

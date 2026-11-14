@@ -114,6 +114,13 @@ layer_catalog: 'Planner standards text lists every kind presence and its layers 
 # executor.md asks for `task_question` about whether a function exists, what it returns and which
 # task plans to use an output, keeping planned consumers apart from code callers and code_error
 # apart from absence.
+# executor.md has the executor report a contract it cannot build with `task_conflict` once, then
+# stop editing and end its turn without a commit or task_report, leaving its files. prompt.txt
+# tells the Planner a conflict notice may arrive while the executor still runs: assess the
+# impact first, stop this or another affected attempt that has not ended with `task_stop`, leave
+# independent work running, never restart the task on its own, and correct the contract in a
+# new version. Held by task_conflicts::conflict_notifies_while_its_executor_is_running and
+# task_conflict_routes::only_an_executor_reports_and_only_a_planner_stops.
 # executor.md asks for `code_lsp` before searching the tree; prompt.txt names `code_lsp`, and that
 # a language with no running server is answered "no server".
 # The prompt asks the Planner to ask a choice with person_ask and wait, never the same thing in

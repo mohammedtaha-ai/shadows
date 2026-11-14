@@ -96,6 +96,13 @@ pub enum RunsError {
          smaller page of consumers"
     )]
     QuestionTooLarge,
+    #[error("the conflict is not valid: {0}")]
+    InvalidConflict(String),
+    #[error(
+        "this attempt already reported a contract conflict; stop work and end your turn, \
+         the Planner decides what happens next"
+    )]
+    ContractConflict,
     #[error("not found")]
     NotFound,
     #[error("the task's writes are not valid patterns: {0}")]
@@ -147,6 +154,8 @@ impl RunsError {
             Self::ContextNotRecorded => "context_not_recorded",
             Self::InvalidQuestion(_) => "invalid_question",
             Self::QuestionTooLarge => "question_too_large",
+            Self::InvalidConflict(_) => "invalid_conflict",
+            Self::ContractConflict => "contract_conflict",
             Self::NotFound => "not_found",
             Self::BadScope(_) => "bad_scope",
             Self::Unavailable(_) => "unavailable",
