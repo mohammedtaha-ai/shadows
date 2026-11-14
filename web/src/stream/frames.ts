@@ -3,7 +3,7 @@
 // the OpenAPI document's `/api/subscribe` entry); OpenAPI cannot type them, so
 // they are checked here, and a frame that does not match is a protocol error.
 
-import type { AttemptNotice } from '@/api/runs'
+import type { AttemptNotice, TaskConflict } from '@/api/runs'
 import type { AccountLimits, Choice, SessionChoices } from '@/api/sessions'
 import type {
   CallKind,
@@ -178,6 +178,8 @@ export function readAttemptNotice(value: unknown): AttemptNotice | null {
     report: textOrNull(value.report),
     reason: textOrNull(value.reason),
     last_addition: value.last_addition === true,
+    // Core's snapshot of the conflict, kept whole; the notice only draws it.
+    ...(isRecord(value.conflict) ? { conflict: value.conflict as unknown as TaskConflict } : {}),
   }
 }
 

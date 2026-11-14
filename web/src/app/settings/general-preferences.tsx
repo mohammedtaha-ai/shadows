@@ -1,3 +1,4 @@
+import { SkeletonContent } from '@/components/ui/skeleton'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
 import { Monitor, Moon, Sun } from 'lucide-react'
@@ -77,6 +78,7 @@ export function GeneralPreferences() {
   }
 
   if (person.error) return <ErrorLine error={person.error} />
+  if (!person.data) return <SkeletonContent label="Loading preferences…" layout="form" />
   const disabled = !person.data
 
   return (
@@ -87,7 +89,6 @@ export function GeneralPreferences() {
           <span className="text-xs text-muted-foreground animate-pulse">Saving…</span>
         )}
       </div>
-      {!person.data && <p role="status">Loading preferences…</p>}
       <fieldset disabled={disabled} className="grid gap-5">
         <label className="grid gap-2 text-sm">
           Language

@@ -1,3 +1,4 @@
+import { SkeletonContent } from '@/components/ui/skeleton'
 // One job: the open conversation's pane — header, messages, composer, and
 // the plan, subagent or background tasks shown beside them.
 
@@ -58,7 +59,7 @@ export function ConversationRoute() {
   // A deleted thread must never mount the component that opens its session.
   if (thread === undefined) {
     const error = list.error ?? historical.error
-    return <div className="p-6">{error !== null ? <ErrorLine error={error} /> : 'Loading conversation…'}</div>
+    return <div className="p-6">{error !== null ? <ErrorLine error={error} /> : <SkeletonContent label="Loading conversation…" layout="conversation" />}</div>
   }
   if (thread.removed_at != null) {
     return <DeletedConversation key={threadId} thread={thread} projectId={projectId} />

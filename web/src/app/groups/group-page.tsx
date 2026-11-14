@@ -1,3 +1,4 @@
+import { SkeletonContent } from '@/components/ui/skeleton'
 import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useParams } from '@tanstack/react-router'
 import { useEffect } from 'react'
@@ -16,7 +17,7 @@ export function GroupPage() {
   const { groupId } = useParams({ from: '/aylul/groups/$groupId' })
   const group = useQuery(groupQuery(groupId))
   if (group.error) return <div className="p-6"><ErrorLine error={group.error} /></div>
-  if (!group.data) return <p role="status" className="p-6">Loading group…</p>
+  if (!group.data) return <SkeletonContent label="Loading group…" layout="conversation" className="p-6" />
   return <OpenGroup key={groupId} group={group.data} />
 }
 

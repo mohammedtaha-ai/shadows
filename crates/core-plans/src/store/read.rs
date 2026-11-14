@@ -387,6 +387,17 @@ impl ReadRows {
 pub(crate) struct ReadRows;
 
 impl crate::Plans {
+    /// One version with its linked tasks, inside the caller's transaction: what
+    /// an execution check reads.
+    pub(crate) async fn version_in(
+        conn: &mut SqliteConnection,
+        workflow: &WorkflowId,
+    ) -> Result<Plan, crate::PlansError> {
+        let mut plan = ReadRows::load_plan(conn, workflow, None).await?;
+        plan.linked_tasks = super::linked::LinkedRows::read(conn, &plan, None).await?;
+        Ok(plan)
+    }
+
     /// Membership of a workflow in the project, inside the caller's snapshot.
     pub async fn workflow_in_project_in(
         conn: &mut SqliteConnection,

@@ -7,6 +7,7 @@ import { partQuery } from '@/api/design'
 import { Button } from '@/components/ui/button'
 import { ErrorLine } from '../error-line'
 import { usePartPages } from '@/api/design'
+import { SkeletonContent, SkeletonText } from '@/components/ui/skeleton'
 interface ChoiceProps { projectId: string; selected: string[]; change: (ids: string[]) => void }
 export function PartReferences(props: ChoiceProps) {
   return <section className="space-y-2" aria-label="Referenced parts"><h4 className="text-sm">Referenced parts</h4>
@@ -17,11 +18,11 @@ export function PartReferences(props: ChoiceProps) {
 function PartReference({ projectId, id }: { projectId: string; id: string }) {
   const part = useQuery(partQuery(projectId, id))
   return <div className="text-sm">{part.data && <Link to="/projects/$projectId/workspace" params={{ projectId }} search={{ view: 'map', part: id }} dir="auto">{part.data.part.content.title}</Link>}
-    {part.isPending && <span>Loading part…</span>}{part.error && <ErrorLine error={part.error} />}</div>
+    {part.isPending && <SkeletonText label="Loading part…" />}{part.error && <ErrorLine error={part.error} />}</div>
 }
 function PartChoices({ parent, ...props }: ChoiceProps & { parent?: string }) {
   const branch = usePartPages(props.projectId, parent)
-  return <div className="space-y-1">{branch.pending && <p>Loading parts…</p>}
+  return <div className="space-y-1">{branch.pending && <SkeletonContent label="Loading parts…" />}
     {branch.items.map(part => <PartChoice key={part.id} part={part} {...props} />)}
     {branch.next && <Button size="sm" variant="secondary" disabled={branch.loading} onClick={() => void branch.more()}>More parts</Button>}
     {branch.error && <ErrorLine error={branch.error} />}

@@ -4,16 +4,21 @@
 //! An attempt is one executor session on one task. It holds its scope, the
 //! `writes` it may change, from Start until its task is judged (marked done)
 //! or it is stopped, and for an attempt without a commit until its turn has
-//! ended; Start refuses a task whose `writes` may meet a held scope.
+//! ended and its session is closed; Start refuses a task whose `writes` may meet a held scope.
 //! `model` holds the types, `store` the SQL, `scope` the pattern matcher,
-//! `ready` the rule for links, `git` the git calls, `init` a folder's first
+//! `ready` the rule for links, `ready_group` the tasks the Planner may start
+//! together, `git` the git calls, `init` a folder's first
 //! repository, `planner` the Planner's calls on its tasks, `notify` the
 //! Planner's notice of an ended attempt, `amend` the Planner's addition,
-//! `lessons` the record a task leaves when it stops on the cap, `start`,
+//! `lessons` the record a task leaves when it stops on the cap, `brief` the
+//! context each attempt was given, `question` an executor's question about
+//! its own attempt, `conflict` an executor's contract conflict, `start`,
 //! `stop`, `report`, `watch` and `recover` the transitions, `diff` the
 //! reading of a commit.
 
 mod amend;
+mod brief;
+mod conflict;
 mod diff;
 mod error;
 mod git;
@@ -22,7 +27,9 @@ mod lessons;
 mod model;
 mod notify;
 mod planner;
+mod question;
 mod ready;
+mod ready_group;
 mod recover;
 mod report;
 mod scope;
@@ -34,11 +41,14 @@ mod watch;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
+pub use brief::AttemptBrief;
 pub use error::RunsError;
 pub use model::{
-    Attempt, AttemptFile, AttemptId, AttemptNotice, AttemptState, DoneMark, FileDiff,
-    LessonAttempt, LessonCommand, Need, RecoverReport, StartAnswer, TaskLesson, TaskRun,
+    Attempt, AttemptFile, AttemptId, AttemptNotice, AttemptState, ConflictDelivery,
+    ConflictEvidence, ConflictInput, DoneMark, FileDiff, LessonAttempt, LessonCommand, Need,
+    ReadyGroup, ReadyTask, RecoverReport, StartAnswer, TaskConflict, TaskLesson, TaskRun,
 };
+pub use question::{PlannedScope, ProducerStatus, TaskAnswer, TaskQuestion};
 
 use codebase::Codebase;
 use core_db::{CommandContext, Storage};
@@ -50,14 +60,28 @@ use core_turns::Turns;
 use store::RunsStore;
 
 /// What every executor is first asked to do. It names only the task number:
-/// `task_context` reads the plan version from the executor's own grant. It
+/// `task_brief` answers the context saved for the executor's own attempt. It
 /// says how the work ends, because the executor makes its own commit.
-const FIRST_PROMPT: &str = "Do task T{n}. Read it first: call task_context with task_number {n} \
-    and no workflow_id. When the work is done, stage only your own files inside the task's \
-    writes (never a binary or an installer), run git commit yourself, and leave nothing \
-    uncommitted inside the task's writes; then call task_report with the commit's sha and an \
-    honest report of what you did, ran and found. If nothing needs to change, commit nothing \
+const FIRST_PROMPT: &str = "Do task T{n}. Read it first: call task_brief, which answers the task \
+    and the context saved for this attempt. {commit} If nothing needs to change, commit nothing \
     and end with a last message saying why.";
+
+/// How an executor commits in a folder other executors may share, as its
+/// first turn and every addition say it: Git's own `--only` commit of its
+/// exact paths, which leaves what others staged in the index and out of the
+/// commit. The report's scope check stays the final guard.
+const COMMIT: &str = "Other executors may work in the same folder at once. Run only the checks \
+    your task says you may run alongside them; a shared build, test or database it does not \
+    give you is reported as not run, never as passed. When the work is done, commit only your \
+    own files inside the task's writes (never a binary or an installer): first stage each new \
+    file by its exact path with `git --literal-pathspecs add -- <path>`, then run \
+    `git --literal-pathspecs commit --only -m \"<message>\" -- <path>...` naming every path you \
+    changed exactly, both names of a rename and the name of a deleted file; never a pattern, a \
+    folder or `.`. Leave what others staged alone. If git refuses because an index or ref lock \
+    exists, run the same command again after 1, 2 and 4 seconds; never delete the lock or reset \
+    the index. If it is still refused, report that the commit failed. Leave nothing uncommitted \
+    inside the task's writes; then call task_report with the commit's sha and an honest report \
+    of what you did, ran and found.";
 
 /// The harness an executor thread runs on, so the only one whose models an
 /// executor can be offered.
@@ -227,7 +251,7 @@ impl Runs {
             && let Some((attempt, thread)) =
                 self.inner.store.awaiting(workflow, version, task).await?
         {
-            self.release(&attempt, &thread).await;
+            self.release_logged(&attempt, &thread).await;
         }
         self.task(workflow, version, task).await
     }
@@ -287,21 +311,31 @@ impl Runs {
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner())
             .clone()
-            .unwrap_or_else(|| FIRST_PROMPT.replace("{n}", &task.to_string()))
+            .unwrap_or_else(|| {
+                FIRST_PROMPT
+                    .replace("{n}", &task.to_string())
+                    .replace("{commit}", COMMIT)
+            })
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::FIRST_PROMPT;
+    use super::{COMMIT, FIRST_PROMPT};
 
     #[test]
     fn the_first_prompt_says_how_an_attempt_ends() {
+        let prompt = FIRST_PROMPT.replace("{commit}", COMMIT);
         for text in [
-            "leave nothing uncommitted inside the task's writes",
+            "Leave nothing uncommitted inside the task's writes",
             "If nothing needs to change, commit nothing",
+            "git --literal-pathspecs commit --only -m",
+            "both names of a rename and the name of a deleted file",
+            "never delete the lock",
+            "reported as not run, never as passed",
+            "call task_brief",
         ] {
-            assert!(FIRST_PROMPT.contains(text), "{text}");
+            assert!(prompt.contains(text), "{text}");
         }
     }
 }

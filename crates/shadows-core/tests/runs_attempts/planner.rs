@@ -1,4 +1,4 @@
-//! The Planner's calls on its project's tasks: its done marks, the task they
+//! The Planner's calls on its project's tasks: its done marks, the group they
 //! name next, and its Start, refused to any grant but a Planner's. No agent
 //! runs.
 use super::*;
@@ -167,6 +167,11 @@ pub(crate) fn executor_grant(f: &Fixture) -> shadows_core::Grant {
     }
 }
 
+/// The task numbers a done mark names next.
+fn next(marked: &shadows_core::DoneMark) -> Vec<u32> {
+    marked.next.iter().map(|ready| ready.task).collect()
+}
+
 #[tokio::test]
 async fn the_planner_marks_a_task_done_and_not_done() {
     let f = fixture().await;
@@ -177,7 +182,11 @@ async fn the_planner_marks_a_task_done_and_not_done() {
         .await
         .unwrap();
     assert!(marked.task.done);
-    assert_eq!(marked.next, Some(3), "T3 never ran and needs nothing");
+    assert_eq!(
+        next(&marked),
+        [3, 5, 6],
+        "T4 meets T3; T7 waits on another plan"
+    );
     let t6 = runs.task(&f.workflow, 1, 6).await.unwrap();
     assert!(t6.start.allowed, "{:?}", t6.start);
     let unmarked = runs
@@ -185,7 +194,7 @@ async fn the_planner_marks_a_task_done_and_not_done() {
         .await
         .unwrap();
     assert!(!unmarked.task.done);
-    assert_eq!(unmarked.next, None);
+    assert!(unmarked.next.is_empty());
     let t6 = runs.task(&f.workflow, 1, 6).await.unwrap();
     assert_eq!(t6.start.code.as_deref(), Some("waiting"));
     f.finish().await;
@@ -201,7 +210,7 @@ async fn the_next_task_is_one_that_never_ran() {
         .mark_done_for(&grant, &f.workflow, 1, true)
         .await
         .unwrap();
-    assert_eq!(marked.next, Some(4), "T3 failed: it goes to the person");
+    assert_eq!(next(&marked), [4, 5, 6], "T3 failed: it goes to the person");
     runs.mark_done("mark-t4".into(), &f.workflow, 1, 4, true)
         .await
         .unwrap();
@@ -209,7 +218,7 @@ async fn the_next_task_is_one_that_never_ran() {
         .mark_done_for(&grant, &f.workflow, 1, true)
         .await
         .unwrap();
-    assert_eq!(marked.next, Some(5), "T4 is done: it never starts twice");
+    assert_eq!(next(&marked), [5, 6], "T4 is done: it never starts twice");
     f.finish().await;
 }
 

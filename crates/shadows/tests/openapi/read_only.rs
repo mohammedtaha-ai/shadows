@@ -283,8 +283,10 @@ async fn no_get_route_changes_state() {
         }
         let (status, body) = app::call(&a, "GET", &path, None).await;
         // The seeded attempt has no commit, so its file is not found; the
-        // route still must not write.
-        let not_found = template == "/api/attempts/{id}/files" && status == 404;
+        // route still must not write. It has no saved context either, so its
+        // brief is refused as not recorded.
+        let not_found = (template == "/api/attempts/{id}/files" && status == 404)
+            || (template == "/api/attempts/{id}/brief" && status == 409);
         assert!(
             (200..300).contains(&status) || not_found,
             "{path}: {status} {body}"

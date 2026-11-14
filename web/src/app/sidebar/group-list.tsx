@@ -9,6 +9,7 @@ import { NewGroupDialog } from '@/app/groups'
 import { Button } from '@/components/ui/button'
 import { useProjectEvents } from '@/stream'
 import { ErrorLine } from '../error-line'
+import { SkeletonContent } from '@/components/ui/skeleton'
 
 export function GroupList({ filter }: { filter: string }) {
   const agents = useQuery(agentsQuery)
@@ -26,6 +27,7 @@ export function GroupList({ filter }: { filter: string }) {
           disabled={live.length === 0} onClick={() => setOpen(true)}><Plus aria-hidden /></Button>
       </div>
       {groups.error && <ErrorLine error={groups.error} />}
+      {groups.isPending && groups.fetchStatus !== 'idle' && <SkeletonContent label="Loading groups…" className="px-2" />}
       {list?.map(group => (
         <Link key={group.id} to="/aylul/groups/$groupId" params={{ groupId: group.id }}
           className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-sidebar-accent aria-[current=page]:bg-sidebar-accent">

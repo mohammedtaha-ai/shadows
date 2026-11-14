@@ -1,3 +1,4 @@
+import { SkeletonContent } from '@/components/ui/skeleton'
 // Navigate outcomes without deriving completion from plan lifecycle.
 import { Link } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
@@ -21,7 +22,7 @@ export function RoadmapView({ projectId, selected }: { projectId: string; select
     </section>
     <section className="space-y-4">
       {creating && <OutcomeEditor key="create" projectId={projectId} destination={destination} onCreated={() => setCreating(false)} />}
-      {detail.isPending && selected && <p>Loading outcome…</p>}{detail.error && <ErrorLine error={detail.error} />}
+      {detail.isPending && selected && <SkeletonContent label="Loading outcome…" layout="form" />}{detail.error && <ErrorLine error={detail.error} />}
       {detail.data !== undefined && <Link to="/projects/$projectId/new" params={{ projectId }}
         search={{ anchor: `outcome:${detail.data.outcome.id}` }}
         className="inline-flex text-sm text-accent-line hover:underline">Plan from here</Link>}
@@ -33,7 +34,7 @@ export function RoadmapView({ projectId, selected }: { projectId: string; select
 }
 function OutcomeBranch({ projectId, parent, choose }: { projectId: string; parent?: string; choose: (outcome: Outcome) => void }) {
   const branch = useOutcomePages(projectId, parent)
-  return <div className="space-y-1">{branch.pending && <p>Loading outcomes…</p>}
+  return <div className="space-y-1">{branch.pending && <SkeletonContent label="Loading outcomes…" />}
     {branch.items.map(o => <OutcomeRow key={o.id} projectId={projectId} outcome={o} choose={choose} />)}
     {branch.next && <Button size="sm" variant="secondary" disabled={branch.loading} onClick={() => void branch.more()}>Load more</Button>}{branch.error && <ErrorLine error={branch.error} />}
   </div>

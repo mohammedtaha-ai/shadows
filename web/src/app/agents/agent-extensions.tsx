@@ -1,3 +1,4 @@
+import { SkeletonContent } from '@/components/ui/skeleton'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
 import { agentExtensionsQuery, setAgentExtension, saveAgentExtensionAnswer, type AgentItem, type ExtensionKind } from '@/api/extensions'
@@ -14,7 +15,7 @@ export function AgentExtensions({ slug }: { slug: string }) {
     <section role="group" aria-label="Capabilities" className="space-y-3">
       <h2 className="font-medium">Capabilities</h2>
       {state.isPending ? (
-        <p role="status">Loading capabilities…</p>
+        <SkeletonContent label="Loading capabilities…" />
       ) : state.error ? (
         <div className="space-y-3">
           <ErrorLine error={state.error} />

@@ -66,16 +66,19 @@ impl FileStamps {
     }
 }
 
-/// A name whose file holds a secret: its name is listed, its content never.
-fn secret_name(name: &str) -> bool {
-    let n = name.to_lowercase();
-    n == ".env"
-        || (n.starts_with(".env.") && !n.ends_with(".example"))
-        || [".pem", ".key", ".p12", ".pfx"]
-            .iter()
-            .any(|s| n.ends_with(s))
-        || n == "id_rsa"
-        || n == "id_ed25519"
+impl Codebase {
+    /// A name whose file holds a secret: its name is listed, its content never.
+    /// A required input is refused by the same rule.
+    pub(crate) fn secret_name(name: &str) -> bool {
+        let n = name.to_lowercase();
+        n == ".env"
+            || (n.starts_with(".env.") && !n.ends_with(".example"))
+            || [".pem", ".key", ".p12", ".pfx"]
+                .iter()
+                .any(|s| n.ends_with(s))
+            || n == "id_rsa"
+            || n == "id_ed25519"
+    }
 }
 
 /// Lists `dir` (blocking). The ignore walk decides what is ignored; the
@@ -130,7 +133,7 @@ fn listed(dir: &Path) -> Listed {
                 None
             } else if kind.is_dir() && Codebase::never_walked(&name) {
                 Some(("excluded", Some("dependencies")))
-            } else if secret_name(&name) {
+            } else if Codebase::secret_name(&name) {
                 Some(("excluded", Some("secret")))
             } else if kind.is_symlink() {
                 Some(("excluded", Some("link")))

@@ -92,6 +92,12 @@ impl Grants {
     pub async fn authorize(&self, token: &str) -> Result<Option<Grant>, GrantsError> {
         Ok(self.store.grant_for_token(token).await?)
     }
+    /// Whether `grant`, as a request authenticated it, is still the live grant
+    /// `tx` reads: a caller rechecks it after awaited work, inside its own read
+    /// or write.
+    pub async fn check_live_in(tx: &mut core_db::Tx, grant: &Grant) -> Result<(), GrantsError> {
+        store::GrantsStore::check_live_in(tx, grant).await
+    }
     /// Revokes every live thread and executor grant during startup; project grants survive.
     pub async fn revoke_thread_grants(&self) -> Result<u64, GrantsError> {
         Ok(self.store.revoke_all_thread_grants().await?)

@@ -114,9 +114,10 @@ functions:
   reads:
     tools_for:
       signature: "(kind: GrantKind) -> &'static [&'static str]"
-      # The Planner's (Thread) list holds 30 tools; only it holds project_files,
-      # project_refresh, project_git_init, task_start, task_done, task_amend and
-      # task_lessons, task_diff and task_file. code_lsp is in all three lists;
+      # The Planner's (Thread) list holds 34 tools; only it holds project_files,
+      # project_refresh, project_git_init, task_ready, task_start, task_stop, task_done,
+      # task_amend and task_lessons, task_diff and task_file. Only the executor's holds
+      # task_conflict. code_lsp is in all three lists;
       # the name index's where_is, who_uses and outline are in none.
     read_in:
       signature: "(conn, principal, agent, request) -> Result<Option<ApprovedBy>, StorageError>"
@@ -206,6 +207,11 @@ functions:
     revoke_thread_grants_in:
       signature: "(conn, thread: &ThreadId, actor: Actor, ts: &str) -> Result<(), StorageError>"
       # Every live Planner grant of the thread, inside its removal write.
+    check_live_in:
+      signature: "(tx: &mut Tx, grant: &Grant) -> Result<(), GrantsError>"
+      # The grant's row as the caller's read sees it: unknown or revoked is GrantInvalid; a
+      # kind, project, thread or task scope differing from the authenticated value is
+      # GrantScope. Runs::question calls it after its awaited code work.
     check_writer:
       signature: "(conn, writer: &Writer, project: &ProjectId) -> Result<(), GrantsError>"
       # Ok for a person. GrantInvalid for an unknown or revoked grant;
@@ -251,6 +257,7 @@ shared_in_transaction:
   bind_draft_ref: "Plans' store (plans/store/draft.rs start_draft): the draft_ref is bound to the version the same transaction creates, so a refused ref leaves no plan or version behind"
   revoke_project_grants_in: "Projects' store (projects/store.rs ProjectsStore::remove): a removed project's live grants are revoked in the removal's own write, so its token stops with it (§4.2)"
   revoke_thread_grants_in: "Threads' store (threads/store/remove.rs remove_thread): every live Planner grant is revoked in the same write that marks the thread removed (§16.5)"
+  check_live_in: "(tx, grant) -> Result<(), GrantsError>; Runs' store (runs/store/mod.rs task question read, runs/store/conflict.rs conflict write): the grant a request authenticated is rechecked after awaited work inside the caller's read or write; unknown or revoked is GrantInvalid, a stored kind, project, thread or task scope that differs is GrantScope"
 
 
 called_by_other_services:
@@ -492,7 +499,10 @@ tests:
       unbound, with no plan or thread created; a replay after expiry answers
       the first.
 
-# Both tools_for allowlists include task_context, a read with no execution authority.
-# The executor allowlist is task_context, code_lsp and task_report
-# (Runs::report, which accepts the executor's own commit only inside the task's writes); startup and
+# The Thread and Project allowlists include task_context, a read with no execution authority.
+# The executor allowlist is task_brief (Runs::brief_for, the context saved for its own attempt;
+# never a fresh task_context), task_question (Runs::question, its own running attempt only), code_lsp
+# task_report
+# (Runs::report, which accepts the executor's own commit only inside the task's writes) and
+# task_conflict (Runs::conflict_for, its own attempt's contract conflict only); startup and
 # thread removal revoke executor grants with the thread ones (executor_session tests).

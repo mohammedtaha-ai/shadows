@@ -8,6 +8,7 @@ import { act } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { Answer } from '@/test/test-app'
 import { threadsQuery } from '@/api/threads'
+import { projectsQuery } from '@/api/projects'
 import { projectFixture, threadFixture } from '@/test/contract-fixtures'
 import { answers } from '@/test/fake-daemon'
 import { type TestApp, startApp, until } from '@/test/test-app'
@@ -48,6 +49,51 @@ afterEach(() => {
 })
 
 describe('the project tree', () => {
+  it('shows project skeletons until the first answer, then replaces them with projects', async () => {
+    let answer!: (response: Response) => void
+    const pending = new Promise<Response>(resolve => { answer = resolve })
+    const a = app = await startApp('/', { ...answers(), 'GET /api/projects': () => pending })
+    const loading = () => a.container.querySelector('[role="status"][aria-label="Loading projects…"]')
+    try {
+      await until(() => loading() !== null)
+      expect(loading()?.querySelector('[data-slot="skeleton"]')).not.toBeNull()
+      expect(a.text()).not.toContain('Create your first project')
+    } finally {
+      await act(async () => { answer(Response.json([projectFixture])) })
+    }
+    await until(() => a.container.querySelector('h2')?.textContent === 'Demo')
+    expect(loading()).toBeNull()
+  })
+
+  it('keeps the project cards visible during a background refresh', async () => {
+    let answer!: (response: Response) => void
+    const pending = new Promise<Response>(resolve => { answer = resolve })
+    let refreshing = false
+    const a = app = await startApp('/', { ...answers(),
+      'GET /api/projects': () => refreshing ? pending : Response.json([projectFixture]),
+    })
+    await until(() => a.container.querySelector('h2')?.textContent === 'Demo')
+    refreshing = true
+    act(() => { void a.queryClient.invalidateQueries({ queryKey: projectsQuery.queryKey, exact: true }) })
+    try {
+      await until(() => a.calls.filter(call => call === 'GET /api/projects').length === 2)
+      expect(a.container.querySelector('h2')?.textContent).toBe('Demo')
+      expect(a.container.querySelector('[aria-label="Loading projects…"]')).toBeNull()
+    } finally {
+      await act(async () => { answer(Response.json([])) })
+    }
+    await until(() => a.text().includes('Create your first project'))
+  })
+
+  it('replaces project skeletons with the daemon failure and retry control', async () => {
+    const a = app = await startApp('/', { ...answers(), 'GET /api/projects': () =>
+      Response.json({ code: 'unavailable', message: 'Daemon unavailable' }, { status: 503 }),
+    })
+    await until(() => a.button('Try again') !== undefined)
+    expect(a.container.querySelector('[aria-label="Loading projects…"]')).toBeNull()
+    expect(a.container.querySelector('[aria-label="Loading project list…"]')).toBeNull()
+  })
+
   it('folds each project on its own, keeps the conversation, and remembers across a reload', async () => {
     const a = (app = await startApp('/projects/p1/threads/t1', twoProjects()))
     // The URL's project opens by itself; the other stays folded.

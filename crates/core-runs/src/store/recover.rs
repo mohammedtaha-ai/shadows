@@ -10,7 +10,8 @@ impl RunsStore {
     /// none came. Every other attempt still holding its scope releases it,
     /// because no session of an earlier daemon is left to write, except a
     /// committed one: it keeps its scope while it waits for the Planner's
-    /// judgment. Answers how many were interrupted.
+    /// judgment. A contract conflict and its saved notice stay as they are.
+    /// Answers how many were interrupted.
     pub async fn settle_running(&self) -> Result<u32, RunsError> {
         let ts = Storage::now();
         self.storage

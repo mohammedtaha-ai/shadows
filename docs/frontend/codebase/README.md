@@ -10,6 +10,9 @@ listed under Contracts has no `contract.yaml`. The map is checked on every
 `npm test`, so it cannot go stale quietly. Paths in "What each file owns" are relative
 to the repository root; paths in "Architecture modules" are relative to `web/src`.
 
+The static `web/index.html` startup region shows an accessible, unanimated skeleton
+until React mounts; it requires no JavaScript, API access or additional asset download.
+
 ## Architecture Invariants
 
 What the code keeps true. Each one was checked by reading the code that enforces it.
@@ -235,6 +238,7 @@ it is that folder's `contract.yaml`.
 | `web/src/app/conversation/activity-text.ts` | Words a tool group with its steps | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/tool-group.tsx` | A run of tool calls drawn as one line | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/tool-diff.tsx` | An edit's hunks drawn with line numbers | `web/src/app/conversation/contract.yaml` |
+| `web/src/app/conversation/conflict-notice.tsx` | An executor's contract conflict copied into its notice, linked to the attempt's Report | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/notice-item.tsx` | A notice from an executor or Shadows drawn as an activity item | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/turn-blocks.ts` | Groups a turn's activity rows into boxes, split at the Planner's text | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/turn-box.tsx` | One run of a turn's activity as a collapsible box | `web/src/app/conversation/contract.yaml` |
@@ -378,6 +382,8 @@ it is that folder's `contract.yaml`.
 | `web/src/app/tasks/run-tab.tsx` | The latest attempt's executor thread | `web/src/app/tasks/contract.yaml` |
 | `web/src/app/tasks/diff-tab.tsx` | The Diff tab: the open file above, the changed files below | `web/src/app/tasks/contract.yaml` |
 | `web/src/app/tasks/file-view.tsx` | One file at the attempt's commit with its changes marked | `web/src/app/tasks/contract.yaml` |
+| `web/src/app/tasks/brief-panel.tsx` | One attempt's saved context from its original plan version | `web/src/app/tasks/contract.yaml` |
+| `web/src/app/tasks/conflict-panel.tsx` | One attempt's reported contract conflict, as Core states it now | `web/src/app/tasks/contract.yaml` |
 | `web/src/app/tasks/report-tab.tsx` | Each attempt: state, model, addition, times, commit, report, reason | `web/src/app/tasks/contract.yaml` |
 | `web/src/app/tasks/use-task-run.ts` | A task's run state kept current | `web/src/app/tasks/contract.yaml` |
 | `web/src/app/tasks/task-page.test.tsx` | Task page interaction checks | `web/src/app/tasks/contract.yaml` |
@@ -406,6 +412,7 @@ it is that folder's `contract.yaml`.
 | `web/src/components/ui/dialog.tsx` | Modal dialog built on Base UI's Dialog | `web/src/components/ui/button.tsx` |
 | `web/src/components/ui/dropdown-menu.tsx` | Dropdown menu built on Base UI's Menu | `web/src/components/ui/button.tsx` |
 | `web/src/components/ui/input.tsx` | Text input styled for the app | `web/src/components/ui/button.tsx` |
+| `web/src/components/ui/skeleton.tsx` | Accessible content loading placeholders | `-` |
 | `web/src/components/ui/panel.tsx` | Surface box styled by its tone | `-` |
 | `web/src/components/ui/planned.tsx` | Marker around a block with no backend yet | `-` |
 | `web/src/components/ui/popover.tsx` | Popover built on Base UI's Popover | `web/src/components/ui/button.tsx` |

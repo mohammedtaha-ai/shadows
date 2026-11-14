@@ -291,8 +291,18 @@ shapes:
   ContractTarget:
     # serde tag "kind", snake_case.
     Local: "{ task: u32 }"
+  ContractSelector:
+    # serde tag "kind", snake_case; Own is the default.
+    Own: "{}"
+    Symbol: "{ symbol_id }"
+    Output: "{ output_id }"
+    Use: "{ source: ContractSource }"
+  ConsumerRef: "{ task: u32, title, output: Option<String>, use_index: u32, purpose }: a planned use in the same version, never a source location"
+  ContractFacts: "{ selector, contract: Option<TaskContract>, resolved: [ResolvedContract], producers: [ContractTarget], consumers: [ConsumerRef], next: Option<u32> }; serialized only, by Runs' task answer"
   ResolvedContract:
-    # Only task_context serializes it; the consumer never stores it.
+    # task_context serializes it, and an attempt's saved brief keeps it as given; the consumer's
+    # task never stores it. It carries its own OpenAPI schema, so TaskContext.contracts is
+    # typed in the API document.
     reference: ContractSource
     producer_title: Option<String>
     symbol: Option<SymbolWork>
@@ -390,6 +400,9 @@ shapes:
 
 
 functions:
+  execution_plan: "(&self, workflow, version) -> Result<ExecutionPlan, PlansError>; execution_plan_in in a read snapshot of its own."
+  contract_facts: "(&self, workflow, task, selector: ContractSelector, after: Option<u32>, limit: u16) -> Result<ContractFacts, PlansError>; one read of the version, which must be Frozen (else NotFound; an archived or superseded Frozen version still answers, for its running attempts). limit outside 1..=50, an unknown task's selector symbol/output, a use the task does not declare, a symbol/output/use selector on a task with no contract, or after past the consumer count is InvalidCommand. own answers the whole contract, every resolved use and the distinct producers of its task uses; symbol answers that symbol, its declared file and the outputs naming it; output answers that output, its symbol and its symbol's or artifact's file; use answers contract null, that use's resolved entry and its producer (none for an existing source). consumers are ContractRules::consumers of the selection (the own task's outputs as Task { Local { task }, output } sources, or the use's exact source), one page from after, next = the following offset or null. No other version or plan, no source code. Runs::question and Runs::brief call it."
+  version_in: "private: (conn, workflow) -> Plan; load_plan and LinkedRows in the caller's snapshot, the one loader of execution_plan_in."
   new: Constructs Plans with its declared Design, Grants and Operations dependencies.
   from_recorded: Reconstructs plan, workflow and task identities retained by other services.
   event_projection:
@@ -428,6 +441,9 @@ functions:
     task_context:
       signature: "(&self, grant: &Grant, workflow: Option<&WorkflowId>, task: u32, phase: Option<&PhaseId>) -> Result<TaskContext, PlansError>"
       rule: Same-project live grant, explicitly named Frozen version, task/layout/standards/part associations read in one snapshot, and the resolved contract of each output the task uses; grants nothing and writes nothing. An executor grant reads exactly its scope's workflow, version and task, else OutsideGrant; when it names no workflow, its scope's is read (an_executor_grant_reads_only_its_own_task).
+    task_context_in:
+      signature: "(tx: &mut Tx, project: &ProjectId, workflow: &WorkflowId, task: u32, phase: Option<&PhaseId>) -> Result<TaskContext, PlansError>"
+      rule: The one assembly of a task's context as the caller's transaction sees it; task_context calls it after its grant checks, and Runs calls it inside an attempt's admitting write to save that attempt's brief. The version must be Frozen and in the project; it checks no grant and writes nothing.
     task_for:
       signature: "(&self, grant: &Grant, named: Option<&WorkflowId>, number: u32) -> Result<PlanTask, PlansError>"
       # INVALID_COMMAND "T{n} does not exist in this plan" when the number is absent.
@@ -570,6 +586,12 @@ functions:
       # not exist"; "T{n} uses the output `{o}`, which T{p} does not produce";
       # "T{n} uses T{p}'s output `{o}` without a link to T{p}; add a needs
       # link". A use adds no edge: the plan's own link carries order and cycles.
+    consumers:
+      signature: "(content: &PlanContent, task: u32, sources: &[ContractSource]) -> Vec<ConsumerRef>"
+      private: true
+      # On `ContractRules`, in contract_uses.rs; every other task's use whose source equals one
+      # of `sources` exactly, by task then use index; output is the Task source's output, null
+      # for an Existing source. Never matched by name.
     resolved:
       signature: "(content: &PlanContent, task: u32) -> Vec<ResolvedContract>"
       private: true
@@ -591,6 +613,7 @@ enums:
 
 shared_in_transaction:
   task_context: Reads approved task context in one owner snapshot after live grant checks.
+  task_context_in: Assembles approved task context inside the caller's transaction; Runs saves it with an attempt.
   links_of: Private store entry used within the owner transaction.
   notify_plan: Private store entry used within the owner transaction.
   preview: Private store entry used within the owner transaction.
@@ -601,6 +624,8 @@ shared_in_transaction:
   write_content: Private store entry used within the owner transaction.
   project_event_payload_in: Events projects plan identifiers in its journal read snapshot.
   workflow_in_project_in: "(conn, workflow, project) -> Result<bool, StorageError>; Turns reads focus membership in its snapshot."
+  execution_plan_in: "(tx, workflow, version) -> Result<ExecutionPlan, PlansError>; Runs' Start preflight snapshot and its admission write, and an addition's write: the version with its linked tasks (version_in), another version number NotFound, and its refusal checked Archived, then NotFrozen, then Superseded (any next version, Draft or Frozen)."
+  version_in: "(conn, workflow) -> Result<Plan, PlansError>; Plans' own execution_plan_in: the workflow's version with its linked tasks, read inside the caller's transaction"
   apply_design_links_in: Owner entry in the caller transaction; design links rules.
   anchor_plans_in: Owner entry in the caller transaction; design links rules.
   outcomes_with_plans_in: "Plans' own roadmap approval write: the outcomes a plan links to, which Design's removal refuses."
@@ -1103,8 +1128,10 @@ modules:
   store/phase_projection.rs: Pinned foreign-phase previews
   phases.rs: Ordered phase contracts
   task_context.rs: Approved task context boundary
+  execution.rs: whether a plan version may start work now
   task_contract.rs: task contract types with their one-task rules
-  contract_uses.rs: resolving a consumer's uses against its plan version's producers
+  contract_uses.rs: resolving the uses of one plan version, from either end
+  contract_questions.rs: what one task's contract promises within its Frozen version
   store/task_context.rs: Snapshot task context assembly
   store/event_projection.rs: identifier-only plan event projection
   agreement_review.rs: Values returned by a shared agreement impact review

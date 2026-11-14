@@ -3,7 +3,8 @@
 // create a new one there.
 
 import { useQuery } from '@tanstack/react-query'
-import { CornerLeftUp, Folder, HardDrive, LoaderCircle } from 'lucide-react'
+import { CornerLeftUp, Folder, HardDrive } from 'lucide-react'
+import { SkeletonContent } from '@/components/ui/skeleton'
 import type { Dispatch, ReactNode } from 'react'
 import { dirsQuery } from '@/api/directories'
 import { ErrorLine } from '../error-line'
@@ -42,9 +43,8 @@ export function FolderBrowser({
           </Row>
         )}
         {listing.status === 'pending' && (
-          <li className="flex items-center gap-2 px-3 py-1.5 text-xs text-faint-foreground">
-            <LoaderCircle className="size-3.5 animate-spin motion-reduce:animate-none" />
-            Reading…
+          <li className="px-3 py-1.5">
+            <SkeletonContent label="Reading folders…" />
           </li>
         )}
         {listing.status === 'error' && (

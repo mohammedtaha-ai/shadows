@@ -18,7 +18,8 @@ impl Runs {
     /// on the checked-out branch, new since Start, change only paths inside
     /// `writes`, change at least one file, bring no binary file (unless its
     /// plan is the setup plan), and leave nothing uncommitted inside `writes`.
-    /// One accepted report per attempt.
+    /// One accepted report per attempt, and none after its contract conflict:
+    /// the record's write decides which of the two came first.
     pub async fn report(
         &self,
         grant: &Grant,
@@ -40,12 +41,21 @@ impl Runs {
             .record_report(&attempt.id, &sha, report.trim())
             .await?
         {
-            // A Stop or another report moved it first.
-            return Self::still_running(&self.inner.store.get(&attempt.id).await?)
-                .and(Err(RunsError::NotFound));
+            // A conflict, a Stop or another report moved it first.
+            let now = self.inner.store.get(&attempt.id).await?;
+            self.no_conflict(&now).await?;
+            return Self::still_running(&now).and(Err(RunsError::NotFound));
         }
         tracing::info!(attempt = %attempt.id, commit = %sha, "runs.reported");
         self.inner.store.get(&attempt.id).await
+    }
+
+    /// An attempt that accepted a contract conflict takes no report.
+    async fn no_conflict(&self, attempt: &Attempt) -> Result<(), RunsError> {
+        match self.inner.store.conflict(&attempt.id).await? {
+            Some(_) => Err(RunsError::ContractConflict),
+            None => Ok(()),
+        }
     }
 
     /// Only a `Running` attempt takes a report; a `Committed` one already did.

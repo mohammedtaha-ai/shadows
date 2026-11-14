@@ -10,7 +10,7 @@ use rmcp::{
 };
 use serde::Deserialize;
 use serde_json::json;
-use shadows_core::{Grant, WorkflowId};
+use shadows_core::{AttemptId, ConflictInput, Grant, TaskQuestion, WorkflowId};
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 struct TaskReportArgs {
@@ -42,6 +42,22 @@ struct TaskDoneArgs {
     task_number: u32,
     /// true to mark the task done, false to take the mark back.
     done: bool,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+struct TaskReadyArgs {
+    /// The approved plan version.
+    #[schemars(with = "String")]
+    workflow_id: WorkflowId,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+struct TaskStopArgs {
+    /// The idempotency key: the same key and attempt answer the first Stop.
+    command_id: String,
+    /// The attempt to stop, as a conflict notice or task_start named it.
+    #[schemars(with = "String")]
+    attempt_id: AttemptId,
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
@@ -135,6 +151,52 @@ impl Shadows {
     }
 
     #[tool(
+        description = "Read your attempt's brief before you work: the approved task, the \
+                       contracts it uses, the parts and owners of its paths, and the map and \
+                       standards versions, as Shadows saved them when this attempt began. It \
+                       does not change when the project's map or standards change later. An \
+                       attempt begun before briefs were saved answers context_not_recorded."
+    )]
+    async fn task_brief(&self, Extension(grant): Extension<Grant>) -> CallToolResult {
+        answer(
+            self.core
+                .runs()
+                .brief_for(&grant)
+                .await
+                .map_err(Refusal::from),
+        )
+    }
+
+    #[tool(
+        description = "Ask about your own task's contract while your attempt runs. selector \
+                       picks the whole task (own), one symbol (symbol_id), one output \
+                       (output_id) or one source your task uses (use). planning answers \
+                       what this_frozen_version of the plan promises: the selected contract, \
+                       its producers and the planned consumers of its outputs, a page at a \
+                       time (after, limit 1 to 50, next). A planned consumer is a task that \
+                       plans to use it, not code that calls it; tasks of other versions or \
+                       plans are not listed, so an empty list is not proof that nothing uses \
+                       it. producer_status says whether each producer is marked done and its \
+                       latest commit now. code asks the project's language server as code_lsp \
+                       does, inside or outside your task's reads; code_error says the server \
+                       could not answer, which is never evidence that a symbol is absent. A \
+                       too large answer is question_too_large: ask a narrower selector."
+    )]
+    async fn task_question(
+        &self,
+        Extension(grant): Extension<Grant>,
+        Parameters(question): Parameters<TaskQuestion>,
+    ) -> CallToolResult {
+        answer(
+            self.core
+                .runs()
+                .question(&grant, question)
+                .await
+                .map_err(Refusal::from),
+        )
+    }
+
+    #[tool(
         description = "Report your task's work after you committed it yourself with git. \
                        Shadows accepts the commit only if it is on the checked-out branch, \
                        made after your task started, changes only paths inside your task's \
@@ -152,6 +214,30 @@ impl Shadows {
                 .report(&grant, &args.commit, args.report)
                 .await
                 .map(|a| json!({ "attempt": a.id, "state": a.state, "commit": a.commit }))
+                .map_err(Refusal::from),
+        )
+    }
+
+    #[tool(
+        description = "Report that your task cannot be built as its contract or instructions \
+                       say: expected is what they promise, observed what you found instead, \
+                       and evidence 1 to 10 places (a project path, an optional line and a \
+                       summary each). Ask task_question first; a missing symbol in an empty \
+                       answer is not proof. Shadows records it on your attempt and tells the \
+                       Planner. Then stop editing and end your turn at once: do not commit, do \
+                       not call task_report, and leave your uncommitted files as they are. One \
+                       conflict per attempt; the same command_id repeats the first answer."
+    )]
+    async fn task_conflict(
+        &self,
+        Extension(grant): Extension<Grant>,
+        Parameters(input): Parameters<ConflictInput>,
+    ) -> CallToolResult {
+        answer(
+            self.core
+                .runs()
+                .conflict_for(&grant, input)
+                .await
                 .map_err(Refusal::from),
         )
     }
@@ -177,10 +263,33 @@ impl Shadows {
     }
 
     #[tool(
+        description = "List the tasks of an approved plan version you may start together now: \
+                       each never ran, is not done, has its needs done, and its writes meet \
+                       no running or unjudged task nor another task of the list, in task \
+                       order with its suggested model. It reserves nothing: each task_start \
+                       checks again, and a refused one is reported, not retried from this \
+                       list; ask task_ready again for what is ready now. A version that cannot \
+                       start work is refused with its reason."
+    )]
+    async fn task_ready(
+        &self,
+        Extension(grant): Extension<Grant>,
+        Parameters(args): Parameters<TaskReadyArgs>,
+    ) -> CallToolResult {
+        answer(
+            self.core
+                .runs()
+                .ready_for(&grant, &args.workflow_id)
+                .await
+                .map_err(Refusal::from),
+        )
+    }
+
+    #[tool(
         description = "Start an executor on one task of an approved plan version: one the \
-                       person asked you to run, or the task task_done named as next. Shadows \
-                       checks the task as the Start \
-                       button does (an approved version, its needs links done, a git folder, \
+                       person asked you to run, or a task of the group task_ready or task_done \
+                       named. Shadows checks the task again as the Start button does (an approved \
+                       version, its needs links done, a git folder, \
                        no overlapping task running) and answers the attempt, or the refusal \
                        with its code. The executor works on its own; Shadows tells you in \
                        this conversation when its attempt ends."
@@ -200,12 +309,35 @@ impl Shadows {
     }
 
     #[tool(
+        description = "Stop one executor's attempt of this project's plans, by its attempt id, \
+                       and answer the attempt once its end is confirmed. Use it on the attempt \
+                       of a contract conflict that has not ended, and on any other attempt the \
+                       conflict affects; leave independent work running. A session that could \
+                       not be terminated is refused and keeps its files' scope held. The same \
+                       command_id answers the first Stop."
+    )]
+    async fn task_stop(
+        &self,
+        Extension(grant): Extension<Grant>,
+        Parameters(args): Parameters<TaskStopArgs>,
+    ) -> CallToolResult {
+        answer(
+            self.core
+                .runs()
+                .stop_for(&grant, args.command_id, &args.attempt_id)
+                .await
+                .map_err(Refusal::from),
+        )
+    }
+
+    #[tool(
         description = "Mark a task done (done true) only after you judged its committed work \
                        against every acceptance item, or not done (done false) to take a mark \
                        back. A done task frees the tasks whose needs links wait for it. With \
-                       done true it answers next: the lowest-numbered task of this version \
-                       that has never run and can start now, or null; start it with \
-                       task_start. Marking it done also closes the executor's session."
+                       done true it answers next: the group task_ready would answer, as a \
+                       list (empty when nothing can start, or when this version has a newer \
+                       one); start each with task_start. Marking it done also closes the \
+                       executor's session."
     )]
     async fn task_done(
         &self,

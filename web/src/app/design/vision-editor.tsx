@@ -1,3 +1,4 @@
+import { SkeletonContent } from '@/components/ui/skeleton'
 import { Link } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
@@ -28,7 +29,7 @@ export function VisionEditor({projectId}: {projectId:string}) {
       <ul>{[...counts].map(([threadId,count]) => <li key={threadId}><Link to="/projects/$projectId/threads/$threadId" params={{projectId,threadId}}><bdi>{titles.get(threadId) ?? 'a conversation'}</bdi> · {count} pending</Link></li>)}</ul>
     </aside>}
     {proposals.error !== null && <ErrorLine error={proposals.error} />}
-    {vision.isPending && <p>Loading vision…</p>}
+    {vision.isPending && <SkeletonContent label="Loading vision…" layout="detail" />}
     {vision.error !== null && <ErrorLine error={vision.error} />}
     {vision.data !== undefined && <Editor key={projectId} projectId={projectId} saved={vision.data} titles={titles} />}
   </section>

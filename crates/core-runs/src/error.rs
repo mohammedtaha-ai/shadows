@@ -20,6 +20,10 @@ pub enum RunsError {
     NotGit,
     #[error("uncommitted changes inside the task's writes: {}", paths.join(", "))]
     DirtyScope { paths: Vec<String> },
+    #[error("the task's required files do not exist: {}", paths.join(", "))]
+    MissingInput { paths: Vec<String> },
+    #[error("the task's required files cannot be checked: {0}")]
+    InputUnavailable(String),
     #[error("this attempt already reported its commit")]
     AlreadyCommitted,
     #[error(
@@ -80,12 +84,38 @@ pub enum RunsError {
     EmptyLesson,
     #[error("the command id was used for another request")]
     CommandConflict,
+    #[error(
+        "this attempt began before Shadows saved the context each attempt receives; its \
+         context was not recorded and is not reconstructed"
+    )]
+    ContextNotRecorded,
+    #[error("the question is not valid: {0}")]
+    InvalidQuestion(String),
+    #[error(
+        "the answer would be larger than 64 KiB; ask about one symbol, output or use, or a \
+         smaller page of consumers"
+    )]
+    QuestionTooLarge,
+    #[error("the conflict is not valid: {0}")]
+    InvalidConflict(String),
+    #[error(
+        "this attempt already reported a contract conflict; stop work and end your turn, \
+         the Planner decides what happens next"
+    )]
+    ContractConflict,
     #[error("not found")]
     NotFound,
     #[error("the task's writes are not valid patterns: {0}")]
     BadScope(String),
     #[error("{0}")]
     Unavailable(String),
+    /// The grant's own refusal, which adapters translate as Grants' error.
+    #[error(transparent)]
+    Grants(#[from] core_grants::GrantsError),
+    /// The code service's own refusal (a path, grant or project outside
+    /// reach), which adapters translate as Codebase's error.
+    #[error(transparent)]
+    Code(#[from] codebase::CodebaseError),
     #[error(transparent)]
     Storage(#[from] StorageError),
 }
@@ -102,6 +132,8 @@ impl RunsError {
             Self::Overlap { .. } => "overlap",
             Self::NotGit => "not_git",
             Self::DirtyScope { .. } => "dirty_scope",
+            Self::MissingInput { .. } => "missing_input",
+            Self::InputUnavailable(_) => "input_unavailable",
             Self::AlreadyCommitted => "already_committed",
             Self::UnknownCommit { .. } => "unknown_commit",
             Self::NotOnBranch { .. } => "not_on_branch",
@@ -119,9 +151,16 @@ impl RunsError {
             Self::NoLesson { .. } => "no_lesson",
             Self::EmptyLesson => "empty_lesson",
             Self::CommandConflict => "command_conflict",
+            Self::ContextNotRecorded => "context_not_recorded",
+            Self::InvalidQuestion(_) => "invalid_question",
+            Self::QuestionTooLarge => "question_too_large",
+            Self::InvalidConflict(_) => "invalid_conflict",
+            Self::ContractConflict => "contract_conflict",
             Self::NotFound => "not_found",
             Self::BadScope(_) => "bad_scope",
             Self::Unavailable(_) => "unavailable",
+            Self::Grants(_) => "grant",
+            Self::Code(_) => "code",
             Self::Storage(_) => "storage",
         }
     }
@@ -139,8 +178,19 @@ impl RunsError {
                 | Self::Overlap { .. }
                 | Self::NotGit
                 | Self::DirtyScope { .. }
+                | Self::MissingInput { .. }
+                | Self::InputUnavailable(_)
                 | Self::BadScope(_)
         )
+    }
+
+    /// A plan read that failed: an unknown version is not found, anything else
+    /// is unavailable.
+    pub(crate) fn from_plans(error: core_plans::PlansError) -> Self {
+        match error {
+            core_plans::PlansError::Storage(StorageError::NotFound(_)) => Self::NotFound,
+            other => Self::Unavailable(other.to_string()),
+        }
     }
 
     /// `T1, plan … T2`: the tasks a refusal names, as a person reads them.
@@ -150,6 +200,16 @@ impl RunsError {
             .map(TaskParent::to_string)
             .collect::<Vec<_>>()
             .join(", ")
+    }
+}
+
+impl From<core_plans::ExecutionRefusal> for RunsError {
+    fn from(refusal: core_plans::ExecutionRefusal) -> Self {
+        match refusal {
+            core_plans::ExecutionRefusal::Archived => Self::Archived,
+            core_plans::ExecutionRefusal::NotFrozen => Self::NotFrozen,
+            core_plans::ExecutionRefusal::Superseded => Self::Superseded,
+        }
     }
 }
 

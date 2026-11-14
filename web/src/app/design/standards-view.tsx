@@ -1,3 +1,4 @@
+import { SkeletonContent } from '@/components/ui/skeleton'
 // Only project additions are editable; the base standards remain read-only.
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
@@ -26,7 +27,7 @@ export function StandardsView({ projectId }: { projectId: string }) {
   const saved = useQuery(standardsQuery(projectId))
   return <section className="space-y-5">
     <h2 className="text-lg font-medium">Standards</h2>
-    {saved.isPending && <p>Loading standards…</p>}
+    {saved.isPending && <SkeletonContent label="Loading standards…" layout="form" />}
     {saved.error !== null && <ErrorLine error={saved.error} />}
     {saved.data !== undefined && <>
       <section className="space-y-2">

@@ -6,11 +6,12 @@ import type { PlanListing } from '@/api/workflows'
 import { plansQuery } from '@/api/workflows'
 import { useProjectEvents } from '@/stream'
 import { ErrorLine } from '../error-line'
+import { SkeletonContent } from '@/components/ui/skeleton'
 import { stateLabel } from '@/app/workflows/plan-state'
 
 export function WorkflowList({ projectId, selected }: { projectId: string; selected?: string }) {
   useProjectEvents(projectId)
-  const { data: plans, error } = useQuery(plansQuery(projectId, true))
+  const { data: plans, error, isPending } = useQuery(plansQuery(projectId, true))
   const [showArchived, setShowArchived] = useState(false)
 
   const activePlans = plans?.filter((p) => p.plan_state === 'Active') ?? []
@@ -30,6 +31,7 @@ export function WorkflowList({ projectId, selected }: { projectId: string; selec
           <ErrorLine error={error} />
         </div>
       )}
+      {isPending && <SkeletonContent label="Loading workflows…" className="px-2" />}
       {plans !== undefined && plans.length === 0 && (
         <p className="px-2 py-1 text-xs text-faint-foreground">
           No plans yet. Ask the Planner for a plan in a conversation.

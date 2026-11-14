@@ -1,3 +1,4 @@
+import { SkeletonContent } from '@/components/ui/skeleton'
 // Defer thread creation until Send so an abandoned draft leaves nothing on the daemon.
 
 import { useQuery } from '@tanstack/react-query'
@@ -36,7 +37,7 @@ export function AgentDraftRoute() {
   const providers = useQuery(providersQuery)
   const error = workspace.error ?? providers.error
   if (error) return <ErrorLine error={error} />
-  if (workspace.data === undefined || providers.data === undefined) return <p className="p-8">Loading agent…</p>
+  if (workspace.data === undefined || providers.data === undefined) return <SkeletonContent label="Loading agent…" layout="conversation" className="p-8" />
   const agent = workspace.data.agents.find(a => a.slug === slug)
   const provider = providers.data.find(p => p.slug === agent?.provider)
   if (agent === undefined || provider === undefined) return <p className="p-8">Agent not found.</p>

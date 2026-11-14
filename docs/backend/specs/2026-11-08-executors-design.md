@@ -256,8 +256,14 @@ any case), the title the Planner is told to give it: no new field marks it.
   first release, except the retries in §5.
 - **Each executor commits its own files** with `git commit`, on the folder's current branch, and
   reports that commit to Shadows, which checks it and records it (§7, amended 2026-11-09).
-  Disjoint `writes` keep two executors' commits apart; Shadows writes no commit and keeps no
-  commit queue.
+  Disjoint writes separate file ownership, but the Git index is shared. The 2026-11-14
+  revision uses native `--only` with exact literal paths (§7) to exclude other staged
+  changes; Shadows writes no commit and keeps no custom index or commit queue.
+- Shared build directories, ports and test databases are not isolated by write scopes.
+  The Planner assigns shared-check ownership/order in task instructions; isolated checks
+  may run together, while shared project builds/tests are coordinated serially. An
+  uncoordinated check is reported as not run, never passed. Slice 4 supplies instruction
+  coordination; enforced verification slots remain in slice 5.
 - A test failing because of another running or unstarted task's code is reported as pending
   on that task (D4). The critic does not count it as a failure of this task.
 
@@ -311,9 +317,13 @@ exactly what it did; Shadows checks and records.** This replaces `task_commit`, 
 index, its commit queue and its trailer.
 
 - **The executor commits.** It removes its strays first, stages only its own files inside
-  `writes`, by name, never a binary or an installer, and runs `git commit` with its own message
-  on the branch that is checked out. Every other change in the folder, the person's included,
-  stays where it is.
+  `writes`, by exact name, never a binary or an installer. Amended 2026-11-14: stage new
+  paths first, then run `git --literal-pathspecs commit --only -m "<message>" -- <own exact paths>`
+  on the checked-out branch. Include both rename ends and deleted paths, not a broad
+  writes glob or `.`. Other staged/worktree changes, the person's included, stay intact.
+  Native Git lock contention retries only the same command, at most three times after
+  1/2/4 seconds; never delete another operation's lock. Remaining failure is reported.
+  The instruction change and real-Git procedure tests belong to slice 4's B-148.
 - **It reports.** It calls `task_report { commit, report }`: the commit's SHA and an honest
   account of what it did, what it ran or tested, and what passed or failed. The executor's
   instructions and its first prompt say this plainly.
@@ -449,13 +459,17 @@ this spec; each is marked as the controller's, not his.
    page then starts on the Planner thread's model. Mohammed's choice is recorded on each attempt
    and remembered per task for the next Start; it never changes the plan version.
 
-**When the plan is wrong (Mohammed, 2026-11-08).** The Planner edits only the task or tasks the
-problem touches; it does not rewrite the plan. The edit is still the next version (v2 = v1 with
-those tasks changed), so history and approval work as today, and Mohammed sees only the changed
-tasks marked. Because one task's change may touch others, **every task of that plan stops** the
-moment the Planner starts the Draft: running attempts are stopped and confirmed ended, and no task
-of the plan may start. Committed work stays. After Mohammed approves the new version, the plan's
-tasks are ready again under it and he starts them; nothing restarts on its own.
+**When the plan is wrong (Mohammed, 2026-11-08; amended 2026-11-14).** The Planner edits only
+the tasks the problem touches. A correction is still a new version, preserving history and
+normal approval. A contract problem stops its own attempt and notifies the Planner; other
+attempts continue. The Planner assesses which tasks are affected and explicitly stops those
+attempts. Creating the corrective Draft does not itself stop every attempt of the plan.
+Unaffected running attempts retain their original Frozen contract and are judged against it;
+their attempts and done marks are not automatically transferred to the replacement version.
+A newer Draft still blocks new Starts on the old version, and work on the corrected version
+requires its normal approval. The proposed slice 4 operations are described in
+[task questions and parallel work](2026-11-14-task-questions-design.md), approved 2026-11-14.
+This ruling replaces the earlier automatic whole-plan stop.
 
 ## 13. Documents this changed on approval
 

@@ -63,7 +63,8 @@ pub use core_plans::{
     VersionLine, WorkflowId, WorkflowState, WrittenBy,
 };
 pub use core_plans::{
-    ContractSource, ContractTarget, ContractUse, ProducedOutput, ResolvedContract,
+    ConsumerRef, ContractFacts, ContractSelector, ContractSource, ContractTarget, ContractUse,
+    ProducedOutput, ResolvedContract,
 };
 pub use core_projects::{
     DirectoryEntry, DirectoryError, DirectoryListing, Project, ProjectId, Projects,
@@ -141,4 +142,7 @@ pub use core_plans::{LinkedPhase, PhaseEndpoint};
 pub use core_plans::{Phase, PhaseId, PhaseInput, PhaseRef};
 
 pub use core_runs::{Attempt, AttemptId, AttemptState, RecoverReport, Runs, RunsError, TaskRun};
-pub use core_runs::{AttemptFile, AttemptNotice, FileDiff, Need, StartAnswer};
+pub use core_runs::{AttemptBrief, StartAnswer};
+pub use core_runs::{AttemptFile, AttemptNotice, DoneMark, FileDiff, Need, ReadyGroup, ReadyTask};
+pub use core_runs::{ConflictDelivery, ConflictEvidence, ConflictInput, TaskConflict};
+pub use core_runs::{PlannedScope, ProducerStatus, TaskAnswer, TaskQuestion};

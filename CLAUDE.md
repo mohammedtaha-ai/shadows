@@ -206,8 +206,8 @@ protocol is in [`.codex/README.md`](.codex/README.md). Read it before using a ro
 
 - **Start from `AppCore`** (the strict rule above): `app.rs` names the owning
   service, then its `contract.yaml`, then the files it names.
-  `docs/codebase/README.md` maps the crates outside Core. Find symbols with the LSP (Rust) or
-  Serena (TypeScript), never with text search. Grep is for docs, config and log text.
+  `docs/codebase/README.md` maps the crates outside Core. Find symbols with the LSP tool (Rust, and TypeScript
+  through the typescript-lsp plugin), never with text search. Grep is for docs, config and log text.
 - **A change to a module updates its contract in the same commit.**
 - **Compose a dispatch once.** Task, interfaces, rulings and constraints go in the
   first message. Only fix rounds get follow-ups.

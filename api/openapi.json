@@ -1029,6 +1029,39 @@
         ],
         "type": "object"
       },
+      "AttemptBrief": {
+        "description": "What an attempt was given: the attempt itself, the task context saved when\nit was admitted, and when that was. The attempt stays the source of its\nidentity, model, base commit and addition.",
+        "properties": {
+          "attempt": {
+            "$ref": "#/components/schemas/Attempt"
+          },
+          "captured_at": {
+            "type": "string"
+          },
+          "consumers": {
+            "description": "The tasks of the attempt's own version that plan to use this task's\noutputs, by task then use: the first 50. Plans in other versions or\nother plans are not listed, so an empty list is not proof of no use.",
+            "items": {
+              "$ref": "#/components/schemas/ConsumerRef"
+            },
+            "type": "array"
+          },
+          "consumers_more": {
+            "description": "More planned consumers than `consumers` lists.",
+            "type": "boolean"
+          },
+          "context": {
+            "$ref": "#/components/schemas/TaskContext"
+          }
+        },
+        "required": [
+          "attempt",
+          "context",
+          "captured_at",
+          "consumers",
+          "consumers_more"
+        ],
+        "type": "object"
+      },
       "AttemptFile": {
         "description": "One file as an attempt's commit holds it; deleted or binary files have no text.",
         "properties": {
@@ -1070,6 +1103,17 @@
             "type": [
               "string",
               "null"
+            ]
+          },
+          "conflict": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TaskConflict",
+                "description": "The executor's contract conflict as it stood when the notice was\nfirst resolved; left out of an ordinary notice. A report from the\nexecutor, never the person's approval."
+              }
             ]
           },
           "last_addition": {
@@ -1374,6 +1418,104 @@
         ],
         "type": "object"
       },
+      "ConflictDelivery": {
+        "description": "Whether the Planner's notice of a conflict was enqueued on its\nconversation. `delivered` is a durable enqueue, not a reply.",
+        "enum": [
+          "pending",
+          "delivered",
+          "no_planner"
+        ],
+        "type": "string"
+      },
+      "ConflictEvidence": {
+        "description": "One piece of a conflict's evidence: a project-relative path, an optional\none-based line, and what it shows. A reference, not copied source.",
+        "properties": {
+          "line": {
+            "description": "The one-based line it is about, if one.",
+            "format": "int32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "path": {
+            "description": "A path inside the project, as `project_files` names it.",
+            "type": "string"
+          },
+          "summary": {
+            "description": "What this place shows, in a sentence or two.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "line",
+          "summary"
+        ],
+        "type": "object"
+      },
+      "ConsumerRef": {
+        "description": "A task of the same version that plans to use what was selected: a\nreference to its use, never a source location.",
+        "properties": {
+          "output": {
+            "description": "The producer's output the use names; null for a use of existing code.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "purpose": {
+            "type": "string"
+          },
+          "task": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "title": {
+            "type": "string"
+          },
+          "use_index": {
+            "description": "Where the use stands in the consumer's `uses`, from 0.",
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "task",
+          "title",
+          "output",
+          "use_index",
+          "purpose"
+        ],
+        "type": "object"
+      },
+      "ContextPlan": {
+        "properties": {
+          "plan_id": {
+            "$ref": "#/components/schemas/PlanId"
+          },
+          "title": {
+            "type": "string"
+          },
+          "version": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "workflow_id": {
+            "$ref": "#/components/schemas/WorkflowId"
+          }
+        },
+        "required": [
+          "plan_id",
+          "workflow_id",
+          "version",
+          "title"
+        ],
+        "type": "object"
+      },
       "ContextResponse": {
         "properties": {
           "carried": {
@@ -1406,6 +1548,25 @@
           "kind",
           "id",
           "version"
+        ],
+        "type": "object"
+      },
+      "ContextStandards": {
+        "properties": {
+          "additions": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "base": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "base"
         ],
         "type": "object"
       },
@@ -3214,6 +3375,93 @@
         ],
         "type": "object"
       },
+      "LayoutLayer": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "may_use": {
+            "items": {
+              "$ref": "#/components/schemas/LayerRef"
+            },
+            "type": "array"
+          },
+          "not_used": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "place": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "role": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "role",
+          "may_use"
+        ],
+        "type": "object"
+      },
+      "LayoutPart": {
+        "properties": {
+          "folder": {
+            "type": "string"
+          },
+          "grouping": {
+            "type": "boolean"
+          },
+          "id": {
+            "$ref": "#/components/schemas/PartId"
+          },
+          "kind": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "layers": {
+            "items": {
+              "$ref": "#/components/schemas/LayoutLayer"
+            },
+            "type": "array"
+          },
+          "parent": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PartId"
+              }
+            ]
+          },
+          "rules": {
+            "items": {
+              "$ref": "#/components/schemas/RuleText"
+            },
+            "type": "array"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "folder",
+          "grouping",
+          "layers",
+          "rules"
+        ],
+        "type": "object"
+      },
       "LimitWindow": {
         "description": "One account limit window as the harness reported it: `utilization` from 0\nto 1, `resets_at` in Unix seconds.",
         "properties": {
@@ -4251,6 +4499,27 @@
         ],
         "type": "object"
       },
+      "OwnedVia": {
+        "oneOf": [
+          {
+            "enum": [
+              "Folder"
+            ],
+            "type": "string"
+          },
+          {
+            "properties": {
+              "Layer": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "Layer"
+            ],
+            "type": "object"
+          }
+        ]
+      },
       "Part": {
         "properties": {
           "content": {
@@ -4611,6 +4880,43 @@
           "goal",
           "acceptance",
           "waits_for"
+        ],
+        "type": "object"
+      },
+      "PhaseDependency": {
+        "properties": {
+          "broken": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "phase": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Phase"
+              }
+            ]
+          },
+          "reference": {
+            "$ref": "#/components/schemas/PhaseRef"
+          },
+          "target": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PhaseEndpoint"
+              }
+            ]
+          }
+        },
+        "required": [
+          "reference"
         ],
         "type": "object"
       },
@@ -6130,6 +6436,40 @@
         ],
         "type": "object"
       },
+      "ResolvedContract": {
+        "description": "A use, with what its producer promises. The consumer never stores this.",
+        "properties": {
+          "artifact": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "producer_title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "reference": {
+            "$ref": "#/components/schemas/ContractSource"
+          },
+          "symbol": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/SymbolWork"
+              }
+            ]
+          }
+        },
+        "required": [
+          "reference"
+        ],
+        "type": "object"
+      },
       "RoadmapAction": {
         "enum": [
           "first",
@@ -6215,6 +6555,21 @@
           "status",
           "outdated",
           "created_at"
+        ],
+        "type": "object"
+      },
+      "RuleText": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "text"
         ],
         "type": "object"
       },
@@ -6981,6 +7336,70 @@
         ],
         "type": "object"
       },
+      "TaskConflict": {
+        "description": "An attempt's accepted contract conflict, with the attempt's current state\nand whether it still holds its scope. Accepting it asked the executor to\nend its turn; only `attempt_state` says whether it did.",
+        "properties": {
+          "attempt_id": {
+            "$ref": "#/components/schemas/AttemptId"
+          },
+          "attempt_state": {
+            "$ref": "#/components/schemas/AttemptState"
+          },
+          "created_at": {
+            "description": "When the conflict was accepted.",
+            "type": "string"
+          },
+          "delivery": {
+            "$ref": "#/components/schemas/ConflictDelivery"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/ConflictEvidence"
+            },
+            "type": "array"
+          },
+          "expected": {
+            "type": "string"
+          },
+          "observed": {
+            "type": "string"
+          },
+          "project_id": {
+            "$ref": "#/components/schemas/ProjectId"
+          },
+          "scope_held": {
+            "description": "The attempt still holds its scope: its executor may still write.",
+            "type": "boolean"
+          },
+          "task": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "version": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "workflow_id": {
+            "$ref": "#/components/schemas/WorkflowId"
+          }
+        },
+        "required": [
+          "attempt_id",
+          "project_id",
+          "workflow_id",
+          "version",
+          "task",
+          "expected",
+          "observed",
+          "evidence",
+          "attempt_state",
+          "scope_held",
+          "delivery",
+          "created_at"
+        ],
+        "type": "object"
+      },
       "TaskContent": {
         "additionalProperties": false,
         "description": "A task as the plan holds it, shown as `T{number}`.",
@@ -7040,6 +7459,66 @@
           "reads",
           "writes",
           "acceptance"
+        ],
+        "type": "object"
+      },
+      "TaskContext": {
+        "properties": {
+          "contracts": {
+            "items": {
+              "$ref": "#/components/schemas/ResolvedContract"
+            },
+            "type": "array"
+          },
+          "map_revision": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "parts": {
+            "items": {
+              "$ref": "#/components/schemas/TaskPart"
+            },
+            "type": "array"
+          },
+          "phase": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Phase"
+              }
+            ]
+          },
+          "phase_dependencies": {
+            "items": {
+              "$ref": "#/components/schemas/PhaseDependency"
+            },
+            "type": "array"
+          },
+          "plan": {
+            "$ref": "#/components/schemas/ContextPlan"
+          },
+          "standards": {
+            "$ref": "#/components/schemas/ContextStandards"
+          },
+          "task": {
+            "$ref": "#/components/schemas/TaskContent"
+          },
+          "unowned_paths": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "plan",
+          "task",
+          "parts",
+          "unowned_paths",
+          "standards",
+          "map_revision"
         ],
         "type": "object"
       },
@@ -7125,6 +7604,39 @@
             "type": "object"
           }
         ]
+      },
+      "TaskPart": {
+        "properties": {
+          "part": {
+            "$ref": "#/components/schemas/LayoutPart"
+          },
+          "paths": {
+            "items": {
+              "$ref": "#/components/schemas/TaskPath"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "part",
+          "paths"
+        ],
+        "type": "object"
+      },
+      "TaskPath": {
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "via": {
+            "$ref": "#/components/schemas/OwnedVia"
+          }
+        },
+        "required": [
+          "path",
+          "via"
+        ],
+        "type": "object"
       },
       "TaskPreview": {
         "properties": {
@@ -8074,6 +8586,127 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/attempts/{id}/brief": {
+      "get": {
+        "operationId": "brief",
+        "parameters": [
+          {
+            "description": "The attempt",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/AttemptId"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttemptBrief"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "no such attempt"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunRefusal"
+                }
+              }
+            },
+            "description": "context_not_recorded"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          }
+        },
+        "summary": "The brief the attempt was given: the attempt and the task context saved\nwhen it was admitted, unchanged by any later map or standards. An attempt\nbegun before briefs were saved is 409 `context_not_recorded`.",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/attempts/{id}/conflict": {
+      "get": {
+        "operationId": "conflict",
+        "parameters": [
+          {
+            "description": "The attempt",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/AttemptId"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "$ref": "#/components/schemas/TaskConflict"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "no such attempt"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          }
+        },
+        "summary": "The contract conflict the attempt's executor reported, with the attempt's\ncurrent state, whether it still holds its scope and whether the Planner's\nnotice was queued; null when it reported none.",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
     "/api/attempts/{id}/diff": {
       "get": {
         "operationId": "diff",
@@ -16090,7 +16723,7 @@
                 }
               }
             },
-            "description": "Start refused, with the code a task's `start` answers: waiting, task_busy, overlap, not_git, dirty_scope, not_frozen, superseded, archived, bad_scope; or command_conflict"
+            "description": "Start refused, with the code a task's `start` answers: waiting, task_busy, overlap, not_git, dirty_scope, missing_input, input_unavailable, not_frozen, superseded, archived, bad_scope; or command_conflict"
           },
           "500": {
             "content": {

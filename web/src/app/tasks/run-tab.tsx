@@ -1,3 +1,4 @@
+import { SkeletonContent } from '@/components/ui/skeleton'
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useRef } from 'react'
 import type { Attempt } from '@/api/runs'
@@ -36,7 +37,7 @@ function Entries({ attempt }: { attempt: Attempt }) {
     wasOpen.current = open
   }, [open, refetch])
   if (entries.isError) return <div className="px-6 py-4"><ErrorLine error={entries.error} /></div>
-  if (entries.data === undefined) return <p className="px-6 py-4 text-sm text-faint-foreground">Reading the run…</p>
+  if (entries.data === undefined) return <SkeletonContent label="Reading the run…" layout="conversation" className="px-6 py-4" />
   return (
     <ol aria-label="Run" className="space-y-3 px-6 py-4">
       {entries.data.map((entry) => (

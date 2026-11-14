@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { getDesktopPreferences, setDesktopPreferences, type DesktopPreferences } from '@/desktop'
 import { Button } from '@/components/ui/button'
+import { SkeletonContent } from '@/components/ui/skeleton'
 
 export function DesktopPreferencesControls() {
   const [preferences, setPreferences] = useState<DesktopPreferences | null>(null)
@@ -42,13 +43,17 @@ export function DesktopPreferencesControls() {
   const disabled = busy || readFailed || !preferences
   return <section aria-label="Desktop preferences" className="space-y-4 rounded-lg border border-border p-4">
     <h2 className="font-medium">This machine</h2>
-    {busy && <p role="status">Loading desktop settings…</p>}
+    {busy && (preferences === null
+      ? <SkeletonContent label="Loading desktop settings…" layout="form" />
+      : <p role="status">Updating desktop settings…</p>)}
+    <div hidden={preferences === null} className="space-y-4">
     <label className="flex items-center justify-between gap-3 text-sm">Start AYLUL with Windows
       <input type="checkbox" role="switch" aria-label="Start AYLUL with Windows" disabled={disabled} checked={preferences?.launchAtLogin ?? false} onChange={event => { void change({ launchAtLogin: event.target.checked }) }} />
     </label>
     <label className="flex items-center justify-between gap-3 text-sm">Closing the window hides it to the tray
       <input type="checkbox" role="switch" aria-label="Closing the window hides it to the tray" disabled={disabled} checked={preferences?.closeToTray ?? false} onChange={event => { void change({ closeToTray: event.target.checked }) }} />
     </label>
+    </div>
     {changeFailed && <p role="alert">Could not change this setting.</p>}
     {readFailed && <div className="space-y-3"><p role="alert">Could not load desktop settings.</p><Button type="button" variant="outline" disabled={busy} onClick={() => { void retry() }}>Retry desktop settings</Button></div>}
   </section>

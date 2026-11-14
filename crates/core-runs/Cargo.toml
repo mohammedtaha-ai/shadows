@@ -26,6 +26,8 @@ shadows-agent = { path = "../shadows-agent" }
 shadows-process = { path = "../shadows-process" }
 serde = { workspace = true }
 serde_json = { workspace = true }
+# Input schema of `TaskQuestion` for its MCP tool: infrastructure.
+schemars = { workspace = true }
 sqlx = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }

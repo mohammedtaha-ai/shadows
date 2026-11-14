@@ -1,3 +1,4 @@
+import { SkeletonContent } from '@/components/ui/skeleton'
 // Each save is a new version on the daemon; nothing earlier is overwritten. A
 // running Planner hears of the change before its next turn, never mid-turn.
 
@@ -22,6 +23,7 @@ export function InstructionsEditor({ projectId }: { projectId: string }) {
           Given to the Planner in this project, after Shadows&apos; own instructions.
         </p>
       </div>
+      {saved.isPending && <SkeletonContent label="Loading instructions…" layout="form" />}
       {saved.error !== null && <ErrorLine error={saved.error} />}
       {saved.data !== undefined && <Editor projectId={projectId} saved={saved.data} />}
     </section>

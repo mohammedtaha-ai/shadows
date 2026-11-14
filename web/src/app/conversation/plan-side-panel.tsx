@@ -1,3 +1,4 @@
+import { SkeletonContent } from '@/components/ui/skeleton'
 // Only a live plan-show for this tab may open the panel; replays must not move the reader.
 
 import { X } from 'lucide-react'
@@ -47,7 +48,7 @@ export function PlanSidePanel({
           {plan.isError ? (
             <ErrorLine error={plan.error} />
           ) : (
-            <p className="text-xs text-faint-foreground">Reading the plan…</p>
+            <SkeletonContent label="Reading the plan…" layout="detail" />
           )}
           {close}
         </div>

@@ -6,10 +6,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="dark" />
     <title>Shadows</title>
+    <style>
+      #startup-loading { box-sizing: border-box; min-height: 100dvh; padding: 2rem; color-scheme: dark; background: var(--background, Canvas); color: var(--foreground, CanvasText); }
+      #startup-loading .startup-content { max-width: 64rem; margin: 0 auto; }
+      #startup-loading .startup-shape { display: block; height: 0.875rem; margin-bottom: 1rem; border-radius: 0.5rem; background: currentColor; opacity: 0.12; }
+      #startup-loading .startup-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+    </style>
   </head>
   <body>
     <!-- Shown until the app mounts and replaces it, so a first load is never a blank page. -->
-    <div id="root"><p style="font: 14px system-ui, sans-serif; color: #8b8b99; padding: 2rem">Loading…</p></div>
+    <div id="root">
+      <div id="startup-loading" role="status" aria-label="Loading Shadows…" aria-busy="true">
+        <span class="startup-label">Loading Shadows…</span>
+        <div class="startup-content" aria-hidden="true">
+          <span class="startup-shape" style="width: 30%; height: 1.75rem; margin-bottom: 2rem"></span>
+          <span class="startup-shape" style="width: 65%"></span>
+          <span class="startup-shape" style="width: 50%"></span>
+          <span class="startup-shape" style="height: 12rem; margin-top: 2rem"></span>
+        </div>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

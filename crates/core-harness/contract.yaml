@@ -96,6 +96,31 @@ layer_catalog: 'Planner standards text lists every kind presence and its layers 
 # executor.md's "Tools" section (no Python; files through Write, Edit and MultiEdit, never the
 # shell) is held by executor::tests::the_executor_file_parses_and_names_its_eight_tools.
 # executor.md's contract bullets are held, live, by runs_routes::live_an_executor_builds_the_function_its_contract_names.
+# prompt.txt runs a plan group by group: task_ready, then every task of the group started at once;
+# one named task starts alone; after a done mark the next group; after a failure or stop a review,
+# then task_ready again, never a retry of a task that ran or a stale list; a new draft blocks only
+# new starts; shared checks get an owner and order in task instructions, and an unrun check is
+# neither a pass nor a reason to ask the executor. Held by
+# mcp_tools::the_planner_is_told_how_to_run_and_judge_tasks.
+# executor.md commits with `git --literal-pathspecs commit --only` and the exact own paths, new
+# files staged by exact name first, both ends of a rename, lock refusals retried after 1/2/4 s
+# without deleting a lock, and only assigned shared checks run; Runs' first prompt and addition
+# say the same (core-runs COMMIT). Held by executor_commits and
+# core-runs::the_first_prompt_says_how_an_attempt_ends.
+# executor.md has the executor read `task_brief` first and again after each addition (a new
+# attempt with its own saved brief), never a fresh task_context; Runs' first prompt and addition
+# say the same. Held by core-runs::the_first_prompt_says_how_an_attempt_ends and
+# mcp_tools::an_executor_grant_lists_its_tools_and_reads_only_its_task.
+# executor.md asks for `task_question` about whether a function exists, what it returns and which
+# task plans to use an output, keeping planned consumers apart from code callers and code_error
+# apart from absence.
+# executor.md has the executor report a contract it cannot build with `task_conflict` once, then
+# stop editing and end its turn without a commit or task_report, leaving its files. prompt.txt
+# tells the Planner a conflict notice may arrive while the executor still runs: assess the
+# impact first, stop this or another affected attempt that has not ended with `task_stop`, leave
+# independent work running, never restart the task on its own, and correct the contract in a
+# new version. Held by task_conflicts::conflict_notifies_while_its_executor_is_running and
+# task_conflict_routes::only_an_executor_reports_and_only_a_planner_stops.
 # executor.md asks for `code_lsp` before searching the tree; prompt.txt names `code_lsp`, and that
 # a language with no running server is answered "no server".
 # The prompt asks the Planner to ask a choice with person_ask and wait, never the same thing in

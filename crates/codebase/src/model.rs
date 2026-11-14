@@ -206,7 +206,15 @@ pub struct ServerStatus {
 
 /// One read operation of a language server, as Claude Code's LSP tool names it.
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, utoipa::ToSchema,
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    utoipa::ToSchema,
+    schemars::JsonSchema,
 )]
 #[serde(rename_all = "camelCase")]
 pub enum LspOperation {
@@ -221,16 +229,23 @@ pub enum LspOperation {
 }
 
 /// A question to a project's language server. Lines and characters are one-based.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct LspQuestion {
     pub operation: LspOperation,
     /// Relative to the project's folder; every operation but `workspaceSymbol` needs it.
+    #[serde(default)]
     pub file: Option<String>,
+    /// One-based, as an editor shows it.
+    #[serde(default)]
     pub line: Option<u32>,
+    /// One-based, as an editor shows it.
+    #[serde(default)]
     pub character: Option<u32>,
     /// What `workspaceSymbol` looks for.
+    #[serde(default)]
     pub query: Option<String>,
     /// A linked project's slug; none is the asker's own project.
+    #[serde(default)]
     pub project: Option<String>,
 }
 

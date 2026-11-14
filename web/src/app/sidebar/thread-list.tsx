@@ -9,15 +9,18 @@ import type { PlanningThread } from '@/api/threads'
 import { threadsQuery } from '@/api/threads'
 import { agentThreadsQuery } from '@/api/aylul-profiles'
 import { Button } from '@/components/ui/button'
+import { SkeletonContent } from '@/components/ui/skeleton'
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { DeleteThreadDialog } from './delete-thread-dialog'
 
 export function ThreadList({ projectId, selected, profile }: { projectId: string; selected?: string; profile?: string }) {
-  const { data: threads } = useQuery(profile === undefined ? threadsQuery(projectId) : agentThreadsQuery(profile))
+  const { data: threads, isPending } = useQuery(profile === undefined ? threadsQuery(projectId) : agentThreadsQuery(profile))
   const [deleting, setDeleting] = useState<PlanningThread | null>(null)
   const [open, setOpen] = useState(false)
+
+  if (isPending) return <SkeletonContent label="Loading conversations…" className="my-2 ml-4 w-auto pl-2" />
 
   return (
     <>

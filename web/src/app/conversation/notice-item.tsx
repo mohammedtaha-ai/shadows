@@ -7,6 +7,7 @@ import { Bell, ChevronRight } from 'lucide-react'
 import { Suspense, lazy, useState } from 'react'
 import type { AttemptNotice } from '@/api/runs'
 import type { ThreadEntry } from '@/api/threads'
+import { ConflictNotice } from './conflict-notice'
 
 const LazyReplyText = lazy(async () => ({ default: (await import('./reply-text')).ReplyText }))
 
@@ -56,7 +57,8 @@ export function NoticeItem({ body, card, sender = 'Executor' }: {
   sender?: 'Executor' | 'Shadows'
 }) {
   const [open, setOpen] = useState(true)
-  const hasBody = card === null || card.report != null || card.reason != null
+  const conflict = card?.conflict ?? null
+  const hasBody = card === null || card.report != null || card.reason != null || conflict !== null
   const header = (
     <>
       <Bell aria-hidden className="size-3.5 shrink-0 text-accent-line/85" />
@@ -109,6 +111,7 @@ export function NoticeItem({ body, card, sender = 'Executor' }: {
             <>
               {card.reason != null && <p dir="auto" className="text-xs text-destructive">{card.reason}</p>}
               {card.report != null && <Report text={card.report} />}
+              {conflict !== null && <ConflictNotice conflict={conflict} attemptId={card.attempt_id} />}
             </>
           )}
         </div>

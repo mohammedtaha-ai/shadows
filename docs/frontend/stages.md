@@ -5,72 +5,81 @@ here and set its status. Task shape: [`AGENTS.md`](./AGENTS.md#a-task-in-stagesm
 
 ## Now
 
-F-62 to F-76 and F-68 shipped in PR #49 (`b40e077b`), on `main`: the web half of the AYLUL
-agents and panel design, and the AI Studio UI migration that replaced F-68's look. Their
-entries are in this file at `b40e077b`. The AYLUL panel plan (`docs/frontend/plans/2026-11-01-aylul-agents-panel-frontend.md` at `b40e077b`)
-and the neon plan (`docs/frontend/plans/2026-11-01-neon-clarity.md` at `b40e077b`) are deleted.
-F-77 (the whole web client after the migration) was accepted by Mohammed's visual check on 2026-11-03;
-its entry is in this file at `a7b4009c`, and the AI Studio plan (`docs/frontend/plans/2026-11-02-ai-studio-ui-migration.md`) at `a7b4009c`.
-The migration's facts are in `docs/evidence/2026-11-02-ai-studio-ui-analysis.md` at `f1459dcc`.
+### F-120 · Finish content loading skeleton coverage
 
-F-78 and F-79 (the agent form starts empty; the background tasks panel) shipped in PR #51
-(`2790473b`); their entries are in this file at `16da6b8c`.
+- Status: done. All 162 distinct focused interaction/code-map/architecture checks passed across the scoped runs after correcting the stream catch-up fixture; typecheck, lint and build passed. No browser was launched.
+- Design: direct follow-up to F-117; cover the static startup screen, history, directory listings, nested design lists, inline names and native preference reads.
+- Read: frontend code map and the touched feature contracts.
+- Touch: `web/index.html`, `web/src/components/ui/skeleton.tsx`, `web/src/app/conversation/messages.tsx`, `web/src/app/conversation/anchor-picker.tsx`, `web/src/app/conversation/conversation.test.tsx`, `web/src/app/new-project/folder-browser.tsx`, `web/src/app/new-project/new-project-dialog.test.tsx`, `web/src/app/agreements/names.tsx`, `web/src/app/agreements/binding-editor.tsx`, `web/src/app/design/part-editor.tsx`, `web/src/app/design/part-references.tsx`, `web/src/app/settings/desktop-preferences.tsx`, `web/src/app/settings/desktop-preferences.test.tsx`, `web/src/app/conversation/contract.yaml`, `web/src/app/new-project/contract.yaml`, `web/src/app/agreements/contract.yaml`, `web/src/app/design/contract.yaml`, `web/src/app/settings/contract.yaml`, `docs/frontend/codebase/README.md`, `docs/frontend/stages.md`.
+- Needs: none; existing reads only.
+- Done when: deferred history and directory responses replace skeletons with content; inline placeholders remain valid in text containers, native settings preserve real values, and startup shows a static skeleton before JavaScript; focused tests, typecheck, lint, build, code-map and architecture pass. Browser acceptance is left to the user.
 
-F-80 (per-tool permissions in the agent form) shipped in PR #52 (`6b2c66ed`); its entry is in
-this file at `9c7c7e5a`.
-A click during a save is now queued and built on the saved rules (PR #53, `349606bf`).
 
-F-81 to F-85 (agent groups in the main window) shipped in PR #54 (`9e5b9ab2`), with
-B-40 to B-46; their entries are in this file at `9e5b9ab2`. The plan was
-`docs/frontend/plans/2026-11-03-agent-groups-ui.md` at `9e5b9ab2`.
+### F-119 · Expandable changed files in the task diff
 
-Planner context, slice 3 (the inspection view): F-86 to F-89 shipped in PR #57 (`1b413fc4`), with
-B-59; their entries are in this file at `1b413fc4`. The plan was
-`docs/frontend/plans/2026-11-05-planner-context-view.md` at `1b413fc4`.
+- Status: done. All 109 focused task/code-map/architecture tests, typecheck, lint and build passed. Browser acceptance is left to the user.
+- Design: direct browser feedback; each file has a clear disclosure header, selecting another closes the first, and the open file can collapse.
+- Read: frontend code map; web/src/app/tasks/contract.yaml.
+- Touch: `web/src/app/tasks/diff-tab.tsx`, `web/src/app/tasks/task-page.test.tsx`, `web/src/app/tasks/contract.yaml`, `docs/frontend/stages.md`.
+- Needs: none; existing attempt diff and file reads.
+- Done when: switching and collapsing file sections pass focused task tests; typecheck, lint, build, codemap and architecture pass. The user performs browser acceptance; do not launch a browser.
 
-Structure and depth, slice 1 (PR #59, `26bf739e`) is backend-only. Its only web change is a test
-fixture in `web/src/app/design/create-structure.test.tsx`, with no `F-` task.
+### F-118 · Clear attempt reports and completion badge
 
-Structure and depth, slice 2 (PR #60, `b64242a7`): F-90 and F-91 shipped with B-63 to B-70. Their
-entries, and the web fix `fb46cac4` outside their `Touch:` lists, are in this file at `b64242a7`.
-The plan is at `a4f89386`, deleted after the merge.
+- Status: done. The 115 focused task/architecture/code-map checks, typecheck, lint and build passed. Browser review is left to the user at their request.
+- Design: direct browser feedback from the user; clarify the report heading and expansion control, and make Done green.
+- Read: frontend code map; web/src/app/tasks/contract.yaml.
+- Touch: `web/src/app/tasks/report-tab.tsx`, `web/src/app/tasks/task-header.tsx`, `web/src/app/tasks/brief-panel.test.tsx`, `web/src/app/tasks/contract.yaml`, `docs/frontend/stages.md`.
+- Needs: none; existing Core answers only.
+- Done when: the report toggle visibly says Show details or Hide details with a chevron and accessible region linkage; attempt metadata and report are readable; Done has a green check badge; task/brief/conflict tests, typecheck, lint, build, codemap and architecture pass; verify the updated report in the browser.
 
-Structure and depth, slices 3 to 5 (PR #61, `a4f89386`): F-92 to F-95 shipped with B-71 to B-82.
-Their entries are in this file at `a4f89386`. Mohammed tried them in the browser on 2026-11-07.
+### F-117 · Content-shaped skeleton loading
 
-Conversation order and Codex: F-96 (the conversation refreshes its order after an assistant reply) shipped in
-PR #62 (`3a443ea0`) with B-83; F-97 (Codex in the conversation flow) in PR #63 (`217d7540`) with B-85 to B-87;
-F-98 (the task page) in PR #64 (`c71b263d`) with B-89 to B-93. Their entries are in this file at those commits.
+- Status: done. Initial loading, success, failure and background-refresh checks passed. The user reports trying the interface in the browser.
+- Design: approved in the current conversation; implemented directly by the controller.
+- Read: frontend code map and the touched feature contracts.
+- Touch: `docs/frontend/codebase/README.md`, `docs/frontend/stages.md`, `web/src/app/agents/agent-env.tsx`, `web/src/app/agents/agent-extensions.tsx`, `web/src/app/agents/agent-settings.tsx`, `web/src/app/agents/contract.yaml`, `web/src/app/agents/home.tsx`, `web/src/app/agents/tool-rules.tsx`, `web/src/app/agreements/agreements-page.tsx`, `web/src/app/agreements/contract.yaml`, `web/src/app/conversation/context-record-panel.tsx`, `web/src/app/conversation/contract.yaml`, `web/src/app/conversation/conversation.tsx`, `web/src/app/conversation/draft.tsx`, `web/src/app/conversation/plan-card.tsx`, `web/src/app/conversation/plan-side-panel.tsx`, `web/src/app/design/contract.yaml`, `web/src/app/design/parts-view.tsx`, `web/src/app/design/roadmap-view.tsx`, `web/src/app/design/standards-view.tsx`, `web/src/app/design/vision-editor.tsx`, `web/src/app/design/workspace-plans.tsx`, `web/src/app/groups/contract.yaml`, `web/src/app/groups/group-page.tsx`, `web/src/app/home.tsx`, `web/src/app/page-pending.tsx`, `web/src/app/project-settings/contract.yaml`, `web/src/app/project-settings/instructions-editor.tsx`, `web/src/app/settings/contract.yaml`, `web/src/app/settings/general-preferences.tsx`, `web/src/app/settings/general-preferences.test.tsx`, `web/src/app/settings/sections/agents.tsx`, `web/src/app/settings/sections/code.tsx`, `web/src/app/settings/sections/plugins.tsx`, `web/src/app/settings/sections/providers.tsx`, `web/src/app/settings/sections/usage.tsx`, `web/src/app/settings/you-card.tsx`, `web/src/app/sidebar/agent-list.tsx`, `web/src/app/sidebar/contract.yaml`, `web/src/app/sidebar/group-list.tsx`, `web/src/app/sidebar/project-list.test.tsx`, `web/src/app/sidebar/project-list.tsx`, `web/src/app/sidebar/thread-list.tsx`, `web/src/app/sidebar/workflow-list.tsx`, `web/src/app/tasks/brief-panel.tsx`, `web/src/app/tasks/contract.yaml`, `web/src/app/tasks/diff-tab.tsx`, `web/src/app/tasks/run-tab.tsx`, `web/src/app/tasks/task-page.tsx`, `web/src/app/workflows/contract.yaml`, `web/src/app/workflows/plan-map.tsx`, `web/src/app/workflows/plan-page.tsx`, `web/src/components/ui/skeleton.tsx`.
+- Needs: none; existing API reads only.
+- Done when: initial loading renders accessible skeletons, success and errors replace them, background refresh keeps existing content, reduced motion disables the pulse; affected interaction tests, typecheck, lint, build, codemap and architecture pass; browser acceptance is reported by the user in the current conversation.
 
-Task page review, the Diff tab and the Planner's notices: F-106 to F-113 shipped in PR #65 (`617d806f`) with
-B-95 to B-136. Their entries are in this file at `617d806f`. Their plans,
-`docs/frontend/plans/2026-11-11-task-page-review-and-diff.md` and `docs/frontend/plans/2026-11-11-shadows-notices.md`,
-are at `617d806f`. PR #66 (`5a52a06a`) removed dead web exports and type aliases and has no `F-` task.
 
-Still open outside any task: the light palette and the real desktop login-item behaviour need
-their own app and OS acceptance.
+### Shipped
 
-Finished work: F-50 to F-61 (branch `feature/web-polish`, PR #48) are in this file at `ce31036d`;
-F-45 to F-49 (W-11, with B-14 to B-18, PR #47) are in this file at `4f23c717`;
-F-28 (each settings form saves only the fields it changed, with the glass
-theme selector, PR #46) is in this file at `e95b79c3`; F-22 (the context ring shows the summary only, PR #45) is in this file at
-`29ddfd88`; F-20, F-21 and F-33 to F-44 (W-9, W-10, W-12 and W-13, PR #44) are in this
-file at `4d5c022d`; F-16, F-17, F-26, F-27 and F-29 to F-32 (W-1 to W-8, PR #43) at
-`ca618f89`; F-1 and F-23 to F-25 (PR #41) at `c7e7bac4`; F-2 to F-12, F-14 and F-15 (the
-settings dialog, PR #40) at `1a2b601`.
+A shipped task's entry, and its plan once deleted, are in this file in Git at the commit named.
 
-## Tasks
+| PR | Work | Tasks | Entries at |
+|---|---|---|---|
+| #40 | The settings dialog | F-2 to F-12, F-14, F-15 | `1a2b601` |
+| #41 | Architecture restructuring, web side | F-1, F-23 to F-25 | `c7e7bac4` |
+| #43 | W-1 to W-8 | F-16, F-17, F-26, F-27, F-29 to F-32 | `ca618f89` |
+| #44 | W-9, W-10, W-12, W-13 | F-20, F-21, F-33 to F-44 | `4d5c022d` |
+| #45 | The context ring shows the summary only | F-22 | `29ddfd88` |
+| #46 | Each settings form saves only what changed | F-28 | `e95b79c3` |
+| #47 | W-11, with B-14 to B-18 | F-45 to F-49 | `4f23c717` |
+| #48 | Web polish | F-50 to F-61 | `ce31036d` |
+| #49 | AYLUL agents and panel, and the AI Studio UI migration | F-62 to F-76, F-77 (accepted 2026-11-03) | `b40e077b`, `a7b4009c` |
+| #51 | The agent form starts empty; the background tasks panel | F-78, F-79 | `16da6b8c` |
+| #52, #53 | Per-tool permissions in the agent form | F-80 | `9c7c7e5a` |
+| #54 | Agent groups in the main window | F-81 to F-85 | `9e5b9ab2` |
+| #57 | Planner context, the inspection view | F-86 to F-89 | `1b413fc4` |
+| #60, #61 | Structure and depth, slices 2 to 5 (tried in the browser 2026-11-07) | F-90 to F-95 | `b64242a7`, `a4f89386` |
+| #62 to #64 | Conversation order, Codex, the task page | F-96, F-97, F-98 | `3a443ea0`, `217d7540`, `c71b263d` |
+| #65 | Task page review, the Diff tab, the Planner's notices | F-106 to F-113 | `617d806f` |
+| #67 | Conversation images, the question card, Settings › Code | F-114 to F-116 | `db760593` |
 
-Two composer fixes in PR #61 have no `F-` task: `1b85b6e6` (the textarea grows to
-192px) and `e6e6e9cf` (`dir="auto"`, so Arabic runs right to left).
+PRs #59 and #66 have no `F-` task. Two composer fixes in PR #61 have none either: `1b85b6e6`
+(the textarea grows to 192px) and `e6e6e9cf` (`dir="auto"`, so Arabic runs right to left).
 
-Structure and planning depth: slices 1 to 5 are on `main`; slice 1 needs no web task. The
-[workspace behavior](../backend/specs/2026-11-05-structure-and-depth-design.md#6-what-the-person-sees)
-is the review target. Before a new `F-` task is dispatched, its shared
-request must be accepted and its backend response must exist. Expand the API hooks,
-routing, event refresh, contracts and code-map paths first.
-Use Roadmap for outcome coverage and Project map for ownership. The old
-mockup's `Built` label cannot be used as evidence of completion.
+### Known and left
+
+- The light palette and the real desktop login-item behaviour need their own app and OS acceptance.
+- The image tiles' look in the browser (F-114) is not recorded.
+
+### Before a new task
+
+Its shared request must be accepted and its backend response must exist. Expand the API hooks,
+routing, event refresh, contracts and code-map paths first. The old mockup's `Built` label is not
+evidence of completion.
 
 ## Approved local delivery UI, 2026-11-09
 
@@ -93,7 +102,7 @@ These tasks are blocked until their named backend API exists; no component imple
 - Owner: web API and design UI.
 - Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
 - Touch: exact Create/Modify/Test file list of Task 2; no other source paths.
-- Needs: B-102, F-99; accepted shared API/model agreement. Backend must expose its generated API before this task starts.
+- Needs: F-99 (B-102 was dropped 2026-11-11: the setup plan is read through the plan and task routes); accepted shared API/model agreement. Backend must expose its generated API before this task starts.
 - Done when: all named RED/GREEN steps and focused verification commands in Task 2 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
 
 ### F-101 · Readable task contract and decision pins
@@ -108,13 +117,13 @@ These tasks are blocked until their named backend API exists; no component imple
 
 ### F-102 · Attempt brief and scoped question results
 
-- Status: blocked (prerequisites below must ship first)
-- Plan: [Task 4](plans/2026-11-09-local-delivery-ui.md#task-4-f-102-attempt-brief-and-scoped-question-results).
-- Owner: web API and task UI.
-- Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
-- Touch: exact Create/Modify/Test file list of Task 4; no other source paths.
-- Needs: B-109, F-101; accepted shared API/model agreement. Backend must expose its generated API before this task starts.
-- Done when: all named RED/GREEN steps and focused verification commands in Task 4 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
+- Status: done. Added to Touch by controller ruling: web/src/stream/frames.ts, frames.test.ts and web/src/stream/contract.yaml, so `readAttemptNotice` carries the notice's `conflict`.
+- Plan: [F-102](../backend/plans/2026-11-14-slice-4-task-questions.md#task-f-102-saved-brief-and-conflict-presentation).
+- Owner: web API, tasks and conversation presentation.
+- Read: [approved design](../backend/specs/2026-11-14-task-questions-design.md), [accepted agreement](../shared/requests/2026-11-14-task-questions.md), frontend code map and the task's owner contracts/Interfaces.
+- Touch: exact Files of F-102 in the detailed slice 4 plan; no other sources.
+- Needs: B-107, B-147 (including B-109), accepted agreement and generated OpenAPI. No dependency on the superseded F-102 draft or a new F-101 implementation.
+- Done when: F-102's five steps, focused tests, typecheck/lint/build and codemap/architecture pass; generated schema and current contracts/maps updated; scoped commit recorded. Browser acceptance is B-149.
 
 ### F-103 · Check evidence, critic model and acceptance
 
@@ -145,29 +154,3 @@ These tasks are blocked until their named backend API exists; no component imple
 - Touch: exact Create/Modify/Test file list of Task 7; no other source paths.
 - Needs: B-118, F-104; accepted shared API/model agreement. Backend must expose its generated API before this task starts.
 - Done when: all named RED/GREEN steps and focused verification commands in Task 7 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
-
-
-## Conversation images, 2026-11-12
-
-### F-114 · Image tiles with a corner ✕ in the composer, and a viewer for every conversation image
-
-- Status: done (start after the frontend-fixer's `crossOrigin="anonymous"` image fix is committed)
-- Plan: [plans/2026-11-12-conversation-images.md](plans/2026-11-12-conversation-images.md)
-- Read: the plan; `web/src/app/conversation/contract.yaml` (`image_attachments`); `web/src/components/ui/dialog.tsx`; code-map rows for `pending-images.tsx`, `entry.tsx`, `waiting-messages.tsx`.
-- Touch: `web/src/app/conversation/image-zoom.tsx` (new), `web/src/app/conversation/image-zoom.test.tsx` (new), `web/src/app/conversation/pending-images.tsx`, `web/src/app/conversation/entry.tsx`, `web/src/app/conversation/waiting-messages.tsx`, `web/src/app/conversation/composer-images.test.tsx`, `web/src/app/conversation/waiting-messages.test.tsx`, `web/src/app/conversation/contract.yaml`, `docs/frontend/codebase/README.md`, `docs/frontend/stages.md` (this status only).
-- Needs: none (no API change); the crossOrigin fix commit first.
-- Done when: from `web/`, `npx vitest run src/app/conversation/image-zoom.test.tsx src/app/conversation/composer-images.test.tsx src/app/conversation/waiting-messages.test.tsx` passes with the test names in the plan's Tests section, and `npm run typecheck`, `npm run lint`, `npm run build`, `npx vitest run src/codemap.test.ts src/architecture` pass.
-
-## Slice 2: the question card and Settings › Code (2026-11-13)
-
-Design: [language servers](../backend/specs/2026-11-13-language-servers-design.md). Plan: [slice 2](../backend/plans/2026-11-13-slice-2-language-servers.md); each entry's Touch, tests and Done when are its task there.
-
-### F-115 · The question card, the Planner's permission cards, and Shadows' notices
-
-- Status: done.
-- Plan: [Task F-115](../backend/plans/2026-11-13-slice-2-language-servers.md#task-f-115-the-question-card-the-planners-permission-cards-and-shadows-notices).
-
-### F-116 · Settings › Code
-
-- Status: done.
-- Plan: [Task F-116](../backend/plans/2026-11-13-slice-2-language-servers.md#task-f-116-settings--code).

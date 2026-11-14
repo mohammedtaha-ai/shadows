@@ -1,3 +1,4 @@
+import { SkeletonContent } from '@/components/ui/skeleton'
 // One job: agent editing inside Settings, including scoped environment and deletion.
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -72,6 +73,7 @@ function AgentFields({ slug, onDone }: { slug: string | null; onDone: () => void
 
   if (providers.error !== null) return <ErrorLine error={providers.error} />
   if (slug !== null && agents.error !== null) return <ErrorLine error={agents.error} />
+  if (providers.isPending || (slug !== null && agents.isPending)) return <SkeletonContent label="Loading agent settings…" layout="form" />
   if (slug !== null && original === undefined) return null
   if (providers.data === undefined) return null
   if (providers.data.length === 0) {

@@ -11,7 +11,7 @@ pub struct ProjectLayout {
     pub parts: Vec<LayoutPart>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct LayoutPart {
     pub id: PartId,
     pub parent: Option<PartId>,
@@ -23,7 +23,7 @@ pub struct LayoutPart {
     pub rules: Vec<RuleText>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct LayoutLayer {
     pub id: String,
     pub role: String,
@@ -32,13 +32,13 @@ pub struct LayoutLayer {
     pub may_use: Vec<LayerRef>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct RuleText {
     pub id: String,
     pub text: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, utoipa::ToSchema)]
 pub enum OwnedVia {
     Folder,
     Layer(String),

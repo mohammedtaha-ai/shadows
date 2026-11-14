@@ -17,6 +17,8 @@ core-db = { path = "../core-db" }
 core-projects = { path = "../core-projects" }
 serde = { workspace = true }
 serde_json = { workspace = true }
+# Input schemas of `LspQuestion` for MCP tools: infrastructure.
+schemars = { workspace = true }
 sqlx = { workspace = true }
 thiserror = { workspace = true }
 utoipa = { workspace = true }

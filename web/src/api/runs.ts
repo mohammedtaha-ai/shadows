@@ -11,6 +11,10 @@ export type AttemptFile = components['schemas']['AttemptFile']
 export type AttemptNotice = components['schemas']['AttemptNotice']
 export type DiffHunk = components['schemas']['DiffHunk']
 export type Need = components['schemas']['Need']
+export type AttemptBrief = components['schemas']['AttemptBrief']
+export type TaskConflict = components['schemas']['TaskConflict']
+export type ConflictEvidence = components['schemas']['ConflictEvidence']
+export type ConsumerRef = components['schemas']['ConsumerRef']
 type RunRefusal = components['schemas']['RunRefusal']
 
 const runKeys = {
@@ -19,6 +23,8 @@ const runKeys = {
   attempts: (workflowId: string, version: number, task: number) => ['runs', 'attempts', workflowId, version, task],
   diff: (attemptId: string) => ['runs', 'diff', attemptId],
   file: (attemptId: string, path: string) => ['runs', 'file', attemptId, path],
+  brief: (attemptId: string) => ['runs', 'brief', attemptId],
+  conflict: (attemptId: string) => ['runs', 'conflict', attemptId],
 }
 
 /** Core's answer, even a refusal such as a task it cannot find, is final; only a lost call is tried again. */
@@ -67,6 +73,40 @@ export function attemptDiffQuery(attemptId: string) {
 
 export function attemptFileQuery(attemptId: string, path: string) {
   return queryOptions({ queryKey: runKeys.file(attemptId, path), queryFn: () => getAttemptFile(attemptId, path) })
+}
+
+/** The context the attempt received, as Core saved it. An attempt from before contexts were saved answers
+ * context_not_recorded, which is a final answer and not read again. */
+export function attemptBriefQuery(id: string) {
+  return queryOptions({
+    queryKey: runKeys.brief(id),
+    queryFn: () => unwrap(client.GET('/api/attempts/{id}/brief', { params: { path: { id } } })),
+    retry: retryLost,
+  })
+}
+
+/** The contract conflict the executor reported, or null. Read again while the attempt runs, Core holds its scope
+ * or the Planner's copy is not yet delivered; the client holds no liveness or impact rule of its own. */
+export function attemptConflictQuery(id: string) {
+  return queryOptions({
+    queryKey: runKeys.conflict(id),
+    queryFn: () => unwrap(client.GET('/api/attempts/{id}/conflict', { params: { path: { id } } })),
+    retry: retryLost,
+    refetchInterval: (query) => {
+      const conflict = query.state.data
+      return conflict != null && (conflict.attempt_state === 'running' || conflict.scope_held || conflict.delivery === 'pending')
+        ? 2000
+        : false
+    },
+  })
+}
+
+/** Whether Core refused a brief read because the attempt began before contexts were saved. */
+export function contextNotRecorded(error: unknown): boolean {
+  if (!(error instanceof ApiError) || error.problem.kind !== 'http') return false
+  try {
+    return (JSON.parse(error.problem.body) as Partial<RunRefusal>).code === 'context_not_recorded'
+  } catch { return false }
 }
 
 export function saveTaskRunAnswer(queryClient: QueryClient, workflowId: string, version: number, task: number, run: TaskRun) {

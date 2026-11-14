@@ -91,6 +91,7 @@ async fn fresh_database_migrates_and_applies_the_connection_policy() {
             "project_link",
             "project_mode",
             "queued_message",
+            "run_attempt_context",
             "run_attempts",
             "run_lessons",
             "run_task_marks",
@@ -119,7 +120,7 @@ async fn fresh_database_migrates_and_applies_the_connection_policy() {
          0040 the per-agent MCP tool rules, 0042 agent groups and their delivery journal, \
          0054 the project's file inventory, 0056 the lessons record, \
          0058 the language servers turned off and added, \
-         0060 the person's questions)"
+         0060 the person's questions, 0061 the task context an attempt received)"
     );
 
     storage.close().await.unwrap();

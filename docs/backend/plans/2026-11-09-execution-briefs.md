@@ -1,5 +1,8 @@
 # Execution briefs and task-scoped code questions Implementation Plan
 
+**Superseded, 2026-11-14:** use the [detailed slice 4 plan](2026-11-14-slice-4-task-questions.md).
+The steps below are earlier draft material and are not a builder assignment.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking. Preserve the user's execution-method choice at handoff; this plan itself does not begin implementation.
 
 **Goal:** The executor receives one clear attempt brief and asks about code only within its task context.

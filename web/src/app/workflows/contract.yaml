@@ -24,6 +24,7 @@ name: web-workflows
 version: 1
 status: current
 source: web/src/app/workflows
+loading: Initial content reads use labelled SkeletonContent regions; placeholder shapes are decorative, motion respects reduced-motion preferences, and cached content stays visible during background reads. Errors and mutation progress keep their own presentation.
 
 refresh_pinning:
   writer: "pins writer-thread refresh for %s covers all five plan kinds; all five kinds refresh the entire workflows family, the project design and agreement versions."

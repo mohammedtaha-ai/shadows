@@ -1,3 +1,4 @@
+import { SkeletonContent } from '@/components/ui/skeleton'
 // Bounded navigation through a project's primary containment tree.
 import { Link } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
@@ -56,7 +57,7 @@ export function PartsView({ projectId, selected }: { projectId: string; selected
     </section>
     <section className="min-w-0 space-y-4">
       {creating && approved && <PartEditor key="create" projectId={projectId} destination={destination} onCreated={() => setCreating(false)} />}
-      {selected !== undefined && detail.isPending && <p>Loading part…</p>}
+      {selected !== undefined && detail.isPending && <SkeletonContent label="Loading part…" layout="form" />}
       {detail.error !== null && <ErrorLine error={detail.error} />}
       {detail.data !== undefined && <Link to="/projects/$projectId/new" params={{ projectId }}
         search={{ anchor: `part:${detail.data.part.id}` }}
@@ -83,12 +84,12 @@ function MapScope({projectId,branch,selected}: {
   const [overlay,setOverlay] = useState(false)
   const standards = useQuery({...standardsQuery(projectId),enabled:overlay})
   return <div className="space-y-2">
-    {branch.pending && <p>Loading map parts…</p>}
+    {branch.pending && <SkeletonContent label="Loading map parts…" layout="graph" />}
     {branch.error && <ErrorLine error={branch.error} />}
     {!branch.pending && !branch.error && parts.length === 0 && <p>No parts recorded yet.</p>}
     {parts.length > 0 && <Button size="sm" variant="secondary" aria-pressed={overlay}
       onClick={() => setOverlay(!overlay)}>{overlay ? 'Hide allowed dependencies' : 'Show allowed dependencies'}</Button>}
-    {overlay && standards.isPending && <p>Loading allowed dependencies…</p>}
+    {overlay && standards.isPending && <SkeletonContent label="Loading allowed dependencies…" />}
     {overlay && standards.error && <ErrorLine error={standards.error} />}
     {parts.length > 0 && <MapCanvas parts={parts} projectId={projectId} selected={selected?.id}
       allowed={overlay ? standards.data?.base.parts : undefined} />}
@@ -106,7 +107,7 @@ function BranchRows({projectId,branch,choose}: {
   projectId:string;branch:ReturnType<typeof usePartPages>;choose:(part:Part) => void
 }) {
   return <div className="space-y-1">
-    {branch.pending && <p>Loading parts…</p>}
+    {branch.pending && <SkeletonContent label="Loading parts…" />}
     {branch.items.map(part => <TreeRow key={part.id} projectId={projectId} part={part} choose={choose} />)}
     {branch.next && <Button size="sm" variant="secondary" disabled={branch.loading} onClick={() => void branch.more()}>Load more</Button>}
     {branch.error && <ErrorLine error={branch.error} />}

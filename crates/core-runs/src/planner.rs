@@ -2,7 +2,8 @@
 //!
 //! The Planner starts a task and marks it done through the same `start` and
 //! `mark_done` the HTTP routes call; only its grant is checked here. After a
-//! done mark it hears which task to start next, and starts it on its own.
+//! done mark it hears which group of tasks may start next, and starts them on
+//! its own.
 use crate::diff::MAX_LINES;
 use crate::model::{Attempt, AttemptFile, AttemptId, DoneMark, FileDiff};
 use crate::{Runs, RunsError};
@@ -103,7 +104,8 @@ impl Runs {
     }
 
     /// Marks task `task` of `workflow` done or not done for the Planner. A done
-    /// mark answers the task to start next, if any.
+    /// mark answers the group to start next: empty when nothing may start, or
+    /// when the mark judged work of a version that admits no new attempt.
     pub async fn mark_done_for(
         &self,
         grant: &Grant,
@@ -117,40 +119,10 @@ impl Runs {
             .mark_done(command, workflow, plan.version, task, done)
             .await?;
         let next = if done {
-            self.next_ready(&plan).await?
+            self.ready_group(&plan).await?
         } else {
-            None
+            Vec::new()
         };
         Ok(DoneMark { task: run, next })
-    }
-
-    /// The lowest-numbered task with no done mark and no attempt that Start
-    /// allows now. A task that already ran is never offered: a failure goes
-    /// to the person, and a done task is never started twice.
-    async fn next_ready(&self, plan: &Plan) -> Result<Option<u32>, RunsError> {
-        let mut numbers: Vec<u32> = plan.tasks.iter().map(|t| t.content.number).collect();
-        numbers.sort_unstable();
-        for number in numbers {
-            let marked = self
-                .inner
-                .store
-                .mark(&plan.id, plan.version, number)
-                .await?
-                .is_some_and(|m| m.0);
-            if marked {
-                continue;
-            }
-            if !self
-                .attempts(&plan.id, plan.version, number)
-                .await?
-                .is_empty()
-            {
-                continue;
-            }
-            if self.start_answer(plan, number).await?.allowed {
-                return Ok(Some(number));
-            }
-        }
-        Ok(None)
     }
 }

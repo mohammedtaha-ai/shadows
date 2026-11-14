@@ -156,7 +156,7 @@ frame_readers:
   readSubagentCard:
     "(value: unknown) -> SubagentCard | null; null when value is not a card, no throw"
   readAttemptNotice:
-    "(value: unknown) -> AttemptNotice | null; null unless task and attempt are numbers, title and model strings and outcome is committed or failed; commit, report and reason read as string or null; last_addition true only when true; no throw"
+    "(value: unknown) -> AttemptNotice | null; null unless task and attempt are numbers, title and model strings and outcome is committed or failed; commit, report and reason read as string or null; last_addition true only when true; conflict kept as given when it is an object and omitted otherwise (a_notice_keeps_its_conflict, an_ordinary_notice_has_no_conflict); no throw"
   parseTool: "(data: string) -> ToolFrame"
   parseTodos: "(data: string) -> TodosFrame"
   readToolCard:

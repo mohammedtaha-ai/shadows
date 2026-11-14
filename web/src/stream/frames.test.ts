@@ -10,6 +10,7 @@ import {
   parseTodos,
   parseTool,
   parseUsage,
+  readAttemptNotice,
   readTodoList,
   readToolCard,
 } from './frames'
@@ -164,5 +165,22 @@ describe('tool and todos frames', () => {
     expect(readTodoList({ entries: [{ content: 'a', status: 'completed' }] })?.entries).toHaveLength(1)
     expect(readTodoList({ entries: 'x' })).toBeNull()
     expect(readTodoList('x')).toBeNull()
+  })
+})
+
+describe('readAttemptNotice', () => {
+  const base = { task: 1, attempt: 2, title: 'T', model: 'm', outcome: 'failed' }
+  const conflict = {
+    attempt_id: 'a1', project_id: 'p', workflow_id: 'w', version: 1, task: 1, expected: 'x', observed: 'y',
+    evidence: [], attempt_state: 'stopped', scope_held: false, delivery: 'delivered', created_at: 'now',
+  }
+
+  it('a_notice_keeps_its_conflict', () => {
+    expect(readAttemptNotice({ ...base, conflict })?.conflict).toEqual(conflict)
+  })
+
+  it('an_ordinary_notice_has_no_conflict', () => {
+    expect(readAttemptNotice(base)?.conflict).toBeUndefined()
+    expect(readAttemptNotice({ ...base, conflict: 'nope' })?.conflict).toBeUndefined()
   })
 })

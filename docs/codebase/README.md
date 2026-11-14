@@ -191,10 +191,16 @@ pattern to follow, not merely an example.
 | `crates/core-runs/src/error.rs` | run refusals | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/scope.rs` | matching paths against a task's writes | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/ready.rs` | whether a task may start now | `crates/core-runs/contract.yaml` |
+| `crates/core-runs/src/ready_group.rs` | the tasks the Planner may start together | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/start.rs` | starting an attempt | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/amend.rs` | carrying an attempt on with the Planner's addition | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/lessons.rs` | the record a task leaves when it stops on the cap | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/store/lessons.rs` | lessons records SQL | `crates/core-runs/contract.yaml` |
+| `crates/core-runs/src/brief.rs` | reading the context an attempt was given | `crates/core-runs/contract.yaml` |
+| `crates/core-runs/src/question.rs` | answering an executor's question about its own attempt | `crates/core-runs/contract.yaml` |
+| `crates/core-runs/src/store/brief.rs` | saved attempt context SQL | `crates/core-runs/contract.yaml` |
+| `crates/core-runs/src/conflict.rs` | an executor's contract conflict on its own attempt | `crates/core-runs/contract.yaml` |
+| `crates/core-runs/src/store/conflict.rs` | attempt conflict SQL | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/stop.rs` | stopping an attempt | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/git.rs` | git calls in a project folder | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/init.rs` | giving a project folder its repository | `crates/core-runs/contract.yaml` |
@@ -514,6 +520,7 @@ file disagrees with either, they are right and this file is the defect.
 | `crates/codebase/src/error.rs` | index refusals | `crates/codebase/contract.yaml` |
 | `crates/codebase/src/testing.rs` | gated index inspection | `crates/codebase/contract.yaml` |
 | `crates/codebase/src/inventory.rs` | the paged file inventory of a project's folder | `crates/codebase/contract.yaml` |
+| `crates/codebase/src/inputs.rs` | the real-path check of a project path | `crates/codebase/contract.yaml` |
 | `crates/codebase/src/store/inventory.rs` | file inventory persistence | `crates/codebase/contract.yaml` |
 | `crates/codebase/src/lsp/` | the language servers a project's files want | `crates/codebase/contract.yaml` |
 | `crates/codebase/src/lsp/catalog.rs` | the language-server catalog | `crates/codebase/contract.yaml` |
@@ -570,8 +577,10 @@ file disagrees with either, they are right and this file is the defect.
 | `crates/core-design/src/layout.rs` | project layout ownership | `crates/core-design/contract.yaml` |
 | `crates/core-design/src/store/layout.rs` | snapshot layout projection | `crates/core-design/contract.yaml` |
 | `crates/core-plans/src/task_context.rs` | approved task context boundary | `crates/core-plans/contract.yaml` |
+| `crates/core-plans/src/execution.rs` | whether a plan version may start work now | `crates/core-plans/contract.yaml` |
 | `crates/core-plans/src/task_contract.rs` | task contract types with their one-task rules | `crates/core-plans/contract.yaml` |
-| `crates/core-plans/src/contract_uses.rs` | resolving a consumer's uses against its plan version's producers | `crates/core-plans/contract.yaml` |
+| `crates/core-plans/src/contract_uses.rs` | resolving the uses of one plan version, from either end | `crates/core-plans/contract.yaml` |
+| `crates/core-plans/src/contract_questions.rs` | what one task's contract promises within its Frozen version | `crates/core-plans/contract.yaml` |
 | `crates/core-plans/src/store/task_context.rs` | snapshot task context assembly | `crates/core-plans/contract.yaml` |
 | `crates/core-plans/src/phases.rs` | ordered phase contracts | `crates/core-plans/contract.yaml` |
 | `crates/core-plans/src/store/phase_refs.rs` | exact phase target resolution | `crates/core-plans/contract.yaml` |

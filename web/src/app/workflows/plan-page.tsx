@@ -1,3 +1,4 @@
+import { SkeletonContent } from '@/components/ui/skeleton'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, getRouteApi } from '@tanstack/react-router'
 import { cn } from 'cn'
@@ -64,7 +65,7 @@ function PlanView({ projectId, workflowId, savedViewport, onViewportChange }: {
   if (plan.data === undefined) {
     return (
       <div className="p-6 text-sm text-faint-foreground">
-        {plan.isError ? <ErrorLine error={plan.error} /> : 'Reading the plan…'}
+        {plan.isError ? <ErrorLine error={plan.error} /> : <SkeletonContent label="Reading the plan…" layout="graph" />}
       </div>
     )
   }

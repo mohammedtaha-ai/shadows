@@ -1,3 +1,4 @@
+import { SkeletonContent } from '@/components/ui/skeleton'
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { providersQuery, providerPresetsQuery } from '@/api/aylul-profiles'
@@ -24,6 +25,7 @@ export function ProvidersSection({ onUnsavedChange }: { onUnsavedChange?: (unsav
     {step !== 'list' && <Button type="button" variant="ghost" aria-label="Back" disabled={dirty} onClick={() => setStep(step === 'setup' && slug === null ? 'choose' : 'list')}>←</Button>}
     {step === 'list' && <>
       <Button type="button" onClick={() => { setSlug(null); setStep('choose') }}>Add provider</Button>
+      {providers.isPending && <SkeletonContent label="Loading providers…" />}
       {providers.data && <ul aria-label="Saved providers" className="divide-y divide-border">
         {providers.data.map(item => {
           const preset = presetOf(presets.data ?? [], item)
