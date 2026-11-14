@@ -139,3 +139,25 @@ it('a_notice_with_a_conflict_adds_the_conflict_card', async () => {
   expect(host.textContent).toContain('E1')
   expect(host.textContent).toContain('O1')
 })
+
+it('a_streamed_conflict_notice_reaches_the_conversation', async () => {
+  const { startApp } = await import('@/test/test-app')
+  const { answers } = await import('@/test/fake-daemon')
+  const conflict = {
+    attempt_id: 'a3', project_id: 'p1', workflow_id: 'w1', version: 1, task: 2, expected: 'E1', observed: 'O1',
+    evidence: [], attempt_state: 'stopped', scope_held: false, delivery: 'delivered', created_at: 'now',
+  }
+  const app = await startApp('/projects/p1/threads/t1', answers({
+    entries: [notice('x', card({ conflict } as Partial<AttemptNotice>))],
+  }))
+  try {
+    await until(() => app.sources.length > 0)
+    await act(async () => { app.sources.filter((x) => x.url.includes('/threads/t1/')).forEach((x) => x.caughtUp(0)) })
+    const summary = () => [...document.querySelectorAll('button')].find((b) => b.textContent.includes('Received a notice'))
+    await until(() => summary() !== undefined)
+    await act(async () => { summary()?.click() })
+    await until(() => app.text().includes('E1'))
+    expect(app.text()).toContain('O1')
+    expect(app.text()).toContain('Executor (sonnet)')
+  } finally { app.unmount() }
+})
