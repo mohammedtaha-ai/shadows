@@ -5,6 +5,15 @@ here and set its status. Task shape: [`AGENTS.md`](./AGENTS.md#a-task-in-stagesm
 
 ## Now
 
+### F-119 · Expandable changed files in the task diff
+
+- Status: done. All 109 focused task/code-map/architecture tests, typecheck, lint and build passed. Browser acceptance is left to the user.
+- Design: direct browser feedback; each file has a clear disclosure header, selecting another closes the first, and the open file can collapse.
+- Read: frontend code map; web/src/app/tasks/contract.yaml.
+- Touch: `web/src/app/tasks/diff-tab.tsx`, `web/src/app/tasks/task-page.test.tsx`, `web/src/app/tasks/contract.yaml`, `docs/frontend/stages.md`.
+- Needs: none; existing attempt diff and file reads.
+- Done when: switching and collapsing file sections pass focused task tests; typecheck, lint, build, codemap and architecture pass. The user performs browser acceptance; do not launch a browser.
+
 ### F-118 · Clear attempt reports and completion badge
 
 - Status: done. The 115 focused task/architecture/code-map checks, typecheck, lint and build passed. Browser review is left to the user at their request.

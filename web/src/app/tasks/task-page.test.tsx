@@ -132,9 +132,31 @@ describe('the task page', () => {
     await openDiff(a)
     await until(() => a.text().includes('first file line'))
     expect(a.text()).not.toContain('second file line')
-    await click(a.button('web/b.ts+1-0'))
+    await click(a.button('Show diff for web/b.ts'))
     await until(() => a.text().includes('second file line'))
     expect(a.text()).not.toContain('first file line')
+  })
+
+  it('diff_file_sections_can_collapse_and_open_another_file', async () => {
+    const a = app = await diffPage([
+      { path: 'first.go', added: 1, removed: 0, hunks: [] },
+      { path: 'second.go', added: 2, removed: 0, hunks: [] },
+    ], path => Response.json({ path, text: `Contents of ${path}\n`, cut: false }))
+    await openDiff(a)
+    await until(() => a.text().includes('Contents of first.go'))
+    const first = a.button('Hide diff for first.go')
+    expect(first).toBeDefined()
+    expect(first?.getAttribute('aria-expanded')).toBe('true')
+    await click(first)
+    expect(a.text()).not.toContain('Contents of first.go')
+    expect(a.button('Show diff for first.go')?.getAttribute('aria-expanded')).toBe('false')
+    await click(a.button('Show diff for second.go'))
+    await until(() => a.text().includes('Contents of second.go'))
+    expect(a.text()).not.toContain('Contents of first.go')
+    await click(a.button('Show diff for first.go'))
+    await until(() => a.text().includes('Contents of first.go'))
+    expect(a.text()).not.toContain('Contents of second.go')
+    expect(a.button('Show diff for second.go')?.getAttribute('aria-expanded')).toBe('false')
   })
 
   it('diff_shows_the_whole_file_with_its_changes_marked', async () => {
@@ -200,8 +222,8 @@ describe('the task page', () => {
     ))
     await openDiff(a)
     await until(() => a.text().includes('No such file at that commit.'))
-    expect(a.button('a.txt+0-0')).toBeDefined()
-    expect(a.button('b.txt+0-0')).toBeDefined()
+    expect(a.button('Hide diff for a.txt')).toBeDefined()
+    expect(a.button('Show diff for b.txt')).toBeDefined()
   })
 
   it('a_committed_task_waits_for_the_planners_judgment', async () => {
