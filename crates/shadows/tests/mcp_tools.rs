@@ -972,8 +972,15 @@ fn the_planner_is_told_how_to_run_and_judge_tasks() {
     let texts: &[&str] = &[
         "project_git_init: when Start is refused",
         "leaving out secret and dependency files, which stay in the folder untracked",
-        "start the task task_done names as next at once with task_start, \
+        "start every task task_done names in next at once with task_start, \
          without waiting for the person",
+        "call task_ready and start every task of its group with task_start at once",
+        "When the person asks for one named task, start only that task.",
+        "never start the same list again",
+        "review that outcome first; then you may ask task_ready again",
+        "Never start a task that already ran again on your own",
+        "In each task's instructions say which task runs which shared build or test",
+        "A check an executor reports as not run is neither a pass nor a reason to ask it",
         "count anything the report says was skipped or could not run as not done",
         "first read what it changed with task_diff",
         "never ask the executor for file contents",
@@ -997,6 +1004,7 @@ async fn the_planner_reads_a_commit_with_its_own_tools() {
     for (name, text) in [
         ("task_diff", "never ask the executor for file contents"),
         ("task_file", "inside the task's writes"),
+        ("task_ready", "It reserves nothing"),
     ] {
         let tool = tools.iter().find(|t| t.name == name).unwrap();
         assert!(

@@ -96,6 +96,17 @@ layer_catalog: 'Planner standards text lists every kind presence and its layers 
 # executor.md's "Tools" section (no Python; files through Write, Edit and MultiEdit, never the
 # shell) is held by executor::tests::the_executor_file_parses_and_names_its_eight_tools.
 # executor.md's contract bullets are held, live, by runs_routes::live_an_executor_builds_the_function_its_contract_names.
+# prompt.txt runs a plan group by group: task_ready, then every task of the group started at once;
+# one named task starts alone; after a done mark the next group; after a failure or stop a review,
+# then task_ready again, never a retry of a task that ran or a stale list; a new draft blocks only
+# new starts; shared checks get an owner and order in task instructions, and an unrun check is
+# neither a pass nor a reason to ask the executor. Held by
+# mcp_tools::the_planner_is_told_how_to_run_and_judge_tasks.
+# executor.md commits with `git --literal-pathspecs commit --only` and the exact own paths, new
+# files staged by exact name first, both ends of a rename, lock refusals retried after 1/2/4 s
+# without deleting a lock, and only assigned shared checks run; Runs' first prompt and addition
+# say the same (core-runs COMMIT). Held by executor_commits and
+# core-runs::the_first_prompt_says_how_an_attempt_ends.
 # executor.md asks for `code_lsp` before searching the tree; prompt.txt names `code_lsp`, and that
 # a language with no running server is answered "no server".
 # The prompt asks the Planner to ask a choice with person_ask and wait, never the same thing in

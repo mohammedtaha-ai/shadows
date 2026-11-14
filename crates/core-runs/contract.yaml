@@ -42,6 +42,7 @@ modules:
   error.rs: run refusals
   scope.rs: the pattern matcher shared by the overlap check and the report check
   ready.rs: whether a task may start now
+  ready_group.rs: the tasks the Planner may start together
   git.rs: git calls in a project folder
   init.rs: giving a project folder its repository
   planner.rs: the Planner's calls on its project's tasks
@@ -82,7 +83,9 @@ shapes:
   Need: "{ task: TaskParent, title, done }: a task this one needs, in link order"
   TaskRun: "{ task, done, done_at, latest, needs, start: StartAnswer, suggested_model }"
   StartAnswer: "{ allowed, code, reason }: code and reason null when allowed"
-  DoneMark: "{ task: TaskRun, next }: what the Planner's mark answers; next is next_ready's task for a done mark, else null. MCP only, no route serves it"
+  DoneMark: "{ task: TaskRun, next: [ReadyTask] }: what the Planner's mark answers; next is ready_group's tasks for a done mark, else empty; empty too when the marked version admits no new attempt. MCP only, no route serves it"
+  ReadyTask: "{ task, title, suggested_model }: one task of a ready group; suggested_model is the plan's suggested model or null"
+  ReadyGroup: "{ workflow_id, version, tasks: [ReadyTask] }: tasks ascending by number, pairwise write-compatible; an observation, never a reservation"
   FileDiff: "{ path, added, removed, patch, hunks }: the patch cut at 2,000 lines with a marker; hunks (shadows-agent DiffHunk) read from the same patch before the cut, lines stopping at 2,000 in all, none for a binary file"
   AttemptNotice: "{ workflow_id, version, task, title, attempt, attempt_id, model, outcome, commit, report, reason, last_addition }: the card of an executor's notice; title is the task's or T{task}; report is the executor's report when committed, its last message (cut at 4,000 chars) when failed, else null"
   AttemptFile: "{ path, text, cut }: a file at an attempt's commit; text null for deleted, binary or non-UTF-8 files; text cut on a line and char boundary at 2,000 lines or 200,000 bytes, whichever comes first"
@@ -114,14 +117,15 @@ functions:
   report: "(grant, commit, report) -> Attempt; the executor grant's attempt must be Running (Committed is AlreadyCommitted); then, in order: commit is a hex SHA git resolves to a commit (UnknownCommit), reachable from HEAD (NotOnBranch), not reachable from start_head (NotNew); changes at least one file (EmptyCommit with its full sha when Git::changes is empty); every path it changes against its first parent (a root commit against nothing, a rename as both ends) lies inside writes, a path outside the project folder outside them (OutsideWrites, all listed); none it adds or modifies is binary by git's numstat (BinaryFiles, all listed), a check skipped when the attempt's plan version (read_plan) is the setup plan, is_setup: its title trimmed equals Setup in any case; last, dirty finds nothing uncommitted inside writes (DirtyScope, all listed; a change outside writes does not refuse it). A refusal leaves the attempt Running. On acceptance the attempt becomes Committed with the full sha and the trimmed report; only a Running attempt moves"
   init_git: "(grant) -> String; a Thread (Planner) grant only, else NotFound; the folder from Projects (NoFolder when none); a folder inside any work tree, its own or a parent's, is AlreadyGit; then Codebase::refresh_inventory and Codebase::inventory page by page (prefix empty, limit 200, after the page's next), collecting every entry whose excluded_reason is secret or dependencies; a page Indexing or Missing, or InventoryStale after one fresh start from the first page, is NotListed, nothing written yet; then git init; Git::exclude appends one line per collected path to .git/info/exclude (`/` + the path, its backslash, star, question mark, brackets, bang and hash escaped by a backslash, a trailing `/` for a path that is a folder on disk, a link not followed); then Git::commit_all, git add -A and one commit `Initial commit` as Shadows <shadows@localhost> with --allow-empty, so an empty folder gets one; a git failure Unavailable; answers the full sha, writes no project file, logs runs.git_initialised with the commit and the number of paths left out"
   start_for: "(grant, workflow, task, model?) -> Attempt; the Planner's grant checked (a Thread grant of the plan's project, else NotFound), then start with the trimmed model, else the task's suggested model, else NoModel; the command id is fresh"
-  mark_done_for: "(grant, workflow, task, done) -> DoneMark; the Planner's grant checked as start_for, then mark_done; a done mark answers next from next_ready, which the Planner starts on its own (Mohammed, 2026-11-11)"
+  mark_done_for: "(grant, workflow, task, done) -> DoneMark; the Planner's grant checked as start_for, then mark_done; a done mark answers next from ready_group, which the Planner starts on its own (Mohammed, 2026-11-11); a mark on a version that admits no new attempt still succeeds, with next empty, and starts nothing"
+  ready_for: "(grant, workflow) -> ReadyGroup; the Planner's grant checked as start_for (a Thread grant of the plan's project, else NotFound); Plans::execution_plan's refusal is Archived, NotFrozen or Superseded; else the version's ready_group, empty when nothing is ready. MCP task_ready only"
   amend: "(grant, workflow, task, addition) -> Attempt; the Planner's grant checked as start_for; an empty trimmed addition is EmptyAddition; no committed attempt still holding its scope is NotAwaiting; when additions_since_start is already 3, the waiting attempt is stopped (it keeps its commit and state Committed, its session closes, its scope is freed), record_lesson keeps its record, and AdditionsSpent, nothing else written; else continue_attempt in one write (the version must still start work, Archived, NotFrozen or Superseded otherwise, the waiting attempt keeping its scope; then the waiting attempt released, a Running attempt with the next number on the same thread, model and writes, recording the HEAD now and the addition), then run_turn with the addition's prompt"
   run_turn: "private: (attempt, prompt) -> Attempt; open_executor with the attempt's TaskScope and model, reopening the thread whether its session is live, closed or gone (a failure abandons it `session did not open: ...`), the still-Running check, the turn in mode auto, set_operation, the late Stop, watch. Start and amend both end here"
   watch: "private: (attempt, thread, operation) follows the turn in the background: it reads the thread's operations after each journal commit, and at least once a second, until the operation has finished_at, then settles the attempt as the transitions say"
   additions_since_start: "private: how many of the task's attempts, newest first, carry an addition before the first that does not (the one a Start began); a new Start begins a new count"
   record_lesson: "private: (plan, stopped) puts the task's TaskLesson in run_lessons keyed by the stopped attempt: the chain from the newest attempt down to the one a Start began, oldest first, the execute calls from Threads::entries of its thread in ordinal order, the task's title, both Planner fields null; a failure is logged runs.lesson_failed and never changes the cap's answer, success logs runs.lesson_recorded"
   write_lesson: "(grant, workflow, task, stopped_by, plan_should_have_said) -> TaskLesson; the Planner's grant checked as start_for; both trimmed and non-empty, else EmptyLesson; the task's latest record (by created_at, then attempt_id), else NoLesson; sets the two fields and stores it; writing again replaces them. No read method, route or tool lists the records: the main session reads run_lessons.record_json"
-  next_ready: "private: the lowest-numbered task never run (no done mark, no attempt at all) that Start allows now"
+  ready_group: "private: (plan) -> Vec<ReadyTask>; tasks in number order; skipped: one whose writes Scope::may_overlap with a task already chosen, one with a done mark, one with any attempt (never retried automatically), one start_answer refuses (waiting, a held scope, invalid inputs, the version's state); suggested_model read once. No reservation, batch start, queue or range lock: every Start checks admission again"
   diff: "(attempt) -> Vec<FileDiff>; each file of the attempt's commit, nothing before it commits; each @@ -a[,b] +c[,d] @@ starts a hunk with old_start a and new_start c, lines led by space, + or - are Context, Add, Remove without that character, no-newline markers skipped"
   file: "(attempt, path) -> AttemptFile; unknown attempt or no commit is NotFound; trim path and normalize backslashes, then Scope::admits_under with Git::prefix and the attempt's writes, else OutsideWrites before reading a blob. Git::blob reads the commit, never the working tree; NUL in the first 8,000 bytes or invalid UTF-8 gives text null. No blob gives text null only for a path Git::changes lists (deleted), else NotFound. MAX_LINES 2,000 and MAX_BYTES 200,000 cut on a line and char boundary with cut true and no marker"
   planner_commit: "private: (grant, workflow, task) -> AttemptId; planner_plan checks a Thread grant of the plan's project, then attempts newest first at plan.version: first with a commit, whatever its state; none is NotFound"
@@ -194,6 +198,13 @@ agreements:
       `start_for` checks only the Planner's grant and the model, then calls `start`; every
       check and answer of Start is Start's own.
     tested_by: [the_planner_tools_refuse_a_grant_that_is_not_a_planners, live_the_planner_starts_the_task_it_was_asked_to_run]
+  - between: [ready_for, mark_done_for]
+    rule: task_ready and a done mark's next answer the same group.
+    holds: true
+    why: >
+      Both call the one private ready_group on the plan version; ready_for alone refuses a
+      version that admits no new attempt, where ready_group answers empty.
+    tested_by: [first_group_has_two_independent_tasks, judging_old_work_returns_no_old_next, the_next_task_is_one_that_never_ran]
   - between: [start, amend]
     rule: One run_turn opens the session and sends the turn.
     holds: true
@@ -203,6 +214,10 @@ agreements:
     tested_by: [live_an_addition_continues_the_executor_in_its_session]
 
 obligations:
+  - rule: A ready group is pairwise write-compatible, excludes held scopes and tasks that already ran, and is not a reservation; a stale group cannot bypass Start, and a stop frees a never-attempted task.
+    tested_by: [the_ready_group_is_pairwise_disjoint, held_commits_block_groups, a_stopped_task_is_not_automatically_retried, a_stop_unblocks_a_never_attempted_task, a_stale_group_cannot_bypass_start, non_planner_grants_cannot_request_groups]
+  - rule: The first prompt and every addition give one commit procedure (COMMIT) - new files staged by exact name, then git --literal-pathspecs commit --only of the exact own paths, both ends of a rename, bounded lock retries without deleting a lock, and shared checks reported as not run unless assigned - which leaves foreign staged content intact.
+    tested_by: [the_first_prompt_says_how_an_attempt_ends, only_commit_preserves_foreign_staged_paths, new_deleted_and_renamed_paths_commit_only_their_own_changes, literal_pathspecs_do_not_select_other_files]
   - rule: A refused Start writes no attempt, thread or session; required files absent are MissingInput, a create target need not exist, a reads pattern is not a required file, a link out is refused, and dirty paths outside writes refuse nothing.
     tested_by: [missing_existing_inputs_refuse_start, a_create_target_need_not_exist, a_reads_glob_is_not_a_required_file, an_input_junction_out_is_refused, unrelated_dirty_files_do_not_refuse_start]
   - rule: An attempt already running on a version that a corrective Draft supersedes still reports its commit against its own version.

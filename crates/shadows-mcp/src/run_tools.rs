@@ -45,6 +45,13 @@ struct TaskDoneArgs {
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
+struct TaskReadyArgs {
+    /// The approved plan version.
+    #[schemars(with = "String")]
+    workflow_id: WorkflowId,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 struct TaskDiffArgs {
     /// The approved plan version.
     #[schemars(with = "String")]
@@ -177,10 +184,33 @@ impl Shadows {
     }
 
     #[tool(
+        description = "List the tasks of an approved plan version you may start together now: \
+                       each never ran, is not done, has its needs done, and its writes meet \
+                       no running or unjudged task nor another task of the list, in task \
+                       order with its suggested model. It reserves nothing: each task_start \
+                       checks again, and a refused one is reported, not retried from this \
+                       list; ask task_ready again for what is ready now. A version that cannot \
+                       start work is refused with its reason."
+    )]
+    async fn task_ready(
+        &self,
+        Extension(grant): Extension<Grant>,
+        Parameters(args): Parameters<TaskReadyArgs>,
+    ) -> CallToolResult {
+        answer(
+            self.core
+                .runs()
+                .ready_for(&grant, &args.workflow_id)
+                .await
+                .map_err(Refusal::from),
+        )
+    }
+
+    #[tool(
         description = "Start an executor on one task of an approved plan version: one the \
-                       person asked you to run, or the task task_done named as next. Shadows \
-                       checks the task as the Start \
-                       button does (an approved version, its needs links done, a git folder, \
+                       person asked you to run, or a task of the group task_ready or task_done \
+                       named. Shadows checks the task again as the Start button does (an approved \
+                       version, its needs links done, a git folder, \
                        no overlapping task running) and answers the attempt, or the refusal \
                        with its code. The executor works on its own; Shadows tells you in \
                        this conversation when its attempt ends."
@@ -203,9 +233,10 @@ impl Shadows {
         description = "Mark a task done (done true) only after you judged its committed work \
                        against every acceptance item, or not done (done false) to take a mark \
                        back. A done task frees the tasks whose needs links wait for it. With \
-                       done true it answers next: the lowest-numbered task of this version \
-                       that has never run and can start now, or null; start it with \
-                       task_start. Marking it done also closes the executor's session."
+                       done true it answers next: the group task_ready would answer, as a \
+                       list (empty when nothing can start, or when this version has a newer \
+                       one); start each with task_start. Marking it done also closes the \
+                       executor's session."
     )]
     async fn task_done(
         &self,

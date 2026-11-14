@@ -109,12 +109,32 @@ pub struct TaskRun {
 }
 
 /// What the Planner's done mark answers: the task as it now stands, and, for
-/// a done mark, the lowest-numbered task that never ran and may start now.
-/// MCP only; no route serves it.
+/// a done mark, the group of never-attempted tasks that may start now. Empty
+/// for a mark taken back or on a version that admits no new work. MCP only;
+/// no route serves it.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct DoneMark {
     pub task: TaskRun,
-    pub next: Option<u32>,
+    pub next: Vec<ReadyTask>,
+}
+
+/// One task of a ready group: it never ran, is not done, and Start allows it now.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, utoipa::ToSchema)]
+pub struct ReadyTask {
+    pub task: u32,
+    pub title: String,
+    #[schema(required)]
+    pub suggested_model: Option<String>,
+}
+
+/// Tasks of one approved version that may start now, ascending by number, no
+/// two of whose writes may meet. An observation, not a reservation: each
+/// Start checks admission again.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, utoipa::ToSchema)]
+pub struct ReadyGroup {
+    pub workflow_id: WorkflowId,
+    pub version: i64,
+    pub tasks: Vec<ReadyTask>,
 }
 
 /// Whether Start may run now, by the same checks as Start, without writing.

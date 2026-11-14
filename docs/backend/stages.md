@@ -132,7 +132,7 @@ B-109, B-147, F-102, B-149. B-108 is ready; later-slice tasks retain blocked dra
 
 ### B-148 · Compatible ready groups
 
-- Status: blocked until B-108; second task of slice 4.
+- Status: done (Touch extended by the controller with `crates/shadows/tests/mcp_server.rs`, whose Planner tool list now holds `task_ready`).
 - Plan: [B-148](plans/2026-11-14-slice-4-task-questions.md#task-b-148-compatible-ready-groups).
 - Owner: Runs, with Plans admission and existing scope matcher.
 - Read: approved slice 4 design/agreement, task Interfaces and owner contracts.

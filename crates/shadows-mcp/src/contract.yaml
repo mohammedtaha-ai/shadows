@@ -57,6 +57,10 @@ layout_only: Map records contain no starter files; the stage has no Structure st
 # project_files' description says what each InventoryState of a page means, and that
 # indexing is a listing not complete yet: ask again, never conclude the folder is empty.
 # Tested by mcp_tools::the_planner_is_told_an_indexing_listing_is_not_complete.
+# task_ready translates { workflow_id } to Runs::ready_for and answers its ReadyGroup; only the
+# Planner's grant lists it. task_done answers DoneMark, whose next is a list of ReadyTask ([] for
+# nothing ready), from the same Runs selector. Tested by ready_groups and
+# mcp_tools::the_planner_reads_a_commit_with_its_own_tools.
 # task_report's description requires a commit that changes at least one file; EmptyCommit
 # keeps Runs' empty_commit code through the generic refusal mapping. Tested by
 # mcp_tools::an_executor_grant_lists_its_tools_and_reads_only_its_task.

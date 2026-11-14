@@ -191,6 +191,7 @@ pattern to follow, not merely an example.
 | `crates/core-runs/src/error.rs` | run refusals | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/scope.rs` | matching paths against a task's writes | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/ready.rs` | whether a task may start now | `crates/core-runs/contract.yaml` |
+| `crates/core-runs/src/ready_group.rs` | the tasks the Planner may start together | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/start.rs` | starting an attempt | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/amend.rs` | carrying an attempt on with the Planner's addition | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/lessons.rs` | the record a task leaves when it stops on the cap | `crates/core-runs/contract.yaml` |
