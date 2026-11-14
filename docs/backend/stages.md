@@ -142,7 +142,7 @@ B-109, B-147, F-102, B-149. B-108 is ready; later-slice tasks retain blocked dra
 
 ### B-149 · Real slice 4 acceptance
 
-- Status: blocked until B-148 and F-102.
+- Status: doing (steps 1, 2, 4; step 3 browser acceptance open).
 - Plan: [B-149](plans/2026-11-14-slice-4-task-questions.md#task-b-149-real-slice-acceptance).
 - Owner: integration acceptance through AppCore and the actual UI.
 - Read: approved design's Acceptance, B-149 steps and the live test patterns it names.
