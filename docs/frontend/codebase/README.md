@@ -10,6 +10,9 @@ listed under Contracts has no `contract.yaml`. The map is checked on every
 `npm test`, so it cannot go stale quietly. Paths in "What each file owns" are relative
 to the repository root; paths in "Architecture modules" are relative to `web/src`.
 
+The static `web/index.html` startup region shows an accessible, unanimated skeleton
+until React mounts; it requires no JavaScript, API access or additional asset download.
+
 ## Architecture Invariants
 
 What the code keeps true. Each one was checked by reading the code that enforces it.

@@ -5,6 +5,16 @@ here and set its status. Task shape: [`AGENTS.md`](./AGENTS.md#a-task-in-stagesm
 
 ## Now
 
+### F-120 · Finish content loading skeleton coverage
+
+- Status: done. All 162 distinct focused interaction/code-map/architecture checks passed across the scoped runs after correcting the stream catch-up fixture; typecheck, lint and build passed. No browser was launched.
+- Design: direct follow-up to F-117; cover the static startup screen, history, directory listings, nested design lists, inline names and native preference reads.
+- Read: frontend code map and the touched feature contracts.
+- Touch: `web/index.html`, `web/src/components/ui/skeleton.tsx`, `web/src/app/conversation/messages.tsx`, `web/src/app/conversation/anchor-picker.tsx`, `web/src/app/conversation/conversation.test.tsx`, `web/src/app/new-project/folder-browser.tsx`, `web/src/app/new-project/new-project-dialog.test.tsx`, `web/src/app/agreements/names.tsx`, `web/src/app/agreements/binding-editor.tsx`, `web/src/app/design/part-editor.tsx`, `web/src/app/design/part-references.tsx`, `web/src/app/settings/desktop-preferences.tsx`, `web/src/app/settings/desktop-preferences.test.tsx`, `web/src/app/conversation/contract.yaml`, `web/src/app/new-project/contract.yaml`, `web/src/app/agreements/contract.yaml`, `web/src/app/design/contract.yaml`, `web/src/app/settings/contract.yaml`, `docs/frontend/codebase/README.md`, `docs/frontend/stages.md`.
+- Needs: none; existing reads only.
+- Done when: deferred history and directory responses replace skeletons with content; inline placeholders remain valid in text containers, native settings preserve real values, and startup shows a static skeleton before JavaScript; focused tests, typecheck, lint, build, code-map and architecture pass. Browser acceptance is left to the user.
+
+
 ### F-119 · Expandable changed files in the task diff
 
 - Status: done. All 109 focused task/code-map/architecture tests, typecheck, lint and build passed. Browser acceptance is left to the user.

@@ -81,8 +81,9 @@ export function BindingEditor({ plan, task }: { plan: Plan; task: number }) {
 }
 function PartyOption({ projectId, id, role }: { projectId: string; id: string; role: string }) {
   const part = useQuery(partQuery(projectId, id))
-  return <option value={`${id}:${role}`} disabled={part.isError}>
-    {role} · {part.data?.part.content.title ?? (part.isError ? 'Part unavailable' : 'Loading part…')}
+  return <option value={`${id}:${role}`} disabled={part.isError || part.isPending}
+    aria-label={part.isPending ? `${role} · Loading part…` : undefined}>
+    {role} · {part.data?.part.content.title ?? (part.isError ? 'Part unavailable' : '…')}
   </option>
 }
 function PinnedOperations({ projectId, binding }: { projectId: string; binding: NonNullable<Plan['bindings']>[number] }) {

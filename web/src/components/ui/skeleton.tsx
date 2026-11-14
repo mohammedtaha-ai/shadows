@@ -9,6 +9,14 @@ export function Skeleton({ className, ...props }: ComponentProps<'span'>) {
 
 type Layout = 'rows' | 'cards' | 'form' | 'detail' | 'conversation' | 'graph'
 
+/** Inline placeholders stay valid inside labels, links and other phrasing content. */
+export function SkeletonText({ label, className }: { label: string; className?: string }) {
+  return <span role="status" aria-label={label} aria-busy="true" className="inline-flex align-middle">
+    <span className="sr-only">{label}</span>
+    <Skeleton className={cn('h-3 w-24', className)} />
+  </span>
+}
+
 /** A single announced loading region with non-interactive placeholders. */
 export function SkeletonContent({ label = 'Loading…', layout = 'rows', className }: {
   label?: string
