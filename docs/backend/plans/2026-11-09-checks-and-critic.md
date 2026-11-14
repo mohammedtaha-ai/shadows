@@ -10,7 +10,7 @@
 
 **Spec:** [approved section 17.0](../../core/specs/2026-10-01-task-contracts-and-evidence-design.md#170-approved-local-delivery-revision-2026-11-09). [Shared model/API agreement](../../shared/requests/2026-11-09-local-delivery.md). [Program](../../backend/plans/2026-11-09-local-delivery-program.md).
 
-**Prerequisites:** B-107..109 plus CheckSpec in B-103.
+**Prerequisites:** B-107..109 (`docs/backend/stages.md` at `d73bb646`) plus CheckSpec in B-103.
 
 ## Global Constraints
 

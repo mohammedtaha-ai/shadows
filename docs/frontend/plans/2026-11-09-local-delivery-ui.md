@@ -216,7 +216,7 @@ git add -- web/src/app/tasks/contract-section.tsx web/src/app/tasks/contract-sec
 git commit -m "feat(web): readable task contract and decision pins"
 ```
 
-### Task 4: F-102 Attempt brief and scoped question results
+### Task 4: F-102 Attempt brief and scoped question results (`docs/frontend/stages.md` at `d73bb646`)
 
 **Owner:** web API and task UI.
 
@@ -233,7 +233,7 @@ git commit -m "feat(web): readable task contract and decision pins"
 - Test: `web/src/app/tasks/brief-panel.test.tsx`
 
 **Interfaces:**
-- Consumes: B-109 brief endpoint and TaskAnswer tool entries; existing run transcript rendering.
+- Consumes: B-109 (`docs/backend/stages.md` at `d73bb646`) brief endpoint and TaskAnswer tool entries; existing run transcript rendering.
 - Produces: attemptBriefQuery(attempt:string); BriefPanel({attemptId}:{attemptId:string}).
 
 - [ ] **Step 1: Write the failing tests**

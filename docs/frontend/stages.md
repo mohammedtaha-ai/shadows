@@ -66,6 +66,7 @@ A shipped task's entry, and its plan once deleted, are in this file in Git at th
 | #62 to #64 | Conversation order, Codex, the task page | F-96, F-97, F-98 | `3a443ea0`, `217d7540`, `c71b263d` |
 | #65 | Task page review, the Diff tab, the Planner's notices | F-106 to F-113 | `617d806f` |
 | #67 | Conversation images, the question card, Settings › Code | F-114 to F-116 | `db760593` |
+| #68 | Attempt briefs and contract conflicts on the task page and in the Planner's notices | F-102 | `d73bb646` |
 
 PRs #59 and #66 have no `F-` task. Two composer fixes in PR #61 have none either: `1b85b6e6`
 (the textarea grows to 192px) and `e6e6e9cf` (`dir="auto"`, so Arabic runs right to left).
@@ -115,16 +116,6 @@ These tasks are blocked until their named backend API exists; no component imple
 - Needs: `docs/backend/stages.md` at `617d806f` (B-106), F-99; accepted shared API/model agreement. Backend must expose its generated API before this task starts.
 - Done when: all named RED/GREEN steps and focused verification commands in Task 3 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
 
-### F-102 · Attempt brief and scoped question results
-
-- Status: done. Added to Touch by controller ruling: web/src/stream/frames.ts, frames.test.ts and web/src/stream/contract.yaml, so `readAttemptNotice` carries the notice's `conflict`.
-- Plan: [F-102](../backend/plans/2026-11-14-slice-4-task-questions.md#task-f-102-saved-brief-and-conflict-presentation).
-- Owner: web API, tasks and conversation presentation.
-- Read: [approved design](../backend/specs/2026-11-14-task-questions-design.md), [accepted agreement](../shared/requests/2026-11-14-task-questions.md), frontend code map and the task's owner contracts/Interfaces.
-- Touch: exact Files of F-102 in the detailed slice 4 plan; no other sources.
-- Needs: B-107, B-147 (including B-109), accepted agreement and generated OpenAPI. No dependency on the superseded F-102 draft or a new F-101 implementation.
-- Done when: F-102's five steps, focused tests, typecheck/lint/build and codemap/architecture pass; generated schema and current contracts/maps updated; scoped commit recorded. Browser acceptance is B-149.
-
 ### F-103 · Check evidence, critic model and acceptance
 
 - Status: blocked (prerequisites below must ship first)
@@ -132,7 +123,7 @@ These tasks are blocked until their named backend API exists; no component imple
 - Owner: web API and task UI.
 - Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
 - Touch: exact Create/Modify/Test file list of Task 5; no other source paths.
-- Needs: B-114, F-102; accepted shared API/model agreement. Backend must expose its generated API before this task starts.
+- Needs: B-114; F-102 (`docs/frontend/stages.md` at `d73bb646`, shipped); accepted shared API/model agreement. Backend must expose its generated API before this task starts.
 - Done when: all named RED/GREEN steps and focused verification commands in Task 5 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
 
 ### F-104 · Repair state and replan controls

@@ -2,7 +2,7 @@
 
 - Status: accepted for planning by the controller under Mohammed's design approval and
   request to prepare the implementation plan, 2026-11-14. No API is claimed implemented.
-- Screen: F-102, attempt Report entries and the Planner's executor notices.
+- Screen: F-102 (`docs/frontend/stages.md` at `d73bb646`), attempt Report entries and the Planner's executor notices.
 - Owner: [slice 4 design](../../backend/specs/2026-11-14-task-questions-design.md).
 - Plan: [implementation](../../backend/plans/2026-11-14-slice-4-task-questions.md).
 - Backend answer: existing AppCore owners implement these shapes and generate OpenAPI.
@@ -37,7 +37,7 @@ copy fields. New types live in the job modules named by the plan and are re-expo
 
 | Type | Fields / wire rules |
 |---|---|
-| AttemptBrief | attempt: Attempt; context: TaskContext; captured_at: string; consumers: ConsumerRef[]; consumers_more: boolean. B-107 builds the first three; B-109 adds exact-version derived consumers (first 50). |
+| AttemptBrief | attempt: Attempt; context: TaskContext; captured_at: string; consumers: ConsumerRef[]; consumers_more: boolean. B-107 (`docs/backend/stages.md` at `d73bb646`) builds the first three; B-109 (same commit) adds exact-version derived consumers (first 50). |
 | ContractSelector | internally tagged kind: own; symbol { symbol_id }; output { output_id }; use { source: ContractSource }. Symbols/outputs belong to the own task; use matches a declared source. |
 | ConsumerRef | task: u32; title: string; output: string or null (producer output id for local task outputs; null for an exact Existing-source use); use_index: u32; purpose: string. Planned reference, never source location. |
 | ContractFacts | selector: ContractSelector; contract: TaskContract or null (selected projection); resolved: ResolvedContract[]; producers: ContractTarget[]; consumers: ConsumerRef[]; next: u32 or null. |

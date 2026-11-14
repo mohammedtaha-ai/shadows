@@ -32,11 +32,11 @@ The steps below are earlier draft material and are not a builder assignment.
 
 ## Review Focus
 
-- **B-107 / `brief_keeps_approved_contract_after_later_edit`:** A run must retain the obligations it actually received.
-- **B-108 / `create_target_is_not_mistaken_for_missing_input`:** A planned new file need not already exist.
-- **B-108 / `new_draft_blocks_start_inside_admission`:** A concurrent replan cannot slip past preflight.
-- **B-109 / `task_question_refuses_undeclared_file_before_lsp`:** Global semantic lookup must not leak another task's files.
-- **B-109 / `planned_function_answer_is_not_existing_source`:** A producer promise is distinct from an implemented symbol.
+- **B-107 (`docs/backend/stages.md` at `d73bb646`) / `brief_keeps_approved_contract_after_later_edit`:** A run must retain the obligations it actually received.
+- **B-108 (`docs/backend/stages.md` at `d73bb646`) / `create_target_is_not_mistaken_for_missing_input`:** A planned new file need not already exist.
+- **B-108 (`docs/backend/stages.md` at `d73bb646`) / `new_draft_blocks_start_inside_admission`:** A concurrent replan cannot slip past preflight.
+- **B-109 (`docs/backend/stages.md` at `d73bb646`) / `task_question_refuses_undeclared_file_before_lsp`:** Global semantic lookup must not leak another task's files.
+- **B-109 (`docs/backend/stages.md` at `d73bb646`) / `planned_function_answer_is_not_existing_source`:** A producer promise is distinct from an implemented symbol.
 
 ## File Structure
 
@@ -44,7 +44,7 @@ Each task's Create entries define focused files for that task's job; Modify entr
 
 ## Tasks
 
-### Task 1: B-107 Store a simple brief on each attempt
+### Task 1: B-107 (`docs/backend/stages.md` at `d73bb646`) Store a simple brief on each attempt
 
 **Owner:** Runs.
 
@@ -101,7 +101,7 @@ git add -- crates/core-runs/src/brief.rs crates/core-runs/src/store/brief.rs cra
 git commit -m "feat(core): store a simple brief on each attempt"
 ```
 
-### Task 2: B-108 Readiness from real inputs and current plan state
+### Task 2: B-108 (`docs/backend/stages.md` at `d73bb646`) Readiness from real inputs and current plan state
 
 **Owner:** Runs with Plans.
 
@@ -158,7 +158,7 @@ git add -- crates/core-plans/src/execution.rs crates/core-plans/src/lib.rs crate
 git commit -m "feat(core): readiness from real inputs and current plan state"
 ```
 
-### Task 3: B-109 Task-aware questions and executor tools
+### Task 3: B-109 (`docs/backend/stages.md` at `d73bb646`) Task-aware questions and executor tools
 
 **Owner:** Runs, Grants and adapters.
 
@@ -183,7 +183,7 @@ git commit -m "feat(core): readiness from real inputs and current plan state"
 - Test: `crates/shadows-core/tests/runs_attempts.rs`
 
 **Interfaces:**
-- Consumes: B-107 brief, Code::semantic, ResolvedContract; explicit named file work plus recorded permission scopes.
+- Consumes: B-107 (`docs/backend/stages.md` at `d73bb646`) brief, Code::semantic, ResolvedContract; explicit named file work plus recorded permission scopes.
 - Produces: Runs::question(&self,grant:&Grant,request:TaskQuestion) -> Result<TaskAnswer,RunsError>; task_brief and task_question; GET attempt brief route. Remove direct global where_is/who_uses/outline from rich executor tools, preserving project/Planner tools.
 
 - [ ] **Step 1: Write the failing tests**

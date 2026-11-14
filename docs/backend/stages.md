@@ -36,6 +36,7 @@ A shipped task's entry, and its plan once deleted, are in this file in Git at th
 | #64 | Executors, slices 0 and 1 | B-89 to B-93, F-98 | `c71b263d` |
 | #65, #66 | Local delivery slices 1, 1b and 3, and its review fixes | B-95, B-96, B-99 to B-101, B-103, B-104, B-106, B-120 to B-136, F-106 to F-113 | `617d806f` |
 | #67 | Codex images and language servers, slice 2 ([design](specs/2026-11-13-language-servers-design.md)) | B-137, B-138a, B-138 to B-146, F-114 to F-116 | `db760593` |
+| #68 | Slice 4: attempt context, task questions, conflicts and compatible ready groups ([design](specs/2026-11-14-task-questions-design.md)) | B-107 to B-109, B-147, B-148, F-102 | `d73bb646` |
 
 Replaced or dropped without being built: B-97, B-98, B-119 (by slice 2), B-102, B-110 (with the
 critic), B-112 (by the Planner's judgment), B-115, B-116 (by B-125 and B-126). Their entries are in
@@ -49,7 +50,8 @@ this file at `db760593`.
 - Real-provider acceptance of structure and depth slices 1 to 5 is not recorded.
 - Recorded acceptances: §10 of the AYLUL agents design (2026-11-03, desktop app); planner context slices
   1 and 2 ([evidence](../evidence/2026-11-04-planner-context-probe.md)); slice 2's language servers on
-  `testing4` (2026-11-13).
+  `testing4` (2026-11-13); slice 4's browser acceptance on `testing4` (2026-11-14, B-149).
+- Slice 4's live tests (`crates/shadows/tests/task_questions_live.rs`, B-149) are written and not run.
 
 ## Tasks
 
@@ -76,9 +78,10 @@ open for B-94. Its tasks are in PR #64 (`c71b263d`) and PR #65 (`617d806f`), as 
 
 ## Approved local delivery implementation, 2026-11-09
 
-Order and rulings: [the program](plans/2026-11-09-local-delivery-program.md). Slice 4 is
-detailed in its [plan](plans/2026-11-14-slice-4-task-questions.md): B-108, B-148, B-107,
-B-109, B-147, F-102, B-149. B-108 is ready; later-slice tasks retain blocked draft pointers.
+Order and rulings: [the program](plans/2026-11-09-local-delivery-program.md). Slice 4 is on `main`
+at `d73bb646` (PR #68); its tasks B-108, B-148, B-107, B-109, B-147 and F-102 are shipped there.
+Only B-149 remains in its [plan](plans/2026-11-14-slice-4-task-questions.md). Later-slice tasks
+retain blocked draft pointers.
 
 ### B-105 · Minimal accepted decision revisions
 
@@ -90,64 +93,17 @@ B-109, B-147, F-102, B-149. B-108 is ready; later-slice tasks retain blocked dra
 - Needs: `docs/backend/stages.md` at `617d806f` (B-104); a task that needs a decision revision.
 - Done when: all named RED/GREEN steps and focused verification commands in Task 3 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
 
-### B-107 · Store a simple brief on each attempt
-
-- Status: done
-- Plan: [B-107](plans/2026-11-14-slice-4-task-questions.md#task-b-107-saved-attempt-context-and-task_brief).
-- Owner: Runs and Plans; grants/adapters translate.
-- Read: [approved design](specs/2026-11-14-task-questions-design.md), [wire agreement](../shared/requests/2026-11-14-task-questions.md), owning contracts and the task's Interfaces.
-- Touch: exact Files of B-107 plus the plan's Common Touch paths; no other sources.
-- Needs: B-108; accepted slice 4 agreement.
-- Done when: B-107's five steps and common checks pass, current contracts/maps updated, scoped commit recorded. Live/browser acceptance is B-149.
-
-### B-108 · Readiness from real inputs and current plan state
-
-- Status: done; first task of slice 4.
-- Plan: [B-108](plans/2026-11-14-slice-4-task-questions.md#task-b-108-authoritative-admission-and-exact-required-files).
-- Owner: Plans, Runs and Codebase.
-- Read: AppCore, [approved design](specs/2026-11-14-task-questions-design.md), [wire agreement](../shared/requests/2026-11-14-task-questions.md), owner contracts and Interfaces.
-- Touch: exact Files of B-108 plus the plan's Common Touch paths; no other sources.
-- Needs: none; slice 2 shipped in #67 and the slice 4 design/agreement are accepted for planning.
-- Done when: B-108's five steps and common checks pass, no refused admission inserts an attempt, scoped commit recorded.
-
-### B-109 · Task-aware questions and executor tools
-
-- Status: done
-- Plan: [B-109](plans/2026-11-14-slice-4-task-questions.md#task-b-109-questions-about-source-and-planned-consumers).
-- Owner: Plans relationships, Runs composition, Grants authority and adapters.
-- Read: approved slice 4 design/agreement, task Interfaces and owner contracts.
-- Touch: exact Files of B-109 plus Common Touch paths; no other sources.
-- Needs: B-107.
-- Done when: B-109's five steps/common checks pass, source/planned facts stay distinct, scoped commit recorded.
-
-### B-147 · Durable contract conflicts and selective stops
-
-- Status: done (Touch extended mechanically: migration checksum fixture and count, tool lists in `crates/shadows/tests/mcp_server.rs`, `mcp_tools.rs` and `crates/shadows-core/tests/executor_session.rs`, the route list in `crates/shadows/tests/openapi.rs`).
-- Plan: [B-147](plans/2026-11-14-slice-4-task-questions.md#task-b-147-conflicts-through-the-existing-attempt-lifecycle).
-- Owner: Runs; existing Grants, Turns and Harness lifecycles.
-- Read: approved slice 4 design/agreement, task Interfaces, owner contracts and executor cancellation ruling.
-- Touch: exact Files of B-147 plus Common Touch paths; no other sources.
-- Needs: B-107, B-109.
-- Done when: B-147's five steps/common checks pass, race/recovery/termination cases keep their invariants, scoped commit recorded. Untested live cases stay explicit.
-
-### B-148 · Compatible ready groups
-
-- Status: done (Touch extended by the controller with `crates/shadows/tests/mcp_server.rs`, whose Planner tool list now holds `task_ready`).
-- Plan: [B-148](plans/2026-11-14-slice-4-task-questions.md#task-b-148-compatible-ready-groups).
-- Owner: Runs, with Plans admission and existing scope matcher.
-- Read: approved slice 4 design/agreement, task Interfaces and owner contracts.
-- Touch: exact Files of B-148 plus Common Touch paths; no other sources.
-- Needs: B-108 only; no dependency on conflicts. Includes native Git --only procedure and shared-check coordination instructions.
-- Done when: B-148's five steps/common checks pass, groups are pairwise compatible and do not retry attempted tasks, scoped commit recorded.
-
 ### B-149 · Real slice 4 acceptance
 
-- Status: doing (steps 1, 2, 4; step 3 browser acceptance open).
+- Status: doing. Browser acceptance is done (`testing4`, 2026-11-14): two tasks ran together with commits
+  holding only their own files; a contract conflict stopped its attempt, freed its scope and reached the
+  Planner, shown on the Report tab; `task_question` answered a planned consumer and, with `documentSymbol`,
+  gopls's symbols. The live tests (`crates/shadows/tests/task_questions_live.rs`) are written and not run.
 - Plan: [B-149](plans/2026-11-14-slice-4-task-questions.md#task-b-149-real-slice-acceptance).
 - Owner: integration acceptance through AppCore and the actual UI.
 - Read: approved design's Acceptance, B-149 steps and the live test patterns it names.
 - Touch: exact Files of B-149 plus Common Touch paths; acceptance entries only in frontend stages.
-- Needs: B-107, B-108, B-109, B-147, B-148, F-102.
+- Needs: the slice 4 tasks and F-102, all shipped in `docs/backend/stages.md` at `d73bb646` (PR #68).
 - Done when: named live tests and disposable browser/log scenarios pass with dated evidence and scoped commit; unavailable checks remain reported, not passed.
 
 ### B-111 · Run required checks with source provenance
@@ -157,7 +113,7 @@ B-109, B-147, F-102, B-149. B-108 is ready; later-slice tasks retain blocked dra
 - Owner: Runs.
 - Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
 - Touch: exact Create/Modify/Test file list of Task 2; no other source paths.
-- Needs: B-109; accepted shared API/model agreement (B-110 dropped with the critic).
+- Needs: `docs/backend/stages.md` at `d73bb646` (B-109); accepted shared API/model agreement (B-110 dropped with the critic).
 - Done when: all named RED/GREEN steps and focused verification commands in Task 2 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
 
 ### B-113 · Evidence-backed outputs and honest task acceptance

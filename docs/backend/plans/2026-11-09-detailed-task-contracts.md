@@ -88,7 +88,7 @@ Expected: new named tests fail for the missing operation/type or the stated beha
 
 - [ ] **Step 3: Implement the Interfaces in the listed files**
 
-Define shared-agreement structs in task_contract.rs and export through Plans. Keep scope fields independent; validate normalized identities/paths/actions here; B-108 checks permission containment using Runs' existing Scope matcher. Update listed TaskContent literal constructors mechanically with contract: None. No JSON Schema comparison/fingerprint subsystem.
+Define shared-agreement structs in task_contract.rs and export through Plans. Keep scope fields independent; validate normalized identities/paths/actions here; B-108 (`docs/backend/stages.md` at `d73bb646`) checks permission containment using Runs' existing Scope matcher. Update listed TaskContent literal constructors mechanically with contract: None. No JSON Schema comparison/fingerprint subsystem.
 
 - [ ] **Step 4: Run and observe GREEN**
 

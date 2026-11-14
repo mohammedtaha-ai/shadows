@@ -10,7 +10,7 @@
 
 **Spec:** [approved section 17.0](../../core/specs/2026-10-01-task-contracts-and-evidence-design.md#170-approved-local-delivery-revision-2026-11-09). [Shared model/API agreement](../../shared/requests/2026-11-09-local-delivery.md). [Program](../../backend/plans/2026-11-09-local-delivery-program.md).
 
-**Prerequisites:** B-107..114 and frontend F-99..F-104 for real acceptance.
+**Prerequisites:** B-107..109 (`docs/backend/stages.md` at `d73bb646`), B-111..114 and frontend F-99..F-104 (F-102 at `d73bb646`) for real acceptance.
 
 ## Global Constraints
 
@@ -64,7 +64,7 @@ Each task's Create entries define focused files for that task's job; Modify entr
 - Test: `crates/shadows-core/tests/runs_attempts.rs`
 
 **Interfaces:**
-- Consumes: B-107 immutable briefs, B-112 review, current TaskScope workflow/version/task and thread session.
+- Consumes: B-107 immutable briefs (`docs/backend/stages.md` at `d73bb646`), B-112 review, current TaskScope workflow/version/task and thread session.
 - Produces: Runs::retry(&self,command:RepairCommand,attempt:&AttemptId) -> Result<Attempt,RunsError>; rich task_report requires attempt_id; idle executor reuse with no active writable attempt.
 
 - [ ] **Step 1: Write the failing tests**

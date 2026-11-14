@@ -323,7 +323,7 @@ index, its commit queue and its trailer.
   writes glob or `.`. Other staged/worktree changes, the person's included, stay intact.
   Native Git lock contention retries only the same command, at most three times after
   1/2/4 seconds; never delete another operation's lock. Remaining failure is reported.
-  The instruction change and real-Git procedure tests belong to slice 4's B-148.
+  The instruction change and real-Git procedure tests belong to slice 4's B-148 (`docs/backend/stages.md` at `d73bb646`).
 - **It reports.** It calls `task_report { commit, report }`: the commit's SHA and an honest
   account of what it did, what it ran or tested, and what passed or failed. The executor's
   instructions and its first prompt say this plainly.
