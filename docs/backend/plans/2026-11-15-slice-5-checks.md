@@ -70,15 +70,18 @@ for the critic, which §5.1 replaced. Its steps are not executable.
    `checks_wait_for_a_quiet_project`, `stopped_attempts_leftover_is_inconclusive`,
    `content_change_during_check_is_inconclusive`, `head_moved_during_check_is_inconclusive`
    and `missing_program_is_not_run`.
-2. Two attempts finishing together never run Shadows' checks at once: B-113's
-   `checks_of_one_project_run_one_at_a_time`.
+2. Two attempts finishing together never run Shadows' checks at once, and a turn that starts
+   during a check never lends it a result: B-113's `checks_of_one_project_run_one_at_a_time`,
+   `quiet_is_checked_again_under_the_lock` and `turn_during_check_reruns_it`.
 3. A restart neither loses nor doubles results or notices, including a stop between the last
    result and the notice: B-113's `restart_reruns_unfinished_checks_and_notifies_once` and
    `restart_sends_an_unsent_notice`; B-150's `restart_delivers_an_undelivered_reply` and
    `restart_reads_a_finished_reply_turn`.
 4. A done mark over a check that did not pass, or has no result yet, is never silent, even after
-   the scope was freed: B-114's `done_over_failed_check_needs_reason`,
-   `done_before_results_needs_reason` and `done_again_after_undo_needs_reason`.
+   the scope was freed, and a replay answers before the rule: B-114's
+   `done_over_failed_check_needs_reason`, `done_before_results_needs_reason`,
+   `done_again_after_undo_needs_reason` and `done_replay_answers_after_checks_change`; B-113's
+   `repeated_return_answers_the_same_attempt`.
 5. A message never creates an attempt, counts as an addition or settles an attempt, and never
    reaches a busy turn: B-150's `message_changes_no_attempt`,
    `message_waits_while_committed_turn_runs`, `messages_go_one_at_a_time` and
@@ -247,7 +250,7 @@ for the critic, which §5.1 replaced. Its steps are not executable.
      `#[serde(skip_serializing_if = "Vec::is_empty", default)] pub checks: Vec<CheckResult>`
      with `output` set to `None` in the card.
 3. `crates/core-runs/src/store/checks.rs` (new; `mod checks;` in `store/mod.rs`), on `RunsStore`:
-   - `checks(&self, attempt) -> Result<Vec<CheckResult>, RunsError>`, ordered by `for_task`
+   - `check_results(&self, attempt) -> Result<Vec<CheckResult>, RunsError>`, ordered by `for_task`
      (own task first), then `ordinal`;
    - `start_check(&self, attempt, for_task, &TaskCheck, ordinal, head) -> Result<(), RunsError>`:
      inserts or updates the row with `started_at`, `head_before`, clearing outcome fields;
@@ -269,15 +272,18 @@ for the critic, which §5.1 replaced. Its steps are not executable.
 4. `crates/core-runs/src/store/mod.rs`
    - `Continued` (line 75) gains `origin: AttemptOrigin`; `continue_attempt` (line 557) writes it
      and takes its `command_id` from the caller: `amend-{new id}` for `Planner` as today, and
-     `checks-{previous id}` for `Checks`, so a repeated return collides on the `UNIQUE`
-     `command_id` and answers the attempt already inserted (`Self::load` of the row with that
-     command id) instead of an error.
+     `checks-{previous id}` for `Checks`. A return is a replay first: its first statement in the
+     write looks up the row whose `command_id` is `checks-{previous id}` and, when one exists,
+     answers it (`Self::load`) before the `state`/`released_at` check that would refuse a
+     released `previous` with `NotAwaiting`. A `Planner` addition keeps today's order.
    - `additions_since_start` (line 534) counts `origin = 'planner'` attempts, from the newest
      down, skipping `checks` ones, until the first `start` one.
 5. `crates/core-runs/src/git.rs`: `Git::hash(&self, paths: &[String]) -> Result<Vec<(String, String)>, String>`
    running `git hash-object --no-filters -- <paths>` (a deleted path hashes to `"deleted"`).
 6. `crates/core-runs/src/checks.rs` (new; `mod checks;` in `lib.rs`), `impl Runs`:
-   - `pub async fn checks(&self, attempt: &AttemptId) -> Result<Vec<CheckResult>, RunsError>`.
+   - `pub async fn check_results(&self, attempt: &AttemptId) -> Result<Vec<CheckResult>, RunsError>`
+     (`Runs::checks` already names Start's admission checks, `start.rs:148`; the store's own
+     `RunsStore::check_results` reads the rows).
    - `pub(crate) async fn confirm(&self, attempt: &Attempt)`: the whole job, logged, never
      failing the attempt:
      1. Gather: own checks from `store.context(&attempt.id)`'s `task.contract.checks`; for each
@@ -287,7 +293,9 @@ for the critic, which §5.1 replaced. Its steps are not executable.
         thread, and `turns.operations(thread)` for each; any `finished_at == None` → sleep 1 s
         and look again.
      3. Lock: `Inner.checking: tokio::sync::Mutex<HashMap<ProjectId, Arc<tokio::sync::Mutex<()>>>>`
-        (new field, built in `Runs::new`); take the project's mutex for the whole run.
+        (new field, built in `Runs::new`); take the project's mutex for the whole run, then look
+        for quiet again (step 2) while holding it, so a turn that began while this one waited
+        for the lock is waited for too.
      4. Leftovers: `git.changed(prefix)` (`git.rs:222`) filtered to paths that any
         `attempt_writes` pattern admits (`Scope::new(...).admits`). Non-empty → every check
         finishes `Inconclusive` with output `uncommitted changes inside task writes: <paths>`,
@@ -298,7 +306,13 @@ for the critic, which §5.1 replaced. Its steps are not executable.
         folder, env, capture_stdout: true, pipe_stdin: true }`, dropping stdin at once; read
         stdout and stderr together into a buffer that keeps the last 65 536 bytes (`truncated`
         when more came); `tokio::time::timeout(check.timeout(), handle.wait())`, on expiry
-        `handle.terminate_tree()`; then read HEAD, `changed` and hashes again. `env`: `PATH`,
+        `handle.terminate_tree()`; then read HEAD, `changed` and hashes again, and the project's
+        executor operations: Start and messages are not blocked during a check, so a turn that
+        began or was still running at any point of it (an operation of a `quiet_threads` thread
+        whose `started_at` is after the check's start, or whose `finished_at` is `None`) is
+        found here. Such a check is not recorded: Runs waits for quiet again and runs it once
+        more, three times at most; the third such run is `Inconclusive` with output
+        `another executor's turn ran during the check`. `env`: `PATH`,
         `HOME`, and every daemon variable whose name starts with `GO`, `CARGO_`, `RUSTUP_`,
         `JAVA_`, `NODE_`, `NPM_`, `PYTHON`, `VIRTUAL_ENV`, `COMPOSER_` or `PHP`, never one whose
         name contains `KEY`, `TOKEN`, `SECRET` or `PASSWORD` (the launcher adds the Windows
@@ -332,7 +346,7 @@ for the critic, which §5.1 replaced. Its steps are not executable.
    `number - 1`), skip the `NotNew` and `EmptyCommit` checks; every other check stays,
    `DirtyScope` included.
 9. `crates/core-runs/src/notify.rs`: `notify_ended` (line 228), committed branch, puts
-   `self.checks(&attempt.id)` (output cut) in `card.checks` and adds to the prompt, before
+   `self.check_results(&attempt.id)` (output cut) in `card.checks` and adds to the prompt, before
    "Read its change", a `Checks:` block, one line each:
    `c1 passed` · `c2 failed (exit 1); the executor reported passed` · `T3 c1 passed`, and, when
    any did not pass, "Shadows returned it to the executor twice; read task_checks for the
@@ -359,10 +373,12 @@ the builder picks one that prints over 65 536 bytes), `checks_wait_for_a_quiet_p
 (a second attempt held running; the first one's rows stay unstarted until it is released),
 `uncommitted_change_in_writes_is_inconclusive`, `stopped_attempts_leftover_is_inconclusive`,
 `person_files_do_not_count`, `content_change_during_check_is_inconclusive`,
-`head_moved_during_check_is_inconclusive`, `checks_of_one_project_run_one_at_a_time`,
+`head_moved_during_check_is_inconclusive`, `quiet_is_checked_again_under_the_lock`,
+`turn_during_check_reruns_it`, `checks_of_one_project_run_one_at_a_time`,
 `used_tasks_checks_run_too`, `failed_confirmation_returns_to_executor`,
 `two_returns_then_planner`, `returns_are_not_additions`,
-`return_without_change_reconfirms_previous_commit`,
+`return_without_change_reconfirms_previous_commit`, `repeated_return_answers_the_same_attempt`
+(the return is started twice for one attempt: one new attempt, the second call answers it),
 `restart_reruns_unfinished_checks_and_notifies_once`, `restart_sends_an_unsent_notice`,
 `restart_during_return_sends_no_old_notice`, `restart_after_return_passed_notifies_once`.
 
@@ -385,18 +401,21 @@ the builder picks one that prints over 65 536 bytes), `checks_wait_for_a_quiet_p
    `"checks did not pass: {}; mark it done only with a reason"` (ids joined, `T3 c1` for a
    used task's), code `checks_not_passed`.
 3. `crates/core-runs/src/lib.rs`, `mark_done` (line 225): new last parameter
-   `reason: Option<String>` (trimmed; empty is `None`), added to the fingerprint JSON. Before
-   `put_mark`, when `done`: `store.latest_committed(workflow, version, task)`; if one exists,
-   `store.checks(&it)` has a check whose `outcome` is not `Some(Passed)` (own or used, finished
-   or not, a contract check with no row at all included), and `reason` is `None` →
-   `ChecksNotPassed`. The release that follows stays as is (B-150 changes it).
-4. `crates/core-runs/src/store/marks.rs`: `put_mark` (line 61) takes and writes `reason`;
-   `mark_in` (line 28) reads it.
+   `reason: Option<String>` (trimmed; empty is `None`), added to the fingerprint JSON and
+   passed to `put_mark`. The release that follows stays as is (B-150 changes it).
+4. `crates/core-runs/src/store/marks.rs`: `put_mark` (line 61) takes and writes `reason`, and
+   holds the rule, so a replay answers before it and the rule reads the same snapshot as the
+   write: after `CommandContext::classify` returns `None` (not a replay), when `done` and
+   `reason` is `None`, it reads in the same `conn` the task's newest attempt by `number` when it
+   is `committed` (released or not) and that attempt's `run_checks` rows and contract checks
+   (its `run_attempt_context`); any check whose `outcome` is not `'passed'` (own or used,
+   finished or not, a contract check with no row included) → `ChecksNotPassed`. `mark_in`
+   (line 28) reads `reason`.
 5. `crates/core-runs/src/model.rs`: `TaskRun` (line 95) gains
    `#[schema(required)] pub done_reason: Option<String>`.
 6. `crates/core-runs/src/planner.rs`:
    - `checks_for(&self, grant, workflow, task) -> Result<Vec<CheckResult>, RunsError>`:
-     `planner_plan`, then the task's `latest_committed` attempt's `checks` (`NotFound` when none);
+     `planner_plan`, then the task's `latest_committed` attempt's `check_results` (`NotFound` when none);
    - `mark_done_for` (line 109) takes `reason: Option<String>` and passes it on.
 7. `crates/core-grants/src/tools.rs`: `THREAD_TOOLS` becomes `[&str; 35]` with `"task_checks"`
    after `"task_file"`.
@@ -422,7 +441,8 @@ the builder picks one that prints over 65 536 bytes), `checks_wait_for_a_quiet_p
 
 **Tests (RED first):** in `runs_attempts/checks.rs`: `done_over_failed_check_needs_reason`,
 `done_before_results_needs_reason`, `done_again_after_undo_needs_reason`,
-`done_reason_is_recorded`; in `crates/shadows/tests/runs_routes.rs`:
+`done_reason_is_recorded`, `done_replay_answers_after_checks_change` (a done mark with a reason,
+then a check result changes, then the same command again: the first answer, no refusal); in `crates/shadows/tests/runs_routes.rs`:
 `checks_route_answers_results`, `done_route_refuses_without_reason`; in
 `crates/shadows/tests/planner_mcp.rs`: `task_checks_reads_latest_commit`.
 **Run:** those three targets, `--test planner_instructions`, the OpenAPI update, `npm run gen:api`.
