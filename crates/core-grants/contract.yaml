@@ -257,6 +257,7 @@ shared_in_transaction:
   bind_draft_ref: "Plans' store (plans/store/draft.rs start_draft): the draft_ref is bound to the version the same transaction creates, so a refused ref leaves no plan or version behind"
   revoke_project_grants_in: "Projects' store (projects/store.rs ProjectsStore::remove): a removed project's live grants are revoked in the removal's own write, so its token stops with it (§4.2)"
   revoke_thread_grants_in: "Threads' store (threads/store/remove.rs remove_thread): every live Planner grant is revoked in the same write that marks the thread removed (§16.5)"
+  check_live_in: "(tx, grant) -> Result<(), GrantsError>; Runs' store (runs/store/mod.rs task question read, runs/store/conflict.rs conflict write): the grant a request authenticated is rechecked after awaited work inside the caller's read or write; unknown or revoked is GrantInvalid, a stored kind, project, thread or task scope that differs is GrantScope"
 
 
 called_by_other_services:

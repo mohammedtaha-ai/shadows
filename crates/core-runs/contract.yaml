@@ -200,6 +200,9 @@ transitions:
 # A turn whose end cannot be read keeps its scope held and is read again: an unread end
 # proves nothing about whether the session can still write.
 
+shared_in_transaction:
+  done_in: "(tx, workflow, version, task) -> Result<bool, RunsError>; Runs' own needs_in (ready.rs): whether a needed task, local or in a linked plan's version, is marked done in run_task_marks as the caller's transaction sees it; no mark is not done"
+
 agreements:
   - between: [begin_attempt, continue_attempt]
     rule: >

@@ -624,6 +624,7 @@ shared_in_transaction:
   project_event_payload_in: Events projects plan identifiers in its journal read snapshot.
   workflow_in_project_in: "(conn, workflow, project) -> Result<bool, StorageError>; Turns reads focus membership in its snapshot."
   execution_plan_in: "(tx, workflow, version) -> Result<ExecutionPlan, PlansError>; Runs' Start preflight snapshot and its admission write, and an addition's write: the version with its linked tasks (version_in), another version number NotFound, and its refusal checked Archived, then NotFrozen, then Superseded (any next version, Draft or Frozen)."
+  version_in: "(conn, workflow) -> Result<Plan, PlansError>; Plans' own execution_plan_in: the workflow's version with its linked tasks, read inside the caller's transaction"
   apply_design_links_in: Owner entry in the caller transaction; design links rules.
   anchor_plans_in: Owner entry in the caller transaction; design links rules.
   outcomes_with_plans_in: "Plans' own roadmap approval write: the outcomes a plan links to, which Design's removal refuses."
