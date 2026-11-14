@@ -7,8 +7,8 @@
 //! and a server that could not answer is a `code_error`, never an empty
 //! finding.
 use codebase::{Asker, CodebaseError, LspAnswer, LspQuestion};
-use core_db::{Storage, StorageError};
-use core_grants::{Grant, GrantKind, Grants};
+use core_db::Storage;
+use core_grants::{Grant, GrantKind};
 use core_plans::{ContextPlan, ContractFacts, ContractSelector, ContractTarget, PlansError};
 
 use crate::model::{Attempt, AttemptId, AttemptState};
@@ -159,9 +159,7 @@ impl Runs {
     /// The grant is still live as authenticated, and its attempt is still the
     /// running one.
     async fn recheck(&self, grant: &Grant, attempt: &AttemptId) -> Result<(), RunsError> {
-        let mut read = (self.inner.storage.reader().begin().await).map_err(StorageError::from)?;
-        Grants::check_live_in(&mut read, grant).await?;
-        read.commit().await.map_err(StorageError::from)?;
+        self.inner.store.grant_live(grant).await?;
         if &self.running_attempt(grant).await?.id != attempt {
             return Err(RunsError::NotFound);
         }

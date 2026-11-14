@@ -88,9 +88,6 @@ const EXECUTOR_HARNESS: &str = shadows_agent::policy::CLAUDE_CODE;
 
 struct Inner {
     store: RunsStore,
-    /// Opens the read in which a task question rechecks its grant through
-    /// Grants; Runs' own rows are read through `store` only.
-    storage: Arc<Storage>,
     plans: Plans,
     harness: Arc<Harness>,
     turns: Turns,
@@ -122,8 +119,7 @@ impl Runs {
     ) -> Self {
         Self {
             inner: Arc::new(Inner {
-                store: RunsStore::with_storage(storage.clone()),
-                storage,
+                store: RunsStore::with_storage(storage),
                 plans,
                 harness,
                 turns,

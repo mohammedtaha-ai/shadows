@@ -17,6 +17,7 @@ use crate::model::{Attempt, AttemptId, AttemptState, Need};
 use crate::scope::Scope;
 use crate::{Runs, RunsError};
 use core_db::{Storage, StorageError};
+use core_grants::{Grant, Grants};
 use core_operations::OperationId;
 use core_plans::{Plan, Plans, TaskContent, WorkflowId};
 use core_projects::ProjectId;
@@ -120,6 +121,14 @@ impl RunsStore {
         let admitted = Runs::admit_in(&mut snapshot, workflow, version, task).await?;
         snapshot.commit().await.map_err(StorageError::from)?;
         Ok(admitted)
+    }
+
+    /// Grants' check that `grant` is still live as authenticated, in one read.
+    pub async fn grant_live(&self, grant: &Grant) -> Result<(), RunsError> {
+        let mut read = (self.storage.reader().begin().await).map_err(StorageError::from)?;
+        Grants::check_live_in(&mut read, grant).await?;
+        read.commit().await.map_err(StorageError::from)?;
+        Ok(())
     }
 
     /// The tasks `task` needs, with their marks as one read sees them.
