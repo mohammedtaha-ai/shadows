@@ -1,7 +1,7 @@
 # Local delivery APIs and task model
 
 **Slice 4 revision, 2026-11-14:** its brief/question shapes and route assumptions are
-superseded by [the slice 4 agreement](2026-11-14-task-questions.md). Other slices retain
+superseded by the slice 4 agreement (`docs/shared/requests/2026-11-14-task-questions.md` at `d73bb646`). Other slices retain
 their existing agreement. Do not implement the earlier SemanticQuery/TaskAnswer shape
 as a second question API.
 

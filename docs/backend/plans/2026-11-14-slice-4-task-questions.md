@@ -17,9 +17,9 @@ TanStack Query/Router and Vitest. Reuse workspace schemars for MCP input schemas
 no new third-party package or version.
 
 **Spec:** [approved design](../specs/2026-11-14-task-questions-design.md).
-**Wire agreement:** [slice 4](../../shared/requests/2026-11-14-task-questions.md).
+**Wire agreement:** `docs/shared/requests/2026-11-14-task-questions.md` at `d73bb646`.
 **Baseline:** `7a52bc59`, `feature/slice-4-task-questions`, 2026-11-14.
-**Replaces:** [earlier briefs draft](2026-11-09-execution-briefs.md); its old steps are not executable.
+**Replaces:** `docs/backend/plans/2026-11-09-execution-briefs.md` at `d73bb646`; its old steps are not executable.
 **Order:** B-108 → B-148 → B-107 → B-109 → B-147 → F-102 → B-149.
 
 ## Global Constraints
