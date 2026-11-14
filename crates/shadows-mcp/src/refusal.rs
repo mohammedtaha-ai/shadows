@@ -209,6 +209,8 @@ impl From<shadows_core::RunsError> for Refusal {
         use shadows_core::RunsError;
         match error {
             RunsError::Storage(error) => error.into(),
+            RunsError::Grants(error) => error.into(),
+            RunsError::Code(error) => error.into(),
             RunsError::CommandConflict => Self::new(
                 ErrorCode::CommandConflict,
                 "the command id was used for another request",

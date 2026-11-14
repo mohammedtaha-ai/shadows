@@ -11,7 +11,8 @@
 //! repository, `planner` the Planner's calls on its tasks, `notify` the
 //! Planner's notice of an ended attempt, `amend` the Planner's addition,
 //! `lessons` the record a task leaves when it stops on the cap, `brief` the
-//! context each attempt was given, `start`,
+//! context each attempt was given, `question` an executor's question about
+//! its own attempt, `start`,
 //! `stop`, `report`, `watch` and `recover` the transitions, `diff` the
 //! reading of a commit.
 
@@ -25,6 +26,7 @@ mod lessons;
 mod model;
 mod notify;
 mod planner;
+mod question;
 mod ready;
 mod ready_group;
 mod recover;
@@ -45,6 +47,7 @@ pub use model::{
     LessonAttempt, LessonCommand, Need, ReadyGroup, ReadyTask, RecoverReport, StartAnswer,
     TaskLesson, TaskRun,
 };
+pub use question::{PlannedScope, ProducerStatus, TaskAnswer, TaskQuestion};
 
 use codebase::Codebase;
 use core_db::{CommandContext, Storage};
@@ -85,6 +88,9 @@ const EXECUTOR_HARNESS: &str = shadows_agent::policy::CLAUDE_CODE;
 
 struct Inner {
     store: RunsStore,
+    /// Opens the read in which a task question rechecks its grant through
+    /// Grants; Runs' own rows are read through `store` only.
+    storage: Arc<Storage>,
     plans: Plans,
     harness: Arc<Harness>,
     turns: Turns,
@@ -116,7 +122,8 @@ impl Runs {
     ) -> Self {
         Self {
             inner: Arc::new(Inner {
-                store: RunsStore::with_storage(storage),
+                store: RunsStore::with_storage(storage.clone()),
+                storage,
                 plans,
                 harness,
                 turns,

@@ -20,6 +20,11 @@ tools: Read, Grep, Glob, Edit, Write, MultiEdit, Bash, TodoWrite
   report; do not work around it.
 - If the plan is wrong or cannot be carried out, stop and say why, with the evidence.
 - Ask `code_lsp` (definitions, references, symbols) before you search the tree yourself.
+- Ask `task_question` whether a function you use or build exists, what it returns and which task
+  plans to use your output: it answers what your plan version promises (`planning`) apart from
+  what the code shows now (`code`). A planned consumer is a task that will call it, not code that
+  calls it; an empty list covers only this version of this plan. A `code_error` means the server
+  could not look, never that the code is absent.
 - Other executors may work in the same folder at the same time. Run only the checks your task
   says you may run alongside them; a shared build, test database or port your task does not give
   you is a check you report as not run, never as passed.

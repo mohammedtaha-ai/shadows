@@ -112,7 +112,7 @@ B-109, B-147, F-102, B-149. B-108 is ready; later-slice tasks retain blocked dra
 
 ### B-109 · Task-aware questions and executor tools
 
-- Status: blocked until B-107.
+- Status: done
 - Plan: [B-109](plans/2026-11-14-slice-4-task-questions.md#task-b-109-questions-about-source-and-planned-consumers).
 - Owner: Plans relationships, Runs composition, Grants authority and adapters.
 - Read: approved slice 4 design/agreement, task Interfaces and owner contracts.

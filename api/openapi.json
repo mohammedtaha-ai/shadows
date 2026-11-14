@@ -1038,6 +1038,17 @@
           "captured_at": {
             "type": "string"
           },
+          "consumers": {
+            "description": "The tasks of the attempt's own version that plan to use this task's\noutputs, by task then use: the first 50. Plans in other versions or\nother plans are not listed, so an empty list is not proof of no use.",
+            "items": {
+              "$ref": "#/components/schemas/ConsumerRef"
+            },
+            "type": "array"
+          },
+          "consumers_more": {
+            "description": "More planned consumers than `consumers` lists.",
+            "type": "boolean"
+          },
           "context": {
             "$ref": "#/components/schemas/TaskContext"
           }
@@ -1045,7 +1056,9 @@
         "required": [
           "attempt",
           "context",
-          "captured_at"
+          "captured_at",
+          "consumers",
+          "consumers_more"
         ],
         "type": "object"
       },
@@ -1391,6 +1404,43 @@
           "description",
           "enabled",
           "reason"
+        ],
+        "type": "object"
+      },
+      "ConsumerRef": {
+        "description": "A task of the same version that plans to use what was selected: a\nreference to its use, never a source location.",
+        "properties": {
+          "output": {
+            "description": "The producer's output the use names; null for a use of existing code.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "purpose": {
+            "type": "string"
+          },
+          "task": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "title": {
+            "type": "string"
+          },
+          "use_index": {
+            "description": "Where the use stands in the consumer's `uses`, from 0.",
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "task",
+          "title",
+          "output",
+          "use_index",
+          "purpose"
         ],
         "type": "object"
       },

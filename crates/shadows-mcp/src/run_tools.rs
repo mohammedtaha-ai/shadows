@@ -10,7 +10,7 @@ use rmcp::{
 };
 use serde::Deserialize;
 use serde_json::json;
-use shadows_core::{Grant, WorkflowId};
+use shadows_core::{Grant, TaskQuestion, WorkflowId};
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 struct TaskReportArgs {
@@ -153,6 +153,35 @@ impl Shadows {
             self.core
                 .runs()
                 .brief_for(&grant)
+                .await
+                .map_err(Refusal::from),
+        )
+    }
+
+    #[tool(
+        description = "Ask about your own task's contract while your attempt runs. selector \
+                       picks the whole task (own), one symbol (symbol_id), one output \
+                       (output_id) or one source your task uses (use). planning answers \
+                       what this_frozen_version of the plan promises: the selected contract, \
+                       its producers and the planned consumers of its outputs, a page at a \
+                       time (after, limit 1 to 50, next). A planned consumer is a task that \
+                       plans to use it, not code that calls it; tasks of other versions or \
+                       plans are not listed, so an empty list is not proof that nothing uses \
+                       it. producer_status says whether each producer is marked done and its \
+                       latest commit now. code asks the project's language server as code_lsp \
+                       does, inside or outside your task's reads; code_error says the server \
+                       could not answer, which is never evidence that a symbol is absent. A \
+                       too large answer is question_too_large: ask a narrower selector."
+    )]
+    async fn task_question(
+        &self,
+        Extension(grant): Extension<Grant>,
+        Parameters(question): Parameters<TaskQuestion>,
+    ) -> CallToolResult {
+        answer(
+            self.core
+                .runs()
+                .question(&grant, question)
                 .await
                 .map_err(Refusal::from),
         )

@@ -28,6 +28,8 @@ mod map;
 mod model;
 mod phases;
 pub use phases::{LinkedPhase, Phase, PhaseEndpoint, PhaseId, PhaseInput, PhaseRef};
+mod contract_questions;
+pub use contract_questions::{ConsumerRef, ContractFacts, ContractSelector};
 mod contract_uses;
 mod ops;
 mod rules;

@@ -758,7 +758,10 @@ async fn an_executor_grant_lists_its_tools_and_reads_only_its_task() {
         .map(|tool| tool.name.to_string())
         .collect();
     names.sort();
-    assert_eq!(names, ["code_lsp", "task_brief", "task_report"]);
+    assert_eq!(
+        names,
+        ["code_lsp", "task_brief", "task_question", "task_report"]
+    );
     // The grant holds no attempt, so it has no brief of its own to read and
     // nothing of its own to report.
     refused(&executor, "task_brief", json!({})).await;

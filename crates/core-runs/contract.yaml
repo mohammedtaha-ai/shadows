@@ -49,6 +49,7 @@ modules:
   start.rs: starting an attempt
   amend.rs: carrying an attempt on with the Planner's addition
   brief.rs: reading the context an attempt was given
+  question.rs: answering an executor's question about its own attempt
   lessons.rs: the record a task leaves when it stops on the cap
   stop.rs: stopping an attempt
   report.rs: accepting an attempt's reported commit
@@ -67,9 +68,9 @@ dependencies:
   harness: Harness opens the executor session in its project's folder, releases it, and names the model last used on the executor's harness.
   turns: Turns sends the first turn and stops it, and queues the Planner's notice in the executor's name (Turns::queue_notice).
   threads: Threads creates the executor thread inside the Start write, and reads the executor's entries for a lessons record and a failed notice's last message.
-  grants: Grants revokes an interrupted attempt's grant at startup; an executor grant names the attempt's task.
+  grants: Grants revokes an interrupted attempt's grant at startup; an executor grant names the attempt's task. Grants::check_live_in rechecks a task question's grant inside a read Runs opens on the shared storage; no Grants SQL is in Runs.
   projects: Projects names the folder git runs in.
-  code: Codebase lists the project's files, to leave secret and dependency files out of the first commit (Codebase::refresh_inventory and Codebase::inventory, asked with Asker::Grant), and answers which of a task's required files are absent (Codebase::missing_inputs, Asker::Grant).
+  code: Codebase answers a task question's language-server question (Codebase::lsp, Asker::Grant). Codebase lists the project's files, to leave secret and dependency files out of the first commit (Codebase::refresh_inventory and Codebase::inventory, asked with Asker::Grant), and answers which of a task's required files are absent (Codebase::missing_inputs, Asker::Grant).
   # A running attempt holds `Codebase::hold` of its project until its turn ends, so the project stays active.
 
 shapes:
@@ -92,13 +93,20 @@ shapes:
   AttemptNotice: "{ workflow_id, version, task, title, attempt, attempt_id, model, outcome, commit, report, reason, last_addition }: the card of an executor's notice; title is the task's or T{task}; report is the executor's report when committed, its last message (cut at 4,000 chars) when failed, else null"
   AttemptFile: "{ path, text, cut }: a file at an attempt's commit; text null for deleted, binary or non-UTF-8 files; text cut on a line and char boundary at 2,000 lines or 200,000 bytes, whichever comes first"
   RecoverReport: "{ interrupted }"
-  AttemptBrief: "{ attempt: Attempt, context: TaskContext, captured_at }: what an attempt was given; context is Plans' TaskContext saved in run_attempt_context when the attempt was admitted, captured_at its insert time; the attempt stays the source of identity, model, base commit and addition"
+  AttemptBrief: "{ attempt: Attempt, context: TaskContext, captured_at, consumers: [ConsumerRef], consumers_more }: what an attempt was given; context is Plans' TaskContext saved in run_attempt_context when the attempt was admitted, captured_at its insert time; the attempt stays the source of identity, model, base commit and addition. consumers are Plans::contract_facts(own, first 50) of the attempt's own version at read time, never saved into context; consumers_more says more exist"
+  TaskQuestion: "{ selector: ContractSelector = own, code: Option<LspQuestion> = null, after: Option<u32> = null, limit: u16 = 20 }: deserialized from task_question's input"
+  ProducerStatus: "{ target: ContractTarget, done, latest_commit }: the producer task's done mark and its newest attempt's reported commit now; neither proves the code holds the symbol"
+  TaskAnswer: "{ attempt_id, plan: ContextPlan, task, planning: ContractFacts, producer_status: [ProducerStatus], code: Option<LspAnswer>, code_error: Option<String>, observed_at, planned_scope: this_frozen_version }; at most 64 KiB serialized, code_error at most 2 KiB"
   # ContextNotRecorded (context_not_recorded): an attempt recorded before contexts were saved
   # has none; its brief is refused, never rebuilt from today's layout (HTTP 409).
   TaskLesson: "{ workflow_id, version, task, title, attempts: [LessonAttempt], commands: [LessonCommand], stopped_by, plan_should_have_said, recorded_at }: the record a task leaves when it stops on the cap, stored as run_lessons.record_json; the two Planner fields null until it writes them. No route serves it"
   LessonAttempt: "{ number, addition, commit, report }: the chain from the Start to the stopped attempt, oldest first; addition is what was missing"
   LessonCommand: "{ command, status, error }: a ToolCall entry of kind execute on the executor's thread: its title, its card's status as its wire text and its error; no output is stored"
-  RunsError: [NotFrozen, Superseded, Archived, Waiting, TaskBusy, Overlap, NotGit, DirtyScope, MissingInput, InputUnavailable, AlreadyCommitted, UnknownCommit, NotOnBranch, NotNew, EmptyCommit, OutsideWrites, BinaryFiles, AlreadyGit, NoFolder, NotListed, NoModel, NotAwaiting, EmptyAddition, AdditionsSpent, NoLesson, EmptyLesson, CommandConflict, ContextNotRecorded, NotFound, BadScope, Unavailable, Storage]
+  RunsError: [NotFrozen, Superseded, Archived, Waiting, TaskBusy, Overlap, NotGit, DirtyScope, MissingInput, InputUnavailable, AlreadyCommitted, UnknownCommit, NotOnBranch, NotNew, EmptyCommit, OutsideWrites, BinaryFiles, AlreadyGit, NoFolder, NotListed, NoModel, NotAwaiting, EmptyAddition, AdditionsSpent, NoLesson, EmptyLesson, CommandConflict, ContextNotRecorded, InvalidQuestion, QuestionTooLarge, NotFound, BadScope, Unavailable, Grants, Code, Storage]
+  # InvalidQuestion (invalid_question): a selector, after or limit Plans refused. QuestionTooLarge
+  # (question_too_large): the answer is over 64 KiB; nothing is cut, a narrower selector is asked
+  # for. Grants (grant) and Code (code) carry the owner's own refusal, which adapters translate
+  # as that owner's error.
   # RunsError::code is the opaque id clients match on: not_frozen, waiting, task_busy, ...
   # AlreadyGit (already_git), NoFolder (no_folder) and NotListed (not_listed) are init_git's
   # refusals, not Start's. NotListed: Code's file list was not complete; a later call may pass.
@@ -127,6 +135,7 @@ functions:
   amend: "(grant, workflow, task, addition) -> Attempt; the Planner's grant checked as start_for; an empty trimmed addition is EmptyAddition; no committed attempt still holding its scope is NotAwaiting; when additions_since_start is already 3, the waiting attempt is stopped (it keeps its commit and state Committed, its session closes, its scope is freed), record_lesson keeps its record, and AdditionsSpent, nothing else written; else continue_attempt in one write (the version must still start work, Archived, NotFrozen or Superseded otherwise, the waiting attempt keeping its scope; then the waiting attempt released, a Running attempt with the next number on the same thread, model and writes, recording the HEAD now and the addition), then run_turn with the addition's prompt"
   brief: "(attempt) -> AttemptBrief; unknown attempt NotFound; no run_attempt_context row ContextNotRecorded; reads only, never captures or reconstructs"
   brief_for: "(grant) -> AttemptBrief; an Executor grant with a thread and scope, else NotFound; the attempt is executor_attempt of that thread and scope (never one the caller names), then brief's read. MCP task_brief"
+  question: "(grant, TaskQuestion) -> TaskAnswer; the attempt is executor_attempt of an Executor grant's thread and scope and must be Running, else NotFound; its saved context (ContextNotRecorded) gives plan; Plans::contract_facts for the attempt's workflow and task (its InvalidCommand is InvalidQuestion); an optional Codebase::lsp with Asker::Grant: Answered is code, NoServer or a LanguageServer failure is code_error (never an empty answer), any other CodebaseError is Code; then Grants::check_live_in in a fresh read and the attempt again Running and the same, after the awaited code work; producer_status per producer from Runs' own mark and attempts; observed_at now; over 64 KiB is QuestionTooLarge. Reads only. MCP task_question"
   capture_in: "private: (tx, attempt, (project, workflow, task), captured_at); Plans::task_context_in for the task (no phase) inside begin_attempt's and continue_attempt's write, after the insert and before commit, then one INSERT into run_attempt_context (capture_context_in); any failure rolls back the attempt, its thread and an addition's release. A replay returns before it, so it captures nothing"
   run_turn: "private: (attempt, prompt) -> Attempt; open_executor with the attempt's TaskScope and model, reopening the thread whether its session is live, closed or gone (a failure abandons it `session did not open: ...`), the still-Running check, the turn in mode auto, set_operation, the late Stop, watch. Start and amend both end here"
   watch: "private: (attempt, thread, operation) follows the turn in the background: it reads the thread's operations after each journal commit, and at least once a second, until the operation has finished_at, then settles the attempt as the transitions say"
@@ -351,6 +360,7 @@ obligations:
     tested_by: [a_folder_and_its_subfolder_may_overlap, a_folder_overlaps_its_subfolder_not_its_sibling, disjoint_folders_do_not_overlap, a_pattern_without_a_folder_may_overlap_anything, a_pattern_that_climbs_out_may_overlap_anything]
 
 tests:
+  shadows-core/tests/task_questions.rs: task questions through AppCore over the fake adapter in real git; planned consumers apart from code, the attempt's own version, a use's producer and its status, an unavailable server as code_error, project code outside reads, refused projects and links, stable pages, an oversized contract refused, a non-executor refused; the gopls case is ignored until gopls is on PATH
   shadows-core/tests/attempt_briefs.rs: each attempt's saved brief through AppCore over the fake adapter in real git; fixed after a layout change, one per replay, its own per addition, rolled back with a failed capture, never invented, read only by its own executor
   shadows-core/tests/runs_attempts.rs: attempts through AppCore over the fake adapter, in a real git repository
   shadows-core/tests/runs_attempts/init.rs: a folder's first repository in real git; no agent runs

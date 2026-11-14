@@ -206,6 +206,11 @@ functions:
     revoke_thread_grants_in:
       signature: "(conn, thread: &ThreadId, actor: Actor, ts: &str) -> Result<(), StorageError>"
       # Every live Planner grant of the thread, inside its removal write.
+    check_live_in:
+      signature: "(tx: &mut Tx, grant: &Grant) -> Result<(), GrantsError>"
+      # The grant's row as the caller's read sees it: unknown or revoked is GrantInvalid; a
+      # kind, project, thread or task scope differing from the authenticated value is
+      # GrantScope. Runs::question calls it after its awaited code work.
     check_writer:
       signature: "(conn, writer: &Writer, project: &ProjectId) -> Result<(), GrantsError>"
       # Ok for a person. GrantInvalid for an unknown or revoked grant;
@@ -494,6 +499,7 @@ tests:
 
 # The Thread and Project allowlists include task_context, a read with no execution authority.
 # The executor allowlist is task_brief (Runs::brief_for, the context saved for its own attempt;
-# never a fresh task_context), code_lsp and task_report
+# never a fresh task_context), task_question (Runs::question, its own running attempt only), code_lsp
+# and task_report
 # (Runs::report, which accepts the executor's own commit only inside the task's writes); startup and
 # thread removal revoke executor grants with the thread ones (executor_session tests).

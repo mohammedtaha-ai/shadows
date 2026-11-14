@@ -31,6 +31,8 @@ impl From<RunsError> for RunFailure {
         match error {
             RunsError::NotFound => Self::Other(StorageError::NotFound("task or attempt").into()),
             RunsError::Storage(error) => Self::Other(error.into()),
+            RunsError::Grants(error) => Self::Other(error.into()),
+            RunsError::Code(error) => Self::Other(error.into()),
             RunsError::Unavailable(cause) => Self::Other(Failure {
                 status: StatusCode::INTERNAL_SERVER_ERROR,
                 code: ErrorCode::StorageUnavailable,

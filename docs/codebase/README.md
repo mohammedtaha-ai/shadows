@@ -197,6 +197,7 @@ pattern to follow, not merely an example.
 | `crates/core-runs/src/lessons.rs` | the record a task leaves when it stops on the cap | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/store/lessons.rs` | lessons records SQL | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/brief.rs` | reading the context an attempt was given | `crates/core-runs/contract.yaml` |
+| `crates/core-runs/src/question.rs` | answering an executor's question about its own attempt | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/store/brief.rs` | saved attempt context SQL | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/stop.rs` | stopping an attempt | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/git.rs` | git calls in a project folder | `crates/core-runs/contract.yaml` |
@@ -576,7 +577,8 @@ file disagrees with either, they are right and this file is the defect.
 | `crates/core-plans/src/task_context.rs` | approved task context boundary | `crates/core-plans/contract.yaml` |
 | `crates/core-plans/src/execution.rs` | whether a plan version may start work now | `crates/core-plans/contract.yaml` |
 | `crates/core-plans/src/task_contract.rs` | task contract types with their one-task rules | `crates/core-plans/contract.yaml` |
-| `crates/core-plans/src/contract_uses.rs` | resolving a consumer's uses against its plan version's producers | `crates/core-plans/contract.yaml` |
+| `crates/core-plans/src/contract_uses.rs` | resolving the uses of one plan version, from either end | `crates/core-plans/contract.yaml` |
+| `crates/core-plans/src/contract_questions.rs` | what one task's contract promises within its Frozen version | `crates/core-plans/contract.yaml` |
 | `crates/core-plans/src/store/task_context.rs` | snapshot task context assembly | `crates/core-plans/contract.yaml` |
 | `crates/core-plans/src/phases.rs` | ordered phase contracts | `crates/core-plans/contract.yaml` |
 | `crates/core-plans/src/store/phase_refs.rs` | exact phase target resolution | `crates/core-plans/contract.yaml` |

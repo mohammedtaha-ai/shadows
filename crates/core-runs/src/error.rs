@@ -89,12 +89,26 @@ pub enum RunsError {
          context was not recorded and is not reconstructed"
     )]
     ContextNotRecorded,
+    #[error("the question is not valid: {0}")]
+    InvalidQuestion(String),
+    #[error(
+        "the answer would be larger than 64 KiB; ask about one symbol, output or use, or a \
+         smaller page of consumers"
+    )]
+    QuestionTooLarge,
     #[error("not found")]
     NotFound,
     #[error("the task's writes are not valid patterns: {0}")]
     BadScope(String),
     #[error("{0}")]
     Unavailable(String),
+    /// The grant's own refusal, which adapters translate as Grants' error.
+    #[error(transparent)]
+    Grants(#[from] core_grants::GrantsError),
+    /// The code service's own refusal (a path, grant or project outside
+    /// reach), which adapters translate as Codebase's error.
+    #[error(transparent)]
+    Code(#[from] codebase::CodebaseError),
     #[error(transparent)]
     Storage(#[from] StorageError),
 }
@@ -131,9 +145,13 @@ impl RunsError {
             Self::EmptyLesson => "empty_lesson",
             Self::CommandConflict => "command_conflict",
             Self::ContextNotRecorded => "context_not_recorded",
+            Self::InvalidQuestion(_) => "invalid_question",
+            Self::QuestionTooLarge => "question_too_large",
             Self::NotFound => "not_found",
             Self::BadScope(_) => "bad_scope",
             Self::Unavailable(_) => "unavailable",
+            Self::Grants(_) => "grant",
+            Self::Code(_) => "code",
             Self::Storage(_) => "storage",
         }
     }

@@ -52,6 +52,11 @@ source: crates/codebase/src
 
 
 shapes:
+  LspQuestion:
+    # Serialize, Deserialize and JsonSchema (workspace schemars), so a typed MCP input such as
+    # Runs' TaskQuestion carries the native question unchanged; LspOperation derives JsonSchema
+    # too, camelCase. Omitted optional fields deserialize as null.
+    fields: "{ operation: LspOperation, file, line, character, query, project }"
   Codebase:
     # Cheap to clone: an `Arc` over its private store, Projects and the active set.
     # ProjectLifecycle, Turns, Runs and every worker hold a clone.

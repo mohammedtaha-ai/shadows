@@ -102,6 +102,12 @@ layout_only: Map records contain no starter files; the stage has no Structure st
 # A task's contract rides inside task_add and task_update; the schema comes from Core's
 # TaskContent; task_context answers `contracts`. Tested by
 # mcp_tools::a_contract_written_over_mcp_is_read_the_same_over_http.
+# task_question takes Core's TaskQuestion as its input (selector, code as the native LspQuestion,
+# after, limit) and calls Runs::question with the caller's executor grant; only the executor's
+# grant lists it, beside code_lsp. Runs' Grants and Code refusals are translated as Grants' and
+# Codebase's own errors. Its description says planned consumers are not callers, an empty list
+# covers only this_frozen_version and code_error is not absence. Tested by
+# task_question_mcp::only_an_executor_lists_task_question and mcp_tools.
 # task_brief translates {} to Runs::brief_for with the caller's executor grant and answers its
 # AttemptBrief, the context saved for its own attempt; only the executor's grant lists it, and
 # the executor's grant does not list task_context. A grant with no attempt is refused and an
