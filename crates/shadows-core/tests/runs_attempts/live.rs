@@ -258,7 +258,7 @@ async fn live_an_executor_edits_a_file_in_a_subfolder_in_mode_auto_and_its_commi
     let done = f
         .core
         .runs()
-        .report(&grant, &commit, "Edited the routes file.".into())
+        .report(&grant, &commit, "Edited the routes file.".into(), vec![])
         .await
         .unwrap();
     assert_eq!(done.state, AttemptState::Committed);
@@ -318,7 +318,7 @@ async fn live_an_addition_continues_the_executor_in_its_session() {
     let sha1 = f.head_after(&base).await;
     f.core
         .runs()
-        .report(&grant, &sha1, "Added A.".into())
+        .report(&grant, &sha1, "Added A.".into(), vec![])
         .await
         .unwrap();
     f.turn_ended(&first).await;
@@ -337,7 +337,7 @@ async fn live_an_addition_continues_the_executor_in_its_session() {
     let sha2 = f.head_after(&sha1).await;
     f.core
         .runs()
-        .report(&grant, &sha2, "Added B.".into())
+        .report(&grant, &sha2, "Added B.".into(), vec![])
         .await
         .unwrap();
     f.turn_ended(&second).await;

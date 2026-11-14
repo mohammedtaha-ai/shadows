@@ -7,7 +7,7 @@
 //! leaves the attempt `Running`, so the executor can fix its commit and
 //! report again.
 use crate::git::Git;
-use crate::model::{Attempt, AttemptState};
+use crate::model::{Attempt, AttemptState, ReportedCheck};
 use crate::scope::Scope;
 use crate::{Runs, RunsError};
 use core_grants::{Grant, GrantKind};
@@ -25,6 +25,7 @@ impl Runs {
         grant: &Grant,
         commit: &str,
         report: String,
+        checks: Vec<ReportedCheck>,
     ) -> Result<Attempt, RunsError> {
         let (Some(thread), Some(scope), GrantKind::Executor) =
             (&grant.thread_id, &grant.scope, grant.kind)
@@ -33,12 +34,48 @@ impl Runs {
         };
         let attempt = self.inner.store.executor_attempt(thread, scope).await?;
         Self::still_running(&attempt)?;
+        let context = self.inner.store.context(&attempt.id).await?;
+        let expected = context
+            .as_ref()
+            .and_then(|(c, _)| c.task.contract.as_ref())
+            .map(|c| c.checks.as_slice())
+            .unwrap_or_default();
+        let mut reported = std::collections::BTreeMap::new();
+        if context.is_some() {
+            for check in &checks {
+                if !expected.iter().any(|e| e.id == check.id)
+                    || reported.insert(check.id.as_str(), check).is_some()
+                {
+                    return Err(RunsError::ReportedChecks(format!(
+                        "unknown or repeated check {}",
+                        check.id
+                    )));
+                }
+            }
+            if reported.len() != expected.len() {
+                return Err(RunsError::ReportedChecks(
+                    "give every check exactly once".into(),
+                ));
+            }
+        }
+        let records = expected
+            .iter()
+            .enumerate()
+            .map(|(ordinal, check)| {
+                (
+                    attempt.task,
+                    ordinal,
+                    check.clone(),
+                    reported[check.id.as_str()].clone(),
+                )
+            })
+            .collect();
         let git = Git::at(&self.folder(&attempt.project_id).await?);
         let sha = self.verify(&git, &attempt, commit.trim()).await?;
         if !self
             .inner
             .store
-            .record_report(&attempt.id, &sha, report.trim())
+            .record_report(&attempt.id, &sha, report.trim(), records)
             .await?
         {
             // A conflict, a Stop or another report moved it first.

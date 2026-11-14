@@ -18,6 +18,9 @@ struct TaskReportArgs {
     commit: String,
     /// What you did, what you ran or tested, and what passed or failed.
     report: String,
+    /// One entry per contract check: id, passed, failed or not_run, and a short note.
+    #[serde(default)]
+    checks: Vec<shadows_core::ReportedCheck>,
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
@@ -211,7 +214,7 @@ impl Shadows {
         answer(
             self.core
                 .runs()
-                .report(&grant, &args.commit, args.report)
+                .report(&grant, &args.commit, args.report, args.checks)
                 .await
                 .map(|a| json!({ "attempt": a.id, "state": a.state, "commit": a.commit }))
                 .map_err(Refusal::from),

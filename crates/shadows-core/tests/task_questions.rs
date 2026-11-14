@@ -100,6 +100,7 @@ fn producer(behavior: Vec<String>) -> TaskContract {
         steps: vec![],
         invariants: vec![],
         forbidden: vec![],
+        checks: Vec::new(),
     }
 }
 
@@ -133,6 +134,7 @@ fn consumer(dir: &str, uses: Vec<ContractUse>) -> TaskContract {
         steps: vec![],
         invariants: vec![],
         forbidden: vec![],
+        checks: Vec::new(),
     }
 }
 
@@ -396,7 +398,7 @@ impl Fixture {
         let reported = self
             .core
             .runs()
-            .report(&grant, &sha, "Built Find.".into())
+            .report(&grant, &sha, "Built Find.".into(), vec![])
             .await
             .unwrap();
         assert_eq!(reported.state, AttemptState::Committed);

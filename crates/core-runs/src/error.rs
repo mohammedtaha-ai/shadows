@@ -4,6 +4,8 @@ use core_plans::TaskParent;
 
 #[derive(Debug, thiserror::Error)]
 pub enum RunsError {
+    #[error("the report's checks do not match the task's: {0}")]
+    ReportedChecks(String),
     #[error("only an approved plan version can be run")]
     NotFrozen,
     #[error("a newer version of this plan exists")]
@@ -124,6 +126,7 @@ impl RunsError {
     /// The opaque id clients match on, never the text.
     pub fn code(&self) -> &'static str {
         match self {
+            Self::ReportedChecks(_) => "reported_checks",
             Self::NotFrozen => "not_frozen",
             Self::Superseded => "superseded",
             Self::Archived => "archived",

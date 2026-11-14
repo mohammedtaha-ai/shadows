@@ -46,7 +46,8 @@ pub use error::RunsError;
 pub use model::{
     Attempt, AttemptFile, AttemptId, AttemptNotice, AttemptState, ConflictDelivery,
     ConflictEvidence, ConflictInput, DoneMark, FileDiff, LessonAttempt, LessonCommand, Need,
-    ReadyGroup, ReadyTask, RecoverReport, StartAnswer, TaskConflict, TaskLesson, TaskRun,
+    ReadyGroup, ReadyTask, RecoverReport, ReportedCheck, ReportedOutcome, StartAnswer,
+    TaskConflict, TaskLesson, TaskRun,
 };
 pub use question::{PlannedScope, ProducerStatus, TaskAnswer, TaskQuestion};
 

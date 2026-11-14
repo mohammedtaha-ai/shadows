@@ -3882,6 +3882,15 @@ export interface components {
             path: string;
             returns?: null | components["schemas"]["ContractValue"];
         };
+        /** @description A program with arguments that proves acceptance items without a shell. */
+        TaskCheck: {
+            folder?: string | null;
+            id: string;
+            proves?: number[];
+            run: string[];
+            /** Format: int32 */
+            timeout_secs?: number | null;
+        };
         /**
          * @description An attempt's accepted contract conflict, with the attempt's current state
          *     and whether it still holds its scope. Accepting it asked the executor to
@@ -3933,6 +3942,8 @@ export interface components {
         };
         /** @description What a task builds, named exactly: the executor's brief beside the goal. */
         TaskContract: {
+            /** @description Commands that prove acceptance, run by the executor and again by Shadows. */
+            checks?: components["schemas"]["TaskCheck"][];
             files?: components["schemas"]["FileWork"][];
             /** @description What must not be changed. */
             forbidden?: string[];

@@ -56,6 +56,7 @@ fn contract(files: Vec<FileWork>, existing: &[&str]) -> TaskContract {
         steps: vec![],
         invariants: vec![],
         forbidden: vec![],
+        checks: Vec::new(),
     }
 }
 
@@ -465,7 +466,7 @@ async fn old_work_reports_after_a_corrective_draft() {
     let reported = f
         .core
         .runs()
-        .report(&grant, &sha, "Changed lib/a.rs.".into())
+        .report(&grant, &sha, "Changed lib/a.rs.".into(), vec![])
         .await
         .unwrap();
     assert_eq!(reported.state, AttemptState::Committed);

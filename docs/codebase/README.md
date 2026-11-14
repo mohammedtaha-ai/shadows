@@ -29,6 +29,9 @@ the Rust LSP (or the TypeScript one through Serena) answers it from the code.
 
 ## Architecture Invariants
 
+`core-plans` validates each task contract's command checks. `core-runs` records the executor's
+reported outcomes in `run_checks` with the accepted commit, separately from confirmation results.
+
 `crates/shadows/tests/architecture/` owns the shrinking source-ownership ratchet.
 Its [README](../../crates/shadows/tests/architecture/README.md) describes the
 checks, explicit review cases, fixture mutations and baseline maintenance.

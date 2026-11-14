@@ -42,7 +42,7 @@ version: 1
 status: current
 source: crates/core-runs/src
 
-owns_tables: [run_attempts, run_attempt_context, run_task_marks, run_lessons]
+owns_tables: [run_attempts, run_attempt_context, run_task_marks, run_lessons, run_checks]
 
 modules:
   lib.rs: the Runs service, its queries and done marks
@@ -434,3 +434,10 @@ tests:
   shadows/tests/runs_routes.rs: the HTTP routes over Runs, in a real git repository, with no adapter to open
   shadows/tests/runs_routes/live.rs: a task started over HTTP on the real adapter commits its own file and reports it through task_report on the real /mcp; ignored in CI
   shadows-core/tests/runs_attempts/live.rs: attempts on the real adapter against MiniMax in a real git repository; ignored in CI, run with API_KEY_MINIMAX and `-- --ignored --test-threads=1`
+
+reported_checks: >
+  Runs::report takes Vec<ReportedCheck> after report. For a saved attempt context, every
+  contract check is reported exactly once and no unknown id is accepted (reported_checks).
+  The accepted commit and reported outcomes are written together in run_checks, in contract
+  ordinal order; Shadows outcome and timestamps stay null until confirmation. An old attempt
+  with no saved context records no reported checks. ReportedOutcome is passed, failed or not_run.

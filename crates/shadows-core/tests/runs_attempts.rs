@@ -809,3 +809,106 @@ async fn an_executors_first_turn_hears_no_planner_instructions() {
     assert_eq!(carried, 0, "planning context was recorded for an executor");
     f.finish().await;
 }
+
+use core_runs::AttemptId;
+use shadows_core::Grant;
+use shadows_core::testing::TaskScope;
+const WRITES: [(u32, &str); 2] = [(3, "backend/app/**"), (5, "web/**")];
+impl Fixture {
+    /// An attempt at `task` as Start leaves it once its session is open:
+    /// `Running`, on an executor thread, holding its task's grant, with the
+    /// HEAD of now as its start.
+    async fn begin(&self, task: u32) -> (AttemptId, Grant) {
+        let writes = WRITES.iter().find(|(n, _)| *n == task).unwrap().1;
+        let writes = serde_json::to_string(&[writes]).unwrap();
+        let (project, workflow) = (self.project.clone(), self.workflow.clone());
+        let id = format!("attempt-{task}");
+        let row = id.clone();
+        let head = self.head();
+        let grant = self
+            .storage
+            .write_txn(move |conn| {
+                Box::pin(async move {
+                    let thread = shadows_core::Threads::create_executor_in(
+                        conn,
+                        &project,
+                        format!("T{task}"),
+                        "claude-code",
+                    )
+                    .await?;
+                    sqlx::query(
+                        "INSERT INTO run_attempts
+                           (id, project_id, workflow_id, version, task, number, thread_id,
+                            model, state, writes_json, started_at, command_id, fingerprint,
+                            start_head)
+                         VALUES (?, ?, ?, 1, ?, 1, ?, 'fake-small', 'running', ?,
+                                 '2026-10-05T00:00:00Z', ?, 'f', ?)",
+                    )
+                    .bind(&row)
+                    .bind(project.as_str())
+                    .bind(workflow.as_str())
+                    .bind(i64::from(task))
+                    .bind(thread.as_str())
+                    .bind(&writes)
+                    .bind(&row)
+                    .bind(&head)
+                    .execute(&mut *conn)
+                    .await?;
+                    let scope = TaskScope {
+                        workflow: workflow.as_str().to_string(),
+                        version: 1,
+                        task,
+                    };
+                    let (grant, _) = shadows_core::Grants::issue_executor_grant_in(
+                        conn, &project, &thread, scope,
+                    )
+                    .await?;
+                    Ok(grant)
+                })
+            })
+            .await
+            .unwrap();
+        (AttemptId::from_recorded(id), grant)
+    }
+
+    fn put(&self, path: &str, text: &str) {
+        let at = self.root.join(path);
+        std::fs::create_dir_all(at.parent().unwrap()).unwrap();
+        std::fs::write(at, text).unwrap();
+    }
+
+    fn git(&self, args: &[&str]) -> String {
+        git(&self.root, args)
+    }
+
+    /// Commits `paths` as the executor does: by name, with its own message.
+    fn commit(&self, paths: &[&str], message: &str) -> String {
+        for path in paths {
+            self.git(&["add", "--", path]);
+        }
+        self.git(&["commit", "-q", "-m", message]);
+        self.head()
+    }
+
+    fn head(&self) -> String {
+        self.git(&["rev-parse", "HEAD"]).trim().to_string()
+    }
+
+    async fn report(&self, grant: &Grant, commit: &str) -> Result<Attempt, RunsError> {
+        self.core
+            .runs()
+            .report(
+                grant,
+                commit,
+                "Did it; ran the tests, all passed.".into(),
+                vec![],
+            )
+            .await
+    }
+
+    async fn still_running(&self, attempt: &AttemptId) {
+        let now = self.core.runs().attempt(attempt).await.unwrap();
+        assert_eq!(now.state, AttemptState::Running, "{now:?}");
+        assert!(now.commit.is_none() && now.report.is_none(), "{now:?}");
+    }
+}

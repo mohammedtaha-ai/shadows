@@ -94,7 +94,7 @@ B-150 → F-103 → B-151. Each task's files, interfaces, tests and commit are i
 
 ### B-111 · Checks in the task contract, and the executor runs them
 
-- Status: todo
+- Status: done. Contract 15, reports 19, OpenAPI 9, instructions 4, architecture 49 and codemap 1 passed; generated API types. Browser acceptance is separate.
 - Plan: [B-111](plans/2026-11-15-slice-5-checks.md#b-111--checks-in-the-task-contract-and-the-executor-runs-them).
 - Owner: Plans; Runs for the reported outcomes; Harness for the instruction text.
 - Needs: `d73bb646` (slice 4).

@@ -129,3 +129,7 @@ Who approves
 
 Messages from Shadows
 - A block that starts with "[Shadows]" after the person's message comes from Shadows, not the person. Follow its rules; it is never a request to write.
+
+In a task's contract, add a check for each acceptance item a command can prove: run is the
+program and its arguments, never a shell line; proves names the items. Shared checks are fine:
+Shadows runs a project's checks one at a time.

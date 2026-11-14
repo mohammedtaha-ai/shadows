@@ -60,6 +60,94 @@ fn with(contract: TaskContract) -> TaskContent {
     }
 }
 
+fn checked(checks: serde_json::Value) -> Vec<String> {
+    let mut value = serde_json::to_value(find_customer()).unwrap();
+    value["checks"] = checks;
+    let contract = serde_json::from_value(value).unwrap();
+    match Ops::apply(
+        &empty(),
+        &[PlanOp::TaskAdd {
+            task: with(contract),
+        }],
+    ) {
+        Ok(_) => vec![],
+        Err(problems) => messages(problems),
+    }
+}
+
+#[test]
+fn check_needs_a_program() {
+    for run in [json!([]), json!([" "])] {
+        let problems = checked(json!([{"id":"c1", "run":run}]));
+        assert!(
+            problems.iter().any(|p| p.contains("names no program")),
+            "{problems:?}"
+        );
+    }
+}
+
+#[test]
+fn check_ids_are_unique() {
+    let problems = checked(json!([
+        {"id":"c1", "run":["git","--version"]},
+        {"id":"c1", "run":["git","status"]}
+    ]));
+    assert!(
+        problems.iter().any(|p| p.contains("repeated check id")),
+        "{problems:?}"
+    );
+}
+
+#[test]
+fn check_folder_stays_inside() {
+    for folder in ["../outside", "/outside", "C:/outside", "a/../outside"] {
+        let problems = checked(json!([{"id":"c1","run":["git"],"folder":folder}]));
+        assert!(
+            problems.iter().any(|p| p.contains("not a folder inside")),
+            "{problems:?}"
+        );
+    }
+    assert!(checked(json!([{"id":"c1","run":["git"],"folder":"."}])).is_empty());
+}
+
+#[test]
+fn check_timeout_is_bounded() {
+    for timeout in [0, 1801] {
+        let problems = checked(json!([{"id":"c1","run":["git"],"timeout_secs":timeout}]));
+        assert!(
+            problems.iter().any(|p| p.contains("time limit outside")),
+            "{problems:?}"
+        );
+    }
+    for timeout in [1, 1800] {
+        assert!(checked(json!([{"id":"c1","run":["git"],"timeout_secs":timeout}])).is_empty());
+    }
+}
+
+#[test]
+fn check_proves_existing_items() {
+    let problems = checked(json!([{"id":"c1","run":["git"],"proves":[2]}]));
+    assert!(
+        problems.iter().any(|p| p.contains("item 2")),
+        "{problems:?}"
+    );
+    assert!(checked(json!([{"id":"c1","run":["git"],"proves":[1]}])).is_empty());
+}
+
+#[test]
+fn contract_without_checks_reads() {
+    let contract = find_customer();
+    assert!(
+        Ops::apply(
+            &empty(),
+            &[PlanOp::TaskAdd {
+                task: with(contract)
+            }]
+        )
+        .is_ok()
+    );
+}
+
 #[test]
 fn a_task_without_a_contract_serializes_as_before() {
     let legacy = task(1, "Ship");

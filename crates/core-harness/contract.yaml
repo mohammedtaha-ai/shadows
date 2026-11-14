@@ -1264,3 +1264,8 @@ context_completion:
 
 # Planner prompt directs building agents to read task_context for the approved task first.
 # Phases are edited by phases_set; the Planner never marks one complete.
+
+checks_instructions: >
+  The Planner writes command checks in rich task contracts. The executor runs them before
+  committing, fixes failures within its writes, and defers a busy shared resource check as
+  not_run when necessary. task_report names every check's outcome; Shadows confirms later.

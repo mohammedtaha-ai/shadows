@@ -459,6 +459,7 @@ impl RunsStore {
         id: &AttemptId,
         sha: &str,
         report: &str,
+        checks: Vec<(u32, usize, core_plans::TaskCheck, crate::ReportedCheck)>,
     ) -> Result<bool, RunsError> {
         let (id, sha, report) = (id.clone(), sha.to_string(), report.to_string());
         let ts = Storage::now();
@@ -476,7 +477,27 @@ impl RunsStore {
                     .bind(id.as_str())
                     .execute(&mut *conn)
                     .await?;
-                    Ok(moved.rows_affected() == 1)
+                    let accepted = moved.rows_affected() == 1;
+                    if accepted {
+                        for (task, ordinal, check, reported) in checks {
+                            sqlx::query(
+                                "INSERT INTO run_checks
+                                 (attempt_id, for_task, check_id, ordinal, run_json, folder,
+                                  reported, reported_note) VALUES (?,?,?,?,?,?,?,?)",
+                            )
+                            .bind(id.as_str())
+                            .bind(i64::from(task))
+                            .bind(&check.id)
+                            .bind(ordinal as i64)
+                            .bind(serde_json::to_string(&check.run)?)
+                            .bind(&check.folder)
+                            .bind(serde_json::to_value(reported.outcome)?.as_str().unwrap())
+                            .bind(&reported.note)
+                            .execute(&mut *conn)
+                            .await?;
+                        }
+                    }
+                    Ok(accepted)
                 })
             })
             .await

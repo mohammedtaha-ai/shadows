@@ -7336,6 +7336,48 @@
         ],
         "type": "object"
       },
+      "TaskCheck": {
+        "additionalProperties": false,
+        "description": "A program with arguments that proves acceptance items without a shell.",
+        "properties": {
+          "folder": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "proves": {
+            "items": {
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "run": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "timeout_secs": {
+            "format": "int32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "run"
+        ],
+        "type": "object"
+      },
       "TaskConflict": {
         "description": "An attempt's accepted contract conflict, with the attempt's current state\nand whether it still holds its scope. Accepting it asked the executor to\nend its turn; only `attempt_state` says whether it did.",
         "properties": {
@@ -7526,6 +7568,13 @@
         "additionalProperties": false,
         "description": "What a task builds, named exactly: the executor's brief beside the goal.",
         "properties": {
+          "checks": {
+            "description": "Commands that prove acceptance, run by the executor and again by Shadows.",
+            "items": {
+              "$ref": "#/components/schemas/TaskCheck"
+            },
+            "type": "array"
+          },
           "files": {
             "items": {
               "$ref": "#/components/schemas/FileWork"

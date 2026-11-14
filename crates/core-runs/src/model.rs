@@ -11,6 +11,35 @@ newtype_id! {
     AttemptId
 }
 
+/// The executor's account, kept apart from Shadows' own confirmation.
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    utoipa::ToSchema,
+    schemars::JsonSchema,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum ReportedOutcome {
+    Passed,
+    Failed,
+    NotRun,
+}
+
+#[derive(
+    Debug, Clone, serde::Serialize, serde::Deserialize, utoipa::ToSchema, schemars::JsonSchema,
+)]
+pub struct ReportedCheck {
+    pub id: String,
+    pub outcome: ReportedOutcome,
+    #[serde(default)]
+    pub note: String,
+}
+
 impl AttemptId {
     /// Reconstructs this owner's identifier from a retained database reference.
     pub fn from_recorded(id: String) -> Self {

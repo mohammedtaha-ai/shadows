@@ -4,10 +4,108 @@
 use super::*;
 use core_runs::AttemptId;
 use shadows_core::Grant;
-use shadows_core::testing::TaskScope;
 
 /// T3 writes `backend/app/**`, T5 `web/**`.
-const WRITES: [(u32, &str); 2] = [(3, "backend/app/**"), (5, "web/**")];
+
+async fn saved_checks(f: &Fixture, attempt: &AttemptId, grant: &Grant) {
+    let mut context = f
+        .core
+        .plans()
+        .task_context(grant, Some(&f.workflow), 3, None)
+        .await
+        .unwrap();
+    context.task.contract = Some(
+        serde_json::from_value(serde_json::json!({
+            "files": [{"path":"backend/app/a.php","action":"modify","purpose":"Count"}],
+            "checks": [{"id":"c1","run":["git","--version"]},
+                       {"id":"c2","run":["git","status"]}]
+        }))
+        .unwrap(),
+    );
+    sqlx::query(
+        "INSERT INTO run_attempt_context (attempt_id, context_json, captured_at) VALUES (?,?,?)",
+    )
+    .bind(attempt.as_str())
+    .bind(serde_json::to_string(&context).unwrap())
+    .bind("2026-11-15T00:00:00Z")
+    .execute(f.storage.reader())
+    .await
+    .unwrap();
+}
+
+#[tokio::test]
+async fn report_needs_each_check() {
+    let f = fixture().await;
+    let (attempt, grant) = f.begin(3).await;
+    saved_checks(&f, &attempt, &grant).await;
+    f.put("backend/app/a.php", "one\n");
+    let sha = f.commit(&["backend/app/a.php"], "build");
+    for checks in [
+        serde_json::json!([]),
+        serde_json::json!([
+            {"id":"c1","outcome":"passed"}, {"id":"c9","outcome":"passed"}
+        ]),
+        serde_json::json!([
+            {"id":"c1","outcome":"passed"}, {"id":"c1","outcome":"passed"}
+        ]),
+    ] {
+        let error = f
+            .core
+            .runs()
+            .report(
+                &grant,
+                &sha,
+                "Built.".into(),
+                serde_json::from_value(checks).unwrap(),
+            )
+            .await
+            .unwrap_err();
+        assert_eq!(error.code(), "reported_checks");
+        f.still_running(&attempt).await;
+    }
+    f.finish().await;
+}
+
+#[tokio::test]
+async fn report_records_reported_checks() {
+    let f = fixture().await;
+    let (attempt, grant) = f.begin(3).await;
+    saved_checks(&f, &attempt, &grant).await;
+    f.put("backend/app/a.php", "one\n");
+    let sha = f.commit(&["backend/app/a.php"], "build");
+    let reported = f
+        .core
+        .runs()
+        .report(
+            &grant,
+            &sha,
+            "Built.".into(),
+            serde_json::from_value(serde_json::json!([
+                {"id":"c2","outcome":"not_run","note":"port busy"},
+                {"id":"c1","outcome":"passed","note":"git available"}
+            ]))
+            .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(reported.state, AttemptState::Committed);
+    let rows: Vec<(String, String, String, Option<String>)> = sqlx::query_as(
+        "SELECT check_id, reported, reported_note, outcome FROM run_checks
+         WHERE attempt_id=? ORDER BY ordinal",
+    )
+    .bind(attempt.as_str())
+    .fetch_all(f.storage.reader())
+    .await
+    .unwrap();
+    assert_eq!(
+        rows,
+        vec![
+            ("c1".into(), "passed".into(), "git available".into(), None),
+            ("c2".into(), "not_run".into(), "port busy".into(), None)
+        ]
+    );
+    f.finish().await;
+}
 
 #[tokio::test]
 async fn a_file_is_read_whole_at_the_attempts_commit() {
@@ -164,100 +262,6 @@ async fn the_planners_diff_shows_patches_up_to_its_bound() {
             .contains("+line 900")
     );
     f.finish().await;
-}
-
-impl Fixture {
-    /// An attempt at `task` as Start leaves it once its session is open:
-    /// `Running`, on an executor thread, holding its task's grant, with the
-    /// HEAD of now as its start.
-    async fn begin(&self, task: u32) -> (AttemptId, Grant) {
-        let writes = WRITES.iter().find(|(n, _)| *n == task).unwrap().1;
-        let writes = serde_json::to_string(&[writes]).unwrap();
-        let (project, workflow) = (self.project.clone(), self.workflow.clone());
-        let id = format!("attempt-{task}");
-        let row = id.clone();
-        let head = self.head();
-        let grant = self
-            .storage
-            .write_txn(move |conn| {
-                Box::pin(async move {
-                    let thread = shadows_core::Threads::create_executor_in(
-                        conn,
-                        &project,
-                        format!("T{task}"),
-                        "claude-code",
-                    )
-                    .await?;
-                    sqlx::query(
-                        "INSERT INTO run_attempts
-                           (id, project_id, workflow_id, version, task, number, thread_id,
-                            model, state, writes_json, started_at, command_id, fingerprint,
-                            start_head)
-                         VALUES (?, ?, ?, 1, ?, 1, ?, 'fake-small', 'running', ?,
-                                 '2026-10-05T00:00:00Z', ?, 'f', ?)",
-                    )
-                    .bind(&row)
-                    .bind(project.as_str())
-                    .bind(workflow.as_str())
-                    .bind(i64::from(task))
-                    .bind(thread.as_str())
-                    .bind(&writes)
-                    .bind(&row)
-                    .bind(&head)
-                    .execute(&mut *conn)
-                    .await?;
-                    let scope = TaskScope {
-                        workflow: workflow.as_str().to_string(),
-                        version: 1,
-                        task,
-                    };
-                    let (grant, _) = shadows_core::Grants::issue_executor_grant_in(
-                        conn, &project, &thread, scope,
-                    )
-                    .await?;
-                    Ok(grant)
-                })
-            })
-            .await
-            .unwrap();
-        (AttemptId::from_recorded(id), grant)
-    }
-
-    fn put(&self, path: &str, text: &str) {
-        let at = self.root.join(path);
-        std::fs::create_dir_all(at.parent().unwrap()).unwrap();
-        std::fs::write(at, text).unwrap();
-    }
-
-    fn git(&self, args: &[&str]) -> String {
-        git(&self.root, args)
-    }
-
-    /// Commits `paths` as the executor does: by name, with its own message.
-    fn commit(&self, paths: &[&str], message: &str) -> String {
-        for path in paths {
-            self.git(&["add", "--", path]);
-        }
-        self.git(&["commit", "-q", "-m", message]);
-        self.head()
-    }
-
-    fn head(&self) -> String {
-        self.git(&["rev-parse", "HEAD"]).trim().to_string()
-    }
-
-    async fn report(&self, grant: &Grant, commit: &str) -> Result<Attempt, RunsError> {
-        self.core
-            .runs()
-            .report(grant, commit, "Did it; ran the tests, all passed.".into())
-            .await
-    }
-
-    async fn still_running(&self, attempt: &AttemptId) {
-        let now = self.core.runs().attempt(attempt).await.unwrap();
-        assert_eq!(now.state, AttemptState::Running, "{now:?}");
-        assert!(now.commit.is_none() && now.report.is_none(), "{now:?}");
-    }
 }
 
 #[tokio::test]

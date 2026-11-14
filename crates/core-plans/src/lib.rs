@@ -40,7 +40,7 @@ pub use task_context::{
 };
 pub use task_contract::{
     ContractSource, ContractTarget, ContractUse, ContractValue, FileAction, FileWork,
-    ProducedOutput, ResolvedContract, SymbolKind, SymbolWork, TaskContract,
+    ProducedOutput, ResolvedContract, SymbolKind, SymbolWork, TaskCheck, TaskContract,
 };
 mod scope;
 mod signal;
