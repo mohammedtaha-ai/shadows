@@ -758,3 +758,148 @@ async fn person_files_do_not_count() {
     );
     f.finish().await;
 }
+
+async fn confirmed(f: &Fixture, id: &AttemptId, outcome: &str) {
+    sqlx::query(
+        "UPDATE run_checks SET outcome=?,finished_at='2026-11-15T00:00:00Z'
+        WHERE attempt_id=?",
+    )
+    .bind(outcome)
+    .bind(id.as_str())
+    .execute(f.storage.reader())
+    .await
+    .unwrap();
+}
+
+#[tokio::test]
+async fn done_over_failed_check_needs_reason() {
+    let (f, id, _, _) = candidate(vec![cmd(&["git", "--version"])]).await;
+    confirmed(&f, &id, "failed").await;
+    let error = f
+        .core
+        .runs()
+        .mark_done("judge".into(), &f.workflow, 1, 3, true, None)
+        .await
+        .unwrap_err();
+    assert_eq!(error.code(), "checks_not_passed");
+    assert!(!f.core.runs().task(&f.workflow, 1, 3).await.unwrap().done);
+    f.finish().await;
+}
+
+#[tokio::test]
+async fn done_before_results_needs_reason() {
+    let (f, _, _, _) = candidate(vec![cmd(&["git", "--version"])]).await;
+    let error = f
+        .core
+        .runs()
+        .mark_done("judge".into(), &f.workflow, 1, 3, true, None)
+        .await
+        .unwrap_err();
+    assert_eq!(error.code(), "checks_not_passed");
+    f.finish().await;
+}
+
+#[tokio::test]
+async fn done_reason_is_recorded() {
+    let (f, id, _, _) = candidate(vec![cmd(&["git", "--version"])]).await;
+    confirmed(&f, &id, "not_run").await;
+    let result = f
+        .core
+        .runs()
+        .mark_done(
+            "judge".into(),
+            &f.workflow,
+            1,
+            3,
+            true,
+            Some("  Tool unavailable; checked manually.  ".into()),
+        )
+        .await
+        .unwrap();
+    assert!(result.done);
+    assert_eq!(
+        result.done_reason.as_deref(),
+        Some("Tool unavailable; checked manually.")
+    );
+    let replay = f
+        .core
+        .runs()
+        .mark_done(
+            "judge".into(),
+            &f.workflow,
+            1,
+            3,
+            true,
+            Some("Tool unavailable; checked manually.".into()),
+        )
+        .await
+        .unwrap();
+    assert_eq!(replay.done_reason, result.done_reason);
+    let conflict = f
+        .core
+        .runs()
+        .mark_done(
+            "judge".into(),
+            &f.workflow,
+            1,
+            3,
+            true,
+            Some("Another reason".into()),
+        )
+        .await
+        .unwrap_err();
+    assert_eq!(conflict.code(), "command_conflict");
+    f.finish().await;
+}
+
+#[tokio::test]
+async fn done_again_after_undo_needs_reason() {
+    let (f, id, _, _) = candidate(vec![cmd(&["git", "--version"])]).await;
+    confirmed(&f, &id, "failed").await;
+    f.core
+        .runs()
+        .mark_done(
+            "judge".into(),
+            &f.workflow,
+            1,
+            3,
+            true,
+            Some("Known infrastructure failure".into()),
+        )
+        .await
+        .unwrap();
+    f.core
+        .runs()
+        .mark_done("undo".into(), &f.workflow, 1, 3, false, None)
+        .await
+        .unwrap();
+    let error = f
+        .core
+        .runs()
+        .mark_done("again".into(), &f.workflow, 1, 3, true, None)
+        .await
+        .unwrap_err();
+    assert_eq!(error.code(), "checks_not_passed");
+    f.finish().await;
+}
+
+#[tokio::test]
+async fn done_replay_answers_after_checks_change() {
+    let (f, id, _, _) = candidate(vec![cmd(&["git", "--version"])]).await;
+    confirmed(&f, &id, "passed").await;
+    f.core
+        .runs()
+        .mark_done("judge".into(), &f.workflow, 1, 3, true, None)
+        .await
+        .unwrap();
+    confirmed(&f, &id, "failed").await;
+    assert!(
+        f.core
+            .runs()
+            .mark_done("judge".into(), &f.workflow, 1, 3, true, None)
+            .await
+            .unwrap()
+            .done
+    );
+    f.finish().await;
+}

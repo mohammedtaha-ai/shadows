@@ -336,11 +336,11 @@ async fn admission_rechecks_a_new_draft() {
 async fn admission_rechecks_needs() {
     let f = fixture().await;
     let runs = f.core.runs();
-    runs.mark_done("m1".into(), &f.workflow, 1, 5, true)
+    runs.mark_done("m1".into(), &f.workflow, 1, 5, true, None)
         .await
         .unwrap();
     let (started, release) = f.gated_start("s4", 4).await;
-    runs.mark_done("m2".into(), &f.workflow, 1, 5, false)
+    runs.mark_done("m2".into(), &f.workflow, 1, 5, false, None)
         .await
         .unwrap();
     release.send(()).unwrap();

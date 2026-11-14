@@ -464,27 +464,33 @@ async fn start_waits_for_needs_links() {
     let marked = f
         .core
         .runs()
-        .mark_done("m1".into(), &f.workflow, 1, 1, true)
+        .mark_done("m1".into(), &f.workflow, 1, 1, true, None)
         .await
         .unwrap();
     assert!(marked.done && marked.done_at.is_some());
     assert_eq!(f.start("s2", 6).await.unwrap().state, AttemptState::Running);
     // A mark command is replayed, never applied twice, and its id is its own.
     let runs = f.core.runs();
-    let other = runs.mark_done("m1".into(), &f.workflow, 1, 1, false).await;
+    let other = runs
+        .mark_done("m1".into(), &f.workflow, 1, 1, false, None)
+        .await;
     assert!(
         matches!(other, Err(RunsError::CommandConflict)),
         "{other:?}"
     );
-    runs.mark_done("m2".into(), &f.workflow, 1, 1, false)
+    runs.mark_done("m2".into(), &f.workflow, 1, 1, false, None)
         .await
         .unwrap();
-    let replayed = runs.mark_done("m1".into(), &f.workflow, 1, 1, true).await;
+    let replayed = runs
+        .mark_done("m1".into(), &f.workflow, 1, 1, true, None)
+        .await;
     assert!(
         !replayed.unwrap().done,
         "a replay applied an old mark again"
     );
-    let elsewhere = runs.mark_done("m1".into(), &f.workflow, 1, 3, true).await;
+    let elsewhere = runs
+        .mark_done("m1".into(), &f.workflow, 1, 3, true, None)
+        .await;
     assert!(
         matches!(elsewhere, Err(RunsError::CommandConflict)),
         "{elsewhere:?}"
@@ -512,7 +518,7 @@ async fn start_waits_for_a_needs_link_to_another_plans_task() {
     let target = WorkflowId::from_literal(TARGET);
     f.core
         .runs()
-        .mark_done("m1".into(), &target, 1, 2, true)
+        .mark_done("m1".into(), &target, 1, 2, true, None)
         .await
         .unwrap();
     let started = f.start("s2", 7).await.unwrap();
@@ -716,7 +722,7 @@ async fn a_committed_attempt_holds_its_scope_until_it_is_marked_done() {
     );
     f.core
         .runs()
-        .mark_done("m1".into(), &f.workflow, 1, 3, true)
+        .mark_done("m1".into(), &f.workflow, 1, 3, true, None)
         .await
         .unwrap();
     f.start("s4", 4).await.unwrap();

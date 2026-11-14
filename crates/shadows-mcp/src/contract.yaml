@@ -134,3 +134,8 @@ layout_only: Map records contain no starter files; the stage has no Structure st
 task_report_checks: >
   task_report accepts checks (default empty), one ReportedCheck per saved contract check.
   Runs validates and records them with the reported commit; the adapter only translates.
+
+task_checks: >
+  task_checks reads the task latest committed confirmation results through Runs::checks_for
+  after its Planner grant check. task_done accepts optional reason and passes it unchanged;
+  Runs owns normalization, the fingerprint and whether a reason is required.

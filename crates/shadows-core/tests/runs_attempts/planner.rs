@@ -183,7 +183,7 @@ async fn the_planner_marks_a_task_done_and_not_done() {
     let grant = planner_grant(&f).await;
     let runs = f.core.runs();
     let marked = runs
-        .mark_done_for(&grant, &f.workflow, 1, true)
+        .mark_done_for(&grant, &f.workflow, 1, true, None)
         .await
         .unwrap();
     assert!(marked.task.done);
@@ -195,7 +195,7 @@ async fn the_planner_marks_a_task_done_and_not_done() {
     let t6 = runs.task(&f.workflow, 1, 6).await.unwrap();
     assert!(t6.start.allowed, "{:?}", t6.start);
     let unmarked = runs
-        .mark_done_for(&grant, &f.workflow, 1, false)
+        .mark_done_for(&grant, &f.workflow, 1, false, None)
         .await
         .unwrap();
     assert!(!unmarked.task.done);
@@ -212,15 +212,15 @@ async fn the_next_task_is_one_that_never_ran() {
     f.failed_attempt(3).await;
     let runs = f.core.runs();
     let marked = runs
-        .mark_done_for(&grant, &f.workflow, 1, true)
+        .mark_done_for(&grant, &f.workflow, 1, true, None)
         .await
         .unwrap();
     assert_eq!(next(&marked), [4, 5, 6], "T3 failed: it goes to the person");
-    runs.mark_done("mark-t4".into(), &f.workflow, 1, 4, true)
+    runs.mark_done("mark-t4".into(), &f.workflow, 1, 4, true, None)
         .await
         .unwrap();
     let marked = runs
-        .mark_done_for(&grant, &f.workflow, 1, true)
+        .mark_done_for(&grant, &f.workflow, 1, true, None)
         .await
         .unwrap();
     assert_eq!(next(&marked), [5, 6], "T4 is done: it never starts twice");
@@ -255,7 +255,7 @@ async fn the_planner_tools_refuse_a_grant_that_is_not_a_planners() {
             .start_for(&grant, &f.workflow, 3, Some("fake-large".into()))
             .await;
         assert!(matches!(started, Err(RunsError::NotFound)), "{started:?}");
-        let marked = runs.mark_done_for(&grant, &f.workflow, 1, true).await;
+        let marked = runs.mark_done_for(&grant, &f.workflow, 1, true, None).await;
         assert!(matches!(marked, Err(RunsError::NotFound)), "{marked:?}");
     }
     assert!(!runs.task(&f.workflow, 1, 1).await.unwrap().done);

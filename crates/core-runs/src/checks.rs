@@ -4,9 +4,9 @@ use crate::scope::Scope;
 use crate::store::{Continued, checks::Finished};
 use crate::{Attempt, AttemptId, AttemptOrigin, CheckOutcome, CheckResult, Runs, RunsError};
 use core_db::Storage;
-use core_plans::{ContractSource, ContractTarget, TaskCheck};
+use core_plans::TaskCheck;
 use core_projects::ProjectId;
-use std::collections::{BTreeSet, VecDeque};
+use std::collections::VecDeque;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 use tokio::io::{AsyncRead, AsyncReadExt};
@@ -23,49 +23,6 @@ impl Runs {
         if let Err(error) = self.confirm_attempt(attempt).await {
             tracing::warn!(attempt=%attempt.id, %error, "runs.confirm_failed");
         }
-    }
-
-    async fn confirmation_checks(
-        &self,
-        attempt: &Attempt,
-    ) -> Result<Vec<(u32, usize, TaskCheck)>, RunsError> {
-        let Some((context, _)) = self.inner.store.context(&attempt.id).await? else {
-            return Ok(vec![]);
-        };
-        let Some(contract) = context.task.contract else {
-            return Ok(vec![]);
-        };
-        let mut checks: Vec<_> = contract
-            .checks
-            .into_iter()
-            .enumerate()
-            .map(|(i, c)| (attempt.task, i, c))
-            .collect();
-        let mut used = BTreeSet::new();
-        for usage in contract.uses {
-            if let ContractSource::Task {
-                target: ContractTarget::Local { task },
-                ..
-            } = usage.source
-                && used.insert(task)
-                && let Some(id) = self
-                    .inner
-                    .store
-                    .latest_committed(&attempt.workflow_id, attempt.version, task)
-                    .await?
-                && let Some((context, _)) = self.inner.store.context(&id).await?
-                && let Some(contract) = context.task.contract
-            {
-                checks.extend(
-                    contract
-                        .checks
-                        .into_iter()
-                        .enumerate()
-                        .map(|(i, c)| (task, i, c)),
-                );
-            }
-        }
-        Ok(checks)
     }
 
     async fn wait_for_quiet(&self, attempt: &Attempt) -> Result<(), RunsError> {
@@ -122,7 +79,7 @@ impl Runs {
         if self.inner.store.continued(&attempt.id).await? {
             return Ok(());
         }
-        let checks = self.confirmation_checks(attempt).await?;
+        let checks = self.inner.store.check_specs(&attempt.id).await?;
         if checks.is_empty() {
             return self.after_checks(attempt).await;
         }

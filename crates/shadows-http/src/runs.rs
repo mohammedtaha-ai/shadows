@@ -35,6 +35,25 @@ pub(super) struct MarkDone {
     /// The idempotency key, scoped to done marks.
     command_id: String,
     done: bool,
+    #[serde(default)]
+    reason: Option<String>,
+}
+
+/// The recorded command confirmations for one attempt.
+#[utoipa::path(
+    get, path = "/api/attempts/{id}/checks", tag = "runs",
+    params(("id" = AttemptId, Path, description = "The attempt")),
+    responses(
+        (status = 200, body = Vec<shadows_core::CheckResult>),
+        (status = 404, description = "no such attempt", body = ErrorBody),
+        (status = 500, description = "STORAGE_UNAVAILABLE", body = ErrorBody),
+    )
+)]
+pub(super) async fn checks(
+    State(s): State<AppState>,
+    Path(attempt): Path<AttemptId>,
+) -> Result<Json<Vec<shadows_core::CheckResult>>, RunFailure> {
+    Ok(Json(s.core.runs().check_results(&attempt).await?))
 }
 
 /// The task as its page reads it: whether it was marked done, its latest
@@ -144,7 +163,7 @@ pub(super) async fn start(
     responses(
         (status = 200, body = TaskRun),
         (status = 404, description = "no such plan version or task", body = ErrorBody),
-        (status = 409, description = "command_conflict", body = RunRefusal),
+        (status = 409, description = "command_conflict or checks_not_passed", body = RunRefusal),
         (status = 500, description = "STORAGE_UNAVAILABLE", body = ErrorBody),
     )
 )]
@@ -156,7 +175,14 @@ pub(super) async fn mark_done(
     Ok(Json(
         s.core
             .runs()
-            .mark_done(body.command_id, &workflow, version, task, body.done)
+            .mark_done(
+                body.command_id,
+                &workflow,
+                version,
+                task,
+                body.done,
+                body.reason,
+            )
             .await?,
     ))
 }

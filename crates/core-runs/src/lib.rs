@@ -157,6 +157,7 @@ impl Runs {
         Ok(TaskRun {
             task,
             done: mark.as_ref().is_some_and(|m| m.0),
+            done_reason: mark.as_ref().and_then(|m| m.2.clone()),
             done_at: mark.and_then(|m| m.1),
             latest,
             needs: self.needs(&plan, task).await?,
@@ -233,21 +234,26 @@ impl Runs {
         version: i64,
         task: u32,
         done: bool,
+        reason: Option<String>,
     ) -> Result<TaskRun, RunsError> {
         let plan = self.plan(workflow, version).await?;
         if !plan.tasks.iter().any(|t| t.content.number == task) {
             return Err(RunsError::NotFound);
         }
+        let reason = reason
+            .map(|r| r.trim().to_string())
+            .filter(|r| !r.is_empty());
         let command = CommandContext::user(
             command,
             "run.mark_done",
             serde_json::json!({
                 "workflow": workflow, "version": version, "task": task, "done": done,
+                "reason": reason,
             }),
         );
         self.inner
             .store
-            .put_mark(command, (workflow, version, task), done)
+            .put_mark(command, (workflow, version, task), done, reason)
             .await?;
         // The judged commit's executor can write no more: close its session
         // and free its scope. Release is idempotent, so a replay is harmless.

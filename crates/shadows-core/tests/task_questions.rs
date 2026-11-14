@@ -404,7 +404,7 @@ impl Fixture {
         assert_eq!(reported.state, AttemptState::Committed);
         self.core
             .runs()
-            .mark_done("done-1".into(), &self.workflow, 1, attempt.task, true)
+            .mark_done("done-1".into(), &self.workflow, 1, attempt.task, true, None)
             .await
             .unwrap();
         sha

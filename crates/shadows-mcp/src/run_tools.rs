@@ -45,6 +45,16 @@ struct TaskDoneArgs {
     task_number: u32,
     /// true to mark the task done, false to take the mark back.
     done: bool,
+    /// Why this task is done despite a check that did not pass.
+    #[serde(default)]
+    reason: Option<String>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+struct TaskChecksArgs {
+    #[schemars(with = "String")]
+    workflow_id: WorkflowId,
+    task_number: u32,
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
@@ -350,7 +360,31 @@ impl Shadows {
         answer(
             self.core
                 .runs()
-                .mark_done_for(&grant, &args.workflow_id, args.task_number, args.done)
+                .mark_done_for(
+                    &grant,
+                    &args.workflow_id,
+                    args.task_number,
+                    args.done,
+                    args.reason,
+                )
+                .await
+                .map_err(Refusal::from),
+        )
+    }
+
+    #[tool(
+        description = "Read the latest committed attempt's checks: executor report, Shadows' \
+        confirmation, outcome, exit code, HEAD and output. Read these before judging the commit."
+    )]
+    async fn task_checks(
+        &self,
+        Extension(grant): Extension<Grant>,
+        Parameters(args): Parameters<TaskChecksArgs>,
+    ) -> CallToolResult {
+        answer(
+            self.core
+                .runs()
+                .checks_for(&grant, &args.workflow_id, args.task_number)
                 .await
                 .map_err(Refusal::from),
         )

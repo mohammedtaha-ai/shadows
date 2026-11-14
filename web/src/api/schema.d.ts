@@ -25,6 +25,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/attempts/{id}/checks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The recorded command confirmations for one attempt. */
+        get: operations["checks"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/attempts/{id}/conflict": {
         parameters: {
             query?: never;
@@ -3005,6 +3022,7 @@ export interface components {
             /** @description The idempotency key, scoped to done marks. */
             command_id: string;
             done: boolean;
+            reason?: string | null;
         };
         McpInput: {
             description?: string | null;
@@ -4017,6 +4035,7 @@ export interface components {
         TaskRun: {
             done: boolean;
             done_at: string | null;
+            done_reason: string | null;
             latest: null | components["schemas"]["Attempt"];
             /** @description In link order. */
             needs: components["schemas"]["Need"][];
@@ -4303,6 +4322,46 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RunRefusal"];
+                };
+            };
+            /** @description STORAGE_UNAVAILABLE */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    checks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The attempt */
+                id: components["schemas"]["AttemptId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CheckResult"][];
+                };
+            };
+            /** @description no such attempt */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
                 };
             };
             /** @description STORAGE_UNAVAILABLE */
@@ -10283,7 +10342,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
-            /** @description command_conflict */
+            /** @description command_conflict or checks_not_passed */
             409: {
                 headers: {
                     [name: string]: unknown;

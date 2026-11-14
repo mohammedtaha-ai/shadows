@@ -16,6 +16,78 @@ pub(crate) struct Finished {
 }
 
 impl RunsStore {
+    pub async fn check_specs(
+        &self,
+        id: &AttemptId,
+    ) -> Result<Vec<(u32, usize, TaskCheck)>, RunsError> {
+        let mut conn = self
+            .storage
+            .reader()
+            .acquire()
+            .await
+            .map_err(core_db::StorageError::from)?;
+        Self::specs_in(&mut conn, id).await
+    }
+
+    pub(super) async fn specs_in(
+        tx: &mut core_db::Tx,
+        id: &AttemptId,
+    ) -> Result<Vec<(u32, usize, TaskCheck)>, RunsError> {
+        let own: Option<(String, i64, u32, String)> = sqlx::query_as(
+            "SELECT a.workflow_id,a.version,a.task,c.context_json FROM run_attempts a
+             JOIN run_attempt_context c ON c.attempt_id=a.id WHERE a.id=?",
+        )
+        .bind(id.as_str())
+        .fetch_optional(&mut *tx)
+        .await?;
+        let Some((workflow, version, own, json)) = own else {
+            return Ok(vec![]);
+        };
+        let context: core_plans::TaskContext = serde_json::from_str(&json)?;
+        let Some(contract) = context.task.contract else {
+            return Ok(vec![]);
+        };
+        let mut checks: Vec<_> = contract
+            .checks
+            .into_iter()
+            .enumerate()
+            .map(|(i, c)| (own, i, c))
+            .collect();
+        let mut used = std::collections::BTreeSet::new();
+        for usage in contract.uses {
+            if let core_plans::ContractSource::Task {
+                target: core_plans::ContractTarget::Local { task },
+                ..
+            } = usage.source
+                && used.insert(task)
+            {
+                let json: Option<String> = sqlx::query_scalar(
+                    "SELECT c.context_json FROM run_attempts a JOIN run_attempt_context c
+                     ON c.attempt_id=a.id WHERE a.workflow_id=? AND a.version=? AND a.task=?
+                     AND a.state='committed' ORDER BY a.number DESC LIMIT 1",
+                )
+                .bind(&workflow)
+                .bind(version)
+                .bind(i64::from(task))
+                .fetch_optional(&mut *tx)
+                .await?;
+                if let Some(json) = json {
+                    let context: core_plans::TaskContext = serde_json::from_str(&json)?;
+                    if let Some(contract) = context.task.contract {
+                        checks.extend(
+                            contract
+                                .checks
+                                .into_iter()
+                                .enumerate()
+                                .map(|(i, c)| (task, i, c)),
+                        );
+                    }
+                }
+            }
+        }
+        Ok(checks)
+    }
+
     pub async fn check_results(&self, id: &AttemptId) -> Result<Vec<CheckResult>, RunsError> {
         let rows = sqlx::query(
             "SELECT c.* FROM run_checks c JOIN run_attempts a ON a.id=c.attempt_id

@@ -361,7 +361,7 @@ async fn live_an_addition_continues_the_executor_in_its_session() {
     assert_eq!(numbers, vec![2, 1]);
     f.core
         .runs()
-        .mark_done("live-add-m".into(), &f.workflow, 1, 3, true)
+        .mark_done("live-add-m".into(), &f.workflow, 1, 3, true, None)
         .await
         .unwrap();
     let after = f

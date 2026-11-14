@@ -170,6 +170,8 @@ pub struct TaskRun {
     #[schema(required)]
     pub done_at: Option<String>,
     #[schema(required)]
+    pub done_reason: Option<String>,
+    #[schema(required)]
     pub latest: Option<Attempt>,
     /// In link order.
     pub needs: Vec<Need>,

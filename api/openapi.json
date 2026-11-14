@@ -4003,6 +4003,12 @@
           },
           "done": {
             "type": "boolean"
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "required": [
@@ -7872,6 +7878,12 @@
               "null"
             ]
           },
+          "done_reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "latest": {
             "oneOf": [
               {
@@ -7909,6 +7921,7 @@
           "task",
           "done",
           "done_at",
+          "done_reason",
           "latest",
           "needs",
           "start",
@@ -8833,6 +8846,61 @@
           }
         },
         "summary": "The brief the attempt was given: the attempt and the task context saved\nwhen it was admitted, unchanged by any later map or standards. An attempt\nbegun before briefs were saved is 409 `context_not_recorded`.",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/attempts/{id}/checks": {
+      "get": {
+        "operationId": "checks",
+        "parameters": [
+          {
+            "description": "The attempt",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/AttemptId"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CheckResult"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "no such attempt"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          }
+        },
+        "summary": "The recorded command confirmations for one attempt.",
         "tags": [
           "runs"
         ]
@@ -17006,7 +17074,7 @@
                 }
               }
             },
-            "description": "command_conflict"
+            "description": "command_conflict or checks_not_passed"
           },
           "500": {
             "content": {

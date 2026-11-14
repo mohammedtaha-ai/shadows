@@ -286,7 +286,7 @@ async fn live_a_committed_attempt_reaches_its_planner_and_waits_for_its_judgment
     println!("live notice: {}", notice.lines().next().unwrap_or_default());
     app.core
         .runs()
-        .mark_done("m1".into(), &v1, 1, 1, true)
+        .mark_done("m1".into(), &v1, 1, 1, true, None)
         .await
         .unwrap();
     let t1 = app.core.runs().task(&v1, 1, 1).await.unwrap();

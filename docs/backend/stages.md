@@ -110,7 +110,7 @@ B-150 → F-103 → B-151. Each task's files, interfaces, tests and commit are i
 
 ### B-114 · The Planner reads checks and judges on them
 
-- Status: todo
+- Status: done. Runs 86 passed / 6 live ignored, MCP 25, routes 11 / 2 live ignored, instructions 4, architecture 49, codemap 1 and OpenAPI 9 passed; schemas regenerated.
 - Plan: [B-114](plans/2026-11-15-slice-5-checks.md#b-114--the-planner-reads-checks-and-judges-on-them).
 - Owner: Runs, with its HTTP and MCP adapters.
 - Needs: B-113.
