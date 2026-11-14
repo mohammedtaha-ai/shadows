@@ -3,8 +3,10 @@
   "configurations": [
     {
       "name": "daemon",
-      "runtimeExecutable": "E:/Globalprojects/shadows/target/debug/shadows.exe",
+      "runtimeExecutable": "cmd",
       "runtimeArgs": [
+        "/c",
+        "E:/Globalprojects/shadows/.claude/run-daemon.cmd",
         "serve",
         "--debug",
         "--db",
@@ -26,8 +28,10 @@
     },
     {
       "name": "daemon-journey",
-      "runtimeExecutable": "E:/Globalprojects/shadows/target/debug/shadows.exe",
+      "runtimeExecutable": "cmd",
       "runtimeArgs": [
+        "/c",
+        "E:/Globalprojects/shadows/.claude/run-daemon.cmd",
         "serve",
         "--debug",
         "--db",
