@@ -230,7 +230,7 @@ pub enum ContractTarget {
 }
 
 /// A use, with what its producer promises. The consumer never stores this.
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
 pub struct ResolvedContract {
     pub reference: ContractSource,
     pub producer_title: Option<String>,

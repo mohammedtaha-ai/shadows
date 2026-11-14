@@ -3623,6 +3623,13 @@ export interface components {
         ResendResponse: {
             owed: boolean;
         };
+        /** @description A use, with what its producer promises. The consumer never stores this. */
+        ResolvedContract: {
+            artifact?: string | null;
+            producer_title?: string | null;
+            reference: components["schemas"]["ContractSource"];
+            symbol?: null | components["schemas"]["SymbolWork"];
+        };
         /** @enum {string} */
         RoadmapAction: "first" | "add" | "change" | "remove";
         RoadmapProposal: {
@@ -3889,7 +3896,7 @@ export interface components {
             writes: string[];
         };
         TaskContext: {
-            contracts?: Record<string, never>[];
+            contracts?: components["schemas"]["ResolvedContract"][];
             /** Format: int64 */
             map_revision: number;
             parts: components["schemas"]["TaskPart"][];

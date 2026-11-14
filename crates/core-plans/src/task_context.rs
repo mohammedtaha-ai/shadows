@@ -6,8 +6,8 @@ use core_grants::Grant;
 use core_projects::ProjectId;
 use serde::{Deserialize, Serialize};
 
-// `contracts`, `part` and `via` are typed as open objects in the schema: their
-// own types carry no schema derive.
+// `part` and `via` are typed as open objects in the schema: their own types
+// carry no schema derive.
 #[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct TaskContext {
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -17,7 +17,6 @@ pub struct TaskContext {
     pub plan: ContextPlan,
     pub task: TaskContent,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    #[schema(value_type = Vec<Object>)]
     pub contracts: Vec<crate::ResolvedContract>,
     pub parts: Vec<TaskPart>,
     pub unowned_paths: Vec<String>,

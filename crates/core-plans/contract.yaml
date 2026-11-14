@@ -301,7 +301,8 @@ shapes:
   ContractFacts: "{ selector, contract: Option<TaskContract>, resolved: [ResolvedContract], producers: [ContractTarget], consumers: [ConsumerRef], next: Option<u32> }; serialized only, by Runs' task answer"
   ResolvedContract:
     # task_context serializes it, and an attempt's saved brief keeps it as given; the consumer's
-    # task never stores it.
+    # task never stores it. It carries its own OpenAPI schema, so TaskContext.contracts is
+    # typed in the API document.
     reference: ContractSource
     producer_title: Option<String>
     symbol: Option<SymbolWork>

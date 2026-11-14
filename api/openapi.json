@@ -6328,6 +6328,40 @@
         ],
         "type": "object"
       },
+      "ResolvedContract": {
+        "description": "A use, with what its producer promises. The consumer never stores this.",
+        "properties": {
+          "artifact": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "producer_title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "reference": {
+            "$ref": "#/components/schemas/ContractSource"
+          },
+          "symbol": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/SymbolWork"
+              }
+            ]
+          }
+        },
+        "required": [
+          "reference"
+        ],
+        "type": "object"
+      },
       "RoadmapAction": {
         "enum": [
           "first",
@@ -7309,7 +7343,7 @@
         "properties": {
           "contracts": {
             "items": {
-              "type": "object"
+              "$ref": "#/components/schemas/ResolvedContract"
             },
             "type": "array"
           },
