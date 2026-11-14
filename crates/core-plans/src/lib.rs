@@ -22,6 +22,8 @@ mod design_edit;
 mod design_ops;
 pub use design_ops::DesignOp;
 mod dependency_graph;
+mod execution;
+pub use execution::{ExecutionPlan, ExecutionRefusal};
 mod map;
 mod model;
 mod phases;

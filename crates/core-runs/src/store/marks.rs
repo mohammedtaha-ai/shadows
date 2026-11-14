@@ -1,7 +1,7 @@
 //! A person's done marks, which `needs` links wait for.
 use super::RunsStore;
 use crate::RunsError;
-use core_db::{CommandContext, Storage, StorageError};
+use core_db::{CommandContext, Storage, StorageError, Tx};
 use core_plans::WorkflowId;
 
 /// The command record's scope for done marks: one id names one mark command.
@@ -15,6 +15,22 @@ impl RunsStore {
         version: i64,
         task: u32,
     ) -> Result<Option<(bool, Option<String>)>, RunsError> {
+        let mut conn = self
+            .storage
+            .reader()
+            .acquire()
+            .await
+            .map_err(StorageError::from)?;
+        Self::mark_in(&mut conn, workflow, version, task).await
+    }
+
+    /// `mark`, as `tx` sees it.
+    async fn mark_in(
+        tx: &mut Tx,
+        workflow: &WorkflowId,
+        version: i64,
+        task: u32,
+    ) -> Result<Option<(bool, Option<String>)>, RunsError> {
         let row: Option<(bool, Option<String>)> = sqlx::query_as(
             "SELECT done, done_at FROM run_task_marks
              WHERE workflow_id = ? AND version = ? AND task = ?",
@@ -22,9 +38,21 @@ impl RunsStore {
         .bind(workflow.as_str())
         .bind(version)
         .bind(i64::from(task))
-        .fetch_optional(self.storage.reader())
+        .fetch_optional(&mut *tx)
         .await?;
         Ok(row)
+    }
+
+    /// Whether the task is marked done, as `tx` sees it: what `needs` waits for.
+    pub async fn done_in(
+        tx: &mut Tx,
+        workflow: &WorkflowId,
+        version: i64,
+        task: u32,
+    ) -> Result<bool, RunsError> {
+        Ok(Self::mark_in(tx, workflow, version, task)
+            .await?
+            .is_some_and(|(done, _)| done))
     }
 
     /// A replay of the same command with the same request writes nothing, and

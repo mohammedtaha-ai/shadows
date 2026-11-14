@@ -390,6 +390,8 @@ shapes:
 
 
 functions:
+  execution_plan: "(&self, workflow, version) -> Result<ExecutionPlan, PlansError>; execution_plan_in in a read snapshot of its own."
+  version_in: "private: (conn, workflow) -> Plan; load_plan and LinkedRows in the caller's snapshot, the one loader of execution_plan_in."
   new: Constructs Plans with its declared Design, Grants and Operations dependencies.
   from_recorded: Reconstructs plan, workflow and task identities retained by other services.
   event_projection:
@@ -601,6 +603,7 @@ shared_in_transaction:
   write_content: Private store entry used within the owner transaction.
   project_event_payload_in: Events projects plan identifiers in its journal read snapshot.
   workflow_in_project_in: "(conn, workflow, project) -> Result<bool, StorageError>; Turns reads focus membership in its snapshot."
+  execution_plan_in: "(tx, workflow, version) -> Result<ExecutionPlan, PlansError>; Runs' Start preflight snapshot and its admission write, and an addition's write: the version with its linked tasks (version_in), another version number NotFound, and its refusal checked Archived, then NotFrozen, then Superseded (any next version, Draft or Frozen)."
   apply_design_links_in: Owner entry in the caller transaction; design links rules.
   anchor_plans_in: Owner entry in the caller transaction; design links rules.
   outcomes_with_plans_in: "Plans' own roadmap approval write: the outcomes a plan links to, which Design's removal refuses."
@@ -1103,6 +1106,7 @@ modules:
   store/phase_projection.rs: Pinned foreign-phase previews
   phases.rs: Ordered phase contracts
   task_context.rs: Approved task context boundary
+  execution.rs: whether a plan version may start work now
   task_contract.rs: task contract types with their one-task rules
   contract_uses.rs: resolving a consumer's uses against its plan version's producers
   store/task_context.rs: Snapshot task context assembly

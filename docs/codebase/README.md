@@ -514,6 +514,7 @@ file disagrees with either, they are right and this file is the defect.
 | `crates/codebase/src/error.rs` | index refusals | `crates/codebase/contract.yaml` |
 | `crates/codebase/src/testing.rs` | gated index inspection | `crates/codebase/contract.yaml` |
 | `crates/codebase/src/inventory.rs` | the paged file inventory of a project's folder | `crates/codebase/contract.yaml` |
+| `crates/codebase/src/inputs.rs` | the real-path check of a project path | `crates/codebase/contract.yaml` |
 | `crates/codebase/src/store/inventory.rs` | file inventory persistence | `crates/codebase/contract.yaml` |
 | `crates/codebase/src/lsp/` | the language servers a project's files want | `crates/codebase/contract.yaml` |
 | `crates/codebase/src/lsp/catalog.rs` | the language-server catalog | `crates/codebase/contract.yaml` |
@@ -570,6 +571,7 @@ file disagrees with either, they are right and this file is the defect.
 | `crates/core-design/src/layout.rs` | project layout ownership | `crates/core-design/contract.yaml` |
 | `crates/core-design/src/store/layout.rs` | snapshot layout projection | `crates/core-design/contract.yaml` |
 | `crates/core-plans/src/task_context.rs` | approved task context boundary | `crates/core-plans/contract.yaml` |
+| `crates/core-plans/src/execution.rs` | whether a plan version may start work now | `crates/core-plans/contract.yaml` |
 | `crates/core-plans/src/task_contract.rs` | task contract types with their one-task rules | `crates/core-plans/contract.yaml` |
 | `crates/core-plans/src/contract_uses.rs` | resolving a consumer's uses against its plan version's producers | `crates/core-plans/contract.yaml` |
 | `crates/core-plans/src/store/task_context.rs` | snapshot task context assembly | `crates/core-plans/contract.yaml` |

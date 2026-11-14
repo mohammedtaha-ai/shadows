@@ -20,6 +20,10 @@ pub enum RunsError {
     NotGit,
     #[error("uncommitted changes inside the task's writes: {}", paths.join(", "))]
     DirtyScope { paths: Vec<String> },
+    #[error("the task's required files do not exist: {}", paths.join(", "))]
+    MissingInput { paths: Vec<String> },
+    #[error("the task's required files cannot be checked: {0}")]
+    InputUnavailable(String),
     #[error("this attempt already reported its commit")]
     AlreadyCommitted,
     #[error(
@@ -102,6 +106,8 @@ impl RunsError {
             Self::Overlap { .. } => "overlap",
             Self::NotGit => "not_git",
             Self::DirtyScope { .. } => "dirty_scope",
+            Self::MissingInput { .. } => "missing_input",
+            Self::InputUnavailable(_) => "input_unavailable",
             Self::AlreadyCommitted => "already_committed",
             Self::UnknownCommit { .. } => "unknown_commit",
             Self::NotOnBranch { .. } => "not_on_branch",
@@ -139,8 +145,19 @@ impl RunsError {
                 | Self::Overlap { .. }
                 | Self::NotGit
                 | Self::DirtyScope { .. }
+                | Self::MissingInput { .. }
+                | Self::InputUnavailable(_)
                 | Self::BadScope(_)
         )
+    }
+
+    /// A plan read that failed: an unknown version is not found, anything else
+    /// is unavailable.
+    pub(crate) fn from_plans(error: core_plans::PlansError) -> Self {
+        match error {
+            core_plans::PlansError::Storage(StorageError::NotFound(_)) => Self::NotFound,
+            other => Self::Unavailable(other.to_string()),
+        }
     }
 
     /// `T1, plan … T2`: the tasks a refusal names, as a person reads them.
@@ -150,6 +167,16 @@ impl RunsError {
             .map(TaskParent::to_string)
             .collect::<Vec<_>>()
             .join(", ")
+    }
+}
+
+impl From<core_plans::ExecutionRefusal> for RunsError {
+    fn from(refusal: core_plans::ExecutionRefusal) -> Self {
+        match refusal {
+            core_plans::ExecutionRefusal::Archived => Self::Archived,
+            core_plans::ExecutionRefusal::NotFrozen => Self::NotFrozen,
+            core_plans::ExecutionRefusal::Superseded => Self::Superseded,
+        }
     }
 }
 

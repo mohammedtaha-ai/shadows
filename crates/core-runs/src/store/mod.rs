@@ -11,12 +11,12 @@ use std::sync::Arc;
 
 use sqlx::SqliteConnection;
 
-use crate::RunsError;
-use crate::model::{Attempt, AttemptId, AttemptState};
+use crate::model::{Attempt, AttemptId, AttemptState, Need};
 use crate::scope::Scope;
+use crate::{Runs, RunsError};
 use core_db::{Storage, StorageError};
 use core_operations::OperationId;
-use core_plans::WorkflowId;
+use core_plans::{Plan, Plans, TaskContent, WorkflowId};
 use core_projects::ProjectId;
 use core_threads::ThreadId;
 
@@ -41,6 +41,16 @@ type AttemptRow = (
 
 pub(super) struct RunsStore {
     storage: Arc<Storage>,
+    /// Holds the next Start between its preflight and its admission write.
+    #[cfg(feature = "test-support")]
+    gate: std::sync::Mutex<Option<Gate>>,
+}
+
+/// A test's hold on one Start: it hears the Start arrive, then lets it go on.
+#[cfg(feature = "test-support")]
+struct Gate {
+    reached: tokio::sync::oneshot::Sender<()>,
+    release: tokio::sync::oneshot::Receiver<()>,
 }
 
 /// What Start asks the store to record.
@@ -72,7 +82,53 @@ pub(crate) struct Begun {
 
 impl RunsStore {
     pub fn with_storage(storage: Arc<Storage>) -> Self {
-        Self { storage }
+        Self {
+            storage,
+            #[cfg(feature = "test-support")]
+            gate: std::sync::Mutex::new(None),
+        }
+    }
+
+    /// Holds the next `begin_attempt` before its write: the receiver hears it
+    /// arrive, and the sender lets it go on.
+    #[cfg(feature = "test-support")]
+    pub fn gate(
+        &self,
+    ) -> (
+        tokio::sync::oneshot::Receiver<()>,
+        tokio::sync::oneshot::Sender<()>,
+    ) {
+        let (reached, heard) = tokio::sync::oneshot::channel();
+        let (go, release) = tokio::sync::oneshot::channel();
+        *self
+            .gate
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(Gate { reached, release });
+        (heard, go)
+    }
+
+    /// Admission's durable checks in one read snapshot: Start's preflight.
+    pub async fn admission(
+        &self,
+        workflow: &WorkflowId,
+        version: i64,
+        task: u32,
+    ) -> Result<(Plan, TaskContent), RunsError> {
+        let mut snapshot = (self.storage.reader().begin().await).map_err(StorageError::from)?;
+        let admitted = Runs::admit_in(&mut snapshot, workflow, version, task).await?;
+        snapshot.commit().await.map_err(StorageError::from)?;
+        Ok(admitted)
+    }
+
+    /// The tasks `task` needs, with their marks as one read sees them.
+    pub async fn needs(&self, plan: &Plan, task: u32) -> Result<Vec<Need>, RunsError> {
+        let mut conn = self
+            .storage
+            .reader()
+            .acquire()
+            .await
+            .map_err(StorageError::from)?;
+        Runs::needs_in(&mut conn, plan, task).await
     }
 
     /// Changes after each commit that appended to the journal, a turn's
@@ -81,9 +137,12 @@ impl RunsStore {
         self.storage.watch_committed()
     }
 
-    /// The replay check, the busy check, the overlap check and the insert are
-    /// one write, so two concurrent Starts cannot both pass.
+    /// The replay check, the plan's state and `needs` marks, the busy check,
+    /// the overlap check and the insert are one write, so a Start cannot pass
+    /// on what a concurrent Start, Draft or mark changed.
     pub async fn begin_attempt(&self, new: NewAttempt) -> Result<Begun, RunsError> {
+        #[cfg(feature = "test-support")]
+        self.wait_at_gate().await;
         let ts = Storage::now();
         self.storage
             .write_txn_as(move |conn| {
@@ -96,6 +155,7 @@ impl RunsStore {
                             replayed: true,
                         });
                     }
+                    Runs::admit_in(conn, &new.workflow, new.version, new.task).await?;
                     Self::check_free(conn, &new).await?;
                     let thread = core_threads::Threads::create_executor_in(
                         conn,
@@ -144,6 +204,19 @@ impl RunsStore {
                 })
             })
             .await
+    }
+
+    #[cfg(feature = "test-support")]
+    async fn wait_at_gate(&self) {
+        let gate = self
+            .gate
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .take();
+        if let Some(gate) = gate {
+            let _ = gate.reached.send(());
+            let _ = gate.release.await;
+        }
     }
 
     /// The attempt `command` already started, read before any check that the
@@ -464,7 +537,8 @@ impl RunsStore {
 
     /// One write: `previous`, committed and still holding its scope, is
     /// released into a new `Running` attempt on the same thread carrying the
-    /// addition. Any other `previous` is `NotAwaiting`.
+    /// addition. Any other `previous` is `NotAwaiting`; a version that may no
+    /// longer start work keeps its scope with `previous` and answers why.
     pub async fn continue_attempt(
         &self,
         previous: &AttemptId,
@@ -474,17 +548,26 @@ impl RunsStore {
         self.storage
             .write_txn_as(move |conn| {
                 Box::pin(async move {
-                    let row: Option<(i64, String, Option<String>)> = sqlx::query_as(
-                        "SELECT task, state, released_at FROM run_attempts WHERE id = ?",
+                    let row: Option<(i64, String, Option<String>, String, i64)> = sqlx::query_as(
+                        "SELECT task, state, released_at, workflow_id, version
+                         FROM run_attempts WHERE id = ?",
                     )
                     .bind(previous.as_str())
                     .fetch_optional(&mut *conn)
                     .await?;
-                    let (task, state, released) = row.ok_or(RunsError::NotFound)?;
+                    let (task, state, released, workflow, version) =
+                        row.ok_or(RunsError::NotFound)?;
                     if state != AttemptState::Committed.as_str() || released.is_some() {
                         return Err(RunsError::NotAwaiting {
                             task: u32::try_from(task).unwrap_or(0),
                         });
+                    }
+                    let workflow = WorkflowId::from_recorded(workflow);
+                    let execution = Plans::execution_plan_in(conn, &workflow, version)
+                        .await
+                        .map_err(RunsError::from_plans)?;
+                    if let Some(refusal) = execution.refusal {
+                        return Err(refusal.into());
                     }
                     sqlx::query("UPDATE run_attempts SET released_at = ? WHERE id = ?")
                         .bind(&ts)

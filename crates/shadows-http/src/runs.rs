@@ -104,8 +104,9 @@ pub(super) async fn attempts(
         (
             status = 409,
             description = "Start refused, with the code a task's `start` answers: waiting, \
-                           task_busy, overlap, not_git, dirty_scope, not_frozen, superseded, \
-                           archived, bad_scope; or command_conflict",
+                           task_busy, overlap, not_git, dirty_scope, missing_input, \
+                           input_unavailable, not_frozen, superseded, archived, bad_scope; \
+                           or command_conflict",
             body = RunRefusal,
         ),
         (status = 500, description = "STORAGE_UNAVAILABLE", body = ErrorBody),

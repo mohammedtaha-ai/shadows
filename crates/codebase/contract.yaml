@@ -258,6 +258,7 @@ modules:
   watch.rs: project indexing worker
   store/: private index SQL
   inventory.rs: the paged file inventory of a project's folder
+  inputs.rs: the real-path check of a project path
   store/inventory.rs: file inventory persistence
   lsp/mod.rs: the language servers a project's files want
   lsp/catalog.rs: the language-server catalog
@@ -328,7 +329,7 @@ functions:
       # The scope (its refusals first), `touch` of the asker's project; the
       # project asked is `question.project` or the asker's. workspaceSymbol needs
       # `query` and asks every running server, merged. Every other operation
-      # needs `file`: `inside`, then `real_file` (its real path must be that
+      # needs `file`: `inside`, then `checked_path` (its real path must be that
       # path inside the folder's real path, as `names_itself` checks for the
       # index), and all but documentSymbol a one-based line and character. The
       # server reading the file's extension, waited for up to 20 s while it
@@ -346,9 +347,23 @@ functions:
       # answer in time (20 s)", "failed: it exited, its last line: …" (or "with
       # no error line"), "failed: it refused to initialize: …", "is not installed
       # or could not start: …", "is running and refused this request (<code>): …".
-    real_file:
-      signature: "(dir: &Path, rel: &str) -> Result<PathBuf, CodebaseError>"
+    checked_path:
+      signature: "(dir: &Path, relative: &str, allow_missing: bool) -> Result<PathBuf, CodebaseError>"
       private: true
+      # In inputs.rs. `inside`, not the folder itself; then the nearest existing
+      # ancestor of the path (the path itself when it exists) by its real path,
+      # which must be that path inside the folder's real path: a link or junction
+      # out is refused even for an absent file. An existing path must be a regular
+      # file, an existing ancestor a folder. Absent without allow_missing is
+      # refused; an IO failure other than absence is an error. The one
+      # containment check of lsp's file, project_file and missing_inputs.
+    missing_inputs:
+      signature: "(&self, asker: Asker<'_>, paths: &[String]) -> Result<Vec<String>, CodebaseError>"
+      # In inputs.rs. In the asker's own project: every path through `inside`
+      # and the inventory's secret-name rule on each component (a secret is
+      # refused, never read) before any disk read; then checked_path with
+      # allow_missing. Answers the absent ones, sorted, each once. An escaping
+      # path, a secret, a folder or an unreadable path is an error, never absent.
     located:
       signature: "(value: Value, roots: &[Root], file: &str) -> Value"
       private: true
@@ -403,8 +418,9 @@ functions:
       signature: "(&self, project: &ProjectId, path: &str) -> Result<String, CodebaseError>"
       # The path relative to the project's folder, checked as `lsp`'s file is:
       # `inside` (no absolute, drive or ..), not the folder itself, and, when it
-      # is on disk, its real path inside the folder's real path (`real_file`); a
-      # path not on disk passes on its text. InvalidCommand otherwise.
+      # is on disk, its real path inside the folder's real path; a path not on
+      # disk passes when its nearest existing folder is inside the project
+      # (`checked_path` with allow_missing). InvalidCommand otherwise.
       # Turns checks project_change_note's paths with it.
     sweep:
       signature: "(&self)"
@@ -878,6 +894,7 @@ called_by_other_services:
   hold: "Turns holds one per running turn, Runs one per running attempt, until it settles."
   changed: "Turns compares a settled Planner turn's changes with its notes."
   project_file: "Turns checks project_change_note's paths."
+  missing_inputs: "Runs checks a task's required files before Start."
   forget: "ProjectLifecycle removal stops the worker after its committed removal write."
 
 

@@ -102,7 +102,7 @@ B-109, B-147, F-102, B-149. B-108 is ready; later-slice tasks retain blocked dra
 
 ### B-108 · Readiness from real inputs and current plan state
 
-- Status: ready; first task of slice 4.
+- Status: done; first task of slice 4.
 - Plan: [B-108](plans/2026-11-14-slice-4-task-questions.md#task-b-108-authoritative-admission-and-exact-required-files).
 - Owner: Plans, Runs and Codebase.
 - Read: AppCore, [approved design](specs/2026-11-14-task-questions-design.md), [wire agreement](../shared/requests/2026-11-14-task-questions.md), owner contracts and Interfaces.

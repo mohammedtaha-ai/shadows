@@ -103,8 +103,8 @@ runs:
     - 'GET /api/attempts/{id}/files?path= -> Runs::file (AttemptFile; 409 outside_writes is a RunRefusal)'
   refusals: >
     A Runs refusal is 409 RunRefusal { code, reason } with Runs' own opaque code, the same
-    codes a task's start answer carries; NotFound is 404, Storage and Unavailable 5xx
-    ErrorBody (failure/runs.rs).
+    codes a task's start answer carries (missing_input and input_unavailable among them);
+    NotFound is 404, Storage and Unavailable 5xx ErrorBody (failure/runs.rs).
   paths: Plan versions are global ids, as /api/workflows/{id} already is; no project segment.
   tested_by: [the_task_answers_its_needs_start_and_suggested_model,
     start_while_waiting_is_409_with_the_waiting_tasks, a_replayed_start_returns_the_same_attempt,
