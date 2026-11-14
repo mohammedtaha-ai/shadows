@@ -7,15 +7,15 @@ import { ErrorLine } from '../error-line'
 type TaskContract = NonNullable<AttemptBrief['context']['task']['contract']>
 type ProducedOutput = NonNullable<TaskContract['produces']>[number]
 type ContractUse = NonNullable<TaskContract['uses']>[number]
-
-/** Fields Core gives as open objects; shown as the plain text they carry, never interpreted. */
-function loose(value: unknown): string {
-  return JSON.stringify(value)
-}
+type ContractSource = ContractUse['source']
+type SymbolWork = NonNullable<TaskContract['symbols']>[number]
+type ResolvedContract = NonNullable<AttemptBrief['context']['contracts']>[number]
+type TaskPart = AttemptBrief['context']['parts'][number]
 
 /**
  * An open object as readable text: each key with its value, nested objects in brackets,
- * nulls left out. It names only the keys Core sent and reads no meaning into them.
+ * nulls left out. It names only the keys Core sent and reads no meaning into them;
+ * the API types a part and its `via` as open objects, so they are read this way.
  */
 function plain(value: unknown): string {
   if (value === null || value === undefined) return ''
@@ -29,11 +29,40 @@ function plain(value: unknown): string {
   return String(value)
 }
 
+function symbolText(symbol: SymbolWork): string {
+  return `${symbol.kind} ${symbol.name} in ${symbol.path}`
+}
+
+/**
+ * Where a used output comes from: an existing path and symbol, or a task's output. The
+ * producing task is named by its title when Core resolved one, otherwise by its number.
+ */
+function sourceText(source: ContractSource, producer?: string | null): string {
+  if (source.kind === 'existing') return `existing ${source.path}${source.symbol !== undefined ? ` ${source.symbol}` : ''}`
+  return `output ${source.output} of ${producer ?? `T${source.target.task}`}`
+}
+
+/** A resolved use: its source, then the symbol or artifact its producer promises, when there is one. */
+function resolved(contract: ResolvedContract): string {
+  const promised = [
+    contract.symbol != null ? symbolText(contract.symbol) : null,
+    contract.artifact != null ? `artifact ${contract.artifact}` : null,
+  ].filter((x) => x !== null)
+  const source = sourceText(contract.reference, contract.producer_title)
+  return promised.length === 0 ? source : `${source}: ${promised.join(', ')}`
+}
+
+/** One layout part with the paths of this task it owns; both come as open objects. */
+function partText(part: TaskPart): string {
+  const paths = part.paths.map((p) => `${p.path} (via ${plain(p.via)})`).join('; ')
+  return `${plain(part.part)}: ${paths}`
+}
+
 /** One planned output: its id, the symbol or file it names in the same contract, and the acceptance items that prove it. */
 function produced(output: ProducedOutput, contract: TaskContract): string {
   const symbol = output.symbol_id == null ? undefined : contract.symbols?.find((s) => s.id === output.symbol_id)
   const what = symbol !== undefined
-    ? `${symbol.kind} ${symbol.name} in ${symbol.path}`
+    ? symbolText(symbol)
     : output.symbol_id != null ? `symbol ${output.symbol_id}` : output.artifact ?? null
   const parts = [output.id]
   if (what !== null) parts.push(what)
@@ -44,10 +73,7 @@ function produced(output: ProducedOutput, contract: TaskContract): string {
 
 /** One thing the task relies on: an existing path and symbol, or another task's output; then why. */
 function used(use: ContractUse): string {
-  const source = use.source.kind === 'existing'
-    ? `existing ${use.source.path}${use.source.symbol !== undefined ? ` ${use.source.symbol}` : ''}`
-    : `output ${use.source.output} of T${use.source.target.task}`
-  return `${source}: ${use.purpose}`
+  return `${sourceText(use.source)}: ${use.purpose}`
 }
 
 function List({ label, items }: { label: string; items: readonly string[] | undefined }) {
@@ -90,9 +116,9 @@ function Brief({ brief }: { brief: AttemptBrief }) {
           <List label="Uses" items={contract.uses?.map(used)} />
         </div>
       )}
-      <List label="Resolved contracts" items={context.contracts?.map(plain)} />
+      <List label="Resolved contracts" items={context.contracts?.map(resolved)} />
       <div aria-label="Original layout" className="space-y-1">
-        <List label="Parts" items={context.parts.map((p) => `${loose(p.part)}: ${p.paths.map((x) => `${x.path} (${loose(x.via)})`).join(', ')}`)} />
+        <List label="Parts" items={context.parts.map(partText)} />
         <List label="Unowned paths" items={context.unowned_paths} />
       </div>
       <div aria-label="Planned consumers">

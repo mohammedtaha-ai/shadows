@@ -23,7 +23,10 @@ const brief = (a: Attempt, extra: Partial<AttemptBrief> = {}): AttemptBrief => (
   consumers_more: true,
   context: {
     map_revision: 4,
-    parts: [{ part: { name: 'api' }, paths: [{ path: 'src/api.rs', via: { kind: 'direct' } }] }],
+    parts: [{
+      part: { id: 'api', parent: null, title: 'API', rules: [{ id: 'r1', text: 'No SQL' }] },
+      paths: [{ path: 'src/api.rs', via: 'Folder' }, { path: 'src/db.rs', via: { Layer: 'store' } }],
+    }],
     plan: { plan_id: 'plan1', title: 'Original plan', version: 1, workflow_id: 'w1' },
     standards: { base: 7, additions: 2 },
     task: {
@@ -37,7 +40,14 @@ const brief = (a: Attempt, extra: Partial<AttemptBrief> = {}): AttemptBrief => (
         ],
       },
     },
-    contracts: [{ reference: { kind: 'existing', path: 'src/store.rs', symbol: 'Store' }, producer_title: null, symbol: null }],
+    contracts: [
+      { reference: { kind: 'existing', path: 'src/store.rs', symbol: 'Store' }, producer_title: null, symbol: null },
+      {
+        reference: { kind: 'task', output: 'send', target: { kind: 'local', task: 2 } }, producer_title: 'Mail sender',
+        symbol: { id: 's1', path: 'src/mail.rs', kind: 'function', name: 'send', behavior: [] }, artifact: null,
+      },
+      { reference: { kind: 'task', output: 'doc', target: { kind: 'local', task: 4 } }, producer_title: null, artifact: 'docs/api.md' },
+    ],
     unowned_paths: ['docs/x.md'],
   } as unknown as AttemptBrief['context'],
   ...extra,
@@ -90,8 +100,11 @@ it('brief_contract_items_read_as_text', async () => {
   expect(items).toContain('o1: method Count in src/api.rs (acceptance 1, 2)')
   expect(items).toContain('existing src/store.rs Store: Reads the list')
   expect(items).toContain('output send of T2: Sends mail')
-  expect(items).toContain('reference (kind existing, path src/store.rs, symbol Store)')
-  expect(items.some((t) => /"(source|reference|symbol_id)"/.test(t))).toBe(false)
+  expect(items).toContain('existing src/store.rs Store')
+  expect(items).toContain('output send of Mail sender: function send in src/mail.rs')
+  expect(items).toContain('output doc of T4: artifact docs/api.md')
+  expect(items).toContain('id api, title API, rules (id r1, text No SQL): src/api.rs (via Folder); src/db.rs (via Layer store)')
+  expect(items.some((t) => /[{}"]/.test(t))).toBe(false)
 })
 
 it('historical_context_is_labelled', async () => {
