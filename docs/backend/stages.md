@@ -37,6 +37,7 @@ A shipped task's entry, and its plan once deleted, are in this file in Git at th
 | #65, #66 | Local delivery slices 1, 1b and 3, and its review fixes | B-95, B-96, B-99 to B-101, B-103, B-104, B-106, B-120 to B-136, F-106 to F-113 | `617d806f` |
 | #67 | Codex images and language servers, slice 2 ([design](specs/2026-11-13-language-servers-design.md)) | B-137, B-138a, B-138 to B-146, F-114 to F-116 | `db760593` |
 | #68 | Slice 4: attempt context, task questions, conflicts and compatible ready groups ([design](specs/2026-11-14-task-questions-design.md)) | B-107 to B-109, B-147, B-148, F-102 | `d73bb646` |
+| — | Codex in the real Planner and executors slice 1, accepted by Mohammed in the browser (2026-11-15); their plans deleted | B-88, B-94 | `7846c2d9` |
 
 Replaced or dropped without being built: B-97, B-98, B-119 (by slice 2), B-102, B-110 (with the
 critic), B-112 (by the Planner's judgment), B-115, B-116 (by B-125 and B-126). Their entries are in
@@ -54,27 +55,6 @@ this file at `db760593`.
 - Slice 4's live tests (`crates/shadows/tests/task_questions_live.rs`, B-149) are written and not run.
 
 ## Tasks
-
-### B-88 · Accept Codex in the real Planner
-
-- Status: todo, after the merge (Mohammed, 2026-11-09: the branch merges without it; Mohammed runs it on `main`)
-- Plan: [Acceptance](plans/2026-11-07-codex-app-server.md#b-88-acceptance-and-delivery).
-- Read: §12.14, the Codex plan and the evidence record.
-- Touch: Codex evidence, owner spec §12.14, the Codex plan, this stages file and `docs/frontend/stages.md`.
-- Needs: `docs/backend/stages.md` at `217d7540` (B-87) and `docs/frontend/stages.md` at `217d7540` (F-97), merged to `main`. Not a merge blocker for `codex/codex-app-server`.
-- Done when: real daemon/browser/log acceptance covers tools, refusal, Stop, restart/continuation, model/effort controls, fork and Send now; Claude still runs. Full workspace gate stays with CI.
-- Watch during Stop: `Turns::stop` answers the operation as it stands, which may still be `Running` while the watcher writes `Cancelled` (core-turns contract, `stop`); the client takes the ending from the stream. If the browser shows a stale Running row after Stop, the follow-up is to make `stop` wait for `finished_at` as `stop_running` does.
-
-## Executors, slices 0 and 1
-
-Design: [executors](specs/2026-11-08-executors-design.md), approved 2026-11-08. Plan: [slices 0 and 1](plans/2026-11-08-executors.md),
-open for B-94. Its tasks are in PR #64 (`c71b263d`) and PR #65 (`617d806f`), as the Now section says.
-
-### B-94 · Run executors slice 1 in the browser
-- Status: todo (B-93 at `c71b263d` and F-98 are built; runs after the merge on main)
-- Plan: [B-94](plans/2026-11-08-executors.md#b-94-run-it).
-- Needs: `docs/backend/stages.md` at `c71b263d` (B-93) and `docs/frontend/stages.md` at `c71b263d` (F-98). Mohammed runs it.
-- Done when: T1 of the Laravel plan commits inside `backend/**` from its page; refusal, Stop and restart are observed in the browser and logs; evidence recorded.
 
 ## Approved local delivery implementation, 2026-11-09
 

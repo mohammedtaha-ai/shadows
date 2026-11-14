@@ -655,11 +655,11 @@ Phase B
 
 ## 12.14 Codex over app-server
 
-**Status: built, 2026-11-09; browser acceptance runs on `main` after the merge.**
+**Status: built, 2026-11-09; accepted in the browser on `main`, 2026-11-15.**
 Mohammed chose direct Codex app-server integration and a separate harness choice
 for each conversation. This section owns that extension; the ACP-specific
 sections describe Claude. The
-[implementation plan](../../backend/plans/2026-11-07-codex-app-server.md) names
+implementation plan (`docs/backend/plans/2026-11-07-codex-app-server.md` at `7846c2d9`) names
 the work and its acceptance gates. A daemon started with `--codex` and
 `--codex-home` lists Codex as available, with its catalog choices, usage,
 account limits, fork and Send now; without them it reports the configuration it
