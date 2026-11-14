@@ -20,14 +20,14 @@ no new third-party package or version.
 **Wire agreement:** [slice 4](../../shared/requests/2026-11-14-task-questions.md).
 **Baseline:** `7a52bc59`, `feature/slice-4-task-questions`, 2026-11-14.
 **Replaces:** [earlier briefs draft](2026-11-09-execution-briefs.md); its old steps are not executable.
-**Order:** B-108 → B-107 → B-109 → B-147 → B-148 → F-102 → B-149.
+**Order:** B-108 → B-148 → B-107 → B-109 → B-147 → F-102 → B-149.
 
 ## Global Constraints
 
 - Begin at AppCore and the named owner contracts. Stores remain private; cross-owner
   transaction work uses associated `*_in(&mut core_db::Tx, …)` methods.
 - No new service, scheduler daemon, AI answerer, dependency graph, workspace or cache.
-- No source-copy store, parent transcript, packet hash, range locks, automatic retry,
+- No source-copy store, parent transcript, packet hash, range locks, automatic task retry,
   cancellation cascade, general signature validator or arbitrary concurrency setting.
 - `code_lsp` remains available within project/link/grant reach beyond task `reads`.
 - Unaffected attempts continue across a corrective Draft and are judged against their
@@ -42,7 +42,7 @@ no new third-party package or version.
   shadows-core. Generate OpenAPI/schema.d.ts; adapters depend only on shadows-core.
 - Changed owners update their contracts and code maps in the same product commit.
   Never put planned operations into current contracts during this planning delivery.
-- Reserve migrations 0061_attempt_context.sql and 0062_run_conflicts.sql on this baseline.
+- Reserve migrations 0061_attempt_context.sql and 0062_attempt_conflicts.sql on this baseline.
   If another task consumes a number, renumber only these unshipped files before execution.
 - Tests use real temporary Git/SQLite folders and installed servers. No new fake worker,
   adapter behavior or provider scripts. Live-provider tests are explicitly ignored until
@@ -59,9 +59,9 @@ no new third-party package or version.
 4. Conflict/report races, failed termination and restart cannot lose delivery or release
    a live scope: B-147's race, failure and recovery tests.
 5. Individually ready tasks may overlap each other: B-148's pairwise group and held-commit tests.
-6. Shared-folder Git staging can include another task's staged path: B-149's
-   `live_cross_scope_staging_is_not_an_accepted_report` must preserve the existing
-   report refusal, never weaken scope checks or reset another task's files.
+6. Shared-folder Git staging must not contaminate a normal executor commit: B-148's
+   real-Git procedure tests and B-149's positive parallel-commit case use --only with
+   exact paths. Keep the negative OutsideWrites test as the final guard too.
 
 ## Common Touch and verification
 
@@ -138,9 +138,72 @@ commit. Tests named here are requirements to implement, not evidence they alread
   `cargo test -p shadows --test code_lsp`; common checks and OpenAPI regeneration.
 - [ ] **5. Commit** `feat(backend): B-108 recheck task admission and required inputs`.
 
+## Task B-148: compatible ready groups
+
+**Needs:** B-108 only. **Owner:** Runs. No dependency on task questions or conflicts.
+
+**Files:** Create `crates/core-runs/src/ready_group.rs`, `crates/shadows-core/tests/ready_groups.rs`,
+`crates/shadows-core/tests/executor_commits.rs`.
+Modify `crates/core-runs/src/lib.rs`, `crates/core-runs/src/model.rs`,
+`crates/core-runs/src/planner.rs`, `crates/core-runs/src/amend.rs`, `crates/core-runs/contract.yaml`,
+`crates/shadows-core/src/lib.rs`, `crates/shadows-mcp/src/run_tools.rs`,
+`crates/shadows-mcp/src/server.rs`, `crates/shadows-mcp/src/contract.yaml`,
+`crates/core-grants/src/tools.rs`, `crates/core-grants/contract.yaml`,
+`crates/core-harness/src/prompt.txt`, `crates/core-harness/src/executor.md`,
+`crates/core-harness/contract.yaml`, `crates/shadows-core/tests/runs_attempts/planner.rs`, `crates/shadows/tests/mcp_tools.rs`.
+
+**Interfaces:** ReadyTask/ReadyGroup (wire agreement) and
+`pub async fn ready_for(&self, grant: &Grant, workflow: &WorkflowId) -> Result<ReadyGroup, RunsError>`.
+Thread grant/project only; invalid plan => existing refusal; valid empty group => tasks=[].
+MCP `task_ready { workflow_id }`; DoneMark.next becomes Vec<ReadyTask>, not Option<u32>.
+One private selector supplies both. Marking old work done still succeeds, with next=[]
+on a superseded version; do not fail an already-applied mark or start old work.
+
+Sort task numbers; exclude done, previously attempted, unmet needs, invalid inputs and
+held scopes. Greedily skip overlap with every selected candidate using unchanged
+Scope::may_overlap. A group is an observation, not reservation; every Start revalidates.
+Use existing suggested_model. No batch-start transaction, scheduler, queue or range locks.
+
+Planner prompts cover first group after run-plan request, one-task-only requests, the
+next group after done, and requery after a stop/failure following impact review. Never
+retry a failed task automatically or loop a stale refused list. A corrective Draft
+blocks new old-version Starts without cancelling unaffected running attempts.
+
+**Commit and verification procedure, implemented in this task:**
+- Update executor.md, FIRST_PROMPT and the addition prompt consistently: stage new files
+  by exact name, then `git --literal-pathspecs commit --only -m "<message>" -- <own exact paths>`.
+  Use exact changed paths inside writes, not a broad writes glob or `.`; include both
+  names for a rename and the old name for deletion. Other staged paths stay untouched.
+  Existing task_report validation remains the final guard; no custom index or commit queue.
+- A Git index/ref lock refusal retries the same command at most three times after 1/2/4 s;
+  never delete another operation's lock or reset its index. If still blocked, report the
+  failure honestly instead of claiming a commit or silently changing someone else's work.
+- Nonoverlapping writes do not isolate build directories, ports or test databases.
+  The Planner specifies shared-check ownership/order in task instructions. Executors run
+  isolated checks concurrently; shared project builds/tests are coordinated serially.
+  If coordination is unavailable, report that check as not run and let the Planner
+  arrange verification before acceptance, using its existing shell after relevant writers
+  have settled when its mode permits; otherwise ask the person and leave it unverified.
+  A deferred check is not a pass or a reason to ask the executor for evidence
+  the Planner can obtain itself. This is instruction-level coordination here;
+  an enforced verification slot remains slice 5. No new check scheduler/lock in slice 4.
+
+- [ ] **1. Tests:** `the_ready_group_is_pairwise_disjoint`, `first_group_has_two_independent_tasks`,
+  `held_commits_block_groups`, `a_stopped_task_is_not_automatically_retried`,
+  `a_stop_unblocks_a_never_attempted_task`, `a_stale_group_cannot_bypass_start`,
+  `judging_old_work_returns_no_old_next`, `non_planner_grants_cannot_request_groups`.
+  In executor_commits, real Git tests `only_commit_preserves_foreign_staged_paths`,
+  `new_deleted_and_renamed_paths_commit_only_their_own_changes`, and
+  `literal_pathspecs_do_not_select_other_files` arrange interleaved staging explicitly;
+  assert each accepted commit's path set and preservation of foreign staged content.
+- [ ] **2. RED:** `cargo test -p shadows-core --test ready_groups --test executor_commits`.
+- [ ] **3. Implement** the selector, tool/grants, commit procedure and shared-check prompts.
+- [ ] **4. GREEN:** Step 2, affected runs_attempts/planner and MCP tool regressions; common checks.
+- [ ] **5. Commit** `feat(backend): B-148 start compatible task groups through the Planner`.
+
 ## Task B-107: saved attempt context and task_brief
 
-**Needs:** B-108. **Owners:** Plans, Runs; grants/adapters translate.
+**Needs:** B-108; scheduled after B-148. **Owners:** Plans, Runs; grants/adapters translate.
 
 **Files:**
 - Create `crates/core-runs/src/brief.rs`, `crates/core-runs/src/store/brief.rs`,
@@ -179,6 +242,8 @@ commit. Tests named here are requirements to implement, not evidence they alread
 - MCP executor `task_brief {}` replaces executor task_context; Planner/project task_context
   stays. First and addition prompts require task_brief. HTTP GET `/api/attempts/{id}/brief`.
   Re-export wire types through shadows-core. Replays never capture another context.
+  Preserve B-148's exact-path commit and shared-verification instructions when updating
+  FIRST_PROMPT and the addition prompt to read task_brief.
 
 - [ ] **1. Tests:** `brief_stays_fixed_after_layout_change`, `an_addition_captures_its_own_brief`,
   `brief_replay_creates_one_context`, `context_failure_rolls_back_admission`,
@@ -266,13 +331,13 @@ owning job module and are exported by its lib.
 - [ ] **5. Commit** `feat(backend): B-109 answer task questions from contracts and code`.
   Its body identifies reuse of workspace schemars for MCP schemas as infrastructure.
 
-## Task B-147: durable conflicts, confirmed stops and Planner delivery
+## Task B-147: conflicts through the existing attempt lifecycle
 
 **Needs:** B-107, B-109. **Owner:** Runs; existing Grants/Turns/Harness lifecycle.
 
 **Files:**
 - Create `crates/core-runs/src/conflict.rs`, `crates/core-runs/src/store/conflict.rs`,
-  `crates/core-db/migrations/0062_run_conflicts.sql`,
+  `crates/core-db/migrations/0062_attempt_conflicts.sql`,
   `crates/shadows-core/tests/task_conflicts.rs`, `crates/shadows/tests/task_conflict_routes.rs`.
 - Modify `crates/core-runs/src/lib.rs`, `crates/core-runs/src/model.rs`,
   `crates/core-runs/src/error.rs`, `crates/core-runs/src/report.rs`,
@@ -280,128 +345,91 @@ owning job module and are exported by its lib.
   `crates/core-runs/src/watch.rs`, `crates/core-runs/src/start.rs`, `crates/core-runs/src/amend.rs`,
   `crates/core-runs/src/recover.rs`, `crates/core-runs/src/store/mod.rs`,
   `crates/core-runs/src/store/recover.rs`, `crates/core-runs/contract.yaml`, `crates/core-db/contract.yaml`.
-- Modify `crates/core-turns/src/queue.rs`, `crates/core-turns/src/store/queue.rs`,
-  `crates/core-turns/contract.yaml`; `crates/shadows-core/src/app.rs`, `crates/shadows-core/src/lib.rs`;
-  `crates/shadows-mcp/src/run_tools.rs`, `crates/shadows-mcp/src/server.rs`,
-  `crates/shadows-mcp/src/contract.yaml`, `crates/core-grants/src/tools.rs`,
-  `crates/core-grants/contract.yaml`, `crates/core-harness/src/executor.md`,
-  `crates/core-harness/src/prompt.txt`, `crates/core-harness/contract.yaml`;
-  `crates/shadows-http/src/runs.rs`, `crates/shadows-http/src/lib.rs`,
-  `crates/shadows-http/src/openapi.rs`, `crates/shadows-http/src/contract.yaml`, `api/openapi.json`.
-- Existing regressions `crates/shadows-core/tests/runs_attempts.rs`,
-  `crates/shadows-core/tests/runs_attempts/planner.rs`.
+- Modify `crates/shadows-core/src/lib.rs`, `crates/shadows-mcp/src/run_tools.rs`,
+  `crates/shadows-mcp/src/server.rs`, `crates/shadows-mcp/src/contract.yaml`,
+  `crates/core-grants/src/tools.rs`, `crates/core-grants/contract.yaml`,
+  `crates/core-harness/src/executor.md`, `crates/core-harness/src/prompt.txt`,
+  `crates/core-harness/contract.yaml`, `crates/shadows-http/src/runs.rs`,
+  `crates/shadows-http/src/lib.rs`, `crates/shadows-http/src/openapi.rs`,
+  `crates/shadows-http/src/contract.yaml`, `api/openapi.json`.
+- Existing regressions `crates/shadows-core/tests/runs_attempts.rs` and its
+  `crates/shadows-core/tests/runs_attempts/planner.rs` module.
 
-**Interfaces and state:**
-- Runs owns ConflictInput/Evidence/Stop/Delivery/TaskConflict (wire agreement),
-  `pub async fn conflict_for(&self, grant: &Grant, input: ConflictInput) -> Result<TaskConflict, RunsError>`,
-  `pub async fn conflict(&self, attempt: &AttemptId) -> Result<Option<TaskConflict>, RunsError>`,
+**Interfaces:** Runs retains conflict_for, conflict and stop_for from the agreement.
+ConflictInput/Evidence and bounds stay. TaskConflict exposes actual attempt_state and
+scope_held, not a separate stop state machine.
+
+- `pub async fn conflict_for(&self, grant: &Grant, input: ConflictInput) -> Result<TaskConflict, RunsError>`;
+  `pub async fn conflict(&self, attempt: &AttemptId) -> Result<Option<TaskConflict>, RunsError>`;
   `pub async fn stop_for(&self, grant: &Grant, command_id: String, attempt: &AttemptId) -> Result<Attempt, RunsError>`.
-- Migration run_conflict: attempt_id PK/FK with ON DELETE CASCADE, input_json, stop, stop_error, delivery,
-  notice_json nullable, created_at. Stop states requested/stopped/interrupted/failed;
-  delivery pending/delivered/no_planner. Keep stop outcomes in this record; no general
-  pause/resume engine. Attempt's confirmed outcome is Stopped/reason `contract conflict`.
-- Validate expected/observed 1..=2,000 Unicode scalars; 1..=10 evidence items, summary
-  1..=1,000, path <=1,024, optional positive one-based line. Normalized input <=16 KiB.
-  Evidence is a canonical project-visible non-secret reference and explanation, not a
-  source-copy store. Trim text, normalize paths before fingerprinting; preserve evidence order.
-  Missing paths can themselves be evidence: validate through Codebase::missing_inputs,
-  permitting its returned missing list while retaining its path/secret/grant refusals.
-- In one write recheck the live executor grant, current Running attempt, command replay,
-  and write conflict + Pending delivery intent + command result. Command kind run.conflict,
-  schema 1, scope Attempt/id, principal Executor/thread. One accepted conflict per attempt;
-  another distinct command is contract_conflict; changed input under one id is CommandConflict.
-  Replay still requires live authenticated identity, but precedes the stopped-state refusal.
-- record_report checks no accepted conflict in its own write: report/conflict have one
-  winner. Do not convert an already Committed attempt into a conflict stop.
-  The watcher's generic Failed/ended-without-commit write also checks conflict presence
-  inside its transaction and defers to conflict settlement. An earlier read alone must
-  not race a newly accepted conflict and overwrite its stop outcome or free its scope.
-- Answer the tool promptly, then stop via a Runs-owned task outside that tool's call chain.
-  Stop through Turns, close its Harness session, then release its SQL scope. Change private
-  Runs::release to `Result<(), RunsError>` and update every named caller: failed close/kill
-  must retain the scope. Preserve dirty/uncommitted files. Failed stop is visible, never a
-  false stopped claim. Planner task_stop may retry that termination.
-- stop_for checks same-project Thread grant and exact attempt. Kind run.stop/schema 1,
-  principal Planner/thread, scope Attempt/id, fingerprint attempt id; command_record points
-  to the attempt. Use existing idempotent Stop, record successful acknowledgment, and replay
-  it without another run. Disconnected tools run through the existing detached handler;
-  restart settles still-Running attempts as Interrupted, never restarts them.
-- Runs::notify remains the one notification entry. Conflict presence selects its structured
-  notice instead of generic ended-without-commit. AttemptNotice gains optional conflict,
-  default/omitted when absent. Author/principal stays Executor, never a human approval.
-- Freeze recipient, complete SendTurn settings/body and Notice before first enqueue and
-  save notice_json. Retry that exact payload with id conflict-<attempt_id>. If enqueue
-  commits but immediate model startup fails, delivery is still recorded. Add Turns-owned
-  `pub async fn notice_recorded(&self, thread: &ThreadId, turn: &SendTurn, notice: &Notice) -> Result<bool, TurnsError>`
-  to reconcile through the same full command/principal/fingerprint replay classification
-  as queue_notice, including an already-consumed row or derived started turn. A person's
-  message with a matching id cannot count as the executor notice. Runs never queries Turns tables.
-- A delivered notice is an immutable snapshot linking to the current conflict read. Stop
-  updates do not create a differently fingerprinted replay payload. Resolve a missing
-  invocation later as pending; only absent/deleted/external Planner is no_planner.
-- Runs owns one pending-conflict delivery retry loop, delay 1 s doubled to max 30 s.
-  A failed termination waits for explicit Planner task_stop. Add
-  `pub async fn resume_conflicts(&self) -> Result<(), RunsError>` after startup recovery,
-  and `pub async fn close_conflicts(&self)` before storage shutdown. Resume Pending notices;
-  interrupted accepted conflicts keep their record and stop=interrupted. No executor restart.
-- MCP executor task_conflict takes ConflictInput; Planner task_stop takes command_id,
-  attempt_id. Neither is external-project authority. HTTP GET `/api/attempts/{id}/conflict`
-  => TaskConflict|null, unknown attempt 404. No human-as-executor mutation endpoint.
+  Validate evidence through Codebase::missing_inputs, permitting returned missing paths
+  as evidence while preserving its canonical/grant/secret refusals.
 
-- [ ] **1. Tests:** `conflict_and_report_admit_one_outcome`, `conflict_replay_keeps_one_notice`,
-  `a_conflict_stops_only_its_attempt`, `termination_failure_keeps_the_scope`,
-  `session_close_failure_keeps_the_scope`, `restart_delivers_a_pending_conflict_once`,
-  `new_planner_settings_do_not_change_a_retry`, `removed_planner_leaves_a_visible_conflict`,
-  `planner_can_stop_an_affected_attempt`, `executor_conflicts_cannot_approve`,
-  `conflict_keeps_uncommitted_files`. Assert retained scopes and independent work throughout.
-  Use real serialized SQLite races/gated owner fault hooks. Real termination/provider cases
-  are ignored live tests, not new scripted fake workers.
+- Migration 0062 adds nullable conflict_json, conflict_at, conflict_delivery and
+  conflict_notice_json columns to run_attempts. No new table. Delivery is
+  pending/delivered/no_planner; conflict_notice_json is one enqueue intent, resolved once.
+  Historical attempts keep null fields. The public conflict read derives current
+  AttemptState and scope_held from the attempt's state and released_at.
+- In one write recheck live executor identity and classify normalized command replay
+  before state refusals; only a new conflict needs the current attempt to be Running.
+  Store conflict + Pending delivery + command result together. Keep run.conflict/schema 1,
+  scope Attempt/id, principal Executor/thread. One conflict per attempt; a distinct
+  command is contract_conflict and changed replay is CommandConflict.
+- record_report checks absence of conflict_json in its own write. Report/conflict has
+  one winner. A late conflict cannot overwrite a committed report. After acknowledgment
+  the executor stops work and ends its turn; acknowledgment is not confirmed termination.
+  A report losing that race returns contract_conflict rather than a generic NotFound,
+  including when the conflict was accepted between report preflight and its final write.
+- Reuse notify after recording the conflict, so the Planner hears it while the attempt
+  may still be Running. An enqueue failure keeps Pending without undoing acceptance.
+  Planner instructions say to assess impact and use task_stop if this or another affected
+  executor has not ended. Do not wait for cooperative ending before informing the Planner.
+- Existing watch confirms the turn's end. With conflict_json it settles Stopped/reason
+  contract conflict instead of generic ended-without-commit, then closes the session and
+  releases the scope. Conflict presence and terminal arbitration share that write.
+  A prior explicit Stop retains its confirmed outcome. No automatic external Stop task.
+- Change private Runs::release to Result<(), RunsError> and update its listed callers:
+  failed close/termination keeps the SQL scope. A nonending conflicted executor remains
+  Running and held. Keep uncommitted files; never reset or auto-commit them.
+- notify stays the single notice path, returning Result<(), RunsError>. Save its complete
+  recipient/SendTurn/Notice once before first enqueue; retry the same notify-<attempt_id>
+  command and payload. AttemptNotice gains optional conflict; ordinary notices and
+  executor provenance stay unchanged. The small intent on the attempt prevents changed
+  Planner settings or terminal state from changing a replay's fingerprint.
+  Private ConflictNoticeIntent contains planner ThreadId, body, model, mode, effort and
+  card JSON. Rebuild existing SendTurn/Notice with fixed command/executor identity and
+  empty attachments/focus/plan/client_tab; no new serde requirement on Turns' models.
+- Successful queue_notice, including normal replay, marks Delivered. Errors keep Pending.
+  Retry through notify at existing turn-end, explicit Stop, and one pass of existing
+  Runs::recover after normal reconciliation. Recovery may defer that pass off construction;
+  it never waits for a model reply or restarts an executor. No timer/backoff loop, new
+  AppCore lifecycle hooks or extra Turns reconciliation method.
+- A crash after enqueue but before marking Delivered replays queue_notice without a
+  second message. Missing/deleted owning Planner is NoPlanner; temporary enqueue or
+  invocation errors stay Pending and visible until a later lifecycle delivery attempt.
+  Do not promise continuous retries without further activity.
+- Startup still maps unfinished attempts to Interrupted, preserving conflict/intent.
+  notify must not append a second generic terminal notice for the same conflict.
+- Planner stop_for keeps same-project Thread authorization, command replay and existing
+  confirmed Stop (run.stop/schema 1, Attempt/id). It can terminate a nonending executor.
+  MCP task_conflict/task_stop keep agreed inputs; neither is external-project authority.
+  HTTP conflict read is TaskConflict|null, unknown attempt 404.
+
+- [ ] **1. Tests:** conflict_and_report_admit_one_outcome, conflict_ack_is_not_a_confirmed_stop,
+  conflict_notifies_while_its_executor_is_running, watch_settles_conflict_without_stopping_siblings,
+  failed_stop_or_close_keeps_the_scope, restart_replays_pending_conflict_once,
+  changed_planner_settings_keep_original_notice, planner_can_stop_a_nonending_executor,
+  conflict_keeps_uncommitted_files, executor_conflicts_cannot_approve.
+  Use real SQLite/Git and existing owner lifecycle hooks; real termination cases use the
+  live adapter, not a newly scripted fake worker.
 - [ ] **2. RED:** `cargo test -p shadows-core --test task_conflicts`;
   `cargo test -p shadows --test task_conflict_routes`; owning transaction tests.
-- [ ] **3. Implement** the single path, owned background lifetime, startup/shutdown, grants,
-  reads and prompts. Planner assesses impact and explicitly stops affected work.
-- [ ] **4. GREEN:** Step 2, existing runs_attempts (including its planner notice tests), available
-  live cases, common checks and OpenAPI. Verify both stop/report race outcomes.
-- [ ] **5. Commit** `feat(backend): B-147 escalate contract conflicts and stop safely`.
+- [ ] **3. Implement** the attempt columns, existing watch/notify/recover integration,
+  report arbitration, explicit Planner Stop, reads and prompts.
+- [ ] **4. GREEN:** Step 2, existing runs_attempts/planner notice regressions, available
+  live cases, common checks and OpenAPI. Verify enqueue/crash replay without duplicates.
+- [ ] **5. Commit** `feat(backend): B-147 report conflicts through the attempt lifecycle`.
 
-## Task B-148: compatible ready groups
-
-**Needs:** B-108, B-147. **Owner:** Runs.
-
-**Files:** Create `crates/core-runs/src/ready_group.rs`, `crates/shadows-core/tests/ready_groups.rs`.
-Modify `crates/core-runs/src/lib.rs`, `crates/core-runs/src/model.rs`,
-`crates/core-runs/src/planner.rs`, `crates/core-runs/contract.yaml`,
-`crates/shadows-core/src/lib.rs`, `crates/shadows-mcp/src/run_tools.rs`,
-`crates/shadows-mcp/src/server.rs`, `crates/shadows-mcp/src/contract.yaml`,
-`crates/core-grants/src/tools.rs`, `crates/core-grants/contract.yaml`,
-`crates/core-harness/src/prompt.txt`, `crates/core-harness/contract.yaml`,
-`crates/shadows-core/tests/runs_attempts/planner.rs`, `crates/shadows/tests/mcp_tools.rs`.
-
-**Interfaces:** ReadyTask/ReadyGroup (wire agreement) and
-`pub async fn ready_for(&self, grant: &Grant, workflow: &WorkflowId) -> Result<ReadyGroup, RunsError>`.
-Thread grant/project only; invalid plan => existing refusal; valid empty group => tasks=[].
-MCP `task_ready { workflow_id }`; DoneMark.next becomes Vec<ReadyTask>, not Option<u32>.
-One private selector supplies both. Marking old work done still succeeds, with next=[]
-on a superseded version; do not fail an already-applied mark or start old work.
-
-Sort task numbers; exclude done, previously attempted, unmet needs, invalid inputs and
-held scopes. Greedily skip overlap with every selected candidate using unchanged
-Scope::may_overlap. A group is an observation, not reservation; every Start revalidates.
-Use existing suggested_model. No batch-start transaction, scheduler, queue or range locks.
-
-Planner prompts cover first group after run-plan request, one-task-only requests, the
-next group after done, and requery after a stop/failure following impact review. Never
-retry a failed task automatically or loop a stale refused list. A corrective Draft
-blocks new old-version Starts without cancelling unaffected running attempts.
-
-- [ ] **1. Tests:** `the_ready_group_is_pairwise_disjoint`, `first_group_has_two_independent_tasks`,
-  `held_commits_block_groups`, `a_stopped_task_is_not_automatically_retried`,
-  `a_stop_unblocks_a_never_attempted_task`, `a_stale_group_cannot_bypass_start`,
-  `judging_old_work_returns_no_old_next`, `non_planner_grants_cannot_request_groups`.
-- [ ] **2. RED:** `cargo test -p shadows-core --test ready_groups`.
-- [ ] **3. Implement** the common selector, changed tool result, grants and prompt.
-- [ ] **4. GREEN:** Step 2, affected runs_attempts/planner and MCP tool regressions; common checks.
-- [ ] **5. Commit** `feat(backend): B-148 start compatible task groups through the Planner`.
 
 ## Task F-102: saved brief and conflict presentation
 
@@ -420,8 +448,8 @@ Modify `web/src/api/runs.ts`, `web/src/api/schema.d.ts`,
 
 **Interfaces:** `attemptBriefQuery(id: string)`, key ['runs','brief',id], and
 `attemptConflictQuery(id: string)`, key ['runs','conflict',id], through existing transport.
-Use generated type aliases only. Conflict polls every 2 s while stop=requested/failed
-or delivery=pending; no process-liveness/impact rule in the client.
+Use generated type aliases only. Conflict polls every 2 s while attempt_state=running,
+scope_held=true or delivery=pending; no process-liveness/impact rule in the client.
 `BriefPanel({attemptId}: {attemptId:string})` and `ConflictPanel` with the same props
 mount in each expandable Report entry, not just the latest attempt. Show original
 contract/layout/standards and Attempt's base/model/addition. context_not_recorded is a
@@ -438,7 +466,7 @@ hash `attempt-<id>`. TaskPage opens Report for that hash and ReportTab expands/a
 the exact attempt, so the notice link actually reaches the issue without new router APIs.
 
 - [ ] **1. Tests:** `brief_view_keeps_original_version`, `historical_context_is_labelled`,
-  `report_opens_the_selected_attempt_brief`, `conflict_shows_expected_observed_and_stop`,
+  `report_opens_the_selected_attempt_brief`, `conflict_shows_expected_observed_and_attempt_state`,
   `settled_conflict_stops_polling`, `conflict_notice_keeps_executor_attribution`,
   `ordinary_notices_still_render`. Test Report/Notice integration through TestApp too.
 - [ ] **2. RED:** from web, `npx vitest run src/app/tasks/brief-panel.test.tsx src/app/tasks/conflict-panel.test.tsx src/app/tasks/task-page.test.tsx src/app/conversation/conflict-notice.test.tsx src/app/conversation/notice-item.test.tsx src/api/runs.test.ts`.
@@ -454,11 +482,15 @@ modify backend/frontend stages for acceptance evidence only.
 
 - [ ] **1. Write ignored live tests:** `live_executor_asks_about_a_planned_consumer`,
   `live_contract_conflict_reaches_the_planner`, `live_planner_starts_independent_tasks_together`,
+  `live_parallel_commits_keep_their_own_files`,
   `live_cross_scope_staging_is_not_an_accepted_report`.
   Real Go/Git folder, installed gopls, signed-in Claude executor and Claude/Codex Planner
   variants following existing language_servers_live. Assert task_brief/task_question tool
   entries, distinct code/planned facts, confirmed conflict stop and two independent
   attempts overlapping in time before either reports. Test prompts carry no finished implementation.
+  The positive commit case requires both tasks to report accepted own-path commits using
+  the --only procedure, with no loss of a foreign staged change. Merely rejecting a
+  contaminated commit does not count as success for that case.
   In the staging case, arrange a candidate commit containing a foreign staged path;
   task_report must refuse OutsideWrites, no task is auto-marked done, and existing
   other-task changes remain intact. This does not add a commit queue or temporary index.

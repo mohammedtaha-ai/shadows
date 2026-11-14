@@ -256,8 +256,14 @@ any case), the title the Planner is told to give it: no new field marks it.
   first release, except the retries in §5.
 - **Each executor commits its own files** with `git commit`, on the folder's current branch, and
   reports that commit to Shadows, which checks it and records it (§7, amended 2026-11-09).
-  Disjoint `writes` keep two executors' commits apart; Shadows writes no commit and keeps no
-  commit queue.
+  Disjoint writes separate file ownership, but the Git index is shared. The 2026-11-14
+  revision uses native `--only` with exact literal paths (§7) to exclude other staged
+  changes; Shadows writes no commit and keeps no custom index or commit queue.
+- Shared build directories, ports and test databases are not isolated by write scopes.
+  The Planner assigns shared-check ownership/order in task instructions; isolated checks
+  may run together, while shared project builds/tests are coordinated serially. An
+  uncoordinated check is reported as not run, never passed. Slice 4 supplies instruction
+  coordination; enforced verification slots remain in slice 5.
 - A test failing because of another running or unstarted task's code is reported as pending
   on that task (D4). The critic does not count it as a failure of this task.
 
@@ -311,9 +317,13 @@ exactly what it did; Shadows checks and records.** This replaces `task_commit`, 
 index, its commit queue and its trailer.
 
 - **The executor commits.** It removes its strays first, stages only its own files inside
-  `writes`, by name, never a binary or an installer, and runs `git commit` with its own message
-  on the branch that is checked out. Every other change in the folder, the person's included,
-  stays where it is.
+  `writes`, by exact name, never a binary or an installer. Amended 2026-11-14: stage new
+  paths first, then run `git --literal-pathspecs commit --only -m "<message>" -- <own exact paths>`
+  on the checked-out branch. Include both rename ends and deleted paths, not a broad
+  writes glob or `.`. Other staged/worktree changes, the person's included, stay intact.
+  Native Git lock contention retries only the same command, at most three times after
+  1/2/4 seconds; never delete another operation's lock. Remaining failure is reported.
+  The instruction change and real-Git procedure tests belong to slice 4's B-148.
 - **It reports.** It calls `task_report { commit, report }`: the commit's SHA and an honest
   account of what it did, what it ran or tested, and what passed or failed. The executor's
   instructions and its first prompt say this plainly.

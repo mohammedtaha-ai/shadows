@@ -21,7 +21,7 @@ notices, explicitly stops affected attempts and discovers compatible ready group
 | GET /api/attempts/{id}/conflict | attempt id | TaskConflict or null / Runs |
 | MCP task_brief | {} | AttemptBrief of authenticated executor's current attempt |
 | MCP task_question | TaskQuestion | TaskAnswer of that same attempt |
-| MCP task_conflict | ConflictInput | accepted TaskConflict; stop proceeds outside tool handler |
+| MCP task_conflict | ConflictInput | accepted conflict; executor ends its turn, watcher confirms termination |
 | MCP task_ready | { workflow_id } | ReadyGroup / Runs; same-project Planner Thread only |
 | MCP task_stop | { command_id, attempt_id } | Attempt after confirmed Stop; same-project Planner Thread only |
 | MCP task_done | existing input | DoneMark { task: TaskRun, next: ReadyTask[] }; [] replaces null |
@@ -46,9 +46,8 @@ copy fields. New types live in the job modules named by the plan and are re-expo
 | TaskAnswer | attempt_id: AttemptId; plan: ContextPlan; task: u32; planning: ContractFacts; producer_status: ProducerStatus[]; code: LspAnswer or null; code_error: string or null; observed_at: RFC3339 string; planned_scope: literal this_frozen_version. |
 | ConflictEvidence | path: project-relative string; line: positive one-based u32 or null; summary: string. Reference/explanation, not copied whole source. |
 | ConflictInput | command_id: string; expected: string; observed: string; evidence: ConflictEvidence[]. |
-| ConflictStop | snake_case requested, stopped, interrupted or failed. Failed stop never implies scope release. |
 | ConflictDelivery | snake_case pending, delivered or no_planner. Delivered means durable enqueue, not a model reply. |
-| TaskConflict | attempt_id: AttemptId; project_id: ProjectId; workflow_id: WorkflowId; version: i64; task: u32; expected: string; observed: string; evidence: ConflictEvidence[]; stop: ConflictStop; stop_error: string or null; delivery: ConflictDelivery; created_at: RFC3339 string. Identity comes from the attempt, never the mutation input. |
+| TaskConflict | attempt_id: AttemptId; project_id: ProjectId; workflow_id: WorkflowId; version: i64; task: u32; expected: string; observed: string; evidence: ConflictEvidence[]; attempt_state: AttemptState; scope_held: boolean; delivery: ConflictDelivery; created_at: RFC3339 string. Identity comes from the attempt, never the mutation input. |
 | ReadyTask | task: u32; title: string; suggested_model: string or null. |
 | ReadyGroup | workflow_id: WorkflowId; version: i64; tasks: ReadyTask[] ascending by task number, pairwise write-compatible. |
 | AttemptNotice | existing fields plus conflict?: TaskConflict, omitted for ordinary notices; never the person's approval. |
@@ -74,8 +73,9 @@ Code locations/encoding preserve native Codebase semantics and bounds.
   normalized payload: command_conflict. Existing grant/path refusals remain refusals.
 - Start: missing_input for absent required files; input_unavailable for unreadable/invalid
   required inputs. IO errors do not imply absence. Unavailable LSP remains code_error.
-- Stop failure retains held scope and exposes stop=failed/stop_error. Null conflict means
-  no recorded issue, not successful work. no_planner is visible to the person.
+- Acknowledging a conflict does not confirm termination. Show actual attempt_state and
+  Core scope_held. Explicit Stop/close failure retains the scope and uses existing run
+  errors. Null conflict is not successful work; no_planner remains visible.
 
 ## Presentation and refresh
 
@@ -84,6 +84,7 @@ plan. Show provider text as plain preserved text/dir auto. NoticeItem's optional
 links to that task/attempt Report. Copied notices are history with no mutation controls.
 
 Use ['runs','brief',id] and ['runs','conflict',id]. Poll conflict every 2 s while
-stop=requested/failed or delivery=pending. Stop polling when settled/no_planner. Current
+attempt_state=running, scope_held=true or delivery=pending. Stop polling only when none
+of those hold; no_planner alone does not prove the executor ended. Current
 conflict read is authoritative; the delivered card is an immutable snapshot. No new
 EventSource, frontend scheduler, automatic sibling stops or retry button.

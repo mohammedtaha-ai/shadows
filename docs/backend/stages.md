@@ -77,8 +77,8 @@ open for B-94. Its tasks are in PR #64 (`c71b263d`) and PR #65 (`617d806f`), as 
 ## Approved local delivery implementation, 2026-11-09
 
 Order and rulings: [the program](plans/2026-11-09-local-delivery-program.md). Slice 4 is
-detailed in its [plan](plans/2026-11-14-slice-4-task-questions.md): B-108, B-107, B-109,
-B-147, B-148, F-102, B-149. B-108 is ready; later-slice tasks retain blocked draft pointers.
+detailed in its [plan](plans/2026-11-14-slice-4-task-questions.md): B-108, B-148, B-107,
+B-109, B-147, F-102, B-149. B-108 is ready; later-slice tasks retain blocked draft pointers.
 
 ### B-105 · Minimal accepted decision revisions
 
@@ -92,7 +92,7 @@ B-147, B-148, F-102, B-149. B-108 is ready; later-slice tasks retain blocked dra
 
 ### B-107 · Store a simple brief on each attempt
 
-- Status: blocked until B-108.
+- Status: blocked until B-108; scheduled after B-148.
 - Plan: [B-107](plans/2026-11-14-slice-4-task-questions.md#task-b-107-saved-attempt-context-and-task_brief).
 - Owner: Runs and Plans; grants/adapters translate.
 - Read: [approved design](specs/2026-11-14-task-questions-design.md), [wire agreement](../shared/requests/2026-11-14-task-questions.md), owning contracts and the task's Interfaces.
@@ -123,7 +123,7 @@ B-147, B-148, F-102, B-149. B-108 is ready; later-slice tasks retain blocked dra
 ### B-147 · Durable contract conflicts and selective stops
 
 - Status: blocked until B-109.
-- Plan: [B-147](plans/2026-11-14-slice-4-task-questions.md#task-b-147-durable-conflicts-confirmed-stops-and-planner-delivery).
+- Plan: [B-147](plans/2026-11-14-slice-4-task-questions.md#task-b-147-conflicts-through-the-existing-attempt-lifecycle).
 - Owner: Runs; existing Grants, Turns and Harness lifecycles.
 - Read: approved slice 4 design/agreement, task Interfaces, owner contracts and executor cancellation ruling.
 - Touch: exact Files of B-147 plus Common Touch paths; no other sources.
@@ -132,12 +132,12 @@ B-147, B-148, F-102, B-149. B-108 is ready; later-slice tasks retain blocked dra
 
 ### B-148 · Compatible ready groups
 
-- Status: blocked until B-147.
+- Status: blocked until B-108; second task of slice 4.
 - Plan: [B-148](plans/2026-11-14-slice-4-task-questions.md#task-b-148-compatible-ready-groups).
 - Owner: Runs, with Plans admission and existing scope matcher.
 - Read: approved slice 4 design/agreement, task Interfaces and owner contracts.
 - Touch: exact Files of B-148 plus Common Touch paths; no other sources.
-- Needs: B-108, B-147.
+- Needs: B-108 only; no dependency on conflicts. Includes native Git --only procedure and shared-check coordination instructions.
 - Done when: B-148's five steps/common checks pass, groups are pairwise compatible and do not retry attempted tasks, scoped commit recorded.
 
 ### B-149 · Real slice 4 acceptance

@@ -195,22 +195,30 @@ read-only question and from a successful `task_report`.
   write and conflict write arbitrate inside their transactions: one wins; the other
   returns the already accepted outcome. A committed attempt is not converted into a
   conflict-stopped attempt by a late tool call.
-- The tool answers promptly. Runs then requests termination through Turns outside the
-  tool handler's synchronous call chain, so stopping the same executor cannot deadlock
-  the response. Keep the scope until the turn/session can no longer write. If stopping
-  fails, preserve the held scope and surface that failure; do not claim the task stopped.
-- Use the existing Stopped outcome with a contract-conflict reason and its associated
-  conflict record; no general pause/resume state machine is introduced.
-- The plan's actual Planner receives the conflict through the existing executor-attributed
-  waiting-notice path. It remains an executor's report, never a person's approval message.
-  Persist the delivery intent before acknowledging the conflict and retry delivery with
-  one stable conflict-derived command id and frozen enqueue payload: retries must not
-  change the command's parameters by rereading newer Planner model/mode settings. The
-  watcher must not append a second generic
-  "ended without a commit" notice for the same conflict.
-- Restart preserves the conflict and completes the pending stop/recovery and notice work;
-  it never restarts the executor. If the Planner conversation was removed or no Planner
-  owns the plan, retain the undeliverable conflict visibly on the attempt for the person.
+- The tool records a request to end work; the executor must stop editing and end its
+  turn. The existing notifier attempts the Planner notice after recording the conflict,
+  while the attempt may still be Running. Acknowledgment is not a stopped claim.
+- The existing watcher confirms the turn ended, then settles the attempt as Stopped
+  with a contract-conflict reason, closes its session and releases its scope. No automatic
+  external stop worker. If the executor does not end, the informed Planner can use
+  task_stop. Failed session close or explicit termination keeps the scope held.
+- Store conflict data, report time, pending delivery and one stable enqueue intent as
+  nullable fields on the existing attempt row. No conflict table, separate stop state
+  machine, backoff loop or new startup/shutdown service hooks. The response exposes
+  actual attempt_state and Core's scope_held fact.
+- Reuse Runs::notify in the executor's name, never as a person's approval. Resolve and
+  retain its complete enqueue payload once before first delivery, then use the existing
+  notify-<attempt_id> identity unchanged. This small attempt field preserves replay
+  fingerprints when Planner settings or the attempt's terminal state change.
+- Successful normal enqueue/replay marks delivery; error leaves it pending and visible.
+  Reattempt through the existing turn-end, explicit Stop and recovery paths. Recovery
+  performs one pass after reconciling attempts; no continuous retry promise while the
+  daemon stays idle. A crash after enqueue replays the same notice without duplication;
+  no new queue-reconciliation method is needed.
+- Startup still reconciles an unfinished attempt as Interrupted, retaining its conflict;
+  it never restarts the executor. An absent/deleted owning Planner is visible as
+  no_planner. Temporary delivery failures remain pending. The watcher/notifier must not
+  append another generic ended-without-commit message for the same conflict.
 - Keep changes already left in the working tree. Do not silently reset, delete or commit
   them. Existing dirty-scope checks continue to govern the next Start.
 
@@ -266,6 +274,23 @@ the same selection method.
 - No arbitrary new concurrency setting or global cross-plan scheduler is introduced.
   The group concerns the named plan; existing Starts in other plans still participate
   in the project's held-scope check.
+
+## Git commits and shared verification
+
+An executor commits only its own exact changed paths with Git native --only semantics,
+staging new paths first and treating pathspecs literally. Renames include both ends;
+foreign staged content stays intact. This is implemented with the parallel-group task,
+not deferred until acceptance; [the executor spec](2026-11-08-executors-design.md#7-the-write-boundary)
+owns the exact procedure. Keep the existing report scope checks and native Git
+locking; no custom temporary index or commit queue. Bounded lock-contention retries
+repeat the same Git command and never delete a lock owned by another operation.
+
+Independent writes do not isolate shared build outputs, test databases or ports. The
+Planner assigns ownership/order of shared project checks in task instructions; only
+isolated checks run concurrently. An uncoordinated shared check is reported as not run,
+not passed. Coordination is by instructions in slice 4; the enforceable project
+verification slot remains slice 5. This does not claim arbitrary shell commands are
+serialized or sandboxed by Core.
 
 ## Admission and required inputs
 
