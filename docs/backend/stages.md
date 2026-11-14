@@ -106,6 +106,16 @@ retain blocked draft pointers.
 - Needs: the slice 4 tasks and F-102, all shipped in `docs/backend/stages.md` at `d73bb646` (PR #68).
 - Done when: named live tests and disposable browser/log scenarios pass with dated evidence and scoped commit; unavailable checks remain reported, not passed.
 
+### B-150 · The Planner messages a task's agent
+
+- Status: todo; part of slice 5, to be detailed with it.
+- Design: [executors design §5.3](specs/2026-11-08-executors-design.md#53-the-planner-messages-a-tasks-agent-mohammed-2026-11-14).
+- Owner: Runs (the attempt's executor thread and its reply notice), through Turns' queue and Harness's session.
+- Read: AppCore, the Runs contract (`amend`, `run_turn`, `notify`), the Turns contract (`queue_notice`).
+- Touch: to be listed when the slice 5 plan is written.
+- Needs: `docs/backend/stages.md` at `d73bb646` (slice 4).
+- Done when: the Planner's `message_agent` reaches a task's executor while it runs (queued until its turn ends), after it committed, and after a done mark (session reopened); the reply reaches the Planner as "Reply from task agent · T<n>"; no attempt, addition count or plan changes; tried live in the browser.
+
 ### B-111 · Run required checks with source provenance
 
 - Status: blocked (prerequisites below must ship first)

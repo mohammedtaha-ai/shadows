@@ -247,6 +247,27 @@ any case), the title the Planner is told to give it: no new field marks it.
 > refuses a detailed plan while the setup plan is not done. Closed when a real run shows the
 > Planner planning in detail before its setup is done.
 
+### 5.3 The Planner messages a task's agent (Mohammed, 2026-11-14)
+
+The Planner can send a task's executor a plain message, such as "why did you choose this?" or
+"which tests did you run?", and the executor answers in plain words. It is a conversation, not
+work: it changes no plan, task or attempt, opens no new attempt and does not count against the
+task's three additions. Its tool is `message_agent`; the answer reaches the Planner as
+"Reply from task agent · T<n>".
+
+- **Any time.** While the executor's turn runs, the message waits in its queue until that turn
+  ends, then the executor answers and carries on, as a message to Claude Code waits while it
+  works. After the turn ended (committed, failed or stopped) it is answered at once.
+- **After a done mark too.** Shadows reopens the executor's session for the message, as an
+  addition already does (`run_turn` reopens a closed or gone session).
+- **One road back.** The reply reaches the plan's Planner through the existing notice path
+  (`Turns::queue_notice`, in the executor's name, never a person's message), with its own card.
+- **No read-only enforcement.** A question is a question, and the executor is trusted to answer
+  it. The reported commit stays the write boundary: a file the executor changes while answering
+  shows as uncommitted inside its writes, which the next Start or report refuses.
+- **The Planner only, for now.** The person asking a task's agent from the task page, and other
+  askers, come later with their own additions (Mohammed, 2026-11-14).
+
 ## 6. Running together in one folder (D2, D3)
 
 - A task is **ready** when its plan version is Frozen, its `needs` links are complete, and no
