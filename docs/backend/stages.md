@@ -106,7 +106,7 @@ B-150 → F-103 → B-151. Each task's files, interfaces, tests and commit are i
 - Plan: [B-113](plans/2026-11-15-slice-5-checks.md#b-113--shadows-confirms-a-tasks-checks-on-a-quiet-project-and-returns-failures).
 - Owner: Runs.
 - Needs: B-111.
-- Done when: after a committed attempt's turn ends and the project is quiet, its checks and those of the tasks it uses run one at a time and are recorded with their outcome, a match with the executor's report, exit code, HEAD and output end; a moved HEAD, changed content or an uncommitted change inside any task's writes is inconclusive; a check that does not pass returns to the executor as a new attempt, twice at most and outside the three additions, then goes to the Planner; a restart reruns unfinished checks and sends an unsent notice; `attempt_checks` passes.
+- Done when: after a committed attempt's turn ends and the project is quiet, its checks and those of the tasks it uses run one at a time and are recorded with their outcome, a match with the executor's report, exit code, HEAD and output end; a moved HEAD, changed content or an uncommitted change inside any task's writes is inconclusive; a check that does not pass returns to the executor as a new attempt, twice at most and outside the three additions, then goes to the Planner; a return with nothing to change reports the same commit; only the latest attempt is notified; a restart reruns unfinished checks and sends an unsent notice; `attempt_checks` passes.
 
 ### B-114 · The Planner reads checks and judges on them
 

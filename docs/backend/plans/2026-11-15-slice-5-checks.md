@@ -71,7 +71,10 @@ for the critic, which §5.1 replaced. Its steps are not executable.
    `done_waits_for_reply`.
 6. A failed confirmation returns to the executor at most twice and never spends the Planner's
    additions: B-113's `failed_confirmation_returns_to_executor`, `two_returns_then_planner` and
-   `returns_are_not_additions`.
+   `returns_are_not_additions`. A return that needs no change ends on the same commit, and only
+   the task's latest attempt is ever notified, also after a restart:
+   `return_without_change_reconfirms_previous_commit`, `restart_during_return_sends_no_old_notice`
+   and `restart_after_return_passed_notifies_once`.
 
 ## Tasks
 
@@ -136,7 +139,8 @@ for the critic, which §5.1 replaced. Its steps are not executable.
 - Modify: `crates/core-runs/src/lib.rs` (the per-project check lock in `Inner`), `model.rs`
   (`CheckOutcome`, `CheckResult`), `watch.rs` (confirmation before the committed notice),
   `notify.rs` (results in the notice; `notice_sent_at`), `amend.rs` (additions count `planner`
-  origin only), `recover.rs`, `store/mod.rs` (`continue_attempt` takes the origin)
+  origin only), `report.rs` (a return may report the commit it continues), `recover.rs`,
+  `store/mod.rs` (`continue_attempt` takes the origin)
 - Modify: `crates/core-runs/contract.yaml`, `docs/codebase/README.md`
 - Test: `crates/shadows-core/tests/attempt_checks.rs` (new; the fixture pattern of `executor_commits.rs`)
 
@@ -178,11 +182,18 @@ for the critic, which §5.1 replaced. Its steps are not executable.
   session, through `run_turn`, with the results (output end included) and "The project is free
   now: run the checks and finish, then commit and report as before." No Planner notice is sent
   for the attempt it replaces. The new commit is confirmed the same way.
+- A return that needs no change: on a `checks` attempt, `task_report` may name the commit of the
+  attempt it continues, with a report saying nothing needed changing. Runs accepts it without
+  the `NotNew` and empty-commit refusals (that commit passed every other report check before),
+  still refusing an uncommitted change inside the task's writes, and confirms its checks again.
+  The return's prompt says so: "If nothing needs to change, report the same commit."
+- Only a task's latest attempt is ever notified. An attempt continued by a later one (a return
+  or an addition) never sends a notice, at the end of its checks or at recovery.
 - After two returns: the notice goes to the Planner with the results, and any mismatch with the
   executor's report (`c2 failed (exit 1); the executor reported passed`).
-- Recovery: a `Committed` attempt with unfinished rows, or with checks and no confirmed rows,
-  clears its unfinished results and confirms again in the background; one with complete results
-  and no `notice_sent_at` acts on them as above: a return if one is due and none was started
+- Recovery, for each task's latest `Committed` attempt only: one with unfinished rows, or with
+  checks and no confirmed rows, clears its unfinished results and confirms again in the
+  background; one with complete results and no `notice_sent_at` acts on them as above: a return if one is due and none was started
   (the `checks` attempt's command id names the attempt it continues, so a repeat is a replay),
   otherwise its notice (command id `notify-<attempt>`, a replay if it was sent).
 
@@ -196,8 +207,9 @@ for the critic, which §5.1 replaced. Its steps are not executable.
    `content_change_during_check_is_inconclusive`, `head_moved_during_check_is_inconclusive`,
    `checks_of_one_project_run_one_at_a_time`, `used_tasks_checks_run_too`,
    `failed_confirmation_returns_to_executor`, `two_returns_then_planner`,
-   `returns_are_not_additions`, `restart_reruns_unfinished_checks_and_notifies_once`,
-   `restart_sends_an_unsent_notice`. Run `cargo test -p shadows-core --test attempt_checks`.
+   `returns_are_not_additions`, `return_without_change_reconfirms_previous_commit`,
+   `restart_reruns_unfinished_checks_and_notifies_once`, `restart_sends_an_unsent_notice`,
+   `restart_during_return_sends_no_old_notice`, `restart_after_return_passed_notifies_once`. Run `cargo test -p shadows-core --test attempt_checks`.
 2. Implement in the listed files.
 3. GREEN: the same, plus `--test executor_commits --test recovery --test task_conflicts`, and
    `cargo test -p shadows --test codemap`.

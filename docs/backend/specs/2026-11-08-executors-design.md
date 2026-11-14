@@ -299,7 +299,9 @@ the agent's word. This replaces the critic's evidence role (§5.1 already replac
 - **A check that does not pass goes back to the executor first** (Mohammed, 2026-11-15). When
   Shadows' run fails, times out or is inconclusive, Runs sends the same executor, in its own
   session, the results and "the project is free now: run the checks and finish", as a new attempt
-  that is not one of the Planner's three additions. Its commit is confirmed again. After two such
+  that is not one of the Planner's three additions. Its commit is confirmed again; when nothing
+  needed changing, it reports the same commit, which is confirmed again as it is. Only the task's
+  latest attempt is ever notified, also after a restart. After two such
   returns the attempt goes to the Planner with the results, which judges: an addition, done with
   a reason, or a stop. What passes is decided by Shadows' run, never by the executor's report.
 - **Outcomes:** passed, failed, timed out, inconclusive, or not run (the program could not start).
