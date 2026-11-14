@@ -24,7 +24,7 @@ const brief = (a: Attempt, extra: Partial<AttemptBrief> = {}): AttemptBrief => (
   context: {
     map_revision: 4,
     parts: [{
-      part: { id: 'api', parent: null, title: 'API', rules: [{ id: 'r1', text: 'No SQL' }] },
+      part: { id: 'api', parent: null, title: 'API', kind: 'backend', folder: 'src', grouping: false, layers: [], rules: [{ id: 'r1', text: 'No SQL' }] },
       paths: [{ path: 'src/api.rs', via: 'Folder' }, { path: 'src/db.rs', via: { Layer: 'store' } }],
     }],
     plan: { plan_id: 'plan1', title: 'Original plan', version: 1, workflow_id: 'w1' },
@@ -103,7 +103,9 @@ it('brief_contract_items_read_as_text', async () => {
   expect(items).toContain('existing src/store.rs Store')
   expect(items).toContain('output send of Mail sender: function send in src/mail.rs')
   expect(items).toContain('output doc of T4: artifact docs/api.md')
-  expect(items).toContain('id api, title API, rules (id r1, text No SQL): src/api.rs (via Folder); src/db.rs (via Layer store)')
+  expect(items).toContain('src/api.rs (folder)')
+  expect(items).toContain('src/db.rs (layer store)')
+  expect(items).toContain('r1 No SQL')
   expect(items.some((t) => /[{}"]/.test(t))).toBe(false)
 })
 

@@ -48,7 +48,6 @@ pub struct ContextStandards {
 
 #[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct TaskPart {
-    #[schema(value_type = Object)]
     pub part: LayoutPart,
     pub paths: Vec<TaskPath>,
 }
@@ -56,7 +55,6 @@ pub struct TaskPart {
 #[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct TaskPath {
     pub path: String,
-    #[schema(value_type = Object)]
     pub via: OwnedVia,
 }
 

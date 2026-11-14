@@ -12,23 +12,6 @@ type SymbolWork = NonNullable<TaskContract['symbols']>[number]
 type ResolvedContract = NonNullable<AttemptBrief['context']['contracts']>[number]
 type TaskPart = AttemptBrief['context']['parts'][number]
 
-/**
- * An open object as readable text: each key with its value, nested objects in brackets,
- * nulls left out. It names only the keys Core sent and reads no meaning into them;
- * the API types a part and its `via` as open objects, so they are read this way.
- */
-function plain(value: unknown): string {
-  if (value === null || value === undefined) return ''
-  if (Array.isArray(value)) return value.map(plain).join(', ')
-  if (typeof value === 'object') {
-    return Object.entries(value as Record<string, unknown>)
-      .filter(([, v]) => v !== null && v !== undefined)
-      .map(([k, v]) => (typeof v === 'object' ? `${k} (${plain(v)})` : `${k} ${plain(v)}`))
-      .join(', ')
-  }
-  return String(value)
-}
-
 function symbolText(symbol: SymbolWork): string {
   return `${symbol.kind} ${symbol.name} in ${symbol.path}`
 }
@@ -52,10 +35,33 @@ function resolved(contract: ResolvedContract): string {
   return promised.length === 0 ? source : `${source}: ${promised.join(', ')}`
 }
 
-/** One layout part with the paths of this task it owns; both come as open objects. */
-function partText(part: TaskPart): string {
-  const paths = part.paths.map((p) => `${p.path} (via ${plain(p.via)})`).join('; ')
-  return `${plain(part.part)}: ${paths}`
+type TaskPath = TaskPart['paths'][number]
+
+/** Which way a part owns a path: its folder, or one of its layers. */
+function viaText(via: TaskPath['via']): string {
+  return via === 'Folder' ? 'folder' : `layer ${via.Layer}`
+}
+
+/** One layout part: its title and folder, the task's paths it owns and how, then its rules. */
+function PartBlock({ part }: { part: TaskPart }) {
+  const { title, kind, folder, rules } = part.part
+  return (
+    <li>
+      <span dir="auto" className="font-medium">{title}</span>
+      <span className="text-muted-foreground">{kind != null && ` · ${kind}`} · {folder}</span>
+      <ul className="list-[circle] ps-5">
+        {part.paths.map((p, i) => <li key={i} dir="auto" className="break-words">{p.path} <span className="text-muted-foreground">({viaText(p.via)})</span></li>)}
+      </ul>
+      {rules.length > 0 && (
+        <details>
+          <summary className="cursor-pointer text-muted-foreground">Rules ({rules.length})</summary>
+          <ul className="list-[circle] ps-5">
+            {rules.map((r) => <li key={r.id} dir="auto" className="whitespace-pre-wrap break-words"><span className="text-muted-foreground">{r.id}</span> {r.text}</li>)}
+          </ul>
+        </details>
+      )}
+    </li>
+  )
 }
 
 /** One planned output: its id, the symbol or file it names in the same contract, and the acceptance items that prove it. */
@@ -118,7 +124,12 @@ function Brief({ brief }: { brief: AttemptBrief }) {
       )}
       <List label="Resolved contracts" items={context.contracts?.map(resolved)} />
       <div aria-label="Original layout" className="space-y-1">
-        <List label="Parts" items={context.parts.map(partText)} />
+        {context.parts.length > 0 && (
+          <div>
+            <p className="font-semibold">Parts</p>
+            <ul className="list-disc ps-5">{context.parts.map((part) => <PartBlock key={part.part.id} part={part} />)}</ul>
+          </div>
+        )}
         <List label="Unowned paths" items={context.unowned_paths} />
       </div>
       <div aria-label="Planned consumers">

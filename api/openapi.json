@@ -3375,6 +3375,93 @@
         ],
         "type": "object"
       },
+      "LayoutLayer": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "may_use": {
+            "items": {
+              "$ref": "#/components/schemas/LayerRef"
+            },
+            "type": "array"
+          },
+          "not_used": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "place": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "role": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "role",
+          "may_use"
+        ],
+        "type": "object"
+      },
+      "LayoutPart": {
+        "properties": {
+          "folder": {
+            "type": "string"
+          },
+          "grouping": {
+            "type": "boolean"
+          },
+          "id": {
+            "$ref": "#/components/schemas/PartId"
+          },
+          "kind": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "layers": {
+            "items": {
+              "$ref": "#/components/schemas/LayoutLayer"
+            },
+            "type": "array"
+          },
+          "parent": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PartId"
+              }
+            ]
+          },
+          "rules": {
+            "items": {
+              "$ref": "#/components/schemas/RuleText"
+            },
+            "type": "array"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "folder",
+          "grouping",
+          "layers",
+          "rules"
+        ],
+        "type": "object"
+      },
       "LimitWindow": {
         "description": "One account limit window as the harness reported it: `utilization` from 0\nto 1, `resets_at` in Unix seconds.",
         "properties": {
@@ -4411,6 +4498,27 @@
           "plans"
         ],
         "type": "object"
+      },
+      "OwnedVia": {
+        "oneOf": [
+          {
+            "enum": [
+              "Folder"
+            ],
+            "type": "string"
+          },
+          {
+            "properties": {
+              "Layer": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "Layer"
+            ],
+            "type": "object"
+          }
+        ]
       },
       "Part": {
         "properties": {
@@ -6450,6 +6558,21 @@
         ],
         "type": "object"
       },
+      "RuleText": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "text"
+        ],
+        "type": "object"
+      },
       "RunRefusal": {
         "description": "A run Core refused. `code` is Core's opaque id (`waiting`, `task_busy`,\n`overlap`, `not_git`, `dirty_scope`, `not_frozen`, `superseded`,\n`archived`, `bad_scope`, `command_conflict`); `reason` is the text to show.",
         "properties": {
@@ -7485,7 +7608,7 @@
       "TaskPart": {
         "properties": {
           "part": {
-            "type": "object"
+            "$ref": "#/components/schemas/LayoutPart"
           },
           "paths": {
             "items": {
@@ -7506,7 +7629,7 @@
             "type": "string"
           },
           "via": {
-            "type": "object"
+            "$ref": "#/components/schemas/OwnedVia"
           }
         },
         "required": [

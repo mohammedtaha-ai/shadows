@@ -27,7 +27,7 @@ shapes:
     standards_additions: Option<i64>
     parts: Vec<LayoutPart>
   LayoutPart:
-    note: Identity, parent, title, kind, folder, grouping, joined layers and applicable rules.
+    note: Identity, parent, title, kind, folder, grouping, joined layers and applicable rules. LayoutPart, LayoutLayer, RuleText and OwnedVia have their own API schemas, served in a task context.
   LayoutLayer:
     note: Catalog id, role, may_use plus accepted place and not_used reason.
   OwnedVia:

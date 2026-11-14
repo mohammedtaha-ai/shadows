@@ -2865,6 +2865,23 @@ export interface components {
             required: boolean;
             role: string;
         };
+        LayoutLayer: {
+            id: string;
+            may_use: components["schemas"]["LayerRef"][];
+            not_used?: string | null;
+            place?: string | null;
+            role: string;
+        };
+        LayoutPart: {
+            folder: string;
+            grouping: boolean;
+            id: components["schemas"]["PartId"];
+            kind?: string | null;
+            layers: components["schemas"]["LayoutLayer"][];
+            parent?: null | components["schemas"]["PartId"];
+            rules: components["schemas"]["RuleText"][];
+            title: string;
+        };
         /**
          * @description One account limit window as the harness reported it: `utilization` from 0
          *     to 1, `resets_at` in Unix seconds.
@@ -3117,6 +3134,9 @@ export interface components {
             parts: components["schemas"]["PartId"][];
             plans: components["schemas"]["PlanId"][];
             revision: components["schemas"]["i64"];
+        };
+        OwnedVia: "Folder" | {
+            Layer: string;
         };
         Part: {
             content: components["schemas"]["PartContent"];
@@ -3645,6 +3665,10 @@ export interface components {
             status: components["schemas"]["ProposalStatus"];
             thread_id: components["schemas"]["ThreadId"];
         };
+        RuleText: {
+            id: string;
+            text: string;
+        };
         /**
          * @description A run Core refused. `code` is Core's opaque id (`waiting`, `task_busy`,
          *     `overlap`, `not_git`, `dirty_scope`, `not_frozen`, `superseded`,
@@ -3929,12 +3953,12 @@ export interface components {
             task: number;
         };
         TaskPart: {
-            part: Record<string, never>;
+            part: components["schemas"]["LayoutPart"];
             paths: components["schemas"]["TaskPath"][];
         };
         TaskPath: {
             path: string;
-            via: Record<string, never>;
+            via: components["schemas"]["OwnedVia"];
         };
         TaskPreview: {
             acceptance: components["schemas"]["AcceptanceItem"][];
