@@ -54,8 +54,9 @@ for the critic, which §5.1 replaced. Its steps are not executable.
 ## Review Focus
 
 1. A check never reads as passed when it did not prove the commit: B-113's
-   `checks_wait_for_a_quiet_project`, `head_moved_during_check_is_inconclusive` and
-   `missing_program_is_not_run`.
+   `checks_wait_for_a_quiet_project`, `stopped_attempts_leftover_is_inconclusive`,
+   `content_change_during_check_is_inconclusive`, `head_moved_during_check_is_inconclusive`
+   and `missing_program_is_not_run`.
 2. Two attempts finishing together never run Shadows' checks at once: B-113's
    `checks_of_one_project_run_one_at_a_time`.
 3. A restart neither loses nor doubles results or notices, including a stop between the last
@@ -66,7 +67,11 @@ for the critic, which §5.1 replaced. Its steps are not executable.
    `done_before_results_needs_reason` and `done_again_after_undo_needs_reason`.
 5. A message never creates an attempt, counts as an addition or settles an attempt, and never
    reaches a busy turn: B-150's `message_changes_no_attempt`,
-   `message_waits_while_committed_turn_runs` and `messages_go_one_at_a_time`.
+   `message_waits_while_committed_turn_runs`, `messages_go_one_at_a_time` and
+   `done_waits_for_reply`.
+6. A failed confirmation returns to the executor at most twice and never spends the Planner's
+   additions: B-113's `failed_confirmation_returns_to_executor`, `two_returns_then_planner` and
+   `returns_are_not_additions`.
 
 ## Tasks
 
@@ -112,24 +117,26 @@ for the critic, which §5.1 replaced. Its steps are not executable.
 3. Planner text (`prompt.txt`, after the task_done lines): write one check per acceptance item a
    command can prove, as a program and arguments (`["go","test","./internal/api/..."]`), never a
    shell line. Executor text: run the task's checks before you commit and fix what fails in your
-   files; other executors may be checking at once, so a lock, busy or port error means wait a few
-   seconds and run again, never a failure; give each check's outcome in task_report. Shadows runs
-   them again after your turn.
+   files; other executors may be checking at once, so a lock, busy or port error is never a
+   failure: go on with your code and try again later; when your work is done and they still
+   cannot run, commit and report them `not_run`; give each check's outcome in task_report.
+   Shadows runs them again once the project is free, and sends you back if they do not pass.
 4. GREEN: the same, plus `cargo test -p shadows --test planner_instructions` and
    `UPDATE_OPENAPI=1 cargo test -p shadows --test openapi`, then `npm run gen:api` in `web/`.
 5. Commit: `feat(plans): checks in the task contract, run and reported by the executor`.
 
-### B-113 · Shadows confirms a task's checks on a quiet project
+### B-113 · Shadows confirms a task's checks on a quiet project, and returns failures
 
 **Owner:** Runs.
 
 **Files:**
 - Create: `crates/core-runs/src/checks.rs` (confirming one attempt's checks)
 - Create: `crates/core-runs/src/store/checks.rs`
-- Create: `crates/core-db/migrations/0064_notice_sent.sql` (`notice_sent_at` on `run_attempts`)
+- Create: `crates/core-db/migrations/0064_notice_sent.sql` (`notice_sent_at` and `origin` on `run_attempts`)
 - Modify: `crates/core-runs/src/lib.rs` (the per-project check lock in `Inner`), `model.rs`
   (`CheckOutcome`, `CheckResult`), `watch.rs` (confirmation before the committed notice),
-  `notify.rs` (results in the notice; `notice_sent_at`), `recover.rs`, `store/mod.rs`
+  `notify.rs` (results in the notice; `notice_sent_at`), `amend.rs` (additions count `planner`
+  origin only), `recover.rs`, `store/mod.rs` (`continue_attempt` takes the origin)
 - Modify: `crates/core-runs/contract.yaml`, `docs/codebase/README.md`
 - Test: `crates/shadows-core/tests/attempt_checks.rs` (new; the fixture pattern of `executor_commits.rs`)
 
@@ -142,6 +149,8 @@ for the critic, which §5.1 replaced. Its steps are not executable.
   and `Runs::checks(&self, attempt: &AttemptId) -> Result<Vec<CheckResult>, RunsError>` (public read).
 - The checks come from the attempt's saved context, the contract the attempt began on. A used
   task's checks come from its own latest committed attempt's saved context.
+- `Attempt.origin`: `start | planner | checks`. A `checks` attempt is a return after a failed
+  confirmation; `additions_since_start` counts `planner` ones only.
 
 **Rules:**
 - Runs when the watcher finds the attempt `Committed` and its turn ended, before `notify`. A task
@@ -152,30 +161,47 @@ for the critic, which §5.1 replaced. Its steps are not executable.
 - Takes the project's lock (a `tokio::sync::Mutex` per project id in Runs' live state). Runs the
   attempt's own checks, then those of each task its contract `uses` that has a committed attempt.
   An earlier task's checks are not run for a task that does not use it.
-- Per check: read HEAD and `git status --porcelain`; spawn through `shadows-process` in `folder`;
-  wait with the time limit (`terminate_tree` on expiry); keep stdout and stderr together, the last
-  65536 bytes; read HEAD and the status again. Outcome: spawn error → `NotRun`; time limit →
-  `TimedOut`; HEAD or status changed → `Inconclusive`; exit 0 → `Passed`; otherwise `Failed`.
+- Before the checks: the uncommitted paths (`git status --porcelain`) inside any task's `writes`
+  in the project's approved plans, such as a stopped attempt's leftovers, make every check of this
+  run `Inconclusive` without running it; the paths are named in its output. Paths outside every
+  task's `writes` are the person's and do not count.
+- Per check: read HEAD, the uncommitted paths and each one's content hash (`git hash-object`);
+  spawn through `shadows-process` in `folder`; wait with the time limit (`terminate_tree` on
+  expiry); keep stdout and stderr together, the last 65536 bytes; read them all again. Outcome:
+  spawn error → `NotRun`; time limit → `TimedOut`; HEAD, a path or a hash changed →
+  `Inconclusive`; exit 0 → `Passed`; otherwise `Failed`.
 - Each row is written when it starts and again when it finishes.
-- The notice lists each result (`c1 passed`, `c2 failed (exit 1); the executor reported passed`,
-  `T3 c1 passed`); its card carries them without output. `notice_sent_at` is set once the notice
-  is queued.
+- Every check passed: the Planner's notice lists each result (`c1 passed`, `T3 c1 passed`); its
+  card carries them without output. `notice_sent_at` is set once the notice is queued.
+- Any check did not pass, and the task has had fewer than two `checks` attempts since its last
+  `start` or `planner` attempt: Runs continues the attempt as a new `checks` attempt in the same
+  session, through `run_turn`, with the results (output end included) and "The project is free
+  now: run the checks and finish, then commit and report as before." No Planner notice is sent
+  for the attempt it replaces. The new commit is confirmed the same way.
+- After two returns: the notice goes to the Planner with the results, and any mismatch with the
+  executor's report (`c2 failed (exit 1); the executor reported passed`).
 - Recovery: a `Committed` attempt with unfinished rows, or with checks and no confirmed rows,
   clears its unfinished results and confirms again in the background; one with complete results
-  and no `notice_sent_at` sends its notice (command id `notify-<attempt>`, a replay if it was sent).
+  and no `notice_sent_at` acts on them as above: a return if one is due and none was started
+  (the `checks` attempt's command id names the attempt it continues, so a repeat is a replay),
+  otherwise its notice (command id `notify-<attempt>`, a replay if it was sent).
 
 **Steps:**
 1. Tests (RED) in `attempt_checks.rs`, real Git folder, `git` as the program:
    `passed_and_failed_checks_are_recorded` (`git --version`, `git rev-parse no-such-ref`),
    `mismatch_with_report_is_marked`, `missing_program_is_not_run`, `check_time_limit_ends_it`,
    `long_output_keeps_its_end`, `checks_wait_for_a_quiet_project`,
-   `head_moved_during_check_is_inconclusive`, `checks_of_one_project_run_one_at_a_time`,
-   `used_tasks_checks_run_too`, `restart_reruns_unfinished_checks_and_notifies_once`,
+   `uncommitted_change_in_writes_is_inconclusive`, `stopped_attempts_leftover_is_inconclusive`
+   (a stopped attempt's file makes another task's check pass), `person_files_do_not_count`,
+   `content_change_during_check_is_inconclusive`, `head_moved_during_check_is_inconclusive`,
+   `checks_of_one_project_run_one_at_a_time`, `used_tasks_checks_run_too`,
+   `failed_confirmation_returns_to_executor`, `two_returns_then_planner`,
+   `returns_are_not_additions`, `restart_reruns_unfinished_checks_and_notifies_once`,
    `restart_sends_an_unsent_notice`. Run `cargo test -p shadows-core --test attempt_checks`.
 2. Implement in the listed files.
 3. GREEN: the same, plus `--test executor_commits --test recovery --test task_conflicts`, and
    `cargo test -p shadows --test codemap`.
-4. Commit: `feat(runs): confirm a task's checks on a quiet project`.
+4. Commit: `feat(runs): confirm a task's checks on a quiet project and return failures`.
 
 ### B-114 · The Planner reads checks and judges on them
 
@@ -226,7 +252,8 @@ for the critic, which §5.1 replaced. Its steps are not executable.
 - Create: `crates/core-runs/src/message.rs`
 - Create: `crates/core-runs/src/store/messages.rs`
 - Create: `crates/core-db/migrations/0066_agent_messages.sql`
-- Modify: `crates/core-runs/src/lib.rs`, `model.rs` (`AgentMessage`, `AgentReplyNotice`),
+- Modify: `crates/core-runs/src/lib.rs` (`mark_done` leaves an answering session open),
+  `model.rs` (`AgentMessage`, `AgentReplyNotice`),
   `watch.rs` (the next waiting message after a turn ends), `amend.rs` (refused while answering),
   `error.rs` (`AgentAnswering`), `notify.rs` (the reply notice), `recover.rs`, `store/mod.rs`
 - Modify: `crates/core-grants/src/tools.rs` (`message_agent` in THREAD_TOOLS)
@@ -246,7 +273,8 @@ for the critic, which §5.1 replaced. Its steps are not executable.
 **Rules:**
 - Busy is the executor thread's running turn (Turns' operations), never the attempt's state.
 - The same trimmed text to the same attempt while an earlier one is `waiting`, `sent` or `replied`
-  answers that message; no second row. This covers a repeated MCP call without a command id.
+  answers that message; no second row. After its reply the same text is a new question: MCP
+  carries no command id, as for `task_start` (Mohammed, 2026-11-15).
 - One message in flight per thread, in order. A message is saved `waiting` and sent when the
   thread has no running turn and no earlier message is `sent`. Whatever ends a turn on that thread
   (the attempt's watcher, after it settles and releases, or a message's watcher) sends the next
@@ -260,15 +288,21 @@ for the critic, which §5.1 replaced. Its steps are not executable.
   its reason (`failed`). The session is closed again only when its attempt is not running, no turn
   runs on the thread and no message waits.
 - `task_amend` while a message of that task is `waiting` or `sent` is refused `AgentAnswering`.
+- A done mark records the mark at once, but while a message of the task is `waiting` or `sent`
+  it does not close the session or free the scope; the message watcher does both after the
+  reply, by the closing rule above.
 - No attempt row, addition count, plan or mark changes.
-- Recovery: `sent` messages whose turn did not end become `failed` and are delivered as no reply;
-  `replied` ones are delivered; `waiting` ones are sent in order.
+- Recovery: for a `sent` message, read its operation: finished and completed → save the
+  thread's last agent message as the reply (`replied`) and deliver it; finished and failed, or
+  never finished → `failed`, delivered as no reply. `replied` ones are delivered; `waiting` ones
+  are sent in order.
 
 **Steps:**
 1. Tests (RED) in `agent_messages.rs` (the `executor_session.rs` fixture):
    `message_changes_no_attempt`, `message_waits_while_committed_turn_runs`,
    `messages_go_one_at_a_time`, `same_text_is_one_message`, `message_after_done_reopens_session`,
-   `amend_waits_for_reply`, `reply_reaches_planner_once`, `restart_delivers_an_undelivered_reply`;
+   `amend_waits_for_reply`, `done_waits_for_reply`, `reply_reaches_planner_once`,
+   `restart_delivers_an_undelivered_reply`, `restart_reads_a_finished_reply_turn`;
    `message_agent_tool_listed` in `planner_mcp.rs`.
 2. Implement.
 3. GREEN: the same targets, `executor_session`, `executor_commits`, `planner_instructions`.

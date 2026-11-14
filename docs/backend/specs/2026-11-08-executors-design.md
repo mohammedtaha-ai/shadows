@@ -268,7 +268,9 @@ task's three additions. Its tool is `message_agent`; the answer reaches the Plan
 - **One message at a time per agent, in order.** Whether the agent is busy is read from its
   thread's running turn, never from its attempt's state (an attempt is `committed` while its turn
   still ends). An addition sent while the agent answers a message is refused until the reply
-  arrives. The same text sent again to the same attempt before its reply is the same message.
+  arrives, and a done mark waits for the reply before it closes the session. The same text sent
+  again to the same attempt before its reply is the same message; after the reply it is a new
+  question (MCP carries no command id, as for `task_start`).
 - **The Planner only, for now.** The person asking a task's agent from the task page, and other
   askers, come later with their own additions (Mohammed, 2026-11-14).
 
@@ -284,8 +286,9 @@ the agent's word. This replaces the critic's evidence role (§5.1 already replac
   limit, and the acceptance items it proves. A task with no command that can prove it has none.
 - **The executor runs them itself, while it works,** and fixes what fails in its own files before
   it commits. Executors run their checks at the same time. A lock, busy or port error means
-  another executor is checking: it waits and runs again, and never counts it as a failure. Its
-  report gives each check's outcome.
+  another executor is checking: it goes on writing its code and tries again later, and never
+  counts it as a failure. When its work is done and the checks still cannot run, it commits and
+  reports them `not_run`. Its report gives each check's outcome.
 - **Then Shadows confirms, once the project is quiet.** After the attempt's turn ends committed,
   Runs waits until no executor turn runs in the project, so no other task's unfinished files are
   in the folder, then runs the task's checks, and the checks of the tasks whose outputs it uses
@@ -293,8 +296,17 @@ the agent's word. This replaces the critic's evidence role (§5.1 already replac
   the end of its output, and whether it matches what the executor reported. The Planner's notice
   carries the results after that. A check of an earlier task is not run again for a later task
   that does not use it: its record stands.
+- **A check that does not pass goes back to the executor first** (Mohammed, 2026-11-15). When
+  Shadows' run fails, times out or is inconclusive, Runs sends the same executor, in its own
+  session, the results and "the project is free now: run the checks and finish", as a new attempt
+  that is not one of the Planner's three additions. Its commit is confirmed again. After two such
+  returns the attempt goes to the Planner with the results, which judges: an addition, done with
+  a reason, or a stop. What passes is decided by Shadows' run, never by the executor's report.
 - **Outcomes:** passed, failed, timed out, inconclusive, or not run (the program could not start).
-  A HEAD or folder state that changed while a check ran makes it inconclusive. Only passed counts
+  A HEAD that moved, or a file whose content changed while a check ran, makes it inconclusive;
+  so does an uncommitted change inside any task's `writes` in the project's plans when the check
+  starts, such as the files a stopped attempt left: the result would not prove the committed code.
+  Files outside every task's `writes` (the person's own) do not count. Only passed counts
   as passed. A flaky check shows as a mismatch with the executor's report, for the Planner to judge.
 - **Done with a check that did not pass needs a reason.** The rule reads the task's latest
   committed attempt, whether or not its scope is still held: a done mark is refused without a
