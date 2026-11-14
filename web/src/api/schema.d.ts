@@ -2152,6 +2152,7 @@ export interface components {
              */
             number: number;
             operation_id: null | components["schemas"]["OperationId"];
+            origin: components["schemas"]["AttemptOrigin"];
             project_id: components["schemas"]["ProjectId"];
             /** @description Why the attempt failed, when it did. */
             reason: string | null;
@@ -2205,6 +2206,7 @@ export interface components {
             /** Format: int32 */
             attempt: number;
             attempt_id: components["schemas"]["AttemptId"];
+            checks?: components["schemas"]["CheckResult"][];
             commit?: string | null;
             conflict?: null | components["schemas"]["TaskConflict"];
             /** @description The attempt carried the task's third and last addition. */
@@ -2221,6 +2223,8 @@ export interface components {
             version: number;
             workflow_id: components["schemas"]["WorkflowId"];
         };
+        /** @enum {string} */
+        AttemptOrigin: "start" | "planner" | "checks";
         /**
          * @description Where an attempt stands. Only `Running` has no `ended_at`.
          * @enum {string}
@@ -2281,6 +2285,28 @@ export interface components {
         ChangeModel: {
             /** @description One of the session's `models`. */
             model: string;
+        };
+        /** @enum {string} */
+        CheckOutcome: "passed" | "failed" | "timed_out" | "inconclusive" | "not_run";
+        /** @description What the executor reported alongside what Shadows independently observed. */
+        CheckResult: {
+            /** Format: int32 */
+            exit_code?: number | null;
+            finished_at?: string | null;
+            folder?: string | null;
+            /** Format: int32 */
+            for_task: number;
+            head_after?: string | null;
+            head_before?: string | null;
+            id: string;
+            matches?: boolean | null;
+            outcome?: null | components["schemas"]["CheckOutcome"];
+            output?: string | null;
+            reported?: null | components["schemas"]["ReportedOutcome"];
+            reported_note?: string | null;
+            run: string[];
+            started_at?: string | null;
+            truncated: boolean;
         };
         /**
          * @description One value the session offers for a setting. `enabled: false`
@@ -3637,6 +3663,11 @@ export interface components {
             effort: string | null;
             model: string;
         };
+        /**
+         * @description The executor's account, kept apart from Shadows' own confirmation.
+         * @enum {string}
+         */
+        ReportedOutcome: "passed" | "failed" | "not_run";
         ResendContext: {
             command_id: string;
         };

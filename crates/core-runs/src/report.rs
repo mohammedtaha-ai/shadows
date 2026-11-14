@@ -121,10 +121,19 @@ impl Runs {
             return Err(unknown());
         }
         let sha = git.commit(commit).await.ok_or_else(unknown)?;
+        let repeated = attempt.origin == crate::AttemptOrigin::Checks
+            && self
+                .inner
+                .store
+                .previous_commit(&attempt.id)
+                .await?
+                .as_deref()
+                == Some(&sha);
         if !git.reaches("HEAD", &sha).await {
             return Err(RunsError::NotOnBranch { commit: sha });
         }
-        if let Some(start) = self.inner.store.start_head(&attempt.id).await?
+        if !repeated
+            && let Some(start) = self.inner.store.start_head(&attempt.id).await?
             && git.reaches(&start, &sha).await
         {
             return Err(RunsError::NotNew { commit: sha });
@@ -133,7 +142,7 @@ impl Runs {
         let writes = self.inner.store.writes(&attempt.id).await?;
         let matcher = Scope::new(&writes).map_err(RunsError::BadScope)?;
         let changes = git.changes(&sha).await.map_err(RunsError::Unavailable)?;
-        if changes.is_empty() {
+        if changes.is_empty() && !repeated {
             return Err(RunsError::EmptyCommit { commit: sha });
         }
         // A path outside the project folder is outside every pattern.

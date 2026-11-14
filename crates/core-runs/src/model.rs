@@ -40,6 +40,48 @@ pub struct ReportedCheck {
     pub note: String,
 }
 
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, utoipa::ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum AttemptOrigin {
+    Start,
+    Planner,
+    Checks,
+}
+
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, utoipa::ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum CheckOutcome {
+    Passed,
+    Failed,
+    TimedOut,
+    Inconclusive,
+    NotRun,
+}
+
+/// What the executor reported alongside what Shadows independently observed.
+#[derive(Debug, Clone, serde::Serialize, utoipa::ToSchema)]
+pub struct CheckResult {
+    pub for_task: u32,
+    pub id: String,
+    pub run: Vec<String>,
+    pub folder: Option<String>,
+    pub reported: Option<ReportedOutcome>,
+    pub reported_note: Option<String>,
+    pub outcome: Option<CheckOutcome>,
+    pub matches: Option<bool>,
+    pub exit_code: Option<i32>,
+    pub head_before: Option<String>,
+    pub head_after: Option<String>,
+    pub output: Option<String>,
+    pub truncated: bool,
+    pub started_at: Option<String>,
+    pub finished_at: Option<String>,
+}
+
 impl AttemptId {
     /// Reconstructs this owner's identifier from a retained database reference.
     pub fn from_recorded(id: String) -> Self {
@@ -110,6 +152,7 @@ pub struct Attempt {
     /// the attempt before it; null for an attempt Start began.
     #[schema(required)]
     pub addition: Option<String>,
+    pub origin: AttemptOrigin,
     /// Why the attempt failed, when it did.
     #[schema(required)]
     pub reason: Option<String>,
@@ -209,6 +252,8 @@ pub struct FileDiff {
 /// and the executor's report (its last message when it failed).
 #[derive(Debug, Clone, serde::Serialize, utoipa::ToSchema)]
 pub struct AttemptNotice {
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub checks: Vec<CheckResult>,
     pub workflow_id: WorkflowId,
     pub version: i64,
     pub task: u32,

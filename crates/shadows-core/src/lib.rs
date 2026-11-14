@@ -146,3 +146,5 @@ pub use core_runs::{AttemptBrief, ReportedCheck, ReportedOutcome, StartAnswer};
 pub use core_runs::{AttemptFile, AttemptNotice, DoneMark, FileDiff, Need, ReadyGroup, ReadyTask};
 pub use core_runs::{ConflictDelivery, ConflictEvidence, ConflictInput, TaskConflict};
 pub use core_runs::{PlannedScope, ProducerStatus, TaskAnswer, TaskQuestion};
+
+pub use core_runs::{AttemptOrigin, CheckOutcome, CheckResult};

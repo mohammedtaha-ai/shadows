@@ -106,10 +106,10 @@ impl Fixture {
                         "INSERT INTO run_attempts
                            (id, project_id, workflow_id, version, task, number, thread_id,
                             model, state, commit_sha, writes_json, started_at, ended_at,
-                            released_at, command_id, fingerprint, addition)
+                            released_at, command_id, fingerprint, addition, origin)
                          VALUES (?, ?, ?, 1, ?, ?, ?, 'fake-large', ?, ?,
                                  '[\"backend/app/**\"]', '2026-10-05T00:00:00Z',
-                                 ?, ?, ?, 'f', ?)",
+                                 ?, ?, ?, 'f', ?, ?)",
                     )
                     .bind(&row)
                     .bind(project.as_str())
@@ -123,6 +123,11 @@ impl Fixture {
                     .bind(released)
                     .bind(&row)
                     .bind(addition)
+                    .bind(if addition.is_some() {
+                        "planner"
+                    } else {
+                        "start"
+                    })
                     .execute(&mut *conn)
                     .await?;
                     Ok(())

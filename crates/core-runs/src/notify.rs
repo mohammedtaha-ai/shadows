@@ -163,6 +163,7 @@ impl Runs {
         let conflict = (self.conflict(&attempt.id).await?).ok_or(RunsError::NotFound)?;
         let title = Self::title(&recipient.plan, attempt);
         let card = AttemptNotice {
+            checks: vec![],
             workflow_id: attempt.workflow_id.clone(),
             version: attempt.version,
             task: attempt.task,
@@ -237,6 +238,7 @@ impl Runs {
         };
         let title = Self::title(&plan, attempt);
         let mut card = AttemptNotice {
+            checks: vec![],
             workflow_id: attempt.workflow_id.clone(),
             version: attempt.version,
             task: attempt.task,
@@ -257,6 +259,21 @@ impl Runs {
         );
         let prompt = match attempt.state {
             AttemptState::Committed => {
+                let results = self.check_results(&attempt.id).await?;
+                card.checks = results.clone();
+                for check in &mut card.checks {
+                    check.output = None;
+                }
+                let checks = results
+                    .iter()
+                    .map(|c| {
+                        format!(
+                            "T{} {} {:?}; executor reported {:?}",
+                            c.for_task, c.id, c.outcome, c.reported
+                        )
+                    })
+                    .collect::<Vec<_>>()
+                    .join("\n");
                 let files = match self.diff(&attempt.id).await {
                     Ok(files) if !files.is_empty() => files
                         .iter()
@@ -289,7 +306,7 @@ impl Runs {
                 };
                 format!(
                     "{head} committed {}.\nFiles: {files}\nThe executor's report:\n{report}\n\
-                     {last}Read its change with task_diff and task_file, then judge it against \
+                     {last}Checks:\n{checks}\nRead its change with task_diff and task_file, then judge it against \
                      T{}'s acceptance items before you mark it done.",
                     attempt.commit.as_deref().unwrap_or_default(),
                     attempt.task

@@ -969,6 +969,9 @@
               }
             ]
           },
+          "origin": {
+            "$ref": "#/components/schemas/AttemptOrigin"
+          },
           "project_id": {
             "$ref": "#/components/schemas/ProjectId"
           },
@@ -1023,6 +1026,7 @@
           "commit",
           "report",
           "addition",
+          "origin",
           "reason",
           "started_at",
           "ended_at"
@@ -1099,6 +1103,12 @@
           "attempt_id": {
             "$ref": "#/components/schemas/AttemptId"
           },
+          "checks": {
+            "items": {
+              "$ref": "#/components/schemas/CheckResult"
+            },
+            "type": "array"
+          },
           "commit": {
             "type": [
               "string",
@@ -1167,6 +1177,14 @@
           "last_addition"
         ],
         "type": "object"
+      },
+      "AttemptOrigin": {
+        "enum": [
+          "start",
+          "planner",
+          "checks"
+        ],
+        "type": "string"
       },
       "AttemptState": {
         "description": "Where an attempt stands. Only `Running` has no `ended_at`.",
@@ -1381,6 +1399,120 @@
         },
         "required": [
           "model"
+        ],
+        "type": "object"
+      },
+      "CheckOutcome": {
+        "enum": [
+          "passed",
+          "failed",
+          "timed_out",
+          "inconclusive",
+          "not_run"
+        ],
+        "type": "string"
+      },
+      "CheckResult": {
+        "description": "What the executor reported alongside what Shadows independently observed.",
+        "properties": {
+          "exit_code": {
+            "format": "int32",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "finished_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "folder": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "for_task": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "head_after": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "head_before": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "matches": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "outcome": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/CheckOutcome"
+              }
+            ]
+          },
+          "output": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "reported": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ReportedOutcome"
+              }
+            ]
+          },
+          "reported_note": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "run": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "started_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "truncated": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "for_task",
+          "id",
+          "run",
+          "truncated"
         ],
         "type": "object"
       },
@@ -6413,6 +6545,15 @@
           "effort"
         ],
         "type": "object"
+      },
+      "ReportedOutcome": {
+        "description": "The executor's account, kept apart from Shadows' own confirmation.",
+        "enum": [
+          "passed",
+          "failed",
+          "not_run"
+        ],
+        "type": "string"
       },
       "ResendContext": {
         "properties": {

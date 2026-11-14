@@ -102,7 +102,7 @@ B-150 → F-103 → B-151. Each task's files, interfaces, tests and commit are i
 
 ### B-113 · Shadows confirms a task's checks on a quiet project, and returns failures
 
-- Status: todo
+- Status: done. Runs 81 passed / 6 live ignored, recovery 1, conflicts 11, architecture 49, codemap 1 and OpenAPI 9 passed; API types regenerated.
 - Plan: [B-113](plans/2026-11-15-slice-5-checks.md#b-113--shadows-confirms-a-tasks-checks-on-a-quiet-project-and-returns-failures).
 - Owner: Runs.
 - Needs: B-111.

@@ -3,6 +3,8 @@
 //! runs on `fake_acp`; `wait-for-release` holds its turn until a `release`
 //! file appears in the project folder. `live` runs the real adapter.
 
+#[path = "runs_attempts/checks.rs"]
+mod checks;
 #[allow(dead_code)]
 #[path = "fixtures/cross_plan.rs"]
 mod cross_plan;

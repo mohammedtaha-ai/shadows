@@ -94,7 +94,10 @@ impl Runs {
             // judgment; a cancelled turn was Stop's, which released it.
             AttemptState::Committed => {
                 if told {
-                    self.notify_logged(&now).await;
+                    let runs = self.clone();
+                    tokio::spawn(async move {
+                        runs.confirm(&now).await;
+                    });
                 }
             }
             // A conflict's notice was resolved when it was accepted: this

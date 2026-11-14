@@ -63,6 +63,8 @@ impl Runs {
             .continue_attempt(
                 &awaiting,
                 Continued {
+                    origin: crate::AttemptOrigin::Planner,
+                    command_id: format!("amend-{}", crate::AttemptId::generate()),
                     addition: addition.clone(),
                     start_head,
                 },

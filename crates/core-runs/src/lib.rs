@@ -18,6 +18,7 @@
 
 mod amend;
 mod brief;
+mod checks;
 mod conflict;
 mod diff;
 mod error;
@@ -44,10 +45,10 @@ use std::sync::{Arc, Mutex};
 pub use brief::AttemptBrief;
 pub use error::RunsError;
 pub use model::{
-    Attempt, AttemptFile, AttemptId, AttemptNotice, AttemptState, ConflictDelivery,
-    ConflictEvidence, ConflictInput, DoneMark, FileDiff, LessonAttempt, LessonCommand, Need,
-    ReadyGroup, ReadyTask, RecoverReport, ReportedCheck, ReportedOutcome, StartAnswer,
-    TaskConflict, TaskLesson, TaskRun,
+    Attempt, AttemptFile, AttemptId, AttemptNotice, AttemptOrigin, AttemptState, CheckOutcome,
+    CheckResult, ConflictDelivery, ConflictEvidence, ConflictInput, DoneMark, FileDiff,
+    LessonAttempt, LessonCommand, Need, ReadyGroup, ReadyTask, RecoverReport, ReportedCheck,
+    ReportedOutcome, StartAnswer, TaskConflict, TaskLesson, TaskRun,
 };
 pub use question::{PlannedScope, ProducerStatus, TaskAnswer, TaskQuestion};
 
@@ -89,6 +90,7 @@ const COMMIT: &str = "Other executors may work in the same folder at once. Run o
 const EXECUTOR_HARNESS: &str = shadows_agent::policy::CLAUDE_CODE;
 
 struct Inner {
+    checking: tokio::sync::Mutex<std::collections::HashMap<ProjectId, Arc<tokio::sync::Mutex<()>>>>,
     store: RunsStore,
     plans: Plans,
     harness: Arc<Harness>,
@@ -121,6 +123,7 @@ impl Runs {
     ) -> Self {
         Self {
             inner: Arc::new(Inner {
+                checking: tokio::sync::Mutex::new(std::collections::HashMap::new()),
                 store: RunsStore::with_storage(storage),
                 plans,
                 harness,

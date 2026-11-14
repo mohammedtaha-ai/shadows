@@ -19,6 +19,24 @@ pub(crate) struct Change {
 }
 
 impl Git {
+    pub(crate) async fn hash(&self, paths: &[String]) -> Result<Vec<(String, String)>, String> {
+        let mut hashes = Vec::new();
+        for path in paths {
+            let hash = if !self.root.join(path).exists() {
+                "deleted".into()
+            } else {
+                String::from_utf8_lossy(
+                    &self
+                        .run(&["hash-object", "--no-filters", "--", path])
+                        .await?,
+                )
+                .trim()
+                .to_string()
+            };
+            hashes.push((path.clone(), hash));
+        }
+        Ok(hashes)
+    }
     pub(crate) fn at(root: &Path) -> Self {
         Self {
             root: root.to_path_buf(),
