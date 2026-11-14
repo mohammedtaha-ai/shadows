@@ -92,21 +92,21 @@ Design: [executors §5.4 and §5.3](specs/2026-11-08-executors-design.md#54-chec
 Mohammed, 2026-11-14 and 2026-11-15. Plan: [slice 5](plans/2026-11-15-slice-5-checks.md). Order: B-111 → B-113 → B-114 →
 B-150 → F-103 → B-151. Each task's files, interfaces, tests and commit are in the plan.
 
-### B-111 · Checks in the task contract
+### B-111 · Checks in the task contract, and the executor runs them
 
 - Status: todo
-- Plan: [B-111](plans/2026-11-15-slice-5-checks.md#b-111--checks-in-the-task-contract).
-- Owner: Plans; Harness for the instruction text.
+- Plan: [B-111](plans/2026-11-15-slice-5-checks.md#b-111--checks-in-the-task-contract-and-the-executor-runs-them).
+- Owner: Plans; Runs for the reported outcomes; Harness for the instruction text.
 - Needs: `d73bb646` (slice 4).
-- Done when: `TaskContract.checks` is validated as the plan says, existing contracts still read, both instructions name it; `task_contract` and `planner_instructions` tests pass; OpenAPI regenerated.
+- Done when: `TaskContract.checks` is validated as the plan says and existing contracts still read; `task_report` carries each check's outcome; the executor's instructions say to run them, wait on a lock error and report each; `task_contract`, `executor_commits` and `planner_instructions` pass; OpenAPI regenerated.
 
-### B-113 · Runs runs a task's checks after its commit
+### B-113 · Shadows confirms a task's checks on a quiet project
 
 - Status: todo
-- Plan: [B-113](plans/2026-11-15-slice-5-checks.md#b-113--runs-runs-a-tasks-checks-after-its-commit).
+- Plan: [B-113](plans/2026-11-15-slice-5-checks.md#b-113--shadows-confirms-a-tasks-checks-on-a-quiet-project).
 - Owner: Runs.
 - Needs: B-111.
-- Done when: a committed attempt's checks run one at a time per project and are recorded with their outcome, exit code, HEAD and output end; a moved HEAD is inconclusive; a restart reruns unfinished checks; the committed notice lists the results; `attempt_checks` passes.
+- Done when: after a committed attempt's turn ends and the project is quiet, its checks and those of the tasks it uses run one at a time and are recorded with their outcome, a match with the executor's report, exit code, HEAD and output end; a changed HEAD or status is inconclusive; a restart reruns unfinished checks and sends an unsent notice; `attempt_checks` passes.
 
 ### B-114 · The Planner reads checks and judges on them
 
@@ -114,7 +114,7 @@ B-150 → F-103 → B-151. Each task's files, interfaces, tests and commit are i
 - Plan: [B-114](plans/2026-11-15-slice-5-checks.md#b-114--the-planner-reads-checks-and-judges-on-them).
 - Owner: Runs, with its HTTP and MCP adapters.
 - Needs: B-113.
-- Done when: `task_checks` and `GET /api/attempts/{id}/checks` answer the results; a done mark over a check that did not pass needs a reason, recorded on the task; the named route, MCP and core tests pass.
+- Done when: `task_checks` and `GET /api/attempts/{id}/checks` answer the results; a done mark over a check of the latest committed attempt that did not pass or has no result needs a reason, also after an undo, recorded on the task; the named route, MCP and core tests pass.
 
 ### B-150 · The Planner messages a task's agent
 
@@ -123,7 +123,7 @@ B-150 → F-103 → B-151. Each task's files, interfaces, tests and commit are i
 - Design: [executors design §5.3](specs/2026-11-08-executors-design.md#53-the-planner-messages-a-tasks-agent-mohammed-2026-11-14).
 - Owner: Runs, through Turns' send and notice and Harness's executor session.
 - Needs: B-114 (same files in Runs and `run_tools.rs`).
-- Done when: the Planner's `message_agent` reaches a task's executor while it runs (waiting until its turn ends), after it committed, and after a done mark (session reopened); the reply reaches the Planner as "Reply from task agent · T<n>"; no attempt, addition count or plan changes; `agent_messages` passes.
+- Done when: the Planner's `message_agent` reaches a task's executor while it runs (waiting until its turn ends), after it committed, and after a done mark (session reopened); busy is the thread's running turn, one message at a time in order, a repeat is the same message, an addition waits for the reply; the reply reaches the Planner as "Reply from task agent · T<n>", also after a restart; no attempt, addition count or plan changes; `agent_messages` passes.
 
 ### B-151 · Real slice 5 acceptance
 

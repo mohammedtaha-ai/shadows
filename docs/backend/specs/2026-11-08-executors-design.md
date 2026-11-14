@@ -265,35 +265,52 @@ task's three additions. Its tool is `message_agent`; the answer reaches the Plan
 - **No read-only enforcement.** A question is a question, and the executor is trusted to answer
   it. The reported commit stays the write boundary: a file the executor changes while answering
   shows as uncommitted inside its writes, which the next Start or report refuses.
+- **One message at a time per agent, in order.** Whether the agent is busy is read from its
+  thread's running turn, never from its attempt's state (an attempt is `committed` while its turn
+  still ends). An addition sent while the agent answers a message is refused until the reply
+  arrives. The same text sent again to the same attempt before its reply is the same message.
 - **The Planner only, for now.** The person asking a task's agent from the task page, and other
   askers, come later with their own additions (Mohammed, 2026-11-14).
 
 ### 5.4 Checks Shadows runs (Mohammed, 2026-11-15)
 
 A task's acceptance items say what must hold; until now the executor ran what it chose and its
-report was the only evidence. A task now carries **checks**: commands Shadows runs itself after
-the executor's commit, so the Planner judges on results Shadows recorded, not on the agent's word.
-This replaces the critic's evidence role (§5.1 already replaced its judgment).
+report was the only evidence. A task now carries **checks**: commands the executor runs while it
+works, and Shadows runs again to confirm, so the Planner judges on results Shadows recorded, not on
+the agent's word. This replaces the critic's evidence role (§5.1 already replaced its judgment).
 
 - **The Planner writes them.** A task's contract holds `checks`, each a command (a program and
   its arguments, never a shell line), an optional folder inside the project, an optional time
   limit, and the acceptance items it proves. A task with no command that can prove it has none.
-- **Shadows runs them, after the commit, once.** When the attempt's turn ends committed, Runs
-  runs each check in the project folder at that moment and records its outcome, its exit code,
-  the HEAD before and after, and the end of its output; then the Planner's notice carries the
-  results. No run before the work and no baseline: a check that also failed before is the
-  Planner's to judge from the output.
-- **One check at a time per project.** Executors share one folder (D3) and its build, ports and
-  test database, so a project runs its checks one after another. A HEAD that moved while a check
-  ran makes it *inconclusive*, never passed: the exit code no longer speaks for the commit.
+- **The executor runs them itself, while it works,** and fixes what fails in its own files before
+  it commits. Executors run their checks at the same time. A lock, busy or port error means
+  another executor is checking: it waits and runs again, and never counts it as a failure. Its
+  report gives each check's outcome.
+- **Then Shadows confirms, once the project is quiet.** After the attempt's turn ends committed,
+  Runs waits until no executor turn runs in the project, so no other task's unfinished files are
+  in the folder, then runs the task's checks, and the checks of the tasks whose outputs it uses
+  (its `uses`), one at a time. Each result records its outcome, exit code, HEAD before and after,
+  the end of its output, and whether it matches what the executor reported. The Planner's notice
+  carries the results after that. A check of an earlier task is not run again for a later task
+  that does not use it: its record stands.
 - **Outcomes:** passed, failed, timed out, inconclusive, or not run (the program could not start).
-  Only passed counts as passed.
-- **Done with a failed check needs a reason.** A done mark on a task whose judged attempt has any
-  check that did not pass is refused unless it carries a reason, which is recorded and shown with
-  the mark. The Planner still judges (§5.1); the record says it judged over a failure.
+  A HEAD or folder state that changed while a check ran makes it inconclusive. Only passed counts
+  as passed. A flaky check shows as a mismatch with the executor's report, for the Planner to judge.
+- **Done with a check that did not pass needs a reason.** The rule reads the task's latest
+  committed attempt, whether or not its scope is still held: a done mark is refused without a
+  reason when any of its checks did not pass or has no finished result yet. The reason is recorded
+  and shown with the mark. The Planner still judges (§5.1).
 - **A restart loses nothing.** A committed attempt whose checks did not all finish runs them again
-  at startup, then sends its notice, which is a replay if it was already sent.
+  at startup; one whose results are complete but whose notice was not sent sends it.
+- **The lock orders Shadows' own runs only.** What executors run is ordered by their instructions
+  and by waiting on a lock error, as above.
 - **An addition is a new attempt,** with its own commit and its own checks.
+
+Trial on `testing4`, 2026-11-15, two tasks together: both executors ran `go test ./...` and
+`go vet ./...` at once with no lock error; the first one's run compiled the other's uncommitted
+files, which is why Shadows confirms only on a quiet project. Each attempt was `committed` for
+about 9 seconds while its turn still ran (report at 21:51:18, turn end 21:51:27 UTC). Both tasks
+were done 50 seconds after Start, so waiting for a quiet project costs little.
 
 ## 6. Running together in one folder (D2, D3)
 
