@@ -1,5 +1,6 @@
 import { Tabs } from '@base-ui/react/tabs'
 import { useState } from 'react'
+import { SkeletonContent } from '@/components/ui/skeleton'
 import { designKeys, getOutcomes, getParts, type Outcome, type Part, useDesignPages } from '@/api/design'
 import type { ThreadPlanningAnchor } from '@/api/planning-context'
 import { Button } from '@/components/ui/button'
@@ -55,7 +56,7 @@ function Level({ kind, projectId, pending, onChoose, parent, onBrowse }: LevelPr
     after => kind === 'part' ? getParts(projectId, parent, after) : getOutcomes(projectId, parent, after),
   )
   return <div className="max-h-[55vh] space-y-2 overflow-y-auto">
-    {pages.pending && <p>Loading {collection}…</p>}
+    {pages.pending && <SkeletonContent label={`Loading ${collection}…`} />}
     {pages.error && <ErrorLine error={pages.error} />}
     {!pages.pending && !pages.error && pages.items.length === 0 && <p className="text-muted-foreground">No {collection} at this level.</p>}
     <ul className="space-y-1">

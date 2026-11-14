@@ -162,18 +162,19 @@ Use current section 24 approval attribution; no executor/critic approval tools.
 
 ### Execution brief and code questions
 
-Runs stores a brief once per attempt: exact approved task and referenced
-contracts/decisions, map/standards revisions, base Git SHA and requested model.
-It is keyed by attempt identity, not a new digest system. Missing required
-existing files/symbols refuse Start; intended create paths need not exist.
-Disjoint unrelated file changes do not invalidate every task.
+The [slice 4 revision](../../backend/specs/2026-11-14-task-questions-design.md), approved
+2026-11-14, owns attempt context, task questions, conflict escalation and compatible
+ready groups. Its [implementation plan](../../backend/plans/2026-11-14-slice-4-task-questions.md)
+replaces the earlier execution-briefs draft. Save one context per attempt, using existing
+attempt identity/model/base/addition metadata; no packet hash or parent transcript.
 
-A task question checks grant, attempt, explicit declared file work and allowed
-read scope, then calls Code and joins the result with Plans' contracts. Return
-source facts, LSP result and planning obligation distinctly. A planned function
-names its producer and state; ambiguous/missing results never fabricate code.
-Out-of-scope results reveal no source. Direct built-in Read/Bash remain subject
-to the existing executor trust boundary; the question API is not an OS sandbox.
+Required exact existing files are checked before admission; create targets need not
+exist and broad reads globs are not mandatory file claims. Symbol uncertainty and
+contract mismatches use the question/conflict path, not a universal signature validator.
+Task questions join code facts and approved producer/consumer contracts; code_lsp
+keeps its project/link/grant reach beyond the task's reads. A planned function remains
+distinct from an observed implementation. The Planner decides which other tasks stop
+after a conflict; no automatic cancellation cascade or OS read sandbox is introduced.
 
 ### Checks and Git-based critic
 

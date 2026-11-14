@@ -2,6 +2,7 @@
 //
 // An executor's notice: an item of the Planner's activity, not the person's bubble.
 
+import { createMemoryHistory, createRootRoute, createRoute, createRouter, RouterProvider } from '@tanstack/react-router'
 import { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { afterEach, expect, it } from 'vitest'
@@ -10,6 +11,7 @@ import type { ThreadEntry } from '@/api/threads'
 import { entryOfKind } from '@/test/contract-fixtures'
 import { until } from '@/test/test-app'
 import { Entry } from './entry'
+import { NoticeItem } from './notice-item'
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -114,4 +116,48 @@ it('a_project_change_shows_its_reason', async () => {
   expect(noted.textContent).toContain('Renamed the helper')
   const unnoted = await draw(change(null, false))
   expect(unnoted.textContent).toContain('no reason given')
+})
+
+it('ordinary_notices_still_render', async () => {
+  const host = await draw(notice('x', card()))
+  expect(host.querySelector('[aria-label="Contract conflict notice"]')).toBeNull()
+  expect(header(host).textContent).toContain('attempt 3 committed')
+})
+
+it('a_notice_with_a_conflict_adds_the_conflict_card', async () => {
+  const conflict = {
+    attempt_id: 'a3', project_id: 'p', workflow_id: 'w1', version: 1, task: 2, expected: 'E1', observed: 'O1',
+    evidence: [], attempt_state: 'stopped', scope_held: false, delivery: 'delivered', created_at: 'now',
+  } as AttemptNotice['conflict']
+  const root = createRootRoute({ component: () => <NoticeItem body="x" card={card({ conflict, report: null })} /> })
+  const task = createRoute({ getParentRoute: () => root, path: '/projects/$projectId/workflows/$workflowId/versions/$version/tasks/$task' })
+  const router = createRouter({ routeTree: root.addChildren([task]), history: createMemoryHistory({ initialEntries: ['/'] }) })
+  const host = document.createElement('div')
+  document.body.append(host)
+  await act(async () => createRoot(host).render(<RouterProvider router={router} />))
+  expect(header(host).textContent).toContain('Executor (sonnet)')
+  expect(host.textContent).toContain('E1')
+  expect(host.textContent).toContain('O1')
+})
+
+it('a_streamed_conflict_notice_reaches_the_conversation', async () => {
+  const { startApp } = await import('@/test/test-app')
+  const { answers } = await import('@/test/fake-daemon')
+  const conflict = {
+    attempt_id: 'a3', project_id: 'p1', workflow_id: 'w1', version: 1, task: 2, expected: 'E1', observed: 'O1',
+    evidence: [], attempt_state: 'stopped', scope_held: false, delivery: 'delivered', created_at: 'now',
+  }
+  const app = await startApp('/projects/p1/threads/t1', answers({
+    entries: [notice('x', card({ conflict } as Partial<AttemptNotice>))],
+  }))
+  try {
+    await until(() => app.sources.length > 0)
+    await act(async () => { app.sources.filter((x) => x.url.includes('/threads/t1/')).forEach((x) => x.caughtUp(0)) })
+    const summary = () => [...document.querySelectorAll('button')].find((b) => b.textContent.includes('Received a notice'))
+    await until(() => summary() !== undefined)
+    await act(async () => { summary()?.click() })
+    await until(() => app.text().includes('E1'))
+    expect(app.text()).toContain('O1')
+    expect(app.text()).toContain('Executor (sonnet)')
+  } finally { app.unmount() }
 })

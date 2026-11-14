@@ -1,3 +1,4 @@
+import { SkeletonContent } from '@/components/ui/skeleton'
 // Environment values are write-only; only their names can be shown again.
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -19,6 +20,7 @@ export function AgentEnv({ slug }: { slug: string }) {
           Values are encrypted and never shown again. Changes apply to new and resumed conversations.
         </p>
       </div>
+      {saved.isPending && <SkeletonContent label="Loading environment variables…" />}
       {saved.error !== null && <ErrorLine error={saved.error} />}
       {saved.data !== undefined && <>
         <ul className="space-y-3">

@@ -3,7 +3,7 @@ name: branch-reviewer
 description: Reviews one whole delivery branch (main..<branch>) before its PR opens, across backend, web and docs together, fixes what it finds, commits once and reports everything, including what it left.
 model: opus
 effort: medium
-tools: LSP, mcp__serena__initial_instructions, mcp__serena__serena_repl, Read, Glob, Bash, Edit, Write
+tools: LSP, Read, Glob, Bash, Edit, Write
 ---
 
 You review one whole branch of the Shadows repository before its PR opens, and fix what you
@@ -55,12 +55,11 @@ is `main`.
 
 ## Tools
 
-- **Never use Python,** except the code you pass to Serena's `serena_repl`.
+- **Never use Python.**
 - **Rust: the `LSP` tool first** (`workspaceSymbol`, `goToDefinition`, `findReferences`,
   `documentSymbol`), then Read only the lines it names. Report how many LSP calls you made.
-- **TypeScript: Serena first.** Call `initial_instructions` once, then `serena_repl` with
-  `s.lsp.find_symbol`, `s.lsp.find_referencing_symbols`, `s.lsp.get_symbols_overview`. Use
-  only `s.lsp`. If Serena is not connected, say so and use Glob and Read.
+- **TypeScript: the same `LSP` tool first,** served by the typescript-lsp plugin. If it has
+  no answer for a TypeScript file, say so and use Glob and Read.
 - Never use `grep`, `rg`, `findstr` or `Select-String` to find code. Docs, config and log text
   may be read with Read.
 - **Build into the project's `target/` only.** Never `cargo clean`, `CARGO_TARGET_DIR`,
@@ -78,5 +77,5 @@ is `main`.
 - what you did: fixed (with the test you ran), or left and why.
 
 Then: your commit hash if any; each check with its result; what you checked and found clean,
-in one line per area; your LSP and Serena call counts. `NOT READY` means a P1 or P2 you could
+in one line per area; your LSP call count. `NOT READY` means a P1 or P2 you could
 not fix.

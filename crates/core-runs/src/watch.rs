@@ -1,9 +1,10 @@
 //! One job: settling an attempt when its turn ends. A committed attempt keeps
-//! its scope until its task is judged.
+//! its scope until its task is judged; a session that could not be closed
+//! keeps it too.
 use std::time::Duration;
 
-use crate::Runs;
-use crate::model::{AttemptId, AttemptState};
+use crate::model::{Attempt, AttemptId, AttemptState};
+use crate::{Runs, RunsError};
 use core_operations::OperationId;
 use core_threads::ThreadId;
 
@@ -71,15 +72,12 @@ impl Runs {
             _ => None,
         };
         let told = outcome.is_some();
-        let mut failed_here = false;
+        // One write decides the end: `Stopped` on an accepted conflict,
+        // otherwise `Failed`. `Some` when this watcher moved it.
+        let mut settled_here = None;
         if let Some(reason) = outcome {
-            match self
-                .inner
-                .store
-                .finish(&attempt, AttemptState::Failed, Some(reason))
-                .await
-            {
-                Ok(moved) => failed_here = moved,
+            match self.inner.store.settle_ended(&attempt, reason).await {
+                Ok(moved) => settled_here = moved,
                 Err(error) => tracing::error!(%attempt, %error, "runs.finish_failed"),
             }
         }
@@ -87,7 +85,7 @@ impl Runs {
             Ok(now) => now,
             Err(error) => {
                 tracing::error!(%attempt, %error, "runs.watch_read_failed");
-                self.release(&attempt, &thread).await;
+                self.release_logged(&attempt, &thread).await;
                 return;
             }
         };
@@ -96,24 +94,47 @@ impl Runs {
             // judgment; a cancelled turn was Stop's, which released it.
             AttemptState::Committed => {
                 if told {
-                    self.notify(&now).await;
+                    self.notify_logged(&now).await;
                 }
             }
-            AttemptState::Failed if failed_here => {
-                self.release(&attempt, &thread).await;
-                self.notify(&now).await;
+            // A conflict's notice was resolved when it was accepted: this
+            // only retries it while pending, never a second, generic one.
+            AttemptState::Failed | AttemptState::Stopped if settled_here.is_some() => {
+                self.release_logged(&attempt, &thread).await;
+                self.notify_logged(&now).await;
             }
-            _ => self.release(&attempt, &thread).await,
+            _ => self.release_logged(&attempt, &thread).await,
         }
     }
 
-    /// The session cannot write any more: close it, and free the scope.
-    pub(crate) async fn release(&self, attempt: &AttemptId, thread: &ThreadId) {
+    /// The session cannot write any more: close it, then free the scope. A
+    /// session that could not be closed may still write, so its scope stays
+    /// held and the failure is answered.
+    pub(crate) async fn release(
+        &self,
+        attempt: &AttemptId,
+        thread: &ThreadId,
+    ) -> Result<(), RunsError> {
         if let Err(error) = self.inner.harness.release_executor(thread).await {
             tracing::warn!(%attempt, %error, "runs.session_close_failed");
+            return Err(RunsError::Unavailable(format!(
+                "the executor's session could not be closed: {error}"
+            )));
         }
-        if let Err(error) = self.inner.store.release(attempt).await {
+        self.inner.store.release(attempt).await
+    }
+
+    /// `release` where no caller waits for its answer.
+    pub(crate) async fn release_logged(&self, attempt: &AttemptId, thread: &ThreadId) {
+        if let Err(error) = self.release(attempt, thread).await {
             tracing::error!(%attempt, %error, "runs.release_failed");
+        }
+    }
+
+    /// `notify` where no caller waits for its answer.
+    async fn notify_logged(&self, attempt: &Attempt) {
+        if let Err(error) = self.notify(attempt).await {
+            tracing::warn!(attempt = %attempt.id, %error, "runs.notify_failed");
         }
     }
 }

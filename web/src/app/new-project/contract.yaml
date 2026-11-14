@@ -17,6 +17,7 @@ name: web-new-project
 version: 1
 status: current
 source: web/src/app/new-project
+loading_details: Directory browsing uses labelled skeleton rows until the listing arrives; success, empty and error states replace them, and creation progress is separate.
 
 
 # ── shapes ───────────────────────────────────────────────────────────────────────

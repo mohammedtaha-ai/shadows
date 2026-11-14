@@ -38,13 +38,13 @@ is detailed.
 
 | Slice | Backend tasks | Runnable outcome | Web tasks | Draft material |
 |---|---|---|---|---|
-| 1. Real files and the task contract | B-96, B-99, B-103, B-104, B-106 | The Planner and the person see the files the project really holds. A task names file work and function behavior, and the executor reads that through `task_context`. | F-99 (files view), F-101 | [discovery](2026-11-09-repository-discovery.md), [contracts](2026-11-09-detailed-task-contracts.md) |
+| 1. Real files and the task contract | B-96, B-99, B-103, B-104, B-106 | The Planner and the person see the files the project really holds. A task names file work and function behavior, and the executor reads that through `task_context`. | F-99 (files view), F-101 | discovery (`2026-11-09-repository-discovery.md` at `db760593`), [contracts](2026-11-09-detailed-task-contracts.md) |
 | 1b. The Planner runs and judges tasks | B-123 to B-127 | The Planner makes the folder a git repository, starts a task, hears how its attempt ended, judges the commit, and marks the task done or sends an addition (three at most) the executor carries on with in its own session; a task stopped on the cap leaves a lessons record. | per `docs/shared/requests/2026-11-11-planner-review.md` at `617d806f` (Masada numbers it) | `docs/backend/plans/2026-11-11-slice-1b-planner-runs-tasks.md` at `617d806f` (detailed; built) |
 | 3. Setup first, through the Planner | B-128, B-100, B-101 (B-102 dropped) | Before planning in detail, the Planner sets the project up (git with the folder's files in its first commit, containers, the framework's scaffold, binaries allowed only in the plan titled Setup) as a setup plan whose tasks land as recorded commits, then plans on the files that appeared. | none (F-100's preparation view is not needed) | [slice 3](2026-11-11-slice-3-setup-first.md) (detailed) |
-| 2. Real language servers for the project's languages | B-138 to B-145 (B-97, B-98, B-119 replaced, 2026-11-13) | The project's language servers run while a conversation in it runs; the Planner and the executor ask them through `code_lsp`; a missing server is installed after the person chooses it on a question card; Settings › Code. The name index is suspended. | F-115, F-116 | [design](../specs/2026-11-13-language-servers-design.md), [slice 2](2026-11-13-slice-2-language-servers.md) (detailed) |
-| 4. The attempt brief and task questions | B-107 to B-109 | The executor receives one brief per attempt and asks about code beside its task's obligations. | F-102 | [briefs](2026-11-09-execution-briefs.md) |
+| 2. Real language servers for the project's languages | B-138 to B-146 (`docs/backend/stages.md` at `db760593`; B-97, B-98, B-119 replaced, 2026-11-13) | The project's language servers run while a conversation in it runs; the Planner and the executor ask them through `code_lsp`; a missing server is installed after the person chooses it on a question card; Settings › Code. The name index is suspended. | F-115, F-116 (`docs/frontend/stages.md` at `db760593`) | [design](../specs/2026-11-13-language-servers-design.md) |
+| 4. Attempt context, task questions and parallel work | B-108, B-148, B-107, B-109, B-147, B-149 (in order) | Saved attempt context, code/contract questions, durable conflict escalation through existing attempts and compatible ready groups; selective Planner stops. | F-102, before B-149 | [approved design](../specs/2026-11-14-task-questions-design.md); [detailed plan](2026-11-14-slice-4-task-questions.md) |
 | 5. Checks | B-111, B-113 (re-scoped), B-114 | A task's required checks run and are recorded, so the Planner judges on evidence. | F-103 | [checks](2026-11-09-checks-and-critic.md) |
-| 6. Stopping obsolete plans and full acceptance | B-117, B-118 | A new Draft stops its plan's attempts, and the whole journey survives interruption. | F-104, F-105 | [repair](2026-11-09-repair-and-acceptance.md) |
+| 6. Stop control and full acceptance | B-117 (to be re-scoped), B-118 | The Planner controls which affected attempts stop; the whole journey survives interruption. A corrective Draft does not automatically stop unaffected attempts (Mohammed, 2026-11-14). | F-104, F-105 | [repair](2026-11-09-repair-and-acceptance.md) (earlier draft); [executor ruling](../specs/2026-11-08-executors-design.md) |
 
 The [frontend plan](../../frontend/plans/2026-11-09-local-delivery-ui.md)
 holds F-99 to F-105. A web task waits for its backend API.
@@ -80,8 +80,11 @@ slices:
 - **Re-scoped:** B-113 keeps evidence-backed outputs; its "honest task acceptance" is the
   Planner's done mark from B-124 and B-125. B-114 exposes checks without a critic. Both are
   re-read when slice 5 is detailed.
-- **Left as they are:** B-111 (required checks), B-117 (a new Draft stops its plan's
-  attempts), B-118 (the full journey).
+- **Left as they are:** B-111 (required checks), B-118 (the full journey).
+- **B-117 is to be re-scoped** (Mohammed, 2026-11-14): a contract problem stops its own
+  attempt, and the Planner explicitly stops affected other work. A new Draft no longer
+  stops every attempt automatically; the executor spec owns that ruling. The slice 4
+  design proposes the conflict and Planner-stop operations; slice 6 must build on them.
 
 **Slice 2 changes** (Mohammed, 2026-11-11), applied to B-97 when the slice is detailed:
 
@@ -127,7 +130,7 @@ detailed.
   the executor's own Read and Bash are not limited. The boundary is the commit
   ([executors design](../specs/2026-11-08-executors-design.md), section 7), so
   the refusal is examined before it is built. `where_is`, `who_uses` and
-  `outline` stay with the executor until then.
+  `outline` were suspended at `db760593`; the executor has `code_lsp` instead.
 - **Slices 5 and 6:** the critic and the attempt ladder were replaced by the
   Planner's judgment on 2026-11-11; the [executors design
   §5.1](../specs/2026-11-08-executors-design.md#51-the-planner-judges-mohammed-2026-11-11)
@@ -154,6 +157,7 @@ migration or Frozen task is rewritten.
 - One stored brief per attempt; no hashed packet compiler or source snapshots.
 - The existing write-overlap check and one project check slot; no lease manager.
 - The Planner judges a commit by reading what it changed (the critic is replaced, §5.1).
-- Plan state and the Runs watcher stop obsolete attempts; no hold/ack protocol.
+- Plan state blocks new Starts on superseded versions; the Planner explicitly stops
+  affected attempts. No automatic whole-plan stop or hold/ack protocol (2026-11-14 ruling).
 - 12 server descriptors as data, from the plugins' `lspServers`; a server is ready only after
   a real trial.

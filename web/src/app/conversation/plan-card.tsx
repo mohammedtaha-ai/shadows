@@ -1,3 +1,4 @@
+import { SkeletonContent } from '@/components/ui/skeleton'
 
 import { Link } from '@tanstack/react-router'
 import { ExternalLink, Layers } from 'lucide-react'
@@ -81,7 +82,7 @@ function LiveCard({
           {plan.isError ? (
             <ErrorLine error={plan.error} />
           ) : (
-            <p className="text-xs text-faint-foreground">Reading the plan…</p>
+            <SkeletonContent label="Reading the plan…" />
           )}
         </div>
       ) : (

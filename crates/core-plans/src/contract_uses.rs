@@ -1,9 +1,10 @@
-//! One job: resolving a consumer's uses against the producers of its plan version.
+//! One job: resolving the uses of one plan version, from either end.
 //!
 //! A consumer stores only a reference to a producer's output; the producer's
 //! own contract stays the one definition. A use joins the dependency graph
 //! through the plan's existing links, never as a second kind of edge.
 
+use crate::contract_questions::ConsumerRef;
 use crate::dependencies::TaskParent;
 use crate::model::PlanContent;
 use crate::rules::Problem;
@@ -52,6 +53,37 @@ impl ContractRules {
                         "T{n} uses T{p}'s output `{o}` without a link to T{p}; add a needs link"
                     )));
                 }
+            }
+        }
+        out
+    }
+
+    /// The other tasks' uses whose source is exactly one of `sources`, by task
+    /// number then use index: the planned consumers, never a guess by name.
+    pub(super) fn consumers(
+        content: &PlanContent,
+        task: u32,
+        sources: &[ContractSource],
+    ) -> Vec<ConsumerRef> {
+        let mut out = Vec::new();
+        for (&n, other) in &content.tasks {
+            let Some(contract) = other.contract.as_ref().filter(|_| n != task) else {
+                continue;
+            };
+            for (i, u) in contract.uses.iter().enumerate() {
+                if !sources.contains(&u.source) {
+                    continue;
+                }
+                out.push(ConsumerRef {
+                    task: n,
+                    title: other.title.clone(),
+                    output: match &u.source {
+                        ContractSource::Task { output, .. } => Some(output.clone()),
+                        ContractSource::Existing { .. } => None,
+                    },
+                    use_index: u32::try_from(i).unwrap_or(u32::MAX),
+                    purpose: u.purpose.clone(),
+                });
             }
         }
         out

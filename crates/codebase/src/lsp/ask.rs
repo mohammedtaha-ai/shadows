@@ -62,7 +62,7 @@ impl Codebase {
             .as_deref()
             .ok_or_else(|| refuse("this operation needs a file"))?;
         let rel = Codebase::inside(file)?;
-        let full = Codebase::real_file(&dir, &rel).await?;
+        let full = Codebase::checked_path(&dir, &rel, false).await?;
         let position = match question.operation {
             LspOperation::DocumentSymbol => None,
             _ => {
@@ -287,8 +287,8 @@ impl Codebase {
     }
 
     /// `path` relative to `project`'s folder, checked as `lsp`'s file is: inside
-    /// the project, and, when it is there, by its real path. A path not on
-    /// disk (a deleted file) passes on its text alone, since nothing is read.
+    /// the project by its real path. A path not on disk (a deleted file) passes
+    /// when its nearest existing folder is inside the project.
     pub async fn project_file(
         &self,
         project: &ProjectId,
@@ -304,28 +304,8 @@ impl Codebase {
             .folder(project)
             .await
             .ok_or_else(|| CodebaseError::InvalidCommand("the project has no folder".into()))?;
-        if tokio::fs::symlink_metadata(dir.join(&rel)).await.is_ok() {
-            Codebase::real_file(&dir, &rel).await?;
-        }
+        Codebase::checked_path(&dir, &rel, true).await?;
         Ok(rel)
-    }
-
-    /// `rel` under `dir`, refused unless its real path is that path inside the
-    /// folder's real path: a link or junction out of the project is never read.
-    async fn real_file(dir: &Path, rel: &str) -> Result<PathBuf, CodebaseError> {
-        let refuse = || CodebaseError::InvalidCommand("the file is not in the project".into());
-        let full = dir.join(rel);
-        let canonical_dir = tokio::fs::canonicalize(dir).await.map_err(|_| refuse())?;
-        let real = tokio::fs::canonicalize(&full).await.map_err(|_| refuse())?;
-        if rel.is_empty() || !Codebase::real_path_is(&real, &canonical_dir, rel) {
-            return Err(CodebaseError::InvalidCommand(
-                "the path must be inside the project".into(),
-            ));
-        }
-        if !tokio::fs::metadata(&real).await.is_ok_and(|m| m.is_file()) {
-            return Err(refuse());
-        }
-        Ok(full)
     }
 
     fn uri(path: &Path) -> Result<String, CodebaseError> {

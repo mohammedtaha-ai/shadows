@@ -6,9 +6,11 @@
 //! `model` holds the types, `store` the queries, `scan` the walk and the
 //! indexing of one file, `scope` who may read what, `watch` one active
 //! project's worker, `active` which projects have one, `links` the links as
-//! commands, `inventory` the paged file list, `lsp` the language servers.
+//! commands, `inventory` the paged file list, `inputs` the real-path check
+//! of a project path, `lsp` the language servers.
 
 mod active;
+mod inputs;
 mod inventory;
 mod links;
 mod lsp;

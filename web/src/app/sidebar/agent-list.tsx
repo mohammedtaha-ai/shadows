@@ -12,6 +12,7 @@ import { ErrorLine } from '../error-line'
 import { ThreadList } from './thread-list'
 import { colorOf } from '@/app/agents'
 import { useOpenSettings } from '@/app/navigation'
+import { SkeletonContent } from '@/components/ui/skeleton'
 
 export function AgentList({ filter = '' }: { filter?: string }) {
   const agents = useQuery(agentsQuery)
@@ -31,6 +32,7 @@ export function AgentList({ filter = '' }: { filter?: string }) {
     <div className="flex min-h-full flex-col gap-2">
       {agents.error !== null && <ErrorLine error={agents.error} />}
       {providers.error !== null && <ErrorLine error={providers.error} />}
+      {agents.isPending && !agents.error && <SkeletonContent label="Loading agents…" className="px-2" />}
       {providers.data?.length === 0 ? (
         <EmptyHint to="providers" action="Add a provider first"
           detail="A provider is the URL, key and models your agents run on." />

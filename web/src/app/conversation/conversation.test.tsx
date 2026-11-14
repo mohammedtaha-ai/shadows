@@ -52,6 +52,27 @@ afterEach(() => {
   app = null
 })
 
+it('shows a history skeleton until durable messages arrive and the stream catches up', async () => {
+  let finish!: (response: Response) => void
+  const pending = new Promise<Response>(resolve => { finish = resolve })
+  const a = app = await startApp('/projects/p1/threads/t1', {
+    ...answers(), 'GET /api/threads/t1/entries': () => pending,
+  })
+  const loading = () => a.container.querySelector('[role="status"][aria-label="Loading history"]')
+  try {
+    await until(() => loading() !== null)
+    expect(loading()?.querySelector('[data-slot="skeleton"]')).not.toBeNull()
+  } finally {
+    await act(async () => { finish(Response.json([userEntry('saved', 'Saved conversation history')])) })
+  }
+  await until(() => a.text().includes('Saved conversation history'))
+  await until(() => a.sources.some(source => source.param('thread_id') === 't1'))
+  expect(loading()).not.toBeNull()
+  await act(async () => a.sources.find(source => source.param('thread_id') === 't1')!.caughtUp(0))
+  await until(() => loading() === null)
+  expect(loading()).toBeNull()
+})
+
 it('shows the project stage in the conversation header', async () => {
   let stage = { stage: 'map', missing: ['database'] }
   const a = app = await startApp('/projects/p1/threads/t1', {

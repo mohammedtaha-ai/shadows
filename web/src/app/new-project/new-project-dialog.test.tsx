@@ -15,6 +15,28 @@ afterEach(() => {
 })
 
 describe('the New project dialog', () => {
+  it('shows folder skeletons until the directory listing arrives', async () => {
+    let finish!: (response: Response) => void
+    const pending = new Promise<Response>(resolve => { finish = resolve })
+    const a = app = await startApp('/', {
+      'GET /api/projects': [], 'GET /api/fs/dirs': () => pending,
+    })
+    await until(() => a.button('New project') !== undefined)
+    await act(async () => a.button('New project')?.click())
+    const loading = () => document.querySelector('[role="status"][aria-label="Reading folders…"]')
+    try {
+      await until(() => loading() !== null)
+      expect(loading()?.querySelector('[data-slot="skeleton"]')).not.toBeNull()
+      expect(document.querySelector('[aria-label="Subfolders"]')?.textContent).not.toContain('No subfolders.')
+    } finally {
+      await act(async () => { finish(Response.json({ path: null, parent: null,
+        entries: [{ path: '/work', name: 'Work', hidden: false }],
+      })) })
+    }
+    await until(() => document.querySelector('[aria-label="Subfolders"]')?.textContent?.includes('Work') === true)
+    expect(loading()).toBeNull()
+  })
+
   it('retries a lost create under the same command id, and a changed one under a new id', async () => {
     let attempt = 0
     const a = (app = await startApp('/', {

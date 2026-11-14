@@ -153,6 +153,27 @@ impl GrantsStore {
             })
             .await
     }
+    /// `grant` as `conn` sees it now: unknown or revoked is `GrantInvalid`; a
+    /// stored grant whose kind, project, thread or task differs from the one
+    /// the request authenticated is `GrantScope`.
+    pub(super) async fn check_live_in(
+        conn: &mut SqliteConnection,
+        grant: &Grant,
+    ) -> Result<(), GrantsError> {
+        let stored = find_grant(conn, &grant.id).await?;
+        let Some(stored) = stored.filter(|g| g.revoked_at.is_none()) else {
+            return Err(GrantsError::GrantInvalid);
+        };
+        let same = stored.kind == grant.kind
+            && stored.project_id == grant.project_id
+            && stored.thread_id == grant.thread_id
+            && stored.scope == grant.scope;
+        if same {
+            Ok(())
+        } else {
+            Err(GrantsError::GrantScope)
+        }
+    }
     pub(super) async fn grant_for_token(&self, raw: &str) -> Result<Option<Grant>, StorageError> {
         let row: Option<GrantRow> = sqlx::query_as(
             "SELECT id, kind, project_id, thread_id, created_at, revoked_at,

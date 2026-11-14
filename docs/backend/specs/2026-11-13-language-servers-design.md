@@ -1,7 +1,7 @@
 # Language servers, the person's question card, and the Code settings (slice 2)
 
 Status: approved by Mohammed, 2026-11-13. Replaces slice 2's B-97, B-98 and B-119 as
-written in [repository discovery](../plans/2026-11-09-repository-discovery.md) (Tasks 2 and 3):
+written in repository discovery (`docs/backend/plans/2026-11-09-repository-discovery.md` at `db760593`) (Tasks 2 and 3):
 their per-person server configuration, `configure_server`, the PHP focus, the
 thirteen-descriptor catalog and the `Stale`/`Ambiguous` machinery are not built.
 
@@ -182,14 +182,14 @@ its own only when it needs it.
 ### The Planner's shell and its changes
 
 - **Shell:** `Bash` joins `PLANNER_TOOLS` on Claude Code, in `auto` mode. A Codex
-  conversation has two modes, the person's choice (Mohammed, 2026-11-13, B-146):
+  conversation has two modes, the person's choice (Mohammed, 2026-11-13, B-146 in `docs/backend/stages.md` at `db760593`):
   "Approve for me" (`ask`, the default; renamed from "Ask to approve" by Mohammed,
   2026-11-13: sandbox `workspace-write`, approval `on-request`, approvals reviewer
   `auto_review`, so Codex's own reviewer allows or denies each request and none
   reaches the person as a held card, since codex-cli 0.167.0's reviewer answers only
   allow or deny; the id stays `ask`, the one stored projects and threads hold) and "Read only" (`read-only`: sandbox `read-only`, approval
   `never`, reviewer `user`, nothing asked). A thread opens in the default mode when its project allows it,
-  otherwise in the project's first allowed mode: a project made before B-146 allows
+  otherwise in the project's first allowed mode: a project made before B-146 (`docs/backend/stages.md` at `db760593`) allows
   `read-only` only (migration 0050) and keeps it until the person adds `ask`. The picked
   mode is sent
   with every `turn/start` as `sandboxPolicy`, `approvalPolicy` and `approvalsReviewer`,

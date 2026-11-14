@@ -1,5 +1,10 @@
 # Local delivery APIs and task model
 
+**Slice 4 revision, 2026-11-14:** its brief/question shapes and route assumptions are
+superseded by [the slice 4 agreement](2026-11-14-task-questions.md). Other slices retain
+their existing agreement. Do not implement the earlier SemanticQuery/TaskAnswer shape
+as a second question API.
+
 - Status: accepted for planning by the controller under Mohammed's 2026-11-09
   design approval; this is not a claim that the APIs exist.
 - Screen: companion frontend plan, tasks F-99 to F-105.

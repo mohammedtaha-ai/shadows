@@ -1,3 +1,4 @@
+import { SkeletonContent } from '@/components/ui/skeleton'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useParams } from '@tanstack/react-router'
 import { type FormEvent, useRef, useState } from 'react'
@@ -24,7 +25,7 @@ function Servers({ projectId }: { projectId: string }) {
   return (
     <div className="space-y-5">
       {servers.error && <ErrorLine error={servers.error} />}
-      {servers.isPending && !servers.error && <p role="status">Loading servers…</p>}
+      {servers.isPending && !servers.error && <SkeletonContent label="Loading servers…" />}
       {servers.data && <ul aria-label="Language servers" className="divide-y divide-border">
         {servers.data.map(server => <ServerRow key={server.id} projectId={projectId} server={server} />)}
       </ul>}

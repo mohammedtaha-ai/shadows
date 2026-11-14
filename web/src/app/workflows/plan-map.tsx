@@ -1,3 +1,4 @@
+import { SkeletonContent } from '@/components/ui/skeleton'
 // A project's latest-plan map, reusing the workflow graph's layout and edges.
 
 import '@xyflow/react/dist/style.css'
@@ -28,7 +29,7 @@ export function PlanMapPage() {
       <p className="mt-1 text-xs text-muted-foreground">Latest plans and their task dependencies. Select a plan to open it.</p>
     </header>
     {query.data === undefined ? <div className="p-6 text-sm text-faint-foreground">
-      {query.isError ? <ErrorLine error={query.error} /> : 'Reading the map…'}
+      {query.isError ? <ErrorLine error={query.error} /> : <SkeletonContent label="Reading the map…" layout="graph" />}
     </div> : query.data.plans.length === 0 ? <p className="p-6 text-sm text-faint-foreground">No active plans yet.</p> :
       <MapGraph map={query.data} />}
   </section>

@@ -5,6 +5,7 @@ import { useRef, useState } from 'react'
 import { startAgreement } from '@/api/agreements'
 import { agreementKeys, agreementsQuery, agreementQuery, saveAgreementAnswer } from '@/api/agreements'
 import { Button } from '@/components/ui/button'
+import { SkeletonContent } from '@/components/ui/skeleton'
 import { ErrorLine } from '../error-line'
 import { AgreementEditor } from './agreement-editor'
 
@@ -38,6 +39,7 @@ function AgreementsView({ projectId, id, number }: { projectId: string; id?: str
     <h1 className="text-lg font-semibold">Shared API contracts</h1>
     <Link to="/projects/$projectId/workspace" params={{ projectId }}>Workspace</Link>
     {list.isError && <ErrorLine error={list.error} />}
+    {list.isPending && <SkeletonContent label="Loading contracts…" />}
     <nav className="flex flex-wrap gap-4" aria-label="Contracts">{list.data?.map(v =>
       <Link key={v.agreement_id} to="/projects/$projectId/agreements" params={{ projectId }}
         search={{ agreement: v.agreement_id }}>{v.content.capability} · v{v.version} · {v.state}</Link>)}</nav>
@@ -46,6 +48,7 @@ function AgreementsView({ projectId, id, number }: { projectId: string; id?: str
       <Button onClick={() => start.mutate('new')} disabled={start.isPending}>New contract</Button></div>
     {start.isError && <ErrorLine error={start.error} />}
     {selected.isError && <ErrorLine error={selected.error} />}
+    {id !== undefined && selected.isPending && <SkeletonContent label="Loading contract…" layout="form" />}
     {selected.data && <>
       <label>Version <select aria-label="Contract version" value={selected.data.version} onChange={e => {
         void navigate({ to: '/projects/$projectId/agreements', params: { projectId },

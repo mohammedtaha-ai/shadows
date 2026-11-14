@@ -19,8 +19,8 @@ const ADDITION: &str = "The Planner reviewed your commit {sha} for task T{n} and
 
 {addition}
 
-Do it inside the task's writes. When it is done, commit your own files again with git and call \
-task_report with the new commit's sha and an honest report of what you did, ran and found.";
+This addition is a new attempt with its own saved context: call task_brief first. Do it inside \
+the task's writes, then commit again as before: {commit}";
 
 impl Runs {
     /// Sends the executor of task `task` the Planner's `addition`: the
@@ -69,6 +69,7 @@ impl Runs {
             )
             .await?;
         let prompt = ADDITION
+            .replace("{commit}", crate::COMMIT)
             .replace("{sha}", previous.commit.as_deref().unwrap_or_default())
             .replace("{n}", &task.to_string())
             .replace("{addition}", &addition);

@@ -1,5 +1,9 @@
 # Local delivery web views Implementation Plan
 
+**Slice 4 revision, 2026-11-14:** F-102 below is superseded by
+[F-102 in the detailed slice 4 plan](../../backend/plans/2026-11-14-slice-4-task-questions.md#task-f-102-saved-brief-and-conflict-presentation).
+Other tasks in this earlier draft retain their existing scope and blocked status.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking. Preserve the user's execution-method choice at handoff; this plan itself does not begin implementation.
 
 **Goal:** Show real files, precise task work and evidence-backed results through existing Core APIs.

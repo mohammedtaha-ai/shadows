@@ -22,7 +22,7 @@ Git at `f1459dcc`.
 
 Stage 4 is started, not done. On `main`: the ACP upgrade and the Codex app-server (PRs #62 and #63, `3a443ea0`
 and `217d7540`); executor slices 0 and 1 (PR #64, `c71b263d`); and the Planner that runs and judges tasks, sets the
-project up first, and reads the code and each commit (PR #65, `617d806f`; PR #66, `5a52a06a`, is its review). Open:
+project up first, and reads the code and each commit (PR #65, `617d806f`; PR #66, `5a52a06a`, is its review); and Codex images, the language servers (`code_lsp`), the question card and Settings › Code (PR #67, `db760593`). Open:
 the browser run of an executor (B-94), Codex's acceptance on a real Planner (B-88), and tasks that run together
 (slice 4 of the executors design). The critic is replaced by the Planner's judgment ([executors design §5.1](../backend/specs/2026-11-08-executors-design.md#51-the-planner-judges-mohammed-2026-11-11)).
 

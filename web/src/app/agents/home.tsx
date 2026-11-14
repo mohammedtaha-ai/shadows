@@ -1,3 +1,4 @@
+import { SkeletonContent } from '@/components/ui/skeleton'
 // One job: the main pane of the AYLUL workspace when no conversation is open —
 // the next step, a provider and then an agent, until both exist.
 
@@ -30,9 +31,7 @@ export function AylulHome() {
   }
   if (providers.data === undefined || agents.data === undefined) {
     return (
-      <div className="flex flex-1 items-center justify-center p-8">
-        <p className="text-sm text-faint-foreground">Looking for your agents…</p>
-      </div>
+      <SkeletonContent label="Looking for your agents…" layout="cards" className="flex-1 overflow-y-auto px-8 py-8" />
     )
   }
   const list = agents.data.agents

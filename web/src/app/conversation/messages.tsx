@@ -3,7 +3,8 @@
 
 import { cn } from 'cn'
 import { AnimatePresence, motion } from 'motion/react'
-import { LoaderCircle, Sparkles } from 'lucide-react'
+import { Sparkles } from 'lucide-react'
+import { SkeletonContent } from '@/components/ui/skeleton'
 import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useLocation } from '@tanstack/react-router'
@@ -202,9 +203,8 @@ export function Messages({
     >
       <ol className="mx-auto flex max-w-4xl flex-col gap-6 px-6 py-8">
         {loading && (
-          <li className="flex items-center gap-2 rounded-xl border border-accent-line/20 bg-accent/10 px-3.5 py-2 text-xs text-accent-foreground">
-            <LoaderCircle className="size-3.5 animate-spin text-accent-line motion-reduce:animate-none" />
-            Loading history
+          <li>
+            <SkeletonContent label="Loading history" layout={shown.length === 0 ? 'conversation' : 'rows'} />
           </li>
         )}
         {!loading && shown.length === 0 && reply === null && !running && (

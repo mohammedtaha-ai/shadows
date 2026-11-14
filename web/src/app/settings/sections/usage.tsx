@@ -1,3 +1,4 @@
+import { SkeletonContent } from '@/components/ui/skeleton'
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { usageQuery } from '@/api/usage'
@@ -18,7 +19,7 @@ export function UsageSection() {
         <option value="7d">Last 7 days</option><option value="30d">Last 30 days</option><option value="month">This month</option>
       </select>
     </label>
-    {usage.isPending ? <p role="status">Loading usage…</p> : usage.error ? <div className="space-y-3"><ErrorLine error={usage.error} /><Button type="button" variant="outline" disabled={usage.isFetching} onClick={() => { void usage.refetch() }}>Retry</Button></div> :
+    {usage.isPending ? <SkeletonContent label="Loading usage…" layout="detail" /> : usage.error ? <div className="space-y-3"><ErrorLine error={usage.error} /><Button type="button" variant="outline" disabled={usage.isFetching} onClick={() => { void usage.refetch() }}>Retry</Button></div> :
       usage.data.by_provider.length === 0 && usage.data.by_model.length === 0 ? <p>No usage in this period.</p> : <UsageTables report={usage.data} />}
   </div>
 }

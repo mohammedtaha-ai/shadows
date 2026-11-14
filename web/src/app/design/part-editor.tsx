@@ -1,3 +1,4 @@
+import { SkeletonContent } from '@/components/ui/skeleton'
 // A part edit retains local input until explicitly replaced or saved.
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
@@ -90,7 +91,7 @@ export function PartEditor({ projectId, saved, destination, onCreated }: {
       <label className="block text-sm">Folder<input aria-label="Part folder"
         value={draft.folder ?? ''} onChange={e => setDraft({...draft,folder:e.target.value})}
         className="block w-full rounded border bg-transparent p-2" /></label>
-      {grouping && children.pending && <p>Loading child parts…</p>}
+      {grouping && children.pending && <SkeletonContent label="Loading child parts…" />}
       {grouping && children.error && <ErrorLine error={children.error} />}
       {grouping && children.next && <div className="space-y-2 text-sm">
         <p>Child list is incomplete. Load the remaining parts to inspect grouping.</p>
@@ -130,7 +131,7 @@ export function PartEditor({ projectId, saved, destination, onCreated }: {
           <p className="break-words text-muted-foreground">{layer.not_used != null ? `Not used: ${layer.not_used}` : layer.place || 'Place not recorded'}</p>
           <Button size="sm" variant="ghost" onClick={() => removeLayer(layer.layer)}>Remove {layer.layer} layer</Button>
         </div>)}
-        {standards.isPending && <p>Loading layer catalog…</p>}
+        {standards.isPending && <SkeletonContent label="Loading layer catalog…" />}
         {standards.error && <ErrorLine error={standards.error} />}
       </section>}
       <label className="block text-sm">Contract header<textarea aria-label="Part contract header" dir="auto"

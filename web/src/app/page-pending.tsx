@@ -1,11 +1,7 @@
-// One job: what the main pane shows while a lazily loaded page arrives.
-// Without it a direct visit or a reload showed an empty pane until the page's
-// chunk loaded.
+import { SkeletonContent } from '@/components/ui/skeleton'
 
 export function PagePending() {
   return (
-    <div className="flex flex-1 items-center justify-center p-8 text-sm text-faint-foreground">
-      Loading…
-    </div>
+    <SkeletonContent layout="detail" className="flex-1 p-6 md:p-8" />
   )
 }
