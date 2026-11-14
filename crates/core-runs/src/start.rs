@@ -18,7 +18,8 @@ impl Runs {
     /// Starts an attempt at `task` of a frozen version, or answers the one a
     /// replay of `command` started, whatever the plan has become since. An
     /// attempt whose session or turn could not start is recorded, so it is
-    /// answered `Failed` with its reason, not refused.
+    /// answered `Failed` with its reason, not refused. The attempt's write
+    /// saves the task context it receives, its brief; a replay saves none.
     pub async fn start(
         &self,
         command: String,

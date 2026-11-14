@@ -19,7 +19,8 @@ const ADDITION: &str = "The Planner reviewed your commit {sha} for task T{n} and
 
 {addition}
 
-Do it inside the task's writes, then commit again as before: {commit}";
+This addition is a new attempt with its own saved context: call task_brief first. Do it inside \
+the task's writes, then commit again as before: {commit}";
 
 impl Runs {
     /// Sends the executor of task `task` the Planner's `addition`: the

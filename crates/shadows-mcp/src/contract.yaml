@@ -102,8 +102,13 @@ layout_only: Map records contain no starter files; the stage has no Structure st
 # A task's contract rides inside task_add and task_update; the schema comes from Core's
 # TaskContent; task_context answers `contracts`. Tested by
 # mcp_tools::a_contract_written_over_mcp_is_read_the_same_over_http.
+# task_brief translates {} to Runs::brief_for with the caller's executor grant and answers its
+# AttemptBrief, the context saved for its own attempt; only the executor's grant lists it, and
+# the executor's grant does not list task_context. A grant with no attempt is refused and an
+# attempt with no saved context answers context_not_recorded. Tested by
+# mcp_tools::an_executor_grant_lists_its_tools_and_reads_only_its_task and attempt_briefs.
 # task_context translates workflow_id/task_number to Plans::task_context for
-# both grant kinds. Its description directs the first read before building
+# the Planner's and the project grants. Its description directs the first read before building
 # and states that it grants no execution permission. Scope and approval
 # requirements remain in Plans; no adapter reads tables or grants authority.
 # Optional phase_id selects a phase through Plans. plan_edit describes

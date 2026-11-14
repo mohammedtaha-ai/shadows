@@ -1,8 +1,10 @@
-//! Runs' private persistence: attempts, task marks and lessons records.
+//! Runs' private persistence: attempts, their saved contexts, task marks and
+//! lessons records.
 //!
 //! `RunsStore` is private to the crate, so its methods are `pub` only to
 //! the service; no other service's write calls into it, and nothing here is
 //! `pub(crate)` or declared under `shared_in_transaction`.
+mod brief;
 mod lessons;
 mod marks;
 mod recover;
@@ -196,6 +198,8 @@ impl RunsStore {
                     .bind(&new.start_head)
                     .execute(&mut *conn)
                     .await?;
+                    let task = (&new.project, &new.workflow, new.task);
+                    Self::capture_in(conn, &id, task, &ts).await?;
                     let attempt = Self::load(conn, &id).await?;
                     Ok(Begun {
                         attempt,
@@ -548,14 +552,15 @@ impl RunsStore {
         self.storage
             .write_txn_as(move |conn| {
                 Box::pin(async move {
-                    let row: Option<(i64, String, Option<String>, String, i64)> = sqlx::query_as(
-                        "SELECT task, state, released_at, workflow_id, version
+                    type Row = (i64, String, Option<String>, String, i64, String);
+                    let row: Option<Row> = sqlx::query_as(
+                        "SELECT task, state, released_at, workflow_id, version, project_id
                          FROM run_attempts WHERE id = ?",
                     )
                     .bind(previous.as_str())
                     .fetch_optional(&mut *conn)
                     .await?;
-                    let (task, state, released, workflow, version) =
+                    let (task, state, released, workflow, version, project) =
                         row.ok_or(RunsError::NotFound)?;
                     if state != AttemptState::Committed.as_str() || released.is_some() {
                         return Err(RunsError::NotAwaiting {
@@ -596,6 +601,9 @@ impl RunsStore {
                     .bind(previous.as_str())
                     .execute(&mut *conn)
                     .await?;
+                    let project = ProjectId::from_recorded(project);
+                    let task = u32::try_from(task).unwrap_or(0);
+                    Self::capture_in(conn, &id, (&project, &workflow, task), &ts).await?;
                     Self::load(conn, &id).await
                 })
             })

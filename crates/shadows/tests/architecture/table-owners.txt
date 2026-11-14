@@ -46,6 +46,7 @@ harness_thread_mode :: harness
 mcp_grant :: grants
 run_attempts :: runs
 run_task_marks :: runs
+run_attempt_context :: runs
 run_lessons :: runs
 message :: messages
 message_cursor :: messages

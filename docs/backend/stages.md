@@ -92,7 +92,7 @@ B-109, B-147, F-102, B-149. B-108 is ready; later-slice tasks retain blocked dra
 
 ### B-107 · Store a simple brief on each attempt
 
-- Status: blocked until B-108; scheduled after B-148.
+- Status: done
 - Plan: [B-107](plans/2026-11-14-slice-4-task-questions.md#task-b-107-saved-attempt-context-and-task_brief).
 - Owner: Runs and Plans; grants/adapters translate.
 - Read: [approved design](specs/2026-11-14-task-questions-design.md), [wire agreement](../shared/requests/2026-11-14-task-questions.md), owning contracts and the task's Interfaces.

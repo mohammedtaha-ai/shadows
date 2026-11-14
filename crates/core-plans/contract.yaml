@@ -292,7 +292,8 @@ shapes:
     # serde tag "kind", snake_case.
     Local: "{ task: u32 }"
   ResolvedContract:
-    # Only task_context serializes it; the consumer never stores it.
+    # task_context serializes it, and an attempt's saved brief keeps it as given; the consumer's
+    # task never stores it.
     reference: ContractSource
     producer_title: Option<String>
     symbol: Option<SymbolWork>
@@ -430,6 +431,9 @@ functions:
     task_context:
       signature: "(&self, grant: &Grant, workflow: Option<&WorkflowId>, task: u32, phase: Option<&PhaseId>) -> Result<TaskContext, PlansError>"
       rule: Same-project live grant, explicitly named Frozen version, task/layout/standards/part associations read in one snapshot, and the resolved contract of each output the task uses; grants nothing and writes nothing. An executor grant reads exactly its scope's workflow, version and task, else OutsideGrant; when it names no workflow, its scope's is read (an_executor_grant_reads_only_its_own_task).
+    task_context_in:
+      signature: "(tx: &mut Tx, project: &ProjectId, workflow: &WorkflowId, task: u32, phase: Option<&PhaseId>) -> Result<TaskContext, PlansError>"
+      rule: The one assembly of a task's context as the caller's transaction sees it; task_context calls it after its grant checks, and Runs calls it inside an attempt's admitting write to save that attempt's brief. The version must be Frozen and in the project; it checks no grant and writes nothing.
     task_for:
       signature: "(&self, grant: &Grant, named: Option<&WorkflowId>, number: u32) -> Result<PlanTask, PlansError>"
       # INVALID_COMMAND "T{n} does not exist in this plan" when the number is absent.
@@ -593,6 +597,7 @@ enums:
 
 shared_in_transaction:
   task_context: Reads approved task context in one owner snapshot after live grant checks.
+  task_context_in: Assembles approved task context inside the caller's transaction; Runs saves it with an attempt.
   links_of: Private store entry used within the owner transaction.
   notify_plan: Private store entry used within the owner transaction.
   preview: Private store entry used within the owner transaction.

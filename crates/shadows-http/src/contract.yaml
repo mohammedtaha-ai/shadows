@@ -99,6 +99,7 @@ runs:
     - 'POST /api/workflows/{workflow}/versions/{version}/tasks/{task}/attempts -> Runs::start, 201, run detached'
     - 'PUT /api/workflows/{workflow}/versions/{version}/tasks/{task}/done -> Runs::mark_done'
     - 'POST /api/attempts/{id}/stop -> Runs::stop, run detached'
+    - 'GET /api/attempts/{id}/brief -> Runs::brief (AttemptBrief; 409 context_not_recorded is a RunRefusal)'
     - 'GET /api/attempts/{id}/diff -> Runs::diff'
     - 'GET /api/attempts/{id}/files?path= -> Runs::file (AttemptFile; 409 outside_writes is a RunRefusal)'
   refusals: >

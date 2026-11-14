@@ -492,7 +492,8 @@ tests:
       unbound, with no plan or thread created; a replay after expiry answers
       the first.
 
-# Both tools_for allowlists include task_context, a read with no execution authority.
-# The executor allowlist is task_context, code_lsp and task_report
+# The Thread and Project allowlists include task_context, a read with no execution authority.
+# The executor allowlist is task_brief (Runs::brief_for, the context saved for its own attempt;
+# never a fresh task_context), code_lsp and task_report
 # (Runs::report, which accepts the executor's own commit only inside the task's writes); startup and
 # thread removal revoke executor grants with the thread ones (executor_session tests).

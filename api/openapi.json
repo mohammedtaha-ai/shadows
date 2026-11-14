@@ -1029,6 +1029,26 @@
         ],
         "type": "object"
       },
+      "AttemptBrief": {
+        "description": "What an attempt was given: the attempt itself, the task context saved when\nit was admitted, and when that was. The attempt stays the source of its\nidentity, model, base commit and addition.",
+        "properties": {
+          "attempt": {
+            "$ref": "#/components/schemas/Attempt"
+          },
+          "captured_at": {
+            "type": "string"
+          },
+          "context": {
+            "$ref": "#/components/schemas/TaskContext"
+          }
+        },
+        "required": [
+          "attempt",
+          "context",
+          "captured_at"
+        ],
+        "type": "object"
+      },
       "AttemptFile": {
         "description": "One file as an attempt's commit holds it; deleted or binary files have no text.",
         "properties": {
@@ -1374,6 +1394,30 @@
         ],
         "type": "object"
       },
+      "ContextPlan": {
+        "properties": {
+          "plan_id": {
+            "$ref": "#/components/schemas/PlanId"
+          },
+          "title": {
+            "type": "string"
+          },
+          "version": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "workflow_id": {
+            "$ref": "#/components/schemas/WorkflowId"
+          }
+        },
+        "required": [
+          "plan_id",
+          "workflow_id",
+          "version",
+          "title"
+        ],
+        "type": "object"
+      },
       "ContextResponse": {
         "properties": {
           "carried": {
@@ -1406,6 +1450,25 @@
           "kind",
           "id",
           "version"
+        ],
+        "type": "object"
+      },
+      "ContextStandards": {
+        "properties": {
+          "additions": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "base": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "base"
         ],
         "type": "object"
       },
@@ -4614,6 +4677,43 @@
         ],
         "type": "object"
       },
+      "PhaseDependency": {
+        "properties": {
+          "broken": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "phase": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Phase"
+              }
+            ]
+          },
+          "reference": {
+            "$ref": "#/components/schemas/PhaseRef"
+          },
+          "target": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PhaseEndpoint"
+              }
+            ]
+          }
+        },
+        "required": [
+          "reference"
+        ],
+        "type": "object"
+      },
       "PhaseEndpoint": {
         "properties": {
           "phase_id": {
@@ -7043,6 +7143,66 @@
         ],
         "type": "object"
       },
+      "TaskContext": {
+        "properties": {
+          "contracts": {
+            "items": {
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "map_revision": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "parts": {
+            "items": {
+              "$ref": "#/components/schemas/TaskPart"
+            },
+            "type": "array"
+          },
+          "phase": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Phase"
+              }
+            ]
+          },
+          "phase_dependencies": {
+            "items": {
+              "$ref": "#/components/schemas/PhaseDependency"
+            },
+            "type": "array"
+          },
+          "plan": {
+            "$ref": "#/components/schemas/ContextPlan"
+          },
+          "standards": {
+            "$ref": "#/components/schemas/ContextStandards"
+          },
+          "task": {
+            "$ref": "#/components/schemas/TaskContent"
+          },
+          "unowned_paths": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "plan",
+          "task",
+          "parts",
+          "unowned_paths",
+          "standards",
+          "map_revision"
+        ],
+        "type": "object"
+      },
       "TaskContract": {
         "additionalProperties": false,
         "description": "What a task builds, named exactly: the executor's brief beside the goal.",
@@ -7125,6 +7285,39 @@
             "type": "object"
           }
         ]
+      },
+      "TaskPart": {
+        "properties": {
+          "part": {
+            "type": "object"
+          },
+          "paths": {
+            "items": {
+              "$ref": "#/components/schemas/TaskPath"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "part",
+          "paths"
+        ],
+        "type": "object"
+      },
+      "TaskPath": {
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "via": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "path",
+          "via"
+        ],
+        "type": "object"
       },
       "TaskPreview": {
         "properties": {
@@ -8074,6 +8267,68 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/attempts/{id}/brief": {
+      "get": {
+        "operationId": "brief",
+        "parameters": [
+          {
+            "description": "The attempt",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/AttemptId"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttemptBrief"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "no such attempt"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunRefusal"
+                }
+              }
+            },
+            "description": "context_not_recorded"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          }
+        },
+        "summary": "The brief the attempt was given: the attempt and the task context saved\nwhen it was admitted, unchanged by any later map or standards. An attempt\nbegun before briefs were saved is 409 `context_not_recorded`.",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
     "/api/attempts/{id}/diff": {
       "get": {
         "operationId": "diff",

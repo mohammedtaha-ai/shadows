@@ -84,6 +84,11 @@ pub enum RunsError {
     EmptyLesson,
     #[error("the command id was used for another request")]
     CommandConflict,
+    #[error(
+        "this attempt began before Shadows saved the context each attempt receives; its \
+         context was not recorded and is not reconstructed"
+    )]
+    ContextNotRecorded,
     #[error("not found")]
     NotFound,
     #[error("the task's writes are not valid patterns: {0}")]
@@ -125,6 +130,7 @@ impl RunsError {
             Self::NoLesson { .. } => "no_lesson",
             Self::EmptyLesson => "empty_lesson",
             Self::CommandConflict => "command_conflict",
+            Self::ContextNotRecorded => "context_not_recorded",
             Self::NotFound => "not_found",
             Self::BadScope(_) => "bad_scope",
             Self::Unavailable(_) => "unavailable",

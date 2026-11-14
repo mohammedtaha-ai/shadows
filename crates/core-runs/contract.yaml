@@ -34,7 +34,7 @@ version: 1
 status: current
 source: crates/core-runs/src
 
-owns_tables: [run_attempts, run_task_marks, run_lessons]
+owns_tables: [run_attempts, run_attempt_context, run_task_marks, run_lessons]
 
 modules:
   lib.rs: the Runs service, its queries and done marks
@@ -48,6 +48,7 @@ modules:
   planner.rs: the Planner's calls on its project's tasks
   start.rs: starting an attempt
   amend.rs: carrying an attempt on with the Planner's addition
+  brief.rs: reading the context an attempt was given
   lessons.rs: the record a task leaves when it stops on the cap
   stop.rs: stopping an attempt
   report.rs: accepting an attempt's reported commit
@@ -58,10 +59,11 @@ modules:
   store/mod.rs: run SQL
   store/marks.rs: done marks SQL
   store/lessons.rs: lessons records SQL
+  store/brief.rs: saved attempt context SQL
   store/recover.rs: startup SQL
 
 dependencies:
-  plans: Plans reads the frozen version, its tasks, its links and the tasks other plans' links reach; Plans::execution_plan_in decides, inside Runs' snapshot or write, whether a version may start work.
+  plans: Plans reads the frozen version, its tasks, its links and the tasks other plans' links reach; Plans::execution_plan_in decides, inside Runs' snapshot or write, whether a version may start work. Plans::task_context_in assembles, inside the same write, the context an attempt saves.
   harness: Harness opens the executor session in its project's folder, releases it, and names the model last used on the executor's harness.
   turns: Turns sends the first turn and stops it, and queues the Planner's notice in the executor's name (Turns::queue_notice).
   threads: Threads creates the executor thread inside the Start write, and reads the executor's entries for a lessons record and a failed notice's last message.
@@ -90,10 +92,13 @@ shapes:
   AttemptNotice: "{ workflow_id, version, task, title, attempt, attempt_id, model, outcome, commit, report, reason, last_addition }: the card of an executor's notice; title is the task's or T{task}; report is the executor's report when committed, its last message (cut at 4,000 chars) when failed, else null"
   AttemptFile: "{ path, text, cut }: a file at an attempt's commit; text null for deleted, binary or non-UTF-8 files; text cut on a line and char boundary at 2,000 lines or 200,000 bytes, whichever comes first"
   RecoverReport: "{ interrupted }"
+  AttemptBrief: "{ attempt: Attempt, context: TaskContext, captured_at }: what an attempt was given; context is Plans' TaskContext saved in run_attempt_context when the attempt was admitted, captured_at its insert time; the attempt stays the source of identity, model, base commit and addition"
+  # ContextNotRecorded (context_not_recorded): an attempt recorded before contexts were saved
+  # has none; its brief is refused, never rebuilt from today's layout (HTTP 409).
   TaskLesson: "{ workflow_id, version, task, title, attempts: [LessonAttempt], commands: [LessonCommand], stopped_by, plan_should_have_said, recorded_at }: the record a task leaves when it stops on the cap, stored as run_lessons.record_json; the two Planner fields null until it writes them. No route serves it"
   LessonAttempt: "{ number, addition, commit, report }: the chain from the Start to the stopped attempt, oldest first; addition is what was missing"
   LessonCommand: "{ command, status, error }: a ToolCall entry of kind execute on the executor's thread: its title, its card's status as its wire text and its error; no output is stored"
-  RunsError: [NotFrozen, Superseded, Archived, Waiting, TaskBusy, Overlap, NotGit, DirtyScope, MissingInput, InputUnavailable, AlreadyCommitted, UnknownCommit, NotOnBranch, NotNew, EmptyCommit, OutsideWrites, BinaryFiles, AlreadyGit, NoFolder, NotListed, NoModel, NotAwaiting, EmptyAddition, AdditionsSpent, NoLesson, EmptyLesson, CommandConflict, NotFound, BadScope, Unavailable, Storage]
+  RunsError: [NotFrozen, Superseded, Archived, Waiting, TaskBusy, Overlap, NotGit, DirtyScope, MissingInput, InputUnavailable, AlreadyCommitted, UnknownCommit, NotOnBranch, NotNew, EmptyCommit, OutsideWrites, BinaryFiles, AlreadyGit, NoFolder, NotListed, NoModel, NotAwaiting, EmptyAddition, AdditionsSpent, NoLesson, EmptyLesson, CommandConflict, ContextNotRecorded, NotFound, BadScope, Unavailable, Storage]
   # RunsError::code is the opaque id clients match on: not_frozen, waiting, task_busy, ...
   # AlreadyGit (already_git), NoFolder (no_folder) and NotListed (not_listed) are init_git's
   # refusals, not Start's. NotListed: Code's file list was not complete; a later call may pass.
@@ -120,6 +125,9 @@ functions:
   mark_done_for: "(grant, workflow, task, done) -> DoneMark; the Planner's grant checked as start_for, then mark_done; a done mark answers next from ready_group, which the Planner starts on its own (Mohammed, 2026-11-11); a mark on a version that admits no new attempt still succeeds, with next empty, and starts nothing"
   ready_for: "(grant, workflow) -> ReadyGroup; the Planner's grant checked as start_for (a Thread grant of the plan's project, else NotFound); Plans::execution_plan's refusal is Archived, NotFrozen or Superseded; else the version's ready_group, empty when nothing is ready. MCP task_ready only"
   amend: "(grant, workflow, task, addition) -> Attempt; the Planner's grant checked as start_for; an empty trimmed addition is EmptyAddition; no committed attempt still holding its scope is NotAwaiting; when additions_since_start is already 3, the waiting attempt is stopped (it keeps its commit and state Committed, its session closes, its scope is freed), record_lesson keeps its record, and AdditionsSpent, nothing else written; else continue_attempt in one write (the version must still start work, Archived, NotFrozen or Superseded otherwise, the waiting attempt keeping its scope; then the waiting attempt released, a Running attempt with the next number on the same thread, model and writes, recording the HEAD now and the addition), then run_turn with the addition's prompt"
+  brief: "(attempt) -> AttemptBrief; unknown attempt NotFound; no run_attempt_context row ContextNotRecorded; reads only, never captures or reconstructs"
+  brief_for: "(grant) -> AttemptBrief; an Executor grant with a thread and scope, else NotFound; the attempt is executor_attempt of that thread and scope (never one the caller names), then brief's read. MCP task_brief"
+  capture_in: "private: (tx, attempt, (project, workflow, task), captured_at); Plans::task_context_in for the task (no phase) inside begin_attempt's and continue_attempt's write, after the insert and before commit, then one INSERT into run_attempt_context (capture_context_in); any failure rolls back the attempt, its thread and an addition's release. A replay returns before it, so it captures nothing"
   run_turn: "private: (attempt, prompt) -> Attempt; open_executor with the attempt's TaskScope and model, reopening the thread whether its session is live, closed or gone (a failure abandons it `session did not open: ...`), the still-Running check, the turn in mode auto, set_operation, the late Stop, watch. Start and amend both end here"
   watch: "private: (attempt, thread, operation) follows the turn in the background: it reads the thread's operations after each journal commit, and at least once a second, until the operation has finished_at, then settles the attempt as the transitions say"
   additions_since_start: "private: how many of the task's attempts, newest first, carry an addition before the first that does not (the one a Start began); a new Start begins a new count"
@@ -158,6 +166,19 @@ transitions:
 # proves nothing about whether the session can still write.
 
 agreements:
+  - between: [begin_attempt, continue_attempt]
+    rule: >
+      A Start and an addition each save their new attempt's context the same
+      way, through capture_in inside their own write; the attempt before an
+      addition keeps the context it was given, and a replay saves none.
+    holds: true
+    tested_by: an_addition_captures_its_own_brief
+  - between: [brief, brief_for]
+    rule: >
+      The route and the executor's tool answer the same saved brief; the
+      executor's is found from its own grant, never named by the caller.
+    holds: true
+    tested_by: an_executor_reads_only_its_own_brief
   - between: [start_answer, start]
     rule: >
       What a task answers about starting is what Start does: start_answer runs
@@ -330,6 +351,7 @@ obligations:
     tested_by: [a_folder_and_its_subfolder_may_overlap, a_folder_overlaps_its_subfolder_not_its_sibling, disjoint_folders_do_not_overlap, a_pattern_without_a_folder_may_overlap_anything, a_pattern_that_climbs_out_may_overlap_anything]
 
 tests:
+  shadows-core/tests/attempt_briefs.rs: each attempt's saved brief through AppCore over the fake adapter in real git; fixed after a layout change, one per replay, its own per addition, rolled back with a failed capture, never invented, read only by its own executor
   shadows-core/tests/runs_attempts.rs: attempts through AppCore over the fake adapter, in a real git repository
   shadows-core/tests/runs_attempts/init.rs: a folder's first repository in real git; no agent runs
   shadows-core/tests/runs_attempts/planner.rs: the Planner's start and done marks; no agent runs

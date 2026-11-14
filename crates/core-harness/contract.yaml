@@ -107,6 +107,10 @@ layer_catalog: 'Planner standards text lists every kind presence and its layers 
 # without deleting a lock, and only assigned shared checks run; Runs' first prompt and addition
 # say the same (core-runs COMMIT). Held by executor_commits and
 # core-runs::the_first_prompt_says_how_an_attempt_ends.
+# executor.md has the executor read `task_brief` first and again after each addition (a new
+# attempt with its own saved brief), never a fresh task_context; Runs' first prompt and addition
+# say the same. Held by core-runs::the_first_prompt_says_how_an_attempt_ends and
+# mcp_tools::an_executor_grant_lists_its_tools_and_reads_only_its_task.
 # executor.md asks for `code_lsp` before searching the tree; prompt.txt names `code_lsp`, and that
 # a language with no running server is answered "no server".
 # The prompt asks the Planner to ask a choice with person_ask and wait, never the same thing in

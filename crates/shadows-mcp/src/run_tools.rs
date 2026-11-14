@@ -142,6 +142,23 @@ impl Shadows {
     }
 
     #[tool(
+        description = "Read your attempt's brief before you work: the approved task, the \
+                       contracts it uses, the parts and owners of its paths, and the map and \
+                       standards versions, as Shadows saved them when this attempt began. It \
+                       does not change when the project's map or standards change later. An \
+                       attempt begun before briefs were saved answers context_not_recorded."
+    )]
+    async fn task_brief(&self, Extension(grant): Extension<Grant>) -> CallToolResult {
+        answer(
+            self.core
+                .runs()
+                .brief_for(&grant)
+                .await
+                .map_err(Refusal::from),
+        )
+    }
+
+    #[tool(
         description = "Report your task's work after you committed it yourself with git. \
                        Shadows accepts the commit only if it is on the checked-out branch, \
                        made after your task started, changes only paths inside your task's \

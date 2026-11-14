@@ -140,6 +140,6 @@ pub use core_plans::PhaseDependency;
 pub use core_plans::{LinkedPhase, PhaseEndpoint};
 pub use core_plans::{Phase, PhaseId, PhaseInput, PhaseRef};
 
-pub use core_runs::StartAnswer;
 pub use core_runs::{Attempt, AttemptId, AttemptState, RecoverReport, Runs, RunsError, TaskRun};
+pub use core_runs::{AttemptBrief, StartAnswer};
 pub use core_runs::{AttemptFile, AttemptNotice, DoneMark, FileDiff, Need, ReadyGroup, ReadyTask};

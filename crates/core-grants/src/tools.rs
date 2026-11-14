@@ -55,9 +55,10 @@ const PROJECT_TOOLS: [&str; 14] = [
     "workspace_get",
 ];
 
-/// An executor reads its task and the code it needs, and reports the commit
-/// it made.
-const EXECUTOR_TOOLS: [&str; 3] = ["task_context", "code_lsp", "task_report"];
+/// An executor reads the brief its attempt was given and the code it needs,
+/// and reports the commit it made. It has no fresh `task_context`, so it never
+/// reads a layout its attempt was not given.
+const EXECUTOR_TOOLS: [&str; 3] = ["task_brief", "code_lsp", "task_report"];
 
 impl Grants {
     pub fn tools_for(kind: GrantKind) -> &'static [&'static str] {

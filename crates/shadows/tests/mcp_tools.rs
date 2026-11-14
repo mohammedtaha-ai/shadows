@@ -758,17 +758,18 @@ async fn an_executor_grant_lists_its_tools_and_reads_only_its_task() {
         .map(|tool| tool.name.to_string())
         .collect();
     names.sort();
-    assert_eq!(names, ["code_lsp", "task_context", "task_report"]);
-    let own = json!({ "workflow_id": workflow, "task_number": 1 });
-    assert_eq!(
-        ok(&executor, "task_context", own).await["task"]["number"],
-        1
-    );
-    let other = json!({ "workflow_id": workflow, "task_number": 2 });
-    refused(&executor, "task_context", other).await;
-    // The grant holds no attempt, so there is nothing of its own to report.
+    assert_eq!(names, ["code_lsp", "task_brief", "task_report"]);
+    // The grant holds no attempt, so it has no brief of its own to read and
+    // nothing of its own to report.
+    refused(&executor, "task_brief", json!({})).await;
     let report = json!({ "commit": "abc1234", "report": "x" });
     refused(&executor, "task_report", report).await;
+    // A fresh task_context is not an executor's: it reads only its brief.
+    let own = json!({ "workflow_id": workflow, "task_number": 1 });
+    let params = rmcp::model::CallToolRequestParams::new("task_context")
+        .with_arguments(own.as_object().unwrap().clone());
+    let fresh = executor.call_tool(params).await;
+    assert!(format!("{fresh:?}").contains("tool not found"), "{fresh:?}");
     let edit = json!({ "workflow_id": workflow, "expected_revision": 1, "ops": [add(3)] });
     let params = rmcp::model::CallToolRequestParams::new("plan_edit")
         .with_arguments(edit.as_object().unwrap().clone());

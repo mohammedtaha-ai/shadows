@@ -1,5 +1,5 @@
 //! One job: the routes over a task's attempts — the task's run state,
-//! Start, Stop, an attempt's diff, a file at its commit, and the person's
+//! Start, Stop, an attempt's brief, its diff, a file at its commit, and the person's
 //! done mark.
 //!
 //! Each handler reads the request, calls one `Runs` method and shapes the
@@ -13,7 +13,7 @@ use axum::http::StatusCode;
 use super::AppState;
 use super::failure::{ErrorBody, RunFailure, RunRefusal};
 use super::transport::Transport;
-use shadows_core::{Attempt, AttemptFile, AttemptId, FileDiff, TaskRun, WorkflowId};
+use shadows_core::{Attempt, AttemptBrief, AttemptFile, AttemptId, FileDiff, TaskRun, WorkflowId};
 
 /// A task of a plan version: `/api/workflows/{workflow}/versions/{version}/tasks/{task}`.
 type TaskPath = Path<(WorkflowId, i64, u32)>;
@@ -237,4 +237,26 @@ pub(super) async fn file(
     Query(query): Query<FilePath>,
 ) -> Result<Json<AttemptFile>, RunFailure> {
     Ok(Json(s.core.runs().file(&attempt, &query.path).await?))
+}
+
+/// The brief the attempt was given: the attempt and the task context saved
+/// when it was admitted, unchanged by any later map or standards. An attempt
+/// begun before briefs were saved is 409 `context_not_recorded`.
+#[utoipa::path(
+    get,
+    path = "/api/attempts/{id}/brief",
+    tag = "runs",
+    params(("id" = AttemptId, Path, description = "The attempt")),
+    responses(
+        (status = 200, body = AttemptBrief),
+        (status = 404, description = "no such attempt", body = ErrorBody),
+        (status = 409, description = "context_not_recorded", body = RunRefusal),
+        (status = 500, description = "STORAGE_UNAVAILABLE", body = ErrorBody),
+    )
+)]
+pub(super) async fn brief(
+    State(s): State<AppState>,
+    Path(attempt): Path<AttemptId>,
+) -> Result<Json<AttemptBrief>, RunFailure> {
+    Ok(Json(s.core.runs().brief(&attempt).await?))
 }

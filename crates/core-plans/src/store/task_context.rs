@@ -3,8 +3,10 @@ use super::{PlansStore, read::ReadRows};
 use crate::scope::Scope;
 use crate::{ContextPlan, ContextStandards, Plans, PlansError, TaskContext, TaskPart, TaskPath};
 use crate::{WorkflowId, WorkflowState};
+use core_db::Tx;
 use core_design::Design;
 use core_grants::{Grant, Grants};
+use core_projects::ProjectId;
 
 impl PlansStore {
     pub(crate) async fn task_context(
@@ -27,17 +29,29 @@ impl PlansStore {
             if scope.workflow != workflow.as_str() || scope.task != number {
                 return Err(PlansError::OutsideGrant);
             }
+            let plan = ReadRows::load_plan(&mut tx, workflow, Some(&grant.project_id)).await?;
+            if scope.version != plan.version {
+                return Err(PlansError::OutsideGrant);
+            }
         } else {
             Grants::check_writer(&mut tx, &Scope::writer_of(grant)?, &grant.project_id).await?;
         }
-        let plan = ReadRows::load_plan(&mut tx, workflow, Some(&grant.project_id)).await?;
-        if grant
-            .scope
-            .as_ref()
-            .is_some_and(|s| s.version != plan.version)
-        {
-            return Err(PlansError::OutsideGrant);
-        }
+        let context =
+            Self::task_context_in(&mut tx, &grant.project_id, workflow, number, phase_id).await?;
+        tx.commit().await?;
+        Ok(context)
+    }
+
+    /// The context of task `number` of the approved version `workflow` of
+    /// `project`, its phase `phase_id` when named, as `tx` sees it.
+    pub(crate) async fn task_context_in(
+        tx: &mut Tx,
+        project: &ProjectId,
+        workflow: &WorkflowId,
+        number: u32,
+        phase_id: Option<&crate::PhaseId>,
+    ) -> Result<TaskContext, PlansError> {
+        let plan = ReadRows::load_plan(tx, workflow, Some(project)).await?;
         if plan.state != WorkflowState::Frozen {
             return Err(PlansError::InvalidCommand(
                 "task_context needs an approved plan version".into(),
@@ -69,8 +83,7 @@ impl PlansStore {
             use super::phase_refs::{PhaseRows, VersionSnapshot};
             let source = VersionSnapshot::from_plan(&plan);
             for reference in &phase.waits_for {
-                let (target, phase, broken) = match PhaseRows::resolve(&mut tx, &source, reference)
-                    .await
+                let (target, phase, broken) = match PhaseRows::resolve(tx, &source, reference).await
                 {
                     Ok((target, number, phase)) => {
                         (Some(target.endpoint(number, &phase)), Some(phase), None)
@@ -86,8 +99,8 @@ impl PlansStore {
                 });
             }
         }
-        let tied = Plans::plan_parts_in(&mut tx, &plan.project_id, &plan.plan_id).await?;
-        let layout = Design::layout_in(&mut tx, &plan.project_id).await?;
+        let tied = Plans::plan_parts_in(tx, &plan.project_id, &plan.plan_id).await?;
+        let layout = Design::layout_in(tx, &plan.project_id).await?;
         let mut paths = Vec::new();
         for path in task.reads.iter().chain(&task.writes) {
             if !paths.contains(path) {
@@ -122,7 +135,7 @@ impl PlansStore {
                 (tied.contains(&part.id) || !paths.is_empty()).then_some(TaskPart { part, paths })
             })
             .collect();
-        let context = TaskContext {
+        Ok(TaskContext {
             phase,
             phase_dependencies,
             plan: ContextPlan {
@@ -140,8 +153,6 @@ impl PlansStore {
                 additions: layout.standards_additions,
             },
             map_revision: layout.map_revision,
-        };
-        tx.commit().await?;
-        Ok(context)
+        })
     }
 }
