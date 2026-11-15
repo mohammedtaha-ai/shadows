@@ -129,7 +129,9 @@ B-150 → F-103 → B-151. Each task's files, interfaces, tests and commit are i
 
 - Status: doing. Step 1: `checks_live` passed on the signed-in subscription (Sonnet, 2026-11-15:
   three attempts, both checks confirmed, done refused then recorded with a reason, two replies).
-  The browser journey (step 2) and the evidence (step 3) remain.
+  Steps 2 and 3: the browser journey ran and is recorded in
+  [evidence](../evidence/2026-11-15-slice-5-checks.md); it found that recovery re-notifies
+  attempts from before migration `0064`, which is open.
 - Plan: [B-151](plans/2026-11-15-slice-5-checks.md#b-151--real-slice-5-acceptance).
 - Owner: integration acceptance through AppCore and the real UI.
 - Needs: B-111, B-113, B-114, B-150, F-103.
