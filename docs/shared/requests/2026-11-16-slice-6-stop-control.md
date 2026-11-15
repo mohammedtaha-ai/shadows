@@ -1,6 +1,6 @@
 # Slice 6: stop and interrupt cards, the recheck card, project decisions
 
-- Status: answered
+- Status: accepted
 - Asked by: Masada, 2026-11-16
 - Screen: the Planner's conversation (`web/src/app/conversation/`), the task page's brief
   (`web/src/app/tasks/brief-panel.tsx`); backend plan
@@ -111,7 +111,16 @@ Status: answered.
 
 ## Frontend reply
 
-<Masada: accepted, or what must stay and why.>
+Masada, 2026-11-16: **accepted** as answered.
+- `left_files`: `[]` shows "No uncommitted files"; `null` shows "Uncommitted files: unknown".
+- The web refetches `…/decisions` on `DecisionProposed` and on `DecisionAccepted`; a superseded
+  card learns its state from that refetch.
+- `decision_stale` (409) shows the reload message; `invalid_decision` (422) cannot come from the
+  person's Accept, and is shown as Core's message if it ever does.
+- A recheck row links to the task in its own `workflow_id` and `version`.
+
+The web tasks start at F-121 and stay blocked until B-152, B-154 and B-105 have regenerated
+`api/openapi.json`.
 
 ## Ruling
 
