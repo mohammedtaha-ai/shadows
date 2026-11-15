@@ -223,6 +223,37 @@ async fn restart_sends_an_unsent_notice() {
     f.finish().await;
 }
 
+#[tokio::test]
+async fn restart_sends_no_notice_from_before_notice_tracking() {
+    let (f, id, _, _) = candidate(vec![cmd(&["git", "--version"])]).await;
+    let planner = prepare_planner(&f).await;
+    // The database as an upgrade finds it: this attempt committed before the migration that
+    // added notice_sent_at, and the migration after it has not run yet.
+    for sql in [
+        "UPDATE _sqlx_migrations SET installed_on='2999-01-01 00:00:00' WHERE version=64",
+        "DELETE FROM _sqlx_migrations WHERE version=68",
+    ] {
+        sqlx::query(sql).execute(f.storage.reader()).await.unwrap();
+    }
+    let upgraded = Storage::open(&f._tmp.path().join("s.sqlite3"))
+        .await
+        .unwrap();
+    upgraded.close().await.unwrap();
+    let sent: Option<String> =
+        sqlx::query_scalar("SELECT notice_sent_at FROM run_attempts WHERE id=?")
+            .bind(id.as_str())
+            .fetch_one(f.storage.reader())
+            .await
+            .unwrap();
+    assert_eq!(sent.as_deref(), Some("2999-01-01T00:00:00Z"));
+    f.core.runs().recover().await.unwrap();
+    tokio::time::sleep(Duration::from_secs(2)).await;
+    let rows = f.core.runs().check_results(&id).await.unwrap();
+    assert!(rows.iter().all(|row| row.outcome.is_none()), "{rows:?}");
+    assert!(f.core.turns().queued(&planner).await.unwrap().is_empty());
+    f.finish().await;
+}
+
 pub(super) async fn prepare_planner(f: &Fixture) -> ThreadId {
     planner_turn(f, "judge", "claude-code", "fake-large").await;
     let thread = planner_grant(f).await.thread_id.unwrap();

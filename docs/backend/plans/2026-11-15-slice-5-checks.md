@@ -45,7 +45,10 @@ for the critic, which §5.1 replaced. Its steps are not executable.
 - Migrations on this baseline (the last is `0062_attempt_conflicts.sql`):
   `0063_run_checks.sql` (B-111), `0064_attempt_origin.sql` (B-113),
   `0065_mark_reason.sql` (B-114), `0066_agent_messages.sql` (B-150),
-  `0067_ended_notice.sql` (B-113 and B-114, see "Notices and marks that replay"). Renumber only an unshipped
+  `0067_ended_notice.sql` (B-113 and B-114, see "Notices and marks that replay"),
+  `0068_notices_before_tracking.sql` (B-151's finding: a committed attempt that started
+  before `0064` was applied counts as notified, so the first recovery after the upgrade does
+  not send its notice again). Renumber only an unshipped
   file if another branch takes a number. Style: one comment saying what the table or column
   holds, `CHECK` for every closed set, `json_valid` on JSON columns, as `0062` does.
 - A new `RunsError` variant gets its `code()` arm in `crates/core-runs/src/error.rs`; HTTP

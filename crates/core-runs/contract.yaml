@@ -471,6 +471,9 @@ confirmation:
     Unfinished confirmations rerun; completed results are retained. Only the latest committed
     unsent attempt is considered; continued attempts never emit old notices. notice_sent_at is
     written after durable enqueue and notify ids replay. The reported fields remain unchanged.
+    A committed attempt that started before notice tracking began (migration 0068: before 0064
+    was applied) counts as sent, since its notice went out untracked when its turn ended;
+    recovery never sends it again (restart_sends_no_notice_from_before_notice_tracking).
 
 done_checks:
   rule: >
