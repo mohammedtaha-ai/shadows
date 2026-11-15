@@ -31,6 +31,7 @@ A shipped task's entry, and its plan once deleted, are in this file in Git at th
 | #65 | Task page review, the Diff tab, the Planner's notices | F-106 to F-113 | `617d806f` |
 | #67 | Conversation images, the question card, Settings › Code | F-114 to F-116 | `db760593` |
 | #68 | Attempt briefs and contract conflicts on the task page and in the Planner's notices | F-102, F-117 to F-120 (skeleton loading and task-page follow-ups) | `d73bb646` |
+| #69 | Checks on the task's Report tab, the done reason under its title, and replies in the conversation | F-103 | `4031168f` |
 
 PRs #59 and #66 have no `F-` task. Two composer fixes in PR #61 have none either: `1b85b6e6`
 (the textarea grows to 192px) and `e6e6e9cf` (`dir="auto"`, so Arabic runs right to left).
@@ -80,14 +81,6 @@ These tasks are blocked until their named backend API exists; no component imple
 - Needs: `docs/backend/stages.md` at `617d806f` (B-106), F-99; accepted shared API/model agreement. Backend must expose its generated API before this task starts.
 - Done when: all named RED/GREEN steps and focused verification commands in Task 3 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
 
-### F-103 · Checks and replies in the task page
-
-- Status: doing. Implementation verified: 165 focused tests, typecheck, lint and build passed; browser acceptance remains with Mohammed.
-- Plan: [F-103](../backend/plans/2026-11-15-slice-5-checks.md#f-103--checks-and-replies-in-the-task-page) in the slice 5 plan.
-- Owner: web API and task UI.
-- Needs: B-111, B-113, B-114, B-150; F-102 (`docs/frontend/stages.md` at `d73bb646`, shipped). Backend must expose its generated API before this task starts.
-- Done when: the brief shows a task's checks; the Report tab shows each check's outcome, exit code, HEAD and its output on request; a done mark shows its reason; the Planner conversation shows the reply card; tried in the browser.
-
 ### F-104 · Repair state and replan controls
 
 - Status: blocked (prerequisites below must ship first)
@@ -95,7 +88,7 @@ These tasks are blocked until their named backend API exists; no component imple
 - Owner: web API and task UI.
 - Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
 - Touch: exact Create/Modify/Test file list of Task 6; no other source paths.
-- Needs: B-117, F-103; accepted shared API/model agreement. Backend must expose its generated API before this task starts.
+- Needs: B-117; F-103, shipped in `docs/frontend/stages.md` at `4031168f` (PR #69); accepted shared API/model agreement. Backend must expose its generated API before this task starts.
 - Done when: all named RED/GREEN steps and focused verification commands in Task 6 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
 
 ### F-105 · Browser acceptance of the complete local journey
