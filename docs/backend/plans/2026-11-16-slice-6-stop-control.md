@@ -69,7 +69,7 @@ What is left, checked in the code on 2026-11-16:
   2026-11-16). Recovery sends every owed notice not yet sent, never only the ones this start
   created. A crash between the state change and the enqueue loses nothing.
 - **Every version of a plan** means every `WorkflowId` that Plans lists for the plan's `PlanId`.
-  A `WorkflowId` names one version. Runs gets the list from `Plans::get_plan_versions` (reads),
+  A `WorkflowId` names one version. Runs gets the list from `Plans::plan` (reads),
   or from `Plans::version_ids_in` (inside a write), and runs no SQL on Plans' tables.
 - A notice is resolved once and saved before its first enqueue. Every retry sends the saved
   payload with the same command id: `notify-<attempt>` for an attempt, `recheck-<batch>` for a
@@ -128,7 +128,7 @@ What is left, checked in the code on 2026-11-16:
   - `pub struct LiveAttempt { attempt_id: AttemptId, workflow_id: WorkflowId, version: i64, task: u32, title: String, number: u32, state: AttemptState, commit: Option<String>, conflict: bool, started_at: String }`, with `Serialize` and `schemars::JsonSchema` like the other MCP answers in `model.rs`.
   - `Runs::live_for(&self, grant: &Grant, workflow: &WorkflowId) -> Result<Vec<LiveAttempt>, RunsError>`
   - `RunsStore::live(&self, workflows: &[WorkflowId]) -> Result<Vec<Attempt>, RunsError>` (private to the crate)
-- Consumes: `Runs::planner_plan` (the grant check `start_for` uses); `Plans::get_plan_versions(&PlanId)` for every version's `WorkflowId` (a `WorkflowId` names one version; `Plan.plan_id` is what the versions share); Plans' read of a version's task titles, as `Runs::title` in `notify.rs` does.
+- Consumes: `Runs::planner_plan` (the grant check `start_for` uses); `Plans::plan(&PlanId)` (its `PlanVersions`) for every version's `WorkflowId` (a `WorkflowId` names one version; `Plan.plan_id` is what the versions share); Plans' read of a version's task titles, as `Runs::title` in `notify.rs` does.
 
 - [ ] **Step 1: Write the failing tests** in `runs_attempts/planner.rs`:
   - `task_runs_lists_the_attempts_that_hold_a_scope`: Start T1 and T2 (disjoint writes); T2 reports a commit and its turn ends; T3 is started and stopped. `live_for` returns T1 (`Running`, `commit: None`) and T2 (`Committed`, `commit: Some(sha)`), in `(version, task, number)` order. T3 is absent. `title` is the task's title. `conflict` is false.
@@ -137,7 +137,7 @@ What is left, checked in the code on 2026-11-16:
   - `task_runs_is_refused_to_another_grant`: an executor grant, and a Planner grant of another project, each get `RunsError::NotFound`.
 - [ ] **Step 2:** Run `cargo test -p shadows-core --test runs_attempts planner::task_runs`. Expected: FAIL to compile (`live_for` is missing).
 - [ ] **Step 3: Implement `RunsStore::live`.** It reads the attempts whose `workflow_id` is one of `workflows` and whose `released_at IS NULL`, `ORDER BY version, task, number`. `conflict` is `conflict_json IS NOT NULL`, read in the same query.
-- [ ] **Step 4: Implement `Runs::live_for`.** First `planner_plan(grant, workflow)`; then `Plans::get_plan_versions(&plan.plan_id)` for the version ids; then `RunsStore::live`. Each attempt maps to a `LiveAttempt` with its version's task title (`T{task}` when it has none, as `Runs::title` does). It only reads, and runs no SQL on Plans' tables.
+- [ ] **Step 4: Implement `Runs::live_for`.** First `planner_plan(grant, workflow)`; then `Plans::plan(&plan.plan_id)` for the version ids; then `RunsStore::live`. Each attempt maps to a `LiveAttempt` with its version's task title (`T{task}` when it has none, as `Runs::title` does). It only reads, and runs no SQL on Plans' tables.
 - [ ] **Step 5: Add the MCP tool `task_runs`** with input `{ workflow_id }`. It answers `Vec<LiveAttempt>`, and `RunsError` maps through the existing run error translation. Add it to the Planner's list in `tools_for` (35 tools; only the Planner holds it).
 - [ ] **Step 6: Add one line to `prompt.txt`** next to the `task_stop` line: "`task_runs` lists the attempts of a plan that can still write or still wait for your judgment, any version; read it before you choose which to stop with `task_stop`."
 - [ ] **Step 7: Extend the MCP tests.** In `mcp_server.rs`, the Planner's tool list includes `task_runs` and the executor's does not. In `task_conflict_routes.rs`, add `the_planner_lists_live_attempts_over_mcp`: over the real `/mcp`, a Planner grant's `task_runs` answers the running attempt's id, which `task_stop` then stops; a second `task_runs` answers `[]`.
@@ -157,7 +157,7 @@ What is left, checked in the code on 2026-11-16:
 
 **Interfaces:**
 - Produces:
-  - `RunsStore::last_ended(&self, workflows: &[WorkflowId], task: u32) -> Result<Option<Attempt>, RunsError>`: the newest attempt with this task number among `workflows` (`ORDER BY started_at DESC, id DESC`), but only when it is Stopped, Interrupted or Failed, has no commit and has released its scope. Otherwise `None`. `checks` passes every version of the plan, from `Plans::get_plan_versions(&plan.plan_id)`. Across versions the task is matched by its number; the builder confirms in Plans' draft copy that a copied task keeps its number, and reports it if not.
+  - `RunsStore::last_ended(&self, workflows: &[WorkflowId], task: u32) -> Result<Option<Attempt>, RunsError>`: the newest attempt with this task number among `workflows` (`ORDER BY started_at DESC, id DESC`), but only when it is Stopped, Interrupted or Failed, has no commit and has released its scope. Otherwise `None`. `checks` passes every version of the plan, from `Plans::plan(&plan.plan_id)`. Across versions the task is matched by its number; the builder confirms in Plans' draft copy that a copied task keeps its number, and reports it if not.
   - `Runs::checks(&self, workflow, version, task) -> Result<Checked, RunsError>` with private `struct Checked { plan: Plan, content: TaskContent, left: Vec<String>, left_by: Option<u32> }`. `left` holds the dirty paths inside writes that were admitted; `left_by` is the number of the attempt that left them.
   - private `Runs::first_prompt(&self, task: u32, left: &[String], left_by: Option<u32>) -> String`
 - Consumes: `Runs::dirty` (unchanged).
@@ -185,7 +185,7 @@ the web must render the two cards. **Blocked until Masada's shared request for s
 - Modify: `crates/core-runs/src/notify.rs` (`ended_intent`: two new bodies)
 - Modify: `crates/core-runs/src/recover.rs`
 - Modify: `crates/core-runs/src/store/recover.rs` (`settle_running` marks the notice due; `due_notices`)
-- Modify: `crates/core-runs/src/store/mod.rs` (`finish` marks the notice due for the person's Stop)
+- Modify: `crates/core-runs/src/store/mod.rs` (`finish_owed`, beside `finish`)
 - Modify: `crates/core-runs/src/stop.rs`
 - Modify: `crates/core-runs/contract.yaml`
 - Modify: `docs/backend/stages.md`
@@ -195,7 +195,7 @@ the web must render the two cards. **Blocked until Masada's shared request for s
 - Produces:
   - **The notice is owed durably.** `notice_due = 1` is written in the same write that settles the attempt, so a crash or a failed enqueue never loses it:
     - `RunsStore::settle_running` sets it on every attempt it moves to Interrupted, and still answers the count.
-    - `RunsStore::finish(&self, id, state, reason, due: bool) -> Result<bool, RunsError>` sets it when `due` and the attempt moved. Only the person's Stop of a Running attempt with no conflict passes `due = true`.
+    - `RunsStore::finish_owed(&self, id: &AttemptId) -> Result<bool, RunsError>`: a new method, beside `finish`. In one write it moves a Running attempt with no `conflict_json` to Stopped and sets `notice_due = 1`, and answers whether it moved the attempt. Only the person's Stop calls it. `finish` keeps its signature, so its other callers (`abandon` in `start.rs`, the Planner's Stop, …) do not change.
     - `RunsStore::due_notices(&self) -> Result<Vec<AttemptId>, RunsError>`: attempts with `notice_due = 1` and `notice_sent_at IS NULL`, in `ended_at, id` order.
     - `notify_ended` writes `notice_sent_at` after a successful enqueue (if it does not already for every ended notice), so a sent notice is never due again.
   - private `enum Stopper { Person, Planner }` in `stop.rs`, and private `Runs::stop_by(&self, attempt: &AttemptId, by: Stopper) -> Result<Attempt, RunsError>`. `stop` = `stop_by(Person)`, and `stop_for` calls `stop_by(Planner)`. The agreement "the person's Stop and the Planner's task_stop run one method" still holds through `stop_by`.
@@ -210,9 +210,11 @@ the web must render the two cards. **Blocked until Masada's shared request for s
   - `the_planners_stop_sends_no_notice`: `stop_for` on a Running attempt queues none.
   - In `task_conflicts.rs`, `a_stopped_conflict_keeps_its_one_notice`: a conflicted Running attempt stopped by the person has exactly its one conflict notice.
 - [ ] **Step 2:** Run `cargo test -p shadows-core --test runs_attempts stops::` and `--test task_conflicts a_stopped_conflict`. Expected: the six `stops::` tests FAIL (no notice); the conflict test may already pass and stays as a guard.
-- [ ] **Step 3: The migration, and the due mark in `settle_running` and `finish`.** Both write `notice_due` in the write that settles the attempt; nothing else in those writes changes.
+- [ ] **Step 3: The migration, the due mark in `settle_running`, and `finish_owed`.** Both write `notice_due` in the write that settles the attempt. Nothing else in `settle_running`'s write changes.
 - [ ] **Step 4: `recover` sends what is owed.** In the spawned pass, after the pending conflicts and before `recover_messages`, call `notify` for each id from `due_notices`. This covers this start's Interrupted attempts and anything an earlier start owed. A failure is logged `runs.notify_due_failed`, stays due, and never stops the pass.
-- [ ] **Step 5: `stop_by`.** The Person path passes `due = true` to `finish` when the attempt is Running with no conflict. After the release it calls `notify` when `finish` answered `true`; a failure is logged and stays due for the next start. The Planner path passes `due = false` and keeps today's behavior: only `retry_conflict_notice`.
+- [ ] **Step 5: `stop_by`.**
+  - The Person path calls `finish_owed` first. When that answers `false` (the attempt is not Running, or it has a conflict), it calls `finish` as today. After the release it calls `notify` when `finish_owed` answered `true`; a failure is logged and stays due for the next start.
+  - The Planner path calls `finish` as today and keeps today's behavior: only `retry_conflict_notice`.
 - [ ] **Step 6: Two bodies in `ended_intent`.** They replace the `_` arm for these two states only; Failed keeps its text. `{dirty}` is the attempt's changed paths inside its writes, joined by `, `, or `none`; a git failure gives `unknown` and logs.
   - Interrupted: `{head} was interrupted: Shadows stopped while it ran, and nothing was committed.\nUncommitted files in its writes: {dirty}\n{last}Tell the person; start it again only if they ask. A new Start continues from these files.`
   - Stopped: `{head} was stopped by the person.\nUncommitted files in its writes: {dirty}\n{last}Do not start it again unless they ask. A new Start continues from these files.`
