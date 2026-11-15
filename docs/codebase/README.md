@@ -591,6 +591,8 @@ file disagrees with either, they are right and this file is the defect.
 
 | `crates/core-runs/src/checks.rs` | task command confirmation | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/store/checks.rs` | command result persistence | `crates/core-runs/contract.yaml` |
+| `crates/core-runs/src/message.rs` | plain questions to task executors | `crates/core-runs/contract.yaml` |
+| `crates/core-runs/src/store/messages.rs` | ordered question persistence | `crates/core-runs/contract.yaml` |
 
 Runs validates done-mark reasons with its confirmation specs inside the mark transaction;
 the attempt checks endpoint and Planner task_checks tool read those same recorded results.

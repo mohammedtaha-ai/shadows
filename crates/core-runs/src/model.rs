@@ -11,6 +11,49 @@ newtype_id! {
     AttemptId
 }
 
+newtype_id! {
+    /// One plain question to an executor, never an attempt.
+    AgentMessageId
+}
+
+impl AgentMessageId {
+    pub fn from_recorded(id: String) -> Self {
+        Self::from_stored(id)
+    }
+}
+
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, utoipa::ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum AgentMessageState {
+    Waiting,
+    Sent,
+    Replied,
+    Delivered,
+    Failed,
+}
+
+#[derive(Debug, Clone, serde::Serialize, utoipa::ToSchema)]
+pub struct AgentMessage {
+    pub id: AgentMessageId,
+    pub attempt_id: AttemptId,
+    pub task: u32,
+    pub state: AgentMessageState,
+}
+
+#[derive(Debug, Clone, serde::Serialize, utoipa::ToSchema)]
+pub struct AgentReplyNotice {
+    pub workflow_id: WorkflowId,
+    pub version: i64,
+    pub task: u32,
+    pub title: String,
+    pub attempt_id: AttemptId,
+    pub message: String,
+    pub reply: Option<String>,
+    pub reason: Option<String>,
+}
+
 /// The executor's account, kept apart from Shadows' own confirmation.
 #[derive(
     Debug,

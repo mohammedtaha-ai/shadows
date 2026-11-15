@@ -58,6 +58,14 @@ struct TaskChecksArgs {
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
+struct MessageAgentArgs {
+    #[schemars(with = "String")]
+    workflow_id: WorkflowId,
+    task_number: u32,
+    message: String,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 struct TaskReadyArgs {
     /// The approved plan version.
     #[schemars(with = "String")]
@@ -385,6 +393,25 @@ impl Shadows {
             self.core
                 .runs()
                 .checks_for(&grant, &args.workflow_id, args.task_number)
+                .await
+                .map_err(Refusal::from),
+        )
+    }
+
+    #[tool(
+        description = "Ask a task's executor a plain question (why it chose something, \
+        what it ran) without changing the task: no attempt, no addition. A busy agent answers \
+        when its turn ends. The reply reaches you as \"Reply from task agent · T<n>\"."
+    )]
+    async fn message_agent(
+        &self,
+        Extension(grant): Extension<Grant>,
+        Parameters(args): Parameters<MessageAgentArgs>,
+    ) -> CallToolResult {
+        answer(
+            self.core
+                .runs()
+                .message_agent(&grant, &args.workflow_id, args.task_number, args.message)
                 .await
                 .map_err(Refusal::from),
         )

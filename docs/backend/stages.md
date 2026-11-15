@@ -118,7 +118,7 @@ B-150 → F-103 → B-151. Each task's files, interfaces, tests and commit are i
 
 ### B-150 · The Planner messages a task's agent
 
-- Status: todo
+- Status: done. Runs 98 passed / 6 live ignored; executor sessions 7, MCP 26, instructions 4, architecture 49, codemap 1, OpenAPI 9 passed; final message regressions 12 passed.
 - Plan: [B-150](plans/2026-11-15-slice-5-checks.md#b-150--the-planner-messages-a-tasks-agent).
 - Design: [executors design §5.3](specs/2026-11-08-executors-design.md#53-the-planner-messages-a-tasks-agent-mohammed-2026-11-14).
 - Owner: Runs, through Turns' send and notice and Harness's executor session.

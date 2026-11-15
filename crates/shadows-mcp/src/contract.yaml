@@ -139,3 +139,5 @@ task_checks: >
   task_checks reads the task latest committed confirmation results through Runs::checks_for
   after its Planner grant check. task_done accepts optional reason and passes it unchanged;
   Runs owns normalization, the fingerprint and whether a reason is required.
+
+message_agent: Plain Planner questions translate to Runs::message_agent; Runs owns scope, ordering, deduplication and reply delivery.

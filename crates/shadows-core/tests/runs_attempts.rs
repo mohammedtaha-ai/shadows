@@ -14,6 +14,8 @@ mod init;
 mod lessons;
 #[path = "runs_attempts/live.rs"]
 mod live;
+#[path = "runs_attempts/messages.rs"]
+mod messages;
 #[path = "runs_attempts/planner.rs"]
 mod planner;
 #[path = "runs_attempts/report.rs"]

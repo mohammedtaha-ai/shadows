@@ -28,10 +28,9 @@ struct Recipient {
     invocation: core_turns::InvocationView,
 }
 
-/// A conflict notice as first resolved: whom it goes to, its text, the
-/// settings it is sent with and its card. Saved on the attempt as JSON.
+/// A notice as first resolved, so a replay keeps its destination, settings and card.
 #[derive(serde::Serialize, serde::Deserialize)]
-struct ConflictNoticeIntent {
+struct NoticeIntent {
     planner: ThreadId,
     body: String,
     model: String,
@@ -40,11 +39,11 @@ struct ConflictNoticeIntent {
     card: serde_json::Value,
 }
 
-impl ConflictNoticeIntent {
-    /// The turn and notice every delivery of `attempt`'s conflict sends.
-    fn rebuild(self, attempt: &Attempt) -> (ThreadId, SendTurn, Notice) {
+impl NoticeIntent {
+    /// Rebuild the same turn and card for each delivery of this command.
+    fn rebuild(self, attempt: &Attempt, command_id: String) -> (ThreadId, SendTurn, Notice) {
         let turn = SendTurn {
-            command_id: format!("notify-{}", attempt.id),
+            command_id,
             prompt: self.body,
             attachments: vec![],
             model: self.model,
@@ -132,8 +131,8 @@ impl Runs {
                     .await?
             }
         };
-        let intent: ConflictNoticeIntent = serde_json::from_str(&saved)?;
-        let (planner, turn, notice) = intent.rebuild(attempt);
+        let intent: NoticeIntent = serde_json::from_str(&saved)?;
+        let (planner, turn, notice) = intent.rebuild(attempt, format!("notify-{}", attempt.id));
         match self.inner.turns.queue_notice(planner, turn, notice).await {
             Ok(_) => {
                 (self.inner.store)
@@ -159,7 +158,7 @@ impl Runs {
         &self,
         attempt: &Attempt,
         recipient: Recipient,
-    ) -> Result<ConflictNoticeIntent, RunsError> {
+    ) -> Result<NoticeIntent, RunsError> {
         let conflict = (self.conflict(&attempt.id).await?).ok_or(RunsError::NotFound)?;
         let title = Self::title(&recipient.plan, attempt);
         let card = AttemptNotice {
@@ -178,7 +177,7 @@ impl Runs {
             last_addition: false,
             conflict: Some(conflict.clone()),
         };
-        Ok(ConflictNoticeIntent {
+        Ok(NoticeIntent {
             planner: recipient.thread,
             body: Self::conflict_body(attempt, &title, &conflict),
             model: recipient.invocation.requested_model,
@@ -306,14 +305,18 @@ impl Runs {
                 };
                 format!(
                     "{head} committed {}.\nFiles: {files}\nThe executor's report:\n{report}\n\
-                     {last}Checks:\n{checks}\nRead its change with task_diff and task_file, then judge it against \
+                     {last}Checks:\n{checks}\nRead its change with task_diff and task_file, \
+                     then judge it against \
                      T{}'s acceptance items before you mark it done.",
                     attempt.commit.as_deref().unwrap_or_default(),
                     attempt.task
                 )
             }
             _ => {
-                card.report = self.failed_message(attempt).await;
+                card.report = match &attempt.operation_id {
+                    Some(operation) => self.last_message(&attempt.thread_id, operation).await,
+                    None => None,
+                };
                 let last = card
                     .report
                     .as_ref()
@@ -349,30 +352,90 @@ impl Runs {
 
     /// Keeps the executor's answer, cut at 4,000 chars, when no commit
     /// carries a report to the Planner.
-    async fn failed_message(&self, attempt: &Attempt) -> Option<String> {
-        let Some(operation) = &attempt.operation_id else {
-            tracing::warn!(attempt = %attempt.id, "runs.notify_no_message");
-            return None;
-        };
-        let entries = match self.inner.threads.entries(&attempt.thread_id).await {
-            Ok(entries) => entries,
-            Err(error) => {
-                tracing::warn!(attempt = %attempt.id, %error, "runs.notify_no_message");
-                return None;
-            }
-        };
-        let Some(entry) = entries.into_iter().rev().find(|entry| {
+    pub(super) async fn last_message(
+        &self,
+        thread: &ThreadId,
+        operation: &core_operations::OperationId,
+    ) -> Option<String> {
+        let entries = self.inner.threads.entries(thread).await.ok()?;
+        let entry = entries.into_iter().rev().find(|entry| {
             entry.kind == ThreadEntryKind::AgentMessage
                 && entry.operation_id.as_deref() == Some(operation.as_str())
-        }) else {
-            tracing::warn!(attempt = %attempt.id, "runs.notify_no_message");
-            return None;
-        };
+        })?;
         let mut chars = entry.body.chars();
-        let mut text: String = chars.by_ref().take(4_000).collect();
+        let mut text: String = chars.by_ref().take(4000).collect();
         if chars.next().is_some() {
             text.push_str("[cut]");
         }
         Some(text)
+    }
+
+    pub(super) async fn notify_reply(
+        &self,
+        message: &crate::store::messages::MessageRecord,
+    ) -> Result<(), RunsError> {
+        let attempt = self
+            .inner
+            .store
+            .get(&crate::AttemptId::from_recorded(message.attempt_id.clone()))
+            .await?;
+        let saved = match &message.notice_json {
+            Some(saved) => saved.clone(),
+            None => {
+                let Some(Recipient {
+                    plan,
+                    thread,
+                    invocation,
+                }) = self.recipient(&attempt).await?
+                else {
+                    return Err(RunsError::Unavailable(
+                        "the plan has no Planner conversation".into(),
+                    ));
+                };
+                let title = Self::title(&plan, &attempt);
+                let card = crate::AgentReplyNotice {
+                    workflow_id: attempt.workflow_id.clone(),
+                    version: attempt.version,
+                    task: attempt.task,
+                    title: title.clone(),
+                    attempt_id: attempt.id.clone(),
+                    message: message.message.clone(),
+                    reply: message.reply.clone(),
+                    reason: message.reason.clone(),
+                };
+                let prompt = match &message.reason {
+                    Some(reason) => format!(
+                        "[Shadows] No reply from task agent · T{}: {reason}",
+                        attempt.task
+                    ),
+                    None => format!(
+                        "[Shadows] Reply from task agent · T{} \"{title}\":\n{}",
+                        attempt.task,
+                        message.reply.as_deref().unwrap_or_default()
+                    ),
+                };
+
+                let intent = NoticeIntent {
+                    planner: thread,
+                    body: prompt,
+                    model: invocation.requested_model,
+                    mode: invocation.requested_mode,
+                    effort: invocation.requested_effort,
+                    card: serde_json::to_value(card)?,
+                };
+                self.inner
+                    .store
+                    .keep_message_notice(&message.id, serde_json::to_string(&intent)?)
+                    .await?
+            }
+        };
+        let intent: NoticeIntent = serde_json::from_str(&saved)?;
+        let (thread, turn, notice) = intent.rebuild(&attempt, format!("reply-{}", message.id));
+        self.inner
+            .turns
+            .queue_notice(thread, turn, notice)
+            .await
+            .map_err(|e| RunsError::Unavailable(e.to_string()))?;
+        self.inner.store.message_delivered(&message.id).await
     }
 }

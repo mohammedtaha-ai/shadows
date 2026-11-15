@@ -236,8 +236,11 @@ impl RunsStore {
     pub async fn quiet_threads(&self, project: &ProjectId) -> Result<Vec<ThreadId>, RunsError> {
         let ids: Vec<String> = sqlx::query_scalar(
             "SELECT DISTINCT thread_id FROM run_attempts
-            WHERE project_id=? AND released_at IS NULL ORDER BY thread_id",
+            WHERE project_id=? AND released_at IS NULL
+            UNION SELECT m.thread_id FROM run_agent_messages m JOIN run_attempts a
+              ON a.id=m.attempt_id WHERE a.project_id=? AND m.state='sent' ORDER BY thread_id",
         )
+        .bind(project.as_str())
         .bind(project.as_str())
         .fetch_all(self.storage.reader())
         .await?;

@@ -1274,3 +1274,5 @@ judge_checks: >
   The Planner reads task_checks before task_diff and task_file, judges confirmed results and
   reviews mismatches, and gives task_done.reason when accepting a non-passed check. A reported
   not_run that Shadows confirmed passed does not by itself demand a code amendment.
+
+message_agent: The Planner asks executor questions through message_agent; task_amend requests file changes.

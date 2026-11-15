@@ -36,6 +36,24 @@ const OURS: &str = "[Shadows] Shadows' instructions for you:";
 const STAGE_IDEA: &str = "[Shadows] Stage: idea.";
 
 #[tokio::test]
+async fn message_agent_tool_listed() {
+    let l = listening_app().await;
+    let client = listening::thread_client(&l, &l.app.thread).await;
+    let tools = client.list_tools(None).await.unwrap().tools;
+    assert!(tools.iter().any(|tool| tool.name == "message_agent"));
+    let error = listening::refused(
+        &client,
+        "message_agent",
+        json!({
+            "workflow_id":"missing", "task_number":1, "message":"Why?"
+        }),
+    )
+    .await;
+    assert!(error.contains("not found"), "{error}");
+    shut_down_app(l.app).await;
+}
+
+#[tokio::test]
 async fn task_checks_reads_latest_commit() {
     let l = listening_app().await;
     let workflow = plan::approved_v1(&l.app).await;

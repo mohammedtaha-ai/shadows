@@ -1993,6 +1993,18 @@ export interface components {
         AgentMcpItem: components["schemas"]["McpItem"] & {
             enabled: boolean;
         };
+        AgentReplyNotice: {
+            attempt_id: components["schemas"]["AttemptId"];
+            message: string;
+            reason?: string | null;
+            reply?: string | null;
+            /** Format: int32 */
+            task: number;
+            title: string;
+            /** Format: int64 */
+            version: number;
+            workflow_id: components["schemas"]["WorkflowId"];
+        };
         AgentTemplate: {
             instructions: string;
         };

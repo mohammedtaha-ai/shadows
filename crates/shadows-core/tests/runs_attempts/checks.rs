@@ -226,7 +226,7 @@ async fn restart_sends_an_unsent_notice() {
     f.finish().await;
 }
 
-async fn prepare_planner(f: &Fixture) -> ThreadId {
+pub(super) async fn prepare_planner(f: &Fixture) -> ThreadId {
     planner_turn(f, "judge", "claude-code", "fake-large").await;
     let thread = planner_grant(f).await.thread_id.unwrap();
     let runtime = shadows_core::testing::Runtime::start(f.storage.clone())

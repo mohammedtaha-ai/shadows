@@ -33,6 +33,7 @@ impl Runs {
         if let Err(error) = self.retry_conflict_notice(&now).await {
             tracing::warn!(%attempt, %error, "runs.conflict_notice_pending");
         }
+        self.pump(&current.thread_id).await;
         Ok(now)
     }
 

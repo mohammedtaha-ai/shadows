@@ -12,7 +12,7 @@ use core_plans::{FileAction, Plan, TaskContent, WorkflowId};
 use core_turns::SendTurn;
 
 /// The mode an executor's turns run in; its project's modes do not apply.
-const MODE: &str = shadows_agent::policy::EXECUTOR_MODE;
+pub(crate) const MODE: &str = shadows_agent::policy::EXECUTOR_MODE;
 
 impl Runs {
     /// Starts an attempt at `task` of a frozen version, or answers the one a
@@ -234,6 +234,7 @@ impl Runs {
             .finish(&attempt.id, AttemptState::Failed, Some(reason))
             .await?;
         self.release_logged(&attempt.id, &attempt.thread_id).await;
+        self.pump(&attempt.thread_id).await;
         self.inner.store.get(&attempt.id).await
     }
 }

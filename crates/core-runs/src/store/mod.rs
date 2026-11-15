@@ -9,6 +9,7 @@ pub(super) mod checks;
 mod conflict;
 mod lessons;
 mod marks;
+pub(super) mod messages;
 mod recover;
 
 use std::sync::Arc;

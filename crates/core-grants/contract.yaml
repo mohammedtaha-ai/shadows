@@ -508,3 +508,5 @@ tests:
 # thread removal revoke executor grants with the thread ones (executor_session tests).
 
 task_checks: Thread grants include task_checks; Project and Executor grants do not.
+
+message_agent: Thread grants include message_agent; Project and Executor grants do not.

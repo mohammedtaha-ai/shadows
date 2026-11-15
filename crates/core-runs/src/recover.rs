@@ -42,6 +42,9 @@ impl Runs {
                     }
                     Err(error) => tracing::warn!(%error,"runs.recover_checks_failed"),
                 }
+                if let Err(error) = runs.recover_messages().await {
+                    tracing::warn!(%error,"runs.recover_messages_failed");
+                }
             });
         }
         Ok(RecoverReport { interrupted })

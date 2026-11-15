@@ -25,6 +25,7 @@ mod error;
 mod git;
 mod init;
 mod lessons;
+mod message;
 mod model;
 mod notify;
 mod planner;
@@ -45,10 +46,11 @@ use std::sync::{Arc, Mutex};
 pub use brief::AttemptBrief;
 pub use error::RunsError;
 pub use model::{
-    Attempt, AttemptFile, AttemptId, AttemptNotice, AttemptOrigin, AttemptState, CheckOutcome,
-    CheckResult, ConflictDelivery, ConflictEvidence, ConflictInput, DoneMark, FileDiff,
-    LessonAttempt, LessonCommand, Need, ReadyGroup, ReadyTask, RecoverReport, ReportedCheck,
-    ReportedOutcome, StartAnswer, TaskConflict, TaskLesson, TaskRun,
+    AgentMessage, AgentMessageId, AgentMessageState, AgentReplyNotice, Attempt, AttemptFile,
+    AttemptId, AttemptNotice, AttemptOrigin, AttemptState, CheckOutcome, CheckResult,
+    ConflictDelivery, ConflictEvidence, ConflictInput, DoneMark, FileDiff, LessonAttempt,
+    LessonCommand, Need, ReadyGroup, ReadyTask, RecoverReport, ReportedCheck, ReportedOutcome,
+    StartAnswer, TaskConflict, TaskLesson, TaskRun,
 };
 pub use question::{PlannedScope, ProducerStatus, TaskAnswer, TaskQuestion};
 
@@ -90,6 +92,7 @@ const COMMIT: &str = "Other executors may work in the same folder at once. Run o
 const EXECUTOR_HARNESS: &str = shadows_agent::policy::CLAUDE_CODE;
 
 struct Inner {
+    messaging: tokio::sync::Mutex<std::collections::HashMap<ThreadId, Arc<tokio::sync::Mutex<()>>>>,
     checking: tokio::sync::Mutex<std::collections::HashMap<ProjectId, Arc<tokio::sync::Mutex<()>>>>,
     store: RunsStore,
     plans: Plans,
@@ -123,6 +126,7 @@ impl Runs {
     ) -> Self {
         Self {
             inner: Arc::new(Inner {
+                messaging: tokio::sync::Mutex::new(std::collections::HashMap::new()),
                 checking: tokio::sync::Mutex::new(std::collections::HashMap::new()),
                 store: RunsStore::with_storage(storage),
                 plans,
@@ -261,7 +265,7 @@ impl Runs {
             && let Some((attempt, thread)) =
                 self.inner.store.awaiting(workflow, version, task).await?
         {
-            self.release_logged(&attempt, &thread).await;
+            self.release_after_mark(&attempt, &thread).await;
         }
         self.task(workflow, version, task).await
     }

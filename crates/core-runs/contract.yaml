@@ -22,7 +22,7 @@
 #
 # One review path: an attempt's end reaches its judge by one road only. `watch` sees the turn
 # end, `notify` hands the attempt on, the Planner judges, then `task_done` (`mark_done`) or
-# `task_amend` (`amend`). Nothing else marks or continues a task. `notify` is the one place a
+# `task_amend` (`amend`). Failed command checks may return the task before judgment. `notify` is the one place a
 # reviewer would be added; no trait, hook or field is built for it now.
 #
 # An addition is a new attempt on the same executor thread, carrying the Planner's text; the
@@ -42,7 +42,7 @@ version: 1
 status: current
 source: crates/core-runs/src
 
-owns_tables: [run_attempts, run_attempt_context, run_task_marks, run_lessons, run_checks]
+owns_tables: [run_attempts, run_attempt_context, run_task_marks, run_lessons, run_checks, run_agent_messages]
 
 modules:
   lib.rs: the Runs service, its queries and done marks
@@ -58,6 +58,7 @@ modules:
   amend.rs: carrying an attempt on with the Planner's addition
   brief.rs: reading the context an attempt was given
   checks.rs: confirming an attempt’s task commands
+  message.rs: plain questions to a task executor
   question.rs: answering an executor's question about its own attempt
   conflict.rs: an executor's contract conflict on its own attempt
   lessons.rs: the record a task leaves when it stops on the cap
@@ -72,6 +73,7 @@ modules:
   store/lessons.rs: lessons records SQL
   store/brief.rs: saved attempt context SQL
   store/checks.rs: command confirmation SQL
+  store/messages.rs: ordered questions SQL
   store/conflict.rs: attempt conflict SQL
   store/recover.rs: startup SQL
 
@@ -478,3 +480,12 @@ done_checks:
   checks_for: >
     The Planner grant reaches only its project's requested workflow; checks_for returns the
     newest committed attempt's check_results, or NotFound. HTTP reads an explicit attempt id.
+
+agent_messages:
+  method: Runs::message_agent(grant, workflow, task, message) -> AgentMessage
+  states: [waiting, sent, replied, delivered, failed]
+  ordering: One plain question turn per executor thread, FIFO ordinal; Turns operations decide busy.
+  deduplication: Trimmed equal text on the same attempt reuses waiting, sent or replied messages; after delivery it is a new question.
+  lifecycle: No attempt or addition changes. Amend refuses pending questions; done defers closing until the reply. Startup reads completed persisted turns or delivers saved replies.
+  tests: shadows-core/tests/runs_attempts/messages.rs
+  delivery: The reply notice is frozen before its first queue_notice so a retry keeps the command fingerprint across changed Planner settings; recovery also closes idle sessions and pumps waiting questions.

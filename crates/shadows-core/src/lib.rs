@@ -148,3 +148,5 @@ pub use core_runs::{ConflictDelivery, ConflictEvidence, ConflictInput, TaskConfl
 pub use core_runs::{PlannedScope, ProducerStatus, TaskAnswer, TaskQuestion};
 
 pub use core_runs::{AttemptOrigin, CheckOutcome, CheckResult};
+
+pub use core_runs::{AgentMessage, AgentMessageId, AgentMessageState, AgentReplyNotice};

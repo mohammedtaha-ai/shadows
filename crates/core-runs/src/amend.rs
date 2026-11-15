@@ -38,6 +38,28 @@ impl Runs {
         if addition.is_empty() {
             return Err(RunsError::EmptyAddition);
         }
+        let thread = self
+            .attempts(workflow, plan.version, task)
+            .await?
+            .into_iter()
+            .next()
+            .map(|a| a.thread_id);
+        let lock = match &thread {
+            Some(thread) => Some(self.message_lock(thread).await),
+            None => None,
+        };
+        let held = match &lock {
+            Some(lock) => Some(lock.lock().await),
+            None => None,
+        };
+        if self
+            .inner
+            .store
+            .pending_for_task(workflow, plan.version, task)
+            .await?
+        {
+            return Err(RunsError::AgentAnswering { task });
+        }
         let (awaiting, _) = self
             .inner
             .store
@@ -50,6 +72,7 @@ impl Runs {
             .additions_since_start(workflow, plan.version, task)
             .await?;
         if spent >= ADDITIONS {
+            drop(held);
             let stopped = self.stop(&awaiting).await?;
             tracing::info!(%workflow, task, "runs.additions_spent");
             self.record_lesson(&plan, &stopped).await;
@@ -75,6 +98,7 @@ impl Runs {
             .replace("{sha}", previous.commit.as_deref().unwrap_or_default())
             .replace("{n}", &task.to_string())
             .replace("{addition}", &addition);
+        drop(held);
         self.run_turn(next, prompt).await
     }
 }
