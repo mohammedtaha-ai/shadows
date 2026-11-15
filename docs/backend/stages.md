@@ -86,7 +86,7 @@ Codex reviews. Rulings: a contract problem stops only its own attempt and the Pl
 stops other affected work (2026-11-14); leftovers continue, a done mark rechecks the plan's done
 tasks, decisions are accepted on the person's card (2026-11-16).
 Order: B-117 → B-153 → B-152 → B-154 → B-105 → web tasks from F-121 → B-118.
-B-152, B-154 and B-105 wait for the [shared request](../shared/requests/2026-11-16-slice-6-stop-control.md), answered 2026-11-16, to be accepted.
+B-152, B-154 and B-105 build on the [shared request](../shared/requests/2026-11-16-slice-6-stop-control.md), accepted by Masada 2026-11-16 (`9dbb015c`).
 
 ### B-117 · The Planner lists the attempts that hold a scope (`task_runs`)
 
@@ -110,17 +110,17 @@ B-152, B-154 and B-105 wait for the [shared request](../shared/requests/2026-11-
 
 ### B-152 · The Planner hears of an interrupted attempt and of the person's Stop
 
-- Status: blocked (the slice 6 shared request, answered, must be accepted)
+- Status: todo
 - Plan: [B-152](plans/2026-11-16-slice-6-stop-control.md#task-b-152-the-planner-hears-of-an-interrupted-attempt-and-of-the-persons-stop).
 - Owner: Runs.
 - Read: `crates/core-runs/contract.yaml` (`recover`, `stop`, `stop_for`, `notify`, transitions); the plan's Review Focus.
 - Touch: the task's Files list in the plan; no other path.
-- Needs: B-153; the accepted request.
+- Needs: B-153; the accepted request (`9dbb015c`).
 - Done when: the six `stops::` tests and `a_stopped_conflict_keeps_its_one_notice` pass, with all of `runs_attempts` and `recovery`; contract updated; scoped commit.
 
 ### B-154 · A done mark rechecks every done task of its plan
 
-- Status: blocked (the slice 6 shared request, answered, must be accepted)
+- Status: todo
 - Plan: [B-154](plans/2026-11-16-slice-6-stop-control.md#task-b-154-a-done-mark-rechecks-every-done-task-of-its-plan).
 - Owner: Runs.
 - Read: `crates/core-runs/contract.yaml` (`mark_done`, `confirmation`, `done_checks`, `recover`); `crates/core-plans/contract.yaml` (`plan`, `shared_in_transaction`); migration `0063_run_checks.sql`.
@@ -130,7 +130,7 @@ B-152, B-154 and B-105 wait for the [shared request](../shared/requests/2026-11-
 
 ### B-105 · Project decisions, proposed by the Planner and accepted by the person
 
-- Status: blocked (the slice 6 shared request, answered, must be accepted)
+- Status: todo
 - Plan: [B-105](plans/2026-11-16-slice-6-stop-control.md#task-b-105-project-decisions-proposed-by-the-planner-and-accepted-by-the-person).
 - Owner: Design, with Plans for the pins and the adapters.
 - Read: `crates/core-design/contract.yaml` (`propose_vision`, `approve_vision_proposal`); `crates/core-plans/contract.yaml` (`TaskContract`, `TaskContext`, `task_context_in`); spec §17.3.
