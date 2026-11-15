@@ -321,16 +321,25 @@ impl Runs {
             .unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(prompt.to_string());
     }
 
-    fn first_prompt(&self, task: u32) -> String {
+    fn first_prompt(&self, task: u32, left: &[String], left_by: Option<u32>) -> String {
         self.inner
             .prompt
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner())
             .clone()
             .unwrap_or_else(|| {
-                FIRST_PROMPT
+                let prompt = FIRST_PROMPT
                     .replace("{n}", &task.to_string())
-                    .replace("{commit}", COMMIT)
+                    .replace("{commit}", COMMIT);
+                match left_by.filter(|_| !left.is_empty()) {
+                    Some(number) => format!(
+                        "{prompt}\nAttempt {number} of this task ended without a commit and left \
+                         these files uncommitted inside your writes: {}. Read them first; keep \
+                         what is right, fix or remove the rest, then commit only this task's work.",
+                        left.join(", ")
+                    ),
+                    None => prompt,
+                }
             })
     }
 }

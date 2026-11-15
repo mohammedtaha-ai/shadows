@@ -695,10 +695,7 @@ async fn conflict_keeps_uncommitted_files() {
         .runs()
         .start("s2".into(), &f.workflow, 1, 1, "fake-large".into())
         .await;
-    assert!(
-        matches!(again, Err(RunsError::DirtyScope { .. })),
-        "{again:?}"
-    );
+    assert!(again.is_ok(), "{again:?}");
     f.finish().await;
 }
 

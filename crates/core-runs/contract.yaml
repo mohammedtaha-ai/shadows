@@ -143,12 +143,13 @@ shapes:
   # NoLesson (no_lesson) and EmptyLesson (empty_lesson) are write_lesson's.
 
 functions:
+  last_ended: 'private store: newest attempt with the same task number across the plan version ids; only released Stopped, Interrupted or Failed without a commit qualifies'
   live_for: '(grant, workflow) -> Vec<LiveAttempt>; Planner project reach, every version from Plans::plan, unreleased scopes ordered by version/task/number, conflict flag read with the attempt'
   checks_for: '(grant, workflow, task) -> Vec<CheckResult>; Planner project reach, latest committed attempt, NotFound when absent'
   check_results: '(attempt) -> Vec<CheckResult>; unknown attempt NotFound; reported outcomes apart from nullable Shadows outcomes, own task first then used task and ordinal'
   confirm: 'private: a committed attempt whose turn ended; waits for quiet, serializes per project, records commands, then returns a failed confirmation at most twice or notifies the Planner; only the latest attempt acts'
   new: "(storage, plans, harness, turns, projects, threads, code) -> Runs; AppCore constructs the service"
-  start: "(command, workflow, version, task, model) -> Attempt; a replay answers the first attempt before any check the plan's later state could fail, the same id with other input is CommandConflict; then checks: admit_in in one read snapshot (Archived, NotFrozen, Superseded from Plans::execution_plan_in, the task NotFound, BadScope, Waiting), then the folder: NotGit, DirtyScope when git lists a changed path inside writes, then required_inputs through Codebase::missing_inputs (MissingInput, InputUnavailable); then begin_attempt, one write that replays, runs admit_in again, then the busy and overlap check, then inserts; the attempt records the commit HEAD names then (start_head); an attempt whose session or turn cannot start is recorded, so it is answered Failed with its reason, not refused; once the session opened it sends the turn only if the attempt is still Running (a Stop while the session opened found no turn to stop), and a Stop between that check and the turn's record stops the turn"
+  start: "(command, workflow, version, task, model) -> Attempt; a replay answers the first attempt before any check the plan's later state could fail, the same id with other input is CommandConflict; then checks: admit_in in one read snapshot (Archived, NotFrozen, Superseded from Plans::execution_plan_in, the task NotFound, BadScope, Waiting), then the folder: NotGit, DirtyScope when git lists a changed path inside writes unless last_ended qualifies; admitted paths and the previous attempt number are carried into the first prompt, then required_inputs through Codebase::missing_inputs (MissingInput, InputUnavailable); then begin_attempt, one write that replays, runs admit_in again, then the busy and overlap check, then inserts; the attempt records the commit HEAD names then (start_head); an attempt whose session or turn cannot start is recorded, so it is answered Failed with its reason, not refused; once the session opened it sends the turn only if the attempt is still Running (a Stop while the session opened found no turn to stop), and a Stop between that check and the turn's record stops the turn"
   required_inputs: "private: (content) -> paths; the exact files a rich contract reads, modifies or deletes, and its Existing uses' paths; a Create target, a reads pattern and a task without a contract require nothing"
   admit_in: "private: (tx, workflow, version, task) -> (Plan, TaskContent); Plans::execution_plan_in's refusal mapped to Archived, NotFrozen or Superseded, another version NotFound, the task NotFound, BadScope, then Waiting from needs_in; the one durable admission check of the preflight and of begin_attempt"
   needs_in: "private: (tx, plan, task) -> Vec<Need>; the version's needs links in link order, each local mark and each linked plan's reached mark as tx sees it (RunsStore::done_in); task's needs read it on a reader connection"
@@ -304,6 +305,8 @@ agreements:
     tested_by: [live_an_addition_continues_the_executor_in_its_session]
 
 obligations:
+  - rule: Readiness agrees with Start over leftovers, while personal dirty files without an ended attempt or after a committed attempt still refuse Start.
+    tested_by: [a_start_after_a_stopped_attempt_continues_from_its_files, a_start_after_an_interrupted_attempt_continues_from_its_files, dirty_files_without_an_ended_attempt_still_refuse_start, the_task_read_allows_a_start_over_leftovers]
   - rule: Only a Planner of the project lists a plan's held scopes across versions, including conflicts, with version-specific titles.
     tested_by: [task_runs_lists_the_attempts_that_hold_a_scope, task_runs_lists_an_old_versions_attempt_after_a_new_approval, task_runs_marks_a_conflicted_attempt, task_runs_is_refused_to_another_grant]
   - rule: A ready group is pairwise write-compatible, excludes held scopes and tasks that already ran, and is not a reservation; a stale group cannot bypass Start, and a stop frees a never-attempted task.
@@ -348,7 +351,7 @@ obligations:
     tested_by: [start_waits_for_needs_links, start_waits_for_a_needs_link_to_another_plans_task]
   - rule: A draft, a superseded version and an archived plan cannot start.
     tested_by: [start_refuses_a_draft, start_refuses_a_superseded_version, start_refuses_an_archived_plan]
-  - rule: A folder that is not git, or that has uncommitted changes inside the task's writes, cannot start.
+  - rule: A folder must be git; dirty writes refuse Start unless the task's latest attempt across versions ended without a commit and released its scope. The new executor is told which files remain.
     tested_by: [start_refuses_a_folder_that_is_not_git, start_refuses_uncommitted_changes_in_writes]
   - rule: The Planner makes a folder without git a repository with a first commit in Shadows' name of the files the folder holds, without what git ignores and Code's secret and dependency files, which stay in the folder untracked and out of git status; an empty folder gets an empty commit; no project file is written, and Start may run after; a folder inside a repository and a grant that is not a Planner's are refused.
     tested_by: [the_planner_initialises_git_in_a_folder_without_one, git_init_takes_the_files_the_folder_holds, git_init_leaves_out_secrets_and_dependencies, git_init_in_an_empty_folder_makes_an_empty_commit, git_init_is_refused_inside_a_repository, git_init_is_refused_to_an_executor_grant]
@@ -428,7 +431,7 @@ obligations:
     tested_by: [failed_stop_or_close_keeps_the_scope]
   - rule: The Planner's task_stop ends an executor that does not end itself; only a Planner's grant of the project may.
     tested_by: [planner_can_stop_a_nonending_executor]
-  - rule: A conflict stop keeps the executor's uncommitted files; nothing is reset or committed, and the next Start sees them.
+  - rule: A conflict stop keeps the executor's uncommitted files; nothing is reset or committed, and the next Start continues from them.
     tested_by: [conflict_keeps_uncommitted_files]
   - rule: A conflict is the executor's report on its own attempt, never an approval; only an executor grant files it, and invalid input or paths are refused before anything is written.
     tested_by: [executor_conflicts_cannot_approve, invalid_conflicts_are_refused]

@@ -14,6 +14,13 @@ use core_turns::SendTurn;
 /// The mode an executor's turns run in; its project's modes do not apply.
 pub(crate) const MODE: &str = shadows_agent::policy::EXECUTOR_MODE;
 
+pub(crate) struct Checked {
+    pub(crate) plan: Plan,
+    pub(crate) content: TaskContent,
+    pub(crate) left: Vec<String>,
+    pub(crate) left_by: Option<u32>,
+}
+
 impl Runs {
     /// Starts an attempt at `task` of a frozen version, or answers the one a
     /// replay of `command` started, whatever the plan has become since. An
@@ -37,7 +44,12 @@ impl Runs {
         if let Some(first) = self.inner.store.replay(&command, &fingerprint).await? {
             return Ok(first);
         }
-        let (plan, content) = self.checks(workflow, version, task).await?;
+        let Checked {
+            plan,
+            content,
+            left,
+            left_by,
+        } = self.checks(workflow, version, task).await?;
         // A reported commit already reachable from here is not this attempt's work.
         let start_head = Git::at(&self.folder(&plan.project_id).await?).head().await;
         let begun = self
@@ -58,7 +70,8 @@ impl Runs {
         if begun.replayed {
             return Ok(begun.attempt);
         }
-        self.run_turn(begun.attempt, self.first_prompt(task)).await
+        self.run_turn(begun.attempt, self.first_prompt(task, &left, left_by))
+            .await
     }
 
     /// Opens the attempt's executor session, live, closed or gone after a
@@ -150,14 +163,29 @@ impl Runs {
         workflow: &WorkflowId,
         version: i64,
         task: u32,
-    ) -> Result<(Plan, TaskContent), RunsError> {
+    ) -> Result<Checked, RunsError> {
         let (plan, content) = self.inner.store.admission(workflow, version, task).await?;
         let matcher = Scope::new(&content.writes).map_err(RunsError::BadScope)?;
         let git = Git::at(&self.folder(&plan.project_id).await?);
         let prefix = git.prefix().await.ok_or(RunsError::NotGit)?;
         let dirty = self.dirty(&git, &prefix, &matcher).await?;
+        let mut left_by = None;
         if !dirty.is_empty() {
-            return Err(RunsError::DirtyScope { paths: dirty });
+            let versions = self
+                .inner
+                .plans
+                .plan(&plan.plan_id)
+                .await
+                .map_err(RunsError::from_plans)?;
+            let workflows = versions
+                .versions
+                .into_iter()
+                .map(|v| v.workflow_id)
+                .collect::<Vec<_>>();
+            match self.inner.store.last_ended(&workflows, task).await? {
+                Some(attempt) => left_by = Some(attempt.number),
+                None => return Err(RunsError::DirtyScope { paths: dirty }),
+            }
         }
         let required = Self::required_inputs(&content);
         if !required.is_empty() {
@@ -171,7 +199,12 @@ impl Runs {
                 return Err(RunsError::MissingInput { paths: missing });
             }
         }
-        Ok((plan, content))
+        Ok(Checked {
+            plan,
+            content,
+            left: dirty,
+            left_by,
+        })
     }
 
     /// The exact files a task's contract says already exist: those it reads,

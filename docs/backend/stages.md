@@ -100,7 +100,7 @@ B-152, B-154 and B-105 build on the [shared request](../shared/requests/2026-11-
 
 ### B-153 · A new Start continues from the files a stopped attempt left
 
-- Status: todo
+- Status: done (automated checks passed; manual acceptance remains with Mohammed)
 - Plan: [B-153](plans/2026-11-16-slice-6-stop-control.md#task-b-153-a-new-start-continues-from-the-files-a-stopped-attempt-left).
 - Owner: Runs.
 - Read: `crates/core-runs/contract.yaml` (`start`, `start_answer`, the dirty-scope obligations); the plan's rulings.
