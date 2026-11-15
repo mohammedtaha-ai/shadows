@@ -64,7 +64,7 @@ this file at `db760593`.
 Order and rulings: [the program](plans/2026-11-09-local-delivery-program.md). Slice 4 is on `main`
 at `d73bb646` (PR #68); its tasks B-108, B-148, B-107, B-109, B-147 and F-102 are shipped there.
 Slice 5 is on `main` at `4031168f` (PR #69). Only B-149 remains in its [plan](plans/2026-11-14-slice-4-task-questions.md).
-B-105 is deferred to [future](../core/future.md) until a task needs it.
+B-105 moved into slice 6 (Mohammed, 2026-11-16).
 
 ### B-149 · Real slice 4 acceptance
 
@@ -82,8 +82,11 @@ B-105 is deferred to [future](../core/future.md) until a task needs it.
 ## Slice 6: stop control and full acceptance
 
 Plan: [slice 6](plans/2026-11-16-slice-6-stop-control.md), awaiting Mohammed's approval: no
-builder runs before it. Ruling: a contract problem stops only its own attempt; the Planner stops
-other affected work (Mohammed, 2026-11-14). Order: B-117 → B-152 → F-121 → B-118.
+builder runs before it. Rulings: a contract problem stops only its own attempt and the Planner
+stops other affected work (2026-11-14); leftovers continue, a done mark rechecks the plan's done
+tasks, decisions are accepted on the person's card (2026-11-16).
+Order: B-117 → B-153 → B-152 → B-154 → B-105 → web tasks from F-121 → B-118.
+B-152, B-154 and B-105 wait for one shared request from Masada covering their cards and routes.
 
 ### B-117 · The Planner lists the attempts that hold a scope (`task_runs`)
 
@@ -95,22 +98,52 @@ other affected work (Mohammed, 2026-11-14). Order: B-117 → B-152 → F-121 →
 - Needs: slices 4 and 5 (shipped, `4031168f`).
 - Done when: the four `planner::task_runs_*` tests, `the_planner_lists_live_attempts_over_mcp`, `mcp_server` and `planner_instructions` pass; contracts updated; scoped commit.
 
+### B-153 · A new Start continues from the files a stopped attempt left
+
+- Status: todo (after plan approval)
+- Plan: [B-153](plans/2026-11-16-slice-6-stop-control.md#task-b-153-a-new-start-continues-from-the-files-a-stopped-attempt-left).
+- Owner: Runs.
+- Read: `crates/core-runs/contract.yaml` (`start`, `start_answer`, the dirty-scope obligations); the plan's rulings.
+- Touch: the task's Files list in the plan; no other path.
+- Needs: B-117 (same `lib.rs` and contract).
+- Done when: the four `leftovers::` tests and the changed `conflict_keeps_uncommitted_files` pass, with all of `runs_attempts` and `task_conflicts`; contract updated; scoped commit.
+
 ### B-152 · The Planner hears of an interrupted attempt and of the person's Stop
 
-- Status: blocked (Masada's shared request for F-121's `interrupted` and `stopped` cards must be accepted)
+- Status: blocked (Masada's shared request for slice 6 must be accepted)
 - Plan: [B-152](plans/2026-11-16-slice-6-stop-control.md#task-b-152-the-planner-hears-of-an-interrupted-attempt-and-of-the-persons-stop).
 - Owner: Runs.
 - Read: `crates/core-runs/contract.yaml` (`recover`, `stop`, `stop_for`, `notify`, transitions); the plan's Review Focus.
 - Touch: the task's Files list in the plan; no other path.
-- Needs: B-117 (same `stop.rs` neighbours and contract); the accepted request.
+- Needs: B-153; the accepted request.
 - Done when: the four `stops::` tests and `a_stopped_conflict_keeps_its_one_notice` pass, with all of `runs_attempts` and `recovery`; contract updated; scoped commit.
+
+### B-154 · A done mark rechecks every done task of its plan
+
+- Status: blocked (Masada's shared request for slice 6 must be accepted)
+- Plan: [B-154](plans/2026-11-16-slice-6-stop-control.md#task-b-154-a-done-mark-rechecks-every-done-task-of-its-plan).
+- Owner: Runs.
+- Read: `crates/core-runs/contract.yaml` (`mark_done`, `confirmation`, `done_checks`, `recover`); migration `0063_run_checks.sql`.
+- Touch: the task's Files list in the plan; no other path.
+- Needs: B-152 (same `recover.rs` and contract); the accepted request.
+- Done when: the six `rechecks::` tests pass, with all of `runs_attempts`, `recovery` and `openapi`; contract and code map updated; scoped commit.
+
+### B-105 · Project decisions, proposed by the Planner and accepted by the person
+
+- Status: blocked (Masada's shared request for slice 6 must be accepted)
+- Plan: [B-105](plans/2026-11-16-slice-6-stop-control.md#task-b-105-project-decisions-proposed-by-the-planner-and-accepted-by-the-person).
+- Owner: Design, with Plans for the pins and the adapters.
+- Read: `crates/core-design/contract.yaml` (`propose_vision`, `approve_vision_proposal`); `crates/core-plans/contract.yaml` (`TaskContract`, `TaskContext`, `task_context_in`); spec §17.3.
+- Touch: the task's Files list in the plan; no other path.
+- Needs: B-154 (migration order); the accepted request.
+- Done when: the named tests in `design_decisions`, `task_contract`, `attempt_briefs`, `design_routes` and `mcp_server` pass, with `openapi`; contracts, code map and spec updated; scoped commit.
 
 ### B-118 · The full journey, live and in the browser
 
-- Status: blocked (needs B-117, B-152 and F-121)
+- Status: blocked (needs B-117, B-153, B-152, B-154, B-105 and the web tasks)
 - Plan: [B-118](plans/2026-11-16-slice-6-stop-control.md#task-b-118-the-full-journey-live-and-in-the-browser).
 - Owner: integration acceptance through AppCore and the real UI.
 - Read: the plan's B-118; `crates/shadows/tests/checks_live.rs` for the live setup.
 - Touch: the task's Files list in the plan.
-- Needs: B-117, B-152, F-121.
+- Needs: every task above and the web tasks.
 - Done when: `stop_control_live` passes on the signed-in subscription and the browser journey, with its logs, is recorded in evidence.
