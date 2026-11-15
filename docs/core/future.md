@@ -47,6 +47,7 @@ written beyond the vision). A feature leaves this list when it is delivered.
 | Design diagrams | ER diagrams for schemas, screen flows for interfaces, editing the same record as the details | idea | [vision §9](./vision.md#9-the-roadmap-shared-contracts-and-the-effect-of-a-change), [§12](./vision.md#12-clear-navigation-and-focused-work) |
 | Shadows' own skills | Skills owned by Shadows, managed per project, the same under Claude and Codex | idea | [vision §13](./vision.md#13-shadows-own-skills-and-managing-them) |
 | Extensions per project role | Skills, plugins and MCP connections enabled per role in the Dashboard | planned | [§19](specs/2026-10-03-agent-profiles-and-extensions-design.md) |
+| Themes an agent edits | The person's own colors and animated background, changed by an agent on request and applied live; checked data, backgrounds from a fixed set | idea | [vision §12](./vision.md#12-clear-navigation-and-focused-work) |
 | Arabic interface | Arabic translations and right-to-left layout beside English | idea | [vision §12](./vision.md#12-clear-navigation-and-focused-work) |
 | Installation and backups | Local install, explicit data location, recoverable backups, migration checks | idea | [vision §10](./vision.md#10-a-complete-local-product) |
 | Bounded resync snapshot | A reconnecting client gets a bounded snapshot, then older history on request | planned | [§2.10](specs/2026-09-21-data-flow-design.md), [§5.7](specs/2026-09-21-persistence-api-and-migrations-design.md) |
