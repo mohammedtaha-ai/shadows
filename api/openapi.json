@@ -1176,6 +1176,16 @@
             "description": "The attempt carried the task's third and last addition.",
             "type": "boolean"
           },
+          "left_files": {
+            "description": "Uncommitted files left by a Stop or interruption; unknown when git failed.",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
           "model": {
             "type": "string"
           },

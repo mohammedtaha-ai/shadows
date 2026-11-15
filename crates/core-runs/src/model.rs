@@ -312,6 +312,9 @@ pub struct FileDiff {
 /// and the executor's report (its last message when it failed).
 #[derive(Debug, Clone, serde::Serialize, utoipa::ToSchema)]
 pub struct AttemptNotice {
+    /// Uncommitted files left by a Stop or interruption; unknown when git failed.
+    #[serde(default)]
+    pub left_files: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub checks: Vec<CheckResult>,
     pub workflow_id: WorkflowId,

@@ -162,6 +162,7 @@ impl Runs {
         let conflict = (self.conflict(&attempt.id).await?).ok_or(RunsError::NotFound)?;
         let title = Self::title(&recipient.plan, attempt);
         let card = AttemptNotice {
+            left_files: None,
             checks: vec![],
             workflow_id: attempt.workflow_id.clone(),
             version: attempt.version,
@@ -245,8 +246,10 @@ impl Runs {
             .turns
             .queue_notice(thread, turn, notice)
             .await
-            .map(|_| ())
-            .map_err(|error| RunsError::Unavailable(format!("the notice was not queued: {error}")))
+            .map_err(|error| {
+                RunsError::Unavailable(format!("the notice was not queued: {error}"))
+            })?;
+        self.inner.store.mark_notice_sent(&attempt.id).await
     }
 
     /// Resolves the ended notice from the attempt as it stands now; `None`
@@ -263,6 +266,7 @@ impl Runs {
         };
         let title = Self::title(&plan, attempt);
         let mut card = AttemptNotice {
+            left_files: None,
             checks: vec![],
             workflow_id: attempt.workflow_id.clone(),
             version: attempt.version,
@@ -347,6 +351,56 @@ impl Runs {
                     attempt.commit.as_deref().unwrap_or_default(),
                     attempt.task
                 )
+            }
+            AttemptState::Interrupted | AttemptState::Stopped => {
+                let files = async {
+                    let folder = self.folder(&attempt.project_id).await?;
+                    let git = crate::git::Git::at(&folder);
+                    let prefix = git.prefix().await.ok_or(RunsError::NotGit)?;
+                    let task = plan
+                        .tasks
+                        .iter()
+                        .find(|t| t.content.number == attempt.task)
+                        .ok_or(RunsError::NotFound)?;
+                    let scope = crate::scope::Scope::new(&task.content.writes)
+                        .map_err(RunsError::BadScope)?;
+                    self.dirty(&git, &prefix, &scope).await
+                }
+                .await;
+                card.left_files = match files {
+                    Ok(files) => Some(files),
+                    Err(error) => {
+                        tracing::warn!(attempt=%attempt.id, %error, "runs.notify_dirty_unread");
+                        None
+                    }
+                };
+                card.reason = None;
+                let dirty = match &card.left_files {
+                    Some(files) if files.is_empty() => "none".into(),
+                    Some(files) => files.join(", "),
+                    None => "unknown".into(),
+                };
+                let last = match &attempt.operation_id {
+                    Some(operation) => self.last_message(&attempt.thread_id, operation).await,
+                    None => None,
+                }
+                .map(|text| format!("The executor's last message:\n{text}\n"))
+                .unwrap_or_default();
+                if attempt.state == AttemptState::Interrupted {
+                    format!(
+                        "{head} was interrupted: Shadows stopped while it ran, and nothing \
+                        was committed.\nUncommitted files in its writes: {dirty}\n{last}Tell the \
+                        person; start it again only if they ask. A new Start continues from \
+                        these files."
+                    )
+                } else {
+                    format!(
+                        "{head} was stopped by the person.\nUncommitted files in its writes: \
+                        {dirty}\n{last}Do not start it again unless they ask. A new Start \
+                        continues \
+                        from these files."
+                    )
+                }
             }
             _ => {
                 card.report = match &attempt.operation_id {

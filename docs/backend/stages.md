@@ -110,7 +110,7 @@ B-152, B-154 and B-105 build on the [shared request](../shared/requests/2026-11-
 
 ### B-152 · The Planner hears of an interrupted attempt and of the person's Stop
 
-- Status: todo
+- Status: done (automated checks passed; manual acceptance remains with Mohammed)
 - Plan: [B-152](plans/2026-11-16-slice-6-stop-control.md#task-b-152-the-planner-hears-of-an-interrupted-attempt-and-of-the-persons-stop).
 - Owner: Runs.
 - Read: `crates/core-runs/contract.yaml` (`recover`, `stop`, `stop_for`, `notify`, transitions); the plan's Review Focus.

@@ -91,6 +91,21 @@ pub(crate) struct Begun {
 }
 
 impl RunsStore {
+    /// Settles a person's Stop and records its notice obligation atomically.
+    pub async fn finish_owed(&self, id: &AttemptId) -> Result<bool, RunsError> {
+        let id = id.clone();
+        self.storage
+            .write_txn_as(move |conn| {
+                Box::pin(async move {
+                    let moved = sqlx::query(
+                "UPDATE run_attempts SET state='stopped', reason=NULL, ended_at=?, notice_due=1
+                 WHERE id=? AND state='running' AND conflict_json IS NULL",
+            ).bind(Storage::now()).bind(id.as_str()).execute(&mut *conn).await?;
+                    Ok(moved.rows_affected() == 1)
+                })
+            })
+            .await
+    }
     /// The latest attempt decides whether dirty work may be carried on.
     pub async fn last_ended(
         &self,

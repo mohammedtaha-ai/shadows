@@ -26,6 +26,20 @@ impl Runs {
                     tracing::warn!(attempt = %id, %error, "runs.conflict_notice_pending");
                 }
             }
+            match runs.inner.store.due_notices().await {
+                Ok(ids) => {
+                    for id in ids {
+                        let sent = match runs.inner.store.get(&id).await {
+                            Ok(attempt) => runs.notify(&attempt).await,
+                            Err(error) => Err(error),
+                        };
+                        if let Err(error) = sent {
+                            tracing::warn!(%id, %error, "runs.notify_due_failed");
+                        }
+                    }
+                }
+                Err(error) => tracing::warn!(%error, "runs.notify_due_failed"),
+            }
             if let Err(error) = runs.recover_messages().await {
                 tracing::warn!(%error, "runs.recover_messages_failed");
             }

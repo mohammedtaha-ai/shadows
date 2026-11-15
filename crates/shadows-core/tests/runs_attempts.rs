@@ -22,6 +22,8 @@ mod messages;
 mod planner;
 #[path = "runs_attempts/report.rs"]
 mod report;
+#[path = "runs_attempts/stops.rs"]
+mod stops;
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;

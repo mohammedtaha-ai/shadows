@@ -466,6 +466,33 @@ async fn conflict_notifies_while_its_executor_is_running() {
     f.finish().await;
 }
 
+#[tokio::test]
+async fn a_stopped_conflict_keeps_its_one_notice() {
+    let f = fixture().await;
+    f.planner_turn("p1", "fake-large").await;
+    f.busy_planner().await;
+    let attempt = f.start("s1", 1, "hang").await;
+    let grant = f.executor(&attempt).await;
+    f.core
+        .runs()
+        .conflict_for(&grant, input("c1"))
+        .await
+        .unwrap();
+    f.core.runs().stop(&attempt.id).await.unwrap();
+    let notices = f.notices().await;
+    assert_eq!(notices.len(), 1);
+    assert!(
+        notices[0]
+            .notice
+            .as_ref()
+            .unwrap()
+            .card
+            .get("conflict")
+            .is_some()
+    );
+    f.finish().await;
+}
+
 /// The watcher settles the conflicted attempt once its turn ended: Stopped,
 /// its session closed and its scope freed. Its sibling keeps running, and the
 /// Planner hears no second, generic notice.
