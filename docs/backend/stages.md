@@ -81,8 +81,8 @@ B-105 moved into slice 6 (Mohammed, 2026-11-16).
 
 ## Slice 6: stop control and full acceptance
 
-Plan: [slice 6](plans/2026-11-16-slice-6-stop-control.md), awaiting Mohammed's approval: no
-builder runs before it. Rulings: a contract problem stops only its own attempt and the Planner
+Plan: [slice 6](plans/2026-11-16-slice-6-stop-control.md), approved by Mohammed (2026-11-16) after two
+Codex reviews. Rulings: a contract problem stops only its own attempt and the Planner
 stops other affected work (2026-11-14); leftovers continue, a done mark rechecks the plan's done
 tasks, decisions are accepted on the person's card (2026-11-16).
 Order: B-117 → B-153 → B-152 → B-154 → B-105 → web tasks from F-121 → B-118.
@@ -90,7 +90,7 @@ B-152, B-154 and B-105 wait for one shared request from Masada covering their ca
 
 ### B-117 · The Planner lists the attempts that hold a scope (`task_runs`)
 
-- Status: todo (after plan approval)
+- Status: todo
 - Plan: [B-117](plans/2026-11-16-slice-6-stop-control.md#task-b-117-the-planner-lists-the-attempts-that-still-hold-a-scope).
 - Owner: Runs, with its MCP adapter.
 - Read: `crates/core-runs/contract.yaml` (`stop_for`, `planner_plan`, `start_for`); the plan's Global Constraints.
@@ -100,7 +100,7 @@ B-152, B-154 and B-105 wait for one shared request from Masada covering their ca
 
 ### B-153 · A new Start continues from the files a stopped attempt left
 
-- Status: todo (after plan approval)
+- Status: todo
 - Plan: [B-153](plans/2026-11-16-slice-6-stop-control.md#task-b-153-a-new-start-continues-from-the-files-a-stopped-attempt-left).
 - Owner: Runs.
 - Read: `crates/core-runs/contract.yaml` (`start`, `start_answer`, the dirty-scope obligations); the plan's rulings.

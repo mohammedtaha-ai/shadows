@@ -1,8 +1,8 @@
 # Slice 6: stop control and full acceptance — Implementation Plan
 
 > **For agentic workers:** each task is built by `backend-builder` from its entry in
-> [stages.md](../stages.md); steps use checkbox (`- [ ]`) syntax. Not approved until Mohammed
-> says so; no builder runs before.
+> [stages.md](../stages.md); steps use checkbox (`- [ ]`) syntax. Approved by Mohammed on
+> 2026-11-16, after two Codex reviews.
 
 **Goal:** The Planner always knows which attempts can still write and why each one ended, so it
 stops the affected ones itself. Work left by a stopped attempt carries on. A done mark rechecks
