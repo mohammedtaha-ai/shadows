@@ -18,7 +18,7 @@ A shipped task's entry, and its plan once deleted, are in this file in Git at th
 
 | PR | Work | Tasks | Entries at |
 |---|---|---|---|
-| #41 | Architecture restructuring ([plan](plans/2026-10-21-architecture.md)) | A-0 to A-21, A-23, B-10, B-11; A-8c, A-8d, A-19b, A-19c in `d7a722cd` | `c7e7bac4` |
+| #41 | Architecture restructuring (plan at `c604d06c`) | A-0 to A-21, A-23, B-10, B-11; A-8c, A-8d, A-19b, A-19c in `d7a722cd` | `c7e7bac4` |
 | — | A-6 settled with no code change (approval-authority spec §24.2, 2026-10-27) | A-6 | `4d5c022d` |
 | #45 | The breakdown route goes; fixtures close their database first | A-7b, B-12 | `29ddfd88` |
 | — | A-22 (product workspaces) deferred, trigger in [future](../core/future.md) "Housekeeping" | A-22 | `3dc2437f` |
@@ -64,17 +64,7 @@ this file at `db760593`.
 Order and rulings: [the program](plans/2026-11-09-local-delivery-program.md). Slice 4 is on `main`
 at `d73bb646` (PR #68); its tasks B-108, B-148, B-107, B-109, B-147 and F-102 are shipped there.
 Slice 5 is on `main` at `4031168f` (PR #69). Only B-149 remains in its [plan](plans/2026-11-14-slice-4-task-questions.md).
-Later-slice tasks retain blocked draft pointers.
-
-### B-105 · Minimal accepted decision revisions
-
-- Status: blocked (deferred by the program until a task needs project decision revisions; no slice holds it)
-- Plan: [Task 3](plans/2026-11-09-detailed-task-contracts.md#task-3-b-105-minimal-accepted-decision-revisions).
-- Owner: Design.
-- Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
-- Touch: exact Create/Modify/Test file list of Task 3; no other source paths.
-- Needs: `docs/backend/stages.md` at `617d806f` (B-104); a task that needs a decision revision.
-- Done when: all named RED/GREEN steps and focused verification commands in Task 3 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
+B-105 is deferred to [future](../core/future.md) until a task needs it.
 
 ### B-149 · Real slice 4 acceptance
 
@@ -91,22 +81,21 @@ Later-slice tasks retain blocked draft pointers.
 
 ## Slice 6: stop control and full acceptance
 
-### B-117 · Stop obsolete plans and rerun pending evidence
+The earlier draft (`docs/backend/plans/2026-11-09-repair-and-acceptance.md` at `c604d06c`) is
+superseded: a new Draft no longer stops every attempt; a contract problem stops its own attempt,
+and the Planner explicitly stops affected other work (Mohammed, 2026-11-14; executors design).
+Both tasks wait for a detailed slice 6 plan. Their prerequisites B-126 and B-147 are shipped.
 
-- Status: blocked (prerequisites below must ship first)
-- Plan: [Task 3](plans/2026-11-09-repair-and-acceptance.md#task-3-b-117-stop-obsolete-plans-and-rerun-pending-evidence).
+### B-117 · The Planner stops affected attempts, and pending evidence reruns
+
+- Status: blocked (needs the detailed slice 6 plan)
+- Plan: to be written in `docs/backend/plans/`, building on slice 4's conflict and Planner-stop operations.
 - Owner: Runs with Plans.
-- Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
-- Touch: exact Create/Modify/Test file list of Task 3; no other source paths.
-- Needs: `docs/backend/stages.md` at `617d806f` (B-126); accepted shared API/model agreement (B-115 absorbed, B-116 replaced).
-- Done when: all named RED/GREEN steps and focused verification commands in Task 3 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
+- Needs: the slice 6 plan; shared request `docs/shared/requests/2026-11-09-local-delivery.md` re-read for F-104.
 
 ### B-118 · Disposable full journey and branch delivery evidence
 
-- Status: blocked (prerequisites below must ship first)
-- Plan: [Task 4](plans/2026-11-09-repair-and-acceptance.md#task-4-b-118-disposable-full-journey-and-branch-delivery-evidence).
+- Status: blocked (needs the detailed slice 6 plan)
+- Plan: to be written with B-117's.
 - Owner: Controller across existing owners.
-- Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
-- Touch: exact Create/Modify/Test file list of Task 4; no other source paths.
-- Needs: B-117, F-104; accepted shared API/model agreement. 
-- Done when: all named RED/GREEN steps and focused verification commands in Task 4 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
+- Needs: B-117, F-104.

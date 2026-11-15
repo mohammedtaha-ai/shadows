@@ -741,7 +741,7 @@ project is decided in planning, before anyone builds it. A plan that leaves the
 structure to the builders invites the shortcut "keep it simple now, split it
 later", and splitting later costs far more than splitting first: Shadows' own
 Core grew as one crate and needed a long extraction (the architecture plan,
-`docs/backend/plans/2026-10-21-architecture.md`) to reach the boundaries it
+`docs/backend/plans/2026-10-21-architecture.md` at `c604d06c`) to reach the boundaries it
 should have started with.
 
 The rule:

@@ -4,7 +4,7 @@
   slices the same day, after his review of the first plans.
 - Planning branch: `codex/local-delivery-plans`, based on `e63002ad`.
 - Slices 1, 1b and 3 are built in PR #65 (`617d806f`, with its review in PR #66, `5a52a06a`); slice 2
-  in PR #67 (`db760593`); slice 4 in PR #68 (`d73bb646`). Open: slice 4's acceptance (B-149), and slices 5 and 6.
+  in PR #67 (`db760593`); slice 4 in PR #68 (`d73bb646`); slice 5 in PR #69 (`4031168f`). Open: slice 4's acceptance (B-149) and slice 6.
 - Owner: [approved 17.0](../../core/specs/2026-10-01-task-contracts-and-evidence-design.md#170-approved-local-delivery-revision-2026-11-09).
 - [API/model agreement](../../shared/requests/2026-11-09-local-delivery.md).
 
@@ -29,7 +29,7 @@ because of what the earlier one showed.
 4. **The controller reads the report** and amends this program when the result
    calls for it.
 
-The six plan files below are draft material for step 1, not builder
+The draft plan files named below are draft material for step 1, not builder
 instructions. Where a plan file and a detailed task in `stages.md` disagree,
 the task in `stages.md` is right and the plan file is corrected when its slice
 is detailed.
@@ -38,13 +38,13 @@ is detailed.
 
 | Slice | Backend tasks | Runnable outcome | Web tasks | Draft material |
 |---|---|---|---|---|
-| 1. Real files and the task contract | B-96, B-99, B-103, B-104, B-106 | The Planner and the person see the files the project really holds. A task names file work and function behavior, and the executor reads that through `task_context`. | F-99 (files view), F-101 | discovery (`2026-11-09-repository-discovery.md` at `db760593`), [contracts](2026-11-09-detailed-task-contracts.md) |
+| 1. Real files and the task contract | B-96, B-99, B-103, B-104, B-106 | The Planner and the person see the files the project really holds. A task names file work and function behavior, and the executor reads that through `task_context`. | F-99 (files view), F-101 | discovery (`2026-11-09-repository-discovery.md` at `db760593`), contracts (`docs/backend/plans/2026-11-09-detailed-task-contracts.md` at `c604d06c`) |
 | 1b. The Planner runs and judges tasks | B-123 to B-127 | The Planner makes the folder a git repository, starts a task, hears how its attempt ended, judges the commit, and marks the task done or sends an addition (three at most) the executor carries on with in its own session; a task stopped on the cap leaves a lessons record. | per `docs/shared/requests/2026-11-11-planner-review.md` at `617d806f` (Masada numbers it) | `docs/backend/plans/2026-11-11-slice-1b-planner-runs-tasks.md` at `617d806f` (detailed; built) |
 | 3. Setup first, through the Planner | B-128, B-100, B-101 (B-102 dropped) | Before planning in detail, the Planner sets the project up (git with the folder's files in its first commit, containers, the framework's scaffold, binaries allowed only in the plan titled Setup) as a setup plan whose tasks land as recorded commits, then plans on the files that appeared. | none (F-100's preparation view is not needed) | slice 3 (`docs/backend/plans/2026-11-11-slice-3-setup-first.md` at `617d806f`, detailed and built) |
 | 2. Real language servers for the project's languages | B-138 to B-146 (`docs/backend/stages.md` at `db760593`; B-97, B-98, B-119 replaced, 2026-11-13) | The project's language servers run while a conversation in it runs; the Planner and the executor ask them through `code_lsp`; a missing server is installed after the person chooses it on a question card; Settings › Code. The name index is suspended. | F-115, F-116 (`docs/frontend/stages.md` at `db760593`) | [design](../specs/2026-11-13-language-servers-design.md) |
 | 4. Attempt context, task questions and parallel work | B-108, B-148, B-107, B-109, B-147 shipped in #68 (`docs/backend/stages.md` at `d73bb646`); B-149 open (live tests not run) | Saved attempt context, code/contract questions, durable conflict escalation through existing attempts and compatible ready groups; selective Planner stops. | F-102 shipped in #68 (`docs/frontend/stages.md` at `d73bb646`); browser acceptance done 2026-11-14 | [approved design](../specs/2026-11-14-task-questions-design.md); [detailed plan](2026-11-14-slice-4-task-questions.md) |
 | 5. Checks | B-111, B-113, B-114, B-150, B-151 shipped in #69 (`docs/backend/stages.md` at `4031168f`) | The executor runs a task's checks while it works; Shadows confirms them on a quiet project and records them, so the Planner judges on evidence; a done mark over a failed check needs a reason. The Planner can message a task's agent and read its reply (B-150). | F-103 shipped in #69 (`docs/frontend/stages.md` at `4031168f`) | [design §5.4](../specs/2026-11-08-executors-design.md#54-checks-shadows-runs-mohammed-2026-11-15); detailed plan `docs/backend/plans/2026-11-15-slice-5-checks.md` at `4031168f` (`docs/backend/plans/2026-11-09-checks-and-critic.md` at `04125e12` is its earlier draft) |
-| 6. Stop control and full acceptance | B-117 (to be re-scoped), B-118 | The Planner controls which affected attempts stop; the whole journey survives interruption. A corrective Draft does not automatically stop unaffected attempts (Mohammed, 2026-11-14). | F-104, F-105 | [repair](2026-11-09-repair-and-acceptance.md) (earlier draft); [executor ruling](../specs/2026-11-08-executors-design.md) |
+| 6. Stop control and full acceptance | B-117 (to be re-scoped), B-118 | The Planner controls which affected attempts stop; the whole journey survives interruption. A corrective Draft does not automatically stop unaffected attempts (Mohammed, 2026-11-14). | F-104, F-105 | repair draft (`docs/backend/plans/2026-11-09-repair-and-acceptance.md` at `c604d06c`, superseded by the 2026-11-14 ruling; slice 6 gets a new detailed plan); [executor ruling](../specs/2026-11-08-executors-design.md) |
 
 The [frontend plan](../../frontend/plans/2026-11-09-local-delivery-ui.md)
 holds F-99 to F-105. A web task waits for its backend API.

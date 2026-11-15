@@ -489,6 +489,6 @@ Foundation inputs carry no service types:
 - `CommandContext::user` replaces `app::user_command`;
 - `StorageError` keeps only database failures.
 
-The [architecture plan](../../backend/plans/2026-10-21-architecture.md) owns the
+The architecture plan (`docs/backend/plans/2026-10-21-architecture.md` at `c604d06c`) owned the
 task sequence. Product workspace moves and runtime replacement are separate
 deliveries; neither is required to provide one `AppCore` or private service stores.
