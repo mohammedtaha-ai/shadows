@@ -3,7 +3,7 @@ use super::*;
 use core_runs::{CheckOutcome, CheckResult};
 use serde_json::json;
 
-async fn candidate(run: Vec<Vec<String>>) -> (Fixture, AttemptId, Grant, String) {
+pub(super) async fn candidate(run: Vec<Vec<String>>) -> (Fixture, AttemptId, Grant, String) {
     candidate_with_timeout(run, 5).await
 }
 

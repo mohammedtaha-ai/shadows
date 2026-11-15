@@ -40,6 +40,14 @@ fn document() -> Value {
 }
 
 #[test]
+fn recheck_cards_have_named_schemas() {
+    let doc = document();
+    let schemas = &doc["components"]["schemas"];
+    assert!(schemas.get("RecheckNotice").is_some());
+    assert!(schemas.get("RecheckFailure").is_some());
+}
+
+#[test]
 fn no_structure_command_is_exposed() {
     let doc = document();
     assert!(doc["paths"].get("/api/projects/{id}/structure").is_none());

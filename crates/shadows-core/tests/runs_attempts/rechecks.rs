@@ -1,0 +1,271 @@
+//! Done tasks retain their marks while their recorded checks run again.
+use super::*;
+
+async fn done_task(failing: bool) -> Fixture {
+    let run = if failing {
+        vec!["git".into(), "not-a-command".into()]
+    } else {
+        vec!["git".into(), "--version".into()]
+    };
+    let (f, id, _, _) = super::checks::candidate(vec![run]).await;
+    sqlx::query("UPDATE run_attempts SET notice_sent_at=? WHERE id=?")
+        .bind("2026-11-16T00:00:00Z")
+        .bind(id.as_str())
+        .execute(f.storage.reader())
+        .await
+        .unwrap();
+    f.core
+        .runs()
+        .mark_done(
+            "done-three".into(),
+            &f.workflow,
+            1,
+            3,
+            true,
+            Some("Verified by the person".into()),
+        )
+        .await
+        .unwrap();
+    f
+}
+
+async fn cause(f: &Fixture) {
+    f.core
+        .runs()
+        .mark_done("cause".into(), &f.workflow, 1, 1, true, None)
+        .await
+        .unwrap();
+}
+
+async fn finished(f: &Fixture) {
+    for _ in 0..400 {
+        let pending: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM run_rechecks WHERE finished_at IS NULL")
+                .fetch_one(f.storage.reader())
+                .await
+                .unwrap();
+        if pending == 0 {
+            return;
+        }
+        tokio::time::sleep(Duration::from_millis(25)).await;
+    }
+    panic!("recheck did not finish");
+}
+
+#[tokio::test]
+async fn a_done_mark_reruns_the_checks_of_the_plans_done_tasks() {
+    let f = done_task(false).await;
+    cause(&f).await;
+    finished(&f).await;
+    let (task, outcome, output): (i64, String, String) =
+        sqlx::query_as("SELECT task,outcome,output FROM run_recheck_results")
+            .fetch_one(f.storage.reader())
+            .await
+            .unwrap();
+    assert_eq!(task, 3);
+    assert_eq!(outcome, "passed");
+    assert!(output.contains("git version"));
+    f.finish().await;
+}
+
+#[tokio::test]
+async fn a_replayed_mark_starts_no_second_recheck() {
+    let f = done_task(false).await;
+    cause(&f).await;
+    cause(&f).await;
+    finished(&f).await;
+    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM run_rechecks")
+        .fetch_one(f.storage.reader())
+        .await
+        .unwrap();
+    assert_eq!(count, 1);
+    f.finish().await;
+}
+
+#[tokio::test]
+async fn a_task_marked_done_again_stays_in_the_recheck() {
+    let f = done_task(false).await;
+    f.core
+        .runs()
+        .mark_done(
+            "done-again".into(),
+            &f.workflow,
+            1,
+            3,
+            true,
+            Some("Still verified".into()),
+        )
+        .await
+        .unwrap();
+    cause(&f).await;
+    finished(&f).await;
+    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM run_recheck_results WHERE task=3")
+        .fetch_one(f.storage.reader())
+        .await
+        .unwrap();
+    assert_eq!(count, 1);
+    f.finish().await;
+}
+
+#[tokio::test]
+async fn a_done_task_with_no_commit_is_left_out() {
+    let f = fixture().await;
+    cause(&f).await;
+    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM run_rechecks")
+        .fetch_one(f.storage.reader())
+        .await
+        .unwrap();
+    assert_eq!(count, 0);
+    f.finish().await;
+}
+
+async fn notified(f: &Fixture, planner: &ThreadId) -> shadows_core::QueuedMessage {
+    for _ in 0..400 {
+        if let Some(message) = f
+            .core
+            .turns()
+            .queued(planner)
+            .await
+            .unwrap()
+            .into_iter()
+            .find(|message| {
+                message
+                    .notice
+                    .as_ref()
+                    .is_some_and(|notice| notice.card.get("recheck_id").is_some())
+            })
+        {
+            return message;
+        }
+        tokio::time::sleep(Duration::from_millis(25)).await;
+    }
+    panic!("the recheck notice was not queued");
+}
+
+#[tokio::test]
+async fn a_failing_recheck_tells_the_planner_once() {
+    let f = done_task(true).await;
+    let planner = super::checks::prepare_planner(&f).await;
+    cause(&f).await;
+    let message = notified(&f, &planner).await;
+    let notice = message.notice.unwrap();
+    assert!(notice.executor.is_none());
+    assert_eq!(notice.card["failed"][0]["task"], 3);
+    assert!(notice.card["failed"][0]["checks"][0]["output"].is_null());
+    assert!(message.prompt.contains("T3 c1 failed"));
+    assert!(f.core.runs().task(&f.workflow, 1, 3).await.unwrap().done);
+    assert!(f.core.runs().task(&f.workflow, 1, 1).await.unwrap().done);
+    f.finish().await;
+}
+
+#[tokio::test]
+async fn a_passing_recheck_sends_no_notice() {
+    let f = done_task(false).await;
+    let planner = super::checks::prepare_planner(&f).await;
+    cause(&f).await;
+    finished(&f).await;
+    assert!(f.core.turns().queued(&planner).await.unwrap().is_empty());
+    f.finish().await;
+}
+
+#[tokio::test]
+async fn a_finished_batch_never_loses_its_notice() {
+    let f = done_task(true).await;
+    let planner = super::checks::prepare_planner(&f).await;
+    cause(&f).await;
+    notified(&f, &planner).await;
+    let json: Option<String> = sqlx::query_scalar("SELECT notice_json FROM run_rechecks")
+        .fetch_one(f.storage.reader())
+        .await
+        .unwrap();
+    assert!(json.is_some());
+    sqlx::query("UPDATE run_rechecks SET notice_sent_at=NULL")
+        .execute(f.storage.reader())
+        .await
+        .unwrap();
+    f.core.runs().recover().await.unwrap();
+    for _ in 0..400 {
+        let sent: Option<String> = sqlx::query_scalar("SELECT notice_sent_at FROM run_rechecks")
+            .fetch_one(f.storage.reader())
+            .await
+            .unwrap();
+        if sent.is_some() {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(25)).await;
+    }
+    assert_eq!(f.core.turns().queued(&planner).await.unwrap().len(), 1);
+    f.finish().await;
+}
+
+#[tokio::test]
+async fn a_restart_finishes_an_unfinished_recheck() {
+    let f = done_task(false).await;
+    cause(&f).await;
+    finished(&f).await;
+    // Reconstruct the durable state left by a daemon killed during this check.
+    sqlx::query("UPDATE run_rechecks SET finished_at=NULL")
+        .execute(f.storage.reader())
+        .await
+        .unwrap();
+    sqlx::query("UPDATE run_recheck_results SET finished_at=NULL,outcome=NULL")
+        .execute(f.storage.reader())
+        .await
+        .unwrap();
+    let planner = super::checks::prepare_planner(&f).await;
+    f.core.runs().recover().await.unwrap();
+    notified(&f, &planner).await;
+    let (outcome, output): (String, String) =
+        sqlx::query_as("SELECT outcome,output FROM run_recheck_results")
+            .fetch_one(f.storage.reader())
+            .await
+            .unwrap();
+    assert_eq!(outcome, "not_run");
+    assert_eq!(output, "Shadows restarted during the recheck");
+    f.finish().await;
+}
+
+#[tokio::test]
+async fn an_older_versions_done_task_is_rechecked() {
+    let f = done_task(false).await;
+    let grant = planner_grant(&f).await;
+    let plans = f.core.plans();
+    let plan = plans.get(&f.workflow).await.unwrap();
+    let next = plans
+        .start_draft_for_test(
+            &command("next"),
+            &Writer::Planner {
+                thread: grant.thread_id.unwrap(),
+                grant: grant.id,
+            },
+            &f.project,
+            Some(&plan.plan_id),
+            Some(&f.workflow),
+            None,
+            Some("Correction"),
+            None,
+            None,
+            &[],
+        )
+        .await
+        .unwrap();
+    let draft = plans.get(&next.workflow_id).await.unwrap();
+    plans
+        .approve_plan_for_test(&command("approve-next"), &next.workflow_id, draft.revision)
+        .await
+        .unwrap();
+    f.core
+        .runs()
+        .mark_done("done-next".into(), &next.workflow_id, 2, 1, true, None)
+        .await
+        .unwrap();
+    finished(&f).await;
+    let (workflow, version): (String, i64) =
+        sqlx::query_as("SELECT workflow_id,version FROM run_recheck_results")
+            .fetch_one(f.storage.reader())
+            .await
+            .unwrap();
+    assert_eq!(workflow, f.workflow.as_str());
+    assert_eq!(version, 1);
+    f.finish().await;
+}

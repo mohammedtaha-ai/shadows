@@ -32,6 +32,20 @@ impl crate::Plans {
     }
 }
 impl PlansStore {
+    pub async fn version_ids_in(
+        conn: &mut core_db::Tx,
+        plan: &PlanId,
+    ) -> Result<Vec<(WorkflowId, i64)>, StorageError> {
+        let rows: Vec<(String, i64)> =
+            sqlx::query_as("SELECT id,version FROM workflow WHERE plan_id=? ORDER BY version,id")
+                .bind(plan.as_str())
+                .fetch_all(&mut *conn)
+                .await?;
+        Ok(rows
+            .into_iter()
+            .map(|(id, version)| (WorkflowId::from_recorded(id), version))
+            .collect())
+    }
     /// One plan with every version, oldest first.
     pub async fn get_plan_versions(&self, plan: &PlanId) -> Result<PlanVersions, StorageError> {
         let mut conn = self.storage.reader().acquire().await?;

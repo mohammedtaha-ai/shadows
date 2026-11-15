@@ -400,6 +400,7 @@ shapes:
 
 
 functions:
+  version_ids_in: '(conn, plan) -> Vec<(WorkflowId, i64)>; all versions ordered oldest first in the caller transaction, for Runs rechecks'
   execution_plan: "(&self, workflow, version) -> Result<ExecutionPlan, PlansError>; execution_plan_in in a read snapshot of its own."
   contract_facts: "(&self, workflow, task, selector: ContractSelector, after: Option<u32>, limit: u16) -> Result<ContractFacts, PlansError>; one read of the version, which must be Frozen (else NotFound; an archived or superseded Frozen version still answers, for its running attempts). limit outside 1..=50, an unknown task's selector symbol/output, a use the task does not declare, a symbol/output/use selector on a task with no contract, or after past the consumer count is InvalidCommand. own answers the whole contract, every resolved use and the distinct producers of its task uses; symbol answers that symbol, its declared file and the outputs naming it; output answers that output, its symbol and its symbol's or artifact's file; use answers contract null, that use's resolved entry and its producer (none for an existing source). consumers are ContractRules::consumers of the selection (the own task's outputs as Task { Local { task }, output } sources, or the use's exact source), one page from after, next = the following offset or null. No other version or plan, no source code. Runs::question and Runs::brief call it."
   version_in: "private: (conn, workflow) -> Plan; load_plan and LinkedRows in the caller's snapshot, the one loader of execution_plan_in."
@@ -612,6 +613,7 @@ enums:
 
 
 shared_in_transaction:
+  version_ids_in: 'Runs snapshots the version identities for a done-mark recheck in its mark write; all workflow SQL remains owned by Plans'
   task_context: Reads approved task context in one owner snapshot after live grant checks.
   task_context_in: Assembles approved task context inside the caller's transaction; Runs saves it with an attempt.
   links_of: Private store entry used within the owner transaction.

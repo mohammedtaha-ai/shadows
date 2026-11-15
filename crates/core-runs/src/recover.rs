@@ -15,6 +15,7 @@ impl Runs {
     pub async fn recover(&self) -> Result<RecoverReport, RunsError> {
         let interrupted = self.inner.store.settle_running().await?;
         let pending = self.inner.store.pending_conflicts().await?;
+        let rechecks = self.inner.store.unfinished_rechecks().await?;
         let runs = self.clone();
         tokio::spawn(async move {
             for id in pending {
@@ -64,6 +65,7 @@ impl Runs {
                 }
                 runs.confirm(&attempt).await;
             }
+            runs.recover_rechecks(rechecks).await;
         });
         Ok(RecoverReport { interrupted })
     }

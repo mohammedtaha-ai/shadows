@@ -25,7 +25,7 @@ impl Runs {
         }
     }
 
-    async fn wait_for_quiet(&self, attempt: &Attempt) -> Result<(), RunsError> {
+    pub(crate) async fn wait_for_quiet(&self, attempt: &Attempt) -> Result<(), RunsError> {
         loop {
             let mut busy = false;
             for thread in self.inner.store.quiet_threads(&attempt.project_id).await? {
@@ -102,6 +102,25 @@ impl Runs {
             .clone();
         let held = lock.lock().await;
         self.wait_for_quiet(attempt).await?;
+        for (task, ordinal, check) in checks {
+            let result = self.run_check(attempt, task, ordinal, &check, None).await?;
+            self.inner
+                .store
+                .finish_check(&attempt.id, task, &check.id, result)
+                .await?;
+        }
+        drop(held);
+        self.after_checks(attempt).await
+    }
+
+    pub(crate) async fn run_check(
+        &self,
+        attempt: &Attempt,
+        task: u32,
+        ordinal: usize,
+        check: &TaskCheck,
+        batch: Option<&str>,
+    ) -> Result<Finished, RunsError> {
         let folder = self.folder(&attempt.project_id).await?;
         let git = Git::at(&folder);
         let prefix = git.prefix().await.ok_or(RunsError::NotGit)?;
@@ -113,70 +132,64 @@ impl Runs {
             .iter()
             .map(|s| Scope::new(s).map_err(RunsError::BadScope))
             .collect::<Result<Vec<_>, _>>()?;
-        for (task, ordinal, check) in checks {
-            for repetition in 0..3 {
-                self.wait_for_quiet(attempt).await?;
-                let dirty = git.changed(&prefix).await.map_err(RunsError::Unavailable)?;
-                let leftovers: Vec<_> = dirty
-                    .iter()
-                    .filter(|p| scopes.iter().any(|s| s.admits(p)))
-                    .cloned()
-                    .collect();
-                let before = git.head().await;
-                self.inner
-                    .store
-                    .start_check(&attempt.id, task, &check, ordinal, before.clone())
-                    .await?;
-                if !leftovers.is_empty() {
+        for repetition in 0..3 {
+            self.wait_for_quiet(attempt).await?;
+            let dirty = git.changed(&prefix).await.map_err(RunsError::Unavailable)?;
+            let leftovers: Vec<_> = dirty
+                .iter()
+                .filter(|p| scopes.iter().any(|s| s.admits(p)))
+                .cloned()
+                .collect();
+            let before = git.head().await;
+            match batch {
+                Some(batch) => {
                     self.inner
                         .store
-                        .finish_check(
-                            &attempt.id,
-                            task,
-                            &check.id,
-                            Finished {
-                                outcome: CheckOutcome::Inconclusive,
-                                exit_code: None,
-                                head: before,
-                                output: format!(
-                                    "uncommitted changes inside task writes: {}",
-                                    leftovers.join(", ")
-                                ),
-                                truncated: false,
-                            },
-                        )
-                        .await?;
-                    break;
+                        .start_recheck(batch, &attempt.id, check)
+                        .await?
                 }
-                let hashes = git.hash(&dirty).await.map_err(RunsError::Unavailable)?;
-                let start = Storage::now();
-                let mut result = Self::execute_check(&folder, &check).await;
-                let end = Storage::now();
-                result.head = git.head().await;
-                let after = git.changed(&prefix).await.map_err(RunsError::Unavailable)?;
-                let after_hashes = git.hash(&after).await.map_err(RunsError::Unavailable)?;
-                if self.overlapped(&attempt.project_id, &start, &end).await? {
-                    if repetition < 2 {
-                        continue;
-                    }
-                    result.outcome = CheckOutcome::Inconclusive;
-                    result.output = "another executor's turn ran during the check".into();
-                } else if !matches!(
-                    result.outcome,
-                    CheckOutcome::NotRun | CheckOutcome::TimedOut
-                ) && (before != result.head || dirty != after || hashes != after_hashes)
-                {
-                    result.outcome = CheckOutcome::Inconclusive;
+                None => {
+                    self.inner
+                        .store
+                        .start_check(&attempt.id, task, check, ordinal, before.clone())
+                        .await?
                 }
-                self.inner
-                    .store
-                    .finish_check(&attempt.id, task, &check.id, result)
-                    .await?;
-                break;
             }
+            if !leftovers.is_empty() {
+                return Ok(Finished {
+                    outcome: CheckOutcome::Inconclusive,
+                    exit_code: None,
+                    head: before,
+                    output: format!(
+                        "uncommitted changes inside task writes: {}",
+                        leftovers.join(", ")
+                    ),
+                    truncated: false,
+                });
+            }
+            let hashes = git.hash(&dirty).await.map_err(RunsError::Unavailable)?;
+            let start = Storage::now();
+            let mut result = Self::execute_check(&folder, check).await;
+            let end = Storage::now();
+            result.head = git.head().await;
+            let after = git.changed(&prefix).await.map_err(RunsError::Unavailable)?;
+            let after_hashes = git.hash(&after).await.map_err(RunsError::Unavailable)?;
+            if self.overlapped(&attempt.project_id, &start, &end).await? {
+                if repetition < 2 {
+                    continue;
+                }
+                result.outcome = CheckOutcome::Inconclusive;
+                result.output = "another executor's turn ran during the check".into();
+            } else if !matches!(
+                result.outcome,
+                CheckOutcome::NotRun | CheckOutcome::TimedOut
+            ) && (before != result.head || dirty != after || hashes != after_hashes)
+            {
+                result.outcome = CheckOutcome::Inconclusive;
+            }
+            return Ok(result);
         }
-        drop(held);
-        self.after_checks(attempt).await
+        unreachable!("the final repetition returns a result")
     }
 
     async fn execute_check(root: &Path, check: &TaskCheck) -> Finished {

@@ -42,9 +42,11 @@ version: 1
 status: current
 source: crates/core-runs/src
 
-owns_tables: [run_attempts, run_attempt_context, run_task_marks, run_lessons, run_checks, run_agent_messages]
+owns_tables: [run_attempts, run_attempt_context, run_task_marks, run_lessons, run_checks, run_agent_messages, run_rechecks, run_recheck_results]
 
 modules:
+  recheck.rs: rechecking the plan's done tasks
+  store/rechecks.rs: recheck batch persistence
   lib.rs: the Runs service, its queries and done marks
   model.rs: attempt types
   error.rs: run refusals
@@ -143,6 +145,7 @@ shapes:
   # NoLesson (no_lesson) and EmptyLesson (empty_lesson) are write_lesson's.
 
 functions:
+  recheck_done: 'private: runs a durable done-mark batch under the project check lock, using the shared run_check; failures produce one frozen Shadows notice, done marks remain unchanged'
   finish_owed: 'private store: Running without a conflict becomes Stopped with notice_due=1 in the same write; only the person uses this operation'
   due_notices: 'private store: owed unsent notices, ordered by ended_at/id; recovery retries them using the saved payload and command id'
   last_ended: 'private store: newest attempt with the same task number across the plan version ids; only released Stopped, Interrupted or Failed without a commit qualifies'
@@ -187,11 +190,11 @@ functions:
   attempts: "(workflow, version, task) -> Vec<Attempt>, newest first"
   attempt: "(attempt) -> Attempt; one attempt as it stands, NotFound for an unknown id"
   set_first_prompt_for_tests: "test-support only: (prompt) scripts the first prompt of later attempts"
-  mark_done: "(command, workflow, version, task, done, reason) -> TaskRun; the reason is trimmed, blank is none, and is in the fingerprint only when present (a mark without one fingerprints as { workflow, version, task, done }); the command record keeps every mark command: a replay writes nothing and answers before the checks rule, the same id with other input is CommandConflict; then done_checks.rule; put_mark records, in the mark's own write, judged_attempt_id: the task's latest attempt when it is Committed and still holds its scope, none for a not-done mark; put_mark answers that attempt while it is unreleased and the mark is still this command's, also on a replay, so a replay finishes the release its first call began and never frees an attempt admitted after it; that attempt is released (session closed, scope freed) unless a question to its agent is waiting or sent, when close_if_idle releases it after the reply"
+  mark_done: "(command, workflow, version, task, done, reason) -> TaskRun; the reason is trimmed, blank is none, and is in the fingerprint only when present (a mark without one fingerprints as { workflow, version, task, done }); the command record keeps every mark command: a replay writes nothing and answers before the checks rule, the same id with other input is CommandConflict; then done_checks.rule; put_mark records, in the mark's own write, judged_attempt_id: the task's latest attempt when it is Committed and still holds its scope, none for a not-done mark; put_mark answers that attempt while it is unreleased and the mark is still this command's, also on a replay, so a replay finishes the release its first call began and never frees an attempt admitted after it; that attempt is released (session closed, scope freed) unless a question to its agent is waiting or sent, when close_if_idle releases it after the reply; a fresh done mark also begins, in the same write, a recheck batch of the plan's other done tasks (rechecks), which mark_done spawns after the release"
   notify: "private: (attempt) queues with Turns::queue_notice, as Notice { executor: the attempt's thread, card: its AttemptNotice }, on the plan's Planner thread (WrittenBy::Planner, not removed) a [Shadows] notice with the settings of that thread's last turn and command id notify-<attempt>: committed with its sha, files (path +added -removed) and report, or failed with its reason and its operation's last AgentMessage from Threads::entries, cut at 4,000 chars with [cut] appended when cut; an absent message or unreadable entries adds nothing and logs runs.notify_no_message; a committed notice carries a Checks block, one check_line each (`c1 passed`, `c2 failed (exit 1); the executor reported passed`, `T3 c1 passed` for a used task's check) and, when one did not pass, a line sending the Planner to task_checks that says when Shadows returned it twice, and its card carries the CheckResults without output; it says to read with task_diff and task_file before judging, and one whose attempt carried the task's third addition says it was the last; answers its failure, which callers log, never failing the watcher. An ended notice (committed, failed, interrupted or stopped) is resolved once (a NoticeIntent) and saved in ended_notice_json before its first enqueue; every retry, also after a restart, sends that saved payload, so a changed Planner setting or a later check result never changes the notify-<attempt> fingerprint. An attempt with a conflict gets only the conflict's notice, never a generic one: sent only while delivery is pending; resolved once (a ConflictNoticeIntent of the Planner thread, body, model, mode, effort and card) and saved in conflict_notice_json before the first enqueue, then every retry rebuilds the same SendTurn (notify-<attempt>, no attachments, focus, plan or client_tab) and Notice in the executor's name from it; an enqueue or its replay marks delivered; no live Planner (plan gone, external writer, thread removed) marks no_planner; any other failure keeps pending. The body names expected, observed and evidence and asks the Planner to assess impact and task_stop this or another affected attempt that has not ended"
   last_message: "private: (thread, operation) -> Option<String>; the operation's last AgentMessage through Threads::entries, used by the failed notice and by an agent's reply; no message or a read failure answers None; text cut after 4,000 chars with [cut] when cut"
   check_line: "private: (check, task, who) -> String; one check as a prompt line for the notice and the return's prompt"
-  recover: "() -> RecoverReport; every Running attempt becomes Interrupted, its grant revoked and its scope freed; every other held scope is freed except a Committed attempt's, which keeps waiting for its judgment; none restarted, git not read; conflicts and saved notices are kept. Then one spawned pass, off startup: each pending conflict notice oldest first; then all due_notices, including obligations left by an earlier start, marking notice_sent_at after durable enqueue; then recover_messages; then each task's latest Committed attempt with no notice sent: its unfinished check rows cleared, then confirm (finished results are kept); it waits for no reply and is not repeated"
+  recover: "() -> RecoverReport; every Running attempt becomes Interrupted, its grant revoked and its scope freed; every other held scope is freed except a Committed attempt's, which keeps waiting for its judgment; none restarted, git not read; conflicts and saved notices are kept. Then one spawned pass, off startup: each pending conflict notice oldest first; then all due_notices, including obligations left by an earlier start, marking notice_sent_at after durable enqueue; then recover_messages; then each task's latest Committed attempt with no notice sent: its unfinished check rows cleared, then confirm (finished results are kept); it waits for no reply and is not repeated; then recover_rechecks: each unfinished batch ends as rechecks.recovery says, and each finished batch with an unsent notice sends it under recheck-<batch>"
 
 transitions:
   - "person Stop settles Running without a conflict: Stopped with a durable notice obligation"
@@ -309,6 +312,8 @@ agreements:
     tested_by: [live_an_addition_continues_the_executor_in_its_session]
 
 obligations:
+  - rule: A fresh done command rechecks other done tasks across plan versions, using their judged attempt or newest committed fallback; replay starts no second batch and recovery preserves notice delivery.
+    tested_by: [a_done_mark_reruns_the_checks_of_the_plans_done_tasks, a_failing_recheck_tells_the_planner_once, a_passing_recheck_sends_no_notice, a_replayed_mark_starts_no_second_recheck, a_restart_finishes_an_unfinished_recheck, a_finished_batch_never_loses_its_notice, an_older_versions_done_task_is_rechecked, a_task_marked_done_again_stays_in_the_recheck, a_done_task_with_no_commit_is_left_out]
   - rule: A person's Stop and an interruption notify the Planner once; enqueue failure leaves the notice owed for recovery, while a Planner Stop and a conflict produce no second generic notice.
     tested_by: [a_restart_tells_the_planner_of_each_interrupted_attempt, a_second_restart_sends_no_second_interrupted_notice, an_owed_notice_is_sent_on_the_next_start, a_persons_stop_notice_survives_a_failed_enqueue, the_persons_stop_tells_the_planner, the_planners_stop_sends_no_notice, a_stopped_conflict_keeps_its_one_notice]
   - rule: Readiness agrees with Start over leftovers, while personal dirty files without an ended attempt or after a committed attempt still refuse Start.
@@ -511,3 +516,12 @@ agent_messages:
     A failed confirmation's return waits, under the thread's message lock, until no turn runs
     on the executor thread (a question's), then continues the attempt; the running
     attempt then bars the next question until the return's turn ends.
+
+rechecks:
+  trigger: A fresh done command begins a batch in the same write as its mark.
+  set: Other done tasks in every version of the stable plan, own saved checks only.
+  attempt: The mark's judged attempt, else its version's newest attempt with a commit; absent context contributes no checks.
+  execution: Shared run_check under the project check mutex, quiet-project and overlap rules retained.
+  persistence: Results are durable; finished_at and the resolved notice payload are one write.
+  notice: Non-passed results produce a frozen Shadows notice with recheck-<batch>; done marks stand.
+  recovery: Startup's unfinished rows become not_run, then the same finish and saved-notice delivery path runs.

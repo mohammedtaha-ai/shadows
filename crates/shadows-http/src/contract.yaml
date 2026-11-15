@@ -158,3 +158,4 @@ check_results: >
   GET /api/attempts/{id}/checks calls Runs::check_results. The done route accepts optional
   reason and calls the same Runs::mark_done rule as MCP. checks_not_passed is a 409 refusal;
   unknown attempts are 404. No adapter recomputes confirmation or done policy.
+# RecheckNotice and RecheckFailure are named OpenAPI schemas for the Shadows recheck card.

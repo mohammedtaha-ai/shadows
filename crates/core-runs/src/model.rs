@@ -219,6 +219,28 @@ pub struct LiveAttempt {
     pub started_at: String,
 }
 
+/// A done task whose recorded checks did not all pass on a recheck.
+#[derive(Debug, Clone, serde::Serialize, utoipa::ToSchema)]
+pub struct RecheckFailure {
+    pub workflow_id: WorkflowId,
+    pub version: i64,
+    pub task: u32,
+    pub title: String,
+    pub attempt_id: AttemptId,
+    pub checks: Vec<CheckResult>,
+}
+
+/// The outcome of rechecking other done tasks after a new done mark.
+#[derive(Debug, Clone, serde::Serialize, utoipa::ToSchema)]
+pub struct RecheckNotice {
+    pub plan_id: core_plans::PlanId,
+    pub cause_workflow_id: WorkflowId,
+    pub cause_version: i64,
+    pub cause_task: u32,
+    pub recheck_id: String,
+    pub failed: Vec<RecheckFailure>,
+}
+
 /// A task as the runs see it: marked done or not, its latest attempt, the
 /// tasks it needs, whether Start may run now, and the model to offer first.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, utoipa::ToSchema)]

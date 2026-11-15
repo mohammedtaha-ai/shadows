@@ -22,26 +22,34 @@ use core_threads::{ThreadEntryKind, ThreadId};
 use core_turns::{Notice, SendTurn};
 
 /// The plan's live Planner conversation and the settings of its last turn.
-struct Recipient {
-    plan: Plan,
-    thread: ThreadId,
-    invocation: core_turns::InvocationView,
+pub(crate) struct Recipient {
+    pub(crate) plan: Plan,
+    pub(crate) thread: ThreadId,
+    pub(crate) invocation: core_turns::InvocationView,
 }
 
 /// A notice as first resolved, so a replay keeps its destination, settings and card.
 #[derive(serde::Serialize, serde::Deserialize)]
-struct NoticeIntent {
-    planner: ThreadId,
-    body: String,
-    model: String,
-    mode: String,
-    effort: Option<String>,
-    card: serde_json::Value,
+pub(crate) struct NoticeIntent {
+    pub(crate) planner: ThreadId,
+    pub(crate) body: String,
+    pub(crate) model: String,
+    pub(crate) mode: String,
+    pub(crate) effort: Option<String>,
+    pub(crate) card: serde_json::Value,
 }
 
 impl NoticeIntent {
     /// Rebuild the same turn and card for each delivery of this command.
     fn rebuild(self, attempt: &Attempt, command_id: String) -> (ThreadId, SendTurn, Notice) {
+        self.into_notice(command_id, Some(attempt.thread_id.clone()))
+    }
+
+    pub(crate) fn into_notice(
+        self,
+        command_id: String,
+        executor: Option<ThreadId>,
+    ) -> (ThreadId, SendTurn, Notice) {
         let turn = SendTurn {
             command_id,
             prompt: self.body,
@@ -54,7 +62,7 @@ impl NoticeIntent {
             client_tab: None,
         };
         let notice = Notice {
-            executor: Some(attempt.thread_id.clone()),
+            executor,
             card: self.card,
         };
         (self.planner, turn, notice)
@@ -85,7 +93,14 @@ impl Runs {
     /// The plan's live Planner and its last turn's settings; `None` when the
     /// plan is gone or has no live Planner conversation.
     async fn recipient(&self, attempt: &Attempt) -> Result<Option<Recipient>, RunsError> {
-        let plan = match self.read_plan(&attempt.workflow_id).await {
+        self.recipient_for(&attempt.workflow_id).await
+    }
+
+    pub(crate) async fn recipient_for(
+        &self,
+        workflow: &core_plans::WorkflowId,
+    ) -> Result<Option<Recipient>, RunsError> {
+        let plan = match self.read_plan(workflow).await {
             Ok(plan) => plan,
             Err(RunsError::NotFound) => return Ok(None),
             Err(error) => return Err(error),

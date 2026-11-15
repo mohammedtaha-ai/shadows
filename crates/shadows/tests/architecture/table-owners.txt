@@ -112,3 +112,5 @@ workflow :: plans
 # events SQL lives in crates/core-events/src/store.rs.
 run_checks :: runs
 run_agent_messages :: runs
+run_rechecks :: runs
+run_recheck_results :: runs

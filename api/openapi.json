@@ -6589,6 +6589,82 @@
         "format": "uuid",
         "type": "string"
       },
+      "RecheckFailure": {
+        "description": "A done task whose recorded checks no longer all pass.",
+        "properties": {
+          "attempt_id": {
+            "$ref": "#/components/schemas/AttemptId"
+          },
+          "checks": {
+            "items": {
+              "$ref": "#/components/schemas/CheckResult"
+            },
+            "type": "array"
+          },
+          "task": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "title": {
+            "type": "string"
+          },
+          "version": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "workflow_id": {
+            "$ref": "#/components/schemas/WorkflowId"
+          }
+        },
+        "required": [
+          "workflow_id",
+          "version",
+          "task",
+          "title",
+          "attempt_id",
+          "checks"
+        ],
+        "type": "object"
+      },
+      "RecheckNotice": {
+        "description": "The outcome of rechecking other done tasks after a new done mark.",
+        "properties": {
+          "cause_task": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "cause_version": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "cause_workflow_id": {
+            "$ref": "#/components/schemas/WorkflowId"
+          },
+          "failed": {
+            "items": {
+              "$ref": "#/components/schemas/RecheckFailure"
+            },
+            "type": "array"
+          },
+          "plan_id": {
+            "$ref": "#/components/schemas/PlanId"
+          },
+          "recheck_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "plan_id",
+          "cause_workflow_id",
+          "cause_version",
+          "cause_task",
+          "recheck_id",
+          "failed"
+        ],
+        "type": "object"
+      },
       "RememberedSettings": {
         "description": "The model and effort last chosen for this harness.",
         "properties": {

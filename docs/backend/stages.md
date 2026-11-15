@@ -120,7 +120,7 @@ B-152, B-154 and B-105 build on the [shared request](../shared/requests/2026-11-
 
 ### B-154 · A done mark rechecks every done task of its plan
 
-- Status: todo
+- Status: done (automated checks passed; manual acceptance remains with Mohammed)
 - Plan: [B-154](plans/2026-11-16-slice-6-stop-control.md#task-b-154-a-done-mark-rechecks-every-done-task-of-its-plan).
 - Owner: Runs.
 - Read: `crates/core-runs/contract.yaml` (`mark_done`, `confirmation`, `done_checks`, `recover`); `crates/core-plans/contract.yaml` (`plan`, `shared_in_transaction`); migration `0063_run_checks.sql`.

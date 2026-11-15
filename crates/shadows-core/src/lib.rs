@@ -1,5 +1,6 @@
 mod app;
 pub use core_runs::LiveAttempt;
+pub use core_runs::{RecheckFailure, RecheckNotice};
 pub use core_runtime::RuntimeError;
 mod error;
 pub use core_project_lifecycle::ProjectLifecycle;

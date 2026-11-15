@@ -20,6 +20,8 @@ mod live;
 mod messages;
 #[path = "runs_attempts/planner.rs"]
 mod planner;
+#[path = "runs_attempts/rechecks.rs"]
+mod rechecks;
 #[path = "runs_attempts/report.rs"]
 mod report;
 #[path = "runs_attempts/stops.rs"]

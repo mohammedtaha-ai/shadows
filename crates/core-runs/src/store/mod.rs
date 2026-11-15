@@ -10,6 +10,7 @@ mod conflict;
 mod lessons;
 mod marks;
 pub(super) mod messages;
+pub(super) mod rechecks;
 mod recover;
 
 use std::sync::Arc;
@@ -88,6 +89,11 @@ pub(crate) struct Begun {
     pub(crate) attempt: Attempt,
     /// The same command was already accepted: nothing was written.
     pub(crate) replayed: bool,
+}
+
+pub(crate) struct Marked {
+    pub(crate) judged: Option<(AttemptId, ThreadId)>,
+    pub(crate) recheck: Option<String>,
 }
 
 impl RunsStore {

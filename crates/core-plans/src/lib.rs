@@ -116,6 +116,13 @@ pub struct PlanShow {
 }
 
 impl Plans {
+    /// Version identities read inside another owner's transaction.
+    pub async fn version_ids_in(
+        conn: &mut core_db::Tx,
+        plan: &PlanId,
+    ) -> Result<Vec<(WorkflowId, i64)>, PlansError> {
+        Ok(store::PlansStore::version_ids_in(conn, plan).await?)
+    }
     pub async fn approve_as_planner(
         &self,
         grant: &Grant,
