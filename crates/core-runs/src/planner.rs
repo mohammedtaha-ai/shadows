@@ -11,6 +11,48 @@ use core_grants::{Grant, GrantKind};
 use core_plans::{Plan, WorkflowId};
 
 impl Runs {
+    /// Lists held scopes throughout the plan's version history.
+    pub async fn live_for(
+        &self,
+        grant: &Grant,
+        workflow: &WorkflowId,
+    ) -> Result<Vec<crate::LiveAttempt>, RunsError> {
+        let plan = self.planner_plan(grant, workflow).await?;
+        let versions = self
+            .inner
+            .plans
+            .plan(&plan.plan_id)
+            .await
+            .map_err(RunsError::from_plans)?;
+        let workflows = versions
+            .versions
+            .into_iter()
+            .map(|v| v.workflow_id)
+            .collect::<Vec<_>>();
+        let mut live = Vec::new();
+        for (attempt, conflict) in self.inner.store.live(&workflows).await? {
+            let version = self.read_plan(&attempt.workflow_id).await?;
+            live.push(crate::LiveAttempt {
+                title: version
+                    .tasks
+                    .iter()
+                    .find(|task| task.content.number == attempt.task)
+                    .map(|task| task.content.title.clone())
+                    .unwrap_or_else(|| format!("T{}", attempt.task)),
+                attempt_id: attempt.id,
+                workflow_id: attempt.workflow_id,
+                version: attempt.version,
+                task: attempt.task,
+                number: attempt.number,
+                state: attempt.state,
+                commit: attempt.commit,
+                conflict,
+                started_at: attempt.started_at,
+            });
+        }
+        Ok(live)
+    }
+
     /// The newest committed attempt, after the same project grant check as Start.
     async fn planner_commit(
         &self,

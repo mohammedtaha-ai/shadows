@@ -204,6 +204,21 @@ pub struct Attempt {
     pub ended_at: Option<String>,
 }
 
+/// An attempt whose scope has not yet been released.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct LiveAttempt {
+    pub attempt_id: AttemptId,
+    pub workflow_id: WorkflowId,
+    pub version: i64,
+    pub task: u32,
+    pub title: String,
+    pub number: u32,
+    pub state: AttemptState,
+    pub commit: Option<String>,
+    pub conflict: bool,
+    pub started_at: String,
+}
+
 /// A task as the runs see it: marked done or not, its latest attempt, the
 /// tasks it needs, whether Start may run now, and the model to offer first.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, utoipa::ToSchema)]

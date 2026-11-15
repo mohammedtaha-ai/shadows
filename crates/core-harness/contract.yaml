@@ -1276,3 +1276,4 @@ judge_checks: >
   not_run that Shadows confirmed passed does not by itself demand a code amendment.
 
 message_agent: The Planner asks executor questions through message_agent; task_amend requests file changes.
+# Planner prompt: task_runs lists scopes still held across plan versions before task_stop.

@@ -3,6 +3,104 @@
 //! runs.
 use super::*;
 
+#[tokio::test]
+async fn task_runs_lists_the_attempts_that_hold_a_scope() {
+    let f = fixture().await;
+    let grant = planner_grant(&f).await;
+    let thread = f.executor_thread(1).await;
+    let running = f.chain_attempt(&thread, 1, 1, "running", None, false).await;
+    let committed = f.committed_attempt().await;
+    f.failed_attempt(5).await;
+    let live = f.core.runs().live_for(&grant, &f.workflow).await.unwrap();
+    assert_eq!(live.len(), 2);
+    assert_eq!(live[0].attempt_id, running);
+    assert_eq!(live[0].state, AttemptState::Running);
+    assert_eq!(live[1].attempt_id, committed);
+    assert_eq!(live[1].state, AttemptState::Committed);
+    assert!(live.iter().all(|attempt| !attempt.conflict));
+    f.finish().await;
+}
+
+#[tokio::test]
+async fn task_runs_is_refused_to_another_grant() {
+    let f = fixture().await;
+    let refused = f
+        .core
+        .runs()
+        .live_for(&executor_grant(&f), &f.workflow)
+        .await;
+    assert!(matches!(refused, Err(RunsError::NotFound)), "{refused:?}");
+    let mut other = planner_grant(&f).await;
+    other.project_id = shadows_core::ProjectId::from_literal("another-project");
+    let refused = f.core.runs().live_for(&other, &f.workflow).await;
+    assert!(matches!(refused, Err(RunsError::NotFound)), "{refused:?}");
+    f.finish().await;
+}
+
+#[tokio::test]
+async fn task_runs_marks_a_conflicted_attempt() {
+    let f = fixture().await;
+    let grant = planner_grant(&f).await;
+    let thread = f.executor_thread(1).await;
+    let id = f.chain_attempt(&thread, 1, 1, "running", None, false).await;
+    sqlx::query("UPDATE run_attempts SET conflict_json=? WHERE id=?")
+        .bind(r#"{"expected":"x","observed":"y","evidence":[]}"#)
+        .bind(id.as_str())
+        .execute(f.storage.reader())
+        .await
+        .unwrap();
+    let live = f.core.runs().live_for(&grant, &f.workflow).await.unwrap();
+    assert_eq!(live.len(), 1);
+    assert_eq!(live[0].attempt_id, id);
+    assert!(live[0].conflict);
+    f.finish().await;
+}
+
+#[tokio::test]
+async fn task_runs_lists_an_old_versions_attempt_after_a_new_approval() {
+    let f = fixture().await;
+    let grant = planner_grant(&f).await;
+    let thread = f.executor_thread(1).await;
+    let id = f.chain_attempt(&thread, 1, 1, "running", None, false).await;
+    let plans = f.core.plans();
+    let plan = plans.get(&f.workflow).await.unwrap();
+    let next = plans
+        .start_draft_for_test(
+            &command("next"),
+            &Writer::Planner {
+                thread: grant.thread_id.clone().unwrap(),
+                grant: grant.id.clone(),
+            },
+            &f.project,
+            Some(&plan.plan_id),
+            Some(&f.workflow),
+            None,
+            Some("Correct the plan"),
+            None,
+            None,
+            &[],
+        )
+        .await
+        .unwrap();
+    let draft = plans.get(&next.workflow_id).await.unwrap();
+    plans
+        .approve_plan_for_test(&command("approve-next"), &next.workflow_id, draft.revision)
+        .await
+        .unwrap();
+    let live = f
+        .core
+        .runs()
+        .live_for(&grant, &next.workflow_id)
+        .await
+        .unwrap();
+    assert_eq!(live.len(), 1);
+    assert_eq!(live[0].attempt_id, id);
+    assert_eq!(live[0].workflow_id, f.workflow);
+    assert_eq!(live[0].version, 1);
+    assert_eq!(live[0].title, "Task 1");
+    f.finish().await;
+}
+
 impl Fixture {
     /// A `failed` attempt at `task` that ended and freed its scope, as a turn
     /// that ended without a commit leaves one.

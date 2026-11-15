@@ -18,6 +18,33 @@ mod plan;
 use listening::{listening_app, project_client, refused, thread_client};
 use plan::approved_v1;
 
+#[tokio::test]
+async fn the_planner_lists_live_attempts_over_mcp() {
+    let l = listening_app().await;
+    let workflow = approved_v1(&l.app).await;
+    attempt_row(&l.app, workflow.as_str(), "held-live", 1, None, None).await;
+    sqlx::query("UPDATE run_attempts SET state='running', ended_at=NULL WHERE id='held-live'")
+        .execute(l.app.storage.reader())
+        .await
+        .unwrap();
+    let planner = thread_client(&l, &l.app.thread).await;
+    let rows = listening::ok(&planner, "task_runs", json!({"workflow_id": workflow})).await;
+    assert_eq!(rows[0]["attempt_id"], "held-live");
+    listening::ok(
+        &planner,
+        "task_stop",
+        json!({"command_id":"stop-live", "attempt_id":"held-live"}),
+    )
+    .await;
+    let rows = listening::ok(&planner, "task_runs", json!({"workflow_id": workflow})).await;
+    assert_eq!(rows, json!([]));
+    l.app
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+}
+
 /// Records an ended attempt `id` at T1 of `workflow`, with the conflict
 /// columns `conflict` sets (or none) and released at `released`.
 async fn attempt_row(

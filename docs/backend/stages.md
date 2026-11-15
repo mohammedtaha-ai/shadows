@@ -90,7 +90,7 @@ B-152, B-154 and B-105 build on the [shared request](../shared/requests/2026-11-
 
 ### B-117 · The Planner lists the attempts that hold a scope (`task_runs`)
 
-- Status: todo
+- Status: done (automated checks passed; manual acceptance remains with Mohammed)
 - Plan: [B-117](plans/2026-11-16-slice-6-stop-control.md#task-b-117-the-planner-lists-the-attempts-that-still-hold-a-scope).
 - Owner: Runs, with its MCP adapter.
 - Read: `crates/core-runs/contract.yaml` (`stop_for`, `planner_plan`, `start_for`); the plan's Global Constraints.

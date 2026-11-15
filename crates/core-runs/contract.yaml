@@ -88,6 +88,7 @@ dependencies:
   # A running attempt holds `Codebase::hold` of its project until its turn ends, so the project stays active.
 
 shapes:
+  LiveAttempt: '{ attempt_id, workflow_id, version, task, title, number, state, commit, conflict, started_at }; an unreleased attempt in any version of one plan'
   Runs:
     store: private RunsStore over the shared storage handle
   AttemptState: [running, committed, stopped, interrupted, failed]
@@ -142,6 +143,7 @@ shapes:
   # NoLesson (no_lesson) and EmptyLesson (empty_lesson) are write_lesson's.
 
 functions:
+  live_for: '(grant, workflow) -> Vec<LiveAttempt>; Planner project reach, every version from Plans::plan, unreleased scopes ordered by version/task/number, conflict flag read with the attempt'
   checks_for: '(grant, workflow, task) -> Vec<CheckResult>; Planner project reach, latest committed attempt, NotFound when absent'
   check_results: '(attempt) -> Vec<CheckResult>; unknown attempt NotFound; reported outcomes apart from nullable Shadows outcomes, own task first then used task and ordinal'
   confirm: 'private: a committed attempt whose turn ended; waits for quiet, serializes per project, records commands, then returns a failed confirmation at most twice or notifies the Planner; only the latest attempt acts'
@@ -302,6 +304,8 @@ agreements:
     tested_by: [live_an_addition_continues_the_executor_in_its_session]
 
 obligations:
+  - rule: Only a Planner of the project lists a plan's held scopes across versions, including conflicts, with version-specific titles.
+    tested_by: [task_runs_lists_the_attempts_that_hold_a_scope, task_runs_lists_an_old_versions_attempt_after_a_new_approval, task_runs_marks_a_conflicted_attempt, task_runs_is_refused_to_another_grant]
   - rule: A ready group is pairwise write-compatible, excludes held scopes and tasks that already ran, and is not a reservation; a stale group cannot bypass Start, and a stop frees a never-attempted task.
     tested_by: [the_ready_group_is_pairwise_disjoint, held_commits_block_groups, a_stopped_task_is_not_automatically_retried, a_stop_unblocks_a_never_attempted_task, a_stale_group_cannot_bypass_start, non_planner_grants_cannot_request_groups]
   - rule: The first prompt and every addition give one commit procedure (COMMIT) - new files staged by exact name, then git --literal-pathspecs commit --only of the exact own paths, both ends of a rename, bounded lock retries without deleting a lock, and shared checks reported as not run unless assigned - which leaves foreign staged content intact.

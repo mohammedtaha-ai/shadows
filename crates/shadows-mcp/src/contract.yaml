@@ -141,3 +141,4 @@ task_checks: >
   Runs owns normalization, the fingerprint and whether a reason is required.
 
 message_agent: Plain Planner questions translate to Runs::message_agent; Runs owns scope, ordering, deduplication and reply delivery.
+# task_runs translates workflow_id to Runs::live_for; Planner only, all versions of one plan.

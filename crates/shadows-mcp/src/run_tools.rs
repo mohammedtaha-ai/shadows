@@ -129,6 +129,21 @@ struct TaskLessonsArgs {
 
 #[tool_router(router = run_tool_router, vis = "pub(super)")]
 impl Shadows {
+    #[tool(description = "List attempts still holding a scope in this plan, across all versions.")]
+    async fn task_runs(
+        &self,
+        Extension(grant): Extension<Grant>,
+        Parameters(args): Parameters<TaskReadyArgs>,
+    ) -> CallToolResult {
+        answer(
+            self.core
+                .runs()
+                .live_for(&grant, &args.workflow_id)
+                .await
+                .map_err(Refusal::from),
+        )
+    }
+
     #[tool(
         description = "Read what a task's latest committed attempt changed: each file with its \
                        added and removed line counts and its patch. Read it before you judge \

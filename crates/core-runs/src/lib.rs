@@ -49,8 +49,8 @@ pub use model::{
     AgentMessage, AgentMessageId, AgentMessageState, AgentReplyNotice, Attempt, AttemptFile,
     AttemptId, AttemptNotice, AttemptOrigin, AttemptState, CheckOutcome, CheckResult,
     ConflictDelivery, ConflictEvidence, ConflictInput, DoneMark, FileDiff, LessonAttempt,
-    LessonCommand, Need, ReadyGroup, ReadyTask, RecoverReport, ReportedCheck, ReportedOutcome,
-    StartAnswer, TaskConflict, TaskLesson, TaskRun,
+    LessonCommand, LiveAttempt, Need, ReadyGroup, ReadyTask, RecoverReport, ReportedCheck,
+    ReportedOutcome, StartAnswer, TaskConflict, TaskLesson, TaskRun,
 };
 pub use question::{PlannedScope, ProducerStatus, TaskAnswer, TaskQuestion};
 

@@ -91,6 +91,33 @@ pub(crate) struct Begun {
 }
 
 impl RunsStore {
+    /// Reads the scope state and conflict flag from one snapshot.
+    pub async fn live(&self, workflows: &[WorkflowId]) -> Result<Vec<(Attempt, bool)>, RunsError> {
+        let mut read = self
+            .storage
+            .reader()
+            .begin()
+            .await
+            .map_err(StorageError::from)?;
+        let mut result = Vec::new();
+        for workflow in workflows {
+            let ids: Vec<(String, bool)> = sqlx::query_as(
+                "SELECT id, conflict_json IS NOT NULL FROM run_attempts
+                 WHERE workflow_id=? AND released_at IS NULL ORDER BY version, task, number",
+            )
+            .bind(workflow.as_str())
+            .fetch_all(&mut *read)
+            .await?;
+            for (id, conflict) in ids {
+                let attempt = Self::load(&mut read, &AttemptId::from_recorded(id)).await?;
+                result.push((attempt, conflict));
+            }
+        }
+        read.commit().await.map_err(StorageError::from)?;
+        result.sort_by_key(|(a, _)| (a.version, a.task, a.number));
+        Ok(result)
+    }
+
     pub fn with_storage(storage: Arc<Storage>) -> Self {
         Self {
             storage,
