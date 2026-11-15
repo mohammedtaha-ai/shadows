@@ -23,3 +23,10 @@ obligations:
 traps:
   - The Run tab shows entries as messages and one-line rows; the conversation's tool and diff cards are not public to this folder.
   - The model is free text: the API offers no list of executor models.
+
+checks:
+  brief: Saved contract checks show their argv, optional folder, timeout and acceptance references.
+  report: Each committed attempt reads its own results; reported and confirmed outcomes remain separate, mismatches are marked, exit code and HEADs are shown, and a labelled disclosure shows plain output and truncation. Cached results remain visible during refresh.
+  origin: Core origin checks is labelled Returned by checks, never as a Planner addition.
+  done_reason: The optional reason is sent unchanged; Core decides whether it is required. Saved done_reason is shown beside Done. The retry command fingerprint includes the reason.
+  tested_by: [shows_reported_and_confirmed_checks_with_output_on_request, refreshes_unfinished_checks_and_keeps_cached_results_visible, labels_returns_by_checks_without_calling_them_planner_additions, sends_and_displays_cores_completion_reason_after_a_refusal, the_brief_shows_check_commands_and_acceptance_items]

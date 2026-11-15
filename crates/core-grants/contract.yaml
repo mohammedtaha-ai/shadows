@@ -506,3 +506,7 @@ tests:
 # (Runs::report, which accepts the executor's own commit only inside the task's writes) and
 # task_conflict (Runs::conflict_for, its own attempt's contract conflict only); startup and
 # thread removal revoke executor grants with the thread ones (executor_session tests).
+
+task_checks: Thread grants include task_checks; Project and Executor grants do not.
+
+message_agent: Thread grants include message_agent; Project and Executor grants do not.

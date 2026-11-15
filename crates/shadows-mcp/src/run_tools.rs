@@ -18,6 +18,9 @@ struct TaskReportArgs {
     commit: String,
     /// What you did, what you ran or tested, and what passed or failed.
     report: String,
+    /// One entry per contract check: id, passed, failed or not_run, and a short note.
+    #[serde(default)]
+    checks: Vec<shadows_core::ReportedCheck>,
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
@@ -42,6 +45,24 @@ struct TaskDoneArgs {
     task_number: u32,
     /// true to mark the task done, false to take the mark back.
     done: bool,
+    /// Why this task is done despite a check that did not pass.
+    #[serde(default)]
+    reason: Option<String>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+struct TaskChecksArgs {
+    #[schemars(with = "String")]
+    workflow_id: WorkflowId,
+    task_number: u32,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+struct MessageAgentArgs {
+    #[schemars(with = "String")]
+    workflow_id: WorkflowId,
+    task_number: u32,
+    message: String,
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
@@ -211,7 +232,7 @@ impl Shadows {
         answer(
             self.core
                 .runs()
-                .report(&grant, &args.commit, args.report)
+                .report(&grant, &args.commit, args.report, args.checks)
                 .await
                 .map(|a| json!({ "attempt": a.id, "state": a.state, "commit": a.commit }))
                 .map_err(Refusal::from),
@@ -347,7 +368,50 @@ impl Shadows {
         answer(
             self.core
                 .runs()
-                .mark_done_for(&grant, &args.workflow_id, args.task_number, args.done)
+                .mark_done_for(
+                    &grant,
+                    &args.workflow_id,
+                    args.task_number,
+                    args.done,
+                    args.reason,
+                )
+                .await
+                .map_err(Refusal::from),
+        )
+    }
+
+    #[tool(
+        description = "Read the latest committed attempt's checks: executor report, Shadows' \
+        confirmation, outcome, exit code, HEAD and output. Read these before judging the commit."
+    )]
+    async fn task_checks(
+        &self,
+        Extension(grant): Extension<Grant>,
+        Parameters(args): Parameters<TaskChecksArgs>,
+    ) -> CallToolResult {
+        answer(
+            self.core
+                .runs()
+                .checks_for(&grant, &args.workflow_id, args.task_number)
+                .await
+                .map_err(Refusal::from),
+        )
+    }
+
+    #[tool(
+        description = "Ask a task's executor a plain question (why it chose something, \
+        what it ran) without changing the task: no attempt, no addition. A busy agent answers \
+        when its turn ends. The reply reaches you as \"Reply from task agent · T<n>\"."
+    )]
+    async fn message_agent(
+        &self,
+        Extension(grant): Extension<Grant>,
+        Parameters(args): Parameters<MessageAgentArgs>,
+    ) -> CallToolResult {
+        answer(
+            self.core
+                .runs()
+                .message_agent(&grant, &args.workflow_id, args.task_number, args.message)
                 .await
                 .map_err(Refusal::from),
         )

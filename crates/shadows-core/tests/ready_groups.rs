@@ -330,7 +330,7 @@ async fn held_commits_block_groups() {
     assert_eq!(f.group().await, [3], "T1's commit still holds lib/**");
     f.core
         .runs()
-        .mark_done("m1".into(), &f.workflow, 1, 1, true)
+        .mark_done("m1".into(), &f.workflow, 1, 1, true, None)
         .await
         .unwrap();
     assert_eq!(f.group().await, [2, 3, 4], "the judged commit freed lib/**");
@@ -385,7 +385,7 @@ async fn judging_old_work_returns_no_old_next() {
     let marked = f
         .core
         .runs()
-        .mark_done_for(&grant, &f.workflow, 1, true)
+        .mark_done_for(&grant, &f.workflow, 1, true, None)
         .await
         .unwrap();
     assert!(marked.task.done, "the old work is judged");

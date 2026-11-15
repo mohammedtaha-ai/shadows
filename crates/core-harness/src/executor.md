@@ -58,3 +58,9 @@ tools: Read, Grep, Glob, Edit, Write, MultiEdit, Bash, TodoWrite
 - Never use Python (`python`, `py`, `pip`), for anything.
 - Create and change files with `Write`, `Edit` and `MultiEdit`, never with a heredoc, `sed` or a
   script. The shell is for running things: tests, git, generators.
+
+Run your task's checks before you commit, and fix what fails in your own files. Other executors
+may be checking at once: a lock, busy or port error is not a failure. Go on with your code and
+try again later. When your work is done and a check still cannot run, commit and report it
+not_run. In task_report give every check's outcome. Shadows confirms once the project is free
+and sends you back if they do not pass.

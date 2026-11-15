@@ -59,8 +59,8 @@ pub use core_plans::{
     DraftStarted, EditOutcome, FileAction, FileWork, Focus, LastEdit, Link, LinkKind, LinkedTask,
     MapLink, MapPlan, OutcomeView, PartView, Place, Plan, PlanContent, PlanEdit, PlanId,
     PlanListing, PlanMap, PlanOp, PlanShow, PlanShown, PlanState, PlanTask, PlanVersions, Plans,
-    Problem, SymbolKind, SymbolWork, TaskContent, TaskContract, TaskId, TaskParent, TaskPreview,
-    VersionLine, WorkflowId, WorkflowState, WrittenBy,
+    Problem, SymbolKind, SymbolWork, TaskCheck, TaskContent, TaskContract, TaskId, TaskParent,
+    TaskPreview, VersionLine, WorkflowId, WorkflowState, WrittenBy,
 };
 pub use core_plans::{
     ConsumerRef, ContractFacts, ContractSelector, ContractSource, ContractTarget, ContractUse,
@@ -142,7 +142,11 @@ pub use core_plans::{LinkedPhase, PhaseEndpoint};
 pub use core_plans::{Phase, PhaseId, PhaseInput, PhaseRef};
 
 pub use core_runs::{Attempt, AttemptId, AttemptState, RecoverReport, Runs, RunsError, TaskRun};
-pub use core_runs::{AttemptBrief, StartAnswer};
+pub use core_runs::{AttemptBrief, ReportedCheck, ReportedOutcome, StartAnswer};
 pub use core_runs::{AttemptFile, AttemptNotice, DoneMark, FileDiff, Need, ReadyGroup, ReadyTask};
 pub use core_runs::{ConflictDelivery, ConflictEvidence, ConflictInput, TaskConflict};
 pub use core_runs::{PlannedScope, ProducerStatus, TaskAnswer, TaskQuestion};
+
+pub use core_runs::{AttemptOrigin, CheckOutcome, CheckResult};
+
+pub use core_runs::{AgentMessage, AgentMessageId, AgentMessageState, AgentReplyNotice};

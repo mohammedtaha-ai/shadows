@@ -1,8 +1,8 @@
 // Distinguish entries by kind rather than text so tool output cannot masquerade as a card.
 
-import type { AttemptNotice } from '@/api/runs'
+import type { AgentNotice } from '@/api/runs'
 import type { ThreadEntry } from '@/api/threads'
-import { type SubagentCard, readAttemptNotice, readSubagentCard } from '@/stream'
+import { type SubagentCard, readAgentNotice, readSubagentCard } from '@/stream'
 
 /** Suppress plan_show's tool line because its plan card already represents the result. */
 const SENTENCES: Readonly<Record<string, string | null>> = {
@@ -51,11 +51,11 @@ export function subagentOf(entry: ThreadEntry): SubagentCard | null {
 
 /** A notice: a message whose author is an Executor or Shadows, never decided from its text.
  * `card` is null when the entry has none or it cannot be read (Shadows' notices carry none an attempt reads). */
-export function noticeOf(entry: ThreadEntry): { card: AttemptNotice | null; sender: 'Executor' | 'Shadows' } | null {
+export function noticeOf(entry: ThreadEntry): { card: AgentNotice | null; sender: 'Executor' | 'Shadows' } | null {
   if (entry.kind !== 'UserMessage') return null
   if (entry.author.kind === 'Shadows') return { card: null, sender: 'Shadows' }
   if (entry.author.kind !== 'Executor') return null
-  return { card: readAttemptNotice(entry.card), sender: 'Executor' }
+  return { card: readAgentNotice(entry.card), sender: 'Executor' }
 }
 
 /** An entry that adds no line: a tool call whose result is another entry. */
@@ -67,7 +67,9 @@ export function silent(entry: ThreadEntry): boolean {
  * call is never an entry row; its group copies its steps' lines. */
 export function copyText(entry: ThreadEntry): string {
   const notice = noticeOf(entry)
-  if (notice !== null) return notice.card?.report ?? notice.card?.reason ?? entry.body
+  if (notice !== null) return notice.card !== null && 'message' in notice.card
+    ? notice.card.reply ?? notice.card.reason ?? entry.body
+    : notice.card?.report ?? notice.card?.reason ?? entry.body
   const card = subagentOf(entry)
   return card === null ? entry.body : (card.report ?? card.title)
 }

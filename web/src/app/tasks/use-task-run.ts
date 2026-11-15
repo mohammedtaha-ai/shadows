@@ -56,10 +56,10 @@ export function useTaskRun(workflowId: string, version: number, task: number) {
     onSettled: refresh,
   })
 
-  const done = useMutation<TaskRun, Error, boolean>({
+  const done = useMutation<TaskRun, Error, { done: boolean; reason?: string }>({
     mutationFn: (value) => {
-      doneCommand.current = attemptFor(doneCommand.current, { done: value })
-      return markTaskDone(workflowId, version, task, doneCommand.current.commandId, value)
+      doneCommand.current = attemptFor(doneCommand.current, value)
+      return markTaskDone(workflowId, version, task, doneCommand.current.commandId, value.done, value.reason)
     },
     onSuccess: async (answer) => {
       doneCommand.current = null

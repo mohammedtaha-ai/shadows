@@ -239,7 +239,7 @@ export function answers(o: Overrides = {}): Record<string, Answer> {
           frozen_at: '2026-09-25T00:00:00Z',
         })),
     'GET /api/workflows/w1/versions/1/tasks/1': o.taskRun ?? {
-      task: 1, done: false, done_at: null, latest: null, needs: [],
+      task: 1, done: false, done_at: null, done_reason: null, latest: null, needs: [],
       start: { allowed: true, code: null, reason: null }, suggested_model: 'fake-large',
     },
     'GET /api/workflows/w1/versions/1/tasks/1/attempts': o.attempts ?? [],
@@ -250,6 +250,8 @@ export function answers(o: Overrides = {}): Record<string, Answer> {
     'PUT /api/workflows/w1/versions/1/tasks/1/done': o.markDone ??
       (() => Response.json({ code: 'command_conflict', reason: 'the command id was used for another request' }, { status: 409 })),
     'GET /api/attempts/a1/diff': o.attemptDiff ?? [],
+    'GET /api/attempts/a1/checks': [],
+    'GET /api/attempts/a2/checks': [],
     'GET /api/projects/p1/planner-instructions': () => Response.json(instructions),
     'PUT /api/projects/p1/planner-instructions': async (r: Request) => {
       const { body } = (await r.json()) as { body: string }

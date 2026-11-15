@@ -39,6 +39,48 @@ pub struct TaskContract {
     /// What must not be changed.
     #[serde(default)]
     pub forbidden: Vec<String>,
+    /// Commands that prove acceptance, run by the executor and again by Shadows.
+    #[serde(default)]
+    pub checks: Vec<TaskCheck>,
+}
+
+/// A program with arguments that proves acceptance items without a shell.
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    utoipa::ToSchema,
+    schemars::JsonSchema,
+)]
+#[serde(deny_unknown_fields)]
+pub struct TaskCheck {
+    /// Chosen by the writer, unique within the task: `c1`.
+    pub id: String,
+    /// The program, then its arguments, never a shell line:
+    /// `["go", "test", "./internal/api/..."]`.
+    pub run: Vec<String>,
+    /// Where it runs, relative to the project's folder; the folder itself when left out.
+    #[serde(default)]
+    pub folder: Option<String>,
+    /// Seconds before it is stopped: 1 to 1800, 600 when left out.
+    #[serde(default)]
+    pub timeout_secs: Option<u32>,
+    /// The task's acceptance items it proves.
+    #[serde(default)]
+    pub proves: Vec<u32>,
+}
+
+impl TaskCheck {
+    pub const DEFAULT_TIMEOUT_SECS: u32 = 600;
+    pub const MAX_TIMEOUT_SECS: u32 = 1800;
+
+    pub fn timeout(&self) -> std::time::Duration {
+        std::time::Duration::from_secs(u64::from(
+            self.timeout_secs.unwrap_or(Self::DEFAULT_TIMEOUT_SECS),
+        ))
+    }
 }
 
 /// One file the task works on, and why.
@@ -401,6 +443,43 @@ impl ContractRules {
         }
         if repeated {
             say("the same source is used more than once".into());
+        }
+        let mut checks = BTreeSet::new();
+        for check in &c.checks {
+            let id = &check.id;
+            if id.trim().is_empty() || !checks.insert(id) {
+                say(format!("missing or repeated check id `{id}`"));
+            }
+            if check
+                .run
+                .first()
+                .is_none_or(|program| program.trim().is_empty())
+            {
+                say(format!("the check `{id}` names no program"));
+            }
+            if let Some(folder) = &check.folder
+                && folder != "."
+                && !Self::exact(folder)
+            {
+                say(format!(
+                    "the check `{id}` runs in `{folder}`, which is not a folder inside the project"
+                ));
+            }
+            if check
+                .timeout_secs
+                .is_some_and(|t| t == 0 || t > TaskCheck::MAX_TIMEOUT_SECS)
+            {
+                say(format!(
+                    "the check `{id}` has a time limit outside 1 to 1800 seconds"
+                ));
+            }
+            for k in &check.proves {
+                if !acceptance.contains(k) {
+                    say(format!(
+                        "the check `{id}` proves acceptance item {k}, which T{n} does not have"
+                    ));
+                }
+            }
         }
     }
 

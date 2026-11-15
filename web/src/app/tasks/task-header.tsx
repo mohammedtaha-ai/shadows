@@ -1,4 +1,5 @@
 import { Link } from '@tanstack/react-router'
+import { useState } from 'react'
 import { Check, CircleCheck } from 'lucide-react'
 import { awaitingJudgment, stoppedOnAdditionCap, type Need, type TaskRun } from '@/api/runs'
 import { Button } from '@/components/ui/button'
@@ -23,8 +24,9 @@ export function TaskHeader({ projectId, workflowId, planTitle, task, title, run,
   busy: boolean
   onStart: (model: string) => void
   onStop: (attemptId: string) => void
-  onDone: (done: boolean) => void
+  onDone: (done: boolean, reason?: string) => void
 }) {
+  const [reason, setReason] = useState('')
   const running = run.latest?.state === 'running'
   return (
     <header className="border-b border-border px-6 py-4">
@@ -69,10 +71,16 @@ export function TaskHeader({ projectId, workflowId, planTitle, task, title, run,
         {!running && !run.start.allowed && run.start.reason !== null && (
           <span dir="auto" className="text-xs text-muted-foreground">{run.start.reason}</span>
         )}
-        <Button size="sm" variant="outline" disabled={busy} onClick={() => { onDone(!run.done) }}>
+        <Button size="sm" variant="outline" disabled={busy} onClick={() => { onDone(!run.done, run.done ? undefined : reason || undefined) }}>
           {run.done ? 'Mark not done' : 'Mark done'}
         </Button>
       </div>
+      {!run.done && <label className="mt-3 block max-w-xl space-y-1 text-xs text-muted-foreground">
+        <span>Completion reason (optional; explain any checks you accept after review)</span>
+        <textarea aria-label="Completion reason" value={reason} onChange={(e) => setReason(e.target.value)} disabled={busy}
+          rows={2} className="w-full resize-y rounded-md border border-border bg-background px-3 py-2 text-foreground" />
+      </label>}
+      {run.done && run.done_reason != null && <p dir="auto" aria-label="Completion reason" className="mt-2 whitespace-pre-wrap break-words text-sm text-muted-foreground">{run.done_reason}</p>}
       {error !== null && <div className="mt-2"><ErrorLine error={error} /></div>}
     </header>
   )

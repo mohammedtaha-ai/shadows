@@ -3,7 +3,7 @@
 // the OpenAPI document's `/api/subscribe` entry); OpenAPI cannot type them, so
 // they are checked here, and a frame that does not match is a protocol error.
 
-import type { AttemptNotice, TaskConflict } from '@/api/runs'
+import type { AgentNotice, AgentReplyNotice, AttemptNotice, TaskConflict } from '@/api/runs'
 import type { AccountLimits, Choice, SessionChoices } from '@/api/sessions'
 import type {
   CallKind,
@@ -181,6 +181,19 @@ export function readAttemptNotice(value: unknown): AttemptNotice | null {
     // Core's snapshot of the conflict, kept whole; the notice only draws it.
     ...(isRecord(value.conflict) ? { conflict: value.conflict as unknown as TaskConflict } : {}),
   }
+}
+
+/** Executor questions carry their own reply card, distinct from an attempt outcome. */
+export function readAgentNotice(value: unknown): AgentNotice | null {
+  if (isRecord(value) && typeof value.message === 'string' &&
+    typeof value.task === 'number' && typeof value.title === 'string' &&
+    typeof value.attempt_id === 'string' && typeof value.workflow_id === 'string' &&
+    typeof value.version === 'number' &&
+    (typeof value.reply === 'string' || value.reply === null) &&
+    (typeof value.reason === 'string' || value.reason === null)) {
+    return value as unknown as AgentReplyNotice
+  }
+  return readAttemptNotice(value)
 }
 
 export function parseSubagent(data: string): SubagentFrame {

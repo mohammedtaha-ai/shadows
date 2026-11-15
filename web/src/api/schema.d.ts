@@ -25,6 +25,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/attempts/{id}/checks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The recorded command confirmations for one attempt. */
+        get: operations["checks"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/attempts/{id}/conflict": {
         parameters: {
             query?: never;
@@ -1976,6 +1993,18 @@ export interface components {
         AgentMcpItem: components["schemas"]["McpItem"] & {
             enabled: boolean;
         };
+        AgentReplyNotice: {
+            attempt_id: components["schemas"]["AttemptId"];
+            message: string;
+            reason?: string | null;
+            reply?: string | null;
+            /** Format: int32 */
+            task: number;
+            title: string;
+            /** Format: int64 */
+            version: number;
+            workflow_id: components["schemas"]["WorkflowId"];
+        };
         AgentTemplate: {
             instructions: string;
         };
@@ -2152,6 +2181,7 @@ export interface components {
              */
             number: number;
             operation_id: null | components["schemas"]["OperationId"];
+            origin: components["schemas"]["AttemptOrigin"];
             project_id: components["schemas"]["ProjectId"];
             /** @description Why the attempt failed, when it did. */
             reason: string | null;
@@ -2205,6 +2235,7 @@ export interface components {
             /** Format: int32 */
             attempt: number;
             attempt_id: components["schemas"]["AttemptId"];
+            checks?: components["schemas"]["CheckResult"][];
             commit?: string | null;
             conflict?: null | components["schemas"]["TaskConflict"];
             /** @description The attempt carried the task's third and last addition. */
@@ -2221,6 +2252,8 @@ export interface components {
             version: number;
             workflow_id: components["schemas"]["WorkflowId"];
         };
+        /** @enum {string} */
+        AttemptOrigin: "start" | "planner" | "checks";
         /**
          * @description Where an attempt stands. Only `Running` has no `ended_at`.
          * @enum {string}
@@ -2281,6 +2314,28 @@ export interface components {
         ChangeModel: {
             /** @description One of the session's `models`. */
             model: string;
+        };
+        /** @enum {string} */
+        CheckOutcome: "passed" | "failed" | "timed_out" | "inconclusive" | "not_run";
+        /** @description What the executor reported alongside what Shadows independently observed. */
+        CheckResult: {
+            /** Format: int32 */
+            exit_code?: number | null;
+            finished_at?: string | null;
+            folder?: string | null;
+            /** Format: int32 */
+            for_task: number;
+            head_after?: string | null;
+            head_before?: string | null;
+            id: string;
+            matches?: boolean | null;
+            outcome?: null | components["schemas"]["CheckOutcome"];
+            output?: string | null;
+            reported?: null | components["schemas"]["ReportedOutcome"];
+            reported_note?: string | null;
+            run: string[];
+            started_at?: string | null;
+            truncated: boolean;
         };
         /**
          * @description One value the session offers for a setting. `enabled: false`
@@ -2979,6 +3034,7 @@ export interface components {
             /** @description The idempotency key, scoped to done marks. */
             command_id: string;
             done: boolean;
+            reason?: string | null;
         };
         McpInput: {
             description?: string | null;
@@ -3637,6 +3693,11 @@ export interface components {
             effort: string | null;
             model: string;
         };
+        /**
+         * @description The executor's account, kept apart from Shadows' own confirmation.
+         * @enum {string}
+         */
+        ReportedOutcome: "passed" | "failed" | "not_run";
         ResendContext: {
             command_id: string;
         };
@@ -3882,6 +3943,25 @@ export interface components {
             path: string;
             returns?: null | components["schemas"]["ContractValue"];
         };
+        /** @description A program with arguments that proves acceptance items without a shell. */
+        TaskCheck: {
+            /** @description Where it runs, relative to the project's folder; the folder itself when left out. */
+            folder?: string | null;
+            /** @description Chosen by the writer, unique within the task: `c1`. */
+            id: string;
+            /** @description The task's acceptance items it proves. */
+            proves?: number[];
+            /**
+             * @description The program, then its arguments, never a shell line:
+             *     `["go", "test", "./internal/api/..."]`.
+             */
+            run: string[];
+            /**
+             * Format: int32
+             * @description Seconds before it is stopped: 1 to 1800, 600 when left out.
+             */
+            timeout_secs?: number | null;
+        };
         /**
          * @description An attempt's accepted contract conflict, with the attempt's current state
          *     and whether it still holds its scope. Accepting it asked the executor to
@@ -3933,6 +4013,8 @@ export interface components {
         };
         /** @description What a task builds, named exactly: the executor's brief beside the goal. */
         TaskContract: {
+            /** @description Commands that prove acceptance, run by the executor and again by Shadows. */
+            checks?: components["schemas"]["TaskCheck"][];
             files?: components["schemas"]["FileWork"][];
             /** @description What must not be changed. */
             forbidden?: string[];
@@ -3975,6 +4057,7 @@ export interface components {
         TaskRun: {
             done: boolean;
             done_at: string | null;
+            done_reason: string | null;
             latest: null | components["schemas"]["Attempt"];
             /** @description In link order. */
             needs: components["schemas"]["Need"][];
@@ -4261,6 +4344,46 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RunRefusal"];
+                };
+            };
+            /** @description STORAGE_UNAVAILABLE */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    checks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The attempt */
+                id: components["schemas"]["AttemptId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CheckResult"][];
+                };
+            };
+            /** @description no such attempt */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
                 };
             };
             /** @description STORAGE_UNAVAILABLE */
@@ -10241,7 +10364,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
-            /** @description command_conflict */
+            /** @description command_conflict or checks_not_passed */
             409: {
                 headers: {
                     [name: string]: unknown;

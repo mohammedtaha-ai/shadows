@@ -94,7 +94,10 @@ impl Runs {
             // judgment; a cancelled turn was Stop's, which released it.
             AttemptState::Committed => {
                 if told {
-                    self.notify_logged(&now).await;
+                    let runs = self.clone();
+                    tokio::spawn(async move {
+                        runs.confirm(&now).await;
+                    });
                 }
             }
             // A conflict's notice was resolved when it was accepted: this
@@ -105,6 +108,7 @@ impl Runs {
             }
             _ => self.release_logged(&attempt, &thread).await,
         }
+        self.pump(&thread).await;
     }
 
     /// The session cannot write any more: close it, then free the scope. A
@@ -115,6 +119,19 @@ impl Runs {
         attempt: &AttemptId,
         thread: &ThreadId,
     ) -> Result<(), RunsError> {
+        let lock = self.message_lock(thread).await;
+        let _held = lock.lock().await;
+        self.release_locked(attempt, thread).await
+    }
+
+    pub(crate) async fn release_locked(
+        &self,
+        attempt: &AttemptId,
+        thread: &ThreadId,
+    ) -> Result<(), RunsError> {
+        if self.inner.store.message_in_flight(thread).await? {
+            return Ok(());
+        }
         if let Err(error) = self.inner.harness.release_executor(thread).await {
             tracing::warn!(%attempt, %error, "runs.session_close_failed");
             return Err(RunsError::Unavailable(format!(

@@ -5,9 +5,11 @@
 //! the service; no other service's write calls into it, and nothing here is
 //! declared under `shared_in_transaction`.
 mod brief;
+pub(super) mod checks;
 mod conflict;
 mod lessons;
 mod marks;
+pub(super) mod messages;
 mod recover;
 
 use std::sync::Arc;
@@ -24,24 +26,26 @@ use core_plans::{Plan, Plans, TaskContent, WorkflowId};
 use core_projects::ProjectId;
 use core_threads::ThreadId;
 
-type AttemptRow = (
-    String,
-    String,
-    String,
-    i64,
-    i64,
-    i64,
-    String,
-    Option<String>,
-    String,
-    String,
-    Option<String>,
-    Option<String>,
-    String,
-    Option<String>,
-    Option<String>,
-    Option<String>,
-);
+#[derive(sqlx::FromRow)]
+struct AttemptRow {
+    id: String,
+    project_id: String,
+    workflow_id: String,
+    version: i64,
+    task: i64,
+    number: i64,
+    thread_id: String,
+    operation_id: Option<String>,
+    model: String,
+    state: String,
+    commit_sha: Option<String>,
+    reason: Option<String>,
+    started_at: String,
+    ended_at: Option<String>,
+    report: Option<String>,
+    addition: Option<String>,
+    origin: String,
+}
 
 pub(super) struct RunsStore {
     storage: Arc<Storage>,
@@ -73,6 +77,8 @@ pub(crate) struct NewAttempt {
 
 /// What an addition asks the store to record on the attempt it begins.
 pub(crate) struct Continued {
+    pub(crate) origin: crate::AttemptOrigin,
+    pub(crate) command_id: String,
     pub(crate) addition: String,
     /// The commit HEAD named when the addition was sent.
     pub(crate) start_head: Option<String>,
@@ -322,7 +328,7 @@ impl RunsStore {
         let row: Option<AttemptRow> = sqlx::query_as(
             "SELECT id, project_id, workflow_id, version, task, number, thread_id,
                     operation_id, model, state, commit_sha, reason, started_at, ended_at,
-                    report, addition
+                    report, addition, origin
                  FROM run_attempts WHERE id = ?",
         )
         .bind(id.as_str())
@@ -337,25 +343,27 @@ impl RunsStore {
         let small = |n: i64| {
             u32::try_from(n).map_err(|_| StorageError::Constraint("run_attempts number".into()))
         };
-        let state = AttemptState::parse(&row.9)
-            .ok_or_else(|| StorageError::Constraint(format!("run_attempts.state {}", row.9)))?;
+        let state = AttemptState::parse(&row.state)
+            .ok_or_else(|| StorageError::Constraint(format!("run_attempts.state {}", row.state)))?;
         Ok(Attempt {
-            id: AttemptId::from_recorded(row.0),
-            project_id: ProjectId::from_recorded(row.1),
-            workflow_id: WorkflowId::from_recorded(row.2),
-            version: row.3,
-            task: small(row.4)?,
-            number: small(row.5)?,
-            thread_id: ThreadId::from_recorded(row.6),
-            operation_id: row.7.map(OperationId::from_recorded),
-            model: row.8,
+            id: AttemptId::from_recorded(row.id),
+            project_id: ProjectId::from_recorded(row.project_id),
+            workflow_id: WorkflowId::from_recorded(row.workflow_id),
+            version: row.version,
+            task: small(row.task)?,
+            number: small(row.number)?,
+            thread_id: ThreadId::from_recorded(row.thread_id),
+            operation_id: row.operation_id.map(OperationId::from_recorded),
+            model: row.model,
             state,
-            commit: row.10,
-            reason: row.11,
-            started_at: row.12,
-            ended_at: row.13,
-            report: row.14,
-            addition: row.15,
+            commit: row.commit_sha,
+            reason: row.reason,
+            started_at: row.started_at,
+            ended_at: row.ended_at,
+            report: row.report,
+            addition: row.addition,
+            origin: serde_json::from_value(serde_json::Value::String(row.origin))
+                .map_err(|e| StorageError::Constraint(e.to_string()))?,
         })
     }
 
@@ -459,6 +467,7 @@ impl RunsStore {
         id: &AttemptId,
         sha: &str,
         report: &str,
+        checks: Vec<(u32, usize, core_plans::TaskCheck, crate::ReportedCheck)>,
     ) -> Result<bool, RunsError> {
         let (id, sha, report) = (id.clone(), sha.to_string(), report.to_string());
         let ts = Storage::now();
@@ -476,7 +485,27 @@ impl RunsStore {
                     .bind(id.as_str())
                     .execute(&mut *conn)
                     .await?;
-                    Ok(moved.rows_affected() == 1)
+                    let accepted = moved.rows_affected() == 1;
+                    if accepted {
+                        for (task, ordinal, check, reported) in checks {
+                            sqlx::query(
+                                "INSERT INTO run_checks
+                                 (attempt_id, for_task, check_id, ordinal, run_json, folder,
+                                  reported, reported_note) VALUES (?,?,?,?,?,?,?,?)",
+                            )
+                            .bind(id.as_str())
+                            .bind(i64::from(task))
+                            .bind(&check.id)
+                            .bind(ordinal as i64)
+                            .bind(serde_json::to_string(&check.run)?)
+                            .bind(&check.folder)
+                            .bind(serde_json::to_value(reported.outcome)?.as_str().unwrap())
+                            .bind(&reported.note)
+                            .execute(&mut *conn)
+                            .await?;
+                        }
+                    }
+                    Ok(accepted)
                 })
             })
             .await
@@ -537,8 +566,8 @@ impl RunsStore {
         version: i64,
         task: u32,
     ) -> Result<u32, RunsError> {
-        let additions: Vec<Option<String>> = sqlx::query_scalar(
-            "SELECT addition FROM run_attempts
+        let additions: Vec<String> = sqlx::query_scalar(
+            "SELECT origin FROM run_attempts
              WHERE workflow_id = ? AND version = ? AND task = ? ORDER BY number DESC",
         )
         .bind(workflow.as_str())
@@ -546,7 +575,11 @@ impl RunsStore {
         .bind(i64::from(task))
         .fetch_all(self.storage.reader())
         .await?;
-        let count = additions.iter().take_while(|a| a.is_some()).count();
+        let count = additions
+            .iter()
+            .take_while(|a| a.as_str() != "start")
+            .filter(|a| a.as_str() == "planner")
+            .count();
         Ok(u32::try_from(count).unwrap_or(u32::MAX))
     }
 
@@ -563,6 +596,16 @@ impl RunsStore {
         self.storage
             .write_txn_as(move |conn| {
                 Box::pin(async move {
+                    if next.origin == crate::AttemptOrigin::Checks {
+                        let replay: Option<String> =
+                            sqlx::query_scalar("SELECT id FROM run_attempts WHERE command_id = ?")
+                                .bind(&next.command_id)
+                                .fetch_optional(&mut *conn)
+                                .await?;
+                        if let Some(id) = replay {
+                            return Self::load(conn, &AttemptId::from_recorded(id)).await;
+                        }
+                    }
                     type Row = (i64, String, Option<String>, String, i64, String);
                     let row: Option<Row> = sqlx::query_as(
                         "SELECT task, state, released_at, workflow_id, version, project_id
@@ -595,20 +638,21 @@ impl RunsStore {
                         "INSERT INTO run_attempts
                            (id, project_id, workflow_id, version, task, number, thread_id,
                             model, state, writes_json, started_at, command_id, fingerprint,
-                            start_head, addition)
+                            start_head, addition, origin)
                          SELECT ?, p.project_id, p.workflow_id, p.version, p.task,
                                 (SELECT MAX(o.number) + 1 FROM run_attempts o
                                  WHERE o.workflow_id = p.workflow_id
                                    AND o.version = p.version AND o.task = p.task),
                                 p.thread_id, p.model, 'running', p.writes_json, ?, ?,
-                                'amend', ?, ?
+                                'amend', ?, ?, ?
                          FROM run_attempts p WHERE p.id = ?",
                     )
                     .bind(id.as_str())
                     .bind(&ts)
-                    .bind(format!("amend-{id}"))
+                    .bind(&next.command_id)
                     .bind(&next.start_head)
                     .bind(&next.addition)
+                    .bind(serde_json::to_value(next.origin)?.as_str().unwrap())
                     .bind(previous.as_str())
                     .execute(&mut *conn)
                     .await?;
@@ -631,7 +675,7 @@ impl RunsStore {
         let rows: Vec<AttemptRow> = sqlx::query_as(
             "SELECT id, project_id, workflow_id, version, task, number, thread_id,
                     operation_id, model, state, commit_sha, reason, started_at, ended_at,
-                    report, addition
+                    report, addition, origin
              FROM run_attempts
              WHERE workflow_id = ? AND version = ? AND task = ? ORDER BY number DESC",
         )

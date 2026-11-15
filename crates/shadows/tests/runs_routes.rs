@@ -276,3 +276,67 @@ async fn committed(app: &App, v1: &WorkflowId, command: &str, sha: String) -> St
         .unwrap();
     id
 }
+
+async fn recorded_check(app: &App, id: &str, outcome: &str) {
+    sqlx::query(
+        "INSERT INTO run_checks
+        (attempt_id,for_task,check_id,ordinal,run_json,reported,outcome,
+         exit_code,output,finished_at)
+        VALUES (?,1,'c1',0,'[\"git\",\"--version\"]','passed',?,1,'check output',
+                '2026-11-15T00:00:00Z')",
+    )
+    .bind(id)
+    .bind(outcome)
+    .execute(app.storage.reader())
+    .await
+    .unwrap();
+}
+
+#[tokio::test]
+async fn checks_route_answers_results() {
+    let (app, v1) = runs_app().await;
+    let sha = git(&folder(&app).await, &["rev-parse", "HEAD"])
+        .trim()
+        .to_string();
+    let id = committed(&app, &v1, "checks", sha).await;
+    recorded_check(&app, &id, "failed").await;
+    let (status, body) = call(&app, "GET", &format!("/api/attempts/{id}/checks"), None).await;
+    assert_eq!(status, 200, "{body}");
+    assert_eq!(body[0]["id"], "c1");
+    assert_eq!(body[0]["outcome"], "failed");
+    assert_eq!(body[0]["matches"], false);
+    assert_eq!(body[0]["output"], "check output");
+}
+
+#[tokio::test]
+async fn done_route_refuses_without_reason() {
+    let (app, v1) = runs_app().await;
+    let sha = git(&folder(&app).await, &["rev-parse", "HEAD"])
+        .trim()
+        .to_string();
+    let id = committed(&app, &v1, "checks", sha).await;
+    recorded_check(&app, &id, "failed").await;
+    let path = format!("{}/1/done", tasks(&v1));
+    let (status, body) = call(
+        &app,
+        "PUT",
+        &path,
+        Some(json!({"command_id":"judge","done":true})),
+    )
+    .await;
+    assert_eq!(status, 409, "{body}");
+    assert_eq!(body["code"], "checks_not_passed");
+    let (status, body) = call(
+        &app,
+        "PUT",
+        &path,
+        Some(json!({"command_id":"judge","done":true,
+        "reason":"Known environment failure; verified manually."})),
+    )
+    .await;
+    assert_eq!(status, 200, "{body}");
+    assert_eq!(
+        body["done_reason"],
+        "Known environment failure; verified manually."
+    );
+}

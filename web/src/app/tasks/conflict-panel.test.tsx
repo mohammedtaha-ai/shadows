@@ -13,7 +13,7 @@ afterEach(() => { app?.unmount(); app = null })
 const a1: Attempt = {
   id: 'a1', project_id: 'p1', workflow_id: 'w1', version: 1, task: 1, number: 1, thread_id: 't1', operation_id: null,
   model: 'fake-large', state: 'stopped', started_at: '2026-11-08T10:00:00Z', ended_at: null, commit: null,
-  reason: null, report: null, addition: null,
+  reason: null, report: null, addition: null, origin: 'start',
 }
 
 const conflict = (extra: Partial<TaskConflict> = {}): TaskConflict => ({

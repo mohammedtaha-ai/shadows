@@ -153,3 +153,8 @@ route_table:
     stack in a debug build, on Windows as on Linux, against the megabyte a Windows main
     thread has; the groups need under 320 KiB.
   tested_by: [the_route_table_builds_on_half_a_megabyte_of_stack]
+
+check_results: >
+  GET /api/attempts/{id}/checks calls Runs::check_results. The done route accepts optional
+  reason and calls the same Runs::mark_done rule as MCP. checks_not_passed is a 409 refusal;
+  unknown attempts are 404. No adapter recomputes confirmation or done policy.

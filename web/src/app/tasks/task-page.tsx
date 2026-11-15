@@ -52,7 +52,7 @@ function TaskView({ projectId, workflowId, version, taskNumber }: {
       <TaskHeader projectId={projectId} workflowId={workflowId} planTitle={plan.data.title} task={taskNumber}
         title={planTask.title} run={run.data} model={model} error={actionError} busy={busy}
         onStart={(m) => { start.mutate(m) }} onStop={(id) => { stop.mutate(id) }}
-        onDone={(value) => { done.mutate(value) }} />
+        onDone={(value, reason) => { done.mutate({ done: value, reason }) }} />
       <div role="tablist" className="flex gap-1 border-b border-border px-6">
         {TABS.map((name) => (
           <button key={name} type="button" role="tab" aria-selected={tab === name}

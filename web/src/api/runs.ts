@@ -9,6 +9,9 @@ export type AttemptState = components['schemas']['AttemptState']
 type FileDiff = components['schemas']['FileDiff']
 export type AttemptFile = components['schemas']['AttemptFile']
 export type AttemptNotice = components['schemas']['AttemptNotice']
+export type AgentReplyNotice = components['schemas']['AgentReplyNotice']
+export type AgentNotice = AttemptNotice | AgentReplyNotice
+export type CheckResult = components['schemas']['CheckResult']
 export type DiffHunk = components['schemas']['DiffHunk']
 export type Need = components['schemas']['Need']
 export type AttemptBrief = components['schemas']['AttemptBrief']
@@ -25,6 +28,7 @@ const runKeys = {
   file: (attemptId: string, path: string) => ['runs', 'file', attemptId, path],
   brief: (attemptId: string) => ['runs', 'brief', attemptId],
   conflict: (attemptId: string) => ['runs', 'conflict', attemptId],
+  checks: (attemptId: string) => ['runs', 'checks', attemptId],
 }
 
 /** Core's answer, even a refusal such as a task it cannot find, is final; only a lost call is tried again. */
@@ -54,7 +58,7 @@ export function awaitingJudgment(run: TaskRun): boolean {
 
 /** Core frees Start when the latest committed addition stops on the Planner's cap. */
 export function stoppedOnAdditionCap(run: TaskRun): boolean {
-  return run.latest !== null && run.latest.state === 'committed' && run.latest.addition !== null && !run.done && run.start.allowed
+  return run.latest !== null && run.latest.state === 'committed' && run.latest.origin === 'planner' && run.latest.addition !== null && !run.done && run.start.allowed
 }
 
 /** The task's attempts, newest first, read again while the newest one runs. */
@@ -69,6 +73,17 @@ export function attemptsQuery(workflowId: string, version: number, task: number)
 
 export function attemptDiffQuery(attemptId: string) {
   return queryOptions({ queryKey: runKeys.diff(attemptId), queryFn: () => getAttemptDiff(attemptId) })
+}
+
+/** Confirmations can finish after the commit; keep the current attempt's results fresh. */
+export function attemptChecksQuery(id: string, watch: boolean) {
+  return queryOptions({
+    queryKey: runKeys.checks(id),
+    queryFn: () => unwrap(client.GET('/api/attempts/{id}/checks', { params: { path: { id } } })),
+    retry: retryLost,
+    refetchInterval: (query) => watch && query.state.error === null &&
+      (query.state.data?.length === 0 || query.state.data?.some((check) => check.outcome == null)) ? 2000 : false,
+  })
 }
 
 export function attemptFileQuery(attemptId: string, path: string) {
@@ -149,13 +164,15 @@ export function stopAttempt(attemptId: string): Promise<Attempt> {
 }
 
 /** Marks the task done or not done. */
-export function markTaskDone(
-  workflowId: string, version: number, task: number, commandId: string, done: boolean,
+export async function markTaskDone(
+  workflowId: string, version: number, task: number, commandId: string, done: boolean, reason?: string,
 ): Promise<TaskRun> {
-  return unwrap(client.PUT('/api/workflows/{workflow}/versions/{version}/tasks/{task}/done', {
-    params: { path: { workflow: workflowId, version, task } },
-    body: { command_id: commandId, done },
-  }))
+  try {
+    return await unwrap(client.PUT('/api/workflows/{workflow}/versions/{version}/tasks/{task}/done', {
+      params: { path: { workflow: workflowId, version, task } },
+      body: { command_id: commandId, done, reason },
+    }))
+  } catch (error) { throw withRefusalReason(error) }
 }
 
 /** Each file of the attempt's commit with its counts and patch. */

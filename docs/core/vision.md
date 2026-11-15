@@ -559,9 +559,17 @@ Arabic and English content must remain readable together. Deep links,
 keyboard navigation, labelled controls, loading/error/empty states and
 recovery are part of the product's quality, not a later decorative pass.
 
+The person can make the workspace their own: a theme sets its colors and an
+animated background, and an agent changes it when asked in plain words
+("calmer", "a night sea"), live, with no rebuild. A theme is data Shadows keeps
+and checks, such as readable contrast, never code an agent writes into the page;
+backgrounds come from a fixed set whose settings the agent tunes. (Added
+2026-11-16, Mohammed, after trying theme mods in the Claude desktop app.)
+
 **Today:** basic workspace views and editor conflict recovery exist. The plan map is
 a React Flow diagram. ER and screen-flow diagrams, planning scope selection and the
-execution Dashboard are not yet implemented.
+execution Dashboard are not yet implemented. The web client switches light and dark
+only; themes an agent edits are not implemented.
 
 ## 13. Shadows' own skills, and managing them
 

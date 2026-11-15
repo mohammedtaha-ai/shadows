@@ -198,6 +198,7 @@ impl Plans {
             steps: Vec::new(),
             invariants: Vec::new(),
             forbidden: Vec::new(),
+            checks: Vec::new(),
         }
     }
 }

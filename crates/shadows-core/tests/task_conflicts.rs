@@ -353,7 +353,7 @@ async fn conflict_and_report_admit_one_outcome() {
     // The commit is valid; only the accepted conflict refuses it, in the
     // report's own write after every preflight check passed.
     let sha = f.commit("lib/one.rs");
-    let late = runs.report(&grant, &sha, "Built it.".into()).await;
+    let late = runs.report(&grant, &sha, "Built it.".into(), vec![]).await;
     assert!(matches!(late, Err(RunsError::ContractConflict)), "{late:?}");
     assert_eq!(late.unwrap_err().code(), "contract_conflict");
     let now = runs.attempt(&first.id).await.unwrap();
@@ -381,7 +381,10 @@ async fn conflict_and_report_admit_one_outcome() {
     let second = f.start("s2", 2, "hang").await;
     let grant = f.executor(&second).await;
     let sha = f.commit("web/two.rs");
-    let reported = runs.report(&grant, &sha, "Built it.".into()).await.unwrap();
+    let reported = runs
+        .report(&grant, &sha, "Built it.".into(), vec![])
+        .await
+        .unwrap();
     assert_eq!(reported.state, AttemptState::Committed);
     let late = runs.conflict_for(&grant, input("c3")).await;
     assert!(matches!(late, Err(RunsError::AlreadyCommitted)), "{late:?}");

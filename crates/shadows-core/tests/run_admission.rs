@@ -56,6 +56,7 @@ fn contract(files: Vec<FileWork>, existing: &[&str]) -> TaskContract {
         steps: vec![],
         invariants: vec![],
         forbidden: vec![],
+        checks: Vec::new(),
     }
 }
 
@@ -335,11 +336,11 @@ async fn admission_rechecks_a_new_draft() {
 async fn admission_rechecks_needs() {
     let f = fixture().await;
     let runs = f.core.runs();
-    runs.mark_done("m1".into(), &f.workflow, 1, 5, true)
+    runs.mark_done("m1".into(), &f.workflow, 1, 5, true, None)
         .await
         .unwrap();
     let (started, release) = f.gated_start("s4", 4).await;
-    runs.mark_done("m2".into(), &f.workflow, 1, 5, false)
+    runs.mark_done("m2".into(), &f.workflow, 1, 5, false, None)
         .await
         .unwrap();
     release.send(()).unwrap();
@@ -465,7 +466,7 @@ async fn old_work_reports_after_a_corrective_draft() {
     let reported = f
         .core
         .runs()
-        .report(&grant, &sha, "Changed lib/a.rs.".into())
+        .report(&grant, &sha, "Changed lib/a.rs.".into(), vec![])
         .await
         .unwrap();
     assert_eq!(reported.state, AttemptState::Committed);

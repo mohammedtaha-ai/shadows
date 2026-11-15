@@ -7,7 +7,7 @@ This is the slice 4 revision of [17.0](../../core/specs/2026-10-01-task-contract
 It builds on the shipped [executor design](2026-11-08-executors-design.md) and
 [language-server design](2026-11-13-language-servers-design.md). The
 [delivery program](../plans/2026-11-09-local-delivery-program.md) owns ordering. The
-old [execution-briefs plan](../plans/2026-11-09-execution-briefs.md) is superseded by the
+old execution-briefs plan (`docs/backend/plans/2026-11-09-execution-briefs.md` at `d73bb646`) is superseded by the
 [detailed slice 4 plan](../plans/2026-11-14-slice-4-task-questions.md).
 
 ## Decisions settled with Mohammed

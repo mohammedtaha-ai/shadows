@@ -5,7 +5,7 @@
 import { cn } from 'cn'
 import { Bell, ChevronRight } from 'lucide-react'
 import { Suspense, lazy, useState } from 'react'
-import type { AttemptNotice } from '@/api/runs'
+import type { AgentNotice, AgentReplyNotice } from '@/api/runs'
 import type { ThreadEntry } from '@/api/threads'
 import { ConflictNotice } from './conflict-notice'
 
@@ -15,14 +15,34 @@ const LONG_LINES = 16
 const LONG_CHARS = 1200
 
 /** Who sent it: the executor, by the model it ran on. */
-export function noticeName(card: AttemptNotice | null): string {
-  return card === null ? 'Executor' : `Executor (${card.model})`
+export function noticeName(card: AgentNotice | null): string {
+  return card === null ? 'Executor' : 'message' in card ? 'Task agent' : `Executor (${card.model})`
 }
 
 /** The header's line, from the card alone. */
-export function noticeTitle(card: AttemptNotice | null): string {
+export function noticeTitle(card: AgentNotice | null): string {
   if (card === null) return 'Executor'
+  if ('message' in card) return `${card.reason != null ? 'No reply' : 'Reply'} from task agent · T${card.task}`
   return `${noticeName(card)} · T${card.task} · attempt ${card.attempt} ${card.outcome}`
+}
+
+function AgentReplyItem({ card }: { card: AgentReplyNotice }) {
+  const [open, setOpen] = useState(true)
+  return <section aria-label="Task agent reply" className="surface-panel rounded-xl p-3">
+    <button type="button" aria-expanded={open} onClick={() => setOpen(!open)}
+      className="flex w-full cursor-pointer items-center gap-2 text-start text-xs font-medium">
+      <ChevronRight aria-hidden className={cn('size-4 text-accent-line', open && 'rotate-90')} />
+      {noticeTitle(card)}
+      <span dir="auto" className="truncate font-normal text-muted-foreground">{card.title}</span>
+    </button>
+    {open && <div className="mt-2.5 space-y-2 border-t border-border/60 pt-2.5 text-sm">
+      <p className="text-xs font-medium text-muted-foreground">Planner's question</p>
+      <p dir="auto" className="whitespace-pre-wrap break-words">{card.message}</p>
+      {card.reply != null && <><p className="text-xs font-medium text-muted-foreground">Agent's reply</p>
+        <p dir="auto" className="whitespace-pre-wrap break-words">{card.reply}</p></>}
+      {card.reason != null && <p dir="auto" className="whitespace-pre-wrap break-words text-destructive">{card.reason}</p>}
+    </div>}
+  </section>
 }
 
 function Report({ text }: { text: string }) {
@@ -53,10 +73,11 @@ function Report({ text }: { text: string }) {
 /** A notice from an executor, or from Shadows itself. `body` is shown only when the card is missing or unreadable. */
 export function NoticeItem({ body, card, sender = 'Executor' }: {
   body: string
-  card: AttemptNotice | null
+  card: AgentNotice | null
   sender?: 'Executor' | 'Shadows'
 }) {
   const [open, setOpen] = useState(true)
+  if (card !== null && 'message' in card) return <AgentReplyItem card={card} />
   const conflict = card?.conflict ?? null
   const hasBody = card === null || card.report != null || card.reason != null || conflict !== null
   const header = (

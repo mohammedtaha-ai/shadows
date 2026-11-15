@@ -36,6 +36,85 @@ const OURS: &str = "[Shadows] Shadows' instructions for you:";
 const STAGE_IDEA: &str = "[Shadows] Stage: idea.";
 
 #[tokio::test]
+async fn message_agent_tool_listed() {
+    let l = listening_app().await;
+    let client = listening::thread_client(&l, &l.app.thread).await;
+    let tools = client.list_tools(None).await.unwrap().tools;
+    assert!(tools.iter().any(|tool| tool.name == "message_agent"));
+    let error = listening::refused(
+        &client,
+        "message_agent",
+        json!({
+            "workflow_id":"missing", "task_number":1, "message":"Why?"
+        }),
+    )
+    .await;
+    assert!(error.contains("not found"), "{error}");
+    shut_down_app(l.app).await;
+}
+
+#[tokio::test]
+async fn task_checks_reads_latest_commit() {
+    let l = listening_app().await;
+    let workflow = plan::approved_v1(&l.app).await;
+    let project = l.app.project.clone();
+    let thread = l
+        .app
+        .storage
+        .write_txn(move |tx| {
+            Box::pin(async move {
+                shadows_core::Threads::create_executor_in(tx, &project, "T1".into(), "claude-code")
+                    .await
+            })
+        })
+        .await
+        .unwrap();
+    for (number, outcome) in [(1, "failed"), (2, "passed")] {
+        let id = format!("checks-{number}");
+        sqlx::query(
+            "INSERT INTO run_attempts
+            (id,project_id,workflow_id,version,task,number,thread_id,model,state,writes_json,
+             commit_sha,started_at,ended_at,released_at,command_id,fingerprint)
+            VALUES (?,?,?,1,1,?,?,'fake-small','committed','[\"src/t1.rs\"]',?,
+             '2026-11-15T00:00:00Z','2026-11-15T00:00:01Z','2026-11-15T00:00:01Z',?,'fixture')",
+        )
+        .bind(&id)
+        .bind(l.app.project.as_str())
+        .bind(workflow.as_str())
+        .bind(number)
+        .bind(thread.as_str())
+        .bind(format!("{number:040x}"))
+        .bind(&id)
+        .execute(l.app.storage.reader())
+        .await
+        .unwrap();
+        sqlx::query(
+            "INSERT INTO run_checks
+            (attempt_id,for_task,check_id,ordinal,run_json,reported,outcome,finished_at)
+            VALUES (?,1,'c1',0,'[\"git\",\"--version\"]','passed',?,'2026-11-15T00:00:01Z')",
+        )
+        .bind(&id)
+        .bind(outcome)
+        .execute(l.app.storage.reader())
+        .await
+        .unwrap();
+    }
+    let client = listening::thread_client(&l, &l.app.thread).await;
+    let answer = listening::ok(
+        &client,
+        "task_checks",
+        json!({
+            "workflow_id":workflow,"task_number":1
+        }),
+    )
+    .await;
+    assert_eq!(answer.as_array().unwrap().len(), 1);
+    assert_eq!(answer[0]["outcome"], "passed");
+    assert_eq!(answer[0]["id"], "c1");
+    shut_down_app(l.app).await;
+}
+
+#[tokio::test]
 async fn the_planner_follows_the_stacks_layout() {
     let l = listening_app().await;
     let first = report(&l.app).await;

@@ -5,43 +5,7 @@ here and set its status. Task shape: [`AGENTS.md`](./AGENTS.md#a-task-in-stagesm
 
 ## Now
 
-### F-120 · Finish content loading skeleton coverage
-
-- Status: done. All 162 distinct focused interaction/code-map/architecture checks passed across the scoped runs after correcting the stream catch-up fixture; typecheck, lint and build passed. No browser was launched.
-- Design: direct follow-up to F-117; cover the static startup screen, history, directory listings, nested design lists, inline names and native preference reads.
-- Read: frontend code map and the touched feature contracts.
-- Touch: `web/index.html`, `web/src/components/ui/skeleton.tsx`, `web/src/app/conversation/messages.tsx`, `web/src/app/conversation/anchor-picker.tsx`, `web/src/app/conversation/conversation.test.tsx`, `web/src/app/new-project/folder-browser.tsx`, `web/src/app/new-project/new-project-dialog.test.tsx`, `web/src/app/agreements/names.tsx`, `web/src/app/agreements/binding-editor.tsx`, `web/src/app/design/part-editor.tsx`, `web/src/app/design/part-references.tsx`, `web/src/app/settings/desktop-preferences.tsx`, `web/src/app/settings/desktop-preferences.test.tsx`, `web/src/app/conversation/contract.yaml`, `web/src/app/new-project/contract.yaml`, `web/src/app/agreements/contract.yaml`, `web/src/app/design/contract.yaml`, `web/src/app/settings/contract.yaml`, `docs/frontend/codebase/README.md`, `docs/frontend/stages.md`.
-- Needs: none; existing reads only.
-- Done when: deferred history and directory responses replace skeletons with content; inline placeholders remain valid in text containers, native settings preserve real values, and startup shows a static skeleton before JavaScript; focused tests, typecheck, lint, build, code-map and architecture pass. Browser acceptance is left to the user.
-
-
-### F-119 · Expandable changed files in the task diff
-
-- Status: done. All 109 focused task/code-map/architecture tests, typecheck, lint and build passed. Browser acceptance is left to the user.
-- Design: direct browser feedback; each file has a clear disclosure header, selecting another closes the first, and the open file can collapse.
-- Read: frontend code map; web/src/app/tasks/contract.yaml.
-- Touch: `web/src/app/tasks/diff-tab.tsx`, `web/src/app/tasks/task-page.test.tsx`, `web/src/app/tasks/contract.yaml`, `docs/frontend/stages.md`.
-- Needs: none; existing attempt diff and file reads.
-- Done when: switching and collapsing file sections pass focused task tests; typecheck, lint, build, codemap and architecture pass. The user performs browser acceptance; do not launch a browser.
-
-### F-118 · Clear attempt reports and completion badge
-
-- Status: done. The 115 focused task/architecture/code-map checks, typecheck, lint and build passed. Browser review is left to the user at their request.
-- Design: direct browser feedback from the user; clarify the report heading and expansion control, and make Done green.
-- Read: frontend code map; web/src/app/tasks/contract.yaml.
-- Touch: `web/src/app/tasks/report-tab.tsx`, `web/src/app/tasks/task-header.tsx`, `web/src/app/tasks/brief-panel.test.tsx`, `web/src/app/tasks/contract.yaml`, `docs/frontend/stages.md`.
-- Needs: none; existing Core answers only.
-- Done when: the report toggle visibly says Show details or Hide details with a chevron and accessible region linkage; attempt metadata and report are readable; Done has a green check badge; task/brief/conflict tests, typecheck, lint, build, codemap and architecture pass; verify the updated report in the browser.
-
-### F-117 · Content-shaped skeleton loading
-
-- Status: done. Initial loading, success, failure and background-refresh checks passed. The user reports trying the interface in the browser.
-- Design: approved in the current conversation; implemented directly by the controller.
-- Read: frontend code map and the touched feature contracts.
-- Touch: `docs/frontend/codebase/README.md`, `docs/frontend/stages.md`, `web/src/app/agents/agent-env.tsx`, `web/src/app/agents/agent-extensions.tsx`, `web/src/app/agents/agent-settings.tsx`, `web/src/app/agents/contract.yaml`, `web/src/app/agents/home.tsx`, `web/src/app/agents/tool-rules.tsx`, `web/src/app/agreements/agreements-page.tsx`, `web/src/app/agreements/contract.yaml`, `web/src/app/conversation/context-record-panel.tsx`, `web/src/app/conversation/contract.yaml`, `web/src/app/conversation/conversation.tsx`, `web/src/app/conversation/draft.tsx`, `web/src/app/conversation/plan-card.tsx`, `web/src/app/conversation/plan-side-panel.tsx`, `web/src/app/design/contract.yaml`, `web/src/app/design/parts-view.tsx`, `web/src/app/design/roadmap-view.tsx`, `web/src/app/design/standards-view.tsx`, `web/src/app/design/vision-editor.tsx`, `web/src/app/design/workspace-plans.tsx`, `web/src/app/groups/contract.yaml`, `web/src/app/groups/group-page.tsx`, `web/src/app/home.tsx`, `web/src/app/page-pending.tsx`, `web/src/app/project-settings/contract.yaml`, `web/src/app/project-settings/instructions-editor.tsx`, `web/src/app/settings/contract.yaml`, `web/src/app/settings/general-preferences.tsx`, `web/src/app/settings/general-preferences.test.tsx`, `web/src/app/settings/sections/agents.tsx`, `web/src/app/settings/sections/code.tsx`, `web/src/app/settings/sections/plugins.tsx`, `web/src/app/settings/sections/providers.tsx`, `web/src/app/settings/sections/usage.tsx`, `web/src/app/settings/you-card.tsx`, `web/src/app/sidebar/agent-list.tsx`, `web/src/app/sidebar/contract.yaml`, `web/src/app/sidebar/group-list.tsx`, `web/src/app/sidebar/project-list.test.tsx`, `web/src/app/sidebar/project-list.tsx`, `web/src/app/sidebar/thread-list.tsx`, `web/src/app/sidebar/workflow-list.tsx`, `web/src/app/tasks/brief-panel.tsx`, `web/src/app/tasks/contract.yaml`, `web/src/app/tasks/diff-tab.tsx`, `web/src/app/tasks/run-tab.tsx`, `web/src/app/tasks/task-page.tsx`, `web/src/app/workflows/contract.yaml`, `web/src/app/workflows/plan-map.tsx`, `web/src/app/workflows/plan-page.tsx`, `web/src/components/ui/skeleton.tsx`.
-- Needs: none; existing API reads only.
-- Done when: initial loading renders accessible skeletons, success and errors replace them, background refresh keeps existing content, reduced motion disables the pulse; affected interaction tests, typecheck, lint, build, codemap and architecture pass; browser acceptance is reported by the user in the current conversation.
-
+No frontend task is open on main. The local delivery UI tasks below wait for their backend API.
 
 ### Shipped
 
@@ -66,6 +30,7 @@ A shipped task's entry, and its plan once deleted, are in this file in Git at th
 | #62 to #64 | Conversation order, Codex, the task page | F-96, F-97, F-98 | `3a443ea0`, `217d7540`, `c71b263d` |
 | #65 | Task page review, the Diff tab, the Planner's notices | F-106 to F-113 | `617d806f` |
 | #67 | Conversation images, the question card, Settings › Code | F-114 to F-116 | `db760593` |
+| #68 | Attempt briefs and contract conflicts on the task page and in the Planner's notices | F-102, F-117 to F-120 (skeleton loading and task-page follow-ups) | `d73bb646` |
 
 PRs #59 and #66 have no `F-` task. Two composer fixes in PR #61 have none either: `1b85b6e6`
 (the textarea grows to 192px) and `e6e6e9cf` (`dir="auto"`, so Arabic runs right to left).
@@ -115,25 +80,13 @@ These tasks are blocked until their named backend API exists; no component imple
 - Needs: `docs/backend/stages.md` at `617d806f` (B-106), F-99; accepted shared API/model agreement. Backend must expose its generated API before this task starts.
 - Done when: all named RED/GREEN steps and focused verification commands in Task 3 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
 
-### F-102 · Attempt brief and scoped question results
+### F-103 · Checks and replies in the task page
 
-- Status: done. Added to Touch by controller ruling: web/src/stream/frames.ts, frames.test.ts and web/src/stream/contract.yaml, so `readAttemptNotice` carries the notice's `conflict`.
-- Plan: [F-102](../backend/plans/2026-11-14-slice-4-task-questions.md#task-f-102-saved-brief-and-conflict-presentation).
-- Owner: web API, tasks and conversation presentation.
-- Read: [approved design](../backend/specs/2026-11-14-task-questions-design.md), [accepted agreement](../shared/requests/2026-11-14-task-questions.md), frontend code map and the task's owner contracts/Interfaces.
-- Touch: exact Files of F-102 in the detailed slice 4 plan; no other sources.
-- Needs: B-107, B-147 (including B-109), accepted agreement and generated OpenAPI. No dependency on the superseded F-102 draft or a new F-101 implementation.
-- Done when: F-102's five steps, focused tests, typecheck/lint/build and codemap/architecture pass; generated schema and current contracts/maps updated; scoped commit recorded. Browser acceptance is B-149.
-
-### F-103 · Check evidence, critic model and acceptance
-
-- Status: blocked (prerequisites below must ship first)
-- Plan: [Task 5](plans/2026-11-09-local-delivery-ui.md#task-5-f-103-check-evidence-critic-model-and-acceptance).
+- Status: doing. Implementation verified: 165 focused tests, typecheck, lint and build passed; browser acceptance remains with Mohammed.
+- Plan: [F-103](../backend/plans/2026-11-15-slice-5-checks.md#f-103--checks-and-replies-in-the-task-page) in the slice 5 plan.
 - Owner: web API and task UI.
-- Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
-- Touch: exact Create/Modify/Test file list of Task 5; no other source paths.
-- Needs: B-114, F-102; accepted shared API/model agreement. Backend must expose its generated API before this task starts.
-- Done when: all named RED/GREEN steps and focused verification commands in Task 5 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
+- Needs: B-111, B-113, B-114, B-150; F-102 (`docs/frontend/stages.md` at `d73bb646`, shipped). Backend must expose its generated API before this task starts.
+- Done when: the brief shows a task's checks; the Report tab shows each check's outcome, exit code, HEAD and its output on request; a done mark shows its reason; the Planner conversation shows the reply card; tried in the browser.
 
 ### F-104 · Repair state and replan controls
 

@@ -130,3 +130,14 @@ layout_only: Map records contain no starter files; the stage has no Structure st
 # has acceptance items and a contract with one file, symbol, produced output and use, and
 # a link_put. Its input schema is Core's PlanOp unchanged. Tested by
 # mcp_tools::the_plan_edit_example_parses_as_the_ops_it_shows.
+
+task_report_checks: >
+  task_report accepts checks (default empty), one ReportedCheck per saved contract check.
+  Runs validates and records them with the reported commit; the adapter only translates.
+
+task_checks: >
+  task_checks reads the task latest committed confirmation results through Runs::checks_for
+  after its Planner grant check. task_done accepts optional reason and passes it unchanged;
+  Runs owns normalization, the fingerprint and whether a reason is required.
+
+message_agent: Plain Planner questions translate to Runs::message_agent; Runs owns scope, ordering, deduplication and reply delivery.

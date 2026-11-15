@@ -103,20 +103,36 @@ impl Runs {
             .await
     }
 
-    /// Marks task `task` of `workflow` done or not done for the Planner. A done
-    /// mark answers the group to start next: empty when nothing may start, or
-    /// when the mark judged work of a version that admits no new attempt.
+    /// Confirmation results of the task's newest committed attempt, for its Planner.
+    pub async fn checks_for(
+        &self,
+        grant: &Grant,
+        workflow: &WorkflowId,
+        task: u32,
+    ) -> Result<Vec<crate::CheckResult>, RunsError> {
+        let plan = self.planner_plan(grant, workflow).await?;
+        let id = self
+            .inner
+            .store
+            .latest_committed(workflow, plan.version, task)
+            .await?
+            .ok_or(RunsError::NotFound)?;
+        self.check_results(&id).await
+    }
+
+    /// Marks a task for the Planner and answers the group that may start next.
     pub async fn mark_done_for(
         &self,
         grant: &Grant,
         workflow: &WorkflowId,
         task: u32,
         done: bool,
+        reason: Option<String>,
     ) -> Result<DoneMark, RunsError> {
         let plan = self.planner_plan(grant, workflow).await?;
         let command = format!("planner-mark-{}", AttemptId::generate());
         let run = self
-            .mark_done(command, workflow, plan.version, task, done)
+            .mark_done(command, workflow, plan.version, task, done, reason)
             .await?;
         let next = if done {
             self.ready_group(&plan).await?

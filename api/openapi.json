@@ -343,6 +343,52 @@
           }
         ]
       },
+      "AgentReplyNotice": {
+        "properties": {
+          "attempt_id": {
+            "$ref": "#/components/schemas/AttemptId"
+          },
+          "message": {
+            "type": "string"
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "reply": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "task": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "title": {
+            "type": "string"
+          },
+          "version": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "workflow_id": {
+            "$ref": "#/components/schemas/WorkflowId"
+          }
+        },
+        "required": [
+          "workflow_id",
+          "version",
+          "task",
+          "title",
+          "attempt_id",
+          "message"
+        ],
+        "type": "object"
+      },
       "AgentTemplate": {
         "properties": {
           "instructions": {
@@ -969,6 +1015,9 @@
               }
             ]
           },
+          "origin": {
+            "$ref": "#/components/schemas/AttemptOrigin"
+          },
           "project_id": {
             "$ref": "#/components/schemas/ProjectId"
           },
@@ -1023,6 +1072,7 @@
           "commit",
           "report",
           "addition",
+          "origin",
           "reason",
           "started_at",
           "ended_at"
@@ -1099,6 +1149,12 @@
           "attempt_id": {
             "$ref": "#/components/schemas/AttemptId"
           },
+          "checks": {
+            "items": {
+              "$ref": "#/components/schemas/CheckResult"
+            },
+            "type": "array"
+          },
           "commit": {
             "type": [
               "string",
@@ -1167,6 +1223,14 @@
           "last_addition"
         ],
         "type": "object"
+      },
+      "AttemptOrigin": {
+        "enum": [
+          "start",
+          "planner",
+          "checks"
+        ],
+        "type": "string"
       },
       "AttemptState": {
         "description": "Where an attempt stands. Only `Running` has no `ended_at`.",
@@ -1381,6 +1445,120 @@
         },
         "required": [
           "model"
+        ],
+        "type": "object"
+      },
+      "CheckOutcome": {
+        "enum": [
+          "passed",
+          "failed",
+          "timed_out",
+          "inconclusive",
+          "not_run"
+        ],
+        "type": "string"
+      },
+      "CheckResult": {
+        "description": "What the executor reported alongside what Shadows independently observed.",
+        "properties": {
+          "exit_code": {
+            "format": "int32",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "finished_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "folder": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "for_task": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "head_after": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "head_before": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "matches": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "outcome": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/CheckOutcome"
+              }
+            ]
+          },
+          "output": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "reported": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ReportedOutcome"
+              }
+            ]
+          },
+          "reported_note": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "run": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "started_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "truncated": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "for_task",
+          "id",
+          "run",
+          "truncated"
         ],
         "type": "object"
       },
@@ -3871,6 +4049,12 @@
           },
           "done": {
             "type": "boolean"
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "required": [
@@ -6414,6 +6598,15 @@
         ],
         "type": "object"
       },
+      "ReportedOutcome": {
+        "description": "The executor's account, kept apart from Shadows' own confirmation.",
+        "enum": [
+          "passed",
+          "failed",
+          "not_run"
+        ],
+        "type": "string"
+      },
       "ResendContext": {
         "properties": {
           "command_id": {
@@ -7336,6 +7529,53 @@
         ],
         "type": "object"
       },
+      "TaskCheck": {
+        "additionalProperties": false,
+        "description": "A program with arguments that proves acceptance items without a shell.",
+        "properties": {
+          "folder": {
+            "description": "Where it runs, relative to the project's folder; the folder itself when left out.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "id": {
+            "description": "Chosen by the writer, unique within the task: `c1`.",
+            "type": "string"
+          },
+          "proves": {
+            "description": "The task's acceptance items it proves.",
+            "items": {
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "run": {
+            "description": "The program, then its arguments, never a shell line:\n`[\"go\", \"test\", \"./internal/api/...\"]`.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "timeout_secs": {
+            "description": "Seconds before it is stopped: 1 to 1800, 600 when left out.",
+            "format": "int32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "run"
+        ],
+        "type": "object"
+      },
       "TaskConflict": {
         "description": "An attempt's accepted contract conflict, with the attempt's current state\nand whether it still holds its scope. Accepting it asked the executor to\nend its turn; only `attempt_state` says whether it did.",
         "properties": {
@@ -7526,6 +7766,13 @@
         "additionalProperties": false,
         "description": "What a task builds, named exactly: the executor's brief beside the goal.",
         "properties": {
+          "checks": {
+            "description": "Commands that prove acceptance, run by the executor and again by Shadows.",
+            "items": {
+              "$ref": "#/components/schemas/TaskCheck"
+            },
+            "type": "array"
+          },
           "files": {
             "items": {
               "$ref": "#/components/schemas/FileWork"
@@ -7682,6 +7929,12 @@
               "null"
             ]
           },
+          "done_reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "latest": {
             "oneOf": [
               {
@@ -7719,6 +7972,7 @@
           "task",
           "done",
           "done_at",
+          "done_reason",
           "latest",
           "needs",
           "start",
@@ -8643,6 +8897,61 @@
           }
         },
         "summary": "The brief the attempt was given: the attempt and the task context saved\nwhen it was admitted, unchanged by any later map or standards. An attempt\nbegun before briefs were saved is 409 `context_not_recorded`.",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/attempts/{id}/checks": {
+      "get": {
+        "operationId": "checks",
+        "parameters": [
+          {
+            "description": "The attempt",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/AttemptId"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CheckResult"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "no such attempt"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          }
+        },
+        "summary": "The recorded command confirmations for one attempt.",
         "tags": [
           "runs"
         ]
@@ -16816,7 +17125,7 @@
                 }
               }
             },
-            "description": "command_conflict"
+            "description": "command_conflict or checks_not_passed"
           },
           "500": {
             "content": {

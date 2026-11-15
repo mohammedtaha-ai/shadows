@@ -3,6 +3,8 @@
 //! runs on `fake_acp`; `wait-for-release` holds its turn until a `release`
 //! file appears in the project folder. `live` runs the real adapter.
 
+#[path = "runs_attempts/checks.rs"]
+mod checks;
 #[allow(dead_code)]
 #[path = "fixtures/cross_plan.rs"]
 mod cross_plan;
@@ -12,6 +14,8 @@ mod init;
 mod lessons;
 #[path = "runs_attempts/live.rs"]
 mod live;
+#[path = "runs_attempts/messages.rs"]
+mod messages;
 #[path = "runs_attempts/planner.rs"]
 mod planner;
 #[path = "runs_attempts/report.rs"]
@@ -462,27 +466,33 @@ async fn start_waits_for_needs_links() {
     let marked = f
         .core
         .runs()
-        .mark_done("m1".into(), &f.workflow, 1, 1, true)
+        .mark_done("m1".into(), &f.workflow, 1, 1, true, None)
         .await
         .unwrap();
     assert!(marked.done && marked.done_at.is_some());
     assert_eq!(f.start("s2", 6).await.unwrap().state, AttemptState::Running);
     // A mark command is replayed, never applied twice, and its id is its own.
     let runs = f.core.runs();
-    let other = runs.mark_done("m1".into(), &f.workflow, 1, 1, false).await;
+    let other = runs
+        .mark_done("m1".into(), &f.workflow, 1, 1, false, None)
+        .await;
     assert!(
         matches!(other, Err(RunsError::CommandConflict)),
         "{other:?}"
     );
-    runs.mark_done("m2".into(), &f.workflow, 1, 1, false)
+    runs.mark_done("m2".into(), &f.workflow, 1, 1, false, None)
         .await
         .unwrap();
-    let replayed = runs.mark_done("m1".into(), &f.workflow, 1, 1, true).await;
+    let replayed = runs
+        .mark_done("m1".into(), &f.workflow, 1, 1, true, None)
+        .await;
     assert!(
         !replayed.unwrap().done,
         "a replay applied an old mark again"
     );
-    let elsewhere = runs.mark_done("m1".into(), &f.workflow, 1, 3, true).await;
+    let elsewhere = runs
+        .mark_done("m1".into(), &f.workflow, 1, 3, true, None)
+        .await;
     assert!(
         matches!(elsewhere, Err(RunsError::CommandConflict)),
         "{elsewhere:?}"
@@ -510,7 +520,7 @@ async fn start_waits_for_a_needs_link_to_another_plans_task() {
     let target = WorkflowId::from_literal(TARGET);
     f.core
         .runs()
-        .mark_done("m1".into(), &target, 1, 2, true)
+        .mark_done("m1".into(), &target, 1, 2, true, None)
         .await
         .unwrap();
     let started = f.start("s2", 7).await.unwrap();
@@ -714,7 +724,7 @@ async fn a_committed_attempt_holds_its_scope_until_it_is_marked_done() {
     );
     f.core
         .runs()
-        .mark_done("m1".into(), &f.workflow, 1, 3, true)
+        .mark_done("m1".into(), &f.workflow, 1, 3, true, None)
         .await
         .unwrap();
     f.start("s4", 4).await.unwrap();
@@ -808,4 +818,107 @@ async fn an_executors_first_turn_hears_no_planner_instructions() {
             .unwrap();
     assert_eq!(carried, 0, "planning context was recorded for an executor");
     f.finish().await;
+}
+
+use core_runs::AttemptId;
+use shadows_core::Grant;
+use shadows_core::testing::TaskScope;
+const WRITES: [(u32, &str); 2] = [(3, "backend/app/**"), (5, "web/**")];
+impl Fixture {
+    /// An attempt at `task` as Start leaves it once its session is open:
+    /// `Running`, on an executor thread, holding its task's grant, with the
+    /// HEAD of now as its start.
+    async fn begin(&self, task: u32) -> (AttemptId, Grant) {
+        let writes = WRITES.iter().find(|(n, _)| *n == task).unwrap().1;
+        let writes = serde_json::to_string(&[writes]).unwrap();
+        let (project, workflow) = (self.project.clone(), self.workflow.clone());
+        let id = format!("attempt-{task}");
+        let row = id.clone();
+        let head = self.head();
+        let grant = self
+            .storage
+            .write_txn(move |conn| {
+                Box::pin(async move {
+                    let thread = shadows_core::Threads::create_executor_in(
+                        conn,
+                        &project,
+                        format!("T{task}"),
+                        "claude-code",
+                    )
+                    .await?;
+                    sqlx::query(
+                        "INSERT INTO run_attempts
+                           (id, project_id, workflow_id, version, task, number, thread_id,
+                            model, state, writes_json, started_at, command_id, fingerprint,
+                            start_head)
+                         VALUES (?, ?, ?, 1, ?, 1, ?, 'fake-small', 'running', ?,
+                                 '2026-10-05T00:00:00Z', ?, 'f', ?)",
+                    )
+                    .bind(&row)
+                    .bind(project.as_str())
+                    .bind(workflow.as_str())
+                    .bind(i64::from(task))
+                    .bind(thread.as_str())
+                    .bind(&writes)
+                    .bind(&row)
+                    .bind(&head)
+                    .execute(&mut *conn)
+                    .await?;
+                    let scope = TaskScope {
+                        workflow: workflow.as_str().to_string(),
+                        version: 1,
+                        task,
+                    };
+                    let (grant, _) = shadows_core::Grants::issue_executor_grant_in(
+                        conn, &project, &thread, scope,
+                    )
+                    .await?;
+                    Ok(grant)
+                })
+            })
+            .await
+            .unwrap();
+        (AttemptId::from_recorded(id), grant)
+    }
+
+    fn put(&self, path: &str, text: &str) {
+        let at = self.root.join(path);
+        std::fs::create_dir_all(at.parent().unwrap()).unwrap();
+        std::fs::write(at, text).unwrap();
+    }
+
+    fn git(&self, args: &[&str]) -> String {
+        git(&self.root, args)
+    }
+
+    /// Commits `paths` as the executor does: by name, with its own message.
+    fn commit(&self, paths: &[&str], message: &str) -> String {
+        for path in paths {
+            self.git(&["add", "--", path]);
+        }
+        self.git(&["commit", "-q", "-m", message]);
+        self.head()
+    }
+
+    fn head(&self) -> String {
+        self.git(&["rev-parse", "HEAD"]).trim().to_string()
+    }
+
+    async fn report(&self, grant: &Grant, commit: &str) -> Result<Attempt, RunsError> {
+        self.core
+            .runs()
+            .report(
+                grant,
+                commit,
+                "Did it; ran the tests, all passed.".into(),
+                vec![],
+            )
+            .await
+    }
+
+    async fn still_running(&self, attempt: &AttemptId) {
+        let now = self.core.runs().attempt(attempt).await.unwrap();
+        assert_eq!(now.state, AttemptState::Running, "{now:?}");
+        assert!(now.commit.is_none() && now.report.is_none(), "{now:?}");
+    }
 }

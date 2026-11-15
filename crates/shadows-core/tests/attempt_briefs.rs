@@ -264,7 +264,12 @@ impl Fixture {
         let reported = self
             .core
             .runs()
-            .report(&self.executor(attempt), &sha, "Changed lib/a.rs.".into())
+            .report(
+                &self.executor(attempt),
+                &sha,
+                "Changed lib/a.rs.".into(),
+                vec![],
+            )
             .await
             .unwrap();
         assert_eq!(reported.state, AttemptState::Committed);

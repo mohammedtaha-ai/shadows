@@ -210,6 +210,10 @@ pattern to follow, not merely an example.
 | `crates/core-runs/src/watch.rs` | settling an attempt when its turn ends | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/notify.rs` | telling a plan's Planner how an attempt ended | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/recover.rs` | settling attempts at startup | `crates/core-runs/contract.yaml` |
+| `crates/core-runs/src/checks.rs` | confirming an attempt's task checks | `crates/core-runs/contract.yaml` |
+| `crates/core-runs/src/store/checks.rs` | check results SQL | `crates/core-runs/contract.yaml` |
+| `crates/core-runs/src/message.rs` | plain questions to a task's executor | `crates/core-runs/contract.yaml` |
+| `crates/core-runs/src/store/messages.rs` | ordered questions SQL | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/store/` | run persistence | `crates/core-runs/contract.yaml` |
 | `crates/core-runtime/src/` | the runtime instance's lifecycle | `crates/core-runtime/src/lib.rs` |
 | `crates/core-runtime/src/lib.rs` | runtime registration boundary | `crates/core-runtime/contract.yaml` |

@@ -18,12 +18,14 @@
 
 mod amend;
 mod brief;
+mod checks;
 mod conflict;
 mod diff;
 mod error;
 mod git;
 mod init;
 mod lessons;
+mod message;
 mod model;
 mod notify;
 mod planner;
@@ -44,9 +46,11 @@ use std::sync::{Arc, Mutex};
 pub use brief::AttemptBrief;
 pub use error::RunsError;
 pub use model::{
-    Attempt, AttemptFile, AttemptId, AttemptNotice, AttemptState, ConflictDelivery,
-    ConflictEvidence, ConflictInput, DoneMark, FileDiff, LessonAttempt, LessonCommand, Need,
-    ReadyGroup, ReadyTask, RecoverReport, StartAnswer, TaskConflict, TaskLesson, TaskRun,
+    AgentMessage, AgentMessageId, AgentMessageState, AgentReplyNotice, Attempt, AttemptFile,
+    AttemptId, AttemptNotice, AttemptOrigin, AttemptState, CheckOutcome, CheckResult,
+    ConflictDelivery, ConflictEvidence, ConflictInput, DoneMark, FileDiff, LessonAttempt,
+    LessonCommand, Need, ReadyGroup, ReadyTask, RecoverReport, ReportedCheck, ReportedOutcome,
+    StartAnswer, TaskConflict, TaskLesson, TaskRun,
 };
 pub use question::{PlannedScope, ProducerStatus, TaskAnswer, TaskQuestion};
 
@@ -88,6 +92,11 @@ const COMMIT: &str = "Other executors may work in the same folder at once. Run o
 const EXECUTOR_HARNESS: &str = shadows_agent::policy::CLAUDE_CODE;
 
 struct Inner {
+    /// One lock per executor thread: a question's send, a release and a
+    /// return's start never interleave on it.
+    messaging: tokio::sync::Mutex<std::collections::HashMap<ThreadId, Arc<tokio::sync::Mutex<()>>>>,
+    /// One lock per project: Shadows runs one check at a time there.
+    checking: tokio::sync::Mutex<std::collections::HashMap<ProjectId, Arc<tokio::sync::Mutex<()>>>>,
     store: RunsStore,
     plans: Plans,
     harness: Arc<Harness>,
@@ -120,6 +129,8 @@ impl Runs {
     ) -> Self {
         Self {
             inner: Arc::new(Inner {
+                messaging: tokio::sync::Mutex::new(std::collections::HashMap::new()),
+                checking: tokio::sync::Mutex::new(std::collections::HashMap::new()),
                 store: RunsStore::with_storage(storage),
                 plans,
                 harness,
@@ -153,6 +164,7 @@ impl Runs {
         Ok(TaskRun {
             task,
             done: mark.as_ref().is_some_and(|m| m.0),
+            done_reason: mark.as_ref().and_then(|m| m.2.clone()),
             done_at: mark.and_then(|m| m.1),
             latest,
             needs: self.needs(&plan, task).await?,
@@ -229,29 +241,33 @@ impl Runs {
         version: i64,
         task: u32,
         done: bool,
+        reason: Option<String>,
     ) -> Result<TaskRun, RunsError> {
         let plan = self.plan(workflow, version).await?;
         if !plan.tasks.iter().any(|t| t.content.number == task) {
             return Err(RunsError::NotFound);
         }
-        let command = CommandContext::user(
-            command,
-            "run.mark_done",
-            serde_json::json!({
-                "workflow": workflow, "version": version, "task": task, "done": done,
-            }),
-        );
-        self.inner
+        let reason = reason
+            .map(|r| r.trim().to_string())
+            .filter(|r| !r.is_empty());
+        // A mark without a reason fingerprints with no `reason` key, as marks
+        // recorded before reasons existed did, so their replays still answer.
+        let mut input = serde_json::json!({
+            "workflow": workflow, "version": version, "task": task, "done": done,
+        });
+        if let Some(reason) = &reason {
+            input["reason"] = serde_json::json!(reason);
+        }
+        let command = CommandContext::user(command, "run.mark_done", input);
+        let judged = self
+            .inner
             .store
-            .put_mark(command, (workflow, version, task), done)
+            .put_mark(command, (workflow, version, task), done, reason)
             .await?;
-        // The judged commit's executor can write no more: close its session
-        // and free its scope. Release is idempotent, so a replay is harmless.
-        if done
-            && let Some((attempt, thread)) =
-                self.inner.store.awaiting(workflow, version, task).await?
-        {
-            self.release_logged(&attempt, &thread).await;
+        // Only the attempt the mark judged, and only while that mark stands:
+        // a replay never frees work admitted after it.
+        if let Some((attempt, thread)) = judged {
+            self.release_after_mark(&attempt, &thread).await;
         }
         self.task(workflow, version, task).await
     }

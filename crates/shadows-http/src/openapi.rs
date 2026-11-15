@@ -29,7 +29,7 @@ use utoipa::OpenApi;
         shadows_core::ToolLive,
         shadows_core::WaitingPermission, shadows_core::PermissionAnswer,
         shadows_core::PermissionOption, shadows_core::AttemptNotice, shadows_core::Notice,
-        shadows_core::QuestionId
+        shadows_core::QuestionId, shadows_core::CheckResult, shadows_core::AgentReplyNotice
     )),
     tags(
         (name = "aylul", description = "AYLUL agents, providers and write-only credentials"),

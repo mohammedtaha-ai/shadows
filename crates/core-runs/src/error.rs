@@ -4,6 +4,14 @@ use core_plans::TaskParent;
 
 #[derive(Debug, thiserror::Error)]
 pub enum RunsError {
+    #[error("a message says something; it cannot be empty")]
+    EmptyMessage,
+    #[error("T{task}'s agent is answering a message; send the addition after its reply")]
+    AgentAnswering { task: u32 },
+    #[error("checks did not pass: {}; mark it done only with a reason", checks.join(", "))]
+    ChecksNotPassed { checks: Vec<String> },
+    #[error("the report's checks do not match the task's: {0}")]
+    ReportedChecks(String),
     #[error("only an approved plan version can be run")]
     NotFrozen,
     #[error("a newer version of this plan exists")]
@@ -124,6 +132,10 @@ impl RunsError {
     /// The opaque id clients match on, never the text.
     pub fn code(&self) -> &'static str {
         match self {
+            Self::EmptyMessage => "empty_message",
+            Self::AgentAnswering { .. } => "agent_answering",
+            Self::ChecksNotPassed { .. } => "checks_not_passed",
+            Self::ReportedChecks(_) => "reported_checks",
             Self::NotFrozen => "not_frozen",
             Self::Superseded => "superseded",
             Self::Archived => "archived",

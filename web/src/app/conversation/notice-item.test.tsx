@@ -11,7 +11,7 @@ import type { ThreadEntry } from '@/api/threads'
 import { entryOfKind } from '@/test/contract-fixtures'
 import { until } from '@/test/test-app'
 import { Entry } from './entry'
-import { NoticeItem } from './notice-item'
+import { NoticeItem, noticeTitle } from './notice-item'
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -42,6 +42,28 @@ async function draw(entry: ThreadEntry): Promise<HTMLElement> {
 }
 
 const header = (host: HTMLElement) => host.querySelector('button[aria-expanded]') as HTMLButtonElement
+
+it('an_agent_reply_shows_the_question_and_answer_as_plain_text', async () => {
+  const reply = { workflow_id: 'w1', version: 1, task: 2, title: 'Login', attempt_id: 'a3',
+    message: '<b>Why?</b>', reply: '<script>answer</script>', reason: null }
+  const host = await draw(notice('raw prompt', reply as unknown as AttemptNotice))
+  expect(host.textContent).toContain('Reply from task agent · T2')
+  expect(host.textContent).toContain('<b>Why?</b>')
+  expect(host.textContent).toContain('<script>answer</script>')
+  expect(host.querySelector('script, b')).toBeNull()
+  expect(host.textContent).not.toContain('raw prompt')
+  act(() => header(host).click())
+  expect(host.textContent).not.toContain('<script>answer</script>')
+})
+
+it('a_failed_agent_reply_shows_the_saved_reason', async () => {
+  const reply = { workflow_id: 'w1', version: 1, task: 2, title: 'Login', attempt_id: 'a3',
+    message: 'Why?', reply: null, reason: 'The reply turn was interrupted' }
+  const host = await draw(notice('raw prompt', reply as unknown as AttemptNotice))
+  expect(host.textContent).toContain('No reply from task agent · T2')
+  expect(host.textContent).toContain('The reply turn was interrupted')
+  expect(noticeTitle(reply)).toBe('No reply from task agent · T2')
+})
 
 it('a_notice_draws_as_an_activity_item_not_a_bubble', async () => {
   await import('./reply-text')

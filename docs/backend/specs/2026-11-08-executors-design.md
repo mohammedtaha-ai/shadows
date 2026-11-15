@@ -247,6 +247,90 @@ any case), the title the Planner is told to give it: no new field marks it.
 > refuses a detailed plan while the setup plan is not done. Closed when a real run shows the
 > Planner planning in detail before its setup is done.
 
+### 5.3 The Planner messages a task's agent (Mohammed, 2026-11-14)
+
+The Planner can send a task's executor a plain message, such as "why did you choose this?" or
+"which tests did you run?", and the executor answers in plain words. It is a conversation, not
+work: it changes no plan, task or attempt, opens no new attempt and does not count against the
+task's three additions. Its tool is `message_agent`; the answer reaches the Planner as
+"Reply from task agent · T<n>".
+
+- **Any time.** While the executor's turn runs, the message waits in its queue until that turn
+  ends, then the executor answers and carries on, as a message to Claude Code waits while it
+  works. After the turn ended (committed, failed or stopped) it is answered at once.
+- **After a done mark too.** Shadows reopens the executor's session for the message, as an
+  addition already does (`run_turn` reopens a closed or gone session).
+- **One road back.** The reply reaches the plan's Planner through the existing notice path
+  (`Turns::queue_notice`, in the executor's name, never a person's message), with its own card.
+- **No read-only enforcement.** A question is a question, and the executor is trusted to answer
+  it. The reported commit stays the write boundary: a file the executor changes while answering
+  shows as uncommitted inside its writes, which the next Start or report refuses.
+- **One message at a time per agent, in order.** Whether the agent is busy is read from its
+  thread's running turn, never from its attempt's state (an attempt is `committed` while its turn
+  still ends). An addition sent while the agent answers a message is refused until the reply
+  arrives, a return after failed checks (§5.4) waits for the reply's turn to end, and a done
+  mark waits for the reply before it closes the session. The same text sent
+  again to the same attempt before its reply is the same message; after the reply it is a new
+  question (MCP carries no command id, as for `task_start`).
+- **The Planner only, for now.** The person asking a task's agent from the task page, and other
+  askers, come later with their own additions (Mohammed, 2026-11-14).
+
+### 5.4 Checks Shadows runs (Mohammed, 2026-11-15)
+
+A task's acceptance items say what must hold; until now the executor ran what it chose and its
+report was the only evidence. A task now carries **checks**: commands the executor runs while it
+works, and Shadows runs again to confirm, so the Planner judges on results Shadows recorded, not on
+the agent's word. This replaces the critic's evidence role (§5.1 already replaced its judgment).
+
+- **The Planner writes them.** A task's contract holds `checks`, each a command (a program and
+  its arguments, never a shell line), an optional folder inside the project, an optional time
+  limit, and the acceptance items it proves. A task with no command that can prove it has none.
+- **The executor runs them itself, while it works,** and fixes what fails in its own files before
+  it commits. Executors run their checks at the same time. A lock, busy or port error means
+  another executor is checking: it goes on writing its code and tries again later, and never
+  counts it as a failure. When its work is done and the checks still cannot run, it commits and
+  reports them `not_run`. Its report gives each check's outcome.
+- **Then Shadows confirms, once the project is quiet.** After the attempt's turn ends committed,
+  Runs waits until no executor turn runs in the project, so no other task's unfinished files are
+  in the folder, then runs the task's checks, and the checks of the tasks whose outputs it uses
+  (its `uses`), one at a time. Each result records its outcome, exit code, HEAD before and after,
+  the end of its output, and whether it matches what the executor reported. The Planner's notice
+  carries the results after that. A check of an earlier task is not run again for a later task
+  that does not use it: its record stands.
+- **A check that does not pass goes back to the executor first** (Mohammed, 2026-11-15). When
+  Shadows' run fails, times out or is inconclusive, Runs sends the same executor, in its own
+  session, the results and "the project is free now: run the checks and finish", as a new attempt
+  that is not one of the Planner's three additions. Its commit is confirmed again; when nothing
+  needed changing, it reports the same commit, which is confirmed again as it is. Only the task's
+  latest attempt is ever notified, also after a restart. After two such
+  returns the attempt goes to the Planner with the results, which judges: an addition, done with
+  a reason, or a stop. What passes is decided by Shadows' run, never by the executor's report.
+- **Outcomes:** passed, failed, timed out, inconclusive, or not run (the program could not start).
+  A HEAD that moved, or a file whose content changed while a check ran, makes it inconclusive;
+  so does an uncommitted change inside any task's `writes` in the project's plans when the check
+  starts, such as the files a stopped attempt left: the result would not prove the committed code.
+  Files outside every task's `writes` (the person's own) do not count. Only passed counts
+  as passed. A flaky check shows as a mismatch with the executor's report, for the Planner to judge.
+- **Done with a check that did not pass needs a reason.** The rule reads the task's latest
+  committed attempt, whether or not its scope is still held: a done mark is refused without a
+  reason when any of its checks did not pass or has no finished result yet. The reason is recorded
+  and shown with the mark. The Planner still judges (§5.1).
+- **A restart loses nothing.** A committed attempt whose checks did not all finish runs them again
+  at startup; one whose results are complete but whose notice was not sent sends it. A notice is
+  written once, before it is first sent, and a resend is that same notice, so it is never sent
+  twice, even when the Planner's settings changed in between.
+- **A done mark frees only the attempt it judged.** The mark records the attempt it judged; the
+  same mark sent again finishes freeing that attempt and never frees a later one.
+- **The lock orders Shadows' own runs only.** What executors run is ordered by their instructions
+  and by waiting on a lock error, as above.
+- **An addition is a new attempt,** with its own commit and its own checks.
+
+Trial on `testing4`, 2026-11-15, two tasks together: both executors ran `go test ./...` and
+`go vet ./...` at once with no lock error; the first one's run compiled the other's uncommitted
+files, which is why Shadows confirms only on a quiet project. Each attempt was `committed` for
+about 9 seconds while its turn still ran (report at 21:51:18, turn end 21:51:27 UTC). Both tasks
+were done 50 seconds after Start, so waiting for a quiet project costs little.
+
 ## 6. Running together in one folder (D2, D3)
 
 - A task is **ready** when its plan version is Frozen, its `needs` links are complete, and no
@@ -323,7 +407,7 @@ index, its commit queue and its trailer.
   writes glob or `.`. Other staged/worktree changes, the person's included, stay intact.
   Native Git lock contention retries only the same command, at most three times after
   1/2/4 seconds; never delete another operation's lock. Remaining failure is reported.
-  The instruction change and real-Git procedure tests belong to slice 4's B-148.
+  The instruction change and real-Git procedure tests belong to slice 4's B-148 (`docs/backend/stages.md` at `d73bb646`).
 - **It reports.** It calls `task_report { commit, report }`: the commit's SHA and an honest
   account of what it did, what it ran or tested, and what passed or failed. The executor's
   instructions and its first prompt say this plainly.

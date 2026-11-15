@@ -1214,3 +1214,9 @@ dependencies:
 # The full task acceptance remains present. phase_dependencies include raw
 # pins, exact target metadata and phase content, or a named broken reason;
 # the same PhaseRows resolver runs in the existing read snapshot.
+
+checks_contract: >
+  TaskContract.checks defaults to empty for stored contracts. Each TaskCheck names a unique
+  nonblank id, a program with arguments, a project-relative folder (or dot), a 1..1800 second
+  optional timeout (600 by default), and existing acceptance item numbers in proves.
+  ContractRules reports invalid checks with the task's other problems.
