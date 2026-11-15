@@ -20,13 +20,14 @@ function attempt(extra: Partial<Attempt> = {}): Attempt {
   return {
     id: 'a1', project_id: 'p1', workflow_id: 'w1', version: 1, task: 1, number: 1, thread_id: 't1',
     operation_id: null, model: 'fake-large', state: 'running', started_at: '2026-11-08T10:00:00Z',
-    ended_at: null, commit: null, reason: null, report: null, addition: null, ...extra,
+    ended_at: null, commit: null, reason: null, report: null, addition: null,
+    origin: extra.addition == null ? 'start' : 'planner', ...extra,
   }
 }
 
 function taskRun(extra: Partial<TaskRun> = {}): TaskRun {
   return {
-    task: 1, done: false, done_at: null, latest: null, needs: [],
+    task: 1, done: false, done_at: null, done_reason: null, latest: null, needs: [],
     start: { allowed: true, code: null, reason: null }, suggested_model: 'fake-large', ...extra,
   }
 }
@@ -40,6 +41,117 @@ function modelInput(): HTMLInputElement {
 }
 
 describe('the task page', () => {
+  it('shows_reported_and_confirmed_checks_with_output_on_request', async () => {
+    const committed = attempt({ state: 'committed', commit: 'abc123' })
+    const routes = answers({ taskRun: taskRun({ latest: committed }), attempts: [committed] })
+    routes['GET /api/attempts/a1/checks'] = [{
+      for_task: 1, id: 'count', run: ['go', 'test', './internal/service/...'], folder: '.',
+      reported: 'not_run', reported_note: 'Shared build was busy', outcome: 'passed', matches: false,
+      exit_code: 0, head_before: 'abc123', head_after: 'abc123', output: '<b>PASS</b>',
+      truncated: true, started_at: 'now', finished_at: 'later',
+    }]
+    const a = (app = await startApp(PAGE, routes))
+    await until(() => a.button('Report') !== undefined)
+    await click(a.button('Report'))
+    await until(() => a.text().includes('Confirmed: passed'))
+    expect(a.text()).toContain('Reported: not run')
+    expect(a.text()).toContain('Mismatch')
+    expect(a.text()).toContain('Shared build was busy')
+    expect(a.text()).toContain('Exit code: 0')
+    expect(a.text()).toContain('HEAD before: abc123')
+    expect(a.text()).not.toContain('<b>PASS</b>')
+    await click(a.button('Show output'))
+    expect(a.text()).toContain('<b>PASS</b>')
+    expect(a.text()).toContain('Output truncated')
+    expect(document.querySelector('[aria-label="Check output"] b')).toBeNull()
+    await click(a.button('Hide output'))
+    expect(a.text()).not.toContain('<b>PASS</b>')
+  })
+
+  it('refreshes_unfinished_checks_and_keeps_cached_results_visible', async () => {
+    const committed = attempt({ state: 'committed', commit: 'abc123' })
+    let finished = false
+    const routes = answers({ taskRun: taskRun({ latest: committed }), attempts: [committed] })
+    routes['GET /api/attempts/a1/checks'] = () => Response.json([{
+      for_task: 1, id: 'count', run: ['go', 'test'], reported: 'passed',
+      outcome: finished ? 'passed' : null, truncated: false, finished_at: finished ? 'now' : null,
+    }])
+    const a = (app = await startApp(PAGE, routes))
+    await until(() => a.button('Report') !== undefined)
+    await click(a.button('Report'))
+    await until(() => a.text().includes('Confirmed: pending'))
+    finished = true
+    expect(a.text()).toContain('Reported: passed')
+    await until(() => a.text().includes('Confirmed: passed'))
+    expect(a.text()).not.toContain('Reading the checks')
+  })
+
+  it('labels_returns_by_checks_without_calling_them_planner_additions', async () => {
+    const returned = attempt({ origin: 'checks', addition: 'Fix the failed check.', state: 'committed' })
+    const a = (app = await startApp(PAGE, answers({ attempts: [returned] })))
+    await until(() => a.button('Report') !== undefined)
+    await click(a.button('Report'))
+    await until(() => a.text().includes('Attempt 1'))
+    expect(a.text()).toContain('Returned by checks')
+    expect(a.text()).not.toContain("Carried on with the Planner's addition")
+  })
+
+  it('sends_and_displays_cores_completion_reason_after_a_refusal', async () => {
+    let current = taskRun()
+    const a = (app = await startApp(PAGE, answers({
+      taskRun: () => Response.json(current),
+      markDone: async (request: Request) => {
+        const body = await request.json() as { reason?: string }
+        if (!body.reason) return Response.json({ code: 'checks_not_passed', reason: 'Checks need a reason.' }, { status: 409 })
+        current = taskRun({ done: true, done_reason: body.reason })
+        return Response.json(current)
+      },
+    })))
+    await until(() => a.button('Mark done') !== undefined)
+    await click(a.button('Mark done'))
+    await until(() => a.text().includes('Checks need a reason.'))
+    const input = document.querySelector<HTMLTextAreaElement>('[aria-label="Completion reason"]')!
+    typeInto(input, 'Accepted after manual review.')
+    await click(a.button('Mark done'))
+    await until(() => a.button('Mark not done') !== undefined)
+    expect(a.bodies).toContainEqual(expect.objectContaining({ done: true, reason: 'Accepted after manual review.' }))
+    expect(a.text()).toContain('Accepted after manual review.')
+  })
+
+  it('keeps_a_lost_done_command_until_the_reason_changes', async () => {
+    let tries = 0
+    const a = (app = await startApp(PAGE, answers({ markDone: () => {
+      tries += 1
+      throw new TypeError('network down')
+    } })))
+    await until(() => a.button('Mark done') !== undefined)
+    const input = document.querySelector<HTMLTextAreaElement>('[aria-label="Completion reason"]')!
+    typeInto(input, 'Reviewed')
+    await click(a.button('Mark done'))
+    await until(() => tries === 1 && a.text().includes('not reachable'))
+    await click(a.button('Mark done'))
+    await until(() => tries === 2 && !a.button('Mark done')!.hasAttribute('disabled'))
+    typeInto(input, 'Reviewed again')
+    await click(a.button('Mark done'))
+    await until(() => tries === 3)
+    const sent = a.bodies.filter((b) => typeof b === 'object' && b !== null && 'done' in b) as unknown as { command_id: string }[]
+    expect(sent).toHaveLength(3)
+    expect(sent[1]!.command_id).toBe(sent[0]!.command_id)
+    expect(sent[2]!.command_id).not.toBe(sent[1]!.command_id)
+  })
+
+  it('shows_a_check_read_refusal_without_hiding_the_report', async () => {
+    const committed = attempt({ state: 'committed', report: 'Executor report remains visible' })
+    const routes = answers({ attempts: [committed] })
+    routes['GET /api/attempts/a1/checks'] = () => Response.json({ code: 'NOT_FOUND', message: 'Attempt no longer exists' }, { status: 404 })
+    const a = (app = await startApp(PAGE, routes))
+    await until(() => a.button('Report') !== undefined)
+    await click(a.button('Report'))
+    await until(() => a.text().includes('Attempt no longer exists'))
+    expect(a.text()).toContain('Executor report remains visible')
+    expect(a.text()).not.toContain('Reading the checks')
+  })
+
   it('start_sends_the_chosen_model_and_shows_running', async () => {
     let current = taskRun()
     const a = (app = await startApp(PAGE, answers({
@@ -267,6 +379,7 @@ describe('the task page', () => {
     ['no attempt', { latest: null }],
     ['an attempt from Start', { latest: attempt({ state: 'committed' }) }],
     ['a running addition', { latest: attempt({ addition: 'Continue.' }) }],
+    ['a checks return', { latest: attempt({ state: 'committed', addition: 'Check failed.', origin: 'checks' }) }],
     ['a stopped addition', { latest: attempt({ state: 'stopped', addition: 'Continue.' }) }],
     ['a done task', { done: true }],
     ['Start refused', { start: { allowed: false, code: 'task_busy', reason: 'the Planner is judging' } }],

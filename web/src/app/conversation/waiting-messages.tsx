@@ -2,7 +2,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Bell } from 'lucide-react'
 import { useRef } from 'react'
-import { readAttemptNotice } from '@/stream'
+import { readAgentNotice } from '@/stream'
 import { noticeTitle } from './notice-item'
 import { attachmentUrl, sendQueuedNow, unqueueMessage } from '@/api/threads'
 import { ApiError } from '@/api/error'
@@ -44,7 +44,7 @@ export function WaitingMessages({ threadId, running }: { threadId: string; runni
             <div className="flex items-center gap-2.5 text-xs">
               <Bell aria-hidden className="size-3.5 shrink-0 text-accent-line/85" />
               <span dir="auto" className="font-medium text-foreground">
-                {noticeTitle(readAttemptNotice(m.notice.card))}
+                {noticeTitle(readAgentNotice(m.notice.card))}
               </span>
               <span className="text-muted-foreground">Waiting for the Planner</span>
               {m.last_error != null && (

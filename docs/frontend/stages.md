@@ -82,7 +82,7 @@ These tasks are blocked until their named backend API exists; no component imple
 
 ### F-103 · Checks and replies in the task page
 
-- Status: blocked (B-114 and B-150 must ship first); Masada details it.
+- Status: doing. Implementation verified: 165 focused tests, typecheck, lint and build passed; browser acceptance remains with Mohammed.
 - Plan: [F-103](../backend/plans/2026-11-15-slice-5-checks.md#f-103--checks-and-replies-in-the-task-page) in the slice 5 plan.
 - Owner: web API and task UI.
 - Needs: B-111, B-113, B-114, B-150; F-102 (`docs/frontend/stages.md` at `d73bb646`, shipped). Backend must expose its generated API before this task starts.

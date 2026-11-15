@@ -734,3 +734,5 @@ refresh_policy:
     - a conversation joining a live writer stream reads its entries and operations once
 
 background_tasks: "The tasks frame replaces the open session's list, including between turns. A disconnect clears it; the next caught-up is followed by the current nonempty snapshot."
+
+agent_reply_cards: readAgentNotice exposes generated AgentReplyNotice beside the existing AttemptNotice parser, rejecting malformed reply fields. Entry authorship still decides whether content is a notice.

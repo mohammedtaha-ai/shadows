@@ -13,7 +13,7 @@ afterEach(() => { app?.unmount(); app = null })
 const attempt = (id: string, number: number, extra: Partial<Attempt> = {}): Attempt => ({
   id, project_id: 'p1', workflow_id: 'w1', version: 1, task: 1, number, thread_id: 't1', operation_id: null,
   model: 'fake-large', state: 'committed', started_at: '2026-11-08T10:00:00Z', ended_at: null, commit: null,
-  reason: null, report: null, addition: null, ...extra,
+  reason: null, report: null, addition: null, origin: extra.addition == null ? 'start' : 'planner', ...extra,
 })
 
 const brief = (a: Attempt, extra: Partial<AttemptBrief> = {}): AttemptBrief => ({
@@ -61,6 +61,25 @@ const reportTab = async () => {
   await until(() => [...document.querySelectorAll<HTMLElement>('[role="tab"]')].find((t) => t.textContent === 'Report') !== undefined)
   await act(async () => { [...document.querySelectorAll<HTMLElement>('[role="tab"]')].find((t) => t.textContent === 'Report')?.click() })
 }
+
+it('the_brief_shows_check_commands_and_acceptance_items', async () => {
+  const a = attempt('a1', 1)
+  const saved = brief(a)
+  saved.context.task.contract!.checks = [{ id: 'count', run: ['go', 'test', './internal/service/...'],
+    folder: 'notes', timeout_secs: 30, proves: [1, 2] }]
+  app = await startApp(PAGE, { ...answers({ attempts: [a] }), 'GET /api/attempts/a1/brief': saved })
+  await reportTab()
+  await until(() => heading(1) !== undefined)
+  await click(heading(1))
+  await until(() => document.querySelector('[aria-label="Attempt brief"]') !== null)
+  const text = document.querySelector('[aria-label="Attempt brief"]')!.textContent
+  expect(text).toContain('Checks')
+  expect(text).toContain('count')
+  expect(text).toContain('go test ./internal/service/...')
+  expect(text).toContain('Folder: notes')
+  expect(text).toContain('Timeout: 30s')
+  expect(text).toContain('Acceptance: 1, 2')
+})
 
 it('brief_view_keeps_original_version', async () => {
   const a1 = attempt('a1', 1, { addition: 'Try again carefully' })

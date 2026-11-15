@@ -37,6 +37,18 @@ afterEach(() => {
   app = null
 })
 
+it('a_waiting_agent_reply_uses_the_reply_title', async () => {
+  const a = (app = await startApp('/projects/p1/threads/t1', {
+    ...DAEMON,
+    'GET /api/threads/t1/queue': [{ ...waiting, notice: { executor: 'executor-thread', card: {
+      workflow_id: 'w1', version: 1, task: 2, title: 'Count', attempt_id: 'a1',
+      message: 'Why?', reply: 'The saved reply', reason: null,
+    } } }],
+  }))
+  await until(() => a.text().includes('Reply from task agent · T2'))
+  expect(a.text()).not.toContain('attempt undefined')
+})
+
 it('queues on Enter while a turn runs, and offers Send now and Remove', async () => {
   const a = (app = await startApp('/projects/p1/threads/t1', DAEMON))
   await until(() => a.button('Stop') !== undefined)

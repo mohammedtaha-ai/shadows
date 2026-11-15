@@ -109,7 +109,7 @@ function Brief({ brief }: { brief: AttemptBrief }) {
       </p>
       <p>
         <span className="font-semibold">Attempt began from </span>
-        {attempt.addition === null ? 'Start' : "the Planner's addition"}
+        {attempt.origin === 'checks' ? 'Returned by checks' : attempt.addition === null ? 'Start' : "the Planner's addition"}
         {attempt.addition !== null && <span dir="auto" className="block whitespace-pre-wrap break-words">{attempt.addition}</span>}
       </p>
       <List label="Reads" items={context.task.reads} />
@@ -121,6 +121,8 @@ function Brief({ brief }: { brief: AttemptBrief }) {
           <List label="Forbidden" items={contract.forbidden} />
           <List label="Produces" items={contract.produces?.map((o) => produced(o, contract))} />
           <List label="Uses" items={contract.uses?.map(used)} />
+          <List label="Checks" items={contract.checks?.map((check) =>
+            `${check.id}: ${check.run.join(' ')}${check.folder != null ? ` · Folder: ${check.folder}` : ''}${check.timeout_secs != null ? ` · Timeout: ${check.timeout_secs}s` : ''}${check.proves?.length ? ` · Acceptance: ${check.proves.join(', ')}` : ''}`)} />
         </div>
       )}
       <List label="Resolved contracts" items={context.contracts?.map(resolved)} />

@@ -11,6 +11,7 @@ import {
   parseTool,
   parseUsage,
   readAttemptNotice,
+  readAgentNotice,
   readTodoList,
   readToolCard,
 } from './frames'
@@ -182,5 +183,17 @@ describe('readAttemptNotice', () => {
   it('an_ordinary_notice_has_no_conflict', () => {
     expect(readAttemptNotice(base)?.conflict).toBeUndefined()
     expect(readAttemptNotice({ ...base, conflict: 'nope' })?.conflict).toBeUndefined()
+  })
+})
+
+describe('readAgentNotice', () => {
+  const reply = { workflow_id: 'w1', version: 1, task: 2, title: 'Count', attempt_id: 'a1',
+    message: 'Why?', reply: 'Because it counts.', reason: null }
+  it('reads_reply_cards_and_preserves_failed_reply_reasons', () => {
+    expect(readAgentNotice(reply)).toEqual(reply)
+    const failed = { ...reply, reply: null, reason: 'Interrupted' }
+    expect(readAgentNotice(failed)).toEqual(failed)
+    expect(readAgentNotice({ ...reply, reply: 4 })).toBeNull()
+    expect(readAgentNotice({ ...reply, task: '2' })).toBeNull()
   })
 })

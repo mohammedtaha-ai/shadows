@@ -385,6 +385,7 @@ it is that folder's `contract.yaml`.
 | `web/src/app/tasks/brief-panel.tsx` | One attempt's saved context from its original plan version | `web/src/app/tasks/contract.yaml` |
 | `web/src/app/tasks/conflict-panel.tsx` | One attempt's reported contract conflict, as Core states it now | `web/src/app/tasks/contract.yaml` |
 | `web/src/app/tasks/report-tab.tsx` | Each attempt: state, model, addition, times, commit, report, reason | `web/src/app/tasks/contract.yaml` |
+| `web/src/app/tasks/checks-panel.tsx` | A task command's confirmation evidence | `web/src/app/tasks/contract.yaml` |
 | `web/src/app/tasks/use-task-run.ts` | A task's run state kept current | `web/src/app/tasks/contract.yaml` |
 | `web/src/app/tasks/task-page.test.tsx` | Task page interaction checks | `web/src/app/tasks/contract.yaml` |
 | `web/src/app/workflows/approve-bar.tsx` | Approval control for a Draft plan, with refusals | `web/src/app/workflows/contract.yaml` |
