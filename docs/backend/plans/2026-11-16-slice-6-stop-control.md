@@ -63,8 +63,14 @@ What is left, checked in the code on 2026-11-16:
 - Start from `AppCore`. Each change stays in its owner: Runs, Design or Plans. Others are called
   only through public methods, and a write that spans owners goes through `*_in(&mut Tx, …)`.
   No SQL outside an owner's `store/`.
-- Migrations: `0069_run_rechecks.sql` (B-154) and `0070_design_decisions.sql` (B-105). Renumber
-  only if another branch takes the number first.
+- Migrations: `0069_attempt_notice_due.sql` (B-152), `0070_run_rechecks.sql` (B-154) and
+  `0071_design_decisions.sql` (B-105). Renumber only if another branch takes the number first.
+- **A notice that is owed is written down in the same write that makes it owed** (Codex review,
+  2026-11-16). Recovery sends every owed notice not yet sent, never only the ones this start
+  created. A crash between the state change and the enqueue loses nothing.
+- **Every version of a plan** means every `WorkflowId` that Plans lists for the plan's `PlanId`.
+  A `WorkflowId` names one version. Runs gets the list from `Plans::get_plan_versions` (reads),
+  or from `Plans::version_ids_in` (inside a write), and runs no SQL on Plans' tables.
 - A notice is resolved once and saved before its first enqueue. Every retry sends the saved
   payload with the same command id: `notify-<attempt>` for an attempt, `recheck-<batch>` for a
   recheck.
@@ -83,8 +89,12 @@ What is left, checked in the code on 2026-11-16:
 
 ## Review Focus
 
-- **A daemon killed twice.** Recovery notifies only the attempts it moved to Interrupted in this
-  start: `a_second_restart_sends_no_second_interrupted_notice` (B-152).
+- **A crash between settling and sending.** An owed notice is sent at the next start, exactly
+  once: `an_owed_notice_is_sent_on_the_next_start`, `a_persons_stop_notice_survives_a_failed_enqueue`,
+  `a_second_restart_sends_no_second_interrupted_notice` (B-152);
+  `a_finished_batch_never_loses_its_notice` (B-154).
+- **A done mark with no judged attempt.** A task marked done again by a new command stays in the
+  recheck: `a_task_marked_done_again_stays_in_the_recheck` (B-154).
 - **The Planner's own Stop.** `task_stop` sends the Planner no notice about its own call:
   `the_planners_stop_sends_no_notice` (B-152).
 - **The person's own edit is not a leftover.** A dirty file inside writes with no ended attempt
@@ -117,8 +127,8 @@ What is left, checked in the code on 2026-11-16:
 - Produces:
   - `pub struct LiveAttempt { attempt_id: AttemptId, workflow_id: WorkflowId, version: i64, task: u32, title: String, number: u32, state: AttemptState, commit: Option<String>, conflict: bool, started_at: String }`, with `Serialize` and `schemars::JsonSchema` like the other MCP answers in `model.rs`.
   - `Runs::live_for(&self, grant: &Grant, workflow: &WorkflowId) -> Result<Vec<LiveAttempt>, RunsError>`
-  - `RunsStore::live(&self, workflow: &WorkflowId) -> Result<Vec<Attempt>, RunsError>` (private to the crate)
-- Consumes: `Runs::planner_plan` (the grant check `start_for` uses); Plans' read of a version's task titles, as `Runs::title` in `notify.rs` does.
+  - `RunsStore::live(&self, workflows: &[WorkflowId]) -> Result<Vec<Attempt>, RunsError>` (private to the crate)
+- Consumes: `Runs::planner_plan` (the grant check `start_for` uses); `Plans::get_plan_versions(&PlanId)` for every version's `WorkflowId` (a `WorkflowId` names one version; `Plan.plan_id` is what the versions share); Plans' read of a version's task titles, as `Runs::title` in `notify.rs` does.
 
 - [ ] **Step 1: Write the failing tests** in `runs_attempts/planner.rs`:
   - `task_runs_lists_the_attempts_that_hold_a_scope`: Start T1 and T2 (disjoint writes); T2 reports a commit and its turn ends; T3 is started and stopped. `live_for` returns T1 (`Running`, `commit: None`) and T2 (`Committed`, `commit: Some(sha)`), in `(version, task, number)` order. T3 is absent. `title` is the task's title. `conflict` is false.
@@ -126,8 +136,8 @@ What is left, checked in the code on 2026-11-16:
   - `task_runs_marks_a_conflicted_attempt`: an accepted conflict on a Running attempt gives `conflict: true` while it still holds its scope.
   - `task_runs_is_refused_to_another_grant`: an executor grant, and a Planner grant of another project, each get `RunsError::NotFound`.
 - [ ] **Step 2:** Run `cargo test -p shadows-core --test runs_attempts planner::task_runs`. Expected: FAIL to compile (`live_for` is missing).
-- [ ] **Step 3: Implement `RunsStore::live`.** It reads attempts of the workflow, any version, with `released_at IS NULL`, `ORDER BY version, task, number`. `conflict` is `conflict_json IS NOT NULL`, read in the same query.
-- [ ] **Step 4: Implement `Runs::live_for`.** First `planner_plan(grant, workflow)`, then `RunsStore::live`, then map each attempt to a `LiveAttempt` with its task's title (`T{task}` when it has none, as `Runs::title` does). It only reads.
+- [ ] **Step 3: Implement `RunsStore::live`.** It reads the attempts whose `workflow_id` is one of `workflows` and whose `released_at IS NULL`, `ORDER BY version, task, number`. `conflict` is `conflict_json IS NOT NULL`, read in the same query.
+- [ ] **Step 4: Implement `Runs::live_for`.** First `planner_plan(grant, workflow)`; then `Plans::get_plan_versions(&plan.plan_id)` for the version ids; then `RunsStore::live`. Each attempt maps to a `LiveAttempt` with its version's task title (`T{task}` when it has none, as `Runs::title` does). It only reads, and runs no SQL on Plans' tables.
 - [ ] **Step 5: Add the MCP tool `task_runs`** with input `{ workflow_id }`. It answers `Vec<LiveAttempt>`, and `RunsError` maps through the existing run error translation. Add it to the Planner's list in `tools_for` (35 tools; only the Planner holds it).
 - [ ] **Step 6: Add one line to `prompt.txt`** next to the `task_stop` line: "`task_runs` lists the attempts of a plan that can still write or still wait for your judgment, any version; read it before you choose which to stop with `task_stop`."
 - [ ] **Step 7: Extend the MCP tests.** In `mcp_server.rs`, the Planner's tool list includes `task_runs` and the executor's does not. In `task_conflict_routes.rs`, add `the_planner_lists_live_attempts_over_mcp`: over the real `/mcp`, a Planner grant's `task_runs` answers the running attempt's id, which `task_stop` then stops; a second `task_runs` answers `[]`.
@@ -147,7 +157,7 @@ What is left, checked in the code on 2026-11-16:
 
 **Interfaces:**
 - Produces:
-  - `RunsStore::last_ended(&self, workflow: &WorkflowId, task: u32) -> Result<Option<Attempt>, RunsError>`: the task's newest attempt in the plan, any version (`ORDER BY started_at DESC, id DESC`), but only when it is Stopped, Interrupted or Failed, has no commit and has released its scope. Otherwise `None`.
+  - `RunsStore::last_ended(&self, workflows: &[WorkflowId], task: u32) -> Result<Option<Attempt>, RunsError>`: the newest attempt with this task number among `workflows` (`ORDER BY started_at DESC, id DESC`), but only when it is Stopped, Interrupted or Failed, has no commit and has released its scope. Otherwise `None`. `checks` passes every version of the plan, from `Plans::get_plan_versions(&plan.plan_id)`. Across versions the task is matched by its number; the builder confirms in Plans' draft copy that a copied task keeps its number, and reports it if not.
   - `Runs::checks(&self, workflow, version, task) -> Result<Checked, RunsError>` with private `struct Checked { plan: Plan, content: TaskContent, left: Vec<String>, left_by: Option<u32> }`. `left` holds the dirty paths inside writes that were admitted; `left_by` is the number of the attempt that left them.
   - private `Runs::first_prompt(&self, task: u32, left: &[String], left_by: Option<u32>) -> String`
 - Consumes: `Runs::dirty` (unchanged).
@@ -171,36 +181,43 @@ in the Planner's conversation. `AttemptNotice` keeps its shape and OpenAPI does 
 the web must render the two cards. **Blocked until Masada's shared request for slice 6 is accepted.**
 
 **Files:**
+- Create: `crates/core-db/migrations/0069_attempt_notice_due.sql` (`ALTER TABLE run_attempts ADD COLUMN notice_due INTEGER NOT NULL DEFAULT 0 CHECK (notice_due IN (0,1))`; existing rows stay 0, so no old attempt is notified)
 - Modify: `crates/core-runs/src/notify.rs` (`ended_intent`: two new bodies)
 - Modify: `crates/core-runs/src/recover.rs`
-- Modify: `crates/core-runs/src/store/recover.rs` (`settle_running` answers the ids)
+- Modify: `crates/core-runs/src/store/recover.rs` (`settle_running` marks the notice due; `due_notices`)
+- Modify: `crates/core-runs/src/store/mod.rs` (`finish` marks the notice due for the person's Stop)
 - Modify: `crates/core-runs/src/stop.rs`
-- Modify: `crates/core-runs/src/model.rs` (`RecoverReport.interrupted` stays `u32`; no shape change)
 - Modify: `crates/core-runs/contract.yaml`
 - Modify: `docs/backend/stages.md`
 - Test: `crates/shadows-core/tests/runs_attempts/stops.rs` (new; `#[path]` module in `runs_attempts.rs`), `crates/shadows-core/tests/task_conflicts.rs`
 
 **Interfaces:**
 - Produces:
-  - `RunsStore::settle_running(&self) -> Result<Vec<AttemptId>, RunsError>`: the attempts it moved to Interrupted, in `started_at, id` order. `recover` keeps answering `RecoverReport { interrupted: ids.len() }`.
+  - **The notice is owed durably.** `notice_due = 1` is written in the same write that settles the attempt, so a crash or a failed enqueue never loses it:
+    - `RunsStore::settle_running` sets it on every attempt it moves to Interrupted, and still answers the count.
+    - `RunsStore::finish(&self, id, state, reason, due: bool) -> Result<bool, RunsError>` sets it when `due` and the attempt moved. Only the person's Stop of a Running attempt with no conflict passes `due = true`.
+    - `RunsStore::due_notices(&self) -> Result<Vec<AttemptId>, RunsError>`: attempts with `notice_due = 1` and `notice_sent_at IS NULL`, in `ended_at, id` order.
+    - `notify_ended` writes `notice_sent_at` after a successful enqueue (if it does not already for every ended notice), so a sent notice is never due again.
   - private `enum Stopper { Person, Planner }` in `stop.rs`, and private `Runs::stop_by(&self, attempt: &AttemptId, by: Stopper) -> Result<Attempt, RunsError>`. `stop` = `stop_by(Person)`, and `stop_for` calls `stop_by(Planner)`. The agreement "the person's Stop and the Planner's task_stop run one method" still holds through `stop_by`.
-- Consumes: `notify` / `notify_ended` (unchanged road), and the `dirty` read Start and report use (the paths changed inside the attempt's writes).
+- Consumes: `notify` / `notify_ended` (unchanged road; its saved intent and `notify-<attempt>` id make a resend safe), and the `dirty` read Start and report use (the paths changed inside the attempt's writes).
 
 - [ ] **Step 1: Write the failing tests** in `runs_attempts/stops.rs`:
   - `a_restart_tells_the_planner_of_each_interrupted_attempt`: T1 is Running and has written `backend/app/a.php` uncommitted. Restart (the restart pattern of `task_conflicts::restart_replays_pending_conflict_once`). The Planner's thread gets one queued notice, command id `notify-<attempt>`; its card has `outcome: interrupted`; its body contains `was interrupted` and `backend/app/a.php`.
   - `a_second_restart_sends_no_second_interrupted_notice`: restart twice; still one notice.
+  - `an_owed_notice_is_sent_on_the_next_start`: the attempt is settled Interrupted with its notice due, but the start ends before the notice is queued (the fixture drops the daemon after `settle_running`, before the spawned pass sends). The next start queues exactly one notice for it.
+  - `a_persons_stop_notice_survives_a_failed_enqueue`: the person's Stop succeeds while the enqueue fails (the Planner thread has no turn settings yet, so `notify` answers `Unavailable`). After the Planner has run a turn, a restart sends exactly one `stopped` notice.
   - `the_persons_stop_tells_the_planner`: `Runs::stop` on a Running attempt queues one notice with `outcome: stopped`, and its body contains `stopped by the person`.
   - `the_planners_stop_sends_no_notice`: `stop_for` on a Running attempt queues none.
   - In `task_conflicts.rs`, `a_stopped_conflict_keeps_its_one_notice`: a conflicted Running attempt stopped by the person has exactly its one conflict notice.
-- [ ] **Step 2:** Run `cargo test -p shadows-core --test runs_attempts stops::` and `--test task_conflicts a_stopped_conflict`. Expected: the four `stops::` tests FAIL (no notice); the conflict test may already pass and stays as a guard.
-- [ ] **Step 3: `settle_running` answers the ids.** Same write, same rules; it reads the ids before the UPDATE, as it reads the thread ids now.
-- [ ] **Step 4: `recover` notifies them.** In the spawned pass, after the pending conflicts and before `recover_messages`, call `notify` for each id from `settle_running`. A failure is logged `runs.notify_interrupted_failed` and never stops the pass. Only this start's ids are notified, so a second restart finds none.
-- [ ] **Step 5: `stop_by`.** After the release, the Person path calls `notify` only when this Stop moved the attempt from Running to Stopped (`finish` answered `true`) and the attempt has no conflict. The Planner path keeps today's behavior: only `retry_conflict_notice`.
+- [ ] **Step 2:** Run `cargo test -p shadows-core --test runs_attempts stops::` and `--test task_conflicts a_stopped_conflict`. Expected: the six `stops::` tests FAIL (no notice); the conflict test may already pass and stays as a guard.
+- [ ] **Step 3: The migration, and the due mark in `settle_running` and `finish`.** Both write `notice_due` in the write that settles the attempt; nothing else in those writes changes.
+- [ ] **Step 4: `recover` sends what is owed.** In the spawned pass, after the pending conflicts and before `recover_messages`, call `notify` for each id from `due_notices`. This covers this start's Interrupted attempts and anything an earlier start owed. A failure is logged `runs.notify_due_failed`, stays due, and never stops the pass.
+- [ ] **Step 5: `stop_by`.** The Person path passes `due = true` to `finish` when the attempt is Running with no conflict. After the release it calls `notify` when `finish` answered `true`; a failure is logged and stays due for the next start. The Planner path passes `due = false` and keeps today's behavior: only `retry_conflict_notice`.
 - [ ] **Step 6: Two bodies in `ended_intent`.** They replace the `_` arm for these two states only; Failed keeps its text. `{dirty}` is the attempt's changed paths inside its writes, joined by `, `, or `none`; a git failure gives `unknown` and logs.
   - Interrupted: `{head} was interrupted: Shadows stopped while it ran, and nothing was committed.\nUncommitted files in its writes: {dirty}\n{last}Tell the person; start it again only if they ask. A new Start continues from these files.`
   - Stopped: `{head} was stopped by the person.\nUncommitted files in its writes: {dirty}\n{last}Do not start it again unless they ask. A new Start continues from these files.`
 - [ ] **Step 7:** Run the Step 2 commands, plus `cargo test -p shadows-core --test runs_attempts` (all of it: `stopping_a_committed_attempt_frees_its_scope` and `recover_interrupts_running_attempts_without_restarting_them` must stay green), `--test recovery`, and the rule 5 checks. Expected: PASS.
-- [ ] **Step 8:** Update the contract: `recover`, `stop`, `stop_for`, `notify` and the transitions ("found Running at startup: Interrupted; the Planner is told once", "the person's Stop of a Running attempt: Stopped; the Planner is told"), with the five tests. Set B-152 to done and commit `feat(core): B-152 the Planner hears of interrupted and stopped attempts`.
+- [ ] **Step 8:** Update the contract: `recover`, `stop`, `stop_for`, `notify` and the transitions ("found Running at startup: Interrupted; the Planner is told once", "the person's Stop of a Running attempt: Stopped; the Planner is told", "a notice owed and not sent is sent at the next start"), `notice_due`, and the seven tests. Set B-152 to done and commit `feat(core): B-152 the Planner hears of interrupted and stopped attempts`.
 
 ## Task B-154: a done mark rechecks every done task of its plan
 
@@ -208,7 +225,7 @@ Changes what the web sees: a new Shadows notice card, `RecheckNotice`. **Blocked
 shared request for slice 6 is accepted.**
 
 **Files:**
-- Create: `crates/core-db/migrations/0069_run_rechecks.sql`
+- Create: `crates/core-db/migrations/0070_run_rechecks.sql`
 - Create: `crates/core-runs/src/recheck.rs`
 - Create: `crates/core-runs/src/store/rechecks.rs`
 - Modify: `crates/core-runs/src/checks.rs` (move the per-check run out of `confirm_attempt`)
@@ -217,22 +234,30 @@ shared request for slice 6 is accepted.**
 - Modify: `crates/core-runs/src/model.rs` (`RecheckNotice`, `RecheckFailure`)
 - Modify: `crates/core-runs/src/recover.rs`
 - Modify: `crates/core-runs/src/store/mod.rs` (module)
+- Modify: `crates/core-plans/src/lib.rs`, `crates/core-plans/src/store/plan.rs` (`Plans::version_ids_in`)
 - Modify: `crates/shadows-core/src/lib.rs` (re-exports)
-- Modify: `crates/core-runs/contract.yaml`, `docs/codebase/README.md`
+- Modify: `crates/core-runs/contract.yaml`, `crates/core-plans/contract.yaml`, `docs/codebase/README.md`
 - Modify: `docs/backend/stages.md`
 - Test: `crates/shadows-core/tests/runs_attempts/rechecks.rs` (new `#[path]` module)
 
 **Interfaces:**
 - Produces:
   - Tables:
-    - `run_rechecks (id TEXT PRIMARY KEY, project_id, workflow_id, cause_version, cause_task, cause_command TEXT UNIQUE, created_at, finished_at NULL, notice_json NULL, notice_sent_at NULL)`
-    - `run_recheck_results (recheck_id REFERENCES run_rechecks ON DELETE CASCADE, attempt_id REFERENCES run_attempts, version, task, check_id, ordinal, run_json, folder NULL, outcome NULL, exit_code NULL, head NULL, output NULL, truncated, started_at NULL, finished_at NULL, PRIMARY KEY (recheck_id, attempt_id, check_id))`, with the `outcome` CHECKs of `run_checks`.
-  - `pub struct RecheckFailure { version: i64, task: u32, title: String, attempt_id: AttemptId, checks: Vec<CheckResult> }` (output left out of the card).
-  - `pub struct RecheckNotice { workflow_id: WorkflowId, cause_version: i64, cause_task: u32, recheck_id: String, failed: Vec<RecheckFailure> }`: the card of a Shadows notice, `Notice { executor: None, card }`.
+    - `run_rechecks (id TEXT PRIMARY KEY, project_id, plan_id, cause_workflow_id, cause_version, cause_task, cause_command TEXT UNIQUE, created_at, finished_at NULL, notice_json NULL, notice_sent_at NULL)`
+    - `run_recheck_results (recheck_id REFERENCES run_rechecks ON DELETE CASCADE, attempt_id REFERENCES run_attempts, workflow_id, version, task, check_id, ordinal, run_json, folder NULL, outcome NULL, exit_code NULL, head NULL, output NULL, truncated, started_at NULL, finished_at NULL, PRIMARY KEY (recheck_id, attempt_id, check_id))`, with the `outcome` CHECKs of `run_checks`.
+  - `Plans::version_ids_in(conn, plan: &PlanId) -> Result<Vec<(WorkflowId, i64)>, PlansError>`: every version of the plan, oldest first, in the caller's transaction. It goes in Plans' `shared_in_transaction`; Runs runs no SQL on Plans' tables.
+  - `pub struct RecheckFailure { workflow_id: WorkflowId, version: i64, task: u32, title: String, attempt_id: AttemptId, checks: Vec<CheckResult> }` (output left out of the card).
+  - `pub struct RecheckNotice { plan_id: PlanId, cause_workflow_id: WorkflowId, cause_version: i64, cause_task: u32, recheck_id: String, failed: Vec<RecheckFailure> }`: the card of a Shadows notice, `Notice { executor: None, card }`.
   - private `Runs::recheck(&self, recheck_id: String)` in `recheck.rs`: runs one batch, then notifies.
   - private `Runs::run_check(...) -> Finished` in `checks.rs`: one check on a quiet project, with today's repetition, overlap and inconclusive rules. `confirm_attempt` and `recheck` both call it.
-  - `RunsStore::begin_recheck_in(conn, cause) -> Result<Option<String>, RunsError>` in `store/rechecks.rs`, with `start_recheck`, `finish_recheck`, `finish_batch`, `keep_recheck_notice`, `recheck_sent` and `unfinished_rechecks`.
-- Consumes: `put_mark`'s write; the saved contexts' own checks (`check_specs`); the project check lock in `Runs.inner.checking`; the Planner thread's last-turn settings, read as `ended_intent` does.
+  - `RunsStore::begin_recheck_in(conn, cause) -> Result<Option<String>, RunsError>` in `store/rechecks.rs`, with `start_recheck`, `finish_recheck`, `finish_batch(id, notice_json: Option<String>)`, `recheck_sent` and `unfinished_rechecks`.
+- **Which attempt's checks a done task brings:**
+  - The mark's `judged_attempt_id`, when it is set.
+  - Otherwise, the task's newest attempt in that version with a commit, whatever its state. `judged_attempt_id` is `NULL` after a mark repeated by a new command once the scope was freed, and on a mark from before the column existed.
+  - A done task with no committed attempt brings nothing, and so does an attempt with no saved context.
+
+  The checks are that attempt's own checks, from its saved context.
+- Consumes: `put_mark`'s write; `check_specs`; the project check lock in `Runs.inner.checking`; the Planner thread's last-turn settings, read as `ended_intent` does.
 
 - [ ] **Step 1: Write the failing tests** in `runs_attempts/rechecks.rs`. The checks are real commands, as in `checks.rs`:
   - `a_done_mark_reruns_the_checks_of_the_plans_done_tasks`: T1 and T2 are done, each with one check. T3 is marked done. One batch runs T1's and T2's checks (not T3's) at the HEAD of that moment, and records two results.
@@ -240,15 +265,29 @@ shared request for slice 6 is accepted.**
   - `a_passing_recheck_sends_no_notice`
   - `a_replayed_mark_starts_no_second_recheck`
   - `a_restart_finishes_an_unfinished_recheck`: the daemon stops mid-batch. On restart, the unfinished results become `not_run` with output `Shadows restarted during the recheck`, the batch finishes, and its notice is sent once.
-  - `an_older_versions_done_task_is_rechecked`: T1 is done on v1; v2 is approved and its T2 marked done. T1 of v1 is in the batch.
+  - `a_finished_batch_never_loses_its_notice`: the batch finishes with a failure, and the start ends before the enqueue (the fixture drops the daemon after `finish_batch`). The batch already holds `notice_json`, and the next start sends it once.
+  - `an_older_versions_done_task_is_rechecked`: T1 is done on v1; v2 is approved and its T2 marked done. T1 of v1, under v1's `WorkflowId`, is in the batch.
+  - `a_task_marked_done_again_stays_in_the_recheck`: T1 is marked done, its scope is freed, and it is marked done again by a new command (`judged_attempt_id` is now `NULL`). T2's later done mark still reruns T1's check, from T1's newest committed attempt.
+  - `a_done_task_with_no_commit_is_left_out`: a task marked done with no committed attempt adds no row and logs no failure.
 - [ ] **Step 2:** Run `cargo test -p shadows-core --test runs_attempts rechecks::`. Expected: FAIL to compile.
-- [ ] **Step 3: Migration and store.** `begin_recheck_in` runs inside `put_mark`'s write, only for a new `done == true` mark. It inserts the batch and one pending row per own check of every *other* task of the workflow, any version, that has a done mark: the checks come from the judged attempt's saved context, in `(version, task, ordinal)` order. A batch with no rows is not inserted. A replay returns before it, and `cause_command` UNIQUE guards it.
-- [ ] **Step 4: `run_check` and `recheck`.** Move `run_check` out of `confirm_attempt` without changing its behavior (`attempt_checks` stays green). `mark_done` spawns `recheck` after its release when a batch was begun. `recheck` waits for quiet, takes the project lock, runs each row and finishes the batch. When any outcome is not `passed`, it saves the notice and queues it on the plan's Planner thread. Body: `[Shadows] After T{cause_task} of version {cause_version} was marked done, Shadows reran the checks of the plan's done tasks. These no longer pass:`, then one `check_line` per failing check, each followed by the last 4,000 chars of its output, then `Their done marks stand. Read the change with task_diff, then amend or plan a correction.` With no live Planner, it logs `runs.recheck_no_planner` and queues nothing.
+- [ ] **Step 3: `version_ids_in`, the migration and the store.** `begin_recheck_in` runs inside `put_mark`'s write, only for a new `done == true` mark:
+  - It reads the plan's versions with `Plans::version_ids_in`, in the same write.
+  - It inserts the batch and one pending row per own check of every *other* task with a done mark in any of those versions. The checks come from the attempt chosen above, in `(version, task, ordinal)` order.
+  - A batch with no rows is not inserted. A replay returns before it, and `cause_command` UNIQUE guards it.
+- [ ] **Step 4: `run_check` and `recheck`.** Move `run_check` out of `confirm_attempt` without changing its behavior (`attempt_checks` stays green). `mark_done` spawns `recheck` after its release when a batch was begun. `recheck` waits for quiet, takes the project lock and runs each row.
+  - **The end is one write.** First `recheck` resolves the notice when any outcome is not `passed`: the Planner thread and its settings, the body and the card. Then `finish_batch` writes `finished_at` and that `notice_json` together, so no batch can finish failed without its notice. After that write, the saved notice is queued and `notice_sent_at` is written.
+  - Body: `[Shadows] After T{cause_task} of version {cause_version} was marked done, Shadows reran the checks of the plan's done tasks. These no longer pass:`, then one `check_line` per failing check, each followed by the last 4,000 chars of its output, then `Their done marks stand. Read the change with task_diff, then amend or plan a correction.`
+  - With no live Planner, the batch finishes with `notice_json` NULL and logs `runs.recheck_no_planner`.
 - [ ] **Step 5: Recovery.** In the spawned pass, after the committed attempts:
-  - Each unfinished batch finishes its open rows as Step 1 says, then notifies.
-  - Each finished batch with `notice_json` and no `notice_sent_at` is sent again.
+  - Each unfinished batch finishes its open rows as Step 1 says, then ends through the same single write as Step 4.
+  - Each finished batch with `notice_json` and no `notice_sent_at` is sent again, under the same command id.
 - [ ] **Step 6:** Run Step 2's command, all of `runs_attempts` (`attempt_checks` included), `--test recovery`, `cargo test -p shadows --test openapi`, and the rule 5 checks. Expected: PASS.
-- [ ] **Step 7:** Update the contract: `mark_done` (it begins and spawns the recheck), a `rechecks:` section (trigger, set, storage, notice, recovery), `owns_tables`, `modules` and the six tests. Add code-map rows for `recheck.rs` and `store/rechecks.rs`. Set B-154 to done and commit `feat(core): B-154 a done mark rechecks the plan's done tasks`.
+- [ ] **Step 7:** Update the contracts:
+  - Runs: `mark_done` (it begins and spawns the recheck), a `rechecks:` section (trigger, set, chosen attempt, storage, the single-write end, notice, recovery), `owns_tables`, `modules` and the nine tests.
+  - Plans: `version_ids_in`.
+  - Code-map rows for `recheck.rs` and `store/rechecks.rs`.
+
+  Set B-154 to done and commit `feat(core): B-154 a done mark rechecks the plan's done tasks`.
 
 ## Task B-105: project decisions, proposed by the Planner and accepted by the person
 
@@ -256,7 +295,7 @@ Changes what the web sees: the decision card with Accept, two routes, and `decis
 brief. **Blocked until Masada's shared request for slice 6 is accepted.**
 
 **Files:**
-- Create: `crates/core-db/migrations/0070_design_decisions.sql`
+- Create: `crates/core-db/migrations/0071_design_decisions.sql`
 - Create: `crates/core-design/src/decisions.rs`
 - Create: `crates/core-design/src/store/decisions.rs`
 - Create: `crates/shadows-core/tests/design_decisions.rs`

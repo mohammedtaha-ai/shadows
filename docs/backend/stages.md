@@ -116,17 +116,17 @@ B-152, B-154 and B-105 wait for one shared request from Masada covering their ca
 - Read: `crates/core-runs/contract.yaml` (`recover`, `stop`, `stop_for`, `notify`, transitions); the plan's Review Focus.
 - Touch: the task's Files list in the plan; no other path.
 - Needs: B-153; the accepted request.
-- Done when: the four `stops::` tests and `a_stopped_conflict_keeps_its_one_notice` pass, with all of `runs_attempts` and `recovery`; contract updated; scoped commit.
+- Done when: the six `stops::` tests and `a_stopped_conflict_keeps_its_one_notice` pass, with all of `runs_attempts` and `recovery`; contract updated; scoped commit.
 
 ### B-154 · A done mark rechecks every done task of its plan
 
 - Status: blocked (Masada's shared request for slice 6 must be accepted)
 - Plan: [B-154](plans/2026-11-16-slice-6-stop-control.md#task-b-154-a-done-mark-rechecks-every-done-task-of-its-plan).
 - Owner: Runs.
-- Read: `crates/core-runs/contract.yaml` (`mark_done`, `confirmation`, `done_checks`, `recover`); migration `0063_run_checks.sql`.
+- Read: `crates/core-runs/contract.yaml` (`mark_done`, `confirmation`, `done_checks`, `recover`); `crates/core-plans/contract.yaml` (`get_plan_versions`, `shared_in_transaction`); migration `0063_run_checks.sql`.
 - Touch: the task's Files list in the plan; no other path.
 - Needs: B-152 (same `recover.rs` and contract); the accepted request.
-- Done when: the six `rechecks::` tests pass, with all of `runs_attempts`, `recovery` and `openapi`; contract and code map updated; scoped commit.
+- Done when: the nine `rechecks::` tests pass, with all of `runs_attempts`, `recovery` and `openapi`; contract and code map updated; scoped commit.
 
 ### B-105 · Project decisions, proposed by the Planner and accepted by the person
 
