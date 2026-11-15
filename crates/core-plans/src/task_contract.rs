@@ -56,12 +56,18 @@ pub struct TaskContract {
 )]
 #[serde(deny_unknown_fields)]
 pub struct TaskCheck {
+    /// Chosen by the writer, unique within the task: `c1`.
     pub id: String,
+    /// The program, then its arguments, never a shell line:
+    /// `["go", "test", "./internal/api/..."]`.
     pub run: Vec<String>,
+    /// Where it runs, relative to the project's folder; the folder itself when left out.
     #[serde(default)]
     pub folder: Option<String>,
+    /// Seconds before it is stopped: 1 to 1800, 600 when left out.
     #[serde(default)]
     pub timeout_secs: Option<u32>,
+    /// The task's acceptance items it proves.
     #[serde(default)]
     pub proves: Vec<u32>,
 }

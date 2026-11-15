@@ -1,8 +1,9 @@
 //! A person's done marks, which `needs` links wait for.
 use super::RunsStore;
-use crate::RunsError;
+use crate::{AttemptId, RunsError};
 use core_db::{CommandContext, Storage, StorageError, Tx};
 use core_plans::WorkflowId;
+use core_threads::ThreadId;
 
 /// The command record's scope for done marks: one id names one mark command.
 const MARK_SCOPE: &str = "run.mark_done";
@@ -58,13 +59,15 @@ impl RunsStore {
     /// A replay of the same command with the same request writes nothing, and
     /// with another request is a conflict. The command record keeps every
     /// command, so a later mark of the same task does not forget an earlier one.
+    /// Answers the attempt the mark judged while it still holds its scope and
+    /// the mark is still this command's, also on a replay.
     pub async fn put_mark(
         &self,
         command: CommandContext,
         (workflow, version, task): (&WorkflowId, i64, u32),
         done: bool,
         reason: Option<String>,
-    ) -> Result<(), RunsError> {
+    ) -> Result<Option<(AttemptId, ThreadId)>, RunsError> {
         let (workflow, ts) = (workflow.clone(), Storage::now());
         self.storage
             .write_txn_as(move |conn| {
@@ -76,7 +79,14 @@ impl RunsStore {
                             other => other.into(),
                         })?;
                     if seen.is_some() {
-                        return Ok(());
+                        return Self::judged_scope(
+                            conn,
+                            &workflow,
+                            version,
+                            task,
+                            &command.command_id,
+                        )
+                        .await;
                     }
                     if done && reason.is_none() {
                         let candidate: Option<String> = sqlx::query_scalar(
@@ -119,15 +129,37 @@ impl RunsStore {
                     }
                     let (command_id, fingerprint) =
                         (&command.command_id, &command.request_fingerprint);
+                    // The attempt this mark judges: the task's latest, when it is
+                    // committed and still holds its scope. A replay frees only it.
+                    let judged: Option<String> = if done {
+                        let latest: Option<(String, String, Option<String>)> = sqlx::query_as(
+                            "SELECT id, state, released_at FROM run_attempts
+                            WHERE workflow_id=? AND version=? AND task=?
+                            ORDER BY number DESC LIMIT 1",
+                        )
+                        .bind(workflow.as_str())
+                        .bind(version)
+                        .bind(i64::from(task))
+                        .fetch_optional(&mut *conn)
+                        .await?;
+                        latest
+                            .filter(|(_, state, released)| {
+                                state == "committed" && released.is_none()
+                            })
+                            .map(|(id, _, _)| id)
+                    } else {
+                        None
+                    };
                     sqlx::query(
                         "INSERT INTO run_task_marks
                            (workflow_id, version, task, done, done_at,
-                            command_id, fingerprint,reason)
-                         VALUES (?,?,?,?,?,?,?,?)
+                            command_id, fingerprint,reason,judged_attempt_id)
+                         VALUES (?,?,?,?,?,?,?,?,?)
                          ON CONFLICT (workflow_id, version, task) DO UPDATE SET
                            done = excluded.done, done_at = excluded.done_at,
                            command_id = excluded.command_id,
-                           fingerprint = excluded.fingerprint, reason=excluded.reason",
+                           fingerprint = excluded.fingerprint, reason=excluded.reason,
+                           judged_attempt_id=excluded.judged_attempt_id",
                     )
                     .bind(workflow.as_str())
                     .bind(version)
@@ -137,6 +169,7 @@ impl RunsStore {
                     .bind(command_id)
                     .bind(fingerprint)
                     .bind(reason)
+                    .bind(judged)
                     .execute(&mut *conn)
                     .await?;
                     let mark = format!("{}/{version}/{task}", workflow.as_str());
@@ -150,9 +183,37 @@ impl RunsStore {
                         &ts,
                     )
                     .await?;
-                    Ok(())
+                    Self::judged_scope(conn, &workflow, version, task, command_id).await
                 })
             })
             .await
+    }
+
+    /// The unreleased attempt judged by the current mark, when `command` made it.
+    async fn judged_scope(
+        tx: &mut Tx,
+        workflow: &WorkflowId,
+        version: i64,
+        task: u32,
+        command: &str,
+    ) -> Result<Option<(AttemptId, ThreadId)>, RunsError> {
+        let row: Option<(String, String)> = sqlx::query_as(
+            "SELECT a.id,a.thread_id FROM run_task_marks m
+             JOIN run_attempts a ON a.id=m.judged_attempt_id
+             WHERE m.workflow_id=? AND m.version=? AND m.task=? AND m.command_id=?
+             AND m.done=1 AND a.released_at IS NULL",
+        )
+        .bind(workflow.as_str())
+        .bind(version)
+        .bind(i64::from(task))
+        .bind(command)
+        .fetch_optional(&mut *tx)
+        .await?;
+        Ok(row.map(|(id, thread)| {
+            (
+                AttemptId::from_recorded(id),
+                ThreadId::from_recorded(thread),
+            )
+        }))
     }
 }

@@ -29,9 +29,6 @@ the Rust LSP (or the TypeScript one through Serena) answers it from the code.
 
 ## Architecture Invariants
 
-`core-plans` validates each task contract's command checks. `core-runs` records the executor's
-reported outcomes in `run_checks` with the accepted commit, separately from confirmation results.
-
 `crates/shadows/tests/architecture/` owns the shrinking source-ownership ratchet.
 Its [README](../../crates/shadows/tests/architecture/README.md) describes the
 checks, explicit review cases, fixture mutations and baseline maintenance.
@@ -213,6 +210,10 @@ pattern to follow, not merely an example.
 | `crates/core-runs/src/watch.rs` | settling an attempt when its turn ends | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/notify.rs` | telling a plan's Planner how an attempt ended | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/recover.rs` | settling attempts at startup | `crates/core-runs/contract.yaml` |
+| `crates/core-runs/src/checks.rs` | confirming an attempt's task checks | `crates/core-runs/contract.yaml` |
+| `crates/core-runs/src/store/checks.rs` | check results SQL | `crates/core-runs/contract.yaml` |
+| `crates/core-runs/src/message.rs` | plain questions to a task's executor | `crates/core-runs/contract.yaml` |
+| `crates/core-runs/src/store/messages.rs` | ordered questions SQL | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/store/` | run persistence | `crates/core-runs/contract.yaml` |
 | `crates/core-runtime/src/` | the runtime instance's lifecycle | `crates/core-runtime/src/lib.rs` |
 | `crates/core-runtime/src/lib.rs` | runtime registration boundary | `crates/core-runtime/contract.yaml` |
@@ -588,11 +589,3 @@ file disagrees with either, they are right and this file is the defect.
 | `crates/core-plans/src/phases.rs` | ordered phase contracts | `crates/core-plans/contract.yaml` |
 | `crates/core-plans/src/store/phase_refs.rs` | exact phase target resolution | `crates/core-plans/contract.yaml` |
 | `crates/core-plans/src/store/phase_projection.rs` | pinned foreign-phase previews | `crates/core-plans/contract.yaml` |
-
-| `crates/core-runs/src/checks.rs` | task command confirmation | `crates/core-runs/contract.yaml` |
-| `crates/core-runs/src/store/checks.rs` | command result persistence | `crates/core-runs/contract.yaml` |
-| `crates/core-runs/src/message.rs` | plain questions to task executors | `crates/core-runs/contract.yaml` |
-| `crates/core-runs/src/store/messages.rs` | ordered question persistence | `crates/core-runs/contract.yaml` |
-
-Runs validates done-mark reasons with its confirmation specs inside the mark transaction;
-the attempt checks endpoint and Planner task_checks tool read those same recorded results.

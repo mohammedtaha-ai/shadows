@@ -9,11 +9,11 @@
 //! a replay. A notice that cannot be sent never fails the attempt; the caller
 //! logs it.
 //!
-//! A conflict's notice is resolved once, saved on the attempt before its
-//! first enqueue, and every retry sends that same payload: changed Planner
-//! settings or a later attempt state cannot change the replay. Its delivery
-//! is `pending` until an enqueue (or its replay) succeeds, `no_planner` when
-//! the plan has no live Planner conversation.
+//! Every notice is resolved once, saved before its first enqueue, and every
+//! retry sends that same payload: changed Planner settings or a later attempt
+//! state cannot change the replay's fingerprint. A conflict's delivery is
+//! `pending` until an enqueue (or its replay) succeeds, `no_planner` when the
+//! plan has no live Planner conversation.
 use crate::amend::ADDITIONS;
 use crate::model::{Attempt, AttemptNotice, AttemptState, ConflictDelivery, TaskConflict};
 use crate::{Runs, RunsError};
@@ -224,8 +224,34 @@ impl Runs {
             .unwrap_or_else(|| format!("T{}", attempt.task))
     }
 
-    /// The notice that `attempt`, without a conflict, committed or failed.
+    /// The notice that `attempt`, without a conflict, committed or failed:
+    /// resolved once and saved, so a retry after a restart replays it.
     async fn notify_ended(&self, attempt: &Attempt) -> Result<(), RunsError> {
+        let saved = match self.inner.store.ended_notice(&attempt.id).await? {
+            Some(saved) => saved,
+            None => {
+                let Some(intent) = self.ended_intent(attempt).await? else {
+                    return Ok(());
+                };
+                self.inner
+                    .store
+                    .keep_ended_notice(&attempt.id, serde_json::to_string(&intent)?)
+                    .await?
+            }
+        };
+        let intent: NoticeIntent = serde_json::from_str(&saved)?;
+        let (thread, turn, notice) = intent.rebuild(attempt, format!("notify-{}", attempt.id));
+        self.inner
+            .turns
+            .queue_notice(thread, turn, notice)
+            .await
+            .map(|_| ())
+            .map_err(|error| RunsError::Unavailable(format!("the notice was not queued: {error}")))
+    }
+
+    /// Resolves the ended notice from the attempt as it stands now; `None`
+    /// when the plan has no live Planner conversation.
+    async fn ended_intent(&self, attempt: &Attempt) -> Result<Option<NoticeIntent>, RunsError> {
         let Some(Recipient {
             plan,
             thread: thread_id,
@@ -233,7 +259,7 @@ impl Runs {
         }) = self.recipient(attempt).await?
         else {
             tracing::warn!(attempt = %attempt.id, "runs.notify_no_planner");
-            return Ok(());
+            return Ok(None);
         };
         let title = Self::title(&plan, attempt);
         let mut card = AttemptNotice {
@@ -263,16 +289,27 @@ impl Runs {
                 for check in &mut card.checks {
                     check.output = None;
                 }
-                let checks = results
+                let mut checks = results
                     .iter()
-                    .map(|c| {
-                        format!(
-                            "T{} {} {:?}; executor reported {:?}",
-                            c.for_task, c.id, c.outcome, c.reported
-                        )
-                    })
-                    .collect::<Vec<_>>()
-                    .join("\n");
+                    .map(|c| format!("{}\n", Self::check_line(c, attempt.task, "the executor")))
+                    .collect::<String>();
+                if results
+                    .iter()
+                    .any(|c| c.outcome != Some(crate::CheckOutcome::Passed))
+                {
+                    let returns = self.inner.store.returns_since(&attempt.id).await?;
+                    checks.push_str(if returns >= 2 {
+                        "Shadows returned it to the executor twice; read task_checks for the \
+                         output.\n"
+                    } else {
+                        "Read task_checks for the output.\n"
+                    });
+                }
+                let checks = if checks.is_empty() {
+                    checks
+                } else {
+                    format!("Checks:\n{checks}")
+                };
                 let files = match self.diff(&attempt.id).await {
                     Ok(files) if !files.is_empty() => files
                         .iter()
@@ -305,9 +342,8 @@ impl Runs {
                 };
                 format!(
                     "{head} committed {}.\nFiles: {files}\nThe executor's report:\n{report}\n\
-                     {last}Checks:\n{checks}\nRead its change with task_diff and task_file, \
-                     then judge it against \
-                     T{}'s acceptance items before you mark it done.",
+                     {last}{checks}Read its change with task_diff and task_file, then judge \
+                     it against T{}'s acceptance items before you mark it done.",
                     attempt.commit.as_deref().unwrap_or_default(),
                     attempt.task
                 )
@@ -328,26 +364,14 @@ impl Runs {
                 )
             }
         };
-        let turn = SendTurn {
-            command_id: format!("notify-{}", attempt.id),
-            prompt,
-            attachments: vec![],
+        Ok(Some(NoticeIntent {
+            planner: thread_id,
+            body: prompt,
             model: invocation.requested_model,
             mode: invocation.requested_mode,
             effort: invocation.requested_effort,
-            focus: None,
-            plan: None,
-            client_tab: None,
-        };
-        let notice = Notice {
-            executor: Some(attempt.thread_id.clone()),
             card: serde_json::to_value(&card)?,
-        };
-        let queued = self.inner.turns.queue_notice(thread_id, turn, notice);
-        queued
-            .await
-            .map(|_| ())
-            .map_err(|error| RunsError::Unavailable(format!("the notice was not queued: {error}")))
+        }))
     }
 
     /// Keeps the executor's answer, cut at 4,000 chars, when no commit

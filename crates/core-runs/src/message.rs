@@ -91,7 +91,8 @@ impl Runs {
         }
     }
 
-    async fn thread_busy(&self, thread: &ThreadId) -> Result<bool, RunsError> {
+    /// Whether a turn of any kind runs on `thread` now.
+    pub(crate) async fn thread_busy(&self, thread: &ThreadId) -> Result<bool, RunsError> {
         Ok(self
             .inner
             .turns

@@ -16,6 +16,42 @@ pub(crate) struct Finished {
 }
 
 impl RunsStore {
+    /// The attempt's committed or failed notice as first resolved, if it was.
+    pub async fn ended_notice(&self, id: &AttemptId) -> Result<Option<String>, RunsError> {
+        Ok(sqlx::query_scalar::<_, Option<String>>(
+            "SELECT ended_notice_json FROM run_attempts WHERE id=?",
+        )
+        .bind(id.as_str())
+        .fetch_optional(self.storage.reader())
+        .await?
+        .flatten())
+    }
+
+    /// Saves `notice` unless one is saved already, and answers the saved one.
+    pub async fn keep_ended_notice(
+        &self,
+        id: &AttemptId,
+        notice: String,
+    ) -> Result<String, RunsError> {
+        let id = id.clone();
+        self.storage
+            .write_txn_as(move |tx| {
+                Box::pin(async move {
+                    sqlx::query_scalar(
+                        "UPDATE run_attempts
+                SET ended_notice_json=COALESCE(ended_notice_json,?)
+                WHERE id=? RETURNING ended_notice_json",
+                    )
+                    .bind(notice)
+                    .bind(id.as_str())
+                    .fetch_one(&mut *tx)
+                    .await
+                    .map_err(Into::into)
+                })
+            })
+            .await
+    }
+
     pub async fn check_specs(
         &self,
         id: &AttemptId,

@@ -3945,11 +3945,21 @@ export interface components {
         };
         /** @description A program with arguments that proves acceptance items without a shell. */
         TaskCheck: {
+            /** @description Where it runs, relative to the project's folder; the folder itself when left out. */
             folder?: string | null;
+            /** @description Chosen by the writer, unique within the task: `c1`. */
             id: string;
+            /** @description The task's acceptance items it proves. */
             proves?: number[];
+            /**
+             * @description The program, then its arguments, never a shell line:
+             *     `["go", "test", "./internal/api/..."]`.
+             */
             run: string[];
-            /** Format: int32 */
+            /**
+             * Format: int32
+             * @description Seconds before it is stopped: 1 to 1800, 600 when left out.
+             */
             timeout_secs?: number | null;
         };
         /**

@@ -5,8 +5,7 @@ use super::*;
 use core_runs::AttemptId;
 use shadows_core::Grant;
 
-/// T3 writes `backend/app/**`, T5 `web/**`.
-
+/// Saves T3's context for `attempt`, as Start does, with two checks: `c1` and `c2`.
 async fn saved_checks(f: &Fixture, attempt: &AttemptId, grant: &Grant) {
     let mut context = f
         .core

@@ -316,18 +316,13 @@ impl Runs {
             let details = results
                 .iter()
                 .map(|c| {
-                    format!(
-                        "T{} {} {:?}\n{}",
-                        c.for_task,
-                        c.id,
-                        c.outcome,
-                        c.output
-                            .as_deref()
-                            .unwrap_or_default()
-                            .chars()
-                            .take(4000)
-                            .collect::<String>()
-                    )
+                    let line = Self::check_line(c, attempt.task, "you");
+                    if c.outcome == Some(CheckOutcome::Passed) {
+                        return line;
+                    }
+                    let output = c.output.as_deref().unwrap_or_default();
+                    let skip = output.chars().count().saturating_sub(4000);
+                    format!("{line}\n{}", output.chars().skip(skip).collect::<String>())
                 })
                 .collect::<Vec<_>>()
                 .join("\n");
@@ -339,6 +334,18 @@ impl Runs {
                 attempt.task,
                 crate::COMMIT
             );
+            // A question's turn on this thread would make the return's turn fail to send:
+            // wait for it to end under the lock `pump` sends under, so none starts before
+            // the running attempt bars it.
+            let lock = self.message_lock(&attempt.thread_id).await;
+            let held = loop {
+                let held = lock.lock().await;
+                if !self.thread_busy(&attempt.thread_id).await? {
+                    break held;
+                }
+                drop(held);
+                tokio::time::sleep(Duration::from_secs(1)).await;
+            };
             let next = self
                 .inner
                 .store
@@ -354,6 +361,7 @@ impl Runs {
                     },
                 )
                 .await;
+            drop(held);
             match next {
                 Ok(next) => {
                     self.run_turn(next, prompt).await?;
@@ -364,6 +372,40 @@ impl Runs {
         }
         self.notify(attempt).await?;
         self.inner.store.mark_notice_sent(&attempt.id).await
+    }
+
+    /// One check as a prompt line: `c1 passed`, `c2 failed (exit 1); {who} reported passed`,
+    /// and `T3 c1 passed` for a check of a task that `task` uses.
+    pub(crate) fn check_line(check: &CheckResult, task: u32, who: &str) -> String {
+        fn wire<T: serde::Serialize>(value: T) -> String {
+            serde_json::to_value(value)
+                .ok()
+                .and_then(|v| v.as_str().map(str::to_string))
+                .unwrap_or_default()
+        }
+        let mut line = if check.for_task == task {
+            check.id.clone()
+        } else {
+            format!("T{} {}", check.for_task, check.id)
+        };
+        match check.outcome {
+            Some(outcome) => {
+                line.push(' ');
+                line.push_str(&wire(outcome));
+            }
+            None => line.push_str(" has no result yet"),
+        }
+        if check.outcome != Some(CheckOutcome::Passed)
+            && let Some(code) = check.exit_code
+        {
+            line.push_str(&format!(" (exit {code})"));
+        }
+        if check.matches == Some(false)
+            && let Some(reported) = check.reported
+        {
+            line.push_str(&format!("; {who} reported {}", wire(reported)));
+        }
+        line
     }
 }
 

@@ -7534,15 +7534,18 @@
         "description": "A program with arguments that proves acceptance items without a shell.",
         "properties": {
           "folder": {
+            "description": "Where it runs, relative to the project's folder; the folder itself when left out.",
             "type": [
               "string",
               "null"
             ]
           },
           "id": {
+            "description": "Chosen by the writer, unique within the task: `c1`.",
             "type": "string"
           },
           "proves": {
+            "description": "The task's acceptance items it proves.",
             "items": {
               "format": "int32",
               "minimum": 0,
@@ -7551,12 +7554,14 @@
             "type": "array"
           },
           "run": {
+            "description": "The program, then its arguments, never a shell line:\n`[\"go\", \"test\", \"./internal/api/...\"]`.",
             "items": {
               "type": "string"
             },
             "type": "array"
           },
           "timeout_secs": {
+            "description": "Seconds before it is stopped: 1 to 1800, 600 when left out.",
             "format": "int32",
             "minimum": 0,
             "type": [

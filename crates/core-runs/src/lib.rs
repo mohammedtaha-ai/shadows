@@ -92,7 +92,10 @@ const COMMIT: &str = "Other executors may work in the same folder at once. Run o
 const EXECUTOR_HARNESS: &str = shadows_agent::policy::CLAUDE_CODE;
 
 struct Inner {
+    /// One lock per executor thread: a question's send, a release and a
+    /// return's start never interleave on it.
     messaging: tokio::sync::Mutex<std::collections::HashMap<ThreadId, Arc<tokio::sync::Mutex<()>>>>,
+    /// One lock per project: Shadows runs one check at a time there.
     checking: tokio::sync::Mutex<std::collections::HashMap<ProjectId, Arc<tokio::sync::Mutex<()>>>>,
     store: RunsStore,
     plans: Plans,
@@ -247,24 +250,23 @@ impl Runs {
         let reason = reason
             .map(|r| r.trim().to_string())
             .filter(|r| !r.is_empty());
-        let command = CommandContext::user(
-            command,
-            "run.mark_done",
-            serde_json::json!({
-                "workflow": workflow, "version": version, "task": task, "done": done,
-                "reason": reason,
-            }),
-        );
-        self.inner
+        // A mark without a reason fingerprints with no `reason` key, as marks
+        // recorded before reasons existed did, so their replays still answer.
+        let mut input = serde_json::json!({
+            "workflow": workflow, "version": version, "task": task, "done": done,
+        });
+        if let Some(reason) = &reason {
+            input["reason"] = serde_json::json!(reason);
+        }
+        let command = CommandContext::user(command, "run.mark_done", input);
+        let judged = self
+            .inner
             .store
             .put_mark(command, (workflow, version, task), done, reason)
             .await?;
-        // The judged commit's executor can write no more: close its session
-        // and free its scope. Release is idempotent, so a replay is harmless.
-        if done
-            && let Some((attempt, thread)) =
-                self.inner.store.awaiting(workflow, version, task).await?
-        {
+        // Only the attempt the mark judged, and only while that mark stands:
+        // a replay never frees work admitted after it.
+        if let Some((attempt, thread)) = judged {
             self.release_after_mark(&attempt, &thread).await;
         }
         self.task(workflow, version, task).await

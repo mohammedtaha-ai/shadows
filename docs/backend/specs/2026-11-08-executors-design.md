@@ -268,7 +268,8 @@ task's three additions. Its tool is `message_agent`; the answer reaches the Plan
 - **One message at a time per agent, in order.** Whether the agent is busy is read from its
   thread's running turn, never from its attempt's state (an attempt is `committed` while its turn
   still ends). An addition sent while the agent answers a message is refused until the reply
-  arrives, and a done mark waits for the reply before it closes the session. The same text sent
+  arrives, a return after failed checks (§5.4) waits for the reply's turn to end, and a done
+  mark waits for the reply before it closes the session. The same text sent
   again to the same attempt before its reply is the same message; after the reply it is a new
   question (MCP carries no command id, as for `task_start`).
 - **The Planner only, for now.** The person asking a task's agent from the task page, and other
@@ -315,7 +316,11 @@ the agent's word. This replaces the critic's evidence role (§5.1 already replac
   reason when any of its checks did not pass or has no finished result yet. The reason is recorded
   and shown with the mark. The Planner still judges (§5.1).
 - **A restart loses nothing.** A committed attempt whose checks did not all finish runs them again
-  at startup; one whose results are complete but whose notice was not sent sends it.
+  at startup; one whose results are complete but whose notice was not sent sends it. A notice is
+  written once, before it is first sent, and a resend is that same notice, so it is never sent
+  twice, even when the Planner's settings changed in between.
+- **A done mark frees only the attempt it judged.** The mark records the attempt it judged; the
+  same mark sent again finishes freeing that attempt and never frees a later one.
 - **The lock orders Shadows' own runs only.** What executors run is ordered by their instructions
   and by waiting on a lock error, as above.
 - **An addition is a new attempt,** with its own commit and its own checks.

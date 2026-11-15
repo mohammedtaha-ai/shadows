@@ -44,7 +44,8 @@ for the critic, which §5.1 replaced. Its steps are not executable.
   refusals. A notice's command id names its attempt or message, so a repeat is a replay.
 - Migrations on this baseline (the last is `0062_attempt_conflicts.sql`):
   `0063_run_checks.sql` (B-111), `0064_attempt_origin.sql` (B-113),
-  `0065_mark_reason.sql` (B-114), `0066_agent_messages.sql` (B-150). Renumber only an unshipped
+  `0065_mark_reason.sql` (B-114), `0066_agent_messages.sql` (B-150),
+  `0067_ended_notice.sql` (B-113 and B-114, see "Notices and marks that replay"). Renumber only an unshipped
   file if another branch takes a number. Style: one comment saying what the table or column
   holds, `CHECK` for every closed set, `json_valid` on JSON columns, as `0062` does.
 - A new `RunsError` variant gets its `code()` arm in `crates/core-runs/src/error.rs`; HTTP
@@ -558,6 +559,36 @@ in `crates/shadows/tests/planner_mcp.rs`: `message_agent_tool_listed`.
 **Run:** `cargo test -p shadows-core --test runs_attempts`, `--test executor_session`;
 `cargo test -p shadows --test planner_mcp --test planner_instructions`.
 **Commit:** `feat(runs): the Planner messages a task's agent`.
+
+### Notices and marks that replay (B-113, B-114, B-150)
+
+**Owner:** Runs. Found while building B-150; it completes B-113's restart rule and B-114's
+release.
+
+1. `crates/core-db/migrations/0067_ended_notice.sql`:
+   ```sql
+   ALTER TABLE run_attempts ADD COLUMN ended_notice_json TEXT NULL
+       CHECK (ended_notice_json IS NULL OR json_valid(ended_notice_json));
+   ALTER TABLE run_task_marks ADD COLUMN judged_attempt_id TEXT NULL
+       REFERENCES run_attempts(id) ON DELETE SET NULL;
+   ```
+2. `crates/core-runs/src/notify.rs`: a committed or failed notice is resolved once into a
+   `NoticeIntent`, as a conflict's already is, and saved in `ended_notice_json`
+   (`RunsStore::ended_notice`, `keep_ended_notice` in `store/checks.rs`) before its first
+   `queue_notice`; every retry sends the saved payload, so a restart between the enqueue and
+   `mark_notice_sent` replays `notify-{attempt}` even when the Planner's settings changed.
+3. `crates/core-runs/src/store/marks.rs`: `put_mark` records, in the mark's own write,
+   `judged_attempt_id` (the task's latest attempt when it is committed and holds its scope) and
+   answers it while it is unreleased and the mark is still this command's, also on a replay.
+   `mark_done` releases only that attempt, so a replay never frees an attempt admitted after the
+   first call. A mark without a reason keeps a fingerprint with no `reason` key.
+4. `crates/core-runs/src/checks.rs`: a return waits, under the thread's message lock, until no
+   turn (a question's) runs on the executor thread, before `continue_attempt`.
+
+**Tests**, in `runs_attempts/checks.rs`: `replayed_done_does_not_release_a_newer_attempt`,
+`done_replay_finishes_only_its_original_scope_release`,
+`done_without_reason_replays_a_fingerprint_with_no_reason_key`,
+`committed_notice_replay_keeps_planner_settings`, `notice_lists_each_check_on_its_line`.
 
 ### F-103 · Checks and replies in the task page
 

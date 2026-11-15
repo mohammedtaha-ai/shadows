@@ -182,13 +182,10 @@ async fn failed_confirmation_returns_to_executor() {
         if attempts.len() > 1 {
             assert_eq!(attempts[0].origin, core_runs::AttemptOrigin::Checks);
             assert_eq!(attempts[0].thread_id, attempts[1].thread_id);
-            assert!(
-                attempts[0]
-                    .addition
-                    .as_deref()
-                    .unwrap()
-                    .contains("did not all pass")
-            );
+            let addition = attempts[0].addition.as_deref().unwrap();
+            assert!(addition.contains("did not all pass"), "{addition}");
+            assert!(addition.contains("\nc1 failed (exit 128)"), "{addition}");
+            assert!(addition.contains("no-such-ref"), "{addition}");
             f.finish().await;
             return;
         }
@@ -902,4 +899,232 @@ async fn done_replay_answers_after_checks_change() {
             .done
     );
     f.finish().await;
+}
+
+#[tokio::test]
+async fn replayed_done_does_not_release_a_newer_attempt() {
+    let (f, id, _, sha) = candidate(vec![cmd(&["git", "--version"])]).await;
+    confirmed(&f, &id, "passed").await;
+    f.core
+        .runs()
+        .mark_done("judge".into(), &f.workflow, 1, 3, true, None)
+        .await
+        .unwrap();
+    f.core
+        .runs()
+        .mark_done("undo".into(), &f.workflow, 1, 3, false, None)
+        .await
+        .unwrap();
+    let next = clone_attempt(&f, &id, "newer", "start").await;
+    sqlx::query(
+        "UPDATE run_attempts SET state='committed',commit_sha=?,
+        ended_at='2026-11-15T00:00:01Z' WHERE id=?",
+    )
+    .bind(sha)
+    .bind(next.as_str())
+    .execute(f.storage.reader())
+    .await
+    .unwrap();
+    let answer = f
+        .core
+        .runs()
+        .mark_done("judge".into(), &f.workflow, 1, 3, true, None)
+        .await
+        .unwrap();
+    assert!(!answer.done);
+    let released: Option<String> =
+        sqlx::query_scalar("SELECT released_at FROM run_attempts WHERE id=?")
+            .bind(next.as_str())
+            .fetch_one(f.storage.reader())
+            .await
+            .unwrap();
+    assert!(
+        released.is_none(),
+        "a replay must not release the newer attempt"
+    );
+    f.finish().await;
+}
+
+#[tokio::test]
+async fn committed_notice_replay_keeps_planner_settings() {
+    let (f, id, _, _) = candidate(vec![cmd(&["git", "--version"])]).await;
+    let planner = prepare_planner(&f).await;
+    confirmed(&f, &id, "passed").await;
+    f.core.runs().recover().await.unwrap();
+    wait_notice(&f, &id).await;
+    for op in f.core.turns().operations(&planner).await.unwrap() {
+        if op.finished_at.is_none() {
+            shadows_core::Turns::mark_operation_failed_for_test(
+                &f.storage,
+                &op.id,
+                shadows_core::testing::FailureStage::Prepare,
+                "recorded only",
+            )
+            .await
+            .unwrap();
+        }
+    }
+    planner_turn(&f, "settings-changed", "claude-code", "fake-small").await;
+    let runtime = shadows_core::testing::Runtime::start(f.storage.clone())
+        .await
+        .unwrap();
+    shadows_core::Turns::create_pending_operation_for_test(
+        &f.storage,
+        &planner,
+        runtime.instance_id(),
+    )
+    .await
+    .unwrap();
+    sqlx::query("UPDATE run_attempts SET notice_sent_at=NULL WHERE id=?")
+        .bind(id.as_str())
+        .execute(f.storage.reader())
+        .await
+        .unwrap();
+    f.core.runs().recover().await.unwrap();
+    wait_notice(&f, &id).await;
+    assert_eq!(f.core.turns().queued(&planner).await.unwrap().len(), 1);
+    f.finish().await;
+}
+
+#[tokio::test]
+async fn done_without_reason_replays_a_fingerprint_with_no_reason_key() {
+    let (f, id, _, _) = candidate(vec![cmd(&["git", "--version"])]).await;
+    confirmed(&f, &id, "passed").await;
+    f.core
+        .runs()
+        .mark_done("earlier".into(), &f.workflow, 1, 3, true, None)
+        .await
+        .unwrap();
+    let old = CommandContext::fingerprint(
+        "run.mark_done",
+        &serde_json::json!({
+            "workflow":f.workflow,"version":1,"task":3,"done":true
+        }),
+    );
+    sqlx::query(
+        "UPDATE command_record SET request_fingerprint=?
+        WHERE command_scope_kind='run.mark_done' AND command_id='earlier'",
+    )
+    .bind(old)
+    .execute(f.storage.reader())
+    .await
+    .unwrap();
+    assert!(
+        f.core
+            .runs()
+            .mark_done("earlier".into(), &f.workflow, 1, 3, true, None)
+            .await
+            .unwrap()
+            .done
+    );
+    f.finish().await;
+}
+
+#[tokio::test]
+async fn done_replay_finishes_only_its_original_scope_release() {
+    let (f, id, _, sha) = candidate(vec![cmd(&["git", "--version"])]).await;
+    confirmed(&f, &id, "passed").await;
+    f.core
+        .runs()
+        .mark_done("judge".into(), &f.workflow, 1, 3, true, None)
+        .await
+        .unwrap();
+    sqlx::query("UPDATE run_attempts SET released_at=NULL WHERE id=?")
+        .bind(id.as_str())
+        .execute(f.storage.reader())
+        .await
+        .unwrap();
+    f.core
+        .runs()
+        .mark_done("judge".into(), &f.workflow, 1, 3, true, None)
+        .await
+        .unwrap();
+    let released: Option<String> =
+        sqlx::query_scalar("SELECT released_at FROM run_attempts WHERE id=?")
+            .bind(id.as_str())
+            .fetch_one(f.storage.reader())
+            .await
+            .unwrap();
+    assert!(
+        released.is_some(),
+        "a replay must finish its original pending release"
+    );
+    let next = clone_attempt(&f, &id, "newer", "start").await;
+    sqlx::query(
+        "UPDATE run_attempts SET state='committed',commit_sha=?,
+        ended_at='2026-11-15T00:00:01Z' WHERE id=?",
+    )
+    .bind(sha)
+    .bind(next.as_str())
+    .execute(f.storage.reader())
+    .await
+    .unwrap();
+    f.core
+        .runs()
+        .mark_done("judge".into(), &f.workflow, 1, 3, true, None)
+        .await
+        .unwrap();
+    let released: Option<String> =
+        sqlx::query_scalar("SELECT released_at FROM run_attempts WHERE id=?")
+            .bind(next.as_str())
+            .fetch_one(f.storage.reader())
+            .await
+            .unwrap();
+    assert!(
+        released.is_none(),
+        "the mark still names its original attempt"
+    );
+    f.finish().await;
+}
+
+#[tokio::test]
+async fn notice_lists_each_check_on_its_line() {
+    let (f, id, _, _) = candidate(vec![cmd(&["git", "--version"])]).await;
+    let planner = prepare_planner(&f).await;
+    confirmed(&f, &id, "passed").await;
+    sqlx::query("UPDATE run_checks SET reported='failed' WHERE attempt_id=?")
+        .bind(id.as_str())
+        .execute(f.storage.reader())
+        .await
+        .unwrap();
+    f.core.runs().recover().await.unwrap();
+    wait_notice(&f, &id).await;
+    let queued = f.core.turns().queued(&planner).await.unwrap();
+    let prompt = &queued[0].prompt;
+    assert!(
+        prompt.contains("Checks:\nc1 passed; the executor reported failed\n"),
+        "{prompt}"
+    );
+    assert!(!prompt.contains("Some("), "{prompt}");
+    f.finish().await;
+}
+
+#[tokio::test]
+async fn return_waits_for_a_turn_on_its_thread() {
+    let (f, id, _, _) = candidate(vec![cmd(&["git", "--version"])]).await;
+    confirmed(&f, &id, "failed").await;
+    let operation = recorded_turn(&f, &id, "question").await;
+    f.core.runs().recover().await.unwrap();
+    tokio::time::sleep(Duration::from_millis(1500)).await;
+    assert_eq!(
+        f.core
+            .runs()
+            .attempts(&f.workflow, 1, 3)
+            .await
+            .unwrap()
+            .len(),
+        1,
+        "a return must not start while a turn runs on its thread"
+    );
+    end_turn(&f, &operation).await;
+    for _ in 0..300 {
+        let attempts = f.core.runs().attempts(&f.workflow, 1, 3).await.unwrap();
+        if attempts.len() > 1 {
+            assert_eq!(attempts[0].origin, core_runs::AttemptOrigin::Checks);
+            f.finish().await;
+            return;
+        }
+        tokio::time::sleep(Duration::from_millis(25)).await;
+    }
+    panic!("the return never followed the turn's end");
 }

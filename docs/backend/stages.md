@@ -127,7 +127,9 @@ B-150 → F-103 → B-151. Each task's files, interfaces, tests and commit are i
 
 ### B-151 · Real slice 5 acceptance
 
-- Status: todo
+- Status: doing. Step 1: `checks_live` passed on the signed-in subscription (Sonnet, 2026-11-15:
+  three attempts, both checks confirmed, done refused then recorded with a reason, two replies).
+  The browser journey (step 2) and the evidence (step 3) remain.
 - Plan: [B-151](plans/2026-11-15-slice-5-checks.md#b-151--real-slice-5-acceptance).
 - Owner: integration acceptance through AppCore and the real UI.
 - Needs: B-111, B-113, B-114, B-150, F-103.
