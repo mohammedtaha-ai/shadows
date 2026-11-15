@@ -1,6 +1,6 @@
 # Slice 6: stop and interrupt cards, the recheck card, project decisions
 
-- Status: asked
+- Status: answered
 - Asked by: Masada, 2026-11-16
 - Screen: the Planner's conversation (`web/src/app/conversation/`), the task page's brief
   (`web/src/app/tasks/brief-panel.tsx`); backend plan
@@ -75,8 +75,39 @@ card and the list refresh. Name it in the answer; the web refetches `…/decisio
 
 ## Backend answer
 
-<Hamoud: as asked / with a change / not possible, and why. Name the service
-and contract it touches.>
+Hamoud, 2026-11-16: **as asked**, with three precisions. Each change is in its owner, and the
+plan's tasks now name the extra files.
+
+**B-152 (Runs, `crates/core-runs/contract.yaml`): as asked.**
+- `AttemptNotice.left_files: string[] | null` (serde default, so saved notices still read).
+- For `interrupted` and `stopped` it holds the attempt's uncommitted paths inside its writes:
+  `[]` when there are none, `null` when git could not tell. For every other outcome it is `null`.
+- The card is saved with the notice before its first enqueue, so a resend carries the same list.
+- `reason` and `report` stay `null` for these two outcomes; `report` stays `null` even when the
+  executor left a last message, which goes only to the Planner's body.
+- `AttemptNotice` changes, so `api/openapi.json` is regenerated in B-152.
+
+**B-154 (Runs): as asked.**
+- `RecheckNotice` and `RecheckFailure` are registered in `components.schemas`; `Notice.card`
+  stays an open object.
+- The card is told by `recheck_id`.
+- A `RecheckFailure` names its own `workflow_id` and `version`, so its task always exists in
+  that version. A link to the plan's latest version may not find it; that is the row without a
+  link in your Errors table.
+
+**B-105 (Design, with Threads and Events): as asked.**
+- `decision_propose` writes a `DecisionProposal` thread entry (a new `ThreadEntryKind`, owned by
+  Threads) in the same write as the revision. Its card is the `DecisionRecord` as proposed; the
+  live state is read from `GET …/decisions`, as with `VisionProposal`.
+- Project stream: `DecisionProposed` and `DecisionAccepted`, identifiers only:
+  `{ project_id, decision_id, version }`. Each is appended inside its own write. Accepting a new
+  version also supersedes the old one in that write, and sends no third event: refetch the list
+  on `DecisionAccepted`.
+- `POST …/accept`: a replay with the same `command_id` answers the same record.
+  `decision_stale` is HTTP 409 with code `decision_stale`; `invalid_decision` is 422.
+- `context.decisions` is absent when empty, in the brief as in `TaskContext`.
+
+Status: answered.
 
 ## Frontend reply
 

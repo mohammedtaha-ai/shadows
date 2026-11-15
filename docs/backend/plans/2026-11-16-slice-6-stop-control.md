@@ -176,9 +176,12 @@ What is left, checked in the code on 2026-11-16:
 
 ## Task B-152: the Planner hears of an interrupted attempt and of the person's Stop
 
-Changes what the web sees: two new notice cards (`outcome: interrupted` and `outcome: stopped`)
-in the Planner's conversation. `AttemptNotice` keeps its shape and OpenAPI does not change, but
-the web must render the two cards. **Blocked until Masada's shared request for slice 6 is accepted.**
+Changes what the web sees:
+- two new notice cards in the Planner's conversation, `outcome: interrupted` and `outcome: stopped`;
+- a new field, `AttemptNotice.left_files: Option<Vec<String>>` (serde default).
+
+This is as the [shared request](../../shared/requests/2026-11-16-slice-6-stop-control.md)'s
+answer says. **Blocked until that request is accepted.**
 
 **Files:**
 - Create: `crates/core-db/migrations/0069_attempt_notice_due.sql` (`ALTER TABLE run_attempts ADD COLUMN notice_due INTEGER NOT NULL DEFAULT 0 CHECK (notice_due IN (0,1))`; existing rows stay 0, so no old attempt is notified)
@@ -187,7 +190,8 @@ the web must render the two cards. **Blocked until Masada's shared request for s
 - Modify: `crates/core-runs/src/store/recover.rs` (`settle_running` marks the notice due; `due_notices`)
 - Modify: `crates/core-runs/src/store/mod.rs` (`finish_owed`, beside `finish`)
 - Modify: `crates/core-runs/src/stop.rs`
-- Modify: `crates/core-runs/contract.yaml`
+- Modify: `crates/core-runs/src/model.rs` (`AttemptNotice.left_files`)
+- Modify: `crates/core-runs/contract.yaml`, `api/openapi.json` (regenerated)
 - Modify: `docs/backend/stages.md`
 - Test: `crates/shadows-core/tests/runs_attempts/stops.rs` (new; `#[path]` module in `runs_attempts.rs`), `crates/shadows-core/tests/task_conflicts.rs`
 
@@ -202,7 +206,7 @@ the web must render the two cards. **Blocked until Masada's shared request for s
 - Consumes: `notify` / `notify_ended` (unchanged road; its saved intent and `notify-<attempt>` id make a resend safe), and the `dirty` read Start and report use (the paths changed inside the attempt's writes).
 
 - [ ] **Step 1: Write the failing tests** in `runs_attempts/stops.rs`:
-  - `a_restart_tells_the_planner_of_each_interrupted_attempt`: T1 is Running and has written `backend/app/a.php` uncommitted. Restart (the restart pattern of `task_conflicts::restart_replays_pending_conflict_once`). The Planner's thread gets one queued notice, command id `notify-<attempt>`; its card has `outcome: interrupted`; its body contains `was interrupted` and `backend/app/a.php`.
+  - `a_restart_tells_the_planner_of_each_interrupted_attempt`: T1 is Running and has written `backend/app/a.php` uncommitted. Restart (the restart pattern of `task_conflicts::restart_replays_pending_conflict_once`). The Planner's thread gets one queued notice, command id `notify-<attempt>`; its card has `outcome: interrupted` and `left_files == ["backend/app/a.php"]`; its body contains `was interrupted` and `backend/app/a.php`.
   - `a_second_restart_sends_no_second_interrupted_notice`: restart twice; still one notice.
   - `an_owed_notice_is_sent_on_the_next_start`: the attempt is settled Interrupted with its notice due, but the start ends before the notice is queued (the fixture drops the daemon after `settle_running`, before the spawned pass sends). The next start queues exactly one notice for it.
   - `a_persons_stop_notice_survives_a_failed_enqueue`: the person's Stop succeeds while the enqueue fails (the Planner thread has no turn settings yet, so `notify` answers `Unavailable`). After the Planner has run a turn, a restart sends exactly one `stopped` notice.
@@ -215,7 +219,7 @@ the web must render the two cards. **Blocked until Masada's shared request for s
 - [ ] **Step 5: `stop_by`.**
   - The Person path calls `finish_owed` first. When that answers `false` (the attempt is not Running, or it has a conflict), it calls `finish` as today. After the release it calls `notify` when `finish_owed` answered `true`; a failure is logged and stays due for the next start.
   - The Planner path calls `finish` as today and keeps today's behavior: only `retry_conflict_notice`.
-- [ ] **Step 6: Two bodies in `ended_intent`.** They replace the `_` arm for these two states only; Failed keeps its text. `{dirty}` is the attempt's changed paths inside its writes, joined by `, `, or `none`; a git failure gives `unknown` and logs.
+- [ ] **Step 6: Two bodies in `ended_intent`, and `left_files`.** They replace the `_` arm for these two states only; Failed keeps its text. The card's `left_files` is the same dirty list (`[]` when none, `None` when git failed); it is `None` for every other outcome; `reason` and `report` stay `None` for these two. `{dirty}` is the attempt's changed paths inside its writes, joined by `, `, or `none`; a git failure gives `unknown` and logs.
   - Interrupted: `{head} was interrupted: Shadows stopped while it ran, and nothing was committed.\nUncommitted files in its writes: {dirty}\n{last}Tell the person; start it again only if they ask. A new Start continues from these files.`
   - Stopped: `{head} was stopped by the person.\nUncommitted files in its writes: {dirty}\n{last}Do not start it again unless they ask. A new Start continues from these files.`
 - [ ] **Step 7:** Run the Step 2 commands, plus `cargo test -p shadows-core --test runs_attempts` (all of it: `stopping_a_committed_attempt_frees_its_scope` and `recover_interrupts_running_attempts_without_restarting_them` must stay green), `--test recovery`, and the rule 5 checks. Expected: PASS.
@@ -223,8 +227,10 @@ the web must render the two cards. **Blocked until Masada's shared request for s
 
 ## Task B-154: a done mark rechecks every done task of its plan
 
-Changes what the web sees: a new Shadows notice card, `RecheckNotice`. **Blocked until Masada's
-shared request for slice 6 is accepted.**
+Changes what the web sees: a new Shadows notice card, `RecheckNotice`. `RecheckNotice` and
+`RecheckFailure` are registered in `components.schemas`, as the
+[shared request](../../shared/requests/2026-11-16-slice-6-stop-control.md)'s answer says.
+**Blocked until that request is accepted.**
 
 **Files:**
 - Create: `crates/core-db/migrations/0070_run_rechecks.sql`
@@ -238,9 +244,10 @@ shared request for slice 6 is accepted.**
 - Modify: `crates/core-runs/src/store/mod.rs` (module)
 - Modify: `crates/core-plans/src/lib.rs`, `crates/core-plans/src/store/plan.rs` (`Plans::version_ids_in`)
 - Modify: `crates/shadows-core/src/lib.rs` (re-exports)
-- Modify: `crates/core-runs/contract.yaml`, `crates/core-plans/contract.yaml`, `docs/codebase/README.md`
+- Modify: `crates/shadows-http/src/openapi.rs` (register `RecheckNotice`, `RecheckFailure` beside `AttemptNotice`)
+- Modify: `crates/core-runs/contract.yaml`, `crates/core-plans/contract.yaml`, `crates/shadows-http/src/contract.yaml`, `docs/codebase/README.md`, `api/openapi.json` (regenerated)
 - Modify: `docs/backend/stages.md`
-- Test: `crates/shadows-core/tests/runs_attempts/rechecks.rs` (new `#[path]` module)
+- Test: `crates/shadows-core/tests/runs_attempts/rechecks.rs` (new `#[path]` module), `crates/shadows/tests/openapi.rs` (the two schemas are named)
 
 **Interfaces:**
 - Produces:
@@ -293,8 +300,10 @@ shared request for slice 6 is accepted.**
 
 ## Task B-105: project decisions, proposed by the Planner and accepted by the person
 
-Changes what the web sees: the decision card with Accept, two routes, and `decisions` in the
-brief. **Blocked until Masada's shared request for slice 6 is accepted.**
+Changes what the web sees: a `DecisionProposal` thread entry with Accept, two routes, two project
+events, and `decisions` in the brief, as the
+[shared request](../../shared/requests/2026-11-16-slice-6-stop-control.md)'s answer says.
+**Blocked until that request is accepted.**
 
 **Files:**
 - Create: `crates/core-db/migrations/0071_design_decisions.sql`
@@ -310,8 +319,10 @@ brief. **Blocked until Masada's shared request for slice 6 is accepted.**
 - Modify: `crates/core-grants/src/tools.rs` (the Planner's list: +2)
 - Modify: `crates/shadows-http/src/design.rs` (the two routes)
 - Modify: `crates/shadows-core/src/lib.rs` (re-exports)
+- Modify: `crates/core-threads/src/model.rs` (`ThreadEntryKind::DecisionProposal`)
+- Modify: `crates/core-events/src/store.rs` (`DecisionProposed`, `DecisionAccepted` in the project tail)
 - Modify: `crates/core-harness/src/prompt.txt`, `crates/core-harness/src/executor.md`
-- Modify: `crates/core-design/contract.yaml`, `crates/core-plans/contract.yaml`, `crates/core-grants/contract.yaml`, `crates/shadows-mcp/src/contract.yaml`, `crates/shadows-http/src/contract.yaml`, `crates/core-harness/contract.yaml`, `docs/codebase/README.md`, `api/openapi.json`
+- Modify: `crates/core-design/contract.yaml`, `crates/core-plans/contract.yaml`, `crates/core-threads/contract.yaml`, `crates/core-events/contract.yaml`, `crates/core-grants/contract.yaml`, `crates/shadows-mcp/src/contract.yaml`, `crates/shadows-http/src/contract.yaml`, `crates/core-harness/contract.yaml`, `docs/codebase/README.md`, `api/openapi.json`
 - Modify: `docs/core/specs/2026-10-01-task-contracts-and-evidence-design.md` (§17.3, and the §17.11 OPEN for decisions)
 - Modify: `docs/backend/stages.md`
 - Test: `crates/shadows-core/tests/design_decisions.rs`, `crates/shadows-core/tests/task_contract.rs`, `crates/shadows-core/tests/attempt_briefs.rs`, `crates/shadows/tests/design_routes.rs`, `crates/shadows/tests/mcp_server.rs`
@@ -328,12 +339,12 @@ brief. **Blocked until Masada's shared request for slice 6 is accepted.**
     - A new id is `D{n}`, the next number in the project.
     - Giving an `id` needs `expected_version` equal to its latest version; otherwise `DecisionStale`.
     - Trimmed lengths: title 1..200 chars, decision and rationale 1..4,000, source 0..1,000; otherwise `InvalidDecision`.
-    - It writes version latest+1 as `proposed`.
+    - It writes version latest+1 as `proposed`. In the same write it appends a `DecisionProposal` entry on the Planner's thread (through `Threads`' entry write, as `propose_vision_in` writes `VisionProposal`), whose card is the `DecisionRecord` as proposed. It also appends the project event `DecisionProposed { project_id, decision_id, version }`.
   - `Design::decisions(&self, project: &ProjectId) -> Result<Vec<DecisionRecord>, DesignError>`: every revision, ordered by id then version.
   - `Design::accept_decision(&self, command_id: String, project: &ProjectId, id: &str, version: i64) -> Result<DecisionRecord, DesignError>`:
     - The person only, over HTTP. The replay is classified first.
     - The revision must be `proposed` and the latest of its id; otherwise `DecisionStale`.
-    - In one write it becomes `accepted` with the person's `ApprovedBy`, and the id's earlier accepted revision becomes `superseded`.
+    - In one write it becomes `accepted` with the person's `ApprovedBy`, and the id's earlier accepted revision becomes `superseded`. The same write appends `DecisionAccepted { project_id, decision_id, version }`; superseding adds no event of its own. `DecisionStale` is HTTP 409 and `InvalidDecision` is 422.
   - `Design::decision_in(conn, project: &ProjectId, id: &str, version: i64) -> Result<Option<DecisionRecord>, DesignError>`
 - Produces (Plans):
   - `pub struct DecisionPin { id: String, version: i64 }`, and `TaskContract.decisions: Vec<DecisionPin>` (serde default, skipped when empty).
@@ -342,13 +353,13 @@ brief. **Blocked until Masada's shared request for slice 6 is accepted.**
 - Adapters:
   - MCP, Planner only: `decision_propose` (input `DecisionInput` plus `command_id`) and `decision_list` (the grant's project).
   - HTTP: `GET /api/projects/{id}/decisions` → `Design::decisions`; `POST /api/projects/{id}/decisions/{decision}/accept` with `{ command_id, version }` → `Design::accept_decision`.
-  - The card in the conversation is the `decision_propose` tool call's result; the web shows it with Accept.
+  - The card in the conversation is the `DecisionProposal` entry. Its live state comes from `GET …/decisions`.
 - Texts:
   - `prompt.txt`: "When a choice settles a project decision (a library, a data shape, a layout rule), propose it with `decision_propose`. The person accepts it on its card, never you. Pin accepted revisions in a task contract's `decisions`."
   - `executor.md`: "Your brief's `decisions` are the project's accepted decisions: follow them, and report a `task_conflict` if the task cannot."
 
 - [ ] **Step 1: Write the failing tests.** In `design_decisions.rs`:
-  - `the_planner_proposes_and_the_person_accepts`: propose → `D1` v1 `proposed`; accept → `accepted` with a person `ApprovedBy`.
+  - `the_planner_proposes_and_the_person_accepts`: propose → `D1` v1 `proposed`, one `DecisionProposal` entry on the Planner's thread with that card, and one `DecisionProposed` on the project tail; accept → `accepted` with a person `ApprovedBy`, and one `DecisionAccepted`.
   - `a_new_version_supersedes_the_accepted_one`: propose D1 v2 with `expected_version: 1` and accept it; v1 is `superseded`.
   - `a_stale_or_invalid_decision_is_refused`: a wrong `expected_version` is `DecisionStale`; an empty title is `InvalidDecision`; accepting v1 after v2 exists is `DecisionStale`.
   - `only_a_planner_proposes`: an executor grant's `propose_decision` is refused, and no tool in any grant's list accepts.
