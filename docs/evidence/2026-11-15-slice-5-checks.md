@@ -59,6 +59,16 @@ and the output behind "Show output".
 4. T2 was returned twice although the executor's report already matched Shadows' result and
    the task forbade changing c2: the return rule does not weigh a matching report.
 
+## After the fix (`b79f4557`, migration `0068`)
+
+Same dev database, rebuilt and restarted at 20:27:11: `0068` applied, no old attempt left without
+`notice_sent_at`, and in the following four minutes no notice and no Planner turn outside the new
+conversation. Then one task with the same 90 s check: Shadows began c2 at 20:31:50, the daemon
+was stopped at 20:31:58 and started again; recovery settled at 20:32:00.5 and c1 and c2 ran again
+from 20:32:00.98, both `passed`, notice sent 20:33:36 to that task's Planner only. The rerun now
+starts half a second after recovery instead of 4 min 49 s, so the silence in item 2 was the old
+attempts' recovery work.
+
 ## Not tried
 
 - Two executors running a check at the same moment (here the two turns ended before Shadows'
