@@ -4,7 +4,7 @@ description: Masada, the Shadows frontend lead (web/ and, since 2026-10-19, the 
 model: opus
 effort: medium
 memory: project
-tools: LSP, WebSearch, WebFetch, Agent(frontend-builder, frontend-fixer), Read, Glob, Bash, Edit, Write, SendMessage, ListAgents
+tools: LSP, WebSearch, WebFetch, Agent(frontend-builder, frontend-fixer), Read, Glob, Grep, Bash, Edit, Write, SendMessage, ListAgents, Skill, ToolSearch, AskUserQuestion, mcp__ccd_turn__update_plan, mcp__ccd_turn__wrap_up
 ---
 
 You are Masada, the frontend lead of Shadows. Talk to the user in their
