@@ -81,21 +81,36 @@ B-105 is deferred to [future](../core/future.md) until a task needs it.
 
 ## Slice 6: stop control and full acceptance
 
-The earlier draft (`docs/backend/plans/2026-11-09-repair-and-acceptance.md` at `c604d06c`) is
-superseded: a new Draft no longer stops every attempt; a contract problem stops its own attempt,
-and the Planner explicitly stops affected other work (Mohammed, 2026-11-14; executors design).
-Both tasks wait for a detailed slice 6 plan. Their prerequisites B-126 and B-147 are shipped.
+Plan: [slice 6](plans/2026-11-16-slice-6-stop-control.md), awaiting Mohammed's approval: no
+builder runs before it. Ruling: a contract problem stops only its own attempt; the Planner stops
+other affected work (Mohammed, 2026-11-14). Order: B-117 → B-152 → F-121 → B-118.
 
-### B-117 · The Planner stops affected attempts, and pending evidence reruns
+### B-117 · The Planner lists the attempts that hold a scope (`task_runs`)
 
-- Status: blocked (needs the detailed slice 6 plan)
-- Plan: to be written in `docs/backend/plans/`, building on slice 4's conflict and Planner-stop operations.
-- Owner: Runs with Plans.
-- Needs: the slice 6 plan; shared request `docs/shared/requests/2026-11-09-local-delivery.md` re-read for F-104.
+- Status: todo (after plan approval)
+- Plan: [B-117](plans/2026-11-16-slice-6-stop-control.md#task-b-117-the-planner-lists-the-attempts-that-still-hold-a-scope).
+- Owner: Runs, with its MCP adapter.
+- Read: `crates/core-runs/contract.yaml` (`stop_for`, `planner_plan`, `start_for`); the plan's Global Constraints.
+- Touch: the task's Files list in the plan; no other path.
+- Needs: slices 4 and 5 (shipped, `4031168f`).
+- Done when: the four `planner::task_runs_*` tests, `the_planner_lists_live_attempts_over_mcp`, `mcp_server` and `planner_instructions` pass; contracts updated; scoped commit.
 
-### B-118 · Disposable full journey and branch delivery evidence
+### B-152 · The Planner hears of an interrupted attempt and of the person's Stop
 
-- Status: blocked (needs the detailed slice 6 plan)
-- Plan: to be written with B-117's.
-- Owner: Controller across existing owners.
-- Needs: B-117, F-104.
+- Status: blocked (Masada's shared request for F-121's `interrupted` and `stopped` cards must be accepted)
+- Plan: [B-152](plans/2026-11-16-slice-6-stop-control.md#task-b-152-the-planner-hears-of-an-interrupted-attempt-and-of-the-persons-stop).
+- Owner: Runs.
+- Read: `crates/core-runs/contract.yaml` (`recover`, `stop`, `stop_for`, `notify`, transitions); the plan's Review Focus.
+- Touch: the task's Files list in the plan; no other path.
+- Needs: B-117 (same `stop.rs` neighbours and contract); the accepted request.
+- Done when: the four `stops::` tests and `a_stopped_conflict_keeps_its_one_notice` pass, with all of `runs_attempts` and `recovery`; contract updated; scoped commit.
+
+### B-118 · The full journey, live and in the browser
+
+- Status: blocked (needs B-117, B-152 and F-121)
+- Plan: [B-118](plans/2026-11-16-slice-6-stop-control.md#task-b-118-the-full-journey-live-and-in-the-browser).
+- Owner: integration acceptance through AppCore and the real UI.
+- Read: the plan's B-118; `crates/shadows/tests/checks_live.rs` for the live setup.
+- Touch: the task's Files list in the plan.
+- Needs: B-117, B-152, F-121.
+- Done when: `stop_control_live` passes on the signed-in subscription and the browser journey, with its logs, is recorded in evidence.
