@@ -12,6 +12,9 @@ use std::time::Duration;
 use tokio::io::{AsyncRead, AsyncReadExt};
 
 const OUTPUT_LIMIT: usize = 65_536;
+/// How an inconclusive check made so only by another attempt's uncommitted files begins: its
+/// executor cannot commit them, so such a result alone never returns the attempt.
+const FOREIGN_LEFTOVERS: &str = "uncommitted changes inside another attempt's writes: ";
 
 impl Runs {
     pub async fn check_results(&self, id: &AttemptId) -> Result<Vec<CheckResult>, RunsError> {
@@ -132,6 +135,8 @@ impl Runs {
             .iter()
             .map(|s| Scope::new(s).map_err(RunsError::BadScope))
             .collect::<Result<Vec<_>, _>>()?;
+        let own = Scope::new(&self.inner.store.writes(&attempt.id).await?)
+            .map_err(RunsError::BadScope)?;
         for repetition in 0..3 {
             self.wait_for_quiet(attempt).await?;
             let dirty = git.changed(&prefix).await.map_err(RunsError::Unavailable)?;
@@ -156,14 +161,23 @@ impl Runs {
                 }
             }
             if !leftovers.is_empty() {
+                let output = if leftovers.iter().any(|p| own.admits(p)) {
+                    format!(
+                        "uncommitted changes inside task writes: {}",
+                        leftovers.join(", ")
+                    )
+                } else {
+                    format!(
+                        "{FOREIGN_LEFTOVERS}{}; they belong to another attempt's scope, \
+                        not this task's writes",
+                        leftovers.join(", ")
+                    )
+                };
                 return Ok(Finished {
                     outcome: CheckOutcome::Inconclusive,
                     exit_code: None,
                     head: before,
-                    output: format!(
-                        "uncommitted changes inside task writes: {}",
-                        leftovers.join(", ")
-                    ),
+                    output,
                     truncated: false,
                 });
             }
@@ -320,9 +334,17 @@ impl Runs {
             return Ok(());
         }
         let results = self.check_results(&attempt.id).await?;
+        // Another attempt's uncommitted files are not this executor's to commit, so a result
+        // made inconclusive by them alone goes to the Planner without a return.
+        let theirs = |c: &CheckResult| {
+            c.outcome == Some(CheckOutcome::Inconclusive)
+                && c.output
+                    .as_deref()
+                    .is_some_and(|o| o.starts_with(FOREIGN_LEFTOVERS))
+        };
         if results
             .iter()
-            .any(|c| c.outcome != Some(CheckOutcome::Passed))
+            .any(|c| c.outcome != Some(CheckOutcome::Passed) && !theirs(c))
             && self.inner.store.returns_since(&attempt.id).await? < 2
         {
             let sha = attempt.commit.as_deref().unwrap_or_default();
