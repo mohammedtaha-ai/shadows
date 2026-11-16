@@ -163,3 +163,41 @@ pub(super) async fn get_stage(
 ) -> Result<Json<StageView>, Failure> {
     Ok(Json(s.core.design().stage(&project).await?))
 }
+
+#[utoipa::path(get, path = "/api/projects/{id}/decisions", tag = "design",
+    params(("id" = ProjectId, Path, description = "The project")),
+    responses((status = 200, body = Vec<shadows_core::DecisionRecord>),
+        (status = 404, body = ErrorBody), (status = 500, body = ErrorBody)))]
+pub(super) async fn decisions(
+    State(s): State<AppState>,
+    Path(project): Path<ProjectId>,
+) -> Result<Json<Vec<shadows_core::DecisionRecord>>, Failure> {
+    Ok(Json(s.core.design().decisions(&project).await?))
+}
+
+#[derive(serde::Deserialize, utoipa::ToSchema)]
+pub(super) struct DecisionAccept {
+    pub(super) command_id: String,
+    /// The proposed revision accepted; it must be its decision's latest.
+    pub(super) version: i64,
+}
+
+#[utoipa::path(post, path = "/api/projects/{id}/decisions/{decision}/accept",
+    tag = "design", request_body = DecisionAccept,
+    params(("id" = ProjectId, Path, description = "The project"),
+        ("decision" = String, Path, description = "The decision id, such as D1")),
+    responses((status = 200, body = shadows_core::DecisionRecord),
+        (status = 404, body = ErrorBody), (status = 409, body = ErrorBody),
+        (status = 422, body = ErrorBody), (status = 500, body = ErrorBody)))]
+pub(super) async fn accept_decision(
+    State(s): State<AppState>,
+    Path((project, decision)): Path<(ProjectId, String)>,
+    Json(body): Json<DecisionAccept>,
+) -> Result<Json<shadows_core::DecisionRecord>, Failure> {
+    Ok(Json(
+        s.core
+            .design()
+            .accept_decision(body.command_id, &project, &decision, body.version)
+            .await?,
+    ))
+}

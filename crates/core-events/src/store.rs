@@ -94,7 +94,8 @@ impl EventsStore {
                                'PlanDependenciesChanged', 'ProjectLinked', 'ProjectUnlinked',
                                'ProjectRemoved', 'AgreementChanged', 'ProjectStandardsSaved',
                                'VisionProposed', 'MapProposed', 'RoadmapProposed',
-                               'RoadmapApproved', 'PermissionsChanged',
+                               'RoadmapApproved', 'DecisionProposed', 'DecisionAccepted',
+                               'PermissionsChanged',
                                'MessageAdded')
               ORDER BY e.seq LIMIT ?",
         )

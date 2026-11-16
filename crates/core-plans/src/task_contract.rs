@@ -42,6 +42,10 @@ pub struct TaskContract {
     /// Commands that prove acceptance, run by the executor and again by Shadows.
     #[serde(default)]
     pub checks: Vec<TaskCheck>,
+    /// Accepted project decisions the task follows, each at one exact revision.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[schema(required = false)]
+    pub decisions: Vec<crate::DecisionPin>,
 }
 
 /// A program with arguments that proves acceptance items without a shell.

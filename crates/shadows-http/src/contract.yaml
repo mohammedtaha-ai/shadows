@@ -35,6 +35,11 @@ modules:
   sse.rs: Events stream framing through private handlers
   runs.rs: Runs service HTTP translation
   failure/runs.rs: run failure status mapping
+decisions: >
+  GET /api/projects/{id}/decisions calls Design::decisions; POST
+  /api/projects/{id}/decisions/{decision}/accept with { command_id, version } calls
+  Design::accept_decision. DECISION_STALE is 409 and INVALID_DECISION is 422.
+  Tested by design_routes::decisions_are_listed_and_accepted_over_http.
 agreements:
   - between: [aylul_extensions::tools, aylul_extensions::tool_rules]
     must: Delegate per-agent MCP discovery and rule replacement to AppCore.extensions; discovery failures preserve stored rules.

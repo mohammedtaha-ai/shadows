@@ -56,8 +56,8 @@ pub use conversation::{Focus, Place, PlanShown};
 pub use dependencies::{LinkedTask, TaskParent, TaskPreview};
 pub use map::{MapLink, MapPlan, PlanMap};
 pub use model::{
-    AcceptanceItem, Approved, DraftStarted, EditOutcome, LastEdit, Link, LinkKind, Plan,
-    PlanContent, PlanId, PlanListing, PlanState, PlanTask, PlanVersions, TaskContent, TaskId,
+    AcceptanceItem, Approved, DecisionPin, DraftStarted, EditOutcome, LastEdit, Link, LinkKind,
+    Plan, PlanContent, PlanId, PlanListing, PlanState, PlanTask, PlanVersions, TaskContent, TaskId,
     VersionLine, WorkflowId, WorkflowState, WrittenBy,
 };
 pub use ops::PlanOp;

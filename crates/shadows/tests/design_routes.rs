@@ -175,6 +175,71 @@ async fn vision_proposal_routes_list_and_approve() {
 }
 
 #[tokio::test]
+async fn decisions_are_listed_and_accepted_over_http() {
+    let app = app::test_app().await;
+    let op = app::start_settled(&app, "hang").await;
+    for _ in 0..200 {
+        if app.handles.running_for(&app.thread).await.as_ref() == Some(&op) {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(25)).await;
+    }
+    let (grant, _) = shadows_core::Grants::issue_thread_grant_for_test(&app.storage, &app.thread)
+        .await
+        .unwrap();
+    let input = shadows_core::DecisionInput {
+        id: None,
+        expected_version: None,
+        title: "Errors".into(),
+        decision: "Every error carries a code.".into(),
+        rationale: "Clients match codes.".into(),
+        source: String::new(),
+    };
+    app.core
+        .design()
+        .propose_decision(&grant, "d1".into(), input)
+        .await
+        .unwrap();
+    let list = format!("/api/projects/{}/decisions", app.project);
+    let (status, listed) = app::call(&app, "GET", &list, None).await;
+    assert_eq!(status, 200);
+    assert_eq!(listed[0]["id"], "D1");
+    assert_eq!(listed[0]["state"], "proposed");
+    let accept = format!("{list}/D1/accept");
+    let body = json!({"command_id":"accept","version":1});
+    let (status, accepted) = app::call(&app, "POST", &accept, Some(body.clone())).await;
+    assert_eq!(status, 200, "{accepted}");
+    assert_eq!(accepted["state"], "accepted");
+    assert_eq!(accepted["approved_by"]["agent"], "human");
+    assert_eq!(app::call(&app, "POST", &accept, Some(body)).await.0, 200);
+    let (status, refusal) = app::call(
+        &app,
+        "POST",
+        &accept,
+        Some(json!({"command_id":"again","version":1})),
+    )
+    .await;
+    assert_eq!(status, 409);
+    assert_eq!(refusal["code"], "DECISION_STALE");
+    let events = app
+        .core
+        .events()
+        .read_project_events_after(EventCursor(0), &app.project, 100)
+        .await
+        .unwrap();
+    assert!(events.iter().any(|e| e.kind == "DecisionProposed"));
+    assert_eq!(
+        events
+            .iter()
+            .filter(|e| e.kind == "DecisionAccepted")
+            .count(),
+        1
+    );
+    app.core.turns().stop(&op).await.unwrap();
+    app::shut_down_app(app).await;
+}
+
+#[tokio::test]
 async fn standards_routes_read_the_base_and_save_additions() {
     let app = app::test_app().await;
     let standards = format!("/api/projects/{}/standards", app.project);

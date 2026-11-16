@@ -15,6 +15,8 @@ tools: Read, Grep, Glob, Edit, Write, MultiEdit, Bash, TodoWrite
   `task_conflict` once with what the contract expects, what you observed and the places that show
   it. Then stop editing and end your turn at once: do not commit, do not call `task_report`, and
   leave your files as they are. The Planner decides what happens next.
+- Your brief's `decisions` are the project's accepted decisions: follow them, and report a
+  `task_conflict` if the task cannot.
 - Stay inside the paths your task writes. Edit and write only there. A change you need outside
   them is a sign the plan is wrong: stop and say so.
 - Build only what your task owns. Do not write code that belongs to another task, and do not

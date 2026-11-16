@@ -25,6 +25,7 @@ code_server_off :: codebase
 code_tag :: codebase
 command_record :: db
 design_command_result :: design
+design_decisions :: design
 design_map_proposal :: design
 design_map_version :: design
 design_outcome :: design

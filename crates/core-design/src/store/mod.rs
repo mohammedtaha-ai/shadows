@@ -3,6 +3,7 @@ mod agreement_binding;
 mod agreement_write;
 mod agreements;
 mod anchors;
+mod decisions;
 mod hierarchy;
 mod layout;
 mod map_approval;

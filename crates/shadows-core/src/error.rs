@@ -37,6 +37,10 @@ pub enum ErrorCode {
     AylulKeyMissing,
     AylulNotConfigured,
     StageBlocked,
+    /// A decision revision is not the latest, or not proposed; 409.
+    DecisionStale,
+    /// A decision text is empty or too long; 422.
+    InvalidDecision,
     HarnessStartFailed,
     ProcessSpawnFailed,
     ProcessTerminated,
@@ -542,6 +546,14 @@ impl From<core_design::DesignError> for CoreError {
             },
             DesignError::GrantScope(message) => Self::Refused {
                 code: ErrorCode::GrantScope,
+                message,
+            },
+            DesignError::InvalidDecision(message) => Self::Refused {
+                code: ErrorCode::InvalidDecision,
+                message,
+            },
+            DesignError::DecisionStale(message) => Self::Refused {
+                code: ErrorCode::DecisionStale,
                 message,
             },
             DesignError::ReasonMissing => Self::ReasonMissing,

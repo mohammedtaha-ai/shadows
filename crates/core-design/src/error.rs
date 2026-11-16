@@ -13,6 +13,10 @@ pub enum DesignError {
     InvalidCommand(String),
     #[error("{0}")]
     GrantScope(String),
+    #[error("{0}")]
+    InvalidDecision(String),
+    #[error("{0}")]
+    DecisionStale(String),
     #[error(transparent)]
     Grants(#[from] core_grants::GrantsError),
     #[error(transparent)]

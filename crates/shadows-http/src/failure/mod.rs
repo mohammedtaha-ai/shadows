@@ -173,6 +173,7 @@ impl Failure {
                 | ErrorCode::HarnessLocked
                 | ErrorCode::ProjectHasThreads
                 | ErrorCode::StageBlocked
+                | ErrorCode::DecisionStale
                 | ErrorCode::InventoryStale
                 | ErrorCode::WorkflowFrozenImmutable => StatusCode::CONFLICT,
                 _ => StatusCode::UNPROCESSABLE_ENTITY,

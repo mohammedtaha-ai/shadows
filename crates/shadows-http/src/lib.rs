@@ -230,6 +230,8 @@ fn design_routes(table: OpenApiRouter<AppState>) -> OpenApiRouter<AppState> {
         .routes(routes!(roadmap::roadmap_proposals))
         .routes(routes!(roadmap::approve_roadmap_proposal))
         .routes(routes!(design::approve_vision_proposal))
+        .routes(routes!(design::decisions))
+        .routes(routes!(design::accept_decision))
 }
 
 #[inline(never)]

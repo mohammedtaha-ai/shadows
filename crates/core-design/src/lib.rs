@@ -7,6 +7,7 @@ mod anchors;
 pub use agreement_scope::AgreementOrigin;
 mod agreement_validation;
 mod agreements;
+mod decisions;
 mod map_proposals;
 mod map_rules;
 pub use map_proposals::{MapAction, MapProposal, MapPropose, ProposedPart, ProposedWaiver};
@@ -31,9 +32,10 @@ use std::sync::Arc;
 use core_projects::ProjectId;
 pub use model::WorkspaceOp;
 pub use model::{
-    ContractHead, DesignAnchor, DesignChange, DesignRevision, Outcome, OutcomeContent, OutcomeId,
-    OutcomePage, Part, PartContent, PartId, PartLayer, PartPage, PartWaiver, VisionContent,
-    VisionField, VisionItem, VisionView, WorkspaceView,
+    ContractHead, DecisionInput, DecisionRecord, DecisionState, DesignAnchor, DesignChange,
+    DesignRevision, Outcome, OutcomeContent, OutcomeId, OutcomePage, Part, PartContent, PartId,
+    PartLayer, PartPage, PartWaiver, VisionContent, VisionField, VisionItem, VisionView,
+    WorkspaceView,
 };
 
 #[derive(Clone)]

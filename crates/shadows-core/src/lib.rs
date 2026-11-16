@@ -33,6 +33,7 @@ pub use core_design::{
     ProposedWaiver, Stage, StageView, VisionContent, VisionField, VisionItem, VisionView,
     WorkspaceView,
 };
+pub use core_design::{DecisionInput, DecisionRecord, DecisionState};
 pub use core_design::{ProposalStatus, VisionAction, VisionProposal, VisionPropose};
 pub use core_design::{ProposedOutcome, RoadmapAction, RoadmapProposal, RoadmapPropose};
 pub use core_events::{Delivery, Events, StoredEvent, Subscription};
@@ -139,6 +140,7 @@ pub use core_design::{LayoutLayer, LayoutPart, OwnedVia, PathOwner, ProjectLayou
 
 pub use core_plans::{ContextPlan, ContextStandards, TaskContext, TaskPart, TaskPath};
 
+pub use core_plans::DecisionPin;
 pub use core_plans::PhaseDependency;
 pub use core_plans::{LinkedPhase, PhaseEndpoint};
 pub use core_plans::{Phase, PhaseId, PhaseInput, PhaseRef};

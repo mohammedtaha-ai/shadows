@@ -215,6 +215,26 @@ functions:
     approve_vision_proposal:
       signature: "(&self, command_id: String, project: &ProjectId, proposal: &str) -> Result<DesignChange, DesignError>"
       # Person only; replay before live project, project-scoped proposal, state and staleness.
+    propose_decision:
+      signature: "(&self, grant: &Grant, command_id: String, input: DecisionInput) -> Result<DecisionRecord, DesignError>"
+      # Planner grant plus running turn; replay classified first (Project scope). A new id is
+      # D{n}, the next number in the project; a given id needs expected_version equal to its
+      # latest version, else DecisionStale. Trimmed lengths: title 1..200, decision and
+      # rationale 1..4000, source 0..1000, else InvalidDecision. One write: the revision as
+      # proposed, a DecisionProposal entry on the Planner's thread whose card is the record,
+      # and the DecisionProposed { project_id, decision_id, version } event.
+    decisions:
+      signature: "(&self, project: &ProjectId) -> Result<Vec<DecisionRecord>, DesignError>"
+      # Every revision, ordered by the id's number, then version.
+    accept_decision:
+      signature: "(&self, command_id: String, project: &ProjectId, id: &str, version: i64) -> Result<DecisionRecord, DesignError>"
+      # The person only, over HTTP; no MCP tool accepts. Replay classified first. The
+      # revision must be proposed and its id's latest, else DecisionStale (409). One write:
+      # it becomes accepted with the person's ApprovedBy, the id's earlier accepted revision
+      # becomes superseded, and DecisionAccepted is appended; superseding adds no event.
+    decision_in:
+      signature: "(conn, project: &ProjectId, id: &str, version: i64) -> Result<Option<DecisionRecord>, DesignError>"
+      # Plans reads a pinned revision inside its edit's write and its task context.
     stage_line_in:
       signature: "(conn, project: &ProjectId) -> Result<String, StorageError>"
       # Turns reads the stage fact in its snapshot for both normal and steered prompts.
@@ -334,6 +354,7 @@ agreements:
 
 shared_in_transaction:
   layout_in: Reads the accepted project layout in the caller snapshot.
+  decision_in: "Plans checks a task contract's decision pins in its edit's write, and reads them into TaskContext. Design owns design_decisions."
   approve_map_proposal_in: Private owner transaction entry; its command rules are listed under functions.
   approve_roadmap_in: Private owner transaction entry; its command rules are listed under functions.
   approve_roadmap_proposal_in: Private owner transaction entry; its command rules are listed under functions.
@@ -636,6 +657,7 @@ modules:
   agreement_scope.rs: Live grant attribution for agreement proposals
   agreement_validation.rs: Offline validation of canonical shared OpenAPI content
   agreements.rs: Design's shared-agreement entry points
+  decisions.rs: Project decision entry points with their text limits
   error.rs: Design lifecycle refusals with no plan-domain dependency
   map_proposals.rs: Map proposal values
   map_rules.rs: Pure map ownership, dependency
@@ -651,6 +673,7 @@ modules:
   store/agreement_binding.rs: Agreed-version checks shared with Plans in its write transaction
   store/agreement_write.rs: Serialized agreement starts
   store/agreements.rs: Snapshot reads of exact shared-agreement versions
+  store/decisions.rs: Persistence of project decision revisions
   store/hierarchy.rs: Transactional containment checks with explicit sibling ordering
   store/map_approval.rs: Atomic person approval of a map proposal
   store/map_proposal_read.rs: Snapshot reads
@@ -679,6 +702,12 @@ modules:
   store/vision_versions.rs: Persisted vision versions
   vision_items.rs: Pure vision item edits with server-assigned identities (PU, U, G, B, TD)
   workspace.rs: A grant's read of its project's workspace, so a Planner plans from it
+
+decisions:
+  modules: [decisions.rs, store/decisions.rs]
+  tables: [design_decisions]
+  rule: Decisions are accepted, and superseded, only by the person's card.
+  tested_by: [the_planner_proposes_and_the_person_accepts, a_new_version_supersedes_the_accepted_one, a_stale_or_invalid_decision_is_refused, only_a_planner_proposes, a_decision_replay_returns_the_original_revision, decisions_are_listed_and_accepted_over_http]
 
 planning_anchor:
   modules: [anchors.rs, store/anchors.rs]
