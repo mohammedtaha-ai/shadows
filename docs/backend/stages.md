@@ -130,7 +130,7 @@ B-152, B-154 and B-105 build on the [shared request](../shared/requests/2026-11-
 
 ### B-105 · Project decisions, proposed by the Planner and accepted by the person
 
-- Status: blocked (builder, 2026-11-16: adding `TaskContract.decisions` breaks three struct literals outside Files: `crates/core-plans/src/contract_questions.rs` (`empty()`), `crates/shadows-core/tests/run_admission.rs` (`contract`), `crates/shadows-core/tests/task_questions.rs` (`producer`, `consumer`); each needs `decisions: vec![]`)
+- Status: todo (Files widened again by Hamoud, 2026-11-16: the `TaskContract` literals, after `483adee3`)
 - Plan: [B-105](plans/2026-11-16-slice-6-stop-control.md#task-b-105-project-decisions-proposed-by-the-planner-and-accepted-by-the-person).
 - Owner: Design, with Plans for the pins and the adapters.
 - Read: `crates/core-design/contract.yaml` (`propose_vision`, `approve_vision_proposal`); `crates/core-plans/contract.yaml` (`TaskContract`, `TaskContext`, `task_context_in`); spec §17.3.

@@ -313,6 +313,7 @@ events, and `decisions` in the brief, as the
 - Modify: `crates/core-design/src/lib.rs`, `crates/core-design/src/model.rs`, `crates/core-design/src/error.rs`, `crates/core-design/src/store/mod.rs`
 - Modify: `crates/core-plans/src/task_contract.rs` (validated `decisions` pins)
 - Modify: `crates/core-plans/src/store/edit.rs` (the pin check inside the edit's write)
+- Modify: every existing `TaskContract { … }` literal gains `decisions: vec![]`, and nothing else: `crates/core-plans/src/contract_questions.rs` (`empty()`), `crates/shadows-core/tests/run_admission.rs` (`contract()`), `crates/shadows-core/tests/task_questions.rs` (`producer()`, `consumer()`), and any other literal the compiler names.
 - Modify: `crates/core-plans/src/task_context.rs`, `crates/core-plans/src/store/task_context.rs` (`TaskContext.decisions`, built in the store)
 - Modify: `crates/core-plans/src/model.rs` (`DecisionPin`, the field)
 - Create: `crates/shadows-mcp/src/decision_tools.rs` (Design decisions MCP translation: `decision_propose`, `decision_list`)
@@ -371,7 +372,7 @@ events, and `decisions` in the brief, as the
 
   Then:
   - `task_contract.rs`: `a_task_pins_only_accepted_decisions` (a proposed pin is refused with a problem containing `which is not an accepted decision`; an accepted one is saved) and `a_contract_without_decisions_keeps_its_fingerprint`.
-  - `attempt_briefs.rs`: `a_frozen_pin_keeps_its_superseded_revision` (D1 v1 is pinned and frozen; v2 is accepted; a new Start's brief shows D1 v1 with state `superseded`).
+  - `attempt_briefs.rs` (it proposes through `Design::propose_decision` under a Planner turn it holds open, as `design_decisions.rs` does; never by SQL): `a_frozen_pin_keeps_its_superseded_revision` (D1 v1 is pinned and frozen; v2 is accepted; a new Start's brief shows D1 v1 with state `superseded`).
   - `design_routes.rs`: `decisions_are_listed_and_accepted_over_http`.
   - `mcp_server.rs`: the Planner's list has both tools; the executor's has neither.
 - [ ] **Step 2:** Run `cargo test -p shadows-core --test design_decisions --test task_contract --test attempt_briefs`. Expected: FAIL to compile.
