@@ -381,6 +381,9 @@ shared_in_transaction:
   edit_workspace_in: Owner entry in the caller transaction; vision rules.
   require_roadmap_in: "Plans calls it in start_draft, edit_plan (the binding edit included) and approve_plan_with, after the replay lookup: STAGE_BLOCKED while roadmap_revision is 0. Design owns the revision."
   check_agreement_binding_in: "Plans validates exact Agreed versions, declared roles and operation identities inside edit/approval's transaction. Design owns agreement content."
+  propose_decision_in: Owner entry in the caller transaction; decisions rules.
+  accept_decision_in: Owner entry in the caller transaction; decisions rules.
+  decisions: Private owner read on its own reader; decisions rules.
 
 dependencies:
   projects: crates/core-projects/contract.yaml
