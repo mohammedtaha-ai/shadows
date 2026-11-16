@@ -93,7 +93,7 @@ named in its task (`surface-panel`, the same header row, text sizes and tokens);
 
 ### F-122 · The recheck card: done tasks whose checks no longer pass
 
-- Status: blocked: reusing CheckRow from `app/conversation/recheck-notice.tsx` adds two violations to the architecture ratchet (`dependency` and `public_entry` of `app/tasks/checks-panel.tsx`, which has no index). Needs `web/src/architecture.baseline.txt` or a public entry `web/src/app/tasks/index.ts` in Touch. The finished work is a patch, F-122 in the builder report.
+- Status: todo
 - Plan: the request, "B-154: the recheck card" and the Frontend reply.
 - Read: `web/src/stream/contract.yaml`; `web/src/app/conversation/contract.yaml`; `noticeOf` in
   `web/src/app/conversation/tool-text.ts`; `NoticeItem`; the checks row of the task's Report tab
@@ -111,22 +111,21 @@ named in its task (`surface-panel`, the same header row, text sizes and tokens);
     "Shadows · recheck after T{cause_task} (version {cause_version})". Body: "These done tasks
     no longer pass:", then per failure a link "T{task} · {title}" to the task route with the
     failure's own `workflow_id` and `version`, and its checks drawn as the task page draws them
-    (export `CheckRow` from `checks-panel.tsx` and reuse it; `ChecksPanel` keeps its behavior). "Their done marks stand." ends it.
+    (move `CheckRow` out of `checks-panel.tsx` into the new shared file `web/src/app/check-row.tsx`, added to the `shared` row's Sources and Entry in the code map's "Architecture modules"; `checks-panel.tsx` and `recheck-notice.tsx` both import it from there. `conversation` may not import `tasks`: `tasks` already depends on `conversation`). "Their done marks stand." ends it.
 - Touch: `web/src/api/schema.d.ts` (generated); `web/src/api/runs.ts`;
   `web/src/api/contract.yaml`; `web/src/stream/frames.ts`; `web/src/stream/frames.test.ts`;
   `web/src/stream/index.ts`; `web/src/stream/contract.yaml`;
   `web/src/app/conversation/tool-text.ts`; `web/src/app/conversation/notice-item.tsx`;
-  `web/src/app/tasks/checks-panel.tsx` (export `CheckRow` only); `web/src/app/tasks/contract.yaml`;
+  `web/src/app/check-row.tsx` (new); `web/src/app/tasks/checks-panel.tsx` (imports `CheckRow`); `web/src/app/tasks/contract.yaml`;
   `web/src/app/conversation/recheck-notice.tsx` (new);
   `web/src/app/conversation/recheck-notice.test.tsx` (new);
-  `web/src/app/conversation/contract.yaml`; `docs/frontend/codebase/README.md` (the new file's
-  row); `docs/frontend/stages.md` (this entry).
+  `web/src/app/conversation/contract.yaml`; `docs/frontend/codebase/README.md` (the `shared` module row and both new files' rows); `docs/frontend/stages.md` (this entry).
 - Needs: B-154 done; F-121 (same `frames.ts` and `notice-item.tsx`).
 - Done when: new tests pass: in `frames.test.ts` `reads_a_recheck_card_by_its_recheck_id`; in
   `recheck-notice.test.tsx` `a_recheck_lists_each_failing_task_with_its_checks` and
   `a_failing_task_links_to_its_own_version`; the existing `notice-item.test.tsx` and
   `conversation.test.tsx` stay green. Run
-  `npx vitest run src/stream/frames.test.ts src/app/conversation/recheck-notice.test.tsx src/app/conversation/notice-item.test.tsx src/app/conversation/conversation.test.tsx`,
+  `npx vitest run src/architecture.test.ts src/app/tasks/task-page.test.tsx src/stream/frames.test.ts src/app/conversation/recheck-notice.test.tsx src/app/conversation/notice-item.test.tsx src/app/conversation/conversation.test.tsx`,
   then the checks of AGENTS rule 5. One commit, `feat(web): F-122 the recheck card`.
 
 ### F-123 · A proposed decision with Accept in the Planner's conversation
