@@ -38,7 +38,7 @@ A shipped task's entry, and its plan once deleted, are in this file in Git at th
 | #67 | Codex images and language servers, slice 2 ([design](specs/2026-11-13-language-servers-design.md)) | B-137, B-138a, B-138 to B-146, F-114 to F-116 | `db760593` |
 | #68 | Slice 4: attempt context, task questions, conflicts and compatible ready groups ([design](specs/2026-11-14-task-questions-design.md)) | B-107 to B-109, B-147, B-148, F-102 | `d73bb646` |
 | — | Codex in the real Planner and executors slice 1, accepted by Mohammed in the browser (2026-11-15); their plans deleted | B-88, B-94 | `7846c2d9` |
-| #69 | Slice 5: checks, returns and messages to a task's agent ([design §5.3, §5.4](specs/2026-11-08-executors-design.md#54-checks-shadows-runs-mohammed-2026-11-15)) | B-111, B-113, B-114, B-150, B-151 (acceptance, [evidence](../evidence/2026-11-15-slice-5-checks.md)) | `4031168f` |
+| #69 | Slice 5: checks, returns and messages to a task's agent ([design §5.3, §5.4](specs/2026-11-08-executors-design.md#54-checks-shadows-runs-mohammed-2026-11-15)) | B-111, B-113, B-114, B-150, B-151 (acceptance, evidence (`docs/evidence/2026-11-15-slice-5-checks.md` at `4031168f`)) | `4031168f` |
 
 Replaced or dropped without being built: B-97, B-98, B-119 (by slice 2), B-102, B-110 (with the
 critic), B-112 (by the Planner's judgment), B-115, B-116 (by B-125 and B-126). Their entries are in
@@ -51,7 +51,7 @@ this file at `db760593`.
 - `Plans::owner_thread` (planner context spec §6, slice 4) waits for messaging slice 3.
 - Real-provider acceptance of structure and depth slices 1 to 5 is not recorded.
 - Recorded acceptances: §10 of the AYLUL agents design (2026-11-03, desktop app); planner context slices
-  1 and 2 ([evidence](../evidence/2026-11-04-planner-context-probe.md)); slice 2's language servers on
+  1 and 2 (evidence `docs/evidence/2026-11-04-planner-context-probe.md` at `4031168f`); slice 2's language servers on
   `testing4` (2026-11-13); slice 4's browser acceptance on `testing4` (2026-11-14, B-149).
 - Slice 4's live tests (`crates/shadows/tests/task_questions_live.rs`, B-149) are written and not run.
 - B-150 keeps its own per-thread message queue beside Turns' queue; reusing Turns' queue needs the executor session restored by thread.
@@ -140,10 +140,11 @@ B-152, B-154 and B-105 build on the [shared request](../shared/requests/2026-11-
 
 ### B-118 · The full journey, live and in the browser
 
-- Status: blocked (needs B-117, B-153, B-152, B-154, B-105 and the web tasks)
-- Plan: [B-118](plans/2026-11-16-slice-6-stop-control.md#task-b-118-the-full-journey-live-and-in-the-browser).
-- Owner: integration acceptance through AppCore and the real UI.
-- Read: the plan's B-118; `crates/shadows/tests/checks_live.rs` for the live setup.
-- Touch: the task's Files list in the plan.
-- Needs: every task above and the web tasks.
-- Done when: `stop_control_live` passes on the signed-in subscription and the browser journey, with its logs, is recorded in evidence.
+- Status: done. Mohammed accepted slice 6 in the browser on `testing6` (2026-11-16, Planner on Codex,
+  executors on Sonnet): a decision accepted on its card and pinned in a brief; an attempt Interrupted by a
+  daemon restart, its card and leftover files shown, then continued by a new Start; an attempt stopped
+  from its task page and started again; a done mark rerunning every done task's checks in the project,
+  with the recheck card. The live test `stop_control_live` and the evidence file are dropped (Mohammed,
+  2026-11-16).
+- Fixes found by the run: `4d534e0c`, `c55d4c01`, `54242de1` (another attempt's leftovers go to the
+  Planner, not back to the executor; a stored flag; rechecks across the project, each failure told once).

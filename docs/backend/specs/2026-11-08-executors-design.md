@@ -359,7 +359,7 @@ were done 50 seconds after Start, so waiting for a quiet project costs little.
 ## 7. The write boundary
 
 **Amended 2026-11-08 by Mohammed, after the probe**
-([evidence](../../evidence/2026-11-08-executor-write-boundary-probe.md)). The executor is
+(evidence `docs/evidence/2026-11-08-executor-write-boundary-probe.md` at `4031168f`). The executor is
 built as the Planner is: it has only the tools and permissions its task gives it.
 
 - **Its permissions are its task.** The session gets a fixed tool list and Claude Code

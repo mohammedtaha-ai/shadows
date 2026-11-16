@@ -131,7 +131,7 @@ Three layers, in this order:
   and standards.
 - **After a compact, automatically.** Mohammed: most people compact by hand, and others let
   Claude Code compact itself at its limit, so both must count. The adapter reports both
-  (evidence `docs/evidence/2026-11-04-planner-context-probe.md` §1): today as a `tool_call`
+  (evidence `docs/evidence/2026-11-04-planner-context-probe.md` at `4031168f` §1): today as a `tool_call`
   whose `_meta` carries `contextCompaction` and `claudeCode.toolName = "compact"`, with
   `trigger` `manual` or `automatic`. A completed compaction clears the session's heard context
   digest, so the next turn carries the context again.
@@ -206,7 +206,7 @@ No new service.
 
 ## 7. Evidence
 
-- `docs/evidence/2026-11-04-planner-context-probe.md`: how the adapter reports a compaction
+- `docs/evidence/2026-11-04-planner-context-probe.md` at `4031168f`: how the adapter reports a compaction
   (§1), and the sizes measured on testing4 (§2) and on testing55 (§3). On testing55, after one
   plan, the index with the whole vision is about 1 260 tokens and the detail about 3 140, so the
   index uses the vision's purpose items.

@@ -396,6 +396,8 @@ events, and `decisions` in the brief, as the
 
 ## Task B-118: the full journey, live and in the browser
 
+> Amended (Mohammed, 2026-11-16): the browser acceptance on `testing6` closes B-118. Steps 1, 2 and 4 (the live test and the evidence file) are dropped; see B-118 in `docs/backend/stages.md`.
+
 **Files:**
 - Create: `crates/shadows/tests/stop_control_live.rs`
 - Create: `docs/evidence/<date>-slice-6-stop-control.md`
