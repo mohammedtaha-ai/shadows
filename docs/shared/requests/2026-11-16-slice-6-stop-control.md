@@ -117,7 +117,7 @@ Masada, 2026-11-16: **accepted** as answered.
 - `left_files`: `[]` shows "No uncommitted files"; `null` shows "Uncommitted files: unknown".
 - The web refetches `…/decisions` on `DecisionProposed` and on `DecisionAccepted`; a superseded
   card learns its state from that refetch.
-- `decision_stale` (409) shows the reload message; `invalid_decision` (422) cannot come from the
+- `DECISION_STALE` (409) shows the reload message; `INVALID_DECISION` (422) cannot come from the
   person's Accept, and is shown as Core's message if it ever does.
 - A recheck row links to the task in its own `workflow_id` and `version`.
 
