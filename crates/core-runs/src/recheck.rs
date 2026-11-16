@@ -57,57 +57,64 @@ impl Runs {
 
     async fn end_recheck(&self, batch: &Batch) -> Result<(), RunsError> {
         let rows = self.inner.store.recheck_rows(&batch.id).await?;
-        let mut failures = BTreeMap::<String, RecheckFailure>::new();
+        // Rows come in plan version, task and check order; each attempt's failures stay together.
+        let mut failed = Vec::<RecheckFailure>::new();
+        let mut plans = BTreeMap::<String, core_plans::Plan>::new();
         let mut lines = Vec::new();
         for row in rows
             .iter()
             .filter(|row| row.outcome.as_deref() != Some("passed"))
         {
+            // Every check runs and is recorded; a failure already told stays untold until
+            // the check has passed in between.
+            if self.inner.store.failed_before(&batch.id, row).await? {
+                continue;
+            }
+            if !plans.contains_key(&row.workflow_id) {
+                let plan = self
+                    .read_plan(&WorkflowId::from_recorded(row.workflow_id.clone()))
+                    .await?;
+                plans.insert(row.workflow_id.clone(), plan);
+            }
+            let plan = &plans[&row.workflow_id];
             let mut check = Self::recheck_result(row)?;
             let output = check.output.as_deref().unwrap_or_default();
             let skip = output.chars().count().saturating_sub(4000);
             lines.push(format!(
-                "{}\n{}",
+                "Plan \"{}\" version {}: {}\n{}",
+                plan.title,
+                row.version,
                 Self::check_line(&check, 0, "the executor"),
                 output.chars().skip(skip).collect::<String>()
             ));
             check.output = None;
-            if !failures.contains_key(&row.attempt_id) {
-                let plan = self
-                    .read_plan(&WorkflowId::from_recorded(row.workflow_id.clone()))
-                    .await?;
+            if failed
+                .last()
+                .is_none_or(|last| last.attempt_id.as_str() != row.attempt_id)
+            {
                 let title = plan
                     .tasks
                     .iter()
                     .find(|task| task.content.number == row.task)
                     .map(|task| task.content.title.clone())
                     .unwrap_or_else(|| format!("T{}", row.task));
-                failures.insert(
-                    row.attempt_id.clone(),
-                    RecheckFailure {
-                        workflow_id: plan.id,
-                        version: row.version,
-                        task: row.task,
-                        title,
-                        attempt_id: AttemptId::from_recorded(row.attempt_id.clone()),
-                        checks: Vec::new(),
-                    },
-                );
+                failed.push(RecheckFailure {
+                    workflow_id: plan.id.clone(),
+                    version: row.version,
+                    task: row.task,
+                    title,
+                    attempt_id: AttemptId::from_recorded(row.attempt_id.clone()),
+                    checks: Vec::new(),
+                });
             }
-            failures
-                .get_mut(&row.attempt_id)
-                .unwrap()
-                .checks
-                .push(check);
+            failed.last_mut().unwrap().checks.push(check);
         }
-        let notice = if failures.is_empty() {
+        let notice = if failed.is_empty() {
             None
         } else if let Some(recipient) = self
             .recipient_for(&WorkflowId::from_recorded(batch.cause_workflow_id.clone()))
             .await?
         {
-            let mut failed: Vec<_> = failures.into_values().collect();
-            failed.sort_by_key(|failure| (failure.version, failure.task));
             let card = RecheckNotice {
                 plan_id: recipient.plan.plan_id,
                 cause_workflow_id: WorkflowId::from_recorded(batch.cause_workflow_id.clone()),
@@ -120,7 +127,7 @@ impl Runs {
                 planner: recipient.thread,
                 body: format!(
                     "[Shadows] After T{} of version {} was marked done, Shadows reran \
-                    the checks of the plan's done tasks. These no longer pass:\n{}\nTheir done \
+                    the checks of the project's done tasks. These no longer pass:\n{}\nTheir done \
                     marks stand. Read the change with task_diff, then amend or plan a correction.",
                     batch.cause_task,
                     batch.cause_version,

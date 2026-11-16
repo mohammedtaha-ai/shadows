@@ -227,6 +227,12 @@ answer says. **Blocked until that request is accepted.**
 
 ## Task B-154: a done mark rechecks every done task of its plan
 
+Amended (Mohammed, 2026-11-16: project-wide, each failure reported once): the batch takes every
+done task of the project, in any plan and version, from Runs' own marks and attempts (no longer
+`Plans::version_ids_in`); a check that failed in the latest earlier batch and fails again is
+rerun and recorded but not told again; the body names each failure's plan title and version and
+says "the project's done tasks".
+
 Changes what the web sees: a new Shadows notice card, `RecheckNotice`. `RecheckNotice` and
 `RecheckFailure` are registered in `components.schemas`, as the
 [shared request](../../shared/requests/2026-11-16-slice-6-stop-control.md)'s answer says.

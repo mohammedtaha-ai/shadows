@@ -2,7 +2,7 @@
 use super::{RunsStore, checks::Finished};
 use crate::{AttemptId, RunsError};
 use core_db::{Storage, Tx};
-use core_plans::{Plan, Plans, TaskCheck, TaskContext};
+use core_plans::{Plan, TaskCheck, TaskContext, WorkflowId};
 
 #[derive(sqlx::FromRow)]
 pub(crate) struct Batch {
@@ -39,28 +39,30 @@ impl RunsStore {
         cause_task: u32,
         command: &str,
     ) -> Result<Option<String>, RunsError> {
-        let versions = Plans::version_ids_in(conn, &plan.plan_id)
-            .await
-            .map_err(RunsError::from_plans)?;
+        // Every done task of the project, in any plan and version: a done task is in the
+        // project when one of its attempts ran there, and one with no attempt has no checks.
+        let marks: Vec<(String, i64, u32, Option<String>)> = sqlx::query_as(
+            "SELECT m.workflow_id,m.version,m.task,m.judged_attempt_id FROM run_task_marks m
+             WHERE m.done=1 AND EXISTS (SELECT 1 FROM run_attempts a
+               WHERE a.workflow_id=m.workflow_id AND a.version=m.version AND a.task=m.task
+               AND a.project_id=?)
+             ORDER BY m.workflow_id,m.version,m.task",
+        )
+        .bind(plan.project_id.as_str())
+        .fetch_all(&mut *conn)
+        .await?;
         let mut pending = Vec::new();
-        for (workflow, version) in versions {
-            let marks: Vec<(u32, Option<String>)> = sqlx::query_as(
-                "SELECT task,judged_attempt_id FROM run_task_marks
-                 WHERE workflow_id=? AND version=? AND done=1 ORDER BY task",
-            )
-            .bind(workflow.as_str())
-            .bind(version)
-            .fetch_all(&mut *conn)
-            .await?;
-            for (task, judged) in marks {
-                if workflow == plan.id && task == cause_task {
-                    continue;
-                }
-                let attempt = match judged {
+        for (workflow, version, task, judged) in marks {
+            let workflow = WorkflowId::from_recorded(workflow);
+            if workflow == plan.id && task == cause_task {
+                continue;
+            }
+            let attempt =
+                match judged {
                     Some(id) => Some(id),
                     None => sqlx::query_scalar::<_, String>(
                         "SELECT id FROM run_attempts WHERE workflow_id=? AND version=? AND task=?
-                         AND commit_sha IS NOT NULL ORDER BY number DESC LIMIT 1",
+                     AND commit_sha IS NOT NULL ORDER BY number DESC LIMIT 1",
                     )
                     .bind(workflow.as_str())
                     .bind(version)
@@ -68,30 +70,29 @@ impl RunsStore {
                     .fetch_optional(&mut *conn)
                     .await?,
                 };
-                let Some(attempt) = attempt else {
-                    continue;
-                };
-                let json: Option<String> = sqlx::query_scalar(
-                    "SELECT context_json FROM run_attempt_context WHERE attempt_id=?",
-                )
-                .bind(&attempt)
-                .fetch_optional(&mut *conn)
-                .await?;
-                let Some(json) = json else {
-                    continue;
-                };
-                let context: TaskContext = serde_json::from_str(&json)?;
-                if let Some(contract) = context.task.contract {
-                    for (ordinal, check) in contract.checks.into_iter().enumerate() {
-                        pending.push((
-                            attempt.clone(),
-                            workflow.clone(),
-                            version,
-                            task,
-                            ordinal,
-                            check,
-                        ));
-                    }
+            let Some(attempt) = attempt else {
+                continue;
+            };
+            let json: Option<String> = sqlx::query_scalar(
+                "SELECT context_json FROM run_attempt_context WHERE attempt_id=?",
+            )
+            .bind(&attempt)
+            .fetch_optional(&mut *conn)
+            .await?;
+            let Some(json) = json else {
+                continue;
+            };
+            let context: TaskContext = serde_json::from_str(&json)?;
+            if let Some(contract) = context.task.contract {
+                for (ordinal, check) in contract.checks.into_iter().enumerate() {
+                    pending.push((
+                        attempt.clone(),
+                        workflow.clone(),
+                        version,
+                        task,
+                        ordinal,
+                        check,
+                    ));
                 }
             }
         }
@@ -147,11 +148,31 @@ impl RunsStore {
         Ok(sqlx::query_as(
             "SELECT attempt_id,workflow_id,version,task,check_id,run_json,outcome,exit_code,
              head,output,truncated,started_at,finished_at FROM run_recheck_results
-             WHERE recheck_id=? ORDER BY version,task,ordinal,attempt_id",
+             WHERE recheck_id=? ORDER BY workflow_id,version,task,ordinal,attempt_id",
         )
         .bind(id)
         .fetch_all(self.storage.reader())
         .await?)
+    }
+
+    /// Whether the same check of the same task did not pass either in the latest earlier batch
+    /// that ran it: such a failure was told already, and is told again only after a pass.
+    pub async fn failed_before(&self, batch: &str, row: &ResultRow) -> Result<bool, RunsError> {
+        let previous: Option<Option<String>> = sqlx::query_scalar(
+            "SELECT r.outcome FROM run_recheck_results r
+             JOIN run_rechecks b ON b.id=r.recheck_id
+             JOIN run_rechecks cur ON cur.id=?
+             WHERE r.workflow_id=? AND r.task=? AND r.check_id=? AND r.finished_at IS NOT NULL
+               AND (b.created_at<cur.created_at OR (b.created_at=cur.created_at AND b.id<cur.id))
+             ORDER BY b.created_at DESC,b.id DESC LIMIT 1",
+        )
+        .bind(batch)
+        .bind(&row.workflow_id)
+        .bind(i64::from(row.task))
+        .bind(&row.check_id)
+        .fetch_optional(self.storage.reader())
+        .await?;
+        Ok(previous.is_some_and(|outcome| outcome.as_deref() != Some("passed")))
     }
 
     pub async fn start_recheck(

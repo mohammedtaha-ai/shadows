@@ -45,7 +45,7 @@ source: crates/core-runs/src
 owns_tables: [run_attempts, run_attempt_context, run_task_marks, run_lessons, run_checks, run_agent_messages, run_rechecks, run_recheck_results]
 
 modules:
-  recheck.rs: rechecking the plan's done tasks
+  recheck.rs: rechecking the project's done tasks
   store/rechecks.rs: recheck batch persistence
   lib.rs: the Runs service, its queries and done marks
   model.rs: attempt types
@@ -312,8 +312,8 @@ agreements:
     tested_by: [live_an_addition_continues_the_executor_in_its_session]
 
 obligations:
-  - rule: A fresh done command rechecks other done tasks across plan versions, using their judged attempt or newest committed fallback; replay starts no second batch and recovery preserves notice delivery.
-    tested_by: [a_done_mark_reruns_the_checks_of_the_plans_done_tasks, a_failing_recheck_tells_the_planner_once, a_passing_recheck_sends_no_notice, a_replayed_mark_starts_no_second_recheck, a_restart_finishes_an_unfinished_recheck, a_finished_batch_never_loses_its_notice, an_older_versions_done_task_is_rechecked, a_task_marked_done_again_stays_in_the_recheck, a_done_task_with_no_commit_is_left_out]
+  - rule: A fresh done command rechecks the project's other done tasks across plans and versions, using their judged attempt or newest committed fallback; a failure already told is rerun but not told again; replay starts no second batch and recovery preserves notice delivery.
+    tested_by: [a_done_mark_reruns_the_checks_of_the_plans_done_tasks, a_done_mark_reruns_another_plans_done_tasks, a_failure_still_failing_is_rerun_but_not_told_again,a_failing_recheck_tells_the_planner_once, a_passing_recheck_sends_no_notice, a_replayed_mark_starts_no_second_recheck, a_restart_finishes_an_unfinished_recheck, a_finished_batch_never_loses_its_notice, an_older_versions_done_task_is_rechecked, a_task_marked_done_again_stays_in_the_recheck, a_done_task_with_no_commit_is_left_out]
   - rule: A person's Stop and an interruption notify the Planner once; enqueue failure leaves the notice owed for recovery, while a Planner Stop and a conflict produce no second generic notice.
     tested_by: [a_restart_tells_the_planner_of_each_interrupted_attempt, a_second_restart_sends_no_second_interrupted_notice, an_owed_notice_is_sent_on_the_next_start, a_persons_stop_notice_survives_a_failed_enqueue, the_persons_stop_tells_the_planner, the_planners_stop_sends_no_notice, a_stopped_conflict_keeps_its_one_notice]
   - rule: Readiness agrees with Start over leftovers, while personal dirty files without an ended attempt or after a committed attempt still refuse Start.
@@ -525,9 +525,19 @@ agent_messages:
 
 rechecks:
   trigger: A fresh done command begins a batch in the same write as its mark.
-  set: Other done tasks in every version of the stable plan, own saved checks only.
+  set: >
+    Every other done task of the project, in any plan and version (Mohammed, 2026-11-16:
+    project-wide, each failure reported once), own saved checks only. Read from Runs' own
+    run_task_marks and run_attempts (a task with an attempt in the project), ordered by
+    workflow, version, task; the marked task is left out.
   attempt: The mark's judged attempt, else its version's newest attempt with a commit; absent context contributes no checks.
   execution: Shared run_check under the project check mutex, quiet-project and overlap rules retained.
   persistence: Results are durable; finished_at and the resolved notice payload are one write.
-  notice: Non-passed results produce a frozen Shadows notice with recheck-<batch>; done marks stand.
+  notice: >
+    New non-passed results produce a frozen Shadows notice with recheck-<batch> to the marking
+    plan's Planner; each failing line names its plan's title and version; done marks stand.
+    A result is not new when the same (workflow, task, check_id) did not pass either in the
+    latest earlier batch that ran it (failed_before, derived from run_recheck_results, no extra
+    state): it is rerun and recorded, never told again until it has passed in between. A batch
+    with nothing new sends no notice.
   recovery: Startup's unfinished rows become not_run, then the same finish and saved-notice delivery path runs.

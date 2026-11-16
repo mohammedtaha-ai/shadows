@@ -225,6 +225,116 @@ async fn a_restart_finishes_an_unfinished_recheck() {
     f.finish().await;
 }
 
+/// Plan A's T3, done while its check passed, then broken by plan B's T2 marked done.
+async fn broken_by_another_plan() -> (Fixture, ThreadId) {
+    let run = ["git", "config", "--get", "check.health"].map(String::from);
+    let (f, id, _, _) = super::checks::candidate(vec![run.to_vec()]).await;
+    f.git(&["config", "check.health", "ok"]);
+    sqlx::query("UPDATE run_attempts SET notice_sent_at=? WHERE id=?")
+        .bind("2026-11-16T00:00:00Z")
+        .bind(id.as_str())
+        .execute(f.storage.reader())
+        .await
+        .unwrap();
+    f.core
+        .runs()
+        .mark_done(
+            "done-three".into(),
+            &f.workflow,
+            1,
+            3,
+            true,
+            Some("Verified by the person".into()),
+        )
+        .await
+        .unwrap();
+    let planner = super::checks::prepare_planner(&f).await;
+    let other = WorkflowId::from_literal(TARGET);
+    f.core
+        .plans()
+        .approve_plan_for_test(&command("approve-other"), &other, 1)
+        .await
+        .unwrap();
+    f.git(&["config", "--unset", "check.health"]);
+    f.core
+        .runs()
+        .mark_done("done-other".into(), &other, 1, 2, true, None)
+        .await
+        .unwrap();
+    (f, planner)
+}
+
+async fn recheck_notices(f: &Fixture, planner: &ThreadId) -> usize {
+    f.core
+        .turns()
+        .queued(planner)
+        .await
+        .unwrap()
+        .iter()
+        .filter(|message| {
+            message
+                .notice
+                .as_ref()
+                .is_some_and(|notice| notice.card.get("recheck_id").is_some())
+        })
+        .count()
+}
+
+#[tokio::test]
+async fn a_done_mark_reruns_another_plans_done_tasks() {
+    let (f, planner) = broken_by_another_plan().await;
+    let message = notified(&f, &planner).await;
+    let (workflow, outcome): (String, String) =
+        sqlx::query_as("SELECT workflow_id,outcome FROM run_recheck_results")
+            .fetch_one(f.storage.reader())
+            .await
+            .unwrap();
+    assert_eq!(workflow, f.workflow.as_str());
+    assert_eq!(outcome, "failed");
+    let notice = message.notice.unwrap();
+    assert_eq!(notice.card["failed"][0]["workflow_id"], f.workflow.as_str());
+    assert_eq!(notice.card["failed"][0]["task"], 3);
+    assert!(
+        message.prompt.contains("the project's done tasks"),
+        "{}",
+        message.prompt
+    );
+    assert!(
+        message
+            .prompt
+            .contains("Plan \"Web\" version 1: T3 c1 failed"),
+        "{}",
+        message.prompt
+    );
+    assert_eq!(recheck_notices(&f, &planner).await, 1);
+    f.finish().await;
+}
+
+#[tokio::test]
+async fn a_failure_still_failing_is_rerun_but_not_told_again() {
+    let (f, planner) = broken_by_another_plan().await;
+    notified(&f, &planner).await;
+    cause(&f).await;
+    finished(&f).await;
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    let outcomes: Vec<String> = sqlx::query_scalar(
+        "SELECT r.outcome FROM run_recheck_results r JOIN run_rechecks b ON b.id=r.recheck_id
+         WHERE r.task=3 ORDER BY b.created_at,b.id",
+    )
+    .fetch_all(f.storage.reader())
+    .await
+    .unwrap();
+    assert_eq!(outcomes, vec!["failed", "failed"]);
+    let notice: Option<String> =
+        sqlx::query_scalar("SELECT notice_json FROM run_rechecks WHERE cause_task=1")
+            .fetch_one(f.storage.reader())
+            .await
+            .unwrap();
+    assert!(notice.is_none(), "a failure already told is not told again");
+    assert_eq!(recheck_notices(&f, &planner).await, 1);
+    f.finish().await;
+}
+
 #[tokio::test]
 async fn an_older_versions_done_task_is_rechecked() {
     let f = done_task(false).await;

@@ -321,6 +321,11 @@ the agent's word. This replaces the critic's evidence role (§5.1 already replac
   twice, even when the Planner's settings changed in between.
 - **A done mark frees only the attempt it judged.** The mark records the attempt it judged; the
   same mark sent again finishes freeing that attempt and never frees a later one.
+- **A done mark reruns the checks of the project's other done tasks** (Mohammed, 2026-11-16:
+  project-wide, each failure reported once). Every done task of every plan and version in the
+  project brings its judged attempt's checks; the marked task does not. A failing check is told
+  to the marking plan's Planner once, with its plan's title and version; it is told again only
+  after it has passed in a later recheck. Every check still runs and is recorded. Done marks stand.
 - **The lock orders Shadows' own runs only.** What executors run is ordered by their instructions
   and by waiting on a lock error, as above.
 - **An addition is a new attempt,** with its own commit and its own checks.
