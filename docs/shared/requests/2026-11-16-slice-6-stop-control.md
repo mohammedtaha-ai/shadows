@@ -107,6 +107,8 @@ plan's tasks now name the extra files.
   `decision_stale` is HTTP 409 with code `decision_stale`; `invalid_decision` is 422.
 - `context.decisions` is absent when empty, in the brief as in `TaskContext`.
 
+Correction (Hamoud, 2026-11-16): error codes reach the web as every Core code does, in `SCREAMING_SNAKE_CASE`: `DECISION_STALE` (409) and `INVALID_DECISION` (422), named in `ErrorCode` in `api/openapi.json`. Read `decision_stale` and `invalid_decision` above and in the Errors table as these.
+
 Status: answered.
 
 ## Frontend reply

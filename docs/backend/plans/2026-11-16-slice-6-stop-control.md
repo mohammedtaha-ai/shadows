@@ -312,12 +312,16 @@ events, and `decisions` in the brief, as the
 - Create: `crates/shadows-core/tests/design_decisions.rs`
 - Modify: `crates/core-design/src/lib.rs`, `crates/core-design/src/model.rs`, `crates/core-design/src/error.rs`, `crates/core-design/src/store/mod.rs`
 - Modify: `crates/core-plans/src/task_contract.rs` (validated `decisions` pins)
-- Modify: `crates/core-plans/src/task_context.rs` (`TaskContext.decisions`)
+- Modify: `crates/core-plans/src/store/edit.rs` (the pin check inside the edit's write)
+- Modify: `crates/core-plans/src/task_context.rs`, `crates/core-plans/src/store/task_context.rs` (`TaskContext.decisions`, built in the store)
 - Modify: `crates/core-plans/src/model.rs` (`DecisionPin`, the field)
 - Create: `crates/shadows-mcp/src/decision_tools.rs` (Design decisions MCP translation: `decision_propose`, `decision_list`)
 - Modify: `crates/shadows-mcp/src/server.rs` (its router, under the thread grant policy)
 - Modify: `crates/core-grants/src/tools.rs` (the Planner's list: +2)
-- Modify: `crates/shadows-http/src/design.rs` (the two routes)
+- Modify: `crates/shadows-http/src/design.rs` (the two handlers), `crates/shadows-http/src/lib.rs` (the route table), `crates/shadows-http/src/openapi.rs` (the paths, `DecisionRecord`, `DecisionInput`, `DecisionState`)
+- Modify: `crates/shadows-core/src/error.rs` (`ErrorCode::DecisionStale`, `ErrorCode::InvalidDecision` and the `DesignError` arms)
+- Modify: `crates/shadows-http/src/failure/` (the two codes' HTTP status and their mapping cases)
+- Modify: `crates/shadows/tests/architecture/table-owners.txt` (`design_decisions` → `design`)
 - Modify: `crates/shadows-core/src/lib.rs` (re-exports)
 - Modify: `crates/core-threads/src/model.rs` (`ThreadEntryKind::DecisionProposal`)
 - Modify: `crates/core-events/src/store.rs` (`DecisionProposed`, `DecisionAccepted` in the project tail)
@@ -333,7 +337,7 @@ events, and `decisions` in the brief, as the
   - `pub struct DecisionInput { id: Option<String>, expected_version: Option<i64>, title: String, decision: String, rationale: String, source: String }`
   - `pub enum DecisionState { Proposed, Accepted, Superseded }`
   - `pub struct DecisionRecord { id: String, version: i64, project_id: ProjectId, title: String, decision: String, rationale: String, source: String, state: DecisionState, approved_by: Option<ApprovedBy>, created_at: String }`
-  - `DesignError::InvalidDecision(String)` (`invalid_decision`) and `DesignError::DecisionStale` (`decision_stale`).
+  - `DesignError::InvalidDecision(String)` and `DesignError::DecisionStale(String)`. They reach clients, as every Design refusal does, through `CoreError::Refused` with `ErrorCode::InvalidDecision` (`INVALID_DECISION`, 422) and `ErrorCode::DecisionStale` (`DECISION_STALE`, 409); MCP gets the same through its `Refusal`.
   - `Design::propose_decision(&self, grant: &Grant, command_id: String, input: DecisionInput) -> Result<DecisionRecord, DesignError>`:
     - Needs a Planner grant with a running turn, as `propose_vision` does. The replay is classified first.
     - A new id is `D{n}`, the next number in the project.
@@ -348,7 +352,7 @@ events, and `decisions` in the brief, as the
   - `Design::decision_in(conn, project: &ProjectId, id: &str, version: i64) -> Result<Option<DecisionRecord>, DesignError>`
 - Produces (Plans):
   - `pub struct DecisionPin { id: String, version: i64 }`, and `TaskContract.decisions: Vec<DecisionPin>` (serde default, skipped when empty).
-  - Plan edit validation (task_add, task_update): each pin must name an **accepted** revision of the plan's project, read with `Design::decision_in` inside the edit's write. Otherwise it is a `Problem` with code `decision_not_accepted`. A frozen task's pins never change.
+  - Plan edit validation (task_add, task_update): each pin must name an **accepted** revision of the plan's project, read with `Design::decision_in` inside the edit's write. Otherwise it is a `Problem` whose message is `T{n} pins {id} v{version}, which is not an accepted decision` (`Problem` holds only a message, like every plan rule). A frozen task's pins never change.
   - `TaskContext.decisions: Vec<DecisionRecord>` (serde default, skipped when empty): each pinned revision as Design holds it when the context is built, state included. It is saved with the brief at Start like the rest of the context.
 - Adapters:
   - MCP, Planner only: `decision_propose` (input `DecisionInput` plus `command_id`) and `decision_list` (the grant's project).
@@ -366,7 +370,7 @@ events, and `decisions` in the brief, as the
   - `a_decision_replay_returns_the_original_revision`
 
   Then:
-  - `task_contract.rs`: `a_task_pins_only_accepted_decisions` (a proposed pin is `decision_not_accepted`; an accepted one is saved) and `a_contract_without_decisions_keeps_its_fingerprint`.
+  - `task_contract.rs`: `a_task_pins_only_accepted_decisions` (a proposed pin is refused with a problem containing `which is not an accepted decision`; an accepted one is saved) and `a_contract_without_decisions_keeps_its_fingerprint`.
   - `attempt_briefs.rs`: `a_frozen_pin_keeps_its_superseded_revision` (D1 v1 is pinned and frozen; v2 is accepted; a new Start's brief shows D1 v1 with state `superseded`).
   - `design_routes.rs`: `decisions_are_listed_and_accepted_over_http`.
   - `mcp_server.rs`: the Planner's list has both tools; the executor's has neither.
