@@ -93,7 +93,7 @@ named in its task (`surface-panel`, the same header row, text sizes and tokens);
 
 ### F-122 · The recheck card: done tasks whose checks no longer pass
 
-- Status: blocked: the checks row is `CheckRow` in `web/src/app/tasks/checks-panel.tsx`, not exported, and `ChecksPanel` reads an attempt's own checks by id, not a recheck failure's `checks`. Reuse needs `checks-panel.tsx` (and its contract) added to Touch, to export `CheckRow`.
+- Status: todo
 - Plan: the request, "B-154: the recheck card" and the Frontend reply.
 - Read: `web/src/stream/contract.yaml`; `web/src/app/conversation/contract.yaml`; `noticeOf` in
   `web/src/app/conversation/tool-text.ts`; `NoticeItem`; the checks row of the task's Report tab
@@ -111,12 +111,12 @@ named in its task (`surface-panel`, the same header row, text sizes and tokens);
     "Shadows · recheck after T{cause_task} (version {cause_version})". Body: "These done tasks
     no longer pass:", then per failure a link "T{task} · {title}" to the task route with the
     failure's own `workflow_id` and `version`, and its checks drawn as the task page draws them
-    (reuse the checks row; if it cannot be reused without changing `checks-panel.tsx`, stop and
-    report). "Their done marks stand." ends it.
+    (export `CheckRow` from `checks-panel.tsx` and reuse it; `ChecksPanel` keeps its behavior). "Their done marks stand." ends it.
 - Touch: `web/src/api/schema.d.ts` (generated); `web/src/api/runs.ts`;
   `web/src/api/contract.yaml`; `web/src/stream/frames.ts`; `web/src/stream/frames.test.ts`;
   `web/src/stream/index.ts`; `web/src/stream/contract.yaml`;
   `web/src/app/conversation/tool-text.ts`; `web/src/app/conversation/notice-item.tsx`;
+  `web/src/app/tasks/checks-panel.tsx` (export `CheckRow` only); `web/src/app/tasks/contract.yaml`;
   `web/src/app/conversation/recheck-notice.tsx` (new);
   `web/src/app/conversation/recheck-notice.test.tsx` (new);
   `web/src/app/conversation/contract.yaml`; `docs/frontend/codebase/README.md` (the new file's
