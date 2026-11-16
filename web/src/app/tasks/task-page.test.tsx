@@ -170,6 +170,23 @@ describe('the task page', () => {
     expect(a.text()).toContain('Running')
   })
 
+  it('start_shows_running_while_core_opens_the_session', async () => {
+    let current = taskRun({ latest: attempt({ state: 'stopped', ended_at: '2026-11-08T10:05:00Z' }) })
+    const held: { answer?: () => void } = {}
+    const a = (app = await startApp(PAGE, answers({
+      taskRun: () => Response.json(current),
+      startAttempt: () => {
+        current = taskRun({ latest: attempt({ id: 'a2', number: 2 }), start: { allowed: false, code: 'task_busy', reason: 'running' } })
+        return new Promise<Response>((resolve) => { held.answer = () => resolve(Response.json(current.latest, { status: 201 })) })
+      },
+    })))
+    await until(() => a.text().includes('Stopped'))
+    await click(a.button('Start'))
+    await until(() => a.text().includes('Running') && a.button('Stop') !== undefined)
+    expect(a.text()).not.toContain('Stopped')
+    await act(async () => { held.answer?.() })
+  })
+
   it('start_is_disabled_with_the_waiting_tasks', async () => {
     const a = (app = await startApp(PAGE, answers({
       taskRun: taskRun({

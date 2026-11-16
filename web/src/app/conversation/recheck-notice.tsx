@@ -1,10 +1,22 @@
 // One job: Shadows' recheck card, the done tasks whose checks no longer pass, drawn as an
-// activity item that links to each task's own version.
+// activity item that names each task's plan and links to the task's own version.
 
+import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { Bell } from 'lucide-react'
 import type { RecheckNotice } from '@/api/runs'
+import { planQuery } from '@/api/workflows'
 import { CheckRow } from '../check-row'
+
+/** A recheck covers every plan of the project, so each failure says which plan it belongs to; until
+ * the plan is read, or if it cannot be, the version alone. */
+function PlanName({ workflowId, version }: { workflowId: string; version: number }) {
+  const plan = useQuery(planQuery(workflowId))
+  return <p className="text-muted-foreground">
+    {plan.data !== undefined && <><span dir="auto" className="text-secondary-foreground">{plan.data.title}</span>, </>}
+    version {version}
+  </p>
+}
 
 export function RecheckNoticeItem({ recheck, projectId }: { recheck: RecheckNotice; projectId: string }) {
   return <section aria-label="Recheck" className="surface-panel space-y-2.5 rounded-xl p-3 text-xs">
@@ -16,13 +28,14 @@ export function RecheckNoticeItem({ recheck, projectId }: { recheck: RecheckNoti
       <p className="text-muted-foreground">These done tasks no longer pass:</p>
       <ul className="space-y-2">
         {recheck.failed.map(failure => <li key={failure.attempt_id} className="space-y-1.5">
+          <PlanName workflowId={failure.workflow_id} version={failure.version} />
           <Link to="/projects/$projectId/workflows/$workflowId/versions/$version/tasks/$task"
             params={{ projectId, workflowId: failure.workflow_id, version: String(failure.version), task: String(failure.task) }}
             className="font-medium text-accent-line underline underline-offset-2">
             <span dir="auto">T{failure.task} · {failure.title}</span>
           </Link>
           <ul className="space-y-2">
-            {failure.checks.map(check => <CheckRow key={`${check.for_task}:${check.id}`} check={check} />)}
+            {failure.checks.map(check => <CheckRow key={`${check.for_task}:${check.id}`} check={check} reported={false} />)}
           </ul>
         </li>)}
       </ul>
