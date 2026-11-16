@@ -5,7 +5,8 @@ here and set its status. Task shape: [`AGENTS.md`](./AGENTS.md#a-task-in-stagesm
 
 ## Now
 
-No frontend task is open. Slice 6's web tasks start at F-121 once its plan exists.
+Slice 6's web tasks, F-121 to F-124 below, are blocked until their backend task has regenerated
+`api/openapi.json`. Order: F-121 after B-152, F-122 after B-154, F-123 and F-124 after B-105.
 
 ### Shipped
 
@@ -48,3 +49,140 @@ PRs #59 and #66 have no `F-` task. Two composer fixes in PR #61 have none either
 Its shared request must be accepted and its backend response must exist. Expand the API hooks,
 routing, event refresh, contracts and code-map paths first. The old mockup's `Built` label is not
 evidence of completion.
+
+## Slice 6: stop control, rechecks and decisions
+
+Shared request: [slice 6](../shared/requests/2026-11-16-slice-6-stop-control.md), accepted
+(`9dbb015c`, codes corrected `13d0d9e7`). Backend plan:
+[slice 6](../backend/plans/2026-11-16-slice-6-stop-control.md). There is no frontend plan file:
+each task below is complete, and the request's Fields, Errors and Frontend reply are binding.
+
+Every task starts by running `npm run gen:api` from `web/` (its backend task has changed
+`api/openapi.json`); `src/api/schema.d.ts` is never edited by hand. A task whose generated schema
+lacks a field it needs stops and reports. Look: each new card takes the look of the existing card
+named in its task (`surface-panel`, the same header row, text sizes and tokens); no new colour.
+
+### F-121 · Interrupted and stopped attempts show in the Planner's conversation
+
+- Status: blocked (B-152 must regenerate `api/openapi.json` with `AttemptNotice.left_files`)
+- Plan: the request, "B-152: two outcomes of `AttemptNotice`" and the Frontend reply.
+- Read: `web/src/stream/contract.yaml`; `web/src/app/conversation/contract.yaml`;
+  `readAttemptNotice` in `web/src/stream/frames.ts`; `NoticeItem` in
+  `web/src/app/conversation/notice-item.tsx`.
+- Do:
+  - `readAttemptNotice` accepts `outcome` `interrupted` and `stopped` (today it returns `null`
+    for anything but `committed` and `failed`, so these cards would draw as bare text), and reads
+    `left_files` as `string[] | null` (any other value is `null`).
+  - `NoticeItem` heads these two cards "attempt N interrupted" and "attempt N stopped by you"
+    (`noticeTitle` gives the same words). The body lists `left_files` in mono, one per line,
+    under "Uncommitted files"; `[]` shows "No uncommitted files"; `null` shows
+    "Uncommitted files: unknown"; then one line: "A new Start continues from these files."
+    `interrupted` uses the warning tone on its outcome word; `stopped` the muted one.
+  - The Planner-facing body text is never shown for these cards.
+- Touch: `web/src/api/schema.d.ts` (generated); `web/src/stream/frames.ts`;
+  `web/src/stream/frames.test.ts`; `web/src/stream/contract.yaml`;
+  `web/src/app/conversation/notice-item.tsx`; `web/src/app/conversation/notice-item.test.tsx`;
+  `web/src/app/conversation/contract.yaml`; `docs/frontend/stages.md` (this entry).
+- Needs: B-152 done.
+- Done when: new tests pass: in `frames.test.ts`
+  `reads_an_interrupted_notice_with_its_left_files` and `left_files_of_another_shape_is_null`; in
+  `notice-item.test.tsx` `an_interrupted_notice_lists_the_files_it_left`,
+  `a_stopped_notice_with_no_files_says_so`, `unknown_left_files_say_unknown`. Run
+  `npx vitest run src/stream/frames.test.ts src/app/conversation/notice-item.test.tsx`, then the
+  checks of AGENTS rule 5. One commit, `feat(web): F-121 interrupted and stopped attempts`.
+
+### F-122 · The recheck card: done tasks whose checks no longer pass
+
+- Status: blocked (B-154 must regenerate `api/openapi.json` with `RecheckNotice`, `RecheckFailure`)
+- Plan: the request, "B-154: the recheck card" and the Frontend reply.
+- Read: `web/src/stream/contract.yaml`; `web/src/app/conversation/contract.yaml`; `noticeOf` in
+  `web/src/app/conversation/tool-text.ts`; `NoticeItem`; the checks row of the task's Report tab
+  (`web/src/app/tasks/checks-panel.tsx`); the task route in `web/src/router.tsx`
+  (`/projects/$projectId/workflows/$workflowId/versions/$version/tasks/$task`).
+- Do:
+  - `web/src/api/runs.ts` exports `RecheckNotice` and `RecheckFailure` from the generated schema.
+  - `readRecheckNotice(value): RecheckNotice | null` in `frames.ts`, exported from
+    `web/src/stream/index.ts`: a card with a string `recheck_id` and an array `failed`; anything
+    else is `null`.
+  - `noticeOf` gives a Shadows notice its recheck card when `readRecheckNotice` reads one (today a
+    Shadows notice always has `card: null`). Its return type widens to carry it; `copyText`,
+    `turn-blocks.ts` and `messages.tsx` keep working unchanged through `noticeOf`.
+  - New `RecheckNoticeItem` in `recheck-notice.tsx`, drawn by `NoticeItem` for that card. Header:
+    "Shadows · recheck after T{cause_task} (version {cause_version})". Body: "These done tasks
+    no longer pass:", then per failure a link "T{task} · {title}" to the task route with the
+    failure's own `workflow_id` and `version`, and its checks drawn as the task page draws them
+    (reuse the checks row; if it cannot be reused without changing `checks-panel.tsx`, stop and
+    report). "Their done marks stand." ends it.
+- Touch: `web/src/api/schema.d.ts` (generated); `web/src/api/runs.ts`;
+  `web/src/api/contract.yaml`; `web/src/stream/frames.ts`; `web/src/stream/frames.test.ts`;
+  `web/src/stream/index.ts`; `web/src/stream/contract.yaml`;
+  `web/src/app/conversation/tool-text.ts`; `web/src/app/conversation/notice-item.tsx`;
+  `web/src/app/conversation/recheck-notice.tsx` (new);
+  `web/src/app/conversation/recheck-notice.test.tsx` (new);
+  `web/src/app/conversation/contract.yaml`; `docs/frontend/codebase/README.md` (the new file's
+  row); `docs/frontend/stages.md` (this entry).
+- Needs: B-154 done; F-121 (same `frames.ts` and `notice-item.tsx`).
+- Done when: new tests pass: in `frames.test.ts` `reads_a_recheck_card_by_its_recheck_id`; in
+  `recheck-notice.test.tsx` `a_recheck_lists_each_failing_task_with_its_checks` and
+  `a_failing_task_links_to_its_own_version`; the existing `notice-item.test.tsx` and
+  `conversation.test.tsx` stay green. Run
+  `npx vitest run src/stream/frames.test.ts src/app/conversation/recheck-notice.test.tsx src/app/conversation/notice-item.test.tsx src/app/conversation/conversation.test.tsx`,
+  then the checks of AGENTS rule 5. One commit, `feat(web): F-122 the recheck card`.
+
+### F-123 · A proposed decision with Accept in the Planner's conversation
+
+- Status: blocked (B-105 must regenerate `api/openapi.json` with the decision routes, `DecisionRecord`, the `DecisionProposal` entry kind and the two events)
+- Plan: the request, "B-105: decisions", its Errors and the Frontend reply.
+- Read: `web/src/api/contract.yaml`; `web/src/app/conversation/contract.yaml`;
+  `web/src/stream/contract.yaml`; `VisionProposalCard` and `useProposalApproval` /
+  `ProposalApproval` (`web/src/app/conversation/vision-proposal-card.tsx`,
+  `proposal-approval.tsx`); `classifyRefresh` in `web/src/stream/refresh.ts`.
+- Do:
+  - In `web/src/api/design.ts`: `decisionsQuery(projectId)` (`GET /api/projects/{id}/decisions`)
+    and `acceptDecision(projectId, decisionId, version, commandId)`
+    (`POST …/decisions/{decision}/accept`), with a key under the design keys; `DecisionRecord`
+    from the generated schema.
+  - `classifyRefresh` refetches the decisions on `DecisionProposed` and `DecisionAccepted`.
+  - New `DecisionProposalCard` (`decision-proposal-card.tsx`), drawn by `entry.tsx` for
+    `entry.kind === 'DecisionProposal'`, with the look of `VisionProposalCard`: "Decision
+    {id} · version {version}", its title, decision, rationale and source (`dir="auto"`). The
+    live state comes from `decisionsQuery`, never from the card: `proposed` and the latest
+    revision → an Accept button; `accepted` → "Accepted by {approved_by}" (`approved-by.tsx`);
+    `superseded` → "Superseded". `DECISION_STALE` (409) shows "This decision changed. Reload to
+    see its latest version." and refetches; any other error shows Core's message. One
+    `command_id` per click, kept across a retry (`web/src/api/command-id.ts`).
+  - Reuse `useProposalApproval` / `ProposalApproval` when their signature fits. Changing them for
+    the version argument is allowed in `proposal-approval.tsx` only if the vision, map and
+    roadmap card tests stay green.
+- Touch: `web/src/api/schema.d.ts` (generated); `web/src/api/design.ts`;
+  `web/src/api/design.test.ts`; `web/src/api/contract.yaml`; `web/src/stream/refresh.ts`;
+  `web/src/stream/refresh.test.tsx`; `web/src/stream/contract.yaml`;
+  `web/src/app/conversation/entry.tsx`; `web/src/app/conversation/proposal-approval.tsx`;
+  `web/src/app/conversation/decision-proposal-card.tsx` (new);
+  `web/src/app/conversation/decision-proposal-card.test.tsx` (new);
+  `web/src/app/conversation/contract.yaml`; `docs/frontend/codebase/README.md` (the new file's
+  row); `docs/frontend/stages.md` (this entry).
+- Needs: B-105 done.
+- Done when: new tests pass: in `design.test.ts` `accept_sends_the_version_and_command_id`; in
+  `refresh.test.tsx` `decision_events_refetch_the_decisions`; in `decision-proposal-card.test.tsx`
+  `a_proposed_decision_can_be_accepted`, `an_accepted_decision_shows_who_accepted_it`,
+  `a_superseded_decision_has_no_accept`, `a_stale_accept_asks_to_reload`; the vision, map and
+  roadmap card tests stay green. Run
+  `npx vitest run src/api/design.test.ts src/stream/refresh.test.tsx src/app/conversation/decision-proposal-card.test.tsx src/app/conversation/vision-proposal-card.test.tsx src/app/conversation/map-proposal-card.test.tsx src/app/conversation/roadmap-proposal-card.test.tsx`,
+  then the checks of AGENTS rule 5. One commit, `feat(web): F-123 proposed decisions with Accept`.
+
+### F-124 · The attempt brief shows the decisions its task follows
+
+- Status: blocked (B-105, as F-123)
+- Plan: the request, "B-105: decisions", row `context.decisions`.
+- Read: `web/src/app/tasks/contract.yaml`; `BriefPanel` in `web/src/app/tasks/brief-panel.tsx`.
+- Do: under the resolved contracts, a "Decisions" list when `context.decisions` is present:
+  "{id} v{version} · {title}" with the decision text below and the revision's state as saved in
+  the brief (`superseded` shown as "superseded since", so a frozen pin to an older revision is
+  plain). Absent means no section.
+- Touch: `web/src/app/tasks/brief-panel.tsx`; `web/src/app/tasks/brief-panel.test.tsx`;
+  `web/src/app/tasks/contract.yaml`; `docs/frontend/stages.md` (this entry).
+- Needs: B-105 done; F-123 (it ran `npm run gen:api`).
+- Done when: new tests pass in `brief-panel.test.tsx`: `the_brief_lists_its_pinned_decisions` and
+  `a_superseded_pin_is_labelled`. Run `npx vitest run src/app/tasks/brief-panel.test.tsx`, then the
+  checks of AGENTS rule 5. One commit, `feat(web): F-124 decisions in the attempt brief`.
