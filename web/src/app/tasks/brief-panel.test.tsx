@@ -81,6 +81,37 @@ it('the_brief_shows_check_commands_and_acceptance_items', async () => {
   expect(text).toContain('Acceptance: 1, 2')
 })
 
+const decision = (version: number, state: string) => ({ id: 'D1', version, project_id: 'p1', title: 'Use SQLite',
+  decision: 'Store everything in SQLite.', rationale: 'r', source: 'planner', state, approved_by: null, created_at: 'x' })
+
+it('the_brief_lists_its_pinned_decisions', async () => {
+  const a = attempt('a1', 1)
+  const saved = brief(a)
+  ;(saved.context as unknown as { decisions: unknown[] }).decisions = [decision(2, 'accepted')]
+  app = await startApp(PAGE, { ...answers({ attempts: [a] }), 'GET /api/attempts/a1/brief': saved })
+  await reportTab()
+  await until(() => heading(1) !== undefined)
+  await click(heading(1))
+  await until(() => document.querySelector('[aria-label="Attempt brief"]') !== null)
+  const text = document.querySelector('[aria-label="Attempt brief"]')!.textContent
+  expect(text).toContain('Decisions')
+  expect(text).toContain('D1 v2 · Use SQLite')
+  expect(text).toContain('Store everything in SQLite.')
+  expect(text).not.toContain('superseded since')
+})
+
+it('a_superseded_pin_is_labelled', async () => {
+  const a = attempt('a1', 1)
+  const saved = brief(a)
+  ;(saved.context as unknown as { decisions: unknown[] }).decisions = [decision(1, 'superseded')]
+  app = await startApp(PAGE, { ...answers({ attempts: [a] }), 'GET /api/attempts/a1/brief': saved })
+  await reportTab()
+  await until(() => heading(1) !== undefined)
+  await click(heading(1))
+  await until(() => document.querySelector('[aria-label="Attempt brief"]') !== null)
+  expect(document.querySelector('[aria-label="Attempt brief"]')!.textContent).toContain('D1 v1 · Use SQLite (superseded since)')
+})
+
 it('brief_view_keeps_original_version', async () => {
   const a1 = attempt('a1', 1, { addition: 'Try again carefully' })
   app = await startApp(PAGE, {

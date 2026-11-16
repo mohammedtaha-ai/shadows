@@ -93,7 +93,7 @@ named in its task (`surface-panel`, the same header row, text sizes and tokens);
 
 ### F-122 · The recheck card: done tasks whose checks no longer pass
 
-- Status: todo
+- Status: blocked: reusing CheckRow from `app/conversation/recheck-notice.tsx` adds two violations to the architecture ratchet (`dependency` and `public_entry` of `app/tasks/checks-panel.tsx`, which has no index). Needs `web/src/architecture.baseline.txt` or a public entry `web/src/app/tasks/index.ts` in Touch. The finished work is a patch, F-122 in the builder report.
 - Plan: the request, "B-154: the recheck card" and the Frontend reply.
 - Read: `web/src/stream/contract.yaml`; `web/src/app/conversation/contract.yaml`; `noticeOf` in
   `web/src/app/conversation/tool-text.ts`; `NoticeItem`; the checks row of the task's Report tab
@@ -173,7 +173,7 @@ named in its task (`surface-panel`, the same header row, text sizes and tokens);
 
 ### F-124 · The attempt brief shows the decisions its task follows
 
-- Status: todo
+- Status: done
 - Plan: the request, "B-105: decisions", row `context.decisions`.
 - Read: `web/src/app/tasks/contract.yaml`; `BriefPanel` in `web/src/app/tasks/brief-panel.tsx`.
 - Do: under the resolved contracts, a "Decisions" list when `context.decisions` is present:
