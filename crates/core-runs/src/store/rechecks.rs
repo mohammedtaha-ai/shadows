@@ -193,13 +193,15 @@ impl RunsStore {
                 Box::pin(async move {
                     sqlx::query(
                         "UPDATE run_recheck_results SET outcome=?,exit_code=?,head=?,output=?,
-                truncated=?,finished_at=? WHERE recheck_id=? AND attempt_id=? AND check_id=?",
+                truncated=?,foreign_leftovers=?,finished_at=?
+                WHERE recheck_id=? AND attempt_id=? AND check_id=?",
                     )
                     .bind(serde_json::to_value(result.outcome)?.as_str().unwrap())
                     .bind(result.exit_code)
                     .bind(result.head)
                     .bind(result.output)
                     .bind(result.truncated)
+                    .bind(result.foreign_leftovers)
                     .bind(Storage::now())
                     .bind(batch)
                     .bind(attempt.as_str())

@@ -475,7 +475,8 @@ confirmation:
     Checks are taken from saved attempt contexts, own then the committed tasks whose outputs
     it uses. No running executor turn, plus the project check mutex, admits a confirmation.
     Uncommitted paths inside any recorded task writes are inconclusive; when none lies inside the
-    attempt's own writes, the output names them as another attempt's scope. Each run compares
+    attempt's own writes, the output names them as another attempt's scope and the result is
+    stored with foreign_leftovers set (run_checks and run_recheck_results). Each run compares
     HEAD and changed-path content hashes, recording HEAD, bounded output and exit code; moved state
     is inconclusive. Any executor operation overlapping a check causes a bounded rerun;
     every project executor thread is checked, even a released one. Check-folder real paths
@@ -486,7 +487,8 @@ confirmation:
     at most twice since Start or the latest Planner addition. These attempts spend no additions.
     A check inconclusive only for another attempt's uncommitted files is not the executor's to
     fix: when it is the only kind of non-passed check, nothing returns and the Planner is told at
-    once (another_attempts_leftover_goes_to_the_planner_without_a_return).
+    once (another_attempts_leftover_goes_to_the_planner_without_a_return). The return reads the
+    stored foreign_leftovers flag (returnable_checks), never the output text.
     The previous commit is accepted unchanged only for its own checks continuation; every scope,
     reachability and dirty rule still holds. Repeated return commands replay before state checks.
   recovery: >
