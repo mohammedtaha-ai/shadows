@@ -5,7 +5,7 @@
 import { cn } from 'cn'
 import { Bell, ChevronRight } from 'lucide-react'
 import { Suspense, lazy, useState } from 'react'
-import type { AgentNotice, AgentReplyNotice } from '@/api/runs'
+import type { AgentNotice, AgentReplyNotice, AttemptNotice } from '@/api/runs'
 import type { ThreadEntry } from '@/api/threads'
 import { ConflictNotice } from './conflict-notice'
 
@@ -19,11 +19,16 @@ export function noticeName(card: AgentNotice | null): string {
   return card === null ? 'Executor' : 'message' in card ? 'Task agent' : `Executor (${card.model})`
 }
 
+/** The outcome as the header says it; a Stop is the person's own act. */
+function outcomeWord(outcome: AttemptNotice['outcome']): string {
+  return outcome === 'stopped' ? 'stopped by you' : outcome
+}
+
 /** The header's line, from the card alone. */
 export function noticeTitle(card: AgentNotice | null): string {
   if (card === null) return 'Executor'
   if ('message' in card) return `${card.reason != null ? 'No reply' : 'Reply'} from task agent · T${card.task}`
-  return `${noticeName(card)} · T${card.task} · attempt ${card.attempt} ${card.outcome}`
+  return `${noticeName(card)} · T${card.task} · attempt ${card.attempt} ${outcomeWord(card.outcome)}`
 }
 
 function AgentReplyItem({ card }: { card: AgentReplyNotice }) {
@@ -43,6 +48,21 @@ function AgentReplyItem({ card }: { card: AgentReplyNotice }) {
       {card.reason != null && <p dir="auto" className="whitespace-pre-wrap break-words text-destructive">{card.reason}</p>}
     </div>}
   </section>
+}
+
+/** The files an interrupted or stopped attempt left; Core's list, drawn as given. */
+function LeftFiles({ files }: { files: string[] | null }) {
+  return <div className="space-y-1.5 text-xs">
+    {files === null ? <p className="text-muted-foreground">Uncommitted files: unknown</p>
+      : files.length === 0 ? <p className="text-muted-foreground">No uncommitted files</p>
+        : <>
+          <p className="font-medium text-muted-foreground">Uncommitted files</p>
+          <ul className="font-mono text-2xs text-foreground">
+            {files.map(file => <li key={file} dir="auto" className="break-all">{file}</li>)}
+          </ul>
+        </>}
+    <p className="text-muted-foreground">A new Start continues from these files.</p>
+  </div>
 }
 
 function Report({ text }: { text: string }) {
@@ -79,7 +99,8 @@ export function NoticeItem({ body, card, sender = 'Executor' }: {
   const [open, setOpen] = useState(true)
   if (card !== null && 'message' in card) return <AgentReplyItem card={card} />
   const conflict = card?.conflict ?? null
-  const hasBody = card === null || card.report != null || card.reason != null || conflict !== null
+  const left = card !== null && (card.outcome === 'interrupted' || card.outcome === 'stopped')
+  const hasBody = card === null || left || card.report != null || card.reason != null || conflict !== null
   const header = (
     <>
       <Bell aria-hidden className="size-3.5 shrink-0 text-accent-line/85" />
@@ -87,7 +108,8 @@ export function NoticeItem({ body, card, sender = 'Executor' }: {
         {card === null ? sender : (
           <>
             {noticeName(card)} · T{card.task} · attempt {card.attempt}{' '}
-            <span className={cn(card.outcome === 'failed' && 'text-destructive')}>{card.outcome}</span>
+            <span className={cn(card.outcome === 'failed' && 'text-destructive', card.outcome === 'interrupted' && 'text-warning',
+              card.outcome === 'stopped' && 'text-muted-foreground')}>{outcomeWord(card.outcome)}</span>
           </>
         )}
       </span>
@@ -132,6 +154,7 @@ export function NoticeItem({ body, card, sender = 'Executor' }: {
             <>
               {card.reason != null && <p dir="auto" className="text-xs text-destructive">{card.reason}</p>}
               {card.report != null && <Report text={card.report} />}
+              {left && <LeftFiles files={card.left_files ?? null} />}
               {conflict !== null && <ConflictNotice conflict={conflict} attemptId={card.attempt_id} />}
             </>
           )}

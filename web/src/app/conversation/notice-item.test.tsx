@@ -183,3 +183,27 @@ it('a_streamed_conflict_notice_reaches_the_conversation', async () => {
     expect(app.text()).toContain('Executor (sonnet)')
   } finally { app.unmount() }
 })
+
+it('an_interrupted_notice_lists_the_files_it_left', async () => {
+  const host = await draw(notice('Planner text', card({ outcome: 'interrupted', commit: null, report: null,
+    left_files: ['src/a.rs', 'src/b.rs'] })))
+  expect(header(host).textContent).toContain('attempt 3 interrupted')
+  expect(host.textContent).toContain('Uncommitted files')
+  expect(host.textContent).toContain('src/a.rs')
+  expect(host.textContent).toContain('src/b.rs')
+  expect(host.textContent).toContain('A new Start continues from these files.')
+  expect(host.textContent).not.toContain('Planner text')
+  expect(noticeTitle(card({ outcome: 'interrupted' }))).toContain('attempt 3 interrupted')
+})
+
+it('a_stopped_notice_with_no_files_says_so', async () => {
+  const host = await draw(notice('Planner text', card({ outcome: 'stopped', commit: null, report: null, left_files: [] })))
+  expect(header(host).textContent).toContain('attempt 3 stopped by you')
+  expect(host.textContent).toContain('No uncommitted files')
+  expect(host.textContent).toContain('A new Start continues from these files.')
+})
+
+it('unknown_left_files_say_unknown', async () => {
+  const host = await draw(notice('Planner text', card({ outcome: 'interrupted', commit: null, report: null, left_files: null })))
+  expect(host.textContent).toContain('Uncommitted files: unknown')
+})

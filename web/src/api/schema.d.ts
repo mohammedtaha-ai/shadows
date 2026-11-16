@@ -990,6 +990,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/projects/{id}/decisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["decisions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{id}/decisions/{decision}/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["accept_decision"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/projects/{id}/design/edits": {
         parameters: {
             query?: never;
@@ -2240,6 +2272,8 @@ export interface components {
             conflict?: null | components["schemas"]["TaskConflict"];
             /** @description The attempt carried the task's third and last addition. */
             last_addition: boolean;
+            /** @description Uncommitted files left by a Stop or interruption; unknown when git failed. */
+            left_files?: string[] | null;
             model: string;
             outcome: components["schemas"]["AttemptState"];
             reason?: string | null;
@@ -2478,6 +2512,49 @@ export interface components {
             profile?: string | null;
             title: string;
         };
+        DecisionAccept: {
+            command_id: string;
+            /**
+             * Format: int64
+             * @description The proposed revision accepted; it must be its decision's latest.
+             */
+            version: number;
+        };
+        /**
+         * @description A Planner's proposed decision: a new id, or the next revision of `id`
+         *     when `expected_version` is its latest version.
+         */
+        DecisionInput: {
+            decision: string;
+            /** Format: int64 */
+            expected_version?: number | null;
+            id?: string | null;
+            rationale: string;
+            source?: string;
+            title: string;
+        };
+        /** @description One exact revision of a project decision a task contract follows. */
+        DecisionPin: {
+            id: string;
+            /** Format: int64 */
+            version: number;
+        };
+        /** @description One revision of a project decision as Design holds it. */
+        DecisionRecord: {
+            approved_by?: null | components["schemas"]["ApprovedBy"];
+            created_at: string;
+            decision: string;
+            id: string;
+            project_id: components["schemas"]["ProjectId"];
+            rationale: string;
+            source: string;
+            state: components["schemas"]["DecisionState"];
+            title: string;
+            /** Format: int64 */
+            version: number;
+        };
+        /** @enum {string} */
+        DecisionState: "proposed" | "accepted" | "superseded";
         DesignAnchor: {
             id: components["schemas"]["PartId"];
             /** @enum {string} */
@@ -2678,7 +2755,7 @@ export interface components {
          *     `Blocked`/`Rejected` are domain outcomes and never appear here.
          * @enum {string}
          */
-        ErrorCode: "CONTEXT_NOT_CARRIED" | "MAP_REFUSED" | "PERMISSION_NOT_FOUND" | "PERMISSION_SETTLED" | "PERMISSION_OPTION_NOT_OFFERED" | "EXTENSION_NOT_FOUND" | "EXTENSION_NAME_CONFLICT" | "RUNTIME_NOT_CONFIGURED" | "AYLUL_PROFILE_NOT_FOUND" | "AYLUL_PROVIDER_NOT_FOUND" | "PROVIDER_IN_USE" | "PROFILE_INVALID" | "SECRET_NAME_RESERVED" | "SECRET_NAME_INVALID" | "SECRET_VALUE_INVALID" | "SECRET_UNREADABLE" | "SECRETS_UNAVAILABLE" | "AYLUL_KEY_MISSING" | "AYLUL_NOT_CONFIGURED" | "STAGE_BLOCKED" | "HARNESS_START_FAILED" | "PROCESS_SPAWN_FAILED" | "PROCESS_TERMINATED" | "PROCESS_TERMINATION_FAILED" | "RUNTIME_STOPPING" | "STORAGE_UNAVAILABLE" | "STORAGE_MIGRATION_FAILED" | "STORAGE_CONSTRAINT_VIOLATION" | "COMMAND_CONFLICT" | "IDEMPOTENCY_KEY_REQUIRED" | "INVALID_COMMAND" | "INVALID_CURSOR" | "INVENTORY_STALE" | "AGENT_AUTH_FAILED" | "AGENT_UNSUPPORTED_PROFILE" | "PATH_INVALID" | "PATH_NOT_FOUND" | "PATH_NOT_A_DIRECTORY" | "PATH_ACCESS_DENIED" | "PATH_ALREADY_EXISTS" | "PATH_UNAVAILABLE" | "ORIGIN_REFUSED" | "HARNESS_UNAVAILABLE" | "LANGUAGE_SERVER_UNAVAILABLE" | "SETTING_NOT_OFFERED" | "MODE_NOT_ALLOWED" | "HARNESS_LOCKED" | "THREAD_BUSY" | "QUEUED_MESSAGE_GONE" | "QUEUED_NOTICE_KEPT" | "FORK_POINT_NOT_SUPPORTED" | "WORKFLOW_FROZEN_IMMUTABLE" | "WORKFLOW_VALIDATION_FAILED" | "REVISION_CONFLICT" | "PROJECT_HAS_THREADS" | "GRANT_SCOPE" | "GRANT_INVALID";
+        ErrorCode: "CONTEXT_NOT_CARRIED" | "MAP_REFUSED" | "PERMISSION_NOT_FOUND" | "PERMISSION_SETTLED" | "PERMISSION_OPTION_NOT_OFFERED" | "EXTENSION_NOT_FOUND" | "EXTENSION_NAME_CONFLICT" | "RUNTIME_NOT_CONFIGURED" | "AYLUL_PROFILE_NOT_FOUND" | "AYLUL_PROVIDER_NOT_FOUND" | "PROVIDER_IN_USE" | "PROFILE_INVALID" | "SECRET_NAME_RESERVED" | "SECRET_NAME_INVALID" | "SECRET_VALUE_INVALID" | "SECRET_UNREADABLE" | "SECRETS_UNAVAILABLE" | "AYLUL_KEY_MISSING" | "AYLUL_NOT_CONFIGURED" | "STAGE_BLOCKED" | "DECISION_STALE" | "INVALID_DECISION" | "HARNESS_START_FAILED" | "PROCESS_SPAWN_FAILED" | "PROCESS_TERMINATED" | "PROCESS_TERMINATION_FAILED" | "RUNTIME_STOPPING" | "STORAGE_UNAVAILABLE" | "STORAGE_MIGRATION_FAILED" | "STORAGE_CONSTRAINT_VIOLATION" | "COMMAND_CONFLICT" | "IDEMPOTENCY_KEY_REQUIRED" | "INVALID_COMMAND" | "INVALID_CURSOR" | "INVENTORY_STALE" | "AGENT_AUTH_FAILED" | "AGENT_UNSUPPORTED_PROFILE" | "PATH_INVALID" | "PATH_NOT_FOUND" | "PATH_NOT_A_DIRECTORY" | "PATH_ACCESS_DENIED" | "PATH_ALREADY_EXISTS" | "PATH_UNAVAILABLE" | "ORIGIN_REFUSED" | "HARNESS_UNAVAILABLE" | "LANGUAGE_SERVER_UNAVAILABLE" | "SETTING_NOT_OFFERED" | "MODE_NOT_ALLOWED" | "HARNESS_LOCKED" | "THREAD_BUSY" | "QUEUED_MESSAGE_GONE" | "QUEUED_NOTICE_KEPT" | "FORK_POINT_NOT_SUPPORTED" | "WORKFLOW_FROZEN_IMMUTABLE" | "WORKFLOW_VALIDATION_FAILED" | "REVISION_CONFLICT" | "PROJECT_HAS_THREADS" | "GRANT_SCOPE" | "GRANT_INVALID";
         /** @enum {string} */
         ExtensionKind: "plugin" | "skill" | "mcp";
         ExtensionLibrary: {
@@ -3688,6 +3765,28 @@ export interface components {
         };
         /** Format: uuid */
         QueuedMessageId: string;
+        /** @description A done task whose recorded checks did not all pass on a recheck. */
+        RecheckFailure: {
+            attempt_id: components["schemas"]["AttemptId"];
+            checks: components["schemas"]["CheckResult"][];
+            /** Format: int32 */
+            task: number;
+            title: string;
+            /** Format: int64 */
+            version: number;
+            workflow_id: components["schemas"]["WorkflowId"];
+        };
+        /** @description The outcome of rechecking other done tasks after a new done mark. */
+        RecheckNotice: {
+            /** Format: int32 */
+            cause_task: number;
+            /** Format: int64 */
+            cause_version: number;
+            cause_workflow_id: components["schemas"]["WorkflowId"];
+            failed: components["schemas"]["RecheckFailure"][];
+            plan_id: components["schemas"]["PlanId"];
+            recheck_id: string;
+        };
         /** @description The model and effort last chosen for this harness. */
         RememberedSettings: {
             effort: string | null;
@@ -4001,6 +4100,8 @@ export interface components {
         };
         TaskContext: {
             contracts?: components["schemas"]["ResolvedContract"][];
+            /** @description The task contract's pinned decision revisions as Design holds them now. */
+            decisions?: components["schemas"]["DecisionRecord"][];
             /** Format: int64 */
             map_revision: number;
             parts: components["schemas"]["TaskPart"][];
@@ -4015,6 +4116,8 @@ export interface components {
         TaskContract: {
             /** @description Commands that prove acceptance, run by the executor and again by Shadows. */
             checks?: components["schemas"]["TaskCheck"][];
+            /** @description Accepted project decisions the task follows, each at one exact revision. */
+            decisions?: components["schemas"]["DecisionPin"][];
             files?: components["schemas"]["FileWork"][];
             /** @description What must not be changed. */
             forbidden?: string[];
@@ -4110,7 +4213,7 @@ export interface components {
          *     Each variant uses its name for storage and serialization.
          * @enum {string}
          */
-        ThreadEntryKind: "UserMessage" | "AgentMessage" | "ToolCall" | "TodoList" | "Subagent" | "PermissionRefused" | "PermissionAsked" | "PermissionAnswered" | "PlanView" | "PlanApproved" | "VisionProposal" | "MapProposal" | "RoadmapProposal" | "PersonQuestion" | "ProjectChange";
+        ThreadEntryKind: "UserMessage" | "AgentMessage" | "ToolCall" | "TodoList" | "Subagent" | "PermissionRefused" | "PermissionAsked" | "PermissionAnswered" | "PlanView" | "PlanApproved" | "VisionProposal" | "MapProposal" | "RoadmapProposal" | "DecisionProposal" | "PersonQuestion" | "ProjectChange";
         /** Format: uuid */
         ThreadId: string;
         ThreadPlanningAnchor: {
@@ -7649,6 +7752,104 @@ export interface operations {
                 };
             };
             /** @description STORAGE_UNAVAILABLE */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    decisions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The project */
+                id: components["schemas"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DecisionRecord"][];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    accept_decision: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The project */
+                id: components["schemas"]["ProjectId"];
+                /** @description The decision id, such as D1 */
+                decision: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DecisionAccept"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DecisionRecord"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
             500: {
                 headers: {
                     [name: string]: unknown;

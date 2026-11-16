@@ -161,7 +161,7 @@ export function readAttemptNotice(value: unknown): AttemptNotice | null {
     typeof attempt !== 'number' ||
     typeof title !== 'string' ||
     typeof model !== 'string' ||
-    (outcome !== 'committed' && outcome !== 'failed')
+    (outcome !== 'committed' && outcome !== 'failed' && outcome !== 'interrupted' && outcome !== 'stopped')
   ) {
     return null
   }
@@ -178,6 +178,9 @@ export function readAttemptNotice(value: unknown): AttemptNotice | null {
     report: textOrNull(value.report),
     reason: textOrNull(value.reason),
     last_addition: value.last_addition === true,
+    left_files: Array.isArray(value.left_files) && value.left_files.every((f) => typeof f === 'string')
+      ? (value.left_files as string[])
+      : null,
     // Core's snapshot of the conflict, kept whole; the notice only draws it.
     ...(isRecord(value.conflict) ? { conflict: value.conflict as unknown as TaskConflict } : {}),
   }

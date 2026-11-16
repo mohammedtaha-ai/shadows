@@ -76,7 +76,8 @@ shadows_notices:
   notices: "noticeOf reads the author: Executor notices keep their attempt card; Shadows' notices carry none and are drawn under the sender name Shadows."
   changes: "ProjectChangeLine draws a ProjectChange entry's paths and its reason, or 'no reason given'."
   conflicts: "A notice card's optional conflict is drawn by ConflictNotice as a history copy (expected, observed, evidence, plain text, no controls) with a link to the attempt's Report (#attempt-<id>); current stop and delivery are ConflictPanel's."
-  tested_by: [a_shadows_notice_names_shadows, a_project_change_shows_its_reason, conflict_notice_keeps_executor_attribution, ordinary_notices_still_render]
+  left_files: "An interrupted or stopped attempt's notice heads as attempt N interrupted or stopped by you (warning and muted tone), lists left_files in mono under Uncommitted files, says No uncommitted files for [] and Uncommitted files: unknown for null, then A new Start continues from these files; the Planner-facing body is never shown."
+  tested_by: [an_interrupted_notice_lists_the_files_it_left, a_stopped_notice_with_no_files_says_so, unknown_left_files_say_unknown, a_shadows_notice_names_shadows, a_project_change_shows_its_reason, conflict_notice_keeps_executor_attribution, ordinary_notices_still_render]
 
 
 # ── shapes ───────────────────────────────────────────────────────────────────

@@ -64,7 +64,7 @@ named in its task (`surface-panel`, the same header row, text sizes and tokens);
 
 ### F-121 · Interrupted and stopped attempts show in the Planner's conversation
 
-- Status: todo
+- Status: done
 - Plan: the request, "B-152: two outcomes of `AttemptNotice`" and the Frontend reply.
 - Read: `web/src/stream/contract.yaml`; `web/src/app/conversation/contract.yaml`;
   `readAttemptNotice` in `web/src/stream/frames.ts`; `NoticeItem` in

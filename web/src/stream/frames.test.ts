@@ -180,6 +180,19 @@ describe('readAttemptNotice', () => {
     expect(readAttemptNotice({ ...base, conflict })?.conflict).toEqual(conflict)
   })
 
+  it('reads_an_interrupted_notice_with_its_left_files', () => {
+    const read = readAttemptNotice({ ...base, outcome: 'interrupted', left_files: ['a.rs', 'b.rs'] })
+    expect(read?.outcome).toBe('interrupted')
+    expect(read?.left_files).toEqual(['a.rs', 'b.rs'])
+    expect(readAttemptNotice({ ...base, outcome: 'stopped', left_files: [] })?.left_files).toEqual([])
+  })
+
+  it('left_files_of_another_shape_is_null', () => {
+    expect(readAttemptNotice({ ...base, outcome: 'stopped' })?.left_files).toBeNull()
+    expect(readAttemptNotice({ ...base, left_files: 'a.rs' })?.left_files).toBeNull()
+    expect(readAttemptNotice({ ...base, left_files: ['a.rs', 1] })?.left_files).toBeNull()
+  })
+
   it('an_ordinary_notice_has_no_conflict', () => {
     expect(readAttemptNotice(base)?.conflict).toBeUndefined()
     expect(readAttemptNotice({ ...base, conflict: 'nope' })?.conflict).toBeUndefined()

@@ -156,7 +156,7 @@ frame_readers:
   readSubagentCard:
     "(value: unknown) -> SubagentCard | null; null when value is not a card, no throw"
   readAttemptNotice:
-    "(value: unknown) -> AttemptNotice | null; null unless task and attempt are numbers, title and model strings and outcome is committed or failed; commit, report and reason read as string or null; last_addition true only when true; conflict kept as given when it is an object and omitted otherwise (a_notice_keeps_its_conflict, an_ordinary_notice_has_no_conflict); no throw"
+    "(value: unknown) -> AttemptNotice | null; null unless task and attempt are numbers, title and model strings and outcome is committed, failed, interrupted or stopped; left_files is a string list or null for anything else (reads_an_interrupted_notice_with_its_left_files, left_files_of_another_shape_is_null); commit, report and reason read as string or null; last_addition true only when true; conflict kept as given when it is an object and omitted otherwise (a_notice_keeps_its_conflict, an_ordinary_notice_has_no_conflict); no throw"
   parseTool: "(data: string) -> ToolFrame"
   parseTodos: "(data: string) -> TodosFrame"
   readToolCard:
