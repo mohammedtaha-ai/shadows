@@ -130,7 +130,16 @@ B-152, B-154 and B-105 build on the [shared request](../shared/requests/2026-11-
 
 ### B-105 · Project decisions, proposed by the Planner and accepted by the person
 
-- Status: todo
+- Status: blocked (2026-11-16, fixer): the plan's Files list leaves out paths the change needs:
+  `crates/core-plans/src/store/edit.rs` (the pin check in the edit's write),
+  `crates/core-plans/src/store/task_context.rs` (where `TaskContext` is built),
+  `crates/shadows-core/src/error.rs` (the two Design refusals and their `ErrorCode`s),
+  `crates/shadows-http/src/failure/` (their status and mapping cases), `crates/shadows-http/src/lib.rs`
+  (the route table), `crates/shadows-http/src/openapi.rs` (the paths and `DecisionRecord`), and
+  `crates/shadows/tests/architecture/table-owners.txt` (`design_decisions`). Also a ruling:
+  Design refusals reach HTTP as `ErrorCode` (`SCREAMING_SNAKE_CASE`), but the accepted request names
+  `decision_stale` and `invalid_decision`; and `Problem` has no `code`, so `decision_not_accepted`
+  can only be message text.
 - Plan: [B-105](plans/2026-11-16-slice-6-stop-control.md#task-b-105-project-decisions-proposed-by-the-planner-and-accepted-by-the-person).
 - Owner: Design, with Plans for the pins and the adapters.
 - Read: `crates/core-design/contract.yaml` (`propose_vision`, `approve_vision_proposal`); `crates/core-plans/contract.yaml` (`TaskContract`, `TaskContext`, `task_context_in`); spec §17.3.
