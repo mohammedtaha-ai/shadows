@@ -5,8 +5,8 @@ here and set its status. Task shape: [`AGENTS.md`](./AGENTS.md#a-task-in-stagesm
 
 ## Now
 
-Slice 6's web tasks, F-121 to F-124 below, are blocked until their backend task has regenerated
-`api/openapi.json`. Order: F-121 after B-152, F-122 after B-154, F-123 and F-124 after B-105.
+Slice 6's web tasks, F-121 to F-124 below, in order. Their backend (B-152 `160cf9ef`, B-154
+`0abefbef`, B-105 `9e5bbc8d`) is committed and `api/openapi.json` carries it.
 
 ### Shipped
 
@@ -64,7 +64,7 @@ named in its task (`surface-panel`, the same header row, text sizes and tokens);
 
 ### F-121 · Interrupted and stopped attempts show in the Planner's conversation
 
-- Status: blocked (B-152 must regenerate `api/openapi.json` with `AttemptNotice.left_files`)
+- Status: todo
 - Plan: the request, "B-152: two outcomes of `AttemptNotice`" and the Frontend reply.
 - Read: `web/src/stream/contract.yaml`; `web/src/app/conversation/contract.yaml`;
   `readAttemptNotice` in `web/src/stream/frames.ts`; `NoticeItem` in
@@ -93,7 +93,7 @@ named in its task (`surface-panel`, the same header row, text sizes and tokens);
 
 ### F-122 · The recheck card: done tasks whose checks no longer pass
 
-- Status: blocked (B-154 must regenerate `api/openapi.json` with `RecheckNotice`, `RecheckFailure`)
+- Status: todo
 - Plan: the request, "B-154: the recheck card" and the Frontend reply.
 - Read: `web/src/stream/contract.yaml`; `web/src/app/conversation/contract.yaml`; `noticeOf` in
   `web/src/app/conversation/tool-text.ts`; `NoticeItem`; the checks row of the task's Report tab
@@ -131,7 +131,7 @@ named in its task (`surface-panel`, the same header row, text sizes and tokens);
 
 ### F-123 · A proposed decision with Accept in the Planner's conversation
 
-- Status: blocked (B-105 must regenerate `api/openapi.json` with the decision routes, `DecisionRecord`, the `DecisionProposal` entry kind and the two events)
+- Status: todo
 - Plan: the request, "B-105: decisions", its Errors and the Frontend reply.
 - Read: `web/src/api/contract.yaml`; `web/src/app/conversation/contract.yaml`;
   `web/src/stream/contract.yaml`; `VisionProposalCard` and `useProposalApproval` /
@@ -173,7 +173,7 @@ named in its task (`surface-panel`, the same header row, text sizes and tokens);
 
 ### F-124 · The attempt brief shows the decisions its task follows
 
-- Status: blocked (B-105, as F-123)
+- Status: todo
 - Plan: the request, "B-105: decisions", row `context.decisions`.
 - Read: `web/src/app/tasks/contract.yaml`; `BriefPanel` in `web/src/app/tasks/brief-panel.tsx`.
 - Do: under the resolved contracts, a "Decisions" list when `context.decisions` is present:
