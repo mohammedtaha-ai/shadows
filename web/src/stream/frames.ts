@@ -3,7 +3,7 @@
 // the OpenAPI document's `/api/subscribe` entry); OpenAPI cannot type them, so
 // they are checked here, and a frame that does not match is a protocol error.
 
-import type { AgentNotice, AgentReplyNotice, AttemptNotice, TaskConflict } from '@/api/runs'
+import type { AgentNotice, AgentReplyNotice, AttemptNotice, RecheckNotice, TaskConflict } from '@/api/runs'
 import type { AccountLimits, Choice, SessionChoices } from '@/api/sessions'
 import type {
   CallKind,
@@ -184,6 +184,12 @@ export function readAttemptNotice(value: unknown): AttemptNotice | null {
     // Core's snapshot of the conflict, kept whole; the notice only draws it.
     ...(isRecord(value.conflict) ? { conflict: value.conflict as unknown as TaskConflict } : {}),
   }
+}
+
+/** Shadows' recheck card as the value holds it, or null when it is not one. */
+export function readRecheckNotice(value: unknown): RecheckNotice | null {
+  if (!isRecord(value) || typeof value.recheck_id !== 'string' || !Array.isArray(value.failed)) return null
+  return value as unknown as RecheckNotice
 }
 
 /** Executor questions carry their own reply card, distinct from an attempt outcome. */

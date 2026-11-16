@@ -93,7 +93,7 @@ named in its task (`surface-panel`, the same header row, text sizes and tokens);
 
 ### F-122 · The recheck card: done tasks whose checks no longer pass
 
-- Status: todo
+- Status: done
 - Plan: the request, "B-154: the recheck card" and the Frontend reply.
 - Read: `web/src/stream/contract.yaml`; `web/src/app/conversation/contract.yaml`; `noticeOf` in
   `web/src/app/conversation/tool-text.ts`; `NoticeItem`; the checks row of the task's Report tab

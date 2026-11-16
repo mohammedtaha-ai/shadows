@@ -25,6 +25,7 @@ traps:
   - The model is free text: the API offers no list of executor models.
 
 checks:
+  row: CheckRow lives in app/check-row.tsx so the Planner's recheck card draws a failure's checks the way the Report tab does; ChecksPanel imports it.
   decisions: "The brief lists context.decisions under the resolved contracts as id v{version} · title with the decision text below; a superseded revision reads superseded since; absent or empty means no section (the_brief_lists_its_pinned_decisions, a_superseded_pin_is_labelled)."
   brief: Saved contract checks show their argv, optional folder, timeout and acceptance references.
   report: Each committed attempt reads its own results; reported and confirmed outcomes remain separate, mismatches are marked, exit code and HEADs are shown, and a labelled disclosure shows plain output and truncation. Cached results remain visible during refresh.

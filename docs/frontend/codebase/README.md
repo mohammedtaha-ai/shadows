@@ -71,7 +71,7 @@ boundaries do not exempt their sources from the other architecture rules.
 | `stream` | `stream/**` | `stream/index.ts` | `stream/contract.yaml` | `api` |
 | `desktop` | `desktop/**` | `desktop/index.ts, desktop/startup.ts` | `desktop/contract.yaml` | `api` |
 | `ui` | `components/ui/**` | `components/ui/*` | `-` | `-` |
-| `shared` | `app/error-line.tsx, app/copy-button.tsx, app/daemon-status.tsx, app/confirm-panel.tsx` | `app/error-line.tsx, app/copy-button.tsx, app/daemon-status.tsx, app/confirm-panel.tsx` | `-` | `api, ui` |
+| `shared` | `app/error-line.tsx, app/copy-button.tsx, app/daemon-status.tsx, app/confirm-panel.tsx, app/check-row.tsx` | `app/error-line.tsx, app/copy-button.tsx, app/daemon-status.tsx, app/confirm-panel.tsx, app/check-row.tsx` | `-` | `api, ui` |
 | `agents` | `app/agents/**` | `app/agents/index.ts, app/agents/home.tsx` | `app/agents/contract.yaml` | `api, ui, shared, desktop, navigation` |
 | `agreements` | `app/agreements/**` | `app/agreements/index.ts, app/agreements/agreements-page.tsx` | `app/agreements/contract.yaml` | `api, ui, shared` |
 | `conversation` | `app/conversation/**` | `app/conversation/index.ts, app/conversation/conversation.tsx, app/conversation/draft.tsx` | `app/conversation/contract.yaml` | `api, ui, shared, desktop, stream, design, workflows, desktop-ui, navigation` |
@@ -268,6 +268,7 @@ it is that folder's `contract.yaml`.
 | `web/src/app/conversation/subagent-card.tsx` | Card for one subagent in the conversation | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/subagent-panel.tsx` | Panel showing what one subagent did | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/subagent-text.ts` | Formats a subagent's figures for display | `web/src/app/conversation/contract.yaml` |
+| `web/src/app/conversation/recheck-notice.tsx` | Shadows' recheck card: done tasks whose checks no longer pass | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/tool-text.ts` | Reads a tool call as one line for the conversation | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/turn-settings.ts` | Model, mode, effort the next turn runs with | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/turn-state.ts` | What the client knows of a thread's turn state | `web/src/app/conversation/contract.yaml` |
@@ -304,6 +305,7 @@ it is that folder's `contract.yaml`.
 | `web/src/app/design/workspace-plans.tsx` | Project plan list, with its archive filter | `web/src/app/design/contract.yaml` |
 | `web/src/app/design/index.ts` | Expose app/design public capabilities | `web/src/app/design/contract.yaml` |
 | `web/src/app/error-line.tsx` | Inline line saying why a daemon call failed | `web/src/app/copy-button.tsx` |
+| `web/src/app/check-row.tsx` | One check's result row | `web/src/app/tasks/contract.yaml` |
 | `web/src/app/confirm-panel.tsx` | Confirmation presentation with non-submitting action buttons | `web/src/app/error-line.tsx` |
 | `web/src/app/home.tsx` | Main pane shown when no project is open | `web/src/app/shell.tsx` |
 | `web/src/app/new-project/folder-browser.tsx` | Browses one daemon directory to pick a folder | `web/src/app/new-project/contract.yaml` |

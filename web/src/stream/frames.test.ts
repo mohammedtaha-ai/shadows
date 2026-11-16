@@ -11,6 +11,7 @@ import {
   parseTool,
   parseUsage,
   readAttemptNotice,
+  readRecheckNotice,
   readAgentNotice,
   readTodoList,
   readToolCard,
@@ -208,5 +209,15 @@ describe('readAgentNotice', () => {
     expect(readAgentNotice(failed)).toEqual(failed)
     expect(readAgentNotice({ ...reply, reply: 4 })).toBeNull()
     expect(readAgentNotice({ ...reply, task: '2' })).toBeNull()
+  })
+})
+
+describe('readRecheckNotice', () => {
+  it('reads_a_recheck_card_by_its_recheck_id', () => {
+    const card = { plan_id: 'pl', cause_workflow_id: 'w', cause_version: 1, cause_task: 2, recheck_id: 'r1', failed: [] }
+    expect(readRecheckNotice(card)).toEqual(card)
+    expect(readRecheckNotice({ ...card, recheck_id: 4 })).toBeNull()
+    expect(readRecheckNotice({ ...card, failed: 'x' })).toBeNull()
+    expect(readRecheckNotice(null)).toBeNull()
   })
 })

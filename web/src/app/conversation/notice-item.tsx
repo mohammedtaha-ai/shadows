@@ -5,9 +5,10 @@
 import { cn } from 'cn'
 import { Bell, ChevronRight } from 'lucide-react'
 import { Suspense, lazy, useState } from 'react'
-import type { AgentNotice, AgentReplyNotice, AttemptNotice } from '@/api/runs'
+import type { AgentNotice, AgentReplyNotice, AttemptNotice, RecheckNotice } from '@/api/runs'
 import type { ThreadEntry } from '@/api/threads'
 import { ConflictNotice } from './conflict-notice'
+import { RecheckNoticeItem } from './recheck-notice'
 
 const LazyReplyText = lazy(async () => ({ default: (await import('./reply-text')).ReplyText }))
 
@@ -91,12 +92,15 @@ function Report({ text }: { text: string }) {
 }
 
 /** A notice from an executor, or from Shadows itself. `body` is shown only when the card is missing or unreadable. */
-export function NoticeItem({ body, card, sender = 'Executor' }: {
+export function NoticeItem({ body, card, recheck = null, projectId = '', sender = 'Executor' }: {
   body: string
   card: AgentNotice | null
+  recheck?: RecheckNotice | null
+  projectId?: string
   sender?: 'Executor' | 'Shadows'
 }) {
   const [open, setOpen] = useState(true)
+  if (recheck !== null) return <RecheckNoticeItem recheck={recheck} projectId={projectId} />
   if (card !== null && 'message' in card) return <AgentReplyItem card={card} />
   const conflict = card?.conflict ?? null
   const left = card !== null && (card.outcome === 'interrupted' || card.outcome === 'stopped')

@@ -1,8 +1,8 @@
 // Distinguish entries by kind rather than text so tool output cannot masquerade as a card.
 
-import type { AgentNotice } from '@/api/runs'
+import type { AgentNotice, RecheckNotice } from '@/api/runs'
 import type { ThreadEntry } from '@/api/threads'
-import { type SubagentCard, readAgentNotice, readSubagentCard } from '@/stream'
+import { type SubagentCard, readAgentNotice, readRecheckNotice, readSubagentCard } from '@/stream'
 
 /** Suppress plan_show's tool line because its plan card already represents the result. */
 const SENTENCES: Readonly<Record<string, string | null>> = {
@@ -51,11 +51,12 @@ export function subagentOf(entry: ThreadEntry): SubagentCard | null {
 
 /** A notice: a message whose author is an Executor or Shadows, never decided from its text.
  * `card` is null when the entry has none or it cannot be read (Shadows' notices carry none an attempt reads). */
-export function noticeOf(entry: ThreadEntry): { card: AgentNotice | null; sender: 'Executor' | 'Shadows' } | null {
+export function noticeOf(entry: ThreadEntry):
+  { card: AgentNotice | null; recheck: RecheckNotice | null; sender: 'Executor' | 'Shadows' } | null {
   if (entry.kind !== 'UserMessage') return null
-  if (entry.author.kind === 'Shadows') return { card: null, sender: 'Shadows' }
+  if (entry.author.kind === 'Shadows') return { card: null, recheck: readRecheckNotice(entry.card), sender: 'Shadows' }
   if (entry.author.kind !== 'Executor') return null
-  return { card: readAgentNotice(entry.card), sender: 'Executor' }
+  return { card: readAgentNotice(entry.card), recheck: null, sender: 'Executor' }
 }
 
 /** An entry that adds no line: a tool call whose result is another entry. */

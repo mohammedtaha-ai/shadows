@@ -65,7 +65,7 @@ export function Entry({
 }) {
   if (entry.kind === 'UserMessage') {
     const notice = noticeOf(entry)
-    if (notice !== null) return <NoticeItem body={entry.body} card={notice.card} sender={notice.sender} />
+    if (notice !== null) return <NoticeItem body={entry.body} card={notice.card} recheck={notice.recheck} projectId={projectId} sender={notice.sender} />
     return (
       <div className="flex justify-end">
         <div
