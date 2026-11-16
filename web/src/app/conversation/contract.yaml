@@ -381,6 +381,9 @@ components:
   VisionProposalCard:
     signature: "(props: { entry: ThreadEntry; projectId: string }) => JSX.Element"
     # Approval shown only when live status is Pending, not outdated, and readable.
+  DecisionProposalCard:
+    signature: "(props: { entry: ThreadEntry; projectId: string }) => JSX.Element"
+    # State comes from decisionsQuery, never the card: proposed and latest shows Accept; accepted shows ApprovedBy; superseded (or an older proposed revision) shows Superseded. DECISION_STALE shows 'This decision changed. Reload to see its latest version.' and refetches. One command_id per click, kept across a retry (a_proposed_decision_can_be_accepted, an_accepted_decision_shows_who_accepted_it, a_superseded_decision_has_no_accept, a_stale_accept_asks_to_reload).
   MapProposalCard:
     signature: "(props: { entry: ThreadEntry; projectId: string }) => JSX.Element"
     # Waivers are shown as consent; the button label names them when present. A change card whose new parent differs from old_parent shows one move line (top level, or the parent part title through the part query, falling back to the id).

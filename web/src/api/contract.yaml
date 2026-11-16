@@ -233,6 +233,8 @@ design:
   listRoadmapProposals: "(projectId: string) -> Promise<RoadmapProposal[]>"
   approveRoadmapProposal: "(projectId: string, proposalId: string, commandId: string) ->
       Promise<DesignChange>"
+  acceptDecision: "(projectId: string, decisionId: string, version: number, commandId: string) ->
+      Promise<DecisionRecord>; POST /decisions/{decision}/accept with { command_id, version } (accept_sends_the_version_and_command_id)"
   approveVisionProposal: "(projectId: string, proposalId: string, commandId: string) ->
       Promise<DesignChange>"
 
@@ -283,6 +285,7 @@ query_keys:
   visionQuery: "(projectId: string) -> queryOptions; ['projects', id, 'design', 'vision']"
   visionProposalsQuery: "(projectId: string) -> queryOptions; ['projects', id, 'design',
       'vision-proposals']"
+  decisionsQuery: "(projectId: string) -> queryOptions; ['projects', id, 'design', 'decisions']; DecisionRecord[]"
   mapProposalsQuery: "(projectId: string) -> queryOptions; ['projects', id, 'design',
       'map-proposals']"
   roadmapProposalsQuery: "(projectId: string) -> queryOptions; ['projects', id, 'design',

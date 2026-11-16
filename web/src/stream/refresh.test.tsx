@@ -11,6 +11,7 @@ import { useProjectEvents } from './use-project-events'
 import { useThreadStream } from './use-thread-stream'
 import { waitingPermissionsQuery } from '@/api/permissions'
 import { threadKeys } from '@/api/threads'
+import { designKeys } from '@/api/design'
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 
@@ -23,6 +24,17 @@ it.each(['AgentMessage', 'UserMessage', 'ToolCall'])('only assistant entries ref
     payload: { ordinal: 1, kind },
   }))
   expect(client.getQueryState(key)?.isInvalidated).toBe(kind === 'AgentMessage')
+  client.clear()
+})
+
+it.each(['DecisionProposed', 'DecisionAccepted'])('decision_events_refetch_the_decisions: %s', kind => {
+  const client = new QueryClient()
+  const key = designKeys.decisions('p1')
+  client.getQueryCache().build(client, { queryKey: key })
+  dispatchRefresh(client, classifyRefresh({
+    kind, seq: 1, threadId: null, operationId: null, projectId: 'p1', payload: { project_id: 'p1' },
+  }))
+  expect(client.getQueryState(key)?.isInvalidated).toBe(true)
   client.clear()
 })
 

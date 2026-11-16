@@ -282,6 +282,7 @@ it is that folder's `contract.yaml`.
 | `web/src/app/conversation/use-stop.ts` | Stop the running turn | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/use-session.ts` | Harness session state the conversation screen reads | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/use-proposal-approval.ts` | Own the proposal approval lifecycle | `web/src/app/conversation/contract.yaml` |
+| `web/src/app/conversation/decision-proposal-card.tsx` | Card for a proposed decision, with Accept | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/vision-proposal-card.tsx` | Card for a vision proposal, with approval state | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/waiting-messages.tsx` | Queued messages waiting to be sent or removed | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/index.ts` | Declare lazy route surfaces | `web/src/app/conversation/contract.yaml` |

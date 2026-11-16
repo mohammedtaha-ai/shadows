@@ -719,6 +719,7 @@ feature_entry: "index.ts exposes SlashCommand, tabId, LimitWindow, Limits, PlanS
 
 refresh_policy:
   classifier: "refresh.ts classifyRefresh is pure: an event with delivery identifiers becomes refresh targets."
+  decisions: "DecisionProposed and DecisionAccepted refresh the project design keys, which hold the decisions (decision_events_refetch_the_decisions)."
   dispatcher: "dispatchRefresh maps targets to API owners' invalidation methods, without building query keys."
   union: "All five plan kinds refresh all workflows plus the source project's design and agreement versions, on every path."
   scope: "Project subscriptions supply their project id; writer subscriptions use the plan's project_id and conversations supply the route project id. Payload project_id is a fallback."

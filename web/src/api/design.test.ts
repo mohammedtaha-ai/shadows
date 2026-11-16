@@ -1,7 +1,7 @@
 // The request each design call sends, read off a stubbed `fetch`: the route,
 // and the fact that it went through client.ts's one client.
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { getOutcome, getPart, getVision } from './design'
+import { acceptDecision, getOutcome, getPart, getVision } from './design'
 
 afterEach(() => vi.unstubAllGlobals())
 
@@ -37,5 +37,18 @@ describe('design', () => {
       'http://127.0.0.1:4318/api/projects/p1/design/parts/part-1',
       'http://127.0.0.1:4318/api/projects/p1/design/outcomes/out-1',
     ])
+  })
+
+  it('accept_sends_the_version_and_command_id', async () => {
+    const calls: { url: string; method: string; body: unknown }[] = []
+    vi.stubGlobal('fetch', async (r: Request) => {
+      calls.push({ url: r.url, method: r.method, body: await r.json() })
+      return Response.json({ id: 'D1', version: 2, state: 'accepted' })
+    })
+    await acceptDecision('p1', 'D1', 2, 'cmd-1')
+    expect(calls).toEqual([{
+      url: 'http://127.0.0.1:4318/api/projects/p1/decisions/D1/accept', method: 'POST',
+      body: { command_id: 'cmd-1', version: 2 },
+    }])
   })
 })

@@ -10,6 +10,7 @@ export type VisionView = components['schemas']['VisionView']
 export type VisionItem = components['schemas']['VisionItem']
 export type VisionField = components['schemas']['VisionField']
 export type VisionProposal = components['schemas']['VisionProposal']
+export type DecisionRecord = components['schemas']['DecisionRecord']
 export type MapProposal = components['schemas']['MapProposal']
 export type RoadmapProposal = components['schemas']['RoadmapProposal']
 type DesignChange = components['schemas']['DesignChange']
@@ -72,12 +73,22 @@ export function approveVisionProposal(projectId: string, proposalId: string, com
   }))
 }
 
+function listDecisions(projectId: string): Promise<DecisionRecord[]> {
+  return unwrap(client.GET('/api/projects/{id}/decisions', { params: { path: { id: projectId } } }))
+}
+export function acceptDecision(projectId: string, decisionId: string, version: number, commandId: string): Promise<DecisionRecord> {
+  return unwrap(client.POST('/api/projects/{id}/decisions/{decision}/accept', {
+    params: { path: { id: projectId, decision: decisionId } }, body: { command_id: commandId, version },
+  }))
+}
+
 export const designKeys = {
   all: (projectId: string) => ['projects', projectId, 'design'],
   standards: (projectId: string) => ['projects', projectId, 'design', 'standards'],
   stage: (projectId: string) => ['projects', projectId, 'design', 'stage'],
   vision: (projectId: string) => ['projects', projectId, 'design', 'vision'],
   visionProposals: (projectId: string) => ['projects', projectId, 'design', 'vision-proposals'],
+  decisions: (projectId: string) => ['projects', projectId, 'design', 'decisions'],
   mapProposals: (projectId: string) => ['projects', projectId, 'design', 'map-proposals'],
   roadmapProposals: (projectId: string) => ['projects', projectId, 'design', 'roadmap-proposals'],
   part: (projectId: string, partId: string) => ['projects', projectId, 'design', 'part', partId],
@@ -104,6 +115,10 @@ export function visionQuery(projectId: string) {
 export function visionProposalsQuery(projectId: string) {
   return queryOptions({ queryKey: designKeys.visionProposals(projectId),
     queryFn: () => listVisionProposals(projectId) })
+}
+
+export function decisionsQuery(projectId: string) {
+  return queryOptions({ queryKey: designKeys.decisions(projectId), queryFn: () => listDecisions(projectId) })
 }
 
 export function mapProposalsQuery(projectId: string) {

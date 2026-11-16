@@ -14,6 +14,7 @@ import { SubagentCardView } from './subagent-card'
 import { VisionProposalCard } from './vision-proposal-card'
 import { MapProposalCard } from './map-proposal-card'
 import { RoadmapProposalCard } from './roadmap-proposal-card'
+import { DecisionProposalCard } from './decision-proposal-card'
 import { TodoCard } from './todo-card'
 import { NoticeItem, ProjectChangeLine } from './notice-item'
 import { noticeOf, subagentOf } from './tool-text'
@@ -118,6 +119,7 @@ export function Entry({
   if (entry.kind === 'RoadmapProposal') {
     return <RoadmapProposalCard entry={entry} projectId={projectId} />
   }
+  if (entry.kind === 'DecisionProposal') return <DecisionProposalCard entry={entry} projectId={projectId} />
   if (entry.kind === 'Subagent') {
     const card = subagentOf(entry)
     return card === null ? null : <SubagentCardView card={card} onOpen={onOpenSubagent} />

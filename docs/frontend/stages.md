@@ -131,7 +131,7 @@ named in its task (`surface-panel`, the same header row, text sizes and tokens);
 
 ### F-123 · A proposed decision with Accept in the Planner's conversation
 
-- Status: todo
+- Status: done
 - Plan: the request, "B-105: decisions", its Errors and the Frontend reply.
 - Read: `web/src/api/contract.yaml`; `web/src/app/conversation/contract.yaml`;
   `web/src/stream/contract.yaml`; `VisionProposalCard` and `useProposalApproval` /
