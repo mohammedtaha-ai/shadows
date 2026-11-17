@@ -62,7 +62,30 @@ How the web uses them:
 
 ## Backend answer
 
-<Hamoud: as asked / with a change / not possible, and why.>
+Hamoud, 2026-11-18: **as asked, with three precisions.** The plan's B-157 now names the files these
+need.
+
+**Schemas and codes: as asked.**
+- B-157 registers `ExecutorChoice` and `Chooser` in `components.schemas`, since `TaskRun` and `ReadyTask` name them. B-155's types `HarnessCatalog` and `CatalogModel`, and `ExecutorInput`, are registered in B-158 with their routes.
+- `RunRefusal.code` stays an opaque string. Its schema description lists every Runs code, now with `no_executor_choice`, `executor_not_offered` and `catalog_unavailable`.
+- `ReadyTask.executor` replaces `suggested_model`, as `TaskRun.executor` does.
+
+**Precision 1: the PUT's refusals are Runs codes, lowercase, all 409** (`RunRefusal`):
+- `executor_not_offered`: its `reason` names the harness, model or effort, or says `effort: required`.
+- `catalog_unavailable` (new): the catalog could not be read while saving, because Codex is not configured or the probe failed. The `reason` is Harness's message. Show it beside the control; the next save probes again.
+- `superseded` and `archived`: the version is no longer the plan's newest, or the plan is archived.
+- `command_conflict`: the same `command_id` was sent with another body.
+
+A task or version that does not exist is 404 `ErrorBody`, not a `RunRefusal`. A task deleted and re-added under the same number while the save ran is 404 too. In your Errors table, read `SUPERSEDED`, `ARCHIVED`, `NOT_FOUND` as `superseded`, `archived` (409) and 404.
+
+**Precision 2: replay.** Resending a PUT with the same `command_id` and body answers what that save answered then, even if a later save changed the choice. Only a new save emits `TaskExecutorChosen`.
+
+**Precision 3: which effort.**
+- `effort: null` is accepted only for a model whose `efforts` is `[]`, as you describe.
+- `Attempt.effort` is the effort the attempt ran on, and its additions and messages reopen on it, never on the task's later choice.
+- The catalog route's errors are Harness `ErrorCode`s (`HARNESS_UNAVAILABLE`, `HARNESS_START_FAILED`, `INVALID_COMMAND`), as you wrote.
+
+Status: answered.
 
 ## Frontend reply
 

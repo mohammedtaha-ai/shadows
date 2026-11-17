@@ -178,7 +178,8 @@ Changes what the web sees (`Attempt`, `TaskRun`, `ReadyTask`, what Start accepts
   - `ExecutorChoice`, `ExecutorInput`, `Chooser`.
   - `Attempt.harness` and `Attempt.effort`.
   - `TaskRun.executor` and `ReadyTask.executor` replace `suggested_model`.
-- Modify: `crates/core-runs/src/error.rs` (`NoExecutorChoice` replaces `NoModel`; `ExecutorNotOffered(String)`)
+- Modify: `crates/core-runs/src/error.rs` (`NoExecutorChoice` replaces `NoModel`; `ExecutorNotOffered(String)`; `CatalogUnavailable(String)`)
+- Modify: `crates/shadows-http/src/failure/runs.rs` (only `RunRefusal`'s doc comment: it lists every Runs code, including `no_executor_choice`, `executor_not_offered` and `catalog_unavailable`, so the schema's description names them)
 - Modify: `crates/core-runs/src/start.rs` (no model argument; the choice read in `begin_attempt`; `open_executor` with the attempt's effort)
 - Modify: `crates/core-runs/src/store/mod.rs` (`begin_attempt` reads the choice, creates the thread on its harness, records harness, model and effort; `continue_attempt` copies the previous attempt's `harness` and `effort` with its `model`; `by_command` also accepts a pre-upgrade Start fingerprint)
 - Modify: `crates/core-runs/src/ready.rs` (`start_answer` answers `no_executor_choice`, so the task page and `task_ready` agree with Start)
@@ -225,7 +226,7 @@ Changes what the web sees (`Attempt`, `TaskRun`, `ReadyTask`, what Start accepts
       - a model not listed is `ExecutorNotOffered("model: X")`;
       - an effort not among that model's efforts is `ExecutorNotOffered("effort: X")`.
     - **The effort is explicit.** A model that offers efforts needs one of them, and its absence is `ExecutorNotOffered("effort: required")`. `effort` is NULL only for a model that offers none. An attempt therefore never runs on an effort an earlier conversation left in the session.
-    - Catalog errors pass through as `Unavailable` with their text.
+    - A catalog that cannot be read (Codex not configured, a failed probe) is `CatalogUnavailable(String)` with Harness's message, code `catalog_unavailable`, 409 like every Runs refusal. It is never `Unavailable`, which HTTP answers as a storage failure.
     - **The write** is one transaction:
       1. It checks the replay again.
       2. It re-checks, in the same snapshot, everything the pre-checks read: the version is still the plan's newest, the plan is not archived, the task number still names **the same `TaskId`** read before (a task deleted and re-added under that number in the same Draft is `NotFound`), and, for the Planner, its grant is still live (`Grants`' `*_in` check). A v2 created while the catalog was read therefore refuses the v1 save with `Superseded`.
@@ -243,7 +244,7 @@ Changes what the web sees (`Attempt`, `TaskRun`, `ReadyTask`, what Start accepts
   - `start_answer` refuses with `no_executor_choice` when the task has no choice, after the checks it makes today. A ready group therefore leaves such a task out, as it leaves out any task `start_answer` refuses.
   - `continue_attempt` (used by `amend` and by the return after failed checks) records the previous attempt's harness, model and effort, never the migration's defaults and never the task's current choice.
   - `Runs::task` no longer reads `Harness::remembered_model`.
-  - **Codes:** `no_executor_choice` and `executor_not_offered`, both 409 like every Runs refusal.
+  - **Codes:** `no_executor_choice`, `executor_not_offered` and `catalog_unavailable`, all 409 like every Runs refusal.
 
 - [ ] **Step 1: Write the failing tests** in `runs_attempts/executor_choice.rs`:
   - `a_start_without_a_choice_is_refused`: `NoExecutorChoice`, no attempt row, no thread.
