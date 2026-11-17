@@ -164,7 +164,7 @@ Use current section 24 approval attribution; no executor/critic approval tools.
 
 The [slice 4 revision](../../backend/specs/2026-11-14-task-questions-design.md), approved
 2026-11-14, owns attempt context, task questions, conflict escalation and compatible
-ready groups. Its [implementation plan](../../backend/plans/2026-11-14-slice-4-task-questions.md)
+ready groups. Its implementation plan (`docs/backend/plans/2026-11-14-slice-4-task-questions.md` at `449d4f95`)
 replaces the earlier execution-briefs draft. Save one context per attempt, using existing
 attempt identity/model/base/addition metadata; no packet hash or parent transcript.
 
