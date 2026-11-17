@@ -70,7 +70,8 @@ Plan: [executor choices](plans/2026-11-18-executor-choices.md), awaiting Mohamme
 (Mohammed, 2026-11-18): the choice is saved per task and the last save wins; lists come from each
 CLI, Claude Code's read by one probe session per daemon run; no choice refuses Start; a Codex
 executor uses Codex's own tools in mode `ask`. Order: B-155 → B-156 → B-157 → B-158 → web tasks → B-159.
-B-158 changes what the web sees and waits for Masada's shared request to be accepted.
+B-155 and B-156 change nothing the web sees. B-157 and B-158 do, and wait for Masada's shared request
+to be accepted. Codex reviewed the plan at `0c859bd9`; its five findings are taken in.
 
 ### B-155 · Harness reads each CLI's catalog
 
@@ -80,7 +81,7 @@ B-158 changes what the web sees and waits for Masada's shared request to be acce
 - Read: `crates/core-harness/contract.yaml` (`list`, remembered settings, the Codex choices rule); `crates/shadows-agent/src/choices.rs` (`Offered`); the plan's Rulings.
 - Touch: the task's Files list in the plan; no other path.
 - Needs: nothing open.
-- Done when: the six `harness_catalog` tests, `openapi` and `harness_choices` pass; contract and code map updated; scoped commit.
+- Done when: the seven `harness_catalog` tests (live ones on the signed-in machine) and `harness_choices` pass; contract and code map updated; scoped commit.
 
 ### B-156 · Harness opens an executor on its attempt's CLI, model and effort
 
@@ -90,16 +91,16 @@ B-158 changes what the web sees and waits for Masada's shared request to be acce
 - Read: `crates/core-harness/contract.yaml` (the executor comment block, `open_executor`); `crates/shadows-agent/src/policy.rs` (Codex modes).
 - Touch: the task's Files list in the plan; no other path.
 - Needs: B-155 (its tests read the catalog).
-- Done when: `executor::` unit tests, `executor_session` and `runs_attempts` pass; contract updated; scoped commit.
+- Done when: `executor::` unit tests, `executor_session`, `runs_attempts` and `core-turns` pass; Harness and Turns contracts updated; scoped commit.
 
 ### B-157 · Runs stores each task's choice and starts on it
 
-- Status: todo (after approval)
+- Status: blocked (needs B-156 and Masada's accepted shared request)
 - Plan: [B-157](plans/2026-11-18-executor-choices.md#task-b-157-runs-stores-each-tasks-choice-and-starts-on-it).
 - Owner: Runs, with Events for the tail kind.
 - Read: `crates/core-runs/contract.yaml` (`start`, `start_for`, `task`, `amend`, `run_turn`, `ready_group`); the plan's Review Focus.
 - Touch: the task's Files list in the plan, including every named caller of `Runs::start` and `Runs::start_for`; no other path.
-- Needs: B-156.
+- Needs: B-156; the accepted request.
 - Done when: the `executor_choice::` tests and the suites Step 5 names pass; contracts and spec D6 updated; scoped commit.
 
 ### B-158 · The person's and the Planner's way to the choice

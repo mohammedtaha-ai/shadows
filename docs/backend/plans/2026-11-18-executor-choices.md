@@ -25,7 +25,12 @@
 4. **A Codex executor uses Codex's own tools:**
    - It gets the same instructions with a Tools section of its own, and runs in Codex's "Approve for me" mode (`ask`).
    - The check on its reported commit stays its write boundary, as for Claude Code.
-5. **A new conversation shows the Claude Code catalog before its first message:**
+5. **A task number keeps its choice** (Hamoud, after Codex's review, 2026-11-18; Mohammed to confirm):
+   - The choice belongs to `(plan, task number)`, so a task that replaces T9 under the same number inherits T9's choice.
+   - The Planner sets a choice for each task it adds or rewrites, so an inherited choice is replaced in the same planning turn.
+   - A save is accepted only on the plan's newest version (its Draft, or its latest Approved). A Superseded or Archived version refuses it, so an old page cannot change the current choice.
+6. **Replays answer their own result.** Every save keeps its command, fingerprint and result, so a resent older save answers what it answered then and never overwrites a later one. A Start command recorded before the upgrade still replays.
+7. **A new conversation shows the Claude Code catalog before its first message:**
    - The draft composer reads the same catalog, starting on the remembered model and effort.
    - The send body already carries `model` and `effort`.
 
@@ -43,6 +48,7 @@
 - **Runs refusals** reach HTTP as `409` with Runs' own lowercase `code`, through `RunsError::code()` (`shadows-http/src/failure/runs.rs`). Harness refusals keep their `ErrorCode`s.
 - **The Planner's tool list grows from 39 to 41** (`task_executor_set`, `executor_catalog`).
 - **Edits:** Edit and Write tools only, never a script. Commit each path by name.
+- **What the web sees waits for Masada's accepted request.** B-155 and B-156 change no route and no serialized type. B-157 and B-158 do (`Attempt`, `TaskRun`, `ReadyTask`, the Start body, the new routes), so both stay blocked until the request is accepted.
 
 ## Review Focus
 
@@ -50,7 +56,7 @@
 2. **The probe fails** (CLI not signed in, Codex not configured):
    - The catalog answers `HARNESS_UNAVAILABLE` or `HARNESS_START_FAILED` and caches nothing, so the next call probes again.
    - A save that needs the catalog is refused, never stored unchecked.
-   - Test `a_failed_probe_is_not_cached` (B-155).
+   - Test `a_failed_probe_is_tried_again` (B-155).
 3. **Two pages ask for the catalog at once.** One probe runs; the second caller waits for its result. Test `concurrent_catalog_reads_open_one_probe` (B-155).
 4. **The Planner and the person save in the same second.** The later commit wins, the event fires once per save, and the page refetches. Test `the_last_save_wins_whoever_made_it` (B-157).
 5. **An amend or a message to the executor reopens a Codex attempt's session.** It reopens on the attempt's own CLI, model and effort, never on the task's current choice. Test `an_addition_keeps_the_attempts_own_choice` (B-157).
@@ -62,46 +68,47 @@
 **Files:**
 - Create: `crates/core-harness/src/catalog.rs` (one job: reading a harness's model and effort catalog through a probe session)
 - Modify: `crates/core-harness/src/lib.rs` (the cache field on `Harness`; module list; re-exports)
-- Modify: `crates/core-harness/src/model.rs` (`HarnessCatalog`, `CatalogModel`; `HarnessInfo.executor`)
+- Modify: `crates/core-harness/src/model.rs` (`HarnessCatalog`, `CatalogModel`)
 - Modify: `crates/core-harness/src/sessions.rs` (only if the probe needs the adapter spawn exposed `pub(crate)`; nothing else)
+- Modify: `crates/shadows-agent/src/codex.rs` (`CodexProgram::catalog_spec(cwd)`: the app-server with no MCP server, for the catalog only), `crates/shadows-agent/src/codex/session.rs` (the existing `model/list` read, exposed to a catalog-only connection), `crates/shadows-agent/src/codex/connection.rs` (only if that connection needs it)
 - Modify: `crates/shadows-agent/src/policy.rs` (`EXECUTOR_HARNESSES`)
 - Modify: `crates/shadows-core/src/lib.rs` (re-exports)
-- Modify: `crates/shadows-http/src/harness.rs` (`GET /api/harnesses/{kind}/catalog`), `crates/shadows-http/src/lib.rs` (route table), `crates/shadows-http/src/openapi.rs` (path and schemas)
-- Modify: `crates/shadows/tests/openapi.rs` (route list), `api/openapi.json`
-- Modify: `crates/core-harness/contract.yaml`, `crates/shadows-http/src/contract.yaml`, `docs/codebase/README.md` (row for `catalog.rs`)
+- Modify: `crates/core-harness/contract.yaml`, `docs/codebase/README.md` (row for `catalog.rs`)
 - Modify: `docs/backend/stages.md`
-- Test: `crates/shadows/tests/harness_catalog.rs` (new)
+- Test: `crates/shadows-core/tests/harness_catalog.rs` (new)
+
+No route and no serialized type change here. The route and `HarnessInfo.executor` are B-158's.
 
 **Interfaces:**
 - Produces:
   - `pub struct CatalogModel { id: String, label: String, description: Option<String>, efforts: Vec<Choice> }`. `efforts` is `[]` for a model that offers none. `Choice` is `shadows_agent::choices::Choice`.
   - `pub struct HarnessCatalog { harness: String, models: Vec<CatalogModel> }`, with models in the CLI's order.
-  - `HarnessInfo.executor: bool`, true exactly for `policy::EXECUTOR_HARNESSES`.
   - `Harness::catalog(&self, kind: &str) -> Result<HarnessCatalog, HarnessError>`:
     - Answers the cached catalog when one exists.
-    - Otherwise it probes. The probe spawns the CLI as `Sessions` opens a thread's, with no MCP server, no instructions, and as its folder an empty `catalog-probe` directory under Shadows' data directory. It reads the `Offered`, then for each model sets the model option and reads that model's efforts, then terminates the process.
+    - Otherwise it probes, in an empty `catalog-probe` directory under Shadows' data directory, with no MCP server and no instructions. It then terminates the process.
+    - **Claude Code:** the probe opens an ACP session, reads the `Offered`, then for each model sets the model option and reads that model's efforts.
+    - **Codex:** the probe spawns the app-server through `catalog_spec` and reads `model/list`, which already names each model's `supported_reasoning_efforts`. It opens no thread, so it needs no grant. Today's opening path requires one MCP server (`codex.rs` `planner_server`), so the probe does not use it.
     - One probe per kind at a time (a per-kind `tokio::sync::Mutex<Option<HarnessCatalog>>`). Only a full read is cached.
     - Refusals: an unknown kind or `aylul` is `InvalidCommand`; Codex not configured is `HarnessUnavailable`; a spawn or handshake failure is `HarnessStartFailed`; a model switch the CLI refuses is `HarnessStartFailed` naming the model.
-  - HTTP `GET /api/harnesses/{kind}/catalog` → `Harness::catalog` → `HarnessCatalog`.
-  - test-support `Harness::catalog_probes_for_test(&self, kind) -> usize`: how many probes ran.
+  - test-support:
+    - `Harness::catalog_probes_for_test(&self, kind) -> usize`: how many probes ran.
+    - `Harness::fail_next_probe_for_test(&self, kind)`: the next probe of `kind` fails as a spawn failure would.
 
-- [ ] **Step 1: Write the failing tests** in `harness_catalog.rs`. They are live, on the signed-in subscription, as `checks_live.rs` sets up:
+- [ ] **Step 1: Write the failing tests** in `crates/shadows-core/tests/harness_catalog.rs`. The `live_` ones run on the signed-in subscription, as `checks_live.rs` sets up:
   - `live_the_claude_code_catalog_lists_each_models_efforts`:
     - `models` is non-empty.
     - At least one model has a non-empty `efforts`.
-    - Every model id is one `GET /api/threads/{id}/session` offers on a fresh Claude Code thread.
+    - Every model id is one a fresh Claude Code thread's `open_session` offers.
+  - `live_the_codex_catalog_lists_each_models_efforts`: the same, run only when Codex is configured.
   - `the_catalog_is_read_once`: two calls give equal catalogs and `catalog_probes_for_test("claude-code") == 1`.
   - `concurrent_catalog_reads_open_one_probe`: two joined calls give `catalog_probes_for_test == 1`.
-  - `a_failed_probe_is_not_cached`, with Codex not configured:
-    - `catalog("codex")` is `HarnessUnavailable` twice.
-    - `catalog_probes_for_test("codex") == 0`, and nothing is cached.
+  - `a_failed_probe_is_tried_again`: after `fail_next_probe_for_test("claude-code")`, the first call is `HarnessStartFailed`, the second answers the catalog, and `catalog_probes_for_test == 2`.
+  - `codex_not_configured_is_unavailable`: `catalog("codex")` is `HarnessUnavailable` twice, with `catalog_probes_for_test("codex") == 0`.
   - `aylul_has_no_executor_catalog`: `catalog("aylul")` is `InvalidCommand`.
-  - `the_harness_list_names_the_executor_clis`: `executor` is true for claude-code and codex and false for aylul.
-- [ ] **Step 2:** Run `cargo test -p shadows --test harness_catalog`. Expected: FAIL to compile.
-- [ ] **Step 3:** Add `EXECUTOR_HARNESSES`, the types, `catalog.rs`, the cache and `HarnessInfo.executor`.
-- [ ] **Step 4:** Add the route and its openapi entries, then run `UPDATE_OPENAPI=1 cargo test -p shadows --test openapi`.
-- [ ] **Step 5:** Run Step 2's command, `--test openapi`, `--test harness_choices`, and the rule 5 checks of `docs/backend/AGENTS.md`. Expected: PASS.
-- [ ] **Step 6:** Update the contracts and the code-map row, set B-155 to done, and commit `feat(core): B-155 Harness reads each CLI's catalog`.
+- [ ] **Step 2:** Run `cargo test -p shadows-core --test harness_catalog`. Expected: FAIL to compile.
+- [ ] **Step 3:** Add `EXECUTOR_HARNESSES`, the types, Codex's catalog-only spawn, `catalog.rs` and the cache.
+- [ ] **Step 4:** Run Step 2's command with `--include-ignored` on the signed-in machine, `cargo test -p shadows --test harness_choices`, and the rule 5 checks of `docs/backend/AGENTS.md`. Expected: PASS.
+- [ ] **Step 5:** Update the contracts and the code-map row, set B-155 to done, and commit `feat(core): B-155 Harness reads each CLI's catalog`.
 
 ## Task B-156: Harness opens an executor on its attempt's CLI, model and effort
 
@@ -111,6 +118,8 @@
 - Create: `crates/core-harness/src/executor_tools_claude.md` (the current Tools section, unchanged)
 - Create: `crates/core-harness/src/executor_tools_codex.md` (Codex's Tools section)
 - Modify: `crates/core-harness/src/setup.rs` (`for_executor` composes the instructions for the thread's harness; built-in tools only for claude-code)
+- Modify: `crates/core-harness/src/live.rs` (the MCP tool list a session starts with follows its thread's kind: `Grants::tools_for(GrantKind::Executor)` for an executor thread, never the Thread grant's)
+- Modify: `crates/core-turns/src/record.rs` (an executor thread's one allowed mode is `policy::executor_mode(harness)`, not `EXECUTOR_MODE`), `crates/core-turns/contract.yaml`
 - Modify: `crates/shadows-agent/src/policy.rs` (`executor_mode(kind) -> Option<&'static str>`)
 - Modify: `crates/core-runs/src/start.rs`, `crates/core-runs/src/message.rs` (pass `None` for the effort until B-157)
 - Modify: `crates/shadows-core/tests/executor_session.rs`, `crates/shadows-core/tests/runs_attempts/live.rs` (the new argument)
@@ -142,15 +151,19 @@
   - In `executor_session.rs`:
     - `an_executor_opens_on_its_model_and_effort`: a Claude Code executor is opened with a model and one of that model's efforts from `Harness::catalog`, and the session's `current` holds both, in mode `auto`.
     - `an_effort_the_model_does_not_offer_refuses_the_opening`.
-  - `live_a_codex_executor_commits_only_its_writes` in `runs_attempts/live.rs` is `#[ignore]` until B-157 can start on codex. It runs only when Codex is configured.
+    - `a_codex_executor_session_lists_only_executor_tools` (Codex configured): the session's MCP tool list is `Grants::tools_for(GrantKind::Executor)`, and none of the Planner's.
+    - `a_codex_executor_turn_runs_in_ask`: Turns accepts a turn on a Codex executor thread in `ask` and refuses `auto` there; a Claude Code executor thread is the reverse.
+  - `live_a_codex_executor_commits_only_its_writes` in `runs_attempts/live.rs` is `#[ignore]` until B-157 can start on codex. It runs only when Codex is configured. B-157 un-ignores it and runs it from Start through `task_report` to the accepted commit.
 - [ ] **Step 2:** Run `cargo test -p core-harness executor::` and `cargo test -p shadows-core --test executor_session`. Expected: FAIL.
 - [ ] **Step 3:** Make the change above.
-- [ ] **Step 4:** Run Step 2's commands, `cargo test -p shadows-core --test runs_attempts`, and the rule 5 checks. Expected: PASS.
-- [ ] **Step 5:** Update the Harness contract (the executor comment block at lines 73–143 and `the_executor_file_parses...`). Set B-156 to done and commit `feat(core): B-156 an executor opens on its CLI, model and effort`.
+- [ ] **Step 4:** Run Step 2's commands, `cargo test -p shadows-core --test runs_attempts`, `cargo test -p core-turns`, and the rule 5 checks. Expected: PASS.
+- [ ] **Step 5:** Update the Harness and Turns contracts (the executor comment block at lines 73–143 and `the_executor_file_parses...`). Set B-156 to done and commit `feat(core): B-156 an executor opens on its CLI, model and effort`.
 
 ## Task B-157: Runs stores each task's choice and starts on it
 
 **Files:**
+Changes what the web sees (`Attempt`, `TaskRun`, `ReadyTask`, what Start accepts). It is blocked until Masada's shared request is accepted.
+
 - Create: `crates/core-db/migrations/0073_run_task_executors.sql`
 - Create: `crates/core-runs/src/executor_choice.rs` (one job: saving and reading a task's executor choice)
 - Create: `crates/core-runs/src/store/executor_choice.rs`
@@ -161,12 +174,14 @@
   - `TaskRun.executor` and `ReadyTask.executor` replace `suggested_model`.
 - Modify: `crates/core-runs/src/error.rs` (`NoExecutorChoice` replaces `NoModel`; `ExecutorNotOffered(String)`)
 - Modify: `crates/core-runs/src/start.rs` (no model argument; the choice read in `begin_attempt`; `open_executor` with the attempt's effort)
-- Modify: `crates/core-runs/src/store/mod.rs` (`begin_attempt` reads the choice, creates the thread on its harness, records harness, model and effort)
+- Modify: `crates/core-runs/src/store/mod.rs` (`begin_attempt` reads the choice, creates the thread on its harness, records harness, model and effort; `continue_attempt` copies the previous attempt's `harness` and `effort` with its `model`; `by_command` also accepts a pre-upgrade Start fingerprint)
+- Modify: `crates/core-runs/src/ready.rs` (`start_answer` answers `no_executor_choice`, so the task page and `task_ready` agree with Start)
+- Modify: `crates/core-runs/src/checks.rs` (the automatic return after failed checks continues on the attempt's own harness, model and effort)
 - Modify: `crates/core-runs/src/planner.rs` (`start_for` without a model; `set_executor_for`)
 - Modify: `crates/core-runs/src/message.rs`, `crates/core-runs/src/amend.rs` (reopen on the attempt's own harness, model and effort)
 - Modify: `crates/core-runs/src/ready_group.rs` (`executor` per ready task)
 - Modify: `crates/core-events/src/store.rs` (`TaskExecutorChosen` in the project tail)
-- Modify: `crates/shadows/tests/architecture/table-owners.txt` (`run_task_executors` → `runs`)
+- Modify: `crates/shadows/tests/architecture/table-owners.txt` (`run_task_executors` and `run_executor_saves` → `runs`)
 - Modify: `crates/shadows-core/src/lib.rs` (re-exports)
 - Modify: every caller of `Runs::start` and `Runs::start_for`. Each drops the model and, where it ran on one, saves a choice first with the test helper below:
   - `crates/shadows-http/src/runs.rs` (B-158 changes the body; here only the call)
@@ -185,28 +200,34 @@
 
 **Interfaces:**
 - Produces:
-  - **Table:** `run_task_executors (plan_id TEXT, task INTEGER, harness TEXT, model TEXT, effort TEXT NULL, chosen_by TEXT CHECK IN ('person','planner'), command_id TEXT, fingerprint TEXT, chosen_at TEXT, PRIMARY KEY (plan_id, task))`.
+  - **Tables:**
+    - `run_task_executors (plan_id TEXT, task INTEGER, harness TEXT, model TEXT, effort TEXT NULL, chosen_by TEXT CHECK IN ('person','planner'), chosen_at TEXT, PRIMARY KEY (plan_id, task))`: the current choice.
+    - `run_executor_saves (command_id TEXT PRIMARY KEY, fingerprint TEXT, plan_id TEXT, task INTEGER, result_json TEXT, saved_at TEXT)`: every save and what it answered, kept so a replay answers its own result.
   - **Columns:** `run_attempts.harness TEXT NOT NULL DEFAULT 'claude-code'` and `run_attempts.effort TEXT NULL`.
   - **Types:**
     - `pub enum Chooser { Person, Planner }`
     - `pub struct ExecutorInput { harness: String, model: String, effort: Option<String> }`
     - `pub struct ExecutorChoice { harness: String, model: String, effort: Option<String>, chosen_by: Chooser, chosen_at: String }`
   - `Runs::set_executor(&self, command_id: String, workflow: &WorkflowId, task: u32, input: ExecutorInput, by: Chooser) -> Result<ExecutorChoice, RunsError>`:
-    - The task must exist in that version (`NotFound`). Any version state is allowed: Draft, Approved or Superseded.
+    - **Replay first**, before the catalog is read: a `command_id` in `run_executor_saves` with an equal fingerprint answers its stored `result_json`, writes nothing and appends no event, even when the choice has since changed or the catalog is unavailable. Another fingerprint is `CommandConflict`.
+    - The task must exist in that version (`NotFound`). The version must be the plan's newest: its Draft, or its latest Approved when no Draft exists. A Superseded version is `Superseded` and an Archived one `Archived`.
     - `harness` must be in `policy::EXECUTOR_HARNESSES`; otherwise `ExecutorNotOffered("harness: X")`.
     - The input is checked against `Harness::catalog(harness)`, read before the write:
       - a model not listed is `ExecutorNotOffered("model: X")`;
       - an effort not among that model's efforts is `ExecutorNotOffered("effort: X")`.
     - A model with efforts and no effort given is stored with `effort` NULL, so the CLI's own default is used.
     - Catalog errors pass through as `Unavailable` with their text.
-    - **The write:** one write replays the command first (an equal fingerprint answers the stored choice; another is `CommandConflict`), then upserts the row keyed by `(plan_id, task)` and appends `TaskExecutorChosen { project_id, plan_id, task }`.
+    - **The write:** one write checks the replay again, then upserts the row keyed by `(plan_id, task)`, inserts the save with its result, and appends `TaskExecutorChosen { project_id, plan_id, task }`.
   - `Runs::set_executor_for(&self, grant: &Grant, workflow: &WorkflowId, task: u32, input: ExecutorInput) -> Result<ExecutorChoice, RunsError>`: the grant is checked as `planner_plan` checks it, but on any version state. It calls `set_executor` with `Chooser::Planner` and a fresh command id.
   - `Runs::start(&self, command: String, workflow: &WorkflowId, version: i64, task: u32) -> Result<Attempt, RunsError>`:
     - The fingerprint drops `model`.
+    - **A pre-upgrade replay:** a recorded command whose stored fingerprint is not the new one is also an equal replay when it equals the old form, `{workflow, version, task, model}` with the recorded attempt's own model. It answers that attempt.
     - `begin_attempt` reads the choice in its write: none is `NoExecutorChoice`, and nothing is written.
     - It creates the executor thread on the choice's harness and records harness, model and effort on the attempt.
   - `Runs::start_for(&self, grant: &Grant, workflow: &WorkflowId, task: u32) -> Result<Attempt, RunsError>`.
   - `TaskRun.executor: Option<ExecutorChoice>` and `ReadyTask.executor: Option<ExecutorChoice>`.
+  - `start_answer` refuses with `no_executor_choice` when the task has no choice, after the checks it makes today. A ready group therefore leaves such a task out, as it leaves out any task `start_answer` refuses.
+  - `continue_attempt` (used by `amend` and by the return after failed checks) records the previous attempt's harness, model and effort, never the migration's defaults and never the task's current choice.
   - `Runs::task` no longer reads `Harness::remembered_model`.
   - **Codes:** `no_executor_choice` and `executor_not_offered`, both 409 like every Runs refusal.
 
@@ -217,7 +238,18 @@
   - `a_choice_outlives_its_version`: T2's choice is saved on v1. A v2 is drafted and approved, and Start of v2's T2 runs on that choice.
   - `a_choice_is_checked_against_the_catalog`: a model not in the catalog, and an effort of another model, are both `ExecutorNotOffered`, and nothing is stored.
   - `a_replayed_choice_answers_the_first`: the same command and body give the same choice; another body gives `CommandConflict`.
-  - `an_addition_keeps_the_attempts_own_choice`: the choice changes after Start; `amend` reopens on the attempt's original model and effort.
+  - `a_replayed_older_save_keeps_the_latest`:
+    - Save A (command a), then B (command b), then resend command a.
+    - The answer is A's stored result, and `task().executor` is still B.
+    - The tail holds two `TaskExecutorChosen`, not three.
+    - The same holds after `fail_next_probe_for_test`, since the replay never reads the catalog.
+  - `a_superseded_version_refuses_a_save`: v1 is superseded by v2, and a save through v1 is `Superseded`.
+  - `a_start_command_from_before_the_upgrade_replays`:
+    - A database migrated from 0072 holds a Start recorded with the old fingerprint, written by SQL in the fixture as the old code wrote it.
+    - The same command now answers that attempt, with no new attempt and no `CommandConflict`.
+  - `the_task_page_says_no_choice`: a task with no choice has `start` refused with `no_executor_choice`, and `task_ready` leaves it out.
+  - `an_addition_keeps_the_attempts_own_choice`: a Codex attempt (or, without Codex configured, a Claude Code one with an effort). The choice changes after Start, and `amend` records and reopens on the attempt's original harness, model and effort.
+  - `a_checks_return_keeps_the_attempts_own_choice`: the automatic return after failed checks records the same three as the attempt it continues.
   - `a_saved_model_no_longer_offered_fails_the_attempt`: a row is written with a model the catalog lacks, through the test helper, which writes without the catalog check. The attempt ends `Failed` with reason containing `is not offered`.
   - Change `the_planner_start_needs_a_model` into `the_planners_start_needs_a_choice`. Delete `the_suggested_model_is_one_the_executors_harness_offers`, together with its contract rule.
   - Un-ignore B-156's `live_a_codex_executor_commits_only_its_writes`, starting it on a saved codex choice.
@@ -235,7 +267,9 @@ Changes what the web sees. It is blocked until Masada's shared request for the A
 - Modify: `crates/shadows-http/src/runs.rs`:
   - `PUT /api/workflows/{workflow}/versions/{version}/tasks/{task}/executor`.
   - `StartAttempt` keeps only `command_id`.
-- Modify: `crates/shadows-http/src/lib.rs` (route table), `crates/shadows-http/src/openapi.rs` (path; `ExecutorChoice`, `ExecutorInput`, `Chooser`)
+- Modify: `crates/shadows-http/src/harness.rs` (`GET /api/harnesses/{kind}/catalog` → `Harness::catalog`)
+- Modify: `crates/core-harness/src/model.rs`, `crates/core-harness/src/lib.rs` (`HarnessInfo.executor: bool`, true exactly for `policy::EXECUTOR_HARNESSES`, set in `list`)
+- Modify: `crates/shadows-http/src/lib.rs` (route table), `crates/shadows-http/src/openapi.rs` (paths; `ExecutorChoice`, `ExecutorInput`, `Chooser`, `HarnessCatalog`, `CatalogModel`)
 - Modify: `crates/shadows-mcp/src/run_tools.rs`:
   - `task_start { workflow_id, task_number }` has no `model`.
   - New `task_executor_set { workflow_id, task_number, harness, model, effort? }` and `executor_catalog {}`.
@@ -244,7 +278,7 @@ Changes what the web sees. It is blocked until Masada's shared request for the A
 - Modify: `crates/shadows/tests/openapi.rs`, `crates/shadows/tests/mcp_server.rs` (41 tools; the two names), `api/openapi.json`
 - Modify: `crates/shadows-http/src/contract.yaml`, `crates/shadows-mcp/src/contract.yaml`, `crates/core-grants/contract.yaml`, `crates/core-harness/contract.yaml`
 - Modify: `docs/backend/stages.md`
-- Test: `crates/shadows/tests/runs_routes.rs`, `crates/shadows/tests/mcp_server.rs`, `crates/shadows/tests/planner_instructions.rs`
+- Test: `crates/shadows/tests/runs_routes.rs`, `crates/shadows/tests/mcp_server.rs`, `crates/shadows/tests/planner_instructions.rs`, `crates/shadows/tests/harness_choices.rs`
 
 **Interfaces:**
 - HTTP:
@@ -259,7 +293,10 @@ Changes what the web sees. It is blocked until Masada's shared request for the A
     - `start_without_a_choice_is_409_no_executor_choice`.
   - `mcp_server.rs`: the Planner's list has 41 tools, including both new names; the executor's list has neither.
   - `planner_instructions.rs`: `the_prompt_names_task_executor_set`.
-- [ ] **Step 2:** Run `cargo test -p shadows --test runs_routes --test mcp_server --test planner_instructions`. Expected: FAIL.
+  - `harness_choices.rs`:
+    - `the_harness_list_names_the_executor_clis`: `executor` is true for claude-code and codex and false for aylul.
+    - `the_catalog_route_answers_claude_codes_models`: GET `/api/harnesses/claude-code/catalog` answers 200 with models, and `/api/harnesses/aylul/catalog` answers `INVALID_COMMAND` with that code's existing status.
+- [ ] **Step 2:** Run `cargo test -p shadows --test runs_routes --test mcp_server --test planner_instructions --test harness_choices`. Expected: FAIL.
 - [ ] **Step 3:** Adapters and the prompt, then `UPDATE_OPENAPI=1 cargo test -p shadows --test openapi`.
 - [ ] **Step 4:** Run Step 2's command, `--test openapi`, and the rule 5 checks. Expected: PASS.
 - [ ] **Step 5:** Update the contracts, set B-158 to done, and commit `feat(core): B-158 the person and the Planner choose a task's executor`.
@@ -295,4 +332,5 @@ Needs B-155 to B-158 and Masada's web tasks.
   3. Mohammed changes T2's model and effort on its page.
   4. Mohammed starts T1, and the Planner's `task_start` starts T2. Each attempt's Run tab and the logs show the saved CLI, model and effort.
   5. With Codex configured, one task runs on codex and commits only its writes.
+- [ ] Run the signed-in live tests by name, with `--include-ignored`: both `live_..._catalog_lists_each_models_efforts` and `live_a_codex_executor_commits_only_its_writes`. Record each result, or "not run" with its reason.
 - [ ] Record the dates, commits and log lines in the evidence file, set B-159 to done, and commit.
