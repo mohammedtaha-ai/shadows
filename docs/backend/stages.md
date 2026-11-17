@@ -66,29 +66,34 @@ this file at `db760593`.
 
 ## Executor choices: CLI, model and effort per task
 
-Plan: [executor choices](plans/2026-11-18-executor-choices.md), awaiting Mohammed's approval. Rulings
-(Mohammed, 2026-11-18): the choice is saved per task and the last save wins; lists come from each
-CLI, Claude Code's read by one probe session per daemon run; no choice refuses Start; a Codex
-executor uses Codex's own tools in mode `ask`. Order: B-155 → B-156 → B-157 → B-158 → web tasks → B-159.
-B-155 and B-156 change nothing the web sees. B-157 and B-158 do, and wait for Masada's shared request
-to be accepted. Codex reviewed the plan at `0c859bd9`; its five findings are taken in.
+Plan: [executor choices](plans/2026-11-18-executor-choices.md), approved by Mohammed (2026-11-18) after
+three Codex reviews (last plan commit `a1561e20`). Rulings (Mohammed, 2026-11-18):
+- The choice is saved on the task and the last save wins.
+- It follows the task across versions, and a replaced task starts empty.
+- Lists come from each CLI; Claude Code's are read by one probe session per daemon run.
+- No choice refuses Start.
+- A Codex executor uses Codex's own tools in mode `ask`.
+- The Planner picks the smallest model that can build the task from its contract.
+
+Order: B-155 → B-156 → B-157 → B-158 → web tasks → B-159. B-155 and B-156 change nothing the web sees.
+B-157 and B-158 do, and wait for Masada's shared request to be accepted.
 
 ### B-155 · Harness reads each CLI's catalog
 
-- Status: todo (after approval)
+- Status: todo
 - Plan: [B-155](plans/2026-11-18-executor-choices.md#task-b-155-harness-reads-each-clis-catalog).
-- Owner: Harness, with its HTTP route.
-- Read: `crates/core-harness/contract.yaml` (`list`, remembered settings, the Codex choices rule); `crates/shadows-agent/src/choices.rs` (`Offered`); the plan's Rulings.
+- Owner: Harness, with Codex's catalog read in `shadows-agent`.
+- Read: `crates/core-harness/contract.yaml` (`list`, remembered settings, the Codex choices rule); `crates/shadows-agent/src/choices.rs` (`Offered`); `crates/shadows-agent/src/codex/session.rs` (`catalog`); the plan's Rulings.
 - Touch: the task's Files list in the plan; no other path.
 - Needs: nothing open.
 - Done when: the seven `harness_catalog` tests (live ones on the signed-in machine) and `harness_choices` pass; contract and code map updated; scoped commit.
 
 ### B-156 · Harness opens an executor on its attempt's CLI, model and effort
 
-- Status: todo (after approval)
+- Status: todo
 - Plan: [B-156](plans/2026-11-18-executor-choices.md#task-b-156-harness-opens-an-executor-on-its-attempts-cli-model-and-effort).
-- Owner: Harness.
-- Read: `crates/core-harness/contract.yaml` (the executor comment block, `open_executor`); `crates/shadows-agent/src/policy.rs` (Codex modes).
+- Owner: Harness, with Turns' executor mode check and the two Runs call sites.
+- Read: `crates/core-harness/contract.yaml` (the executor comment block, `open_executor`); `crates/core-turns/contract.yaml` (the executor's mode); `crates/shadows-agent/src/policy.rs` (Codex modes).
 - Touch: the task's Files list in the plan; no other path.
 - Needs: B-155 (its tests read the catalog).
 - Done when: `executor::` unit tests, `executor_session`, `runs_attempts` and `core-turns` pass; Harness and Turns contracts updated; scoped commit.
@@ -97,11 +102,11 @@ to be accepted. Codex reviewed the plan at `0c859bd9`; its five findings are tak
 
 - Status: blocked (needs B-156 and Masada's accepted shared request)
 - Plan: [B-157](plans/2026-11-18-executor-choices.md#task-b-157-runs-stores-each-tasks-choice-and-starts-on-it).
-- Owner: Runs, with Events for the tail kind.
-- Read: `crates/core-runs/contract.yaml` (`start`, `start_for`, `task`, `amend`, `run_turn`, `ready_group`); the plan's Review Focus.
+- Owner: Runs; Plans for `copied_from` and `task_lineage_in`; Events for the tail kind.
+- Read: `crates/core-runs/contract.yaml` (`start`, `start_for`, `task`, `amend`, `run_turn`, `ready_group`); `crates/core-plans/contract.yaml` (`start_draft`, `shared_in_transaction`); `crates/core-db/contract.yaml` (`command`); the plan's Rulings and Review Focus.
 - Touch: the task's Files list in the plan, including every named caller of `Runs::start` and `Runs::start_for`; no other path.
 - Needs: B-156; the accepted request.
-- Done when: the `executor_choice::` tests and the suites Step 5 names pass; contracts and spec D6 updated; scoped commit.
+- Done when: the `executor_choice::` tests, the changed `plan_storage` copy test and the suites Step 5 names (with `openapi`) pass; Runs, Plans and Events contracts and spec D6 updated; scoped commit.
 
 ### B-158 · The person's and the Planner's way to the choice
 
@@ -111,7 +116,7 @@ to be accepted. Codex reviewed the plan at `0c859bd9`; its five findings are tak
 - Read: `crates/shadows-http/src/contract.yaml`, `crates/shadows-mcp/src/contract.yaml` (`task_start`); the plan's web API table.
 - Touch: the task's Files list in the plan; no other path.
 - Needs: B-157; the accepted request.
-- Done when: the named `runs_routes`, `mcp_server`, `planner_instructions` tests and `openapi` pass; contracts updated; scoped commit.
+- Done when: the named `runs_routes`, `mcp_server`, `planner_instructions`, `harness_choices` tests and `openapi` pass; contracts updated; scoped commit.
 
 ### B-159 · Acceptance in the browser
 
@@ -119,4 +124,4 @@ to be accepted. Codex reviewed the plan at `0c859bd9`; its five findings are tak
 - Plan: [B-159](plans/2026-11-18-executor-choices.md#task-b-159-acceptance-in-the-browser).
 - Owner: integration acceptance through AppCore and the real UI.
 - Touch: the task's Files list in the plan.
-- Done when: the browser journey and its logs are recorded in evidence.
+- Done when: the browser journey and its logs, and the named signed-in live tests (or "not run" with the reason), are recorded in evidence.
