@@ -17,6 +17,21 @@ fn session_path(app: &app::App) -> String {
 }
 
 #[tokio::test]
+async fn the_catalog_route_answers_claude_codes_models() {
+    let app = test_app().await;
+    let (status, catalog) =
+        app::call(&app, "GET", "/api/harnesses/claude-code/catalog", None).await;
+    assert_eq!(status, 200, "{catalog}");
+    assert_eq!(
+        names(&catalog["models"]),
+        ["fake-large", "fake-small", "fake-tiny"]
+    );
+    let (status, refused) = app::call(&app, "GET", "/api/harnesses/aylul/catalog", None).await;
+    assert_eq!(status, 422, "{refused}");
+    assert_eq!(refused["code"], "INVALID_COMMAND");
+}
+
+#[tokio::test]
 async fn opening_a_session_answers_the_harness_choices_after_the_policy() {
     let app = test_app().await;
     let (s, c) = post(&app, &session_path(&app), json!({})).await;

@@ -182,6 +182,7 @@ impl Harness {
                 kind: kind.to_string(),
                 label: Self::label(kind).to_string(),
                 available,
+                executor: policy::EXECUTOR_HARNESSES.contains(&kind),
                 reason: (!available).then(|| Sessions::unavailable_reason(kind).to_string()),
                 remembered,
                 limits: self.store.latest_limits(kind).await?,

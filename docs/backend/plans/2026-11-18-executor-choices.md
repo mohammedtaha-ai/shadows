@@ -217,7 +217,7 @@ Changes what the web sees (`Attempt`, `TaskRun`, `ReadyTask`, what Start accepts
     - `pub enum Chooser { Person, Planner }`
     - `pub struct ExecutorInput { harness: String, model: String, effort: Option<String> }`
     - `pub struct ExecutorChoice { harness: String, model: String, effort: Option<String>, chosen_by: Chooser, chosen_at: String }`
-  - `Runs::set_executor(&self, command_id: String, workflow: &WorkflowId, task: u32, input: ExecutorInput, by: Chooser) -> Result<ExecutorChoice, RunsError>`:
+  - `Runs::set_executor(&self, command_id: String, workflow: &WorkflowId, version: i64, task: u32, input: ExecutorInput) -> Result<ExecutorChoice, RunsError>`: the person's save validates the version number from the URL.
     - **The command** is a `CommandContext` of kind `run.executor_set`, schema version 1, with params `{workflow, task, harness, model, effort}`. A person's save uses `CommandContext::user`, and the Planner's names its agent the way other Planner commands do. It is recorded in `command_record`, whose `outcome_ref` is the id of the save's row in `run_executor_saves`.
     - **Replay first**, before the catalog is read, through core-db's classification: an equal fingerprint answers that save's stored `result_json`. It writes nothing and appends no event, even when the choice has since changed or the catalog is unavailable. Another fingerprint is `CommandConflict`.
     - **Pre-checks** before the catalog read, so a bad save fails fast: the task must exist in that version (`NotFound`), and its `TaskId` is read and kept for the write. The version must be the plan's newest: its Draft, or its latest Approved when no Draft exists. A Superseded version is `Superseded` and an Archived one `Archived`.
@@ -233,7 +233,7 @@ Changes what the web sees (`Attempt`, `TaskRun`, `ReadyTask`, what Start accepts
       3. It upserts the row keyed by the task's `TaskId` in that version, inserts the save with its result, records the command, and appends `TaskExecutorChosen { project_id, plan_id, task }`.
   - **Reading a choice** (Start's admission write, `task`, `ready_group`): `task_lineage_in`, then the first `run_task_executors` row along it.
   - test-support `Runs::pause_next_save_for_test(&self) -> (oneshot::Receiver<()>, oneshot::Sender<()>)`: the next save stops after its catalog read and before its write, says so on the first channel, and goes on when the second fires.
-  - `Runs::set_executor_for(&self, grant: &Grant, workflow: &WorkflowId, task: u32, input: ExecutorInput) -> Result<ExecutorChoice, RunsError>`: the grant is checked as `planner_plan` checks it, but on any version state. It calls `set_executor` with `Chooser::Planner` and a fresh command id.
+  - `Runs::set_executor_for(&self, grant: &Grant, workflow: &WorkflowId, task: u32, input: ExecutorInput) -> Result<ExecutorChoice, RunsError>`: checks the Planner's project grant, then carries the authenticated grant into the shared save with a fresh command id.
   - `Runs::start(&self, command: String, workflow: &WorkflowId, version: i64, task: u32) -> Result<Attempt, RunsError>`:
     - The fingerprint drops `model`.
     - **A pre-upgrade replay:** a recorded command whose stored fingerprint is not the new one is also an equal replay when it equals the old form, `{workflow, version, task, model}` with the recorded attempt's own model. It answers that attempt.
@@ -311,7 +311,7 @@ Changes what the web sees. It is blocked until Masada's shared request for the A
 
 **Interfaces:**
 - HTTP:
-  - `PUT …/tasks/{task}/executor` takes `{ command_id, harness, model, effort: string | null }`. It calls `Runs::set_executor(…, Chooser::Person)` and answers `ExecutorChoice`.
+  - `PUT …/tasks/{task}/executor` takes `{ command_id, harness, model, effort: string | null }`. It calls the person's `Runs::set_executor` and answers `ExecutorChoice`.
   - `POST …/tasks/{task}/attempts` takes `{ command_id }`.
 - MCP:
   - `executor_catalog` calls `Harness::catalog` for each available kind in `EXECUTOR_HARNESSES`. It answers `[HarnessCatalog]`, with an unavailable CLI left out.

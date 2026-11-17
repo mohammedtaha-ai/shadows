@@ -30,10 +30,17 @@ struct TaskStartArgs {
     workflow_id: WorkflowId,
     /// The task's number: 4 for T4.
     task_number: u32,
-    /// A model the executor's harness (claude-code) offers; leave it out for the
-    /// task's suggested model.
-    #[serde(default)]
-    model: Option<String>,
+}
+
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+struct SetExecutorArgs {
+    #[schemars(with = "String")]
+    workflow_id: WorkflowId,
+    task_number: u32,
+    harness: String,
+    model: String,
+    /// Required when the model offers efforts.
+    effort: Option<String>,
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
@@ -129,6 +136,34 @@ struct TaskLessonsArgs {
 
 #[tool_router(router = run_tool_router, vis = "pub(super)")]
 impl Shadows {
+    #[tool(description = "List the available executor CLIs, models, and each model's efforts.")]
+    async fn executor_catalog(&self) -> CallToolResult {
+        answer(Ok(self.core.harness().executor_catalogs().await))
+    }
+
+    #[tool(description = "Save the executor choice for a task of the newest plan version.")]
+    async fn task_executor_set(
+        &self,
+        Extension(grant): Extension<Grant>,
+        Parameters(args): Parameters<SetExecutorArgs>,
+    ) -> CallToolResult {
+        answer(
+            self.core
+                .runs()
+                .set_executor_for(
+                    &grant,
+                    &args.workflow_id,
+                    args.task_number,
+                    shadows_core::ExecutorInput {
+                        harness: args.harness,
+                        model: args.model,
+                        effort: args.effort,
+                    },
+                )
+                .await
+                .map_err(Refusal::from),
+        )
+    }
     #[tool(description = "List attempts still holding a scope in this plan, across all versions.")]
     async fn task_runs(
         &self,
@@ -302,7 +337,7 @@ impl Shadows {
         description = "List the tasks of an approved plan version you may start together now: \
                        each never ran, is not done, has its needs done, and its writes meet \
                        no running or unjudged task nor another task of the list, in task \
-                       order with its suggested model. It reserves nothing: each task_start \
+                       order with its saved executor choice. It reserves nothing: each task_start \
                        checks again, and a refused one is reported, not retried from this \
                        list; ask task_ready again for what is ready now. A version that cannot \
                        start work is refused with its reason."
@@ -338,7 +373,7 @@ impl Shadows {
         answer(
             self.core
                 .runs()
-                .start_for(&grant, &args.workflow_id, args.task_number, args.model)
+                .start_for(&grant, &args.workflow_id, args.task_number)
                 .await
                 .map_err(Refusal::from),
         )

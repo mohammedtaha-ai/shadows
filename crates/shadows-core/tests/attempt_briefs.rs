@@ -257,9 +257,21 @@ async fn held_turn(storage: &Arc<Storage>, thread: &ThreadId) {
 
 impl Fixture {
     async fn start(&self, command: &str, task: u32) -> Result<Attempt, RunsError> {
+        let seed = self
+            .core
+            .runs()
+            .choose_executor_for_test(
+                &self.workflow,
+                task,
+                "claude-code",
+                "fake-large",
+                Some("high"),
+            )
+            .await;
+        seed.unwrap();
         self.core
             .runs()
-            .start(command.into(), &self.workflow, 1, task, "fake-large".into())
+            .start(command.into(), &self.workflow, 1, task)
             .await
     }
 

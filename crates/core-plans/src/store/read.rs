@@ -389,7 +389,7 @@ pub(crate) struct ReadRows;
 impl crate::Plans {
     /// One version with its linked tasks, inside the caller's transaction: what
     /// an execution check reads.
-    pub(crate) async fn version_in(
+    pub async fn version_in(
         conn: &mut SqliteConnection,
         workflow: &WorkflowId,
     ) -> Result<Plan, crate::PlansError> {

@@ -32,13 +32,25 @@ impl Runs {
                         workflow: plan.id.clone(),
                         version: plan.version,
                         task,
-                        model: String::new(),
                         writes: content.writes,
                         start_head: None,
                     })
                     .await
             }
             Err(error) => Err(error),
+        };
+        let checked = match checked {
+            Ok(())
+                if self
+                    .inner
+                    .store
+                    .executor_choice(&plan.id, task)
+                    .await?
+                    .is_none() =>
+            {
+                Err(RunsError::NoExecutorChoice)
+            }
+            other => other,
         };
         match checked {
             Ok(()) => Ok(StartAnswer {

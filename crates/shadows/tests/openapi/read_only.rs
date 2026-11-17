@@ -246,6 +246,7 @@ async fn no_get_route_changes_state() {
                 "id" if template.starts_with("/api/operations/") => op.to_string(),
                 "id" if template.starts_with("/api/attempts/") => "read-attempt".into(),
                 "workflow" => workflow.to_string(),
+                "kind" if template.starts_with("/api/harnesses/") => "claude-code".into(),
                 "version" | "task" => "1".into(),
                 "slug" if template.starts_with("/api/aylul/agents/") => "aylul".into(),
                 "agreement" => agreement["agreement_id"].as_str().unwrap().to_string(),

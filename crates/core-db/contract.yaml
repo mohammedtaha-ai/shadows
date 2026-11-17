@@ -247,6 +247,7 @@ structure_removal_migrations: 0048 removes starter files from Design parts and m
 codex_modes_migration: 0050 gives each existing non-AYLUL project Codex's `read-only` mode only; no write mode and no other harness's modes change (codex_modes_migrate_without_granting_write_access).
 
 runs_migration: 0052 adds run_attempts (one executor attempt at a task, with the scope it holds until released_at) and run_task_marks (a person's done marks).
+executor_choices_migration: 0073 records task copy ancestry, current executor choices and immutable save outcomes. Existing attempts retain Claude Code as their harness and a null effort.
 attempt_report_migration: 0053 gives run_attempts start_head (the commit HEAD named at Start) and report (the executor's account stored with its accepted commit); both nullable, no row changes.
 code_inventory_migration: 0054 adds code_inventory (one row per listed path of a project folder, kind directory, file or excluded with its reason) and code_inventory_scan (one row per project, its generation, whether the last listing was incomplete, and when it ended); derived data, no command or journal row.
 attempt_addition_migration: 0055 gives run_attempts addition (the Planner's addition an attempt carried on with, in the session of the attempt before it); nullable, NULL for an attempt Start began, no row changes.

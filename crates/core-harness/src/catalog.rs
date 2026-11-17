@@ -37,6 +37,15 @@ impl Catalogs {
 }
 
 impl Harness {
+    /// Catalogs the Planner can currently use.
+    pub async fn executor_catalogs(&self) -> Vec<HarnessCatalog> {
+        let (claude, codex) = tokio::join!(
+            self.catalog(policy::CLAUDE_CODE),
+            self.catalog(policy::CODEX)
+        );
+        [claude, codex].into_iter().filter_map(Result::ok).collect()
+    }
+
     pub async fn catalog(&self, kind: &str) -> Result<HarnessCatalog, HarnessError> {
         let probe = self.catalogs.for_kind(kind)?;
         if kind == policy::CODEX && self.sessions.config.codex.is_none() {

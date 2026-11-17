@@ -91,6 +91,7 @@ impl EventsStore {
               WHERE e.project_id = ? AND e.seq > ?
                 AND e.kind IN ('WorkflowDraftStarted', 'WorkflowEdited', 'WorkflowFrozen',
                                'PlanArchived', 'PlanUnarchived', 'ProjectDesignChanged',
+                               'TaskExecutorChosen',
                                'PlanDependenciesChanged', 'ProjectLinked', 'ProjectUnlinked',
                                'ProjectRemoved', 'AgreementChanged', 'ProjectStandardsSaved',
                                'VisionProposed', 'MapProposed', 'RoadmapProposed',

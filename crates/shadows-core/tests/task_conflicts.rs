@@ -193,10 +193,22 @@ impl Fixture {
     /// Starts `task` with its executor's first turn scripted as `prompt`.
     async fn start(&self, command: &str, task: u32, prompt: &str) -> Attempt {
         self.core.runs().set_first_prompt_for_tests(prompt);
+        let seed = self
+            .core
+            .runs()
+            .choose_executor_for_test(
+                &self.workflow,
+                task,
+                "claude-code",
+                "fake-large",
+                Some("high"),
+            )
+            .await;
+        seed.unwrap();
         let attempt = self
             .core
             .runs()
-            .start(command.into(), &self.workflow, 1, task, "fake-large".into())
+            .start(command.into(), &self.workflow, 1, task)
             .await
             .unwrap();
         assert_eq!(attempt.state, AttemptState::Running, "{attempt:?}");
@@ -717,11 +729,7 @@ async fn conflict_keeps_uncommitted_files() {
     let status = git(&f.root, &["status", "--porcelain"]);
     assert!(status.contains("?? lib/wip.rs"), "{status}");
     assert_eq!(git(&f.root, &["rev-list", "--count", "HEAD"]).trim(), "1");
-    let again = f
-        .core
-        .runs()
-        .start("s2".into(), &f.workflow, 1, 1, "fake-large".into())
-        .await;
+    let again = f.core.runs().start("s2".into(), &f.workflow, 1, 1).await;
     assert!(again.is_ok(), "{again:?}");
     f.finish().await;
 }

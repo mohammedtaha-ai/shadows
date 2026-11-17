@@ -31,7 +31,9 @@ use utoipa::OpenApi;
         shadows_core::PermissionOption, shadows_core::AttemptNotice, shadows_core::Notice,
         shadows_core::QuestionId, shadows_core::CheckResult, shadows_core::AgentReplyNotice,
         shadows_core::RecheckNotice, shadows_core::RecheckFailure,
-        shadows_core::DecisionRecord, shadows_core::DecisionInput, shadows_core::DecisionState
+        shadows_core::DecisionRecord, shadows_core::DecisionInput, shadows_core::DecisionState,
+        shadows_core::Chooser, shadows_core::ExecutorChoice, shadows_core::ExecutorInput,
+        shadows_core::CatalogModel, shadows_core::HarnessCatalog
     )),
     tags(
         (name = "aylul", description = "AYLUL agents, providers and write-only credentials"),

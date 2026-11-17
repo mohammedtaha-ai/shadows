@@ -58,6 +58,7 @@ pub struct HarnessInfo {
     pub(super) kind: String,
     pub(super) label: String,
     pub(super) available: bool,
+    pub(super) executor: bool,
     /// Why it cannot run, when `available` is false.
     #[schema(required)]
     pub(super) reason: Option<String>,

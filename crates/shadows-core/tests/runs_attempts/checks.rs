@@ -175,6 +175,11 @@ async fn return_without_change_reconfirms_previous_commit() {
 #[tokio::test]
 async fn failed_confirmation_returns_to_executor() {
     let (f, id, _, _) = candidate(vec![cmd(&["git", "rev-parse", "no-such-ref"])]).await;
+    sqlx::query("UPDATE run_attempts SET effort = 'low' WHERE id = ?")
+        .bind(id.as_str())
+        .execute(f.storage.reader())
+        .await
+        .unwrap();
     f.core.runs().recover().await.unwrap();
     results(&f, &id, 1).await;
     for _ in 0..300 {
@@ -182,6 +187,9 @@ async fn failed_confirmation_returns_to_executor() {
         if attempts.len() > 1 {
             assert_eq!(attempts[0].origin, core_runs::AttemptOrigin::Checks);
             assert_eq!(attempts[0].thread_id, attempts[1].thread_id);
+            assert_eq!(attempts[0].harness, attempts[1].harness);
+            assert_eq!(attempts[0].model, attempts[1].model);
+            assert_eq!(attempts[0].effort.as_deref(), Some("low"));
             let addition = attempts[0].addition.as_deref().unwrap();
             assert!(addition.contains("did not all pass"), "{addition}");
             assert!(addition.contains("\nc1 failed (exit 128)"), "{addition}");

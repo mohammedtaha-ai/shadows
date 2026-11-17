@@ -99,7 +99,9 @@ planning_context:
 runs:
   module: runs.rs
   routes:
-    - 'GET /api/workflows/{workflow}/versions/{version}/tasks/{task} -> Runs::task (TaskRun with needs, start, suggested_model)'
+    - 'GET /api/workflows/{workflow}/versions/{version}/tasks/{task} -> Runs::task (TaskRun with needs, start, executor)'
+    - 'PUT /api/workflows/{workflow}/versions/{version}/tasks/{task}/executor -> Runs::set_executor (ExecutorChoice)'
+    - 'GET /api/harnesses/{kind}/catalog -> Harness::catalog (HarnessCatalog)'
     - 'GET /api/workflows/{workflow}/versions/{version}/tasks/{task}/attempts -> Runs::attempts'
     - 'POST /api/workflows/{workflow}/versions/{version}/tasks/{task}/attempts -> Runs::start, 201, run detached'
     - 'PUT /api/workflows/{workflow}/versions/{version}/tasks/{task}/done -> Runs::mark_done'
@@ -114,7 +116,7 @@ runs:
     NotFound is 404, Storage and Unavailable 5xx ErrorBody; Grants and Code carry their owner's
     error and answer its own translation (failure/runs.rs). No route asks a task question.
   paths: Plan versions are global ids, as /api/workflows/{id} already is; no project segment.
-  tested_by: [the_task_answers_its_needs_start_and_suggested_model,
+  tested_by: [the_task_answers_its_needs_start_and_executor_choice,
     start_while_waiting_is_409_with_the_waiting_tasks, a_replayed_start_returns_the_same_attempt,
     the_attempts_are_listed_newest_first, stop_answers_the_attempt_as_it_stands,
     the_diff_of_an_attempt_with_no_commit_is_empty, a_done_mark_frees_the_tasks_that_need_it,

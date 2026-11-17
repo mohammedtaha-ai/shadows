@@ -268,3 +268,35 @@ impl PlanRows {
 }
 
 pub(crate) struct PlanRows;
+impl crate::Plans {
+    /// The task's own id and its explicitly recorded ancestors, newest first.
+    pub async fn task_lineage_in(
+        conn: &mut core_db::Tx,
+        workflow: &crate::WorkflowId,
+        task: u32,
+    ) -> Result<Vec<crate::TaskId>, crate::PlansError> {
+        type Row = (String, Option<String>);
+        let mut row: Option<Row> =
+            sqlx::query_as("SELECT id, copied_from FROM task WHERE workflow_id = ? AND number = ?")
+                .bind(workflow.as_str())
+                .bind(i64::from(task))
+                .fetch_optional(&mut *conn)
+                .await
+                .map_err(core_db::StorageError::from)?;
+        let mut ids = Vec::new();
+        let mut seen = std::collections::HashSet::new();
+        while let Some((id, parent)) = row.take() {
+            if !seen.insert(id.clone()) {
+                return Err(core_db::StorageError::Constraint("task copy cycle".into()).into());
+            }
+            ids.push(crate::TaskId::from_stored(id));
+            let Some(parent) = parent else { break };
+            row = sqlx::query_as("SELECT id, copied_from FROM task WHERE id = ?")
+                .bind(parent)
+                .fetch_optional(&mut *conn)
+                .await
+                .map_err(core_db::StorageError::from)?;
+        }
+        Ok(ids)
+    }
+}

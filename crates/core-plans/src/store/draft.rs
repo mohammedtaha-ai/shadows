@@ -293,6 +293,18 @@ async fn insert_version(
     .execute(&mut *conn)
     .await?;
     TaskRows::write_content(conn, &id, &[], content, ts).await?;
+    if let Some(previous) = v.previous {
+        sqlx::query(
+            "UPDATE task AS copy SET copied_from = (
+                 SELECT source.id FROM task AS source
+                 WHERE source.workflow_id = ? AND source.number = copy.number
+             ) WHERE copy.workflow_id = ?",
+        )
+        .bind(previous.as_str())
+        .bind(id.as_str())
+        .execute(&mut *conn)
+        .await?;
+    }
     let event = plan_event("WorkflowDraftStarted", by.writer, by.project, by.operation)
         .with_payload(serde_json::json!({ "workflow_id": id, "version": v.number }));
     JournalEntry::append_event(conn, event.clone(), ts).await?;

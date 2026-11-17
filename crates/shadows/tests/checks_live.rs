@@ -131,16 +131,15 @@ async fn checks_returns_judgment_and_agent_replies_on_the_subscription() {
         )
         .await
         .unwrap();
+    app.core
+        .runs()
+        .choose_executor_for_test(&workflow, 1, "claude-code", live::SUBSCRIPTION_MODEL, None)
+        .await
+        .unwrap();
     let started = app
         .core
         .runs()
-        .start(
-            "start".into(),
-            &workflow,
-            1,
-            1,
-            live::SUBSCRIPTION_MODEL.into(),
-        )
+        .start("start".into(), &workflow, 1, 1)
         .await
         .unwrap();
     let client = listening::thread_client(&l, &app.thread).await;

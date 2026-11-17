@@ -100,7 +100,7 @@ B-157 and B-158 do, and build on the [shared request](../shared/requests/2026-11
 
 ### B-157 · Runs stores each task's choice and starts on it
 
-- Status: todo (the request is accepted, `da7a6950`)
+- Status: done
 - Plan: [B-157](plans/2026-11-18-executor-choices.md#task-b-157-runs-stores-each-tasks-choice-and-starts-on-it).
 - Owner: Runs; Plans for `copied_from` and `task_lineage_in`; Events for the tail kind.
 - Read: `crates/core-runs/contract.yaml` (`start`, `start_for`, `task`, `amend`, `run_turn`, `ready_group`); `crates/core-plans/contract.yaml` (`start_draft`, `shared_in_transaction`); `crates/core-db/contract.yaml` (`command`); the plan's Rulings and Review Focus.
@@ -110,7 +110,7 @@ B-157 and B-158 do, and build on the [shared request](../shared/requests/2026-11
 
 ### B-158 · The person's and the Planner's way to the choice
 
-- Status: todo (the request is accepted, `da7a6950`)
+- Status: done
 - Plan: [B-158](plans/2026-11-18-executor-choices.md#task-b-158-the-persons-and-the-planners-way-to-the-choice).
 - Owner: the HTTP and MCP adapters over Runs and Harness; Grants for the tool list.
 - Read: `crates/shadows-http/src/contract.yaml`, `crates/shadows-mcp/src/contract.yaml` (`task_start`); the plan's web API table.
@@ -120,7 +120,7 @@ B-157 and B-158 do, and build on the [shared request](../shared/requests/2026-11
 
 ### B-159 · Acceptance in the browser
 
-- Status: blocked (needs B-155 to B-158 and the web tasks)
+- Status: blocked (needs the web tasks)
 - Plan: [B-159](plans/2026-11-18-executor-choices.md#task-b-159-acceptance-in-the-browser).
 - Owner: integration acceptance through AppCore and the real UI.
 - Touch: the task's Files list in the plan.

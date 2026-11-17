@@ -7,6 +7,7 @@
 mod brief;
 pub(super) mod checks;
 mod conflict;
+mod executor_choice;
 mod lessons;
 mod marks;
 pub(super) mod messages;
@@ -38,6 +39,8 @@ struct AttemptRow {
     thread_id: String,
     operation_id: Option<String>,
     model: String,
+    harness: String,
+    effort: Option<String>,
     state: String,
     commit_sha: Option<String>,
     reason: Option<String>,
@@ -53,6 +56,8 @@ pub(super) struct RunsStore {
     /// Holds the next Start between its preflight and its admission write.
     #[cfg(feature = "test-support")]
     gate: std::sync::Mutex<Option<Gate>>,
+    #[cfg(feature = "test-support")]
+    save_gate: std::sync::Mutex<Option<Gate>>,
 }
 
 /// A test's hold on one Start: it hears the Start arrive, then lets it go on.
@@ -70,7 +75,6 @@ pub(crate) struct NewAttempt {
     pub(crate) workflow: WorkflowId,
     pub(crate) version: i64,
     pub(crate) task: u32,
-    pub(crate) model: String,
     pub(crate) writes: Vec<String>,
     /// The commit HEAD named at Start; `None` on a branch with no commit.
     pub(crate) start_head: Option<String>,
@@ -190,6 +194,8 @@ impl RunsStore {
             storage,
             #[cfg(feature = "test-support")]
             gate: std::sync::Mutex::new(None),
+            #[cfg(feature = "test-support")]
+            save_gate: std::sync::Mutex::new(None),
         }
     }
 
@@ -259,8 +265,15 @@ impl RunsStore {
         self.storage
             .write_txn_as(move |conn| {
                 Box::pin(async move {
-                    if let Some(attempt) =
-                        Self::by_command(conn, &new.command_id, &new.fingerprint).await?
+                    if let Some(attempt) = Self::by_command(
+                        conn,
+                        &new.command_id,
+                        &new.fingerprint,
+                        &new.workflow,
+                        new.version,
+                        new.task,
+                    )
+                    .await?
                     {
                         return Ok(Begun {
                             attempt,
@@ -269,11 +282,14 @@ impl RunsStore {
                     }
                     Runs::admit_in(conn, &new.workflow, new.version, new.task).await?;
                     Self::check_free(conn, &new).await?;
+                    let choice = Self::executor_choice_in(conn, &new.workflow, new.task)
+                        .await?
+                        .ok_or(RunsError::NoExecutorChoice)?;
                     let thread = core_threads::Threads::create_executor_in(
                         conn,
                         &new.project,
                         format!("T{}", new.task),
-                        crate::EXECUTOR_HARNESS,
+                        &choice.harness,
                     )
                     .await?;
                     let number: i64 = sqlx::query_scalar(
@@ -290,8 +306,8 @@ impl RunsStore {
                         "INSERT INTO run_attempts
                            (id, project_id, workflow_id, version, task, number, thread_id,
                             model, state, writes_json, started_at, command_id, fingerprint,
-                            start_head)
-                         VALUES (?,?,?,?,?,?,?,?,'running',?,?,?,?,?)",
+                            start_head, harness, effort)
+                         VALUES (?,?,?,?,?,?,?,?,'running',?,?,?,?,?,?,?)",
                     )
                     .bind(id.as_str())
                     .bind(new.project.as_str())
@@ -300,12 +316,14 @@ impl RunsStore {
                     .bind(i64::from(new.task))
                     .bind(number)
                     .bind(thread.as_str())
-                    .bind(&new.model)
+                    .bind(&choice.model)
                     .bind(serde_json::to_string(&new.writes)?)
                     .bind(&ts)
                     .bind(&new.command_id)
                     .bind(&new.fingerprint)
                     .bind(&new.start_head)
+                    .bind(&choice.harness)
+                    .bind(&choice.effort)
                     .execute(&mut *conn)
                     .await?;
                     let task = (&new.project, &new.workflow, new.task);
@@ -339,6 +357,9 @@ impl RunsStore {
         &self,
         command: &str,
         fingerprint: &str,
+        workflow: &WorkflowId,
+        version: i64,
+        task: u32,
     ) -> Result<Option<Attempt>, RunsError> {
         let mut conn = self
             .storage
@@ -346,7 +367,7 @@ impl RunsStore {
             .acquire()
             .await
             .map_err(StorageError::from)?;
-        Self::by_command(&mut conn, command, fingerprint).await
+        Self::by_command(&mut conn, command, fingerprint, workflow, version, task).await
     }
 
     /// The attempt `command` started; the same id with other input is a
@@ -355,15 +376,31 @@ impl RunsStore {
         conn: &mut SqliteConnection,
         command: &str,
         fingerprint: &str,
+        workflow: &WorkflowId,
+        version: i64,
+        task: u32,
     ) -> Result<Option<Attempt>, RunsError> {
-        let row: Option<(String, String)> =
-            sqlx::query_as("SELECT id, fingerprint FROM run_attempts WHERE command_id = ?")
+        let row: Option<(String, String, String)> =
+            sqlx::query_as("SELECT id, fingerprint, model FROM run_attempts WHERE command_id = ?")
                 .bind(command)
                 .fetch_optional(&mut *conn)
                 .await?;
         match row {
-            Some((_, seen)) if seen != fingerprint => Err(RunsError::CommandConflict),
-            Some((id, _)) => Ok(Some(Self::load(conn, &AttemptId::from_recorded(id)).await?)),
+            Some((id, seen, model)) => {
+                if seen != fingerprint
+                    && seen
+                        != core_db::CommandContext::fingerprint(
+                            "run.start",
+                            &serde_json::json!({
+                                "workflow": workflow, "version": version,
+                                "task": task, "model": model,
+                            }),
+                        )
+                {
+                    return Err(RunsError::CommandConflict);
+                }
+                Ok(Some(Self::load(conn, &AttemptId::from_recorded(id)).await?))
+            }
             None => Ok(None),
         }
     }
@@ -422,7 +459,7 @@ impl RunsStore {
         let row: Option<AttemptRow> = sqlx::query_as(
             "SELECT id, project_id, workflow_id, version, task, number, thread_id,
                     operation_id, model, state, commit_sha, reason, started_at, ended_at,
-                    report, addition, origin
+                    report, addition, origin, harness, effort
                  FROM run_attempts WHERE id = ?",
         )
         .bind(id.as_str())
@@ -449,6 +486,8 @@ impl RunsStore {
             thread_id: ThreadId::from_recorded(row.thread_id),
             operation_id: row.operation_id.map(OperationId::from_recorded),
             model: row.model,
+            harness: row.harness,
+            effort: row.effort,
             state,
             commit: row.commit_sha,
             reason: row.reason,
@@ -732,13 +771,13 @@ impl RunsStore {
                         "INSERT INTO run_attempts
                            (id, project_id, workflow_id, version, task, number, thread_id,
                             model, state, writes_json, started_at, command_id, fingerprint,
-                            start_head, addition, origin)
+                            start_head, addition, origin, harness, effort)
                          SELECT ?, p.project_id, p.workflow_id, p.version, p.task,
                                 (SELECT MAX(o.number) + 1 FROM run_attempts o
                                  WHERE o.workflow_id = p.workflow_id
                                    AND o.version = p.version AND o.task = p.task),
                                 p.thread_id, p.model, 'running', p.writes_json, ?, ?,
-                                'amend', ?, ?, ?
+                                'amend', ?, ?, ?, p.harness, p.effort
                          FROM run_attempts p WHERE p.id = ?",
                     )
                     .bind(id.as_str())
@@ -769,7 +808,7 @@ impl RunsStore {
         let rows: Vec<AttemptRow> = sqlx::query_as(
             "SELECT id, project_id, workflow_id, version, task, number, thread_id,
                     operation_id, model, state, commit_sha, reason, started_at, ended_at,
-                    report, addition, origin
+                    report, addition, origin, harness, effort
              FROM run_attempts
              WHERE workflow_id = ? AND version = ? AND task = ? ORDER BY number DESC",
         )

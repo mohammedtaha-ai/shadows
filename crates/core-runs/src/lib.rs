@@ -22,6 +22,7 @@ mod checks;
 mod conflict;
 mod diff;
 mod error;
+mod executor_choice;
 mod git;
 mod init;
 mod lessons;
@@ -53,6 +54,7 @@ pub use model::{
     LessonCommand, LiveAttempt, Need, ReadyGroup, ReadyTask, RecheckFailure, RecheckNotice,
     RecoverReport, ReportedCheck, ReportedOutcome, StartAnswer, TaskConflict, TaskLesson, TaskRun,
 };
+pub use model::{Chooser, ExecutorChoice, ExecutorInput};
 pub use question::{PlannedScope, ProducerStatus, TaskAnswer, TaskQuestion};
 
 use codebase::Codebase;
@@ -87,10 +89,6 @@ const COMMIT: &str = "Other executors may work in the same folder at once. Run o
     the index. If it is still refused, report that the commit failed. Leave nothing uncommitted \
     inside the task's writes; then call task_report with the commit's sha and an honest report \
     of what you did, ran and found.";
-
-/// The harness an executor thread runs on, so the only one whose models an
-/// executor can be offered.
-const EXECUTOR_HARNESS: &str = shadows_agent::policy::CLAUDE_CODE;
 
 struct Inner {
     /// One lock per executor thread: a question's send, a release and a
@@ -170,29 +168,11 @@ impl Runs {
             latest,
             needs: self.needs(&plan, task).await?,
             start: self.start_answer(&plan, task).await?,
-            suggested_model: self.suggested_model(&plan).await,
+            executor: self.inner.store.executor_choice(workflow, task).await?,
         })
     }
 
-    /// The model to offer the executor: the one the plan's Planner
-    /// conversation last asked for, when that turn ran on the executor's
-    /// harness. A model of another harness (a Codex Planner's) is not one the
-    /// executor is offered, so then the model last used on the executor's
-    /// harness is suggested, or none. None for a plan an external agent wrote.
-    async fn suggested_model(&self, plan: &core_plans::Plan) -> Option<String> {
-        let core_plans::WrittenBy::Planner { thread_id, .. } = &plan.written_by else {
-            return None;
-        };
-        match self.last_invocation(thread_id).await {
-            Some(invocation) if invocation.harness_kind == EXECUTOR_HARNESS => {
-                Some(invocation.requested_model)
-            }
-            _ => self.executor_harness_model().await,
-        }
-    }
-
-    /// The invocation of `thread`'s latest turn by its creation, or `None`
-    /// when it has none or its turns cannot be read.
+    /// The Planner invocation that determines where notices are delivered.
     async fn last_invocation(&self, thread: &ThreadId) -> Option<core_turns::InvocationView> {
         match self.inner.turns.operations(thread).await {
             Ok(operations) => operations
@@ -202,17 +182,6 @@ impl Runs {
                 .map(|(_, invocation)| invocation),
             Err(error) => {
                 tracing::warn!(%thread, %error, "runs.planner_unread");
-                None
-            }
-        }
-    }
-
-    /// The model last used on the executor's harness, which it offered then.
-    async fn executor_harness_model(&self) -> Option<String> {
-        match self.inner.harness.remembered_model(EXECUTOR_HARNESS).await {
-            Ok(model) => model,
-            Err(error) => {
-                tracing::warn!(%error, "runs.executor_model_unread");
                 None
             }
         }

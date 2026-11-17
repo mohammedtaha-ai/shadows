@@ -987,11 +987,20 @@
               "null"
             ]
           },
+          "effort": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "ended_at": {
             "type": [
               "string",
               "null"
             ]
+          },
+          "harness": {
+            "type": "string"
           },
           "id": {
             "$ref": "#/components/schemas/AttemptId"
@@ -1068,6 +1077,8 @@
           "thread_id",
           "operation_id",
           "model",
+          "harness",
+          "effort",
           "state",
           "commit",
           "report",
@@ -1417,6 +1428,35 @@
         ],
         "type": "object"
       },
+      "CatalogModel": {
+        "properties": {
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "efforts": {
+            "items": {
+              "$ref": "#/components/schemas/Choice"
+            },
+            "type": "array"
+          },
+          "id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "description",
+          "efforts"
+        ],
+        "type": "object"
+      },
       "ChangeEffort": {
         "description": "The effort a person picked.",
         "properties": {
@@ -1605,6 +1645,13 @@
           "reason"
         ],
         "type": "object"
+      },
+      "Chooser": {
+        "enum": [
+          "person",
+          "planner"
+        ],
+        "type": "string"
       },
       "ConflictDelivery": {
         "description": "Whether the Planner's notice of a conflict was enqueued on its\nconversation. `delivered` is a durable enqueue, not a reply.",
@@ -2925,6 +2972,58 @@
         ],
         "type": "string"
       },
+      "ExecutorChoice": {
+        "properties": {
+          "chosen_at": {
+            "type": "string"
+          },
+          "chosen_by": {
+            "$ref": "#/components/schemas/Chooser"
+          },
+          "effort": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "harness": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "harness",
+          "model",
+          "effort",
+          "chosen_by",
+          "chosen_at"
+        ],
+        "type": "object"
+      },
+      "ExecutorInput": {
+        "properties": {
+          "effort": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "harness": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "harness",
+          "model",
+          "effort"
+        ],
+        "type": "object"
+      },
       "ExtensionKind": {
         "enum": [
           "plugin",
@@ -3160,10 +3259,31 @@
         "format": "uuid",
         "type": "string"
       },
+      "HarnessCatalog": {
+        "properties": {
+          "harness": {
+            "type": "string"
+          },
+          "models": {
+            "items": {
+              "$ref": "#/components/schemas/CatalogModel"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "harness",
+          "models"
+        ],
+        "type": "object"
+      },
       "HarnessInfo": {
         "description": "A CLI a conversation can run on. `kind` is `claude-code` or\n`codex`.",
         "properties": {
           "available": {
+            "type": "boolean"
+          },
+          "executor": {
             "type": "boolean"
           },
           "initial_mode": {
@@ -3225,6 +3345,7 @@
           "kind",
           "label",
           "available",
+          "executor",
           "reason",
           "remembered",
           "limits",
@@ -6989,7 +7110,7 @@
         "type": "object"
       },
       "RunRefusal": {
-        "description": "A run Core refused. `code` is Core's opaque id (`waiting`, `task_busy`,\n`overlap`, `not_git`, `dirty_scope`, `not_frozen`, `superseded`,\n`archived`, `bad_scope`, `command_conflict`); `reason` is the text to show.",
+        "description": "A run Core refused. `code` is Core's opaque id (`waiting`, `task_busy`,\n`overlap`, `not_git`, `dirty_scope`, `not_frozen`, `superseded`,\n`archived`, `bad_scope`, `command_conflict`, `no_executor_choice`,\n`executor_not_offered`, `catalog_unavailable`); `reason` is the text to show.",
         "properties": {
           "code": {
             "type": "string"
@@ -7342,6 +7463,24 @@
         ],
         "type": "object"
       },
+      "SetExecutor": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ExecutorInput"
+          },
+          {
+            "properties": {
+              "command_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "command_id"
+            ],
+            "type": "object"
+          }
+        ]
+      },
       "Skipped": {
         "description": "Files not parsed, for one reason: `too_large`, `binary` or `not_utf8`.",
         "properties": {
@@ -7604,15 +7743,10 @@
           "command_id": {
             "description": "The idempotency key: the same key and body answer the first attempt.",
             "type": "string"
-          },
-          "model": {
-            "description": "The executor's model, one the harness offers.",
-            "type": "string"
           }
         },
         "required": [
-          "command_id",
-          "model"
+          "command_id"
         ],
         "type": "object"
       },
@@ -8171,6 +8305,17 @@
               "null"
             ]
           },
+          "executor": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ExecutorChoice",
+                "description": "The task's saved executor choice, including an inherited choice."
+              }
+            ]
+          },
           "latest": {
             "oneOf": [
               {
@@ -8191,13 +8336,6 @@
           "start": {
             "$ref": "#/components/schemas/StartAnswer"
           },
-          "suggested_model": {
-            "description": "The model the plan's Planner conversation last asked for; `null`\nwithout one.",
-            "type": [
-              "string",
-              "null"
-            ]
-          },
           "task": {
             "format": "int32",
             "minimum": 0,
@@ -8212,7 +8350,7 @@
           "latest",
           "needs",
           "start",
-          "suggested_model"
+          "executor"
         ],
         "type": "object"
       },
@@ -11907,6 +12045,57 @@
           }
         },
         "summary": "Every harness Shadows knows, runnable or not, with the model and effort\nlast used on it and the account limits it last reported.",
+        "tags": [
+          "harnesses"
+        ]
+      }
+    },
+    "/api/harnesses/{kind}/catalog": {
+      "get": {
+        "operationId": "catalog",
+        "parameters": [
+          {
+            "description": "Executor CLI id",
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HarnessCatalog"
+                }
+              }
+            },
+            "description": ""
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "HARNESS_UNAVAILABLE or INVALID_COMMAND"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "HARNESS_START_FAILED"
+          }
+        },
         "tags": [
           "harnesses"
         ]
@@ -17413,7 +17602,7 @@
                 }
               }
             },
-            "description": "Start refused, with the code a task's `start` answers: waiting, task_busy, overlap, not_git, dirty_scope, missing_input, input_unavailable, not_frozen, superseded, archived, bad_scope; or command_conflict"
+            "description": "Start refused, with the code a task's `start` answers: waiting, task_busy, overlap, not_git, dirty_scope, missing_input, input_unavailable, not_frozen, superseded, archived, bad_scope; no_executor_choice or command_conflict"
           },
           "500": {
             "content": {
@@ -17426,7 +17615,7 @@
             "description": "STORAGE_UNAVAILABLE"
           }
         },
-        "summary": "Starts an attempt: an executor session on this task, on `model`. An\nattempt whose session or first turn could not start is answered `failed`\nwith its reason. A replay of the same `command_id` and body answers the\nfirst attempt.",
+        "summary": "Starts an attempt on the task's saved executor choice. An\nattempt whose session or first turn could not start is answered `failed`\nwith its reason. A replay of the same `command_id` and body answers the\nfirst attempt.",
         "tags": [
           "runs"
         ]
@@ -17520,6 +17709,96 @@
           }
         },
         "summary": "Marks the task done or not done; the tasks that need it wait for this.",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/workflows/{workflow}/versions/{version}/tasks/{task}/executor": {
+      "put": {
+        "operationId": "set_executor",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workflow",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/WorkflowId"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetExecutor"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExecutorChoice"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "no such plan version or task"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunRefusal"
+                }
+              }
+            },
+            "description": "executor choice refused"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          }
+        },
+        "summary": "Saves the executor choice for this task on the newest version.",
         "tags": [
           "runs"
         ]

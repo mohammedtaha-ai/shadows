@@ -620,6 +620,8 @@ enums:
 
 
 shared_in_transaction:
+  version_in: Reads a complete plan version in the caller's snapshot.
+  task_lineage_in: Returns the task id followed by its recorded copy ancestors, newest first.
   version_ids_in: 'Runs snapshots the version identities for a done-mark recheck in its mark write; all workflow SQL remains owned by Plans'
   task_context: Reads approved task context in one owner snapshot after live grant checks.
   task_context_in: Assembles approved task context inside the caller's transaction; Runs saves it with an attempt.

@@ -161,10 +161,10 @@ modules:
   live.rs: adapter cache opening
   offers.rs: synchronous option offer dispatch
   profile_home.rs: serialized home settings writes
-  catalog.rs: native model catalog probes
   sessions.rs: private adapter lifecycle
   settings.rs: session option changes
   executor.rs: executor session opening
+  catalog.rs: native model catalog probes
   setup.rs: Planner and executor opening context
   standards.rs: standards prompt rendering
   titles.rs: ordered harness title writes
@@ -268,11 +268,11 @@ shapes:
     # `Setups` writes commit through the one pool `Events` watches; shared as
     # a private cache owned by Harness.
     config: SessionsConfig
-    # The daemon's database directory. Probes open beneath catalog-probe.
-    catalog_root: PathBuf
   SessionsConfig:
     secrets: Option<Arc<Secrets>>
     aylul: Option<AylulConfig>
+    # The daemon's database directory. Probes open beneath catalog-probe.
+    catalog_root: PathBuf
     # Defaults: 15 min, 10 s, 20 s, None.
     idle_after: Duration
     cancel_wait: Duration
@@ -368,6 +368,9 @@ functions:
     list:
       signature: "(&self) -> Result<Vec<HarnessInfo>, HarnessError>"
       # For each of `policy::KNOWN`: availability, `remembered_settings`,
+      # `latest_limits`, and the modes, initial and unattended mode from policy
+      # alone. Refusals: Storage. `codex` is available exactly when configured
+      # and always lists its policy mode `read-only` as the initial mode.
     catalog:
       signature: "(&self, kind: &str) -> Result<HarnessCatalog, HarnessError>"
       rule: Reads each model's own efforts through an isolated probe with no Shadows thread or
@@ -377,10 +380,7 @@ functions:
       tested_by: [the_catalog_is_read_once, concurrent_catalog_reads_open_one_probe,
         a_failed_probe_is_tried_again, codex_not_configured_is_unavailable,
         aylul_has_no_executor_catalog, live_the_claude_code_catalog_lists_each_models_efforts,
-        live_the_codex_catalog_lists_each_models_efforts]diff --git a/crates/shadows-agent/src/policy.rs b/crates/shadows-agent/src/policy.rs
-      # `latest_limits`, and the modes, initial and unattended mode from policy
-      # alone. Refusals: Storage. `codex` is available exactly when configured
-      # and always lists its policy mode `read-only` as the initial mode.
+        live_the_codex_catalog_lists_each_models_efforts]
     remembered_model:
       signature: "(&self, kind: &str) -> Result<Option<String>, HarnessError>"
       # The model of `remembered_settings(kind)`: the last turn started on that
@@ -612,7 +612,7 @@ called_by_other_services:
   prepare_context: "Turns (spawn.rs, after compose): a turn that carried planning context records it unheard; a failed write logs planner.context_record_failed and the context stays owed."
   forget_context: "Turns (turn.rs accept, a completed compaction) and shadows-http (POST /api/threads/{id}/context/resend, with a command)."
   record_limits: "Turns (turns/turn.rs accept): a turn's watcher records the account limits the harness reports, before it publishes the usage that `limits_of` answers (§12.8)"
-  remembered_model: "Runs (lib.rs suggested_model): the executor's harness's last model, suggested when the Planner's last turn ran on another harness."
+  executor_catalogs: "Planner MCP: the native executor catalogs available to this daemon."
 
 
 shared_in_transaction:

@@ -206,6 +206,7 @@ fn the_document_names_every_route() {
             "GET /api/groups/{id}",
             "GET /api/groups/{id}/messages",
             "GET /api/harnesses",
+            "GET /api/harnesses/{kind}/catalog",
             "GET /api/me",
             "GET /api/openapi.json",
             "GET /api/operations/{id}/context",
@@ -304,6 +305,7 @@ fn the_document_names_every_route() {
             "PUT /api/threads/{id}/session/mode",
             "PUT /api/threads/{id}/session/model",
             "PUT /api/workflows/{workflow}/versions/{version}/tasks/{task}/done",
+            "PUT /api/workflows/{workflow}/versions/{version}/tasks/{task}/executor",
         ]
     );
 }

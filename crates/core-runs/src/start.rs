@@ -19,8 +19,8 @@ pub(crate) struct Checked {
 }
 
 impl Runs {
-    pub(crate) fn executor_mode() -> String {
-        shadows_agent::policy::executor_mode(crate::EXECUTOR_HARNESS)
+    pub(crate) fn executor_mode(harness: &str) -> String {
+        shadows_agent::policy::executor_mode(harness)
             .expect("the executor harness has a mode")
             .into()
     }
@@ -36,15 +36,19 @@ impl Runs {
         workflow: &WorkflowId,
         version: i64,
         task: u32,
-        model: String,
     ) -> Result<Attempt, RunsError> {
         let fingerprint = CommandContext::fingerprint(
             "run.start",
             &serde_json::json!({
-                "workflow": workflow, "version": version, "task": task, "model": model,
+                "workflow": workflow, "version": version, "task": task,
             }),
         );
-        if let Some(first) = self.inner.store.replay(&command, &fingerprint).await? {
+        if let Some(first) = self
+            .inner
+            .store
+            .replay(&command, &fingerprint, workflow, version, task)
+            .await?
+        {
             return Ok(first);
         }
         let Checked {
@@ -65,7 +69,6 @@ impl Runs {
                 workflow: workflow.clone(),
                 version,
                 task,
-                model: model.clone(),
                 writes: content.writes.clone(),
                 start_head,
             })
@@ -94,7 +97,12 @@ impl Runs {
         if let Err(error) = self
             .inner
             .harness
-            .open_executor(&attempt.thread_id, scope, model.clone(), None)
+            .open_executor(
+                &attempt.thread_id,
+                scope,
+                model.clone(),
+                attempt.effort.clone(),
+            )
             .await
         {
             return self
@@ -118,8 +126,8 @@ impl Runs {
                     prompt,
                     attachments: vec![],
                     model,
-                    mode: Self::executor_mode(),
-                    effort: None,
+                    mode: Self::executor_mode(&attempt.harness),
+                    effort: attempt.effort.clone(),
                     focus: None,
                     plan: None,
                     client_tab: None,

@@ -4,6 +4,12 @@ use core_plans::TaskParent;
 
 #[derive(Debug, thiserror::Error)]
 pub enum RunsError {
+    #[error("choose an executor before starting the task")]
+    NoExecutorChoice,
+    #[error("executor setting not offered: {0}")]
+    ExecutorNotOffered(String),
+    #[error("{0}")]
+    CatalogUnavailable(String),
     #[error("a message says something; it cannot be empty")]
     EmptyMessage,
     #[error("T{task}'s agent is answering a message; send the addition after its reply")]
@@ -72,10 +78,6 @@ pub enum RunsError {
     NoFolder,
     #[error("the folder's file listing is not complete yet; call project_git_init again")]
     NotListed,
-    #[error(
-        "no model to run the executor on: name one the executor's harness (claude-code) offers"
-    )]
-    NoModel,
     #[error("T{task} has no committed attempt waiting for your judgment")]
     NotAwaiting { task: u32 },
     #[error("an addition says what is missing or must be extended; it cannot be empty")]
@@ -156,7 +158,9 @@ impl RunsError {
             Self::AlreadyGit => "already_git",
             Self::NoFolder => "no_folder",
             Self::NotListed => "not_listed",
-            Self::NoModel => "no_model",
+            Self::NoExecutorChoice => "no_executor_choice",
+            Self::ExecutorNotOffered(_) => "executor_not_offered",
+            Self::CatalogUnavailable(_) => "catalog_unavailable",
             Self::NotAwaiting { .. } => "not_awaiting",
             Self::EmptyAddition => "empty_addition",
             Self::AdditionsSpent { .. } => "additions_spent",
@@ -183,6 +187,7 @@ impl RunsError {
         matches!(
             self,
             Self::NotFrozen
+                | Self::NoExecutorChoice
                 | Self::Superseded
                 | Self::Archived
                 | Self::Waiting { .. }

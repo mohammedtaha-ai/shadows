@@ -167,7 +167,8 @@ functions:
       # ORDER BY seq; WorkflowDraftStarted, WorkflowEdited, WorkflowFrozen,
       # PlanArchived, PlanUnarchived, ProjectDesignChanged, PlanDependenciesChanged,
       # ProjectLinked, ProjectUnlinked, ProjectRemoved, AgreementChanged,
-      # ProjectStandardsSaved. Standards payload is the saved number only.
+      # ProjectStandardsSaved, TaskExecutorChosen. An executor choice event carries
+      # project_id, plan_id, and task. Standards payload is the saved number only.
       # Design payload is project_id/revision/changed_parts/changed_outcomes/vision_changed;
       # no content. Dependency/reach payloads retain the journal notification;
       # version payload is {plan_id, workflow_id};

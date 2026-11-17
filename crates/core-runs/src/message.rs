@@ -119,7 +119,7 @@ impl Runs {
                     task: attempt.task,
                 },
                 attempt.model.clone(),
-                None,
+                attempt.effort.clone(),
             )
             .await
             .map_err(|e| RunsError::Unavailable(e.to_string()))?;
@@ -137,8 +137,8 @@ impl Runs {
                     ),
                     attachments: vec![],
                     model: attempt.model,
-                    mode: Self::executor_mode(),
-                    effort: None,
+                    mode: Self::executor_mode(&attempt.harness),
+                    effort: attempt.effort,
                     focus: None,
                     plan: None,
                     client_tab: None,

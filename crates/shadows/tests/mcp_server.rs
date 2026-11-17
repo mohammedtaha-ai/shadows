@@ -124,6 +124,7 @@ async fn the_tool_list_depends_on_the_grant_kind() {
             "decision_list",
             "decision_propose",
             "draft_start",
+            "executor_catalog",
             "map_approve",
             "map_propose",
             "message_agent",
@@ -142,6 +143,7 @@ async fn the_tool_list_depends_on_the_grant_kind() {
             "task_context",
             "task_diff",
             "task_done",
+            "task_executor_set",
             "task_file",
             "task_get",
             "task_lessons",
@@ -237,6 +239,7 @@ async fn the_legacy_initialize_lifecycle_works_without_a_session() {
             "decision_list",
             "decision_propose",
             "draft_start",
+            "executor_catalog",
             "map_approve",
             "map_propose",
             "message_agent",
@@ -255,6 +258,7 @@ async fn the_legacy_initialize_lifecycle_works_without_a_session() {
             "task_context",
             "task_diff",
             "task_done",
+            "task_executor_set",
             "task_file",
             "task_get",
             "task_lessons",
@@ -321,7 +325,10 @@ async fn the_discover_lifecycle_works_without_a_session() {
     let tools = answer["result"]["tools"]
         .as_array()
         .unwrap_or_else(|| panic!("{answer}"));
-    assert_eq!(tools.len(), 39, "{answer}");
+    assert_eq!(tools.len(), 41, "{answer}");
+    for tool in ["task_executor_set", "executor_catalog"] {
+        assert!(tools.iter().any(|item| item["name"] == tool), "{answer}");
+    }
     // The Planner proposes and lists decisions; an executor does neither.
     for name in ["decision_propose", "decision_list"] {
         assert!(tools.iter().any(|t| t["name"] == name), "{name}: {answer}");

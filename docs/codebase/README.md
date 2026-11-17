@@ -218,6 +218,8 @@ pattern to follow, not merely an example.
 | `crates/core-runs/src/checks.rs` | confirming an attempt's task checks | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/store/checks.rs` | check results SQL | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/message.rs` | plain questions to a task's executor | `crates/core-runs/contract.yaml` |
+| `crates/core-runs/src/executor_choice.rs` | validation of task executor choices | `crates/core-runs/contract.yaml` |
+| `crates/core-runs/src/store/executor_choice.rs` | persistence of task executor choices | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/store/messages.rs` | ordered questions SQL | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/store/` | run persistence | `crates/core-runs/contract.yaml` |
 | `crates/core-runtime/src/` | the runtime instance's lifecycle | `crates/core-runtime/src/lib.rs` |
