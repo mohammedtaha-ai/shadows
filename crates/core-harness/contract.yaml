@@ -75,14 +75,11 @@ layer_catalog: 'Planner standards text lists every kind presence and its layers 
 # for installing and the environment, and that a changed project file is noted with
 # project_change_note. In a read-only sandbox (Codex's Read only mode) it offers no install of
 # its own: the person installs the server or it is left.
-# `open_executor(thread, grant, model)` opens an executor the same way, from its one compiled-in
-# file, executor.md: the front matter's `tools:` (Read, Grep, Glob, Edit, Write, MultiEdit, Bash,
-# TodoWrite) as the session's tools, the body appended; settingSources [] and strictMcpConfig true,
-# no permission rules, the session working in its project's folder as every session does, and
-# `policy::EXECUTOR_MODE` (`auto`) set after opening. Nothing is asked or refused while it works;
-# Runs' check on the reported commit is its one write boundary. The file carries no model and no
-# mode (executor::tests parse it; executor_session's opening test; live in runs_attempts: an Edit
-# of an existing file in a subfolder runs unasked and its commit is accepted).
+# `open_executor(thread, grant, model, effort)` opens in the project's folder and appends the
+# compiled-in executor brief with the harness's tools instructions. Claude Code uses the front
+# matter's built-in tool list and `auto`. Codex uses its own tools, the executor grant's MCP
+# inventory, and `ask`. The session applies the model before the explicit effort and mode.
+# A value the session does not offer refuses the opening. Runs checks the reported commit.
 # `release_executor` forgets the thread's executor setup and closes the session (revoking its grant).
 # An executor-kind thread opens only while its setup is held: any other opening is refused, never
 # built as a Planner's (a_released_executor_thread_does_not_open_again). An executor thread's turns
@@ -93,7 +90,7 @@ layer_catalog: 'Planner standards text lists every kind presence and its layers 
 # §23.5 prompt names stable vision item ids, proposal cards and person-only approval.
 # §13.8 prompt: the Planner talks in the person's language and stores everything in English.
 # The prompt's "The task contract" section is held by mcp_tools::the_planner_is_told_what_a_contract_holds and, live, planner_live::live_the_planner_writes_a_contract_without_a_function_body.
-# executor.md's "Tools" section (no Python; files through Write, Edit and MultiEdit, never the
+# executor_tools_claude.md's "Tools" section (no Python; files through Write, Edit and MultiEdit, never the
 # shell) is held by executor::tests::the_executor_file_parses_and_names_its_eight_tools.
 # executor.md's contract bullets are held, live, by runs_routes::live_an_executor_builds_the_function_its_contract_names.
 # prompt.txt runs a plan group by group: task_ready, then every task of the group started at once;

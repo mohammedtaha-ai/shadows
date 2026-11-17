@@ -1,11 +1,12 @@
 //! One job: opening the session of an executor, built as the Planner's is —
-//! a fixed tool list and its compiled-in instructions, in mode `auto`.
+//! compiled-in instructions, selected tools and the harness's executor mode.
 use std::sync::LazyLock;
 
 use super::Harness;
 use super::sessions::{OpenError, OpenSession};
 use core_grants::TaskScope;
 use core_threads::ThreadId;
+use shadows_agent::policy;
 
 /// The executor's one file, compiled in: front matter naming its built-in
 /// tools, then its instructions. A project does not change it.
@@ -15,9 +16,8 @@ const FILE: &str = include_str!("executor.md");
 static EXECUTOR: LazyLock<(Vec<&'static str>, &'static str)> =
     LazyLock::new(|| parse(FILE).expect("executor.md has front matter naming its tools"));
 
-/// Nothing is asked and nothing refused while the executor works: the check
-/// on its reported commit is its one write boundary.
-const MODE: &str = shadows_agent::policy::EXECUTOR_MODE;
+const CLAUDE_TOOLS: &str = include_str!("executor_tools_claude.md");
+const CODEX_TOOLS: &str = include_str!("executor_tools_codex.md");
 
 /// What an executor session is opened for: the task its grant reads. It
 /// works in its project's folder, as every session of the project does.
@@ -28,13 +28,19 @@ pub(crate) struct ExecutorSession {
 
 impl ExecutorSession {
     /// The body of `executor.md`, trimmed.
-    pub(crate) fn instructions() -> &'static str {
-        EXECUTOR.1
+    pub(crate) fn instructions(harness: &str) -> String {
+        let tools = if harness == policy::CODEX {
+            CODEX_TOOLS
+        } else {
+            CLAUDE_TOOLS
+        };
+        EXECUTOR.1.replace("{executor_tools}", tools.trim())
     }
 
     /// The built-in tools `executor.md`'s front matter names, in its order.
-    pub(crate) fn tools() -> Vec<String> {
-        EXECUTOR.0.iter().map(|tool| tool.to_string()).collect()
+    pub(crate) fn tools(harness: &str) -> Option<Vec<String>> {
+        (harness == policy::CLAUDE_CODE)
+            .then(|| EXECUTOR.0.iter().map(|tool| tool.to_string()).collect())
     }
 }
 
@@ -70,13 +76,25 @@ impl Harness {
     }
 
     /// Opens the executor session of `thread` in its project's folder: only
-    /// its tools and its task's grant, on `model`, in mode `auto`.
+    /// its tools and its task's grant, on the requested model and effort.
     pub async fn open_executor(
         &self,
         thread: &ThreadId,
         grant: TaskScope,
         model: String,
+        effort: Option<String>,
     ) -> Result<OpenSession, OpenError> {
+        let mut read = self
+            .sessions
+            .storage
+            .reader()
+            .begin()
+            .await
+            .map_err(core_db::StorageError::from)?;
+        let context = core_threads::Threads::turn_context_in(&mut read, thread).await?;
+        drop(read);
+        let mode = policy::executor_mode(&context.harness)
+            .ok_or_else(|| OpenError::Start(format!("{} is not an executor", context.harness)))?;
         self.sessions
             .setups
             .expect_executor(thread, ExecutorSession { scope: grant });
@@ -99,8 +117,25 @@ impl Harness {
                 .await
                 .map_err(|error| refused("model", error.to_string()))?
         };
+        let offered = match effort {
+            Some(effort) if !offered.offers_effort(&effort) => {
+                return Err(refused("effort", format!("{effort} is not offered")));
+            }
+            Some(effort) if offered.current.effort.as_deref() != Some(&effort) => {
+                let id = offered
+                    .ids
+                    .effort
+                    .as_deref()
+                    .ok_or_else(|| refused("effort", format!("{effort} is not offered")))?;
+                self.sessions
+                    .set_option(thread, &opened, id, &effort)
+                    .await
+                    .map_err(|error| refused("effort", error.to_string()))?
+            }
+            _ => offered,
+        };
         self.sessions
-            .set_mode(thread, &opened, offered, MODE)
+            .set_mode(thread, &opened, offered, mode)
             .await
             .map_err(|error| refused("mode", error.to_string()))?;
         Ok(opened)
@@ -110,6 +145,21 @@ impl Harness {
 #[cfg(test)]
 mod tests {
     use super::{FILE, parse};
+
+    #[test]
+    fn each_harness_gets_its_tools_section() {
+        use super::ExecutorSession;
+
+        let claude = ExecutorSession::instructions("claude-code");
+        let codex = ExecutorSession::instructions("codex");
+        for instructions in [&claude, &codex] {
+            assert!(instructions.starts_with("[Shadows] You are an executor."));
+        }
+        assert!(claude.contains("Never use Python"));
+        assert!(claude.contains("MultiEdit"));
+        assert!(codex.contains("apply_patch"));
+        assert!(!codex.contains("MultiEdit"));
+    }
 
     #[test]
     fn the_executor_reports_commands_and_leaves_its_writes_clean() {
@@ -125,7 +175,8 @@ mod tests {
 
     #[test]
     fn the_executor_file_parses_and_names_its_eight_tools() {
-        let (tools, body) = parse(FILE).expect("executor.md parses");
+        let tools = super::ExecutorSession::tools("claude-code").unwrap();
+        let body = super::ExecutorSession::instructions("claude-code");
         assert_eq!(
             tools,
             [

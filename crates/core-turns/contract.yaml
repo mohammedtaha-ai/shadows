@@ -345,9 +345,8 @@ functions:
       # Closed, or the session gone while reading its offer);
       # SettingNotOffered; ModeNotAllowed; CommandConflict; TaskNotInPlan.
       # ModeNotAllowed reads the thread's kind: a planning thread may use the
-      # modes its project allows; an executor thread `policy::EXECUTOR_MODE`
-      # (`auto`) and nothing else, so a project's modes never decide how an
-      # attempt runs.
+      # modes its project allows; an executor thread uses its harness's
+      # `policy::executor_mode`, auto for Claude Code and ask for Codex.
       # Once the checks up to the busy check pass, before the session is
       # opened: `Codebase::touch` of the thread's project, which never
       # fails or delays the turn; the started turn holds an `ActiveHold` of the

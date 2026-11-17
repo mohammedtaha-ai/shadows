@@ -11,9 +11,6 @@ use core_grants::TaskScope;
 use core_plans::{FileAction, Plan, TaskContent, WorkflowId};
 use core_turns::SendTurn;
 
-/// The mode an executor's turns run in; its project's modes do not apply.
-pub(crate) const MODE: &str = shadows_agent::policy::EXECUTOR_MODE;
-
 pub(crate) struct Checked {
     pub(crate) plan: Plan,
     pub(crate) content: TaskContent,
@@ -22,6 +19,12 @@ pub(crate) struct Checked {
 }
 
 impl Runs {
+    pub(crate) fn executor_mode() -> String {
+        shadows_agent::policy::executor_mode(crate::EXECUTOR_HARNESS)
+            .expect("the executor harness has a mode")
+            .into()
+    }
+
     /// Starts an attempt at `task` of a frozen version, or answers the one a
     /// replay of `command` started, whatever the plan has become since. An
     /// attempt whose session or turn could not start is recorded, so it is
@@ -91,7 +94,7 @@ impl Runs {
         if let Err(error) = self
             .inner
             .harness
-            .open_executor(&attempt.thread_id, scope, model.clone())
+            .open_executor(&attempt.thread_id, scope, model.clone(), None)
             .await
         {
             return self
@@ -115,7 +118,7 @@ impl Runs {
                     prompt,
                     attachments: vec![],
                     model,
-                    mode: MODE.into(),
+                    mode: Self::executor_mode(),
                     effort: None,
                     focus: None,
                     plan: None,

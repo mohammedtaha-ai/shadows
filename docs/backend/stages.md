@@ -90,7 +90,7 @@ B-157 and B-158 do, and build on the [shared request](../shared/requests/2026-11
 
 ### B-156 · Harness opens an executor on its attempt's CLI, model and effort
 
-- Status: todo
+- Status: done
 - Plan: [B-156](plans/2026-11-18-executor-choices.md#task-b-156-harness-opens-an-executor-on-its-attempts-cli-model-and-effort).
 - Owner: Harness, with Turns' executor mode check and the two Runs call sites.
 - Read: `crates/core-harness/contract.yaml` (the executor comment block, `open_executor`); `crates/core-turns/contract.yaml` (the executor's mode); `crates/shadows-agent/src/policy.rs` (Codex modes).

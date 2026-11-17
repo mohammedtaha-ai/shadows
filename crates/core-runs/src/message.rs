@@ -119,6 +119,7 @@ impl Runs {
                     task: attempt.task,
                 },
                 attempt.model.clone(),
+                None,
             )
             .await
             .map_err(|e| RunsError::Unavailable(e.to_string()))?;
@@ -136,7 +137,7 @@ impl Runs {
                     ),
                     attachments: vec![],
                     model: attempt.model,
-                    mode: crate::start::MODE.into(),
+                    mode: Self::executor_mode(),
                     effort: None,
                     focus: None,
                     plan: None,

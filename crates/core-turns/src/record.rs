@@ -69,7 +69,10 @@ impl Turns {
         // An executor runs in its own mode and no other: the modes a project
         // allows its planning threads never decide how an attempt runs.
         let allowed = match context.kind {
-            ThreadKind::Executor => vec![shadows_agent::policy::EXECUTOR_MODE.to_string()],
+            ThreadKind::Executor => shadows_agent::policy::executor_mode(&context.harness)
+                .into_iter()
+                .map(str::to_owned)
+                .collect(),
             ThreadKind::Planning => {
                 self.projects
                     .allowed_modes(&context.project_id, &context.harness)

@@ -31,7 +31,13 @@ pub const EXECUTOR_HARNESSES: [&str; 2] = [CLAUDE_CODE, CODEX];
 /// refused while it works, since the check on its reported commit is its one
 /// write boundary. It is no project's choice: an executor thread runs in it
 /// and in no other mode, whatever its project allows its planning threads.
-pub const EXECUTOR_MODE: &str = "auto";
+pub fn executor_mode(kind: &str) -> Option<&'static str> {
+    match kind {
+        CLAUDE_CODE => Some("auto"),
+        CODEX => Some(CODEX_ASK),
+        _ => None,
+    }
+}
 
 /// Every harness Shadows knows, in the order a client lists them.
 pub const KNOWN: [&str; 3] = [CLAUDE_CODE, CODEX, AYLUL];

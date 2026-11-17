@@ -176,7 +176,7 @@ impl Sessions {
                     .ok_or_else(|| OpenError::Start("Codex is not configured".into()))?;
                 setup = self
                     .setups
-                    .for_opening(thread, &context.project_id, context.kind)
+                    .for_opening(thread, &context.project_id, context.kind, &context.harness)
                     .await
                     .map_err(OpenError::Start)?;
                 match program.process_spec(&cwd, &setup) {
@@ -238,7 +238,7 @@ impl Sessions {
                     setup
                 } else {
                     self.setups
-                        .for_opening(thread, &context.project_id, context.kind)
+                        .for_opening(thread, &context.project_id, context.kind, &context.harness)
                         .await?
                 };
                 // Grant issuance must finish before a timeout can revoke its held grant.
@@ -248,7 +248,14 @@ impl Sessions {
                             &cwd,
                             start,
                             &setup,
-                            core_grants::Grants::tools_for(core_grants::GrantKind::Thread),
+                            core_grants::Grants::tools_for(match context.kind {
+                                core_threads::ThreadKind::Executor => {
+                                    core_grants::GrantKind::Executor
+                                }
+                                core_threads::ThreadKind::Planning => {
+                                    core_grants::GrantKind::Thread
+                                }
+                            }),
                         )
                         .await
                         .map_err(|e| e.to_string())?;

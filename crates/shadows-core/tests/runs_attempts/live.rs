@@ -407,7 +407,7 @@ async fn live_an_executor_turn_in_another_mode_is_refused() {
     };
     f.core
         .harness()
-        .open_executor(&thread, scope, PICKED.into())
+        .open_executor(&thread, scope, PICKED.into(), None)
         .await
         .unwrap();
     // A mode the project allows, and one Shadows offers no thread.
