@@ -74,6 +74,13 @@ fn repository(root: &Path) {
 }
 
 async fn fixture() -> Fixture {
+    fixture_with(false).await
+}
+
+/// The fixture; with `pinned`, T1 pins D1 v1, accepted before the plan is
+/// approved and superseded by an accepted v2 after, all under one held
+/// Planner turn.
+async fn fixture_with(pinned: bool) -> Fixture {
     let tmp = tempfile::tempdir().unwrap();
     let storage = Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
     let root = tmp.path().join("project");
@@ -131,6 +138,33 @@ async fn fixture() -> Fixture {
     cross_plan::approve_roadmap(&storage, project.id.as_str(), &["source-plan"]).await;
     let workflow = WorkflowId::from_literal(SOURCE);
     let plans = AppCore::plans_for_tests(storage.clone());
+    let design = AppCore::design_for_tests(storage.clone());
+    let planner = shadows_core::Grants::issue_thread_grant_for_test(&storage, &writer.id)
+        .await
+        .unwrap()
+        .0;
+    let mut first = task(1, "lib/**");
+    if pinned {
+        held_turn(&storage, &writer.id).await;
+        design
+            .propose_decision(&planner, "d1".into(), decision(None, None))
+            .await
+            .unwrap();
+        design
+            .accept_decision("a1".into(), &project.id, "D1", 1)
+            .await
+            .unwrap();
+        let PlanOp::TaskAdd { task } = &mut first else {
+            unreachable!("the fixture adds a task")
+        };
+        task.contract = Some(
+            serde_json::from_value(serde_json::json!({
+                "files": [{ "path": "lib/a.rs", "action": "modify", "purpose": "The demo" }],
+                "decisions": [{ "id": "D1", "version": 1 }]
+            }))
+            .unwrap(),
+        );
+    }
     plans
         .edit_plan_for_test(
             &command("tasks"),
@@ -138,7 +172,7 @@ async fn fixture() -> Fixture {
             None,
             &workflow,
             0,
-            &[task(1, "lib/**"), task(2, "docs/**")],
+            &[first, task(2, "docs/**")],
         )
         .await
         .unwrap();
@@ -146,6 +180,16 @@ async fn fixture() -> Fixture {
         .approve_plan_for_test(&command("approve"), &workflow, 1)
         .await
         .unwrap();
+    if pinned {
+        design
+            .propose_decision(&planner, "d2".into(), decision(Some("D1"), Some(1)))
+            .await
+            .unwrap();
+        design
+            .accept_decision("a2".into(), &project.id, "D1", 2)
+            .await
+            .unwrap();
+    }
     let (runtime, _report) = AppCore::runtime_for_tests(storage.clone()).await.unwrap();
     let sessions = acp::fake_sessions(storage.clone());
     let core = AppCore::assemble(CoreParts {
@@ -170,6 +214,45 @@ async fn fixture() -> Fixture {
         planner: writer.id,
         _tmp: tmp,
     }
+}
+
+fn decision(id: Option<&str>, expected: Option<i64>) -> shadows_core::DecisionInput {
+    shadows_core::DecisionInput {
+        id: id.map(Into::into),
+        expected_version: expected,
+        title: "Errors".into(),
+        decision: "Every error carries a code.".into(),
+        rationale: "Clients match codes, never text.".into(),
+        source: String::new(),
+    }
+}
+
+/// A Planner turn on `thread` that stays running, so its proposals are heard.
+async fn held_turn(storage: &Arc<Storage>, thread: &ThreadId) {
+    use shadows_core::testing::turn::{new_turn, turn_command};
+    let runtime = shadows_core::testing::Runtime::start(storage.clone())
+        .await
+        .unwrap();
+    let settings = shadows_agent::TurnSettings {
+        model: "fake-large".into(),
+        mode: "default".into(),
+        effort: None,
+    };
+    let turn = new_turn(thread, &runtime, "decide", &settings);
+    let started = shadows_core::Turns::start_turn_for_test(
+        storage,
+        &turn_command("decide", thread, "decide", &settings),
+        turn,
+    )
+    .await
+    .unwrap();
+    shadows_core::Turns::mark_operation_started_for_test(
+        storage,
+        &started.operation_id,
+        runtime.instance_id(),
+    )
+    .await
+    .unwrap();
 }
 
 impl Fixture {
@@ -454,5 +537,25 @@ async fn an_executor_reads_only_its_own_brief() {
     // The Planner's grant is no executor's.
     let planner = runs.brief_for(&f.planner()).await;
     assert!(matches!(planner, Err(RunsError::NotFound)), "{planner:?}");
+    f.finish().await;
+}
+
+#[tokio::test]
+async fn a_frozen_pin_keeps_its_superseded_revision() {
+    let f = fixture_with(true).await;
+    let attempt = f.start("s1", 1).await.unwrap();
+    let brief = f.core.runs().brief(&attempt.id).await.unwrap();
+    let pins = &brief.context.task.contract.as_ref().unwrap().decisions;
+    assert_eq!((pins[0].id.as_str(), pins[0].version), ("D1", 1));
+    let shown: Vec<_> = (brief.context.decisions.iter())
+        .map(|d| (d.id.as_str(), d.version, d.state))
+        .collect();
+    assert_eq!(
+        shown,
+        vec![("D1", 1, shadows_core::DecisionState::Superseded)]
+    );
+    // A task with no pins has no `decisions` key in its saved brief.
+    let other = f.start("s2", 2).await.unwrap();
+    assert!(!f.saved_json(&other).await.contains("\"decisions\""));
     f.finish().await;
 }

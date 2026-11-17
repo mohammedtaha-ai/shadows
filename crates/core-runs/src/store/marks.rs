@@ -64,11 +64,12 @@ impl RunsStore {
     pub async fn put_mark(
         &self,
         command: CommandContext,
-        (workflow, version, task): (&WorkflowId, i64, u32),
+        plan: core_plans::Plan,
+        task: u32,
         done: bool,
         reason: Option<String>,
-    ) -> Result<Option<(AttemptId, ThreadId)>, RunsError> {
-        let (workflow, ts) = (workflow.clone(), Storage::now());
+    ) -> Result<super::Marked, RunsError> {
+        let (workflow, version, ts) = (plan.id.clone(), plan.version, Storage::now());
         self.storage
             .write_txn_as(move |conn| {
                 Box::pin(async move {
@@ -79,14 +80,13 @@ impl RunsStore {
                             other => other.into(),
                         })?;
                     if seen.is_some() {
-                        return Self::judged_scope(
-                            conn,
-                            &workflow,
-                            version,
-                            task,
-                            &command.command_id,
-                        )
-                        .await;
+                        let judged =
+                            Self::judged_scope(conn, &workflow, version, task, &command.command_id)
+                                .await?;
+                        return Ok(super::Marked {
+                            judged,
+                            recheck: None,
+                        });
                     }
                     if done && reason.is_none() {
                         let candidate: Option<String> = sqlx::query_scalar(
@@ -183,7 +183,14 @@ impl RunsStore {
                         &ts,
                     )
                     .await?;
-                    Self::judged_scope(conn, &workflow, version, task, command_id).await
+                    let recheck = if done {
+                        Self::begin_recheck_in(conn, &plan, task, command_id).await?
+                    } else {
+                        None
+                    };
+                    let judged =
+                        Self::judged_scope(conn, &workflow, version, task, command_id).await?;
+                    Ok(super::Marked { judged, recheck })
                 })
             })
             .await

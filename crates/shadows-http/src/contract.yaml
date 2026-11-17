@@ -35,6 +35,11 @@ modules:
   sse.rs: Events stream framing through private handlers
   runs.rs: Runs service HTTP translation
   failure/runs.rs: run failure status mapping
+decisions: >
+  GET /api/projects/{id}/decisions calls Design::decisions; POST
+  /api/projects/{id}/decisions/{decision}/accept with { command_id, version } calls
+  Design::accept_decision. DECISION_STALE is 409 and INVALID_DECISION is 422.
+  Tested by design_routes::decisions_are_listed_and_accepted_over_http.
 agreements:
   - between: [aylul_extensions::tools, aylul_extensions::tool_rules]
     must: Delegate per-agent MCP discovery and rule replacement to AppCore.extensions; discovery failures preserve stored rules.
@@ -158,3 +163,4 @@ check_results: >
   GET /api/attempts/{id}/checks calls Runs::check_results. The done route accepts optional
   reason and calls the same Runs::mark_done rule as MCP. checks_not_passed is a 409 refusal;
   unknown attempts are 404. No adapter recomputes confirmation or done policy.
+# RecheckNotice and RecheckFailure are named OpenAPI schemas for the Shadows recheck card.

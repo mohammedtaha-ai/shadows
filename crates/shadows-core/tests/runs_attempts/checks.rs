@@ -3,7 +3,7 @@ use super::*;
 use core_runs::{CheckOutcome, CheckResult};
 use serde_json::json;
 
-async fn candidate(run: Vec<Vec<String>>) -> (Fixture, AttemptId, Grant, String) {
+pub(super) async fn candidate(run: Vec<Vec<String>>) -> (Fixture, AttemptId, Grant, String) {
     candidate_with_timeout(run, 5).await
 }
 
@@ -531,6 +531,36 @@ async fn stopped_attempts_leftover_is_inconclusive() {
             .as_deref()
             .unwrap()
             .contains("web/unfinished.go")
+    );
+    f.finish().await;
+}
+
+#[tokio::test]
+async fn another_attempts_leftover_goes_to_the_planner_without_a_return() {
+    let (f, id, _, _) = candidate(vec![cmd(&["git", "--version"])]).await;
+    let planner = prepare_planner(&f).await;
+    let (other, _) = f.begin(5).await;
+    f.core.runs().stop(&other).await.unwrap();
+    f.put("web/unfinished.go", "package unfinished\n");
+    f.core.runs().recover().await.unwrap();
+    let rows = results(&f, &id, 1).await;
+    assert_eq!(rows[0].outcome, Some(CheckOutcome::Inconclusive));
+    let output = rows[0].output.as_deref().unwrap();
+    assert!(output.contains("web/unfinished.go"), "{output}");
+    assert!(output.contains("another attempt's scope"), "{output}");
+    wait_notice(&f, &id).await;
+    let attempts = f.core.runs().attempts(&f.workflow, 1, 3).await.unwrap();
+    assert_eq!(
+        attempts.len(),
+        1,
+        "no checks return for another attempt's files"
+    );
+    let notices = f.core.turns().queued(&planner).await.unwrap();
+    assert!(
+        notices
+            .iter()
+            .any(|n| n.notice.as_ref().unwrap().card["attempt_id"] == id.as_str()),
+        "the Planner is told of the attempt"
     );
     f.finish().await;
 }

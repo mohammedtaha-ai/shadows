@@ -321,6 +321,8 @@ impl Case {
             E::QueuedNoticeKept,
             E::HarnessLocked,
             E::StageBlocked,
+            E::DecisionStale,
+            E::InvalidDecision,
             E::WorkflowFrozenImmutable,
             E::InvalidCommand,
             E::GrantInvalid,
@@ -332,6 +334,7 @@ impl Case {
                 | E::QueuedNoticeKept
                 | E::HarnessLocked
                 | E::StageBlocked
+                | E::DecisionStale
                 | E::WorkflowFrozenImmutable => 409,
                 _ => 422,
             };

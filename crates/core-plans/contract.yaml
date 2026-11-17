@@ -58,6 +58,8 @@ shapes:
     Plan: "{ plan_id: PlanId, version: i64, task: u32, phase: PhaseId }"
   TaskContext:
     # contracts: Vec<ResolvedContract>, after task; omitted when empty.
+    # decisions: Vec<DecisionRecord>, each pinned revision as Design holds it when the
+    # context is built, state included (a frozen pin shows `superseded`); omitted when empty.
     note: Approved task, its resolved contracts, exact plan identity/version, selected layout parts with ownership reasons, unowned paths, effective standards numbers and map revision.
   TaskPart:
     part: LayoutPart
@@ -251,6 +253,11 @@ shapes:
     steps: Vec<String>           # serde default; the order of work
     invariants: Vec<String>      # serde default; what must stay true
     forbidden: Vec<String>       # serde default; what must not be changed
+    decisions: Vec<DecisionPin>  # serde default, skipped when empty: old fingerprints unchanged
+  DecisionPin:
+    # One exact revision of a Design decision; deny_unknown_fields.
+    id: String
+    version: i64
   FileWork:
     path: String                 # one exact file, relative, '/'; never a pattern
     action: FileAction
@@ -400,6 +407,7 @@ shapes:
 
 
 functions:
+  version_ids_in: '(conn, plan) -> Vec<(WorkflowId, i64)>; all versions ordered oldest first in the caller transaction, for Runs rechecks'
   execution_plan: "(&self, workflow, version) -> Result<ExecutionPlan, PlansError>; execution_plan_in in a read snapshot of its own."
   contract_facts: "(&self, workflow, task, selector: ContractSelector, after: Option<u32>, limit: u16) -> Result<ContractFacts, PlansError>; one read of the version, which must be Frozen (else NotFound; an archived or superseded Frozen version still answers, for its running attempts). limit outside 1..=50, an unknown task's selector symbol/output, a use the task does not declare, a symbol/output/use selector on a task with no contract, or after past the consumer count is InvalidCommand. own answers the whole contract, every resolved use and the distinct producers of its task uses; symbol answers that symbol, its declared file and the outputs naming it; output answers that output, its symbol and its symbol's or artifact's file; use answers contract null, that use's resolved entry and its producer (none for an existing source). consumers are ContractRules::consumers of the selection (the own task's outputs as Task { Local { task }, output } sources, or the use's exact source), one page from after, next = the following offset or null. No other version or plan, no source code. Runs::question and Runs::brief call it."
   version_in: "private: (conn, workflow) -> Plan; load_plan and LinkedRows in the caller's snapshot, the one loader of execution_plan_in."
@@ -612,6 +620,7 @@ enums:
 
 
 shared_in_transaction:
+  version_ids_in: 'Runs snapshots the version identities for a done-mark recheck in its mark write; all workflow SQL remains owned by Plans'
   task_context: Reads approved task context in one owner snapshot after live grant checks.
   task_context_in: Assembles approved task context inside the caller's transaction; Runs saves it with an attempt.
   links_of: Private store entry used within the owner transaction.
@@ -1214,6 +1223,14 @@ dependencies:
 # The full task acceptance remains present. phase_dependencies include raw
 # pins, exact target metadata and phase content, or a named broken reason;
 # the same PhaseRows resolver runs in the existing read snapshot.
+
+decision_pins:
+  rule: >
+    task_add and task_update refuse a changed task whose contract pins a revision that is not
+    an accepted decision of the plan's project, read with Design::decision_in inside the edit's
+    write, with the Problem "T{n} pins {id} v{version}, which is not an accepted decision".
+    A frozen task's pins never change; TaskContext.decisions shows each pin's current state.
+  tested_by: [a_task_pins_only_accepted_decisions, a_contract_without_decisions_keeps_its_fingerprint, a_frozen_pin_keeps_its_superseded_revision]
 
 checks_contract: >
   TaskContract.checks defaults to empty for stored contracts. Each TaskCheck names a unique

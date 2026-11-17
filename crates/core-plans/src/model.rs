@@ -346,3 +346,20 @@ impl TaskId {
         Self::from_stored(id)
     }
 }
+
+/// One exact revision of a project decision a task contract follows.
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    utoipa::ToSchema,
+    schemars::JsonSchema,
+)]
+#[serde(deny_unknown_fields)]
+pub struct DecisionPin {
+    pub id: String,
+    pub version: i64,
+}

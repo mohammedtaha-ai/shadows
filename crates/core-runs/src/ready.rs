@@ -18,7 +18,11 @@ impl Runs {
         task: u32,
     ) -> Result<StartAnswer, RunsError> {
         let checked = match self.checks(&plan.id, plan.version, task).await {
-            Ok((admitted, content)) => {
+            Ok(crate::start::Checked {
+                plan: admitted,
+                content,
+                ..
+            }) => {
                 self.inner
                     .store
                     .check_held(&NewAttempt {

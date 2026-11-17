@@ -69,6 +69,7 @@ impl PlansStore {
                     .await?;
                     let applied = Ops::apply(&plan.content(), &ops)
                         .map_err(crate::PlansError::PlanInvalid)?;
+                    pins(conn, &project, &applied.content, &applied.changed_tasks).await?;
                     super::graph::GraphRows::check_parents(conn, &plan, &ops).await?;
                     let graph =
                         super::graph::GraphRows::check(conn, &plan, None, Some(&applied.content))
@@ -285,6 +286,37 @@ impl PlansStore {
                 })
             })
             .await
+    }
+}
+
+/// Each changed task's decision pins name an accepted revision of `project`,
+/// as Design holds it inside this write.
+async fn pins(
+    conn: &mut SqliteConnection,
+    project: &ProjectId,
+    content: &crate::PlanContent,
+    changed: &[u32],
+) -> Result<(), crate::PlansError> {
+    let mut problems = Vec::new();
+    for number in changed {
+        let Some(contract) = content.tasks.get(number).and_then(|t| t.contract.as_ref()) else {
+            continue;
+        };
+        for pin in &contract.decisions {
+            let found =
+                core_design::Design::decision_in(conn, project, &pin.id, pin.version).await?;
+            if found.is_none_or(|d| d.state != core_design::DecisionState::Accepted) {
+                problems.push(crate::Problem::new(format!(
+                    "T{number} pins {} v{}, which is not an accepted decision",
+                    pin.id, pin.version
+                )));
+            }
+        }
+    }
+    if problems.is_empty() {
+        Ok(())
+    } else {
+        Err(crate::PlansError::PlanInvalid(problems))
     }
 }
 

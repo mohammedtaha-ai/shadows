@@ -321,6 +321,11 @@ the agent's word. This replaces the critic's evidence role (§5.1 already replac
   twice, even when the Planner's settings changed in between.
 - **A done mark frees only the attempt it judged.** The mark records the attempt it judged; the
   same mark sent again finishes freeing that attempt and never frees a later one.
+- **A done mark reruns the checks of the project's other done tasks** (Mohammed, 2026-11-16:
+  project-wide, each failure reported once). Every done task of every plan and version in the
+  project brings its judged attempt's checks; the marked task does not. A failing check is told
+  to the marking plan's Planner once, with its plan's title and version; it is told again only
+  after it has passed in a later recheck. Every check still runs and is recorded. Done marks stand.
 - **The lock orders Shadows' own runs only.** What executors run is ordered by their instructions
   and by waiting on a lock error, as above.
 - **An addition is a new attempt,** with its own commit and its own checks.
@@ -354,7 +359,7 @@ were done 50 seconds after Start, so waiting for a quiet project costs little.
 ## 7. The write boundary
 
 **Amended 2026-11-08 by Mohammed, after the probe**
-([evidence](../../evidence/2026-11-08-executor-write-boundary-probe.md)). The executor is
+(evidence `docs/evidence/2026-11-08-executor-write-boundary-probe.md` at `4031168f`). The executor is
 built as the Planner is: it has only the tools and permissions its task gives it.
 
 - **Its permissions are its task.** The session gets a fixed tool list and Claude Code

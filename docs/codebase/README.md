@@ -64,6 +64,8 @@ pattern to follow, not merely an example.
 
 | Module | Its one job | Reference file |
 |---|---|---|
+| `crates/core-runs/src/recheck.rs` | rechecking done tasks | `crates/core-runs/contract.yaml` |
+| `crates/core-runs/src/store/rechecks.rs` | recheck persistence | `crates/core-runs/contract.yaml` |
 | `crates/core-plans/src/signal.rs` | live plan-show vocabulary | `crates/core-plans/contract.yaml` |
 | `crates/core-harness/src/owners.rs` | harness configuration dependencies | `crates/core-harness/contract.yaml` |
 | `crates/core-harness/src/live.rs` | live adapter opening | `crates/core-harness/contract.yaml` |
@@ -121,6 +123,8 @@ pattern to follow, not merely an example.
 | `crates/core-secrets/src/crypto.rs` | authenticated environment encryption | `crates/core-secrets/src/crypto.rs` |
 | `crates/core-grants/src/approval.rs` | transaction-local approval provenance | `docs/core/specs/2026-10-08-approval-authority-design.md` |
 | `crates/core-db/src/write_observer.rs` | test-only committed-write observation | `crates/shadows/tests/openapi/read_only.rs` |
+| `crates/core-design/src/decisions.rs` | project decision entry points | `crates/core-design/contract.yaml` |
+| `crates/core-design/src/store/decisions.rs` | persisting project decision revisions | `crates/core-design/contract.yaml` |
 | `crates/core-design/src/map_proposals.rs` | map proposal service entry points | `crates/core-design/contract.yaml` |
 | `crates/core-design/src/store/map_proposals.rs` | recording map proposals | `crates/core-design/contract.yaml` |
 | `crates/core-design/src/store/map_proposal_shape.rs` | assembling proposed map shapes | `crates/core-design/contract.yaml` |
@@ -174,6 +178,7 @@ pattern to follow, not merely an example.
 | `crates/shadows-mcp/src/agreement_tools.rs` | agreement tool translation | `crates/shadows-mcp/src/agreement_tools.rs` |
 | `crates/shadows-mcp/src/workspace_tools.rs` | workspace read tool translation | `crates/shadows-mcp/src/workspace_tools.rs` |
 | `crates/shadows-mcp/src/run_tools.rs` | task run tool translation | `crates/shadows-mcp/src/contract.yaml` |
+| `crates/shadows-mcp/src/decision_tools.rs` | project decision tool translation | `crates/shadows-mcp/src/contract.yaml` |
 | `crates/shadows-mcp/src/refusal.rs` | what an MCP tool call answers | `crates/shadows-mcp/src/refusal.rs` |
 | `crates/shadows-core/src/lib.rs` | the application behind `AppCore` | `crates/shadows-core/src/app.rs` |
 | `crates/shadows-core/src/app.rs` | the application's composition root | `crates/shadows-core/src/app.rs` |

@@ -17,6 +17,8 @@ export function attemptLabel(attempt: Attempt | null): string {
   return attempt === null ? 'Not started' : LABELS[attempt.state]
 }
 
+const STARTING_READ_MS = 1000
+
 /** A failed call that got an answer ends the command; only a lost one keeps its key for the retry. */
 function answered(error: unknown): boolean {
   return !(error instanceof ApiError) || error.problem.kind !== 'unreachable'
@@ -24,21 +26,10 @@ function answered(error: unknown): boolean {
 
 export function useTaskRun(workflowId: string, version: number, task: number) {
   const queryClient = useQueryClient()
-  const run = useQuery(taskRunQuery(workflowId, version, task))
-  const attempts = useQuery(attemptsQuery(workflowId, version, task))
   const startCommand = useRef<Command | null>(null)
   const doneCommand = useRef<Command | null>(null)
 
   const refresh = () => { invalidateRuns(queryClient) }
-
-  // The Planner can start a new attempt without the page asking: when the latest one changes, read the list again.
-  const latestKey = run.data?.latest ? `${run.data.latest.id}:${run.data.latest.state}` : null
-  const seenKey = useRef(latestKey)
-  useEffect(() => {
-    if (seenKey.current === latestKey) return
-    seenKey.current = latestKey
-    void queryClient.invalidateQueries({ queryKey: attemptsQuery(workflowId, version, task).queryKey })
-  }, [latestKey, queryClient, workflowId, version, task])
 
   const start = useMutation<Attempt, Error, string>({
     mutationFn: (model) => {
@@ -50,6 +41,22 @@ export function useTaskRun(workflowId: string, version: number, task: number) {
     // Whether it started or was refused, the state moved: read it again.
     onSettled: refresh,
   })
+
+  // Core records the attempt as running before it opens the executor's session, and answers Start only once the
+  // session and its first turn are up, which takes seconds: read the task while Start is in flight, so the
+  // running attempt shows as soon as Core has it.
+  const runOptions = taskRunQuery(workflowId, version, task)
+  const run = useQuery(start.isPending ? { ...runOptions, refetchInterval: STARTING_READ_MS } : runOptions)
+  const attempts = useQuery(attemptsQuery(workflowId, version, task))
+
+  // The Planner can start a new attempt without the page asking: when the latest one changes, read the list again.
+  const latestKey = run.data?.latest ? `${run.data.latest.id}:${run.data.latest.state}` : null
+  const seenKey = useRef(latestKey)
+  useEffect(() => {
+    if (seenKey.current === latestKey) return
+    seenKey.current = latestKey
+    void queryClient.invalidateQueries({ queryKey: attemptsQuery(workflowId, version, task).queryKey })
+  }, [latestKey, queryClient, workflowId, version, task])
 
   const stop = useMutation<Attempt, Error, string>({
     mutationFn: stopAttempt,

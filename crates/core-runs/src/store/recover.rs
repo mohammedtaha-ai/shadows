@@ -5,6 +5,19 @@ use core_db::{Actor, Storage};
 use core_threads::ThreadId;
 
 impl RunsStore {
+    /// Notices whose durable enqueue has not yet succeeded.
+    pub async fn due_notices(&self) -> Result<Vec<crate::AttemptId>, RunsError> {
+        let ids: Vec<String> = sqlx::query_scalar(
+            "SELECT id FROM run_attempts WHERE notice_due=1 AND notice_sent_at IS NULL
+             ORDER BY ended_at, id",
+        )
+        .fetch_all(self.storage.reader())
+        .await?;
+        Ok(ids
+            .into_iter()
+            .map(crate::AttemptId::from_recorded)
+            .collect())
+    }
     /// Every `Running` attempt's grant is revoked and the attempt becomes
     /// `Interrupted`: an accepted report is the only way to `Committed`, and
     /// none came. Every other attempt still holding its scope releases it,
@@ -33,7 +46,8 @@ impl RunsStore {
                         .await?;
                     }
                     sqlx::query(
-                        "UPDATE run_attempts SET state = 'interrupted', ended_at = ?
+                        "UPDATE run_attempts SET state = 'interrupted', ended_at = ?,
+                         notice_due = CASE WHEN conflict_json IS NULL THEN 1 ELSE 0 END
                          WHERE state = 'running'",
                     )
                     .bind(&ts)

@@ -12,6 +12,10 @@ impl Runs {
     /// state; its session is closed all the same. A session that could not be
     /// terminated or closed keeps its scope held, and the Stop is refused.
     pub async fn stop(&self, attempt: &AttemptId) -> Result<Attempt, RunsError> {
+        self.stop_by(attempt, Stopper::Person).await
+    }
+
+    async fn stop_by(&self, attempt: &AttemptId, by: Stopper) -> Result<Attempt, RunsError> {
         let current = self.inner.store.get(attempt).await?;
         if let Some(operation) = &current.operation_id {
             match self.inner.turns.stop(operation).await {
@@ -24,12 +28,18 @@ impl Runs {
                 Err(error) => tracing::info!(%attempt, %error, "runs.stop_not_live"),
             }
         }
-        self.inner
-            .store
-            .finish(attempt, AttemptState::Stopped, None)
-            .await?;
+        let owed = matches!(by, Stopper::Person) && self.inner.store.finish_owed(attempt).await?;
+        if !owed {
+            self.inner
+                .store
+                .finish(attempt, AttemptState::Stopped, None)
+                .await?;
+        }
         self.release(attempt, &current.thread_id).await?;
         let now = self.inner.store.get(attempt).await?;
+        if owed && let Err(error) = self.notify(&now).await {
+            tracing::warn!(%attempt, %error, "runs.notify_due_failed");
+        }
         if let Err(error) = self.retry_conflict_notice(&now).await {
             tracing::warn!(%attempt, %error, "runs.conflict_notice_pending");
         }
@@ -64,8 +74,13 @@ impl Runs {
         if self.inner.store.stop_replayed(&command, attempt).await? {
             return self.inner.store.get(attempt).await;
         }
-        let stopped = self.stop(attempt).await?;
+        let stopped = self.stop_by(attempt, Stopper::Planner).await?;
         self.inner.store.record_stop(command, attempt).await?;
         Ok(stopped)
     }
+}
+
+enum Stopper {
+    Person,
+    Planner,
 }

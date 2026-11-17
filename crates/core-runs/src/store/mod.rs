@@ -10,6 +10,7 @@ mod conflict;
 mod lessons;
 mod marks;
 pub(super) mod messages;
+pub(super) mod rechecks;
 mod recover;
 
 use std::sync::Arc;
@@ -90,7 +91,100 @@ pub(crate) struct Begun {
     pub(crate) replayed: bool,
 }
 
+pub(crate) struct Marked {
+    pub(crate) judged: Option<(AttemptId, ThreadId)>,
+    pub(crate) recheck: Option<String>,
+}
+
 impl RunsStore {
+    /// Settles a person's Stop and records its notice obligation atomically.
+    pub async fn finish_owed(&self, id: &AttemptId) -> Result<bool, RunsError> {
+        let id = id.clone();
+        self.storage
+            .write_txn_as(move |conn| {
+                Box::pin(async move {
+                    let moved = sqlx::query(
+                "UPDATE run_attempts SET state='stopped', reason=NULL, ended_at=?, notice_due=1
+                 WHERE id=? AND state='running' AND conflict_json IS NULL",
+            ).bind(Storage::now()).bind(id.as_str()).execute(&mut *conn).await?;
+                    Ok(moved.rows_affected() == 1)
+                })
+            })
+            .await
+    }
+    /// The latest attempt decides whether dirty work may be carried on.
+    pub async fn last_ended(
+        &self,
+        workflows: &[WorkflowId],
+        task: u32,
+    ) -> Result<Option<Attempt>, RunsError> {
+        let mut read = self
+            .storage
+            .reader()
+            .begin()
+            .await
+            .map_err(StorageError::from)?;
+        let mut latest: Option<(String, bool, String)> = None;
+        for workflow in workflows {
+            let candidate: Option<(String, bool, String)> = sqlx::query_as(
+                "SELECT id, released_at IS NOT NULL, started_at FROM run_attempts
+                 WHERE workflow_id=? AND task=? ORDER BY started_at DESC, id DESC LIMIT 1",
+            )
+            .bind(workflow.as_str())
+            .bind(i64::from(task))
+            .fetch_optional(&mut *read)
+            .await?;
+            if let Some(candidate) = candidate
+                && latest
+                    .as_ref()
+                    .is_none_or(|old| (&candidate.2, &candidate.0) > (&old.2, &old.0))
+            {
+                latest = Some(candidate);
+            }
+        }
+        let attempt = match latest {
+            Some((id, true, _)) => {
+                let attempt = Self::load(&mut read, &AttemptId::from_recorded(id)).await?;
+                (attempt.commit.is_none()
+                    && matches!(
+                        attempt.state,
+                        AttemptState::Stopped | AttemptState::Interrupted | AttemptState::Failed
+                    ))
+                .then_some(attempt)
+            }
+            _ => None,
+        };
+        read.commit().await.map_err(StorageError::from)?;
+        Ok(attempt)
+    }
+
+    /// Reads the scope state and conflict flag from one snapshot.
+    pub async fn live(&self, workflows: &[WorkflowId]) -> Result<Vec<(Attempt, bool)>, RunsError> {
+        let mut read = self
+            .storage
+            .reader()
+            .begin()
+            .await
+            .map_err(StorageError::from)?;
+        let mut result = Vec::new();
+        for workflow in workflows {
+            let ids: Vec<(String, bool)> = sqlx::query_as(
+                "SELECT id, conflict_json IS NOT NULL FROM run_attempts
+                 WHERE workflow_id=? AND released_at IS NULL ORDER BY version, task, number",
+            )
+            .bind(workflow.as_str())
+            .fetch_all(&mut *read)
+            .await?;
+            for (id, conflict) in ids {
+                let attempt = Self::load(&mut read, &AttemptId::from_recorded(id)).await?;
+                result.push((attempt, conflict));
+            }
+        }
+        read.commit().await.map_err(StorageError::from)?;
+        result.sort_by_key(|(a, _)| (a.version, a.task, a.number));
+        Ok(result)
+    }
+
     pub fn with_storage(storage: Arc<Storage>) -> Self {
         Self {
             storage,

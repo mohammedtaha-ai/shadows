@@ -15,6 +15,7 @@ impl Runs {
     pub async fn recover(&self) -> Result<RecoverReport, RunsError> {
         let interrupted = self.inner.store.settle_running().await?;
         let pending = self.inner.store.pending_conflicts().await?;
+        let rechecks = self.inner.store.unfinished_rechecks().await?;
         let runs = self.clone();
         tokio::spawn(async move {
             for id in pending {
@@ -25,6 +26,20 @@ impl Runs {
                 if let Err(error) = sent {
                     tracing::warn!(attempt = %id, %error, "runs.conflict_notice_pending");
                 }
+            }
+            match runs.inner.store.due_notices().await {
+                Ok(ids) => {
+                    for id in ids {
+                        let sent = match runs.inner.store.get(&id).await {
+                            Ok(attempt) => runs.notify(&attempt).await,
+                            Err(error) => Err(error),
+                        };
+                        if let Err(error) = sent {
+                            tracing::warn!(%id, %error, "runs.notify_due_failed");
+                        }
+                    }
+                }
+                Err(error) => tracing::warn!(%error, "runs.notify_due_failed"),
             }
             if let Err(error) = runs.recover_messages().await {
                 tracing::warn!(%error, "runs.recover_messages_failed");
@@ -50,6 +65,7 @@ impl Runs {
                 }
                 runs.confirm(&attempt).await;
             }
+            runs.recover_rechecks(rechecks).await;
         });
         Ok(RecoverReport { interrupted })
     }

@@ -13,6 +13,8 @@ pub(crate) struct Finished {
     pub head: Option<String>,
     pub output: String,
     pub truncated: bool,
+    /// Inconclusive only because of uncommitted files in another attempt's writes.
+    pub foreign_leftovers: bool,
 }
 
 impl RunsStore {
@@ -174,6 +176,18 @@ impl RunsStore {
             .collect()
     }
 
+    /// Whether any check of the attempt did not pass for a reason its executor can act on:
+    /// every non-passed result but one made inconclusive only by another attempt's files.
+    pub async fn returnable_checks(&self, id: &AttemptId) -> Result<bool, RunsError> {
+        Ok(sqlx::query_scalar(
+            "SELECT EXISTS(SELECT 1 FROM run_checks WHERE attempt_id=?
+             AND (outcome IS NULL OR outcome<>'passed') AND foreign_leftovers=0)",
+        )
+        .bind(id.as_str())
+        .fetch_one(self.storage.reader())
+        .await?)
+    }
+
     pub async fn start_check(
         &self,
         id: &AttemptId,
@@ -192,7 +206,7 @@ impl RunsStore {
                 VALUES (?,?,?,?,?,?,?,?) ON CONFLICT (attempt_id,for_task,check_id) DO UPDATE SET
                 started_at=excluded.started_at,head_before=excluded.head_before,
                 outcome=NULL,finished_at=NULL,exit_code=NULL,head_after=NULL,
-                 output=NULL,truncated=0",
+                 output=NULL,truncated=0,foreign_leftovers=0",
                     )
                     .bind(id.as_str())
                     .bind(i64::from(task))
@@ -223,13 +237,15 @@ impl RunsStore {
                 Box::pin(async move {
                     sqlx::query(
                         "UPDATE run_checks SET outcome=?,exit_code=?,head_after=?,output=?,
-                truncated=?,finished_at=? WHERE attempt_id=? AND for_task=? AND check_id=?",
+                truncated=?,foreign_leftovers=?,finished_at=?
+                WHERE attempt_id=? AND for_task=? AND check_id=?",
                     )
                     .bind(serde_json::to_value(result.outcome)?.as_str().unwrap())
                     .bind(result.exit_code)
                     .bind(result.head)
                     .bind(result.output)
                     .bind(result.truncated)
+                    .bind(result.foreign_leftovers)
                     .bind(Storage::now())
                     .bind(id.as_str())
                     .bind(i64::from(task))
@@ -257,7 +273,7 @@ impl RunsStore {
                     .await?;
                     sqlx::query(
                         "UPDATE run_checks SET outcome=NULL,started_at=NULL,head_before=NULL,
-                head_after=NULL,output=NULL,truncated=0,exit_code=NULL
+                head_after=NULL,output=NULL,truncated=0,exit_code=NULL,foreign_leftovers=0
                 WHERE attempt_id=? AND finished_at IS NULL",
                     )
                     .bind(id.as_str())

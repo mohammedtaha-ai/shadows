@@ -18,6 +18,10 @@ pub struct TaskContext {
     pub task: TaskContent,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub contracts: Vec<crate::ResolvedContract>,
+    /// The task contract's pinned decision revisions as Design holds them now.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[schema(required = false)]
+    pub decisions: Vec<core_design::DecisionRecord>,
     pub parts: Vec<TaskPart>,
     pub unowned_paths: Vec<String>,
     pub standards: ContextStandards,

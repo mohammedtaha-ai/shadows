@@ -99,6 +99,14 @@ impl PlansStore {
                 });
             }
         }
+        let mut decisions = Vec::new();
+        for pin in task.contract.iter().flat_map(|c| &c.decisions) {
+            if let Some(record) =
+                Design::decision_in(tx, &plan.project_id, &pin.id, pin.version).await?
+            {
+                decisions.push(record);
+            }
+        }
         let tied = Plans::plan_parts_in(tx, &plan.project_id, &plan.plan_id).await?;
         let layout = Design::layout_in(tx, &plan.project_id).await?;
         let mut paths = Vec::new();
@@ -146,6 +154,7 @@ impl PlansStore {
             },
             task,
             contracts,
+            decisions,
             parts,
             unowned_paths,
             standards: ContextStandards {

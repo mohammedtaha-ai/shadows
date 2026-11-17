@@ -56,6 +56,7 @@ async fn fresh_database_migrates_and_applies_the_connection_policy() {
             "command_record",
             "context_forget",
             "design_command_result",
+            "design_decisions",
             "design_map_proposal",
             "design_map_version",
             "design_outcome",
@@ -96,6 +97,8 @@ async fn fresh_database_migrates_and_applies_the_connection_policy() {
             "run_attempts",
             "run_checks",
             "run_lessons",
+            "run_recheck_results",
+            "run_rechecks",
             "run_task_marks",
             "runtime_instance",
             "secret_env",
@@ -122,7 +125,8 @@ async fn fresh_database_migrates_and_applies_the_connection_policy() {
          0040 the per-agent MCP tool rules, 0042 agent groups and their delivery journal, \
          0054 the project's file inventory, 0056 the lessons record, \
          0058 the language servers turned off and added, \
-         0060 the person's questions, 0061 the task context an attempt received)"
+         0060 the person's questions, 0061 the task context an attempt received, \
+         0070 the recheck batches and their results, 0071 the project's design decisions)"
     );
 
     storage.close().await.unwrap();

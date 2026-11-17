@@ -3,7 +3,7 @@
 // the OpenAPI document's `/api/subscribe` entry); OpenAPI cannot type them, so
 // they are checked here, and a frame that does not match is a protocol error.
 
-import type { AgentNotice, AgentReplyNotice, AttemptNotice, TaskConflict } from '@/api/runs'
+import type { AgentNotice, AgentReplyNotice, AttemptNotice, RecheckNotice, TaskConflict } from '@/api/runs'
 import type { AccountLimits, Choice, SessionChoices } from '@/api/sessions'
 import type {
   CallKind,
@@ -161,7 +161,7 @@ export function readAttemptNotice(value: unknown): AttemptNotice | null {
     typeof attempt !== 'number' ||
     typeof title !== 'string' ||
     typeof model !== 'string' ||
-    (outcome !== 'committed' && outcome !== 'failed')
+    (outcome !== 'committed' && outcome !== 'failed' && outcome !== 'interrupted' && outcome !== 'stopped')
   ) {
     return null
   }
@@ -178,9 +178,18 @@ export function readAttemptNotice(value: unknown): AttemptNotice | null {
     report: textOrNull(value.report),
     reason: textOrNull(value.reason),
     last_addition: value.last_addition === true,
+    left_files: Array.isArray(value.left_files) && value.left_files.every((f) => typeof f === 'string')
+      ? (value.left_files as string[])
+      : null,
     // Core's snapshot of the conflict, kept whole; the notice only draws it.
     ...(isRecord(value.conflict) ? { conflict: value.conflict as unknown as TaskConflict } : {}),
   }
+}
+
+/** Shadows' recheck card as the value holds it, or null when it is not one. */
+export function readRecheckNotice(value: unknown): RecheckNotice | null {
+  if (!isRecord(value) || typeof value.recheck_id !== 'string' || !Array.isArray(value.failed)) return null
+  return value as unknown as RecheckNotice
 }
 
 /** Executor questions carry their own reply card, distinct from an attempt outcome. */

@@ -121,6 +121,8 @@ async fn the_tool_list_depends_on_the_grant_kind() {
             "agreement_review",
             "agreement_start",
             "code_lsp",
+            "decision_list",
+            "decision_propose",
             "draft_start",
             "map_approve",
             "map_propose",
@@ -144,6 +146,7 @@ async fn the_tool_list_depends_on_the_grant_kind() {
             "task_get",
             "task_lessons",
             "task_ready",
+            "task_runs",
             "task_start",
             "task_stop",
             "vision_approve",
@@ -231,6 +234,8 @@ async fn the_legacy_initialize_lifecycle_works_without_a_session() {
             "agreement_review",
             "agreement_start",
             "code_lsp",
+            "decision_list",
+            "decision_propose",
             "draft_start",
             "map_approve",
             "map_propose",
@@ -254,6 +259,7 @@ async fn the_legacy_initialize_lifecycle_works_without_a_session() {
             "task_get",
             "task_lessons",
             "task_ready",
+            "task_runs",
             "task_start",
             "task_stop",
             "vision_approve",
@@ -315,7 +321,15 @@ async fn the_discover_lifecycle_works_without_a_session() {
     let tools = answer["result"]["tools"]
         .as_array()
         .unwrap_or_else(|| panic!("{answer}"));
-    assert_eq!(tools.len(), 36, "{answer}");
+    assert_eq!(tools.len(), 39, "{answer}");
+    // The Planner proposes and lists decisions; an executor does neither.
+    for name in ["decision_propose", "decision_list"] {
+        assert!(tools.iter().any(|t| t["name"] == name), "{name}: {answer}");
+        assert!(
+            !shadows_core::Grants::tools_for(shadows_core::GrantKind::Executor).contains(&name),
+            "{name}"
+        );
+    }
     assert_eq!(answer["result"]["cacheScope"], "private", "{answer}");
     // The Planner learns from the schema, not from a refusal, that an edit names no field.
     let propose = tools

@@ -768,7 +768,7 @@ initial Codex path leaves `vision_approve`, `map_approve`, `roadmap_approve`
 and `plan_approve` unapproved. The person's approval actions continue
 through Shadows. Exclude the bearer variable from the shell environment.
 The authenticated Windows evidence, including the tool inventory and
-refusals, is recorded in the linked [probe](../../evidence/2026-11-07-codex-app-server-probe.md#signed-in-shadows-home-on-2026-11-08).
+refusals, is recorded in the linked probe (`docs/evidence/2026-11-07-codex-app-server-probe.md` at `4031168f`).
 
 Permission requests that still reach the Planner are refused and shown as
 refusals. Interactive approval support for AYLUL is not extended in this work.

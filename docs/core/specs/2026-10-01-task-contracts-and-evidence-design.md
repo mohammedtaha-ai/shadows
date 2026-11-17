@@ -331,10 +331,11 @@ When an edit settles or reverses a project decision, its rationale must be
 recorded as a project decision with status `Proposed`, `Accepted`, or
 `Superseded`, its author, references, and rationale. An agent may propose a
 decision but cannot accept or supersede one; those transitions require a
-person's command. Until the person-authority boundary in §17.11 is closed,
-decision records can be proposed and read, but transitions to `Accepted` or
-`Superseded` are unavailable. Execution packets include only accepted
-decisions selected as relevant to the task. Decision identity and history are
+person's command. Decisions are accepted and superseded only by the person's
+card (Mohammed, 2026-11-16); gate actions stay open (§17.11). The Planner
+proposes with `decision_propose`; accepting a revision supersedes the id's
+earlier accepted one. A task contract pins exact accepted revisions in
+`decisions`, and its brief shows each pinned revision with its current state. Decision identity and history are
 project-scoped and do not depend on a conversation's lifetime.
 
 The Web version history shows the version number, writer, creation time, and
@@ -614,12 +615,12 @@ implementation stage that makes each statement true:
 This file owns the design in §17. Other documents link here instead of copying
 its decisions.
 
-> **OPEN — person authority for decisions and gates.** The current local HTTP
+> **OPEN — person authority for gates.** The current local HTTP
 > boundary does not prove that a request came from the person rather than a
-> process running as the same user (§13.2). **Trigger:** before a decision can
-> become `Accepted` or `Superseded`, or a gate action is enabled. Until then,
-> agents may propose decisions, but the person-only transitions and gate actions
-> stay unavailable. This does not block task-contract or packet work.
+> process running as the same user (§13.2). Decisions are accepted and
+> superseded only by the person's card (Mohammed, 2026-11-16); gate actions
+> stay open. **Trigger:** before a gate action is enabled. Until then, gate
+> actions stay unavailable. This does not block task-contract or packet work.
 
 ## 17.12 Production operations extension
 

@@ -174,6 +174,8 @@ pub enum ThreadEntryKind {
     MapProposal,
     /// A roadmap proposal's immutable card.
     RoadmapProposal,
+    /// A project decision revision as the Planner proposed it.
+    DecisionProposal,
     /// A question the Planner asked the person; card is `{ question_id, question,
     /// options, chosen }`, `chosen` null until the person picks an option.
     PersonQuestion,
@@ -200,6 +202,7 @@ impl ThreadEntryKind {
             Self::VisionProposal => "VisionProposal",
             Self::MapProposal => "MapProposal",
             Self::RoadmapProposal => "RoadmapProposal",
+            Self::DecisionProposal => "DecisionProposal",
             Self::PersonQuestion => "PersonQuestion",
             Self::ProjectChange => "ProjectChange",
         }
@@ -221,6 +224,7 @@ impl ThreadEntryKind {
             Self::VisionProposal,
             Self::MapProposal,
             Self::RoadmapProposal,
+            Self::DecisionProposal,
             Self::PersonQuestion,
             Self::ProjectChange,
         ]

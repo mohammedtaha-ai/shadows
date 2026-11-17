@@ -208,3 +208,117 @@ async fn task_context_gives_the_consumer_its_producers_contract() {
             .is_none()
     );
 }
+
+/// A Planner turn on `thread` that stays running, so its proposals are heard.
+async fn held_turn(storage: &std::sync::Arc<shadows_core::testing::Storage>, thread: &ThreadId) {
+    use shadows_core::testing::turn::{new_turn, turn_command};
+    let runtime = shadows_core::testing::Runtime::start(storage.clone())
+        .await
+        .unwrap();
+    let settings = shadows_agent::TurnSettings {
+        model: "fake-large".into(),
+        mode: "default".into(),
+        effort: None,
+    };
+    let turn = new_turn(thread, &runtime, "decide", &settings);
+    let started = shadows_core::Turns::start_turn_for_test(
+        storage,
+        &turn_command("decide", thread, "decide", &settings),
+        turn,
+    )
+    .await
+    .unwrap();
+    shadows_core::Turns::mark_operation_started_for_test(
+        storage,
+        &started.operation_id,
+        runtime.instance_id(),
+    )
+    .await
+    .unwrap();
+}
+
+fn pinned(number: u32, id: &str, version: i64) -> PlanOp {
+    let contract = serde_json::from_value(serde_json::json!({
+        "files": [{ "path": "app/Rules.php", "action": "create", "purpose": "The rules" }],
+        "decisions": [{ "id": id, "version": version }]
+    }))
+    .unwrap();
+    PlanOp::TaskAdd {
+        task: task_with(number, contract),
+    }
+}
+
+#[tokio::test]
+async fn a_task_pins_only_accepted_decisions() {
+    let (_tmp, storage) = fixture().await;
+    let plans = AppCore::plans_for_tests(storage.clone());
+    let design = AppCore::design_for_tests(storage.clone());
+    let workflow = WorkflowId::from_literal(SOURCE);
+    held_turn(&storage, &ThreadId::from_literal("writer")).await;
+    let planner = grant(&storage).await;
+    let input = shadows_core::DecisionInput {
+        id: None,
+        expected_version: None,
+        title: "Queries".into(),
+        decision: "Use SQLx.".into(),
+        rationale: "Checked queries.".into(),
+        source: String::new(),
+    };
+    design
+        .propose_decision(&planner, "d1".into(), input)
+        .await
+        .unwrap();
+    let refused = plans
+        .edit_plan_for_test(
+            &command("early"),
+            &Writer::Person,
+            None,
+            &workflow,
+            0,
+            &[pinned(1, "D1", 1)],
+        )
+        .await;
+    let Err(PlansError::PlanInvalid(problems)) = refused else {
+        panic!("{refused:?}")
+    };
+    assert!(
+        problems
+            .iter()
+            .any(|p| p.message == "T1 pins D1 v1, which is not an accepted decision"),
+        "{problems:?}"
+    );
+    let shared = shadows_core::ProjectId::from_literal("p");
+    design
+        .accept_decision("a1".into(), &shared, "D1", 1)
+        .await
+        .unwrap();
+    plans
+        .edit_plan_for_test(
+            &command("pinned"),
+            &Writer::Person,
+            None,
+            &workflow,
+            0,
+            &[pinned(1, "D1", 1)],
+        )
+        .await
+        .unwrap();
+    let plan = plans.get_plan_for_test(&workflow).await.unwrap();
+    let saved = plan.tasks[0].content.contract.as_ref().unwrap();
+    assert_eq!(
+        saved.decisions,
+        vec![shadows_core::DecisionPin {
+            id: "D1".into(),
+            version: 1
+        }]
+    );
+}
+
+#[tokio::test]
+async fn a_contract_without_decisions_keeps_its_fingerprint() {
+    let json = serde_json::to_string(&find_customer()).unwrap();
+    assert!(!json.contains("decisions"), "{json}");
+    let back: TaskContract = serde_json::from_str(&json).unwrap();
+    assert!(back.decisions.is_empty());
+    assert_eq!(serde_json::to_string(&back).unwrap(), json);
+}

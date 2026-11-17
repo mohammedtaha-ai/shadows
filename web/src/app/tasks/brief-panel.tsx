@@ -11,7 +11,17 @@ type ContractUse = NonNullable<TaskContract['uses']>[number]
 type ContractSource = ContractUse['source']
 type SymbolWork = NonNullable<TaskContract['symbols']>[number]
 type ResolvedContract = NonNullable<AttemptBrief['context']['contracts']>[number]
+type PinnedDecision = NonNullable<AttemptBrief['context']['decisions']>[number]
 type TaskPart = AttemptBrief['context']['parts'][number]
+
+/** A decision the task follows, as the brief saved it: a superseded pin is an older revision, said plainly. */
+function DecisionBlock({ decision }: { decision: PinnedDecision }) {
+  return <li>
+    <span dir="auto">{decision.id} v{decision.version} · {decision.title}</span>
+    {decision.state === 'superseded' && <span className="text-muted-foreground"> (superseded since)</span>}
+    <p dir="auto" className="whitespace-pre-wrap break-words text-muted-foreground">{decision.decision}</p>
+  </li>
+}
 
 function symbolText(symbol: SymbolWork): string {
   return `${symbol.kind} ${symbol.name} in ${symbol.path}`
@@ -126,6 +136,12 @@ function Brief({ brief }: { brief: AttemptBrief }) {
         </div>
       )}
       <List label="Resolved contracts" items={context.contracts?.map(resolved)} />
+      {context.decisions != null && context.decisions.length > 0 && (
+        <div aria-label="Decisions">
+          <p className="font-semibold">Decisions</p>
+          <ul className="list-disc ps-5">{context.decisions.map((d) => <DecisionBlock key={d.id + d.version} decision={d} />)}</ul>
+        </div>
+      )}
       <div aria-label="Original layout" className="space-y-1">
         {context.parts.length > 0 && (
           <div>

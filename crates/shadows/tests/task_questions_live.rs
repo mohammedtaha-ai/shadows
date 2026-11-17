@@ -325,6 +325,7 @@ fn go_task(n: u32, file: &str, name: &str, behavior: &str, uses: ContractUse) ->
             invariants: Vec::new(),
             forbidden: Vec::new(),
             checks: Vec::new(),
+            decisions: Vec::new(),
         }),
     }
 }

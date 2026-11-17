@@ -18,7 +18,7 @@ A shipped task's entry, and its plan once deleted, are in this file in Git at th
 
 | PR | Work | Tasks | Entries at |
 |---|---|---|---|
-| #41 | Architecture restructuring ([plan](plans/2026-10-21-architecture.md)) | A-0 to A-21, A-23, B-10, B-11; A-8c, A-8d, A-19b, A-19c in `d7a722cd` | `c7e7bac4` |
+| #41 | Architecture restructuring (plan at `c604d06c`) | A-0 to A-21, A-23, B-10, B-11; A-8c, A-8d, A-19b, A-19c in `d7a722cd` | `c7e7bac4` |
 | — | A-6 settled with no code change (approval-authority spec §24.2, 2026-10-27) | A-6 | `4d5c022d` |
 | #45 | The breakdown route goes; fixtures close their database first | A-7b, B-12 | `29ddfd88` |
 | — | A-22 (product workspaces) deferred, trigger in [future](../core/future.md) "Housekeeping" | A-22 | `3dc2437f` |
@@ -38,6 +38,7 @@ A shipped task's entry, and its plan once deleted, are in this file in Git at th
 | #67 | Codex images and language servers, slice 2 ([design](specs/2026-11-13-language-servers-design.md)) | B-137, B-138a, B-138 to B-146, F-114 to F-116 | `db760593` |
 | #68 | Slice 4: attempt context, task questions, conflicts and compatible ready groups ([design](specs/2026-11-14-task-questions-design.md)) | B-107 to B-109, B-147, B-148, F-102 | `d73bb646` |
 | — | Codex in the real Planner and executors slice 1, accepted by Mohammed in the browser (2026-11-15); their plans deleted | B-88, B-94 | `7846c2d9` |
+| #69 | Slice 5: checks, returns and messages to a task's agent ([design §5.3, §5.4](specs/2026-11-08-executors-design.md#54-checks-shadows-runs-mohammed-2026-11-15)) | B-111, B-113, B-114, B-150, B-151 (acceptance, evidence (`docs/evidence/2026-11-15-slice-5-checks.md` at `4031168f`)) | `4031168f` |
 
 Replaced or dropped without being built: B-97, B-98, B-119 (by slice 2), B-102, B-110 (with the
 critic), B-112 (by the Planner's judgment), B-115, B-116 (by B-125 and B-126). Their entries are in
@@ -50,9 +51,11 @@ this file at `db760593`.
 - `Plans::owner_thread` (planner context spec §6, slice 4) waits for messaging slice 3.
 - Real-provider acceptance of structure and depth slices 1 to 5 is not recorded.
 - Recorded acceptances: §10 of the AYLUL agents design (2026-11-03, desktop app); planner context slices
-  1 and 2 ([evidence](../evidence/2026-11-04-planner-context-probe.md)); slice 2's language servers on
+  1 and 2 (evidence `docs/evidence/2026-11-04-planner-context-probe.md` at `4031168f`); slice 2's language servers on
   `testing4` (2026-11-13); slice 4's browser acceptance on `testing4` (2026-11-14, B-149).
 - Slice 4's live tests (`crates/shadows/tests/task_questions_live.rs`, B-149) are written and not run.
+- B-150 keeps its own per-thread message queue beside Turns' queue; reusing Turns' queue needs the executor session restored by thread.
+- The web derives "stopped on the additions cap" itself; a Core field on `TaskRun` should own it.
 
 ## Tasks
 
@@ -60,18 +63,8 @@ this file at `db760593`.
 
 Order and rulings: [the program](plans/2026-11-09-local-delivery-program.md). Slice 4 is on `main`
 at `d73bb646` (PR #68); its tasks B-108, B-148, B-107, B-109, B-147 and F-102 are shipped there.
-Only B-149 remains in its [plan](plans/2026-11-14-slice-4-task-questions.md). Later-slice tasks
-retain blocked draft pointers.
-
-### B-105 · Minimal accepted decision revisions
-
-- Status: blocked (deferred by the program until a task needs project decision revisions; no slice holds it)
-- Plan: [Task 3](plans/2026-11-09-detailed-task-contracts.md#task-3-b-105-minimal-accepted-decision-revisions).
-- Owner: Design.
-- Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
-- Touch: exact Create/Modify/Test file list of Task 3; no other source paths.
-- Needs: `docs/backend/stages.md` at `617d806f` (B-104); a task that needs a decision revision.
-- Done when: all named RED/GREEN steps and focused verification commands in Task 3 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
+Slice 5 is on `main` at `4031168f` (PR #69). Only B-149 remains in its [plan](plans/2026-11-14-slice-4-task-questions.md).
+B-105 moved into slice 6 (Mohammed, 2026-11-16).
 
 ### B-149 · Real slice 4 acceptance
 
@@ -86,75 +79,72 @@ retain blocked draft pointers.
 - Needs: the slice 4 tasks and F-102, all shipped in `docs/backend/stages.md` at `d73bb646` (PR #68).
 - Done when: named live tests and disposable browser/log scenarios pass with dated evidence and scoped commit; unavailable checks remain reported, not passed.
 
-## Slice 5: checks and messages to a task's agent
-
-Design: [executors §5.4 and §5.3](specs/2026-11-08-executors-design.md#54-checks-shadows-runs-mohammed-2026-11-15),
-Mohammed, 2026-11-14 and 2026-11-15. Plan: [slice 5](plans/2026-11-15-slice-5-checks.md). Order: B-111 → B-113 → B-114 →
-B-150 → F-103 → B-151. Each task's files, interfaces, tests and commit are in the plan.
-
-### B-111 · Checks in the task contract, and the executor runs them
-
-- Status: done. Contract 15, reports 19, OpenAPI 9, instructions 4, architecture 49 and codemap 1 passed; generated API types. Browser acceptance is separate.
-- Plan: [B-111](plans/2026-11-15-slice-5-checks.md#b-111--checks-in-the-task-contract-and-the-executor-runs-them).
-- Owner: Plans; Runs for the reported outcomes; Harness for the instruction text.
-- Needs: `d73bb646` (slice 4).
-- Done when: `TaskContract.checks` is validated as the plan says and existing contracts still read; `task_report` carries each check's outcome; the executor's instructions say to run them, wait on a lock error and report each; `task_contract`, `executor_commits` and `planner_instructions` pass; OpenAPI regenerated.
-
-### B-113 · Shadows confirms a task's checks on a quiet project, and returns failures
-
-- Status: done. Runs 81 passed / 6 live ignored, recovery 1, conflicts 11, architecture 49, codemap 1 and OpenAPI 9 passed; API types regenerated.
-- Plan: [B-113](plans/2026-11-15-slice-5-checks.md#b-113--shadows-confirms-a-tasks-checks-on-a-quiet-project-and-returns-failures).
-- Owner: Runs.
-- Needs: B-111.
-- Done when: after a committed attempt's turn ends and the project is quiet, its checks and those of the tasks it uses run one at a time and are recorded with their outcome, a match with the executor's report, exit code, HEAD and output end; a moved HEAD, changed content or an uncommitted change inside any task's writes is inconclusive; a check that does not pass returns to the executor as a new attempt, twice at most and outside the three additions, then goes to the Planner; a return with nothing to change reports the same commit; only the latest attempt is notified; a restart reruns unfinished checks and sends an unsent notice; `attempt_checks` passes.
-
-### B-114 · The Planner reads checks and judges on them
-
-- Status: done. Runs 86 passed / 6 live ignored, MCP 25, routes 11 / 2 live ignored, instructions 4, architecture 49, codemap 1 and OpenAPI 9 passed; schemas regenerated.
-- Plan: [B-114](plans/2026-11-15-slice-5-checks.md#b-114--the-planner-reads-checks-and-judges-on-them).
-- Owner: Runs, with its HTTP and MCP adapters.
-- Needs: B-113.
-- Done when: `task_checks` and `GET /api/attempts/{id}/checks` answer the results; a done mark over a check of the latest committed attempt that did not pass or has no result needs a reason, also after an undo, recorded on the task; the named route, MCP and core tests pass.
-
-### B-150 · The Planner messages a task's agent
-
-- Status: done. Runs 98 passed / 6 live ignored; executor sessions 7, MCP 26, instructions 4, architecture 49, codemap 1, OpenAPI 9 passed; final message regressions 12 passed.
-- Plan: [B-150](plans/2026-11-15-slice-5-checks.md#b-150--the-planner-messages-a-tasks-agent).
-- Design: [executors design §5.3](specs/2026-11-08-executors-design.md#53-the-planner-messages-a-tasks-agent-mohammed-2026-11-14).
-- Owner: Runs, through Turns' send and notice and Harness's executor session.
-- Needs: B-114 (same files in Runs and `run_tools.rs`).
-- Done when: the Planner's `message_agent` reaches a task's executor while it runs (waiting until its turn ends), after it committed, and after a done mark (session reopened); busy is the thread's running turn, one message at a time in order, a repeat is the same message, an addition waits for the reply and a done mark closes the session only after it; the reply reaches the Planner as "Reply from task agent · T<n>", also after a restart; no attempt, addition count or plan changes; `agent_messages` passes.
-
-### B-151 · Real slice 5 acceptance
-
-- Status: doing. Step 1: `checks_live` passed on the signed-in subscription (Sonnet, 2026-11-15:
-  three attempts, both checks confirmed, done refused then recorded with a reason, two replies).
-  Steps 2 and 3: the browser journey ran and is recorded in
-  [evidence](../evidence/2026-11-15-slice-5-checks.md); it found that recovery re-notifies
-  attempts from before migration `0064`, which is open.
-- Plan: [B-151](plans/2026-11-15-slice-5-checks.md#b-151--real-slice-5-acceptance).
-- Owner: integration acceptance through AppCore and the real UI.
-- Needs: B-111, B-113, B-114, B-150, F-103.
-- Done when: `checks_live` passes on the signed-in subscription and the browser journey, with its logs, is recorded in evidence.
-
 ## Slice 6: stop control and full acceptance
 
-### B-117 · Stop obsolete plans and rerun pending evidence
+Plan: [slice 6](plans/2026-11-16-slice-6-stop-control.md), approved by Mohammed (2026-11-16) after two
+Codex reviews. Rulings: a contract problem stops only its own attempt and the Planner
+stops other affected work (2026-11-14); leftovers continue, a done mark rechecks the plan's done
+tasks, decisions are accepted on the person's card (2026-11-16).
+Order: B-117 → B-153 → B-152 → B-154 → B-105 → web tasks from F-121 → B-118.
+B-152, B-154 and B-105 build on the [shared request](../shared/requests/2026-11-16-slice-6-stop-control.md), accepted by Masada 2026-11-16 (`9dbb015c`).
 
-- Status: blocked (prerequisites below must ship first)
-- Plan: [Task 3](plans/2026-11-09-repair-and-acceptance.md#task-3-b-117-stop-obsolete-plans-and-rerun-pending-evidence).
-- Owner: Runs with Plans.
-- Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
-- Touch: exact Create/Modify/Test file list of Task 3; no other source paths.
-- Needs: `docs/backend/stages.md` at `617d806f` (B-126); accepted shared API/model agreement (B-115 absorbed, B-116 replaced).
-- Done when: all named RED/GREEN steps and focused verification commands in Task 3 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
+### B-117 · The Planner lists the attempts that hold a scope (`task_runs`)
 
-### B-118 · Disposable full journey and branch delivery evidence
+- Status: done (automated checks passed; manual acceptance remains with Mohammed)
+- Plan: [B-117](plans/2026-11-16-slice-6-stop-control.md#task-b-117-the-planner-lists-the-attempts-that-still-hold-a-scope).
+- Owner: Runs, with its MCP adapter.
+- Read: `crates/core-runs/contract.yaml` (`stop_for`, `planner_plan`, `start_for`); the plan's Global Constraints.
+- Touch: the task's Files list in the plan; no other path.
+- Needs: slices 4 and 5 (shipped, `4031168f`).
+- Done when: the four `planner::task_runs_*` tests, `the_planner_lists_live_attempts_over_mcp`, `mcp_server` and `planner_instructions` pass; contracts updated; scoped commit.
 
-- Status: blocked (prerequisites below must ship first)
-- Plan: [Task 4](plans/2026-11-09-repair-and-acceptance.md#task-4-b-118-disposable-full-journey-and-branch-delivery-evidence).
-- Owner: Controller across existing owners.
-- Read: approved §17.0; docs/shared/requests/2026-11-09-local-delivery.md; the plan's Global Constraints, Interfaces and named owner contracts.
-- Touch: exact Create/Modify/Test file list of Task 4; no other source paths.
-- Needs: B-117, F-104; accepted shared API/model agreement. 
-- Done when: all named RED/GREEN steps and focused verification commands in Task 4 pass; contract/map/status updated; scoped commit recorded. Browser/log acceptance remains distinct.
+### B-153 · A new Start continues from the files a stopped attempt left
+
+- Status: done (automated checks passed; manual acceptance remains with Mohammed)
+- Plan: [B-153](plans/2026-11-16-slice-6-stop-control.md#task-b-153-a-new-start-continues-from-the-files-a-stopped-attempt-left).
+- Owner: Runs.
+- Read: `crates/core-runs/contract.yaml` (`start`, `start_answer`, the dirty-scope obligations); the plan's rulings.
+- Touch: the task's Files list in the plan; no other path.
+- Needs: B-117 (same `lib.rs` and contract).
+- Done when: the four `leftovers::` tests and the changed `conflict_keeps_uncommitted_files` pass, with all of `runs_attempts` and `task_conflicts`; contract updated; scoped commit.
+
+### B-152 · The Planner hears of an interrupted attempt and of the person's Stop
+
+- Status: done (automated checks passed; manual acceptance remains with Mohammed)
+- Plan: [B-152](plans/2026-11-16-slice-6-stop-control.md#task-b-152-the-planner-hears-of-an-interrupted-attempt-and-of-the-persons-stop).
+- Owner: Runs.
+- Read: `crates/core-runs/contract.yaml` (`recover`, `stop`, `stop_for`, `notify`, transitions); the plan's Review Focus.
+- Touch: the task's Files list in the plan; no other path.
+- Needs: B-153; the accepted request (`9dbb015c`).
+- Done when: the six `stops::` tests and `a_stopped_conflict_keeps_its_one_notice` pass, with all of `runs_attempts` and `recovery`; contract updated; scoped commit.
+
+### B-154 · A done mark rechecks every done task of its plan
+
+- Status: done (automated checks passed; manual acceptance remains with Mohammed)
+- Plan: [B-154](plans/2026-11-16-slice-6-stop-control.md#task-b-154-a-done-mark-rechecks-every-done-task-of-its-plan).
+- Owner: Runs.
+- Read: `crates/core-runs/contract.yaml` (`mark_done`, `confirmation`, `done_checks`, `recover`); `crates/core-plans/contract.yaml` (`plan`, `shared_in_transaction`); migration `0063_run_checks.sql`.
+- Touch: the task's Files list in the plan; no other path.
+- Needs: B-152 (same `recover.rs` and contract); the accepted request.
+- Done when: the nine `rechecks::` tests pass, with all of `runs_attempts`, `recovery` and `openapi`; contract and code map updated; scoped commit.
+
+### B-105 · Project decisions, proposed by the Planner and accepted by the person
+
+- Status: done (automated checks passed; manual acceptance remains with Mohammed)
+- Plan: [B-105](plans/2026-11-16-slice-6-stop-control.md#task-b-105-project-decisions-proposed-by-the-planner-and-accepted-by-the-person).
+- Owner: Design, with Plans for the pins and the adapters.
+- Read: `crates/core-design/contract.yaml` (`propose_vision`, `approve_vision_proposal`); `crates/core-plans/contract.yaml` (`TaskContract`, `TaskContext`, `task_context_in`); spec §17.3.
+- Touch: the task's Files list in the plan; no other path.
+- Needs: B-154 (migration order); the accepted request.
+- Done when: the named tests in `design_decisions`, `task_contract`, `attempt_briefs`, `design_routes` and `mcp_server` pass, with `openapi`; contracts, code map and spec updated; scoped commit.
+
+### B-118 · The full journey, live and in the browser
+
+- Status: done. Mohammed accepted slice 6 in the browser on `testing6` (2026-11-16, Planner on Codex,
+  executors on Sonnet): a decision accepted on its card and pinned in a brief; an attempt Interrupted by a
+  daemon restart, its card and leftover files shown, then continued by a new Start; an attempt stopped
+  from its task page and started again; a done mark rerunning every done task's checks in the project,
+  with the recheck card. The live test `stop_control_live` and the evidence file are dropped (Mohammed,
+  2026-11-16).
+- Fixes found by the run: `4d534e0c`, `c55d4c01`, `54242de1` (another attempt's leftovers go to the
+  Planner, not back to the executor; a stored flag; rechecks across the project, each failure told once).

@@ -10,6 +10,8 @@ mod checks;
 mod cross_plan;
 #[path = "runs_attempts/init.rs"]
 mod init;
+#[path = "runs_attempts/leftovers.rs"]
+mod leftovers;
 #[path = "runs_attempts/lessons.rs"]
 mod lessons;
 #[path = "runs_attempts/live.rs"]
@@ -18,8 +20,12 @@ mod live;
 mod messages;
 #[path = "runs_attempts/planner.rs"]
 mod planner;
+#[path = "runs_attempts/rechecks.rs"]
+mod rechecks;
 #[path = "runs_attempts/report.rs"]
 mod report;
+#[path = "runs_attempts/stops.rs"]
+mod stops;
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;

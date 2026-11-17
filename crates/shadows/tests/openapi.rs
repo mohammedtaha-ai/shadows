@@ -40,6 +40,14 @@ fn document() -> Value {
 }
 
 #[test]
+fn recheck_cards_have_named_schemas() {
+    let doc = document();
+    let schemas = &doc["components"]["schemas"];
+    assert!(schemas.get("RecheckNotice").is_some());
+    assert!(schemas.get("RecheckFailure").is_some());
+}
+
+#[test]
 fn no_structure_command_is_exposed() {
     let doc = document();
     assert!(doc["paths"].get("/api/projects/{id}/structure").is_none());
@@ -210,6 +218,7 @@ fn the_document_names_every_route() {
             "GET /api/projects/{id}/code/links",
             "GET /api/projects/{id}/code/servers",
             "GET /api/projects/{id}/code/status",
+            "GET /api/projects/{id}/decisions",
             "GET /api/projects/{id}/design/outcomes",
             "GET /api/projects/{id}/design/outcomes/{outcome}",
             "GET /api/projects/{id}/design/parts",
@@ -258,6 +267,7 @@ fn the_document_names_every_route() {
             "POST /api/projects/{id}/agreements",
             "POST /api/projects/{id}/agreements/{agreement}/agree",
             "POST /api/projects/{id}/code/refresh",
+            "POST /api/projects/{id}/decisions/{decision}/accept",
             "POST /api/projects/{id}/design/edits",
             "POST /api/projects/{id}/map-proposals/{proposal_id}/approve",
             "POST /api/projects/{id}/mcp-grants",

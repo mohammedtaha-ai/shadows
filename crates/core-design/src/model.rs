@@ -289,3 +289,52 @@ impl OutcomeId {
         Self::from_stored(id)
     }
 }
+
+/// A Planner's proposed decision: a new id, or the next revision of `id`
+/// when `expected_version` is its latest version.
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    utoipa::ToSchema,
+    schemars::JsonSchema,
+)]
+pub struct DecisionInput {
+    #[serde(default)]
+    pub id: Option<String>,
+    #[serde(default)]
+    pub expected_version: Option<i64>,
+    pub title: String,
+    pub decision: String,
+    pub rationale: String,
+    #[serde(default)]
+    pub source: String,
+}
+
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, utoipa::ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum DecisionState {
+    Proposed,
+    Accepted,
+    Superseded,
+}
+
+/// One revision of a project decision as Design holds it.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+pub struct DecisionRecord {
+    pub id: String,
+    pub version: i64,
+    pub project_id: core_projects::ProjectId,
+    pub title: String,
+    pub decision: String,
+    pub rationale: String,
+    pub source: String,
+    pub state: DecisionState,
+    pub approved_by: Option<core_grants::ApprovedBy>,
+    pub created_at: String,
+}

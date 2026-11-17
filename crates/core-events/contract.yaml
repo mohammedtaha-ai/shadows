@@ -232,6 +232,10 @@ obligations:
   - rule: VisionProposed reaches its project event tail with proposal identifiers only.
     tested_by: vision_proposal_routes_list_and_approve
   - rule: >
+      DecisionProposed and DecisionAccepted reach the project event tail with
+      { project_id, decision_id, version } only; superseding adds no event.
+    tested_by: the_planner_proposes_and_the_person_accepts
+  - rule: >
       ProjectStandardsSaved reaches the project journal stream after commit,
       with only its saved number. A command replay produces no second event.
     tested_by: standards_routes_read_the_base_and_save_additions

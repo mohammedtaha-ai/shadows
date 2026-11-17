@@ -32,6 +32,7 @@ mod planner;
 mod question;
 mod ready;
 mod ready_group;
+mod recheck;
 mod recover;
 mod report;
 mod scope;
@@ -49,8 +50,8 @@ pub use model::{
     AgentMessage, AgentMessageId, AgentMessageState, AgentReplyNotice, Attempt, AttemptFile,
     AttemptId, AttemptNotice, AttemptOrigin, AttemptState, CheckOutcome, CheckResult,
     ConflictDelivery, ConflictEvidence, ConflictInput, DoneMark, FileDiff, LessonAttempt,
-    LessonCommand, Need, ReadyGroup, ReadyTask, RecoverReport, ReportedCheck, ReportedOutcome,
-    StartAnswer, TaskConflict, TaskLesson, TaskRun,
+    LessonCommand, LiveAttempt, Need, ReadyGroup, ReadyTask, RecheckFailure, RecheckNotice,
+    RecoverReport, ReportedCheck, ReportedOutcome, StartAnswer, TaskConflict, TaskLesson, TaskRun,
 };
 pub use question::{PlannedScope, ProducerStatus, TaskAnswer, TaskQuestion};
 
@@ -259,15 +260,21 @@ impl Runs {
             input["reason"] = serde_json::json!(reason);
         }
         let command = CommandContext::user(command, "run.mark_done", input);
-        let judged = self
+        let marked = self
             .inner
             .store
-            .put_mark(command, (workflow, version, task), done, reason)
+            .put_mark(command, plan, task, done, reason)
             .await?;
         // Only the attempt the mark judged, and only while that mark stands:
         // a replay never frees work admitted after it.
-        if let Some((attempt, thread)) = judged {
+        if let Some((attempt, thread)) = marked.judged {
             self.release_after_mark(&attempt, &thread).await;
+        }
+        if let Some(batch) = marked.recheck {
+            let runs = self.clone();
+            tokio::spawn(async move {
+                runs.recheck_done(batch).await;
+            });
         }
         self.task(workflow, version, task).await
     }
@@ -321,16 +328,25 @@ impl Runs {
             .unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(prompt.to_string());
     }
 
-    fn first_prompt(&self, task: u32) -> String {
+    fn first_prompt(&self, task: u32, left: &[String], left_by: Option<u32>) -> String {
         self.inner
             .prompt
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner())
             .clone()
             .unwrap_or_else(|| {
-                FIRST_PROMPT
+                let prompt = FIRST_PROMPT
                     .replace("{n}", &task.to_string())
-                    .replace("{commit}", COMMIT)
+                    .replace("{commit}", COMMIT);
+                match left_by.filter(|_| !left.is_empty()) {
+                    Some(number) => format!(
+                        "{prompt}\nAttempt {number} of this task ended without a commit and left \
+                         these files uncommitted inside your writes: {}. Read them first; keep \
+                         what is right, fix or remove the rest, then commit only this task's work.",
+                        left.join(", ")
+                    ),
+                    None => prompt,
+                }
             })
     }
 }

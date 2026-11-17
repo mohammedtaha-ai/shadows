@@ -41,6 +41,7 @@ impl Tools {
             + Shadows::turn_tool_router()
             + Shadows::agreement_tool_router()
             + Shadows::workspace_tool_router()
+            + Shadows::decision_tool_router()
             + Shadows::run_tool_router();
         let only = |names: &[&str]| {
             let mut router = every.clone();

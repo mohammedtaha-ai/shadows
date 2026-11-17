@@ -204,6 +204,43 @@ pub struct Attempt {
     pub ended_at: Option<String>,
 }
 
+/// An attempt whose scope has not yet been released.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct LiveAttempt {
+    pub attempt_id: AttemptId,
+    pub workflow_id: WorkflowId,
+    pub version: i64,
+    pub task: u32,
+    pub title: String,
+    pub number: u32,
+    pub state: AttemptState,
+    pub commit: Option<String>,
+    pub conflict: bool,
+    pub started_at: String,
+}
+
+/// A done task whose recorded checks did not all pass on a recheck.
+#[derive(Debug, Clone, serde::Serialize, utoipa::ToSchema)]
+pub struct RecheckFailure {
+    pub workflow_id: WorkflowId,
+    pub version: i64,
+    pub task: u32,
+    pub title: String,
+    pub attempt_id: AttemptId,
+    pub checks: Vec<CheckResult>,
+}
+
+/// The outcome of rechecking other done tasks after a new done mark.
+#[derive(Debug, Clone, serde::Serialize, utoipa::ToSchema)]
+pub struct RecheckNotice {
+    pub plan_id: core_plans::PlanId,
+    pub cause_workflow_id: WorkflowId,
+    pub cause_version: i64,
+    pub cause_task: u32,
+    pub recheck_id: String,
+    pub failed: Vec<RecheckFailure>,
+}
+
 /// A task as the runs see it: marked done or not, its latest attempt, the
 /// tasks it needs, whether Start may run now, and the model to offer first.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, utoipa::ToSchema)]
@@ -297,6 +334,9 @@ pub struct FileDiff {
 /// and the executor's report (its last message when it failed).
 #[derive(Debug, Clone, serde::Serialize, utoipa::ToSchema)]
 pub struct AttemptNotice {
+    /// Uncommitted files left by a Stop or interruption; unknown when git failed.
+    #[serde(default)]
+    pub left_files: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub checks: Vec<CheckResult>,
     pub workflow_id: WorkflowId,

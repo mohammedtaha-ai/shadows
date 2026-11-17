@@ -101,6 +101,7 @@ fn producer(behavior: Vec<String>) -> TaskContract {
         invariants: vec![],
         forbidden: vec![],
         checks: Vec::new(),
+        decisions: vec![],
     }
 }
 
@@ -135,6 +136,7 @@ fn consumer(dir: &str, uses: Vec<ContractUse>) -> TaskContract {
         invariants: vec![],
         forbidden: vec![],
         checks: Vec::new(),
+        decisions: vec![],
     }
 }
 
