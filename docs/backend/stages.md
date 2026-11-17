@@ -12,9 +12,9 @@ expands each task's named scope into exact caller, test, contract and map paths 
 affected test commands. A blocked task is not a builder assignment. Per-task checks are focused;
 the full gate and whole-branch review run once before each delivery PR.
 
-No backend task is open. The local delivery program is complete: its slices 1, 1b, 3, 2, 4, 5 and 6
-are on `main`, the last at `449d4f95` (PR #70). Its plan is `docs/backend/plans/2026-11-09-local-delivery-program.md`
-at `449d4f95`.
+The local delivery program is complete: its slices 1, 1b, 3, 2, 4, 5 and 6 are on `main`, the last
+at `449d4f95` (PR #70). Its plan is `docs/backend/plans/2026-11-09-local-delivery-program.md` at
+`449d4f95`. Now: executor choices on `feature/executor-choices` (tasks below).
 
 ### Shipped
 
@@ -63,3 +63,59 @@ this file at `db760593`.
 - Slice 6's live test (`stop_control_live`) and its evidence file were dropped (Mohammed, 2026-11-16).
 - B-150 keeps its own per-thread message queue beside Turns' queue; reusing Turns' queue needs the executor session restored by thread.
 - The web derives "stopped on the additions cap" itself; a Core field on `TaskRun` should own it.
+
+## Executor choices: CLI, model and effort per task
+
+Plan: [executor choices](plans/2026-11-18-executor-choices.md), awaiting Mohammed's approval. Rulings
+(Mohammed, 2026-11-18): the choice is saved per task and the last save wins; lists come from each
+CLI, Claude Code's read by one probe session per daemon run; no choice refuses Start; a Codex
+executor uses Codex's own tools in mode `ask`. Order: B-155 → B-156 → B-157 → B-158 → web tasks → B-159.
+B-158 changes what the web sees and waits for Masada's shared request to be accepted.
+
+### B-155 · Harness reads each CLI's catalog
+
+- Status: todo (after approval)
+- Plan: [B-155](plans/2026-11-18-executor-choices.md#task-b-155-harness-reads-each-clis-catalog).
+- Owner: Harness, with its HTTP route.
+- Read: `crates/core-harness/contract.yaml` (`list`, remembered settings, the Codex choices rule); `crates/shadows-agent/src/choices.rs` (`Offered`); the plan's Rulings.
+- Touch: the task's Files list in the plan; no other path.
+- Needs: nothing open.
+- Done when: the six `harness_catalog` tests, `openapi` and `harness_choices` pass; contract and code map updated; scoped commit.
+
+### B-156 · Harness opens an executor on its attempt's CLI, model and effort
+
+- Status: todo (after approval)
+- Plan: [B-156](plans/2026-11-18-executor-choices.md#task-b-156-harness-opens-an-executor-on-its-attempts-cli-model-and-effort).
+- Owner: Harness.
+- Read: `crates/core-harness/contract.yaml` (the executor comment block, `open_executor`); `crates/shadows-agent/src/policy.rs` (Codex modes).
+- Touch: the task's Files list in the plan; no other path.
+- Needs: B-155 (its tests read the catalog).
+- Done when: `executor::` unit tests, `executor_session` and `runs_attempts` pass; contract updated; scoped commit.
+
+### B-157 · Runs stores each task's choice and starts on it
+
+- Status: todo (after approval)
+- Plan: [B-157](plans/2026-11-18-executor-choices.md#task-b-157-runs-stores-each-tasks-choice-and-starts-on-it).
+- Owner: Runs, with Events for the tail kind.
+- Read: `crates/core-runs/contract.yaml` (`start`, `start_for`, `task`, `amend`, `run_turn`, `ready_group`); the plan's Review Focus.
+- Touch: the task's Files list in the plan, including every named caller of `Runs::start` and `Runs::start_for`; no other path.
+- Needs: B-156.
+- Done when: the `executor_choice::` tests and the suites Step 5 names pass; contracts and spec D6 updated; scoped commit.
+
+### B-158 · The person's and the Planner's way to the choice
+
+- Status: blocked (needs B-157 and Masada's accepted shared request)
+- Plan: [B-158](plans/2026-11-18-executor-choices.md#task-b-158-the-persons-and-the-planners-way-to-the-choice).
+- Owner: the HTTP and MCP adapters over Runs and Harness; Grants for the tool list.
+- Read: `crates/shadows-http/src/contract.yaml`, `crates/shadows-mcp/src/contract.yaml` (`task_start`); the plan's web API table.
+- Touch: the task's Files list in the plan; no other path.
+- Needs: B-157; the accepted request.
+- Done when: the named `runs_routes`, `mcp_server`, `planner_instructions` tests and `openapi` pass; contracts updated; scoped commit.
+
+### B-159 · Acceptance in the browser
+
+- Status: blocked (needs B-155 to B-158 and the web tasks)
+- Plan: [B-159](plans/2026-11-18-executor-choices.md#task-b-159-acceptance-in-the-browser).
+- Owner: integration acceptance through AppCore and the real UI.
+- Touch: the task's Files list in the plan.
+- Done when: the browser journey and its logs are recorded in evidence.
