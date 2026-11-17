@@ -76,7 +76,7 @@ three Codex reviews (last plan commit `a1561e20`). Rulings (Mohammed, 2026-11-18
 - The Planner picks the smallest model that can build the task from its contract.
 
 Order: B-155 → B-156 → B-157 → B-158 → web tasks → B-159. B-155 and B-156 change nothing the web sees.
-B-157 and B-158 do, and wait for Masada's shared request to be accepted.
+B-157 and B-158 do, and build on the [shared request](../shared/requests/2026-11-18-executor-choices.md), accepted by Masada (`da7a6950`).
 
 ### B-155 · Harness reads each CLI's catalog
 
@@ -100,7 +100,7 @@ B-157 and B-158 do, and wait for Masada's shared request to be accepted.
 
 ### B-157 · Runs stores each task's choice and starts on it
 
-- Status: blocked (needs B-156 and Masada's accepted shared request)
+- Status: todo (the request is accepted, `da7a6950`)
 - Plan: [B-157](plans/2026-11-18-executor-choices.md#task-b-157-runs-stores-each-tasks-choice-and-starts-on-it).
 - Owner: Runs; Plans for `copied_from` and `task_lineage_in`; Events for the tail kind.
 - Read: `crates/core-runs/contract.yaml` (`start`, `start_for`, `task`, `amend`, `run_turn`, `ready_group`); `crates/core-plans/contract.yaml` (`start_draft`, `shared_in_transaction`); `crates/core-db/contract.yaml` (`command`); the plan's Rulings and Review Focus.
@@ -110,7 +110,7 @@ B-157 and B-158 do, and wait for Masada's shared request to be accepted.
 
 ### B-158 · The person's and the Planner's way to the choice
 
-- Status: blocked (needs B-157 and Masada's accepted shared request)
+- Status: todo (the request is accepted, `da7a6950`)
 - Plan: [B-158](plans/2026-11-18-executor-choices.md#task-b-158-the-persons-and-the-planners-way-to-the-choice).
 - Owner: the HTTP and MCP adapters over Runs and Harness; Grants for the tool list.
 - Read: `crates/shadows-http/src/contract.yaml`, `crates/shadows-mcp/src/contract.yaml` (`task_start`); the plan's web API table.
