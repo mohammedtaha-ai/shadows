@@ -20,7 +20,7 @@ decisions remain distinct kinds of state.
 Mohammed approved this design with the review corrections on 2026-11-09.
 This section supersedes conflicting machinery in 17.1-17.11, which remains
 earlier design material. Section 17.12 remains future production work.
-The [delivery program](../../backend/plans/2026-11-09-local-delivery-program.md)
+The delivery program (`docs/backend/plans/2026-11-09-local-delivery-program.md` at `449d4f95`)
 owns task ordering; this section owns behavior.
 
 ### The required outcome

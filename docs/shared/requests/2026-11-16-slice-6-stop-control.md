@@ -4,7 +4,7 @@
 - Asked by: Masada, 2026-11-16
 - Screen: the Planner's conversation (`web/src/app/conversation/`), the task page's brief
   (`web/src/app/tasks/brief-panel.tsx`); backend plan
-  [`docs/backend/plans/2026-11-16-slice-6-stop-control.md`](../../backend/plans/2026-11-16-slice-6-stop-control.md)
+  `docs/backend/plans/2026-11-16-slice-6-stop-control.md` at `449d4f95`
   (B-152, B-154, B-105). Web tasks start at F-121.
 
 ## Need
