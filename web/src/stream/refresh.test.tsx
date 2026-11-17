@@ -12,8 +12,23 @@ import { useThreadStream } from './use-thread-stream'
 import { waitingPermissionsQuery } from '@/api/permissions'
 import { threadKeys } from '@/api/threads'
 import { designKeys } from '@/api/design'
+import { attemptsQuery, taskRunQuery } from '@/api/runs'
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
+
+it('refreshes task choices on TaskExecutorChosen without reading attempt history again', () => {
+  const client = new QueryClient()
+  const taskKey = taskRunQuery('w1', 1, 1).queryKey
+  const attemptsKey = attemptsQuery('w1', 1, 1).queryKey
+  for (const key of [taskKey, attemptsKey]) client.getQueryCache().build(client, { queryKey: key })
+  dispatchRefresh(client, classifyRefresh({
+    kind: 'TaskExecutorChosen', seq: 1, threadId: null, operationId: null,
+    payload: { project_id: 'p1', plan_id: 'p1', task: 1 },
+  }))
+  expect(client.getQueryState(taskKey)?.isInvalidated).toBe(true)
+  expect(client.getQueryState(attemptsKey)?.isInvalidated).toBe(false)
+  client.clear()
+})
 
 it.each(['AgentMessage', 'UserMessage', 'ToolCall'])('only assistant entries refresh conversation order: %s', kind => {
   const client = new QueryClient()

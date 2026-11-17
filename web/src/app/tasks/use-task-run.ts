@@ -1,10 +1,9 @@
-// One job: one task's run state as the page reads it, and the three things a
-// person does to it (Start, Stop, mark done), each retried under its own key.
+// One task's run state and mutations, with replay keys for commands that carry them.
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef } from 'react'
-import { type Attempt, type AttemptState, type TaskRun, attemptsQuery, invalidateRuns, markTaskDone, saveTaskRunAnswer,
-  startAttempt, stopAttempt, taskRunQuery } from '@/api/runs'
+import { type Attempt, type AttemptState, type ExecutorInput, type TaskRun, attemptsQuery, invalidateExecutorChoices,
+  invalidateRuns, markTaskDone, saveTaskRunAnswer, setTaskExecutor, startAttempt, stopAttempt, taskRunQuery } from '@/api/runs'
 import { ApiError } from '@/api/error'
 import { attemptFor, type Attempt as Command } from '@/api/command-id'
 
@@ -28,18 +27,28 @@ export function useTaskRun(workflowId: string, version: number, task: number) {
   const queryClient = useQueryClient()
   const startCommand = useRef<Command | null>(null)
   const doneCommand = useRef<Command | null>(null)
+  const executorCommand = useRef<Command | null>(null)
 
   const refresh = () => { invalidateRuns(queryClient) }
 
-  const start = useMutation<Attempt, Error, string>({
-    mutationFn: (model) => {
-      startCommand.current = attemptFor(startCommand.current, { model })
-      return startAttempt(workflowId, version, task, startCommand.current.commandId, model)
+  const start = useMutation({
+    mutationFn: () => {
+      startCommand.current = attemptFor(startCommand.current, {})
+      return startAttempt(workflowId, version, task, startCommand.current.commandId)
     },
     onSuccess: () => { startCommand.current = null },
     onError: (error) => { if (answered(error)) startCommand.current = null },
     // Whether it started or was refused, the state moved: read it again.
     onSettled: refresh,
+  })
+  const executor = useMutation({
+    mutationFn: (input: ExecutorInput) => {
+      executorCommand.current = attemptFor(executorCommand.current, input)
+      return setTaskExecutor(workflowId, version, task, executorCommand.current.commandId, input)
+    },
+    onSuccess: () => { executorCommand.current = null },
+    onError: (error) => { if (answered(error)) executorCommand.current = null },
+    onSettled: () => invalidateExecutorChoices(queryClient),
   })
 
   // Core records the attempt as running before it opens the executor's session, and answers Start only once the
@@ -75,5 +84,5 @@ export function useTaskRun(workflowId: string, version: number, task: number) {
     onError: (error) => { if (answered(error)) doneCommand.current = null },
   })
 
-  return { run, attempts, start, stop, done }
+  return { run, attempts, start, stop, done, executor }
 }

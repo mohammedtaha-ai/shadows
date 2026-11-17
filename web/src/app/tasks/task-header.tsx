@@ -11,7 +11,7 @@ function needName(need: Need): string {
 }
 
 /** What a person sees of the task before any tab: where it is, what it waits on, and its three actions. */
-export function TaskHeader({ projectId, workflowId, planTitle, task, title, run, model, error, busy,
+export function TaskHeader({ projectId, workflowId, planTitle, task, title, run, error, busy,
   onStart, onStop, onDone }: {
   projectId: string
   workflowId: string
@@ -19,10 +19,9 @@ export function TaskHeader({ projectId, workflowId, planTitle, task, title, run,
   task: number
   title: string
   run: TaskRun
-  model: string
   error: Error | null
   busy: boolean
-  onStart: (model: string) => void
+  onStart: () => void
   onStop: (attemptId: string) => void
   onDone: (done: boolean, reason?: string) => void
 }) {
@@ -65,8 +64,7 @@ export function TaskHeader({ projectId, workflowId, planTitle, task, title, run,
         {running && run.latest !== null ? (
           <Button size="sm" disabled={busy} onClick={() => { onStop(run.latest!.id) }}>Stop</Button>
         ) : (
-          <Button size="sm" disabled={!run.start.allowed || busy || model.trim() === ''}
-            onClick={() => { onStart(model.trim()) }}>Start</Button>
+          <Button size="sm" disabled={!run.start.allowed || busy} onClick={onStart}>Start</Button>
         )}
         {!running && !run.start.allowed && run.start.reason !== null && (
           <span dir="auto" className="text-xs text-muted-foreground">{run.start.reason}</span>

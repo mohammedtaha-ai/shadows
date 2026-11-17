@@ -27,6 +27,7 @@ export const claudeHarness: HarnessInfo = {
   kind: 'claude-code',
   label: 'Claude Code',
   available: true,
+  executor: true,
   reason: null,
   remembered: null,
   limits: null,
@@ -48,6 +49,7 @@ export const aylulHarness: HarnessInfo = {
   ...claudeHarness,
   kind: 'aylul',
   label: 'AYLUL',
+  executor: false,
   available: false,
   reason: 'Coming later',
 }
@@ -56,6 +58,7 @@ export const aylulHarness: HarnessInfo = {
 export const codexHarness: HarnessInfo = {
   kind: 'codex',
   label: 'Codex',
+  executor: true,
   available: false,
   reason: 'Start Shadows with --codex and --codex-home to use Codex',
   remembered: null,

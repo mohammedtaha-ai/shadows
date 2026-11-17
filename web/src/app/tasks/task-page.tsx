@@ -6,6 +6,7 @@ import { planQuery } from '@/api/workflows'
 import { ErrorLine } from '../error-line'
 import { DetailsTab } from './details-tab'
 import { DiffTab } from './diff-tab'
+import { ExecutorSettings } from './executor-settings'
 import { ReportTab } from './report-tab'
 import { RunTab } from './run-tab'
 import { TaskHeader } from './task-header'
@@ -26,12 +27,10 @@ function TaskView({ projectId, workflowId, version, taskNumber }: {
   projectId: string; workflowId: string; version: number; taskNumber: number
 }) {
   const plan = useQuery(planQuery(workflowId))
-  const { run, attempts, start, stop, done } = useTaskRun(workflowId, version, taskNumber)
+  const { run, attempts, start, stop, done, executor } = useTaskRun(workflowId, version, taskNumber)
   // A link to one attempt's report (`#attempt-<id>`) opens the Report tab.
   const hash = useLocation({ select: (l) => l.hash })
   const [tab, setTab] = useState<Tab>(hash.replace(/^#/, '').startsWith('attempt-') ? 'Report' : 'Details')
-  // The person's choice, once they make one; until then Core's suggestion.
-  const [chosen, setChosen] = useState<string | null>(null)
 
   const failure = run.error ?? plan.error
   if (run.data === undefined || plan.data === undefined) {
@@ -43,15 +42,14 @@ function TaskView({ projectId, workflowId, version, taskNumber }: {
   }
   const planTask = plan.data.tasks.find((t) => t.number === taskNumber)
   if (planTask === undefined) return <div className="p-6 text-sm text-faint-foreground">This plan has no T{taskNumber}.</div>
-  const model = chosen ?? run.data.suggested_model ?? ''
   const actionError = start.error ?? stop.error ?? done.error
-  const busy = start.isPending || stop.isPending || done.isPending
+  const busy = start.isPending || stop.isPending || done.isPending || executor.isPending
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-background">
       <TaskHeader projectId={projectId} workflowId={workflowId} planTitle={plan.data.title} task={taskNumber}
-        title={planTask.title} run={run.data} model={model} error={actionError} busy={busy}
-        onStart={(m) => { start.mutate(m) }} onStop={(id) => { stop.mutate(id) }}
+        title={planTask.title} run={run.data} error={actionError} busy={busy}
+        onStart={() => { start.mutate() }} onStop={(id) => { stop.mutate(id) }}
         onDone={(value, reason) => { done.mutate({ done: value, reason }) }} />
       <div role="tablist" className="flex gap-1 border-b border-border px-6">
         {TABS.map((name) => (
@@ -63,7 +61,8 @@ function TaskView({ projectId, workflowId, version, taskNumber }: {
         ))}
       </div>
       <div role="tabpanel" className="min-h-0 flex-1 overflow-y-auto">
-        {tab === 'Details' && <DetailsTab task={planTask} model={model} onModel={setChosen} />}
+        {tab === 'Details' && <DetailsTab task={planTask} executor={<ExecutorSettings saved={run.data.executor}
+          pending={executor.isPending} error={executor.error} save={executor.mutateAsync} />} />}
         {tab === 'Run' && <RunTab attempt={run.data.latest} />}
         {tab === 'Diff' && <DiffTab attempt={run.data.latest} />}
         {tab === 'Report' && <ReportTab attempts={attempts.data ?? []} />}

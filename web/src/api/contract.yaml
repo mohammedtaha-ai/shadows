@@ -46,7 +46,10 @@ runs:
   awaitingJudgment: True when the task's latest attempt is committed, the task is not done and Core refuses Start with task_busy (a task stopped on the cap may be started, so it does not wait); the only place the web reads it.
   taskRunQuery: Read a task's run state; read again every two seconds while its latest attempt runs or awaitingJudgment holds; retry only a lost call (up to 3), never Core's answer.
   attemptsQuery: Read a task's attempts, newest first; read again every two seconds while the newest runs; retry only a lost call (up to 3), never Core's answer.
-  startAttempt: Start an attempt on a model using the caller's command id; a refusal's ApiError message is Core's reason.
+  startAttempt: Start an attempt on Core's saved choice using only the caller's command id; a refusal's ApiError message is Core's reason.
+  setTaskExecutor: Save the chosen CLI, model and effort with a caller-provided command id; a refusal retains Core's reason.
+  invalidateExecutorChoices: Reconcile saved choices and readiness by refreshing task run queries.
+  harnessCatalogQuery: Read the models and model-specific efforts for one CLI from Core.
   stopAttempt: Stop an attempt.
   markTaskDone: Mark a task done or not done using the caller's command id.
   attemptFileQuery: Read one file as an attempt's commit holds it (GET /api/attempts/{id}/files?path=); ['runs', 'file', attemptId, path]; a refusal's ApiError message is Core's.

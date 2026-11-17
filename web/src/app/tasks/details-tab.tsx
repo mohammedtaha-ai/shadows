@@ -1,4 +1,5 @@
 import type { PlanTask } from '@/api/workflows'
+import type { ReactNode } from 'react'
 
 function Heading({ name }: { name: string }) {
   return <h3 className="mb-1 text-2xs font-semibold tracking-wider text-faint-foreground uppercase">{name}</h3>
@@ -17,11 +18,9 @@ function Paths({ name, paths }: { name: string; paths: string[] }) {
   )
 }
 
-/** The task as planned, and the model Start will use. The critic row waits for slice 2. */
-export function DetailsTab({ task, model, onModel }: {
+export function DetailsTab({ task, executor }: {
   task: PlanTask
-  model: string
-  onModel: (model: string) => void
+  executor: ReactNode
 }) {
   return (
     <div className="max-w-2xl px-6 py-4 text-sm">
@@ -37,11 +36,7 @@ export function DetailsTab({ task, model, onModel }: {
           {task.acceptance.map((item) => <li key={item.number} dir="auto" className="text-xs">{item.number}. {item.text}</li>)}
         </ol>
       </section>
-      <label className="block text-xs">
-        <Heading name="Executor model" />
-        <input value={model} onChange={(e) => { onModel(e.target.value) }} aria-label="Executor model"
-          className="w-72 rounded border border-border bg-transparent px-2 py-1 font-mono text-xs" />
-      </label>
+      {executor}
     </div>
   )
 }

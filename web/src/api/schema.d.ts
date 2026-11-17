@@ -617,6 +617,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/harnesses/{kind}/catalog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["catalog"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/mcp-grants/{id}": {
         parameters: {
             query?: never;
@@ -1912,7 +1928,7 @@ export interface paths {
         get: operations["attempts"];
         put?: never;
         /**
-         * Starts an attempt: an executor session on this task, on `model`. An
+         * Starts an attempt on the task's saved executor choice. An
          *     attempt whose session or first turn could not start is answered `failed`
          *     with its reason. A replay of the same `command_id` and body answers the
          *     first attempt.
@@ -1934,6 +1950,23 @@ export interface paths {
         get?: never;
         /** Marks the task done or not done; the tasks that need it wait for this. */
         put: operations["mark_done"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/workflows/{workflow}/versions/{version}/tasks/{task}/executor": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Saves the executor choice for this task on the newest version. */
+        put: operations["set_executor"];
         post?: never;
         delete?: never;
         options?: never;
@@ -2204,7 +2237,9 @@ export interface components {
             addition: string | null;
             /** @description The SHA of the commit the executor made and reported, once accepted. */
             commit: string | null;
+            effort: string | null;
             ended_at: string | null;
+            harness: string;
             id: components["schemas"]["AttemptId"];
             model: string;
             /**
@@ -2335,6 +2370,12 @@ export interface components {
             sources: components["schemas"]["ContextSource"][];
             text: string;
         };
+        CatalogModel: {
+            description: string | null;
+            efforts: components["schemas"]["Choice"][];
+            id: string;
+            label: string;
+        };
         /** @description The effort a person picked. */
         ChangeEffort: {
             /** @description One of the session's `efforts`, for the model it holds. */
@@ -2382,6 +2423,8 @@ export interface components {
             label: string;
             reason: string | null;
         };
+        /** @enum {string} */
+        Chooser: "person" | "planner";
         /**
          * @description Whether the Planner's notice of a conflict was enqueued on its
          *     conversation. `delivered` is a durable enqueue, not a reply.
@@ -2756,6 +2799,18 @@ export interface components {
          * @enum {string}
          */
         ErrorCode: "CONTEXT_NOT_CARRIED" | "MAP_REFUSED" | "PERMISSION_NOT_FOUND" | "PERMISSION_SETTLED" | "PERMISSION_OPTION_NOT_OFFERED" | "EXTENSION_NOT_FOUND" | "EXTENSION_NAME_CONFLICT" | "RUNTIME_NOT_CONFIGURED" | "AYLUL_PROFILE_NOT_FOUND" | "AYLUL_PROVIDER_NOT_FOUND" | "PROVIDER_IN_USE" | "PROFILE_INVALID" | "SECRET_NAME_RESERVED" | "SECRET_NAME_INVALID" | "SECRET_VALUE_INVALID" | "SECRET_UNREADABLE" | "SECRETS_UNAVAILABLE" | "AYLUL_KEY_MISSING" | "AYLUL_NOT_CONFIGURED" | "STAGE_BLOCKED" | "DECISION_STALE" | "INVALID_DECISION" | "HARNESS_START_FAILED" | "PROCESS_SPAWN_FAILED" | "PROCESS_TERMINATED" | "PROCESS_TERMINATION_FAILED" | "RUNTIME_STOPPING" | "STORAGE_UNAVAILABLE" | "STORAGE_MIGRATION_FAILED" | "STORAGE_CONSTRAINT_VIOLATION" | "COMMAND_CONFLICT" | "IDEMPOTENCY_KEY_REQUIRED" | "INVALID_COMMAND" | "INVALID_CURSOR" | "INVENTORY_STALE" | "AGENT_AUTH_FAILED" | "AGENT_UNSUPPORTED_PROFILE" | "PATH_INVALID" | "PATH_NOT_FOUND" | "PATH_NOT_A_DIRECTORY" | "PATH_ACCESS_DENIED" | "PATH_ALREADY_EXISTS" | "PATH_UNAVAILABLE" | "ORIGIN_REFUSED" | "HARNESS_UNAVAILABLE" | "LANGUAGE_SERVER_UNAVAILABLE" | "SETTING_NOT_OFFERED" | "MODE_NOT_ALLOWED" | "HARNESS_LOCKED" | "THREAD_BUSY" | "QUEUED_MESSAGE_GONE" | "QUEUED_NOTICE_KEPT" | "FORK_POINT_NOT_SUPPORTED" | "WORKFLOW_FROZEN_IMMUTABLE" | "WORKFLOW_VALIDATION_FAILED" | "REVISION_CONFLICT" | "PROJECT_HAS_THREADS" | "GRANT_SCOPE" | "GRANT_INVALID";
+        ExecutorChoice: {
+            chosen_at: string;
+            chosen_by: components["schemas"]["Chooser"];
+            effort: string | null;
+            harness: string;
+            model: string;
+        };
+        ExecutorInput: {
+            effort: string | null;
+            harness: string;
+            model: string;
+        };
         /** @enum {string} */
         ExtensionKind: "plugin" | "skill" | "mcp";
         ExtensionLibrary: {
@@ -2834,12 +2889,17 @@ export interface components {
         };
         /** Format: uuid */
         GroupId: string;
+        HarnessCatalog: {
+            harness: string;
+            models: components["schemas"]["CatalogModel"][];
+        };
         /**
          * @description A CLI a conversation can run on. `kind` is `claude-code` or
          *     `codex`.
          */
         HarnessInfo: {
             available: boolean;
+            executor: boolean;
             /** @description The mode a new conversation starts in. */
             initial_mode: string | null;
             kind: string;
@@ -3832,7 +3892,8 @@ export interface components {
         /**
          * @description A run Core refused. `code` is Core's opaque id (`waiting`, `task_busy`,
          *     `overlap`, `not_git`, `dirty_scope`, `not_frozen`, `superseded`,
-         *     `archived`, `bad_scope`, `command_conflict`); `reason` is the text to show.
+         *     `archived`, `bad_scope`, `command_conflict`, `no_executor_choice`,
+         *     `executor_not_offered`, `catalog_unavailable`); `reason` is the text to show.
          */
         RunRefusal: {
             code: string;
@@ -3926,6 +3987,9 @@ export interface components {
             command_id: string;
             value: string;
         };
+        SetExecutor: components["schemas"]["ExecutorInput"] & {
+            command_id: string;
+        };
         /** @description Files not parsed, for one reason: `too_large`, `binary` or `not_utf8`. */
         Skipped: {
             /** Format: int32 */
@@ -4001,8 +4065,6 @@ export interface components {
         StartAttempt: {
             /** @description The idempotency key: the same key and body answer the first attempt. */
             command_id: string;
-            /** @description The executor's model, one the harness offers. */
-            model: string;
         };
         /** @description Starts a turn as one command. */
         StartTurn: {
@@ -4161,15 +4223,11 @@ export interface components {
             done: boolean;
             done_at: string | null;
             done_reason: string | null;
+            executor: null | components["schemas"]["ExecutorChoice"];
             latest: null | components["schemas"]["Attempt"];
             /** @description In link order. */
             needs: components["schemas"]["Need"][];
             start: components["schemas"]["StartAnswer"];
-            /**
-             * @description The model the plan's Planner conversation last asked for; `null`
-             *     without one.
-             */
-            suggested_model: string | null;
             /** Format: int32 */
             task: number;
         };
@@ -6527,6 +6585,46 @@ export interface operations {
             };
             /** @description STORAGE_UNAVAILABLE */
             500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    catalog: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Executor CLI id */
+                kind: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HarnessCatalog"];
+                };
+            };
+            /** @description HARNESS_UNAVAILABLE or INVALID_COMMAND */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description HARNESS_START_FAILED */
+            502: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -10508,7 +10606,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
-            /** @description Start refused, with the code a task's `start` answers: waiting, task_busy, overlap, not_git, dirty_scope, missing_input, input_unavailable, not_frozen, superseded, archived, bad_scope; or command_conflict */
+            /** @description Start refused, with the code a task's `start` answers: waiting, task_busy, overlap, not_git, dirty_scope, missing_input, input_unavailable, not_frozen, superseded, archived, bad_scope; no_executor_choice or command_conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -10566,6 +10664,60 @@ export interface operations {
                 };
             };
             /** @description command_conflict or checks_not_passed */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunRefusal"];
+                };
+            };
+            /** @description STORAGE_UNAVAILABLE */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    set_executor: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workflow: components["schemas"]["WorkflowId"];
+                version: number;
+                task: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetExecutor"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExecutorChoice"];
+                };
+            };
+            /** @description no such plan version or task */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description executor choice refused */
             409: {
                 headers: {
                     [name: string]: unknown;

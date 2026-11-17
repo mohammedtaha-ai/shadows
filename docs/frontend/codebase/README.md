@@ -382,6 +382,7 @@ it is that folder's `contract.yaml`.
 | `web/src/app/tasks/task-page.tsx` | The task page's tabs | `web/src/app/tasks/contract.yaml` |
 | `web/src/app/tasks/task-header.tsx` | The task header: state, needs, Start or Stop, mark done | `web/src/app/tasks/contract.yaml` |
 | `web/src/app/tasks/details-tab.tsx` | The Details tab | `web/src/app/tasks/contract.yaml` |
+| `web/src/app/tasks/executor-settings.tsx` | Editing a task's saved executor choice | `web/src/app/tasks/contract.yaml` |
 | `web/src/app/tasks/run-tab.tsx` | The latest attempt's executor thread | `web/src/app/tasks/contract.yaml` |
 | `web/src/app/tasks/diff-tab.tsx` | The Diff tab: the open file above, the changed files below | `web/src/app/tasks/contract.yaml` |
 | `web/src/app/tasks/file-view.tsx` | One file at the attempt's commit with its changes marked | `web/src/app/tasks/contract.yaml` |

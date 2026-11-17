@@ -36,6 +36,7 @@ permission_answer: Conversations and groups share option submission, replay and 
 composer_surface: Conversations and groups render the same frame, input and send control; the input takes its text's direction (dir=auto), like replies.
 turn_state: Groups read whether a member thread runs through the same running-turn rule as a conversation.
 source: web/src/app/conversation
+draft_catalog: "Before the first message, use the available CLI catalog and offered remembered settings. Model picks show that model's efforts. If the remembered model or catalog is unavailable, Set on send uses the opened session's settings. An explicit choice goes in the first turn. AYLUL uses its provider choices."
 loading_details: Conversation history and planning-anchor lists use labelled content skeletons. The history skeleton remains until the stream catches up, while already-read durable messages stay visible.
 loading: Initial content reads use labelled SkeletonContent regions; placeholder shapes are decorative, motion respects reduced-motion preferences, and cached content stays visible during background reads. Errors and mutation progress keep their own presentation.
 planning_context_record:
@@ -172,8 +173,8 @@ shapes:
   SendTo:
     # Where Send goes: an open thread's next turn, or a draft that makes the thread first.
     values: "{ threadId: string } | { draft: (commandId, text, settings, images, changed) => Promise<string>;
-      planId?: string; selectableModels?: boolean }"
-    # selectableModels: an agent draft, whose Model menu works before a session exists.
+      planId?: string; selectableModels?: boolean; draftModels?: readonly CatalogModel[] }"
+    # selectableModels enables catalog or provider models before a session exists.
   Shown:
     # What a harness operational label means to a person (`describeLabel`).
     icon: LucideIcon

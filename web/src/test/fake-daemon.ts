@@ -14,6 +14,7 @@ import type { HarnessInfo } from '@/api/harnesses'
 import {
   agentEntry,
   claudeHarness,
+  choice,
   codeStatusFixture,
   codexHarness,
   fakeChoices,
@@ -164,6 +165,14 @@ export function answers(o: Overrides = {}): Record<string, Answer> {
     'PUT /api/aylul/providers/p': saveFakeProvider,
     'POST /api/aylul/providers/fixture-provider/test': { ok: true, listed: false, models: [] },
     'GET /api/harnesses': o.harnesses ?? [claudeHarness, codexHarness],
+    'GET /api/harnesses/claude-code/catalog': {
+      harness: 'claude-code',
+      models: [
+        { id: 'fake-large', label: 'Fake large', description: null, efforts: [choice('low'), choice('high')] },
+        { id: 'fake-small', label: 'Fake small', description: null, efforts: [choice('low')] },
+        { id: 'fake-tiny', label: 'Fake tiny', description: null, efforts: [] },
+      ],
+    },
     'GET /api/projects': () => Response.json([project]),
     'GET /api/projects/p1/threads': [threadFixture],
     'GET /api/threads/t1/anchor': { anchor: null },
@@ -240,7 +249,8 @@ export function answers(o: Overrides = {}): Record<string, Answer> {
         })),
     'GET /api/workflows/w1/versions/1/tasks/1': o.taskRun ?? {
       task: 1, done: false, done_at: null, done_reason: null, latest: null, needs: [],
-      start: { allowed: true, code: null, reason: null }, suggested_model: 'fake-large',
+      start: { allowed: true, code: null, reason: null },
+      executor: { harness: 'claude-code', model: 'fake-large', effort: 'high', chosen_at: 'now', chosen_by: 'planner' },
     },
     'GET /api/workflows/w1/versions/1/tasks/1/attempts': o.attempts ?? [],
     'POST /api/workflows/w1/versions/1/tasks/1/attempts': o.startAttempt ??

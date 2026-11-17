@@ -22,6 +22,7 @@ name: web-stream
 version: 1
 status: current
 source: web/src/stream
+executor_choice_refresh: "TaskExecutorChosen refreshes task run queries. Replay batches refreshes at catch-up, and this invalidates the saved choice and Start readiness together."
 
 refresh_pinning:
   conversation_order: "ThreadEntryAppended with kind AgentMessage invalidates thread lists; user messages and tool entries do not. Other background threads use the existing list polling."

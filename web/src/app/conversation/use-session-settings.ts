@@ -12,9 +12,10 @@ export function useSessionSettings(
   busy: boolean,
   threadId: string | null,
   changed: () => void,
+  draftScope?: string,
 ) {
   const queryClient = useQueryClient()
-  const { settings, note, choose: chooseLocal, refuse, keepEffort } = useTurnSettings(choices, busy, threadId !== null, changed)
+  const { settings, note, choose: chooseLocal, refuse, keepEffort } = useTurnSettings(choices, busy, threadId !== null, changed, draftScope)
 
   // A lost answer may already have saved the mode. Keep its replay key until
   // Core answers, or the person chooses a different request.
@@ -108,6 +109,7 @@ function useTurnSettings(
   busy: boolean,
   saved: boolean,
   changed: () => void,
+  draftScope?: string,
 ): {
   settings: TurnSettings | null
   note: string | null
@@ -119,18 +121,22 @@ function useTurnSettings(
     choices: SessionChoices
     settings: TurnSettings
     note: string | null
+    scope?: string
   } | null>(null)
 
   // Adjusted during render, React's pattern for following a changed input:
   // the session's choices are replaced wholesale on every report.
   if (choices === null && held !== null) setHeld(null)
-  if (choices !== null && held?.choices !== choices) {
-    if (held === null) {
-      setHeld({ choices, settings: saved ? choices.current : initialSettings(choices), note: null })
+  if (choices !== null && (held?.choices !== choices || held.scope !== draftScope)) {
+    if (held === null || held.scope !== draftScope) {
+      setHeld({ choices, settings: saved ? choices.current : initialSettings(choices), note: null, scope: draftScope })
+    } else if (!saved && !choices.models.some(item => item.id === held.settings.model && item.enabled)) {
+      const next = afterOptions(held.choices, choices, { ...choices.current, mode: held.settings.mode }, busy)
+      setHeld({ choices, settings: next.settings, note: null, scope: draftScope })
     } else {
       const next = afterOptions(held.choices, choices, held.settings, busy)
       // A note stays until the person changes a setting.
-      setHeld({ choices, settings: saved ? { ...next.settings, mode: choices.current.mode } : next.settings, note: next.note ?? held.note })
+      setHeld({ choices, settings: saved ? { ...next.settings, mode: choices.current.mode } : next.settings, note: next.note ?? held.note, scope: draftScope })
     }
   }
 

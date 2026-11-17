@@ -4,6 +4,8 @@ import type { components } from './schema'
 import { client, unwrap, ApiError } from './transport'
 
 export type TaskRun = components['schemas']['TaskRun']
+export type ExecutorChoice = components['schemas']['ExecutorChoice']
+export type ExecutorInput = components['schemas']['ExecutorInput']
 export type Attempt = components['schemas']['Attempt']
 export type AttemptState = components['schemas']['AttemptState']
 type FileDiff = components['schemas']['FileDiff']
@@ -134,6 +136,10 @@ export function invalidateRuns(queryClient: QueryClient): void {
   void queryClient.invalidateQueries({ queryKey: runKeys.all() })
 }
 
+export function invalidateExecutorChoices(queryClient: QueryClient): Promise<void> {
+  return queryClient.invalidateQueries({ queryKey: ['runs', 'task'] })
+}
+
 function getTaskRun(workflowId: string, version: number, task: number): Promise<TaskRun> {
   return unwrap(client.GET('/api/workflows/{workflow}/versions/{version}/tasks/{task}', {
     params: { path: { workflow: workflowId, version, task } },
@@ -147,18 +153,29 @@ function listAttempts(workflowId: string, version: number, task: number): Promis
   }))
 }
 
-/** Starts an attempt on `model`. A refusal is an `ApiError` whose message is Core's reason. */
+/** Starts an attempt on the saved choice. */
 export async function startAttempt(
-  workflowId: string, version: number, task: number, commandId: string, model: string,
+  workflowId: string, version: number, task: number, commandId: string,
 ): Promise<Attempt> {
   try {
     return await unwrap(client.POST('/api/workflows/{workflow}/versions/{version}/tasks/{task}/attempts', {
       params: { path: { workflow: workflowId, version, task } },
-      body: { command_id: commandId, model },
+      body: { command_id: commandId },
     }))
   } catch (error) {
     throw withRefusalReason(error)
   }
+}
+
+export async function setTaskExecutor(
+  workflowId: string, version: number, task: number, commandId: string, input: ExecutorInput,
+): Promise<ExecutorChoice> {
+  try {
+    return await unwrap(client.PUT('/api/workflows/{workflow}/versions/{version}/tasks/{task}/executor', {
+      params: { path: { workflow: workflowId, version, task } },
+      body: { command_id: commandId, ...input },
+    }))
+  } catch (error) { throw withRefusalReason(error) }
 }
 
 export function stopAttempt(attemptId: string): Promise<Attempt> {

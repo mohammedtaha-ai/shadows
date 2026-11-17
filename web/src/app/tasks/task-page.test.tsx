@@ -19,7 +19,8 @@ afterEach(() => {
 function attempt(extra: Partial<Attempt> = {}): Attempt {
   return {
     id: 'a1', project_id: 'p1', workflow_id: 'w1', version: 1, task: 1, number: 1, thread_id: 't1',
-    operation_id: null, model: 'fake-large', state: 'running', started_at: '2026-11-08T10:00:00Z',
+    operation_id: null, harness: 'claude-code', model: 'fake-large', effort: 'high',
+    state: 'running', started_at: '2026-11-08T10:00:00Z',
     ended_at: null, commit: null, reason: null, report: null, addition: null,
     origin: extra.addition == null ? 'start' : 'planner', ...extra,
   }
@@ -28,7 +29,9 @@ function attempt(extra: Partial<Attempt> = {}): Attempt {
 function taskRun(extra: Partial<TaskRun> = {}): TaskRun {
   return {
     task: 1, done: false, done_at: null, done_reason: null, latest: null, needs: [],
-    start: { allowed: true, code: null, reason: null }, suggested_model: 'fake-large', ...extra,
+    start: { allowed: true, code: null, reason: null },
+    executor: { harness: 'claude-code', model: 'fake-large', effort: 'high', chosen_at: 'now', chosen_by: 'planner' },
+    ...extra,
   }
 }
 
@@ -36,8 +39,16 @@ function click(element: HTMLElement | undefined): Promise<void> {
   return act(async () => { element?.click() })
 }
 
-function modelInput(): HTMLInputElement {
-  return document.querySelector<HTMLInputElement>('input[aria-label="Executor model"]')!
+function modelInput(): HTMLSelectElement {
+  return document.querySelector<HTMLSelectElement>('select[aria-label="Executor model"]')!
+}
+
+function pick(label: string, value: string): Promise<void> {
+  const select = document.querySelector<HTMLSelectElement>(`select[aria-label="${label}"]`)!
+  return act(async () => {
+    select.value = value
+    select.dispatchEvent(new Event('change', { bubbles: true }))
+  })
 }
 
 describe('the task page', () => {
@@ -152,22 +163,71 @@ describe('the task page', () => {
     expect(a.text()).not.toContain('Reading the checks')
   })
 
-  it('start_sends_the_chosen_model_and_shows_running', async () => {
+  it('saves_the_choice_and_starts_without_sending_a_model', async () => {
     let current = taskRun()
-    const a = (app = await startApp(PAGE, answers({
+    const routes = answers({
       taskRun: () => Response.json(current),
       startAttempt: () => {
         current = taskRun({ latest: attempt({ model: 'fake-small' }), start: { allowed: false, code: 'task_busy', reason: 'running' } })
         return Response.json(current.latest, { status: 201 })
       },
-    })))
-    await until(() => modelInput() !== null)
+    })
+    routes['PUT /api/workflows/w1/versions/1/tasks/1/executor'] = async (request: Request) => {
+      const { harness, model, effort } = await request.json() as NonNullable<TaskRun['executor']>
+      current = taskRun({ executor: { harness, model, effort, chosen_by: 'person', chosen_at: 'now' } })
+      return Response.json(current.executor)
+    }
+    const a = (app = await startApp(PAGE, routes))
+    await until(() => modelInput() !== null && !modelInput().disabled)
     expect(modelInput().value).toBe('fake-large')
-    typeInto(modelInput(), 'fake-small')
+    await pick('Executor model', 'fake-small')
+    expect(a.button('Save executor')!.hasAttribute('disabled')).toBe(true)
+    await pick('Executor effort', 'low')
+    await click(a.button('Save executor'))
+    await until(() => a.text().includes('Chosen by you') && !a.button('Start')!.hasAttribute('disabled'))
     await click(a.button('Start'))
     await until(() => a.button('Stop') !== undefined)
-    expect(a.bodies).toContainEqual(expect.objectContaining({ model: 'fake-small' }))
+    expect(a.bodies).toContainEqual(expect.objectContaining({ harness: 'claude-code', model: 'fake-small', effort: 'low' }))
+    expect(a.bodies.at(-1)).toEqual({ command_id: expect.any(String) })
     expect(a.text()).toContain('Running')
+  })
+
+  it('keeps the saved choice through a lost save and renders the backend refusal on retry', async () => {
+    let saves = 0
+    const routes = answers()
+    routes['PUT /api/workflows/w1/versions/1/tasks/1/executor'] = () => {
+      if (++saves === 1) throw new TypeError('network down')
+      return Response.json({ code: 'executor_not_offered', reason: 'That model was removed.' }, { status: 409 })
+    }
+    const a = (app = await startApp(PAGE, routes))
+    await until(() => modelInput() !== null && !modelInput().disabled)
+    await pick('Executor model', 'fake-tiny')
+    expect(document.querySelector('[aria-label="Executor effort"]')).toBeNull()
+    await click(a.button('Save executor'))
+    await until(() => a.text().includes('not reachable') && a.button('Save executor')?.disabled === false)
+    await click(a.button('Save executor'))
+    await until(() => a.text().includes('That model was removed.'))
+    expect(a.text()).toContain('Saved: Claude Code · fake-large')
+    expect(modelInput().value).toBe('fake-tiny')
+    expect(a.bodies).toHaveLength(2)
+    expect(a.bodies[0]).toMatchObject({ model: 'fake-tiny', effort: null, command_id: expect.any(String) })
+    expect(a.bodies[1]).toEqual(a.bodies[0])
+  })
+
+  it('refreshes the choice after the Planner saves and shows the attempt settings separately', async () => {
+    let current = taskRun({ executor: null, start: { allowed: false, code: 'no_executor_choice', reason: 'Choose an executor.' } })
+    const a = (app = await startApp(PAGE, answers({ taskRun: () => Response.json(current) })))
+    await until(() => a.text().includes('No executor chosen yet'))
+    expect(a.button('Start')?.disabled).toBe(true)
+    expect(a.text()).toContain('Choose an executor.')
+    const source = a.sources.find(item => item.url.includes('/api/projects/p1/'))!
+    await act(async () => source.caughtUp(0))
+    current = taskRun({ latest: attempt({ harness: 'codex', model: 'other-run', effort: 'low' }) })
+    await act(async () => source.durable(1, 'TaskExecutorChosen', null, { project_id: 'p1', plan_id: 'plan1', task: 1 }))
+    await until(() => a.text().includes('Chosen by the Planner'))
+    await click(a.button('Run'))
+    await until(() => a.text().includes('other-run'))
+    expect(a.text()).toContain('codex')
   })
 
   it('start_shows_running_while_core_opens_the_session', async () => {
@@ -223,10 +283,9 @@ describe('the task page', () => {
       startAttempt: () => Response.json({ code: 'dirty_scope', reason: 'backend/ has uncommitted changes.' }, { status: 409 }),
     })))
     await until(() => modelInput() !== null)
-    typeInto(modelInput(), 'fake-small')
     await click(a.button('Start'))
     await until(() => a.text().includes('backend/ has uncommitted changes.'))
-    expect(modelInput().value).toBe('fake-small')
+    expect(modelInput().value).toBe('fake-large')
     await until(() => reads > 1)
   })
 
@@ -435,7 +494,7 @@ describe('the task page', () => {
     await until(() => tries === 1 && a.text().includes('not reachable'))
     await click(a.button('Start'))
     await until(() => tries === 2)
-    const sent = a.bodies.filter((b) => typeof b === 'object' && b !== null && 'model' in b) as unknown as { command_id: string }[]
+    const sent = a.bodies as { command_id: string }[]
     expect(sent).toHaveLength(2)
     expect(sent[1]!.command_id).toBe(sent[0]!.command_id)
   })

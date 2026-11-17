@@ -5,7 +5,14 @@ here and set its status. Task shape: [`AGENTS.md`](./AGENTS.md#a-task-in-stagesm
 
 ## Now
 
-No frontend task is open. Slice 6's web tasks (F-121 to F-124) are on `main` at `449d4f95` (PR #70).
+### F-125 · Choose an executor on a task or in a new conversation
+
+- Status: done (automated checks passed; live acceptance is Mohammed's)
+- Plan: [Accepted executor choices request](../shared/requests/2026-11-18-executor-choices.md).
+- Read: task, conversation, API and stream contracts.
+- Touch: generated API types, harness and Runs API modules, task Details and Run views, draft composer, project event refresh, and their tests and contracts.
+- Needs: B-155 through B-158.
+- Done when: the task and draft tests, project refresh, architecture, typecheck, lint and build pass. Mohammed owns live acceptance.
 
 ### Shipped
 
