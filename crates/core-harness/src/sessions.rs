@@ -28,6 +28,7 @@ use shadows_agent::{
 
 #[derive(Debug, Clone)]
 pub struct SessionsConfig {
+    pub catalog_root: std::path::PathBuf,
     pub secrets: Option<Arc<core_secrets::Secrets>>,
     pub idle_after: Duration,
     pub cancel_wait: Duration,
@@ -43,6 +44,7 @@ pub struct SessionsConfig {
 impl Default for SessionsConfig {
     fn default() -> Self {
         Self {
+            catalog_root: std::env::temp_dir(),
             secrets: None,
             idle_after: Duration::from_secs(15 * 60),
             cancel_wait: Duration::from_secs(10),

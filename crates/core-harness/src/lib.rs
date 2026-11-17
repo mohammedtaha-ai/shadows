@@ -11,6 +11,7 @@ mod access;
 mod error;
 pub use error::HarnessError;
 mod assistant;
+mod catalog;
 mod commands;
 mod context_record;
 mod executor;
@@ -43,8 +44,9 @@ use tokio::sync::broadcast;
 
 pub use assistant::AylulConfig;
 pub use model::{
-    AylulUsageSnapshot, CarriedContext, ContextSource, Forget, HarnessInfo, HarnessMode,
-    InvocationVersions, InvocationView, PlanningContextState, RememberedSettings,
+    AylulUsageSnapshot, CarriedContext, CatalogModel, ContextSource, Forget, HarnessCatalog,
+    HarnessInfo, HarnessMode, InvocationVersions, InvocationView, PlanningContextState,
+    RememberedSettings,
 };
 use sessions::Sessions;
 pub use sessions::{LeaseError, OpenError, OpenSession, SessionsConfig};
@@ -67,6 +69,7 @@ pub struct Harness {
     operations: core_operations::Operations,
     sessions: Arc<Sessions>,
     projects: Projects,
+    catalogs: catalog::Catalogs,
 }
 
 impl Harness {
@@ -104,6 +107,7 @@ impl Harness {
             operations,
             sessions,
             projects,
+            catalogs: catalog::Catalogs::default(),
         })
     }
 

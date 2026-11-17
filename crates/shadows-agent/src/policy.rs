@@ -24,6 +24,9 @@ pub const CODEX_ASK: &str = "ask";
 /// AYLUL's brain: Claude Code on its own profile, opened without Planner setup.
 pub const AYLUL: &str = "aylul";
 
+/// The harnesses that can execute plan tasks, when configured.
+pub const EXECUTOR_HARNESSES: [&str; 2] = [CLAUDE_CODE, CODEX];
+
 /// The mode an executor session runs in: nothing is asked and nothing is
 /// refused while it works, since the check on its reported commit is its one
 /// write boundary. It is no project's choice: an executor thread runs in it

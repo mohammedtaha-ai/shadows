@@ -164,6 +164,7 @@ modules:
   live.rs: adapter cache opening
   offers.rs: synchronous option offer dispatch
   profile_home.rs: serialized home settings writes
+  catalog.rs: native model catalog probes
   sessions.rs: private adapter lifecycle
   settings.rs: session option changes
   executor.rs: executor session opening
@@ -270,6 +271,8 @@ shapes:
     # `Setups` writes commit through the one pool `Events` watches; shared as
     # a private cache owned by Harness.
     config: SessionsConfig
+    # The daemon's database directory. Probes open beneath catalog-probe.
+    catalog_root: PathBuf
   SessionsConfig:
     secrets: Option<Arc<Secrets>>
     aylul: Option<AylulConfig>
@@ -368,6 +371,16 @@ functions:
     list:
       signature: "(&self) -> Result<Vec<HarnessInfo>, HarnessError>"
       # For each of `policy::KNOWN`: availability, `remembered_settings`,
+    catalog:
+      signature: "(&self, kind: &str) -> Result<HarnessCatalog, HarnessError>"
+      rule: Reads each model's own efforts through an isolated probe with no Shadows thread or
+        grant, caches only success for the daemon lifetime, and coalesces concurrent successes
+        per harness. Claude Code switches models in one ACP session and excludes models the
+        account cannot select without more usage credits. Codex reads model/list.
+      tested_by: [the_catalog_is_read_once, concurrent_catalog_reads_open_one_probe,
+        a_failed_probe_is_tried_again, codex_not_configured_is_unavailable,
+        aylul_has_no_executor_catalog, live_the_claude_code_catalog_lists_each_models_efforts,
+        live_the_codex_catalog_lists_each_models_efforts]diff --git a/crates/shadows-agent/src/policy.rs b/crates/shadows-agent/src/policy.rs
       # `latest_limits`, and the modes, initial and unattended mode from policy
       # alone. Refusals: Storage. `codex` is available exactly when configured
       # and always lists its policy mode `read-only` as the initial mode.

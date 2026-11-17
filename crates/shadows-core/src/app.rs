@@ -353,6 +353,11 @@ impl AppCore {
             storage.clone(),
             SessionsConfig {
                 secrets: Some(secrets.clone()),
+                catalog_root: config
+                    .db_path
+                    .parent()
+                    .unwrap_or_else(|| Path::new("."))
+                    .into(),
                 mcp_url: Some(mcp_url.clone()),
                 aylul: config.aylul.clone(),
                 codex,

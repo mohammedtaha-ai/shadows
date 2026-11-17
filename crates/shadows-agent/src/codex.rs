@@ -36,6 +36,13 @@ impl CodexProgram {
         setup: &SessionSetup,
     ) -> Result<ProcessSpec, ConnectionError> {
         let (_, token) = planner_server(setup)?;
+        let mut spec = self.catalog_spec(cwd)?;
+        spec.env.push((GRANT_ENV.into(), token.into()));
+        Ok(spec)
+    }
+
+    /// Launches the app-server without the credentials of a thread grant.
+    pub fn catalog_spec(&self, cwd: &Path) -> Result<ProcessSpec, ConnectionError> {
         let project = cwd
             .to_str()
             .ok_or(ConnectionError::Protocol("project path is not UTF-8"))?;
@@ -73,10 +80,7 @@ impl CodexProgram {
         .into_iter()
         .filter_map(|key| std::env::var(key).ok().map(|value| (key.into(), value)))
         .collect();
-        env.extend([
-            ("CODEX_HOME".into(), home.into()),
-            (GRANT_ENV.into(), token.into()),
-        ]);
+        env.push(("CODEX_HOME".into(), home.into()));
         Ok(ProcessSpec {
             executable: self.executable.clone(),
             args,

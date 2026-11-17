@@ -91,7 +91,7 @@ No route and no serialized type change here. The route and `HarnessInfo.executor
     - **Claude Code:** the probe opens an ACP session, reads the `Offered`, then for each model sets the model option and reads that model's efforts.
     - **Codex:** the probe spawns the app-server through `catalog_spec` and reads `model/list`, which already names each model's `supported_reasoning_efforts`. It opens no thread, so it needs no grant. Today's opening path requires one MCP server (`codex.rs` `planner_server`), so the probe does not use it.
     - One probe per kind at a time (a per-kind `tokio::sync::Mutex<Option<HarnessCatalog>>`). Only a full read is cached.
-    - Refusals: an unknown kind or `aylul` is `InvalidCommand`; Codex not configured is `HarnessUnavailable`; a spawn or handshake failure is `HarnessStartFailed`; a model switch the CLI refuses is `HarnessStartFailed` naming the model.
+    - Refusals: an unknown kind or `aylul` is `InvalidCommand`; Codex not configured is `HarnessUnavailable`; a spawn or handshake failure is `HarnessStartFailed`. Claude Code skips models refused for insufficient usage credits and returns `HarnessStartFailed` naming the model for other switch failures.
   - test-support:
     - `Harness::catalog_probes_for_test(&self, kind) -> usize`: how many probes ran.
     - `Harness::fail_next_probe_for_test(&self, kind)`: the next probe of `kind` fails as a spawn failure would.

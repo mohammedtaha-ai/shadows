@@ -80,7 +80,7 @@ B-157 and B-158 do, and build on the [shared request](../shared/requests/2026-11
 
 ### B-155 · Harness reads each CLI's catalog
 
-- Status: todo
+- Status: done
 - Plan: [B-155](plans/2026-11-18-executor-choices.md#task-b-155-harness-reads-each-clis-catalog).
 - Owner: Harness, with Codex's catalog read in `shadows-agent`.
 - Read: `crates/core-harness/contract.yaml` (`list`, remembered settings, the Codex choices rule); `crates/shadows-agent/src/choices.rs` (`Offered`); `crates/shadows-agent/src/codex/session.rs` (`catalog`); the plan's Rulings.
