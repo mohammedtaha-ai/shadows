@@ -25,12 +25,14 @@
 4. **A Codex executor uses Codex's own tools:**
    - It gets the same instructions with a Tools section of its own, and runs in Codex's "Approve for me" mode (`ask`).
    - The check on its reported commit stays its write boundary, as for Claude Code.
-5. **A task number keeps its choice** (Hamoud, after Codex's review, 2026-11-18; Mohammed to confirm):
-   - The choice belongs to `(plan, task number)`, so a task that replaces T9 under the same number inherits T9's choice.
-   - The Planner sets a choice for each task it adds or rewrites, so an inherited choice is replaced in the same planning turn.
-   - A save is accepted only on the plan's newest version (its Draft, or its latest Approved). A Superseded or Archived version refuses it, so an old page cannot change the current choice.
-6. **Replays answer their own result.** Every save keeps its command, fingerprint and result, so a resent older save answers what it answered then and never overwrites a later one. A Start command recorded before the upgrade still replays.
-7. **A new conversation shows the Claude Code catalog before its first message:**
+5. **The choice follows the task, not its number** (Mohammed, 2026-11-18):
+   - A task carried into a new version keeps its choice.
+   - A task deleted and replaced by another under the same number starts empty, so the Planner or the person chooses again.
+   - Plans' `TaskId` changes per version (`after_approval_start_draft_copies_tasks_and_links_with_their_numbers` asserts it). So Plans records, on each copied task, the task it was copied from, and the choice is found along that chain.
+   - A save is accepted only on the plan's newest version (its Draft, or its latest Approved). A Superseded or Archived version refuses it.
+6. **Small models for well-planned tasks** (Mohammed, 2026-11-18). The plan's contract already says what to build: the functions, their behavior and the acceptance. So the Planner picks the smallest model and effort that can build the task from its contract (for example Haiku on low effort), and a larger one only where the task needs judgment the contract cannot give, such as unclear existing code or a risky change.
+7. **Replays answer their own result.** Every save keeps its command, fingerprint and result, so a resent older save answers what it answered then and never overwrites a later one. A Start command recorded before the upgrade still replays.
+8. **A new conversation shows the Claude Code catalog before its first message:**
    - The draft composer reads the same catalog, starting on the remembered model and effort.
    - The send body already carries `model` and `effort`.
 
@@ -43,7 +45,7 @@
   - The adapters translate only.
 - **Executor CLIs:** `policy::EXECUTOR_HARNESSES = ["claude-code", "codex"]`, in `shadows-agent/src/policy.rs`. AYLUL is never an executor. Codex counts only while it is configured (`Sessions::harness_available`).
 - **No list of models or efforts in Shadows.** Every check of a model or effort reads `Harness::catalog`.
-- **The choice spans versions.** It is keyed by `(plan_id, task)`. Task numbers carry over between versions (`after_approval_start_draft_copies_tasks_and_links_with_their_numbers`), so a corrected version keeps T9's choice.
+- **The choice spans versions through the task's lineage.** It is keyed by the `TaskId` it was saved on. A task's current choice is the first one found walking from its own `TaskId` back through `copied_from`. A corrected version keeps T9's choice, and a replaced T9 starts empty.
 - **Next migration:** `0073`. The last shipped is `0072_check_foreign_leftovers.sql`.
 - **Runs refusals** reach HTTP as `409` with Runs' own lowercase `code`, through `RunsError::code()` (`shadows-http/src/failure/runs.rs`). Harness refusals keep their `ErrorCode`s.
 - **The Planner's tool list grows from 39 to 41** (`task_executor_set`, `executor_catalog`).
@@ -166,7 +168,9 @@ No route and no serialized type change here. The route and `HarnessInfo.executor
 **Files:**
 Changes what the web sees (`Attempt`, `TaskRun`, `ReadyTask`, what Start accepts). It is blocked until Masada's shared request is accepted.
 
-- Create: `crates/core-db/migrations/0073_run_task_executors.sql`
+- Create: `crates/core-db/migrations/0073_run_task_executors.sql` (also adds `task.copied_from TEXT NULL` for Plans)
+- Modify: `crates/core-plans/src/store/draft.rs` (`insert_version` sets `copied_from` on each copied task), `crates/core-plans/src/lib.rs` and `crates/core-plans/src/store/plan.rs` (`Plans::task_lineage_in`), `crates/core-plans/contract.yaml`
+- Modify: `crates/shadows/tests/plan_storage.rs` (the copy test also asserts `copied_from`)
 - Create: `crates/core-runs/src/executor_choice.rs` (one job: saving and reading a task's executor choice)
 - Create: `crates/core-runs/src/store/executor_choice.rs`
 - Modify: `crates/core-runs/src/lib.rs` (module list; `task` answers `executor`; `suggested_model`, `EXECUTOR_HARNESS` go; re-exports)
@@ -204,7 +208,8 @@ Changes what the web sees (`Attempt`, `TaskRun`, `ReadyTask`, what Start accepts
 **Interfaces:**
 - Produces:
   - **Tables:**
-    - `run_task_executors (plan_id TEXT, task INTEGER, harness TEXT, model TEXT, effort TEXT NULL, chosen_by TEXT CHECK IN ('person','planner'), chosen_at TEXT, PRIMARY KEY (plan_id, task))`: the current choice.
+    - `run_task_executors (task_id TEXT PRIMARY KEY, plan_id TEXT, harness TEXT, model TEXT, effort TEXT NULL, chosen_by TEXT CHECK IN ('person','planner'), chosen_at TEXT)`: the choice saved on that version's task.
+  - **Plans:** `Plans::task_lineage_in(conn, workflow: &WorkflowId, task: u32) -> Result<Vec<TaskId>, PlansError>`: the task's own id, then each `copied_from` back to the first version, newest first. A task added in a version has a lineage of one. It goes in Plans' `shared_in_transaction`.
     - `run_executor_saves (id TEXT PRIMARY KEY, plan_id TEXT, task INTEGER, result_json TEXT, saved_at TEXT)`: every save and what it answered, so a replay answers its own result. The command's identity lives in `command_record`, which points here.
   - **Columns:** `run_attempts.harness TEXT NOT NULL DEFAULT 'claude-code'` and `run_attempts.effort TEXT NULL`.
   - **Types:**
@@ -224,7 +229,8 @@ Changes what the web sees (`Attempt`, `TaskRun`, `ReadyTask`, what Start accepts
     - **The write** is one transaction:
       1. It checks the replay again.
       2. It re-checks, in the same snapshot, everything the pre-checks read: the version is still the plan's newest, the plan is not archived, the task still exists, and, for the Planner, its grant is still live (`Grants`' `*_in` check). A v2 created while the catalog was read therefore refuses the v1 save with `Superseded`.
-      3. It upserts the row keyed by `(plan_id, task)`, inserts the save with its result, records the command, and appends `TaskExecutorChosen { project_id, plan_id, task }`.
+      3. It upserts the row keyed by the task's `TaskId` in that version, inserts the save with its result, records the command, and appends `TaskExecutorChosen { project_id, plan_id, task }`.
+  - **Reading a choice** (Start's admission write, `task`, `ready_group`): `task_lineage_in`, then the first `run_task_executors` row along it.
   - test-support `Runs::pause_next_save_for_test(&self) -> (oneshot::Receiver<()>, oneshot::Sender<()>)`: the next save stops after its catalog read and before its write, says so on the first channel, and goes on when the second fires.
   - `Runs::set_executor_for(&self, grant: &Grant, workflow: &WorkflowId, task: u32, input: ExecutorInput) -> Result<ExecutorChoice, RunsError>`: the grant is checked as `planner_plan` checks it, but on any version state. It calls `set_executor` with `Chooser::Planner` and a fresh command id.
   - `Runs::start(&self, command: String, workflow: &WorkflowId, version: i64, task: u32) -> Result<Attempt, RunsError>`:
@@ -244,6 +250,8 @@ Changes what the web sees (`Attempt`, `TaskRun`, `ReadyTask`, what Start accepts
   - `a_start_runs_on_the_saved_choice`: the person saves claude-code, a catalog model and one of its efforts. Start's attempt has those three, and the executor's session `current` model and effort match them.
   - `the_last_save_wins_whoever_made_it`: the Planner saves model A, then the person saves B. `task().executor` is B with `chosen_by: Person`, and the project tail holds two `TaskExecutorChosen`.
   - `a_choice_outlives_its_version`: T2's choice is saved on v1. A v2 is drafted and approved, and Start of v2's T2 runs on that choice.
+  - `a_replaced_task_starts_empty`: T2 has a choice on v1. In v2's Draft, T2 is removed and a new T2 is added. v2's T2 has `executor: null`, and its Start is `NoExecutorChoice`.
+  - `a_newer_save_wins_over_an_older_versions`: T2 is saved A on v1, then B on v2's Draft. v2's T2 reads B.
   - `a_choice_is_checked_against_the_catalog`: a model not in the catalog, and an effort of another model, are both `ExecutorNotOffered`, and nothing is stored.
   - `a_replayed_choice_answers_the_first`: the same command and body give the same choice; another body gives `CommandConflict`.
   - `a_replayed_older_save_keeps_the_latest`:
@@ -287,7 +295,7 @@ Changes what the web sees. It is blocked until Masada's shared request for the A
   - `task_start { workflow_id, task_number }` has no `model`.
   - New `task_executor_set { workflow_id, task_number, harness, model, effort? }` and `executor_catalog {}`.
 - Modify: `crates/shadows-mcp/src/server.rs` (router), `crates/core-grants/src/tools.rs` (Planner list 39 → 41)
-- Modify: `crates/core-harness/src/prompt.txt`, which gets this line: "While you plan, choose each task's executor with `task_executor_set`: a CLI, a model and an effort read from `executor_catalog`. Fit them to the task's size and risk. The person may change them; Start always runs on the latest."
+- Modify: `crates/core-harness/src/prompt.txt`, which gets this paragraph: "While you plan, choose each task's executor with `task_executor_set`: a CLI, a model and an effort read from `executor_catalog`. A task you add or replace has no choice until you set one. Your contract tells the executor what to build, so choose the smallest model and lowest effort that can build it from the contract alone; choose larger only where the task needs judgment the contract cannot give, such as unclear existing code or a risky change. The person may change the choice; Start always runs on the latest."
 - Modify: `crates/shadows/tests/openapi.rs`, `crates/shadows/tests/mcp_server.rs` (41 tools; the two names), `api/openapi.json`
 - Modify: `crates/shadows-http/src/contract.yaml`, `crates/shadows-mcp/src/contract.yaml`, `crates/core-grants/contract.yaml`, `crates/core-harness/contract.yaml`
 - Modify: `docs/backend/stages.md`
@@ -305,7 +313,7 @@ Changes what the web sees. It is blocked until Masada's shared request for the A
     - `the_person_saves_a_tasks_executor_over_http`: PUT, then GET the task, and `executor` matches with `chosen_by: "person"`.
     - `start_without_a_choice_is_409_no_executor_choice`.
   - `mcp_server.rs`: the Planner's list has 41 tools, including both new names; the executor's list has neither.
-  - `planner_instructions.rs`: `the_prompt_names_task_executor_set`.
+  - `planner_instructions.rs`: `the_prompt_names_task_executor_set`, which asserts the prompt contains `task_executor_set`, `executor_catalog` and `smallest model`.
   - `harness_choices.rs`:
     - `the_harness_list_names_the_executor_clis`: `executor` is true for claude-code and codex and false for aylul.
     - `the_catalog_route_answers_claude_codes_models`: GET `/api/harnesses/claude-code/catalog` answers 200 with models, and `/api/harnesses/aylul/catalog` answers `INVALID_COMMAND` with that code's existing status.
