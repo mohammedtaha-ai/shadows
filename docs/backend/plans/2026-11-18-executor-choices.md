@@ -120,8 +120,10 @@ No route and no serialized type change here. The route and `HarnessInfo.executor
 - Modify: `crates/core-harness/src/setup.rs` (`for_executor` composes the instructions for the thread's harness; built-in tools only for claude-code)
 - Modify: `crates/core-harness/src/live.rs` (the MCP tool list a session starts with follows its thread's kind: `Grants::tools_for(GrantKind::Executor)` for an executor thread, never the Thread grant's)
 - Modify: `crates/core-turns/src/record.rs` (an executor thread's one allowed mode is `policy::executor_mode(harness)`, not `EXECUTOR_MODE`), `crates/core-turns/contract.yaml`
+- Modify: `crates/shadows-agent/src/choices.rs` (the mode check accepts `policy::executor_mode(harness)` where it accepted `EXECUTOR_MODE`)
+- Modify: `crates/core-runs/src/start.rs` (its `MODE` goes: `run_turn` sends the turn in `policy::executor_mode(harness)`) and `crates/core-runs/src/message.rs` (a message to the executor is sent in the same mode). Until B-157 records `attempt.harness`, both pass `claude-code`; B-157 passes the attempt's own.
 - Modify: `crates/shadows-agent/src/policy.rs` (`executor_mode(kind) -> Option<&'static str>`)
-- Modify: `crates/core-runs/src/start.rs`, `crates/core-runs/src/message.rs` (pass `None` for the effort until B-157)
+- Modify: `crates/core-runs/src/start.rs`, `crates/core-runs/src/message.rs` (also pass `None` for the effort until B-157)
 - Modify: `crates/shadows-core/tests/executor_session.rs`, `crates/shadows-core/tests/runs_attempts/live.rs` (the new argument)
 - Modify: `crates/core-harness/contract.yaml`, `docs/codebase/README.md`
 - Modify: `docs/backend/stages.md`
@@ -183,6 +185,7 @@ Changes what the web sees (`Attempt`, `TaskRun`, `ReadyTask`, what Start accepts
 - Modify: `crates/core-events/src/store.rs` (`TaskExecutorChosen` in the project tail)
 - Modify: `crates/shadows/tests/architecture/table-owners.txt` (`run_task_executors` and `run_executor_saves` → `runs`)
 - Modify: `crates/shadows-core/src/lib.rs` (re-exports)
+- Modify: `crates/shadows-http/src/openapi.rs` (register `ExecutorChoice` and `Chooser`, which `TaskRun` and `ReadyTask` now name) and `api/openapi.json`, regenerated in this commit with `UPDATE_OPENAPI=1 cargo test -p shadows --test openapi`, since `Attempt`, `TaskRun` and `ReadyTask` change here
 - Modify: every caller of `Runs::start` and `Runs::start_for`. Each drops the model and, where it ran on one, saves a choice first with the test helper below:
   - `crates/shadows-http/src/runs.rs` (B-158 changes the body; here only the call)
   - `crates/shadows-mcp/src/run_tools.rs` (only the call; B-158 does the tool)
@@ -202,22 +205,27 @@ Changes what the web sees (`Attempt`, `TaskRun`, `ReadyTask`, what Start accepts
 - Produces:
   - **Tables:**
     - `run_task_executors (plan_id TEXT, task INTEGER, harness TEXT, model TEXT, effort TEXT NULL, chosen_by TEXT CHECK IN ('person','planner'), chosen_at TEXT, PRIMARY KEY (plan_id, task))`: the current choice.
-    - `run_executor_saves (command_id TEXT PRIMARY KEY, fingerprint TEXT, plan_id TEXT, task INTEGER, result_json TEXT, saved_at TEXT)`: every save and what it answered, kept so a replay answers its own result.
+    - `run_executor_saves (id TEXT PRIMARY KEY, plan_id TEXT, task INTEGER, result_json TEXT, saved_at TEXT)`: every save and what it answered, so a replay answers its own result. The command's identity lives in `command_record`, which points here.
   - **Columns:** `run_attempts.harness TEXT NOT NULL DEFAULT 'claude-code'` and `run_attempts.effort TEXT NULL`.
   - **Types:**
     - `pub enum Chooser { Person, Planner }`
     - `pub struct ExecutorInput { harness: String, model: String, effort: Option<String> }`
     - `pub struct ExecutorChoice { harness: String, model: String, effort: Option<String>, chosen_by: Chooser, chosen_at: String }`
   - `Runs::set_executor(&self, command_id: String, workflow: &WorkflowId, task: u32, input: ExecutorInput, by: Chooser) -> Result<ExecutorChoice, RunsError>`:
-    - **Replay first**, before the catalog is read: a `command_id` in `run_executor_saves` with an equal fingerprint answers its stored `result_json`, writes nothing and appends no event, even when the choice has since changed or the catalog is unavailable. Another fingerprint is `CommandConflict`.
-    - The task must exist in that version (`NotFound`). The version must be the plan's newest: its Draft, or its latest Approved when no Draft exists. A Superseded version is `Superseded` and an Archived one `Archived`.
+    - **The command** is a `CommandContext` of kind `run.executor_set`, schema version 1, with params `{workflow, task, harness, model, effort}`. A person's save uses `CommandContext::user`, and the Planner's names its agent the way other Planner commands do. It is recorded in `command_record`, whose `outcome_ref` is the id of the save's row in `run_executor_saves`.
+    - **Replay first**, before the catalog is read, through core-db's classification: an equal fingerprint answers that save's stored `result_json`. It writes nothing and appends no event, even when the choice has since changed or the catalog is unavailable. Another fingerprint is `CommandConflict`.
+    - **Pre-checks** before the catalog read, so a bad save fails fast: the task must exist in that version (`NotFound`). The version must be the plan's newest: its Draft, or its latest Approved when no Draft exists. A Superseded version is `Superseded` and an Archived one `Archived`.
     - `harness` must be in `policy::EXECUTOR_HARNESSES`; otherwise `ExecutorNotOffered("harness: X")`.
     - The input is checked against `Harness::catalog(harness)`, read before the write:
       - a model not listed is `ExecutorNotOffered("model: X")`;
       - an effort not among that model's efforts is `ExecutorNotOffered("effort: X")`.
-    - A model with efforts and no effort given is stored with `effort` NULL, so the CLI's own default is used.
+    - **The effort is explicit.** A model that offers efforts needs one of them, and its absence is `ExecutorNotOffered("effort: required")`. `effort` is NULL only for a model that offers none. An attempt therefore never runs on an effort an earlier conversation left in the session.
     - Catalog errors pass through as `Unavailable` with their text.
-    - **The write:** one write checks the replay again, then upserts the row keyed by `(plan_id, task)`, inserts the save with its result, and appends `TaskExecutorChosen { project_id, plan_id, task }`.
+    - **The write** is one transaction:
+      1. It checks the replay again.
+      2. It re-checks, in the same snapshot, everything the pre-checks read: the version is still the plan's newest, the plan is not archived, the task still exists, and, for the Planner, its grant is still live (`Grants`' `*_in` check). A v2 created while the catalog was read therefore refuses the v1 save with `Superseded`.
+      3. It upserts the row keyed by `(plan_id, task)`, inserts the save with its result, records the command, and appends `TaskExecutorChosen { project_id, plan_id, task }`.
+  - test-support `Runs::pause_next_save_for_test(&self) -> (oneshot::Receiver<()>, oneshot::Sender<()>)`: the next save stops after its catalog read and before its write, says so on the first channel, and goes on when the second fires.
   - `Runs::set_executor_for(&self, grant: &Grant, workflow: &WorkflowId, task: u32, input: ExecutorInput) -> Result<ExecutorChoice, RunsError>`: the grant is checked as `planner_plan` checks it, but on any version state. It calls `set_executor` with `Chooser::Planner` and a fresh command id.
   - `Runs::start(&self, command: String, workflow: &WorkflowId, version: i64, task: u32) -> Result<Attempt, RunsError>`:
     - The fingerprint drops `model`.
@@ -244,6 +252,11 @@ Changes what the web sees (`Attempt`, `TaskRun`, `ReadyTask`, what Start accepts
     - The tail holds two `TaskExecutorChosen`, not three.
     - The same holds after `fail_next_probe_for_test`, since the replay never reads the catalog.
   - `a_superseded_version_refuses_a_save`: v1 is superseded by v2, and a save through v1 is `Superseded`.
+  - `a_save_racing_a_new_version_is_refused`:
+    - `pause_next_save_for_test` stops a v1 save after its catalog read.
+    - A v2 Draft is created, and the save goes on.
+    - The save is `Superseded`, and nothing is stored or appended.
+  - `a_model_with_efforts_needs_one`: a save of such a model with `effort: None` is `ExecutorNotOffered("effort: required")`.
   - `a_start_command_from_before_the_upgrade_replays`:
     - A database migrated from 0072 holds a Start recorded with the old fingerprint, written by SQL in the fixture as the old code wrote it.
     - The same command now answers that attempt, with no new attempt and no `CommandConflict`.
@@ -256,7 +269,7 @@ Changes what the web sees (`Attempt`, `TaskRun`, `ReadyTask`, what Start accepts
 - [ ] **Step 2:** Run `cargo test -p shadows-core --test runs_attempts executor_choice::`. Expected: FAIL to compile.
 - [ ] **Step 3:** Migration, store and `executor_choice.rs`.
 - [ ] **Step 4:** Start, `start_for`, amend and message on the recorded choice; then update every caller listed in Files.
-- [ ] **Step 5:** Run Step 2's command, then all of `runs_attempts`, `run_admission`, `task_conflicts`, `ready_groups`, `task_questions`, `attempt_briefs` and `recovery`, then the rule 5 checks. Expected: PASS.
+- [ ] **Step 5:** Regenerate `api/openapi.json`. Then run Step 2's command, all of `runs_attempts`, `run_admission`, `task_conflicts`, `ready_groups`, `task_questions`, `attempt_briefs` and `recovery`, `cargo test -p shadows --test openapi`, and the rule 5 checks. Expected: PASS.
 - [ ] **Step 6:** Update the contracts. Runs gets the `choice:` section, the new `start` and `start_for` lines, the rules and the tests. Events gets the tail kind. Then amend the spec, set B-157 to done, and commit `feat(core): B-157 a task's executor choice, and Start runs on it`.
 
 ## Task B-158: the person's and the Planner's way to the choice
@@ -308,7 +321,7 @@ Changes what the web sees. It is blocked until Masada's shared request for the A
 | `GET /api/harnesses` | — | `HarnessInfo[]`. It gains `executor: bool`; `remembered: { model, effort }` is already there. |
 | `GET /api/harnesses/{kind}/catalog` | — | `HarnessCatalog { harness, models: CatalogModel[] }`, where `CatalogModel { id, label, description, efforts: Choice[] }`. Errors: `HARNESS_UNAVAILABLE` (Codex not configured), `HARNESS_START_FAILED` (the probe failed; the next call tries again), `INVALID_COMMAND` (aylul or unknown). The first call per CLI takes a few seconds. |
 | `GET …/versions/{version}/tasks/{task}` | — | `TaskRun.executor: ExecutorChoice \| null` **replaces** `suggested_model`. |
-| `PUT …/versions/{version}/tasks/{task}/executor` | `{ command_id, harness, model, effort: string \| null }` | `ExecutorChoice { harness, model, effort, chosen_by: "person" \| "planner", chosen_at }`. 409 `executor_not_offered` (its message names harness, model or effort). |
+| `PUT …/versions/{version}/tasks/{task}/executor` | `{ command_id, harness, model, effort: string \| null }` | `ExecutorChoice { harness, model, effort, chosen_by: "person" \| "planner", chosen_at }`. `effort` is required when the model offers efforts and `null` only when it offers none. 409 `executor_not_offered` (its message names harness, model or effort, or says `effort: required`). |
 | `POST …/tasks/{task}/attempts` | `{ command_id }` (**no `model`**) | `Attempt`, which gains `harness` and `effort`. 409 `no_executor_choice`. |
 | Project stream | — | `TaskExecutorChosen { project_id, plan_id, task }`: refetch the task. |
 
