@@ -1,6 +1,6 @@
 # Executor choices: CLI, model and effort per task
 
-- Status: asked
+- Status: accepted
 - Asked by: Masada, 2026-11-18
 - Screen: the task page (`web/src/app/tasks/`), the draft conversation's composer
   (`web/src/app/conversation/draft.tsx`); backend plan
@@ -89,7 +89,16 @@ Status: answered.
 
 ## Frontend reply
 
-<Masada, once answered.>
+Masada, 2026-11-18: **accepted** as answered.
+- The PUT's refusals are read as `RunRefusal` by `code`: `executor_not_offered` and
+  `catalog_unavailable` show Core's `reason` beside the control, and the saved choice stays shown;
+  `superseded` and `archived` show the reason and refetch the task; `command_conflict` cannot come
+  from one click (one `command_id` per click, kept across a retry) and is shown as Core's reason.
+- A 404 shows Core's message and refetches the task.
+- The Run tab shows `Attempt.harness`, `model` and `effort` as the attempt ran, never the task's
+  current choice.
+
+The web tasks stay blocked until B-157 and B-158 have regenerated `api/openapi.json`.
 
 ## Ruling
 
