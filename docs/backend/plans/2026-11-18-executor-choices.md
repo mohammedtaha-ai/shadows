@@ -4,7 +4,7 @@
 
 **Goal:** Each task stores its executor's CLI (claude-code or codex), model and effort, chosen from that CLI's own catalog. The Planner proposes the choice and the person edits it. Every Start runs on the last saved choice.
 
-**Architecture:** Harness owns a harness's catalog: models in order, each with its own efforts. It reads the catalog once per daemon run from a short probe session and keeps it in memory. Runs owns the choice, stored per plan and task number outside the plan version, so a frozen version stays immutable while the person and the Planner change the choice. Start reads the saved choice in its admission write and records it on the attempt. Harness opens the executor on the attempt's CLI, model and effort; on Codex it runs with Codex's own tools in Codex's "Approve for me" mode.
+**Architecture:** Harness owns a harness's catalog: models in order, each with its own efforts. It reads the catalog once per daemon run from a short probe session and keeps it in memory. Runs owns the choice, stored outside the plan version on the task's `TaskId` and followed through the version copies Plans records. So a frozen version stays immutable while the person and the Planner change the choice, a carried task keeps it, and a replaced task starts empty. Start reads the saved choice in its admission write and records it on the attempt. Harness opens the executor on the attempt's CLI, model and effort; on Codex it runs with Codex's own tools in Codex's "Approve for me" mode.
 
 **Tech Stack:** Rust 1.94+, SQLx 0.9 on SQLite, axum adapters, the ACP and Codex app-server connections in `shadows-agent`.
 
@@ -219,7 +219,7 @@ Changes what the web sees (`Attempt`, `TaskRun`, `ReadyTask`, what Start accepts
   - `Runs::set_executor(&self, command_id: String, workflow: &WorkflowId, task: u32, input: ExecutorInput, by: Chooser) -> Result<ExecutorChoice, RunsError>`:
     - **The command** is a `CommandContext` of kind `run.executor_set`, schema version 1, with params `{workflow, task, harness, model, effort}`. A person's save uses `CommandContext::user`, and the Planner's names its agent the way other Planner commands do. It is recorded in `command_record`, whose `outcome_ref` is the id of the save's row in `run_executor_saves`.
     - **Replay first**, before the catalog is read, through core-db's classification: an equal fingerprint answers that save's stored `result_json`. It writes nothing and appends no event, even when the choice has since changed or the catalog is unavailable. Another fingerprint is `CommandConflict`.
-    - **Pre-checks** before the catalog read, so a bad save fails fast: the task must exist in that version (`NotFound`). The version must be the plan's newest: its Draft, or its latest Approved when no Draft exists. A Superseded version is `Superseded` and an Archived one `Archived`.
+    - **Pre-checks** before the catalog read, so a bad save fails fast: the task must exist in that version (`NotFound`), and its `TaskId` is read and kept for the write. The version must be the plan's newest: its Draft, or its latest Approved when no Draft exists. A Superseded version is `Superseded` and an Archived one `Archived`.
     - `harness` must be in `policy::EXECUTOR_HARNESSES`; otherwise `ExecutorNotOffered("harness: X")`.
     - The input is checked against `Harness::catalog(harness)`, read before the write:
       - a model not listed is `ExecutorNotOffered("model: X")`;
@@ -228,7 +228,7 @@ Changes what the web sees (`Attempt`, `TaskRun`, `ReadyTask`, what Start accepts
     - Catalog errors pass through as `Unavailable` with their text.
     - **The write** is one transaction:
       1. It checks the replay again.
-      2. It re-checks, in the same snapshot, everything the pre-checks read: the version is still the plan's newest, the plan is not archived, the task still exists, and, for the Planner, its grant is still live (`Grants`' `*_in` check). A v2 created while the catalog was read therefore refuses the v1 save with `Superseded`.
+      2. It re-checks, in the same snapshot, everything the pre-checks read: the version is still the plan's newest, the plan is not archived, the task number still names **the same `TaskId`** read before (a task deleted and re-added under that number in the same Draft is `NotFound`), and, for the Planner, its grant is still live (`Grants`' `*_in` check). A v2 created while the catalog was read therefore refuses the v1 save with `Superseded`.
       3. It upserts the row keyed by the task's `TaskId` in that version, inserts the save with its result, records the command, and appends `TaskExecutorChosen { project_id, plan_id, task }`.
   - **Reading a choice** (Start's admission write, `task`, `ready_group`): `task_lineage_in`, then the first `run_task_executors` row along it.
   - test-support `Runs::pause_next_save_for_test(&self) -> (oneshot::Receiver<()>, oneshot::Sender<()>)`: the next save stops after its catalog read and before its write, says so on the first channel, and goes on when the second fires.
@@ -250,7 +250,14 @@ Changes what the web sees (`Attempt`, `TaskRun`, `ReadyTask`, what Start accepts
   - `a_start_runs_on_the_saved_choice`: the person saves claude-code, a catalog model and one of its efforts. Start's attempt has those three, and the executor's session `current` model and effort match them.
   - `the_last_save_wins_whoever_made_it`: the Planner saves model A, then the person saves B. `task().executor` is B with `chosen_by: Person`, and the project tail holds two `TaskExecutorChosen`.
   - `a_choice_outlives_its_version`: T2's choice is saved on v1. A v2 is drafted and approved, and Start of v2's T2 runs on that choice.
-  - `a_replaced_task_starts_empty`: T2 has a choice on v1. In v2's Draft, T2 is removed and a new T2 is added. v2's T2 has `executor: null`, and its Start is `NoExecutorChoice`.
+  - `a_replaced_task_starts_empty`:
+    - T2 has a choice on v1. In v2's Draft, T2 is removed and a new T2 is added.
+    - v2's T2 reads `executor: null` while it is a Draft.
+    - v2 is approved, and its T2's Start is `NoExecutorChoice` (Start on a Draft would stop earlier at `NotFrozen`).
+  - `a_save_racing_a_replacement_is_refused`:
+    - `pause_next_save_for_test` stops a save of the Draft's T2 after its catalog read.
+    - T2 is removed and a new T2 added in the same Draft, then the save goes on.
+    - The save is `NotFound`, and the new T2 has no choice.
   - `a_newer_save_wins_over_an_older_versions`: T2 is saved A on v1, then B on v2's Draft. v2's T2 reads B.
   - `a_choice_is_checked_against_the_catalog`: a model not in the catalog, and an effort of another model, are both `ExecutorNotOffered`, and nothing is stored.
   - `a_replayed_choice_answers_the_first`: the same command and body give the same choice; another body gives `CommandConflict`.
