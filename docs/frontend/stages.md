@@ -32,7 +32,7 @@ F-126, F-127 and F-128 below. F-125 (choose an executor on a task or in a new co
 
 ### F-128 · Record the visual acceptances left open
 
-- Status: todo
+- Status: done (evidence `docs/evidence/2026-11-18-visual-acceptance.md`; the sent-message tiles and the login item are left to Mohammed)
 - Plan: none. "Known and left" below lists three looks never recorded. In the browser
   (`npx --prefix web vite web` against a running daemon): the light palette on the main screens
   (sidebar, a conversation, the plan page, settings), and the image tiles of F-114 (attach two
@@ -114,8 +114,8 @@ PRs #59 and #66 have no `F-` task. Two composer fixes in PR #61 have none either
 
 ### Known and left
 
-- The light palette and the real desktop login-item behaviour need their own app and OS acceptance.
-- The image tiles' look in the browser (F-114) is not recorded.
+- The light palette and F-114's composer tiles are recorded in `docs/evidence/2026-11-18-visual-acceptance.md`.
+  Left to Mohammed: the tiles inside a sent message and the desktop login item (start with Windows).
 
 ### Before a new task
 
