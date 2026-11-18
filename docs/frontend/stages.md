@@ -5,7 +5,40 @@ here and set its status. Task shape: [`AGENTS.md`](./AGENTS.md#a-task-in-stagesm
 
 ## Now
 
-None open. F-125 (choose an executor on a task or in a new conversation) is on `main` at `0e281585` (PR #71); its live acceptance is Mohammed's.
+F-126 below. F-125 (choose an executor on a task or in a new conversation) is on `main` at `0e281585` (PR #71); its live acceptance is Mohammed's.
+
+### F-126 · Language servers become one collapsible row in Settings › Code
+
+- Status: todo
+- Plan: none; the shape is Mohammed's ruling of 2026-11-18, written here in full.
+  Settings › Code becomes a list of setting rows like Claude Code's own settings page: each row
+  has a title, a one-line description under it, and its control on the right; rows are divided
+  by a hairline. Today the section's whole page is the server list; after this, the list is one
+  row, "Language servers", with the description "Help the Planner read your code. It installs
+  what's missing when it needs it.", a summary on the right ("N running", or "None running")
+  and a chevron. The row starts collapsed; clicking it (a button with `aria-expanded`) opens the
+  list under it, indented. Open, the list shows only the servers whose `wanted` is true for the
+  open project, one line each: the language name (from a small map of the catalog ids, e.g.
+  `gopls` → Go, `typescript-language-server` → TypeScript; an added server or an unmapped id
+  shows its id), a coloured dot and one word for the state (Running, Starting, Idle,
+  Not installed, Failed, Off), and the existing on/off switch with its existing confirm panel.
+  A failed server keeps its error line. The servers whose `wanted` is false sit behind one
+  more line, "N more languages", which opens them in the same shape. "Add a server" stays, as
+  a small link at the end of the open list that opens the existing add form. Removed from the
+  rows: the extension list, the install command and its copy button (the Planner installs),
+  and the raw server id as the title. The switch text under it says the switch acts in every
+  project ("Off in every project"), since `PUT /api/code/servers/{server}/off` is global.
+  No backend change: `GET /api/projects/{id}/code/servers` already answers `wanted` and `state`.
+- Read: `web/src/app/settings/contract.yaml` (`CodeSection`), `web/src/api/code.ts`
+  (`ServerStatus`, `codeServersQuery`), `web/src/app/settings/sections/code.tsx`.
+- Touch: `web/src/app/settings/sections/code.tsx`, `web/src/app/settings/sections/code.test.tsx`,
+  `web/src/app/settings/contract.yaml`, this entry's status.
+- Needs: none.
+- Done when: `code.test.tsx` covers: the row starts collapsed with the running count; opening it
+  lists only wanted servers by language name with their state word; "N more languages" reveals
+  the rest; switching off still confirms; no install command is shown; "Add a server" opens the
+  form. `npx --prefix web vitest run src/app/settings`, `npx --prefix web tsc -b` and
+  `npx --prefix web eslint src/app/settings` pass.
 
 ### Shipped
 
