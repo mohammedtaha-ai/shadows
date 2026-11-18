@@ -46,3 +46,19 @@ Found on the way, not part of B-167:
   every project until it ended, so a tool call timed out.
 - After the listing, each Planner turn on that project read the whole file list
   (`SELECT path FROM code_inventory WHERE project_id = ? AND kind = 'file'`, 2,000,005 rows, 15 s).
+
+## After B-168: the same journey, rerun
+
+Branch `feature/missing-file-refusal` at `3f31bce` (B-168 built), a fresh database, the same
+2,000,000-file `huge-app`, Planner on `sonnet` (observed `claude-sonnet-5-5`).
+
+| # | Step | Observed |
+|---|---|---|
+| 11 | Vision, map, roadmap and a plan, sent back to back from 23:45:39 | All four turns answered by 23:46:26 (47 s). No tool call timed out; the daemon logged no slow statement. |
+| 12 | T1 modifies the absent `notes/ghost.py`, saved at about 23:46:20 | Accepted (revision 1): the first listing was still running (status `indexing`), so the file check was skipped. |
+| 13 | The first listing ends | `code.scan … elapsed_ms=45269` at 23:46:37: 45 s, down from 218 s. |
+| 14 | T2 modifies the absent `notes/ghost2.py`, after the listing | Refused: `WORKFLOW_VALIDATION_FAILED: T2 modifies notes/ghost2.py, which the project does not have and no task it depends on creates`. |
+
+All five B-167 cases have now run live. Step 12 shows the silent skip again: the Planner
+guessed that a plan's first task is not checked, since it was not told the check was skipped
+(listed in `docs/backend/stages.md`, "Known and left").
