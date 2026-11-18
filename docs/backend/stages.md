@@ -62,7 +62,7 @@ this file at `db760593`.
   1 and 2 (evidence `docs/evidence/2026-11-04-planner-context-probe.md` at `4031168f`); slice 2's language servers on
   `testing4` (2026-11-13); slice 4's browser acceptance on `testing4` (2026-11-14, B-149); slice 6's
   browser acceptance on `testing6` (2026-11-16, B-118).
-- Slice 4's live tests (`crates/shadows/tests/task_questions_live.rs`) are written and not run; B-149 is closed on the browser acceptance.
+- Slice 4's live tests ran on 2026-11-18 (`docs/evidence/2026-11-18-slice-4-live.md`): 7 pass; `live_executor_asks_about_a_planned_consumer` fails, B-166.
 - Slice 6's live test (`stop_control_live`) and its evidence file were dropped (Mohammed, 2026-11-16).
 - B-150 keeps its own per-thread message queue beside Turns' queue; reusing Turns' queue needs the executor session restored by thread.
 - The web derives "stopped on the additions cap" itself; a Core field on `TaskRun` should own it.
@@ -126,7 +126,7 @@ this file at `db760593`.
 
 ### B-164 · Run slice 4's live tests and record them
 
-- Status: todo
+- Status: done (`docs/evidence/2026-11-18-slice-4-live.md`: 7 pass, 1 fail, B-166)
 - Plan: none. `crates/shadows/tests/task_questions_live.rs` is written and has never run.
   Run it as its header says (`-- --ignored --test-threads=1`, gopls on PATH, Claude Code and
   Codex signed in) and record each test's outcome in
@@ -135,6 +135,24 @@ this file at `db760593`.
 - Read: the test file's header; `crates/shadows/tests/fixtures/live.rs`.
 - Touch: `docs/evidence/2026-11-18-slice-4-live.md`, this file and its "Known and left" entry.
 - Done when: the evidence file names every test in the file with its outcome.
+
+### B-166 · The planned-consumer live test asks while its attempt still runs
+
+- Status: todo
+- Plan: none. In `docs/evidence/2026-11-18-slice-4-live.md`,
+  `live_executor_asks_about_a_planned_consumer` failed with GRANT_SCOPE "no running attempt holds
+  this grant's task": the test asks `task_question` on the executor's grant, retrying while
+  gopls starts, and the live executor can finish T1 first. Confirm the cause, then make the test
+  hold the question to a running attempt (for example: warm gopls on the module before the
+  attempt starts, or keep the executor from finishing until the test has asked) without
+  weakening what it checks. A product change is out of scope; if the cause is in the product,
+  stop and report.
+- Read: the evidence file; `crates/shadows/tests/task_questions_live.rs` (`asked`, the test);
+  `crates/shadows/tests/fixtures/live.rs`.
+- Touch: `crates/shadows/tests/task_questions_live.rs`, the evidence file, this file.
+- Done when: the test passes twice in a row live (`cargo test -p shadows --test
+  task_questions_live live_executor_asks_about_a_planned_consumer -- --ignored`), recorded in
+  the evidence file.
 
 ### B-165 · Structure and depth on a real provider
 
