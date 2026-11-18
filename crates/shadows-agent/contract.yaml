@@ -35,10 +35,13 @@ functions:
     steering, task and permission operations. Errors are ConnectionError;
     Codex answers task stop with an Rpc refusal. Both hold permission requests
     the same way (acp::Permissions), each answered back in its own protocol.
-  policy::EXECUTOR_MODE: >
-    `auto`, the one mode an executor thread runs in: nothing is asked or
-    refused while it works, and Runs' check on its reported commit is its write
-    boundary. Offered::refusal accepts it beside the policy's allowed modes.
+  policy::EXECUTOR_HARNESSES: The harnesses that can execute plan tasks, when configured (claude-code, codex).
+  policy::executor_mode: >
+    The one mode an executor session of a harness runs in, unattended: Claude
+    Code's `auto`, Codex's Approve for me (`ask`), whose own reviewer answers
+    its approvals; None for a harness that cannot execute. Runs' check on the
+    reported commit is the write boundary. Offered::refusal accepts it beside
+    the policy's allowed modes.
   policy::default_mode: >
     The mode a new conversation starts in: `auto` for a Claude Code Planner, `acceptEdits`
     for AYLUL, `ask` for Codex. Tested by the_initial_and_unattended_modes_are_allowed and
@@ -49,6 +52,9 @@ functions:
     web search off, the project forced untrusted, the bearer variable excluded
     from shells and (Windows) the MXC sandbox. The environment carries
     CODEX_HOME and the thread grant; arguments never carry the grant.
+  CodexProgram::catalog_spec: >
+    The same app-server launch as process_spec without a thread grant in its
+    environment, used only to read the model catalog.
   codex::Connection::open: Initializes app-server and refuses a CLI other than 0.167.0.
   codex::Connection::start_session: >
     Refuses a dedicated home with MCP configuration or without a ChatGPT
@@ -70,6 +76,9 @@ functions:
   codex::Connection::steer_blocks: >
     Sends turn/steer to the acknowledged running turn (Injected); with none
     running nothing starts (PromptRequired).
+  codex::Connection::model_choices: >
+    Refuses a home without a ChatGPT sign-in, then answers Codex's native model
+    list in its order, each model with its own efforts.
   codex::Connection::cancel: Interrupts the acknowledged turn; the matching terminal event settles it.
   codex_fork: SessionStart::Fork opens thread/fork from the source thread, which is never resumed or written.
   codex_usage: >
