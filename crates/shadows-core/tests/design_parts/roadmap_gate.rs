@@ -17,7 +17,17 @@ async fn setup() -> (tempfile::TempDir, Arc<AppCore>, ProjectId, Grant, Storage)
     let db = tmp.path().join("gate.sqlite3");
     let core = core_at(&db).await;
     let p = project(&core, "gate", tmp.path()).await;
-    let grant = core.grants().issue("grant".into(), &p).await.unwrap().grant;
+    let grant = {
+        let issued = core
+            .grants()
+            .issue_external("grant".into(), vec![p.clone()])
+            .await
+            .unwrap();
+        core.grants()
+            .external_project(&issued.connection.id, &p)
+            .await
+            .unwrap()
+    };
     (tmp, core, p, grant, Storage::open(&db).await.unwrap())
 }
 

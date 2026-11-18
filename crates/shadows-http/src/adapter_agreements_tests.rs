@@ -12,13 +12,19 @@ async fn http(w: &World, method: &str, path: &str, body: Value) -> Value {
 async fn agreement_adapter_pairs_preserve_content_and_reach() {
     let w = world(true, true).await;
     let project = w.core.agents().assistant_project().await.unwrap();
+    let connection = w
+        .core
+        .grants()
+        .issue_external("grant".into(), vec![project.clone()])
+        .await
+        .unwrap()
+        .connection;
     let grant = w
         .core
         .grants()
-        .issue("grant".into(), &project)
+        .external_project(&connection.id, &project)
         .await
-        .unwrap()
-        .grant;
+        .unwrap();
     let root = format!("/api/projects/{project}/agreements");
     let content = json!({"capability":"  Login  ","purpose":"Login","behavior":"",
         "acceptance":[],"parties":[],"openapi":{}});
@@ -114,7 +120,7 @@ async fn agreement_adapter_pairs_preserve_content_and_reach() {
 
     w.core
         .grants()
-        .revoke("revoke".into(), &grant.id)
+        .revoke_external("revoke".into(), &connection.id)
         .await
         .unwrap();
     assert_eq!(
@@ -139,13 +145,19 @@ async fn agreement_adapter_pairs_preserve_content_and_reach() {
 async fn plan_adapter_pairs_keep_their_authorization_boundaries() {
     let w = world(true, true).await;
     let project = w.core.agents().assistant_project().await.unwrap();
+    let connection = w
+        .core
+        .grants()
+        .issue_external("grant".into(), vec![project.clone()])
+        .await
+        .unwrap()
+        .connection;
     let grant = w
         .core
         .grants()
-        .issue("grant".into(), &project)
+        .external_project(&connection.id, &project)
         .await
-        .unwrap()
-        .grant;
+        .unwrap();
     let id = WorkflowId::from_literal("00000000-0000-0000-0000-000000000001");
     let person = w
         .core

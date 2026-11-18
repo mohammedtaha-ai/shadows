@@ -293,7 +293,17 @@ async fn part_order_is_stable_across_restart() {
     )
     .await;
     let seeded = core.design().seed_roadmap_for_tests(&p).await.unwrap();
-    let grant = core.grants().issue("grant".into(), &p).await.unwrap().grant;
+    let grant = {
+        let issued = core
+            .grants()
+            .issue_external("grant".into(), vec![p.clone()])
+            .await
+            .unwrap();
+        core.grants()
+            .external_project(&issued.connection.id, &p)
+            .await
+            .unwrap()
+    };
     let draft_ref = core
         .plans()
         .prepare_draft(&grant)

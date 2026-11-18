@@ -46,6 +46,7 @@
 # removed, the link as the command left it, dated by its command record.
 
 name: code
+external_connections: Code questions for an external connection use only the selected project's root. Project links do not widen returned locations.
 version: 5
 status: current
 source: crates/codebase/src
@@ -259,7 +260,6 @@ modules:
   active.rs: active project selection
   scan.rs: filesystem indexing
   scope.rs: question scope validation
-external_connections: Code questions for an external connection use only the selected project's root. Project links do not widen returned locations.
   links.rs: reading a project's links
   watch.rs: project indexing worker
   store/: private index SQL

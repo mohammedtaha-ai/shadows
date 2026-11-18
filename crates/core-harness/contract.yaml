@@ -398,6 +398,7 @@ functions:
       # `From<OpenError>`: HarnessStartFailed, ProjectDirectoryUnusable,
       # Storage, typed Env errors) → the offer, or HarnessStartFailed "the session closed as it
       # opened" → `choices`.
+    codex_checks_for_test: "test-support: how many Codex protocol checks this daemon run made."
     change_model:
       signature: "(&self, thread: &ThreadId, model: &str) -> Result<SessionChoices, HarnessError>"
       # open_idle → `remembered` (the model's effort) → Sessions::change_model

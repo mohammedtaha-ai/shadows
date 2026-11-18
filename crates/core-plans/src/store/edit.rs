@@ -70,7 +70,7 @@ impl PlansStore {
                     let applied = Ops::apply(&plan.content(), &ops)
                         .map_err(crate::PlansError::PlanInvalid)?;
                     pins(conn, &project, &applied.content, &applied.changed_tasks).await?;
-                    let project_only = Grants::connection_scope_in(conn, &writer).await?;
+                    let project_only = matches!(writer, Writer::External { .. });
                     super::graph::GraphRows::check_parents(conn, &plan, &ops, project_only).await?;
                     let graph = super::graph::GraphRows::check(
                         conn,

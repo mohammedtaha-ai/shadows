@@ -285,13 +285,19 @@ async fn an_archived_plan_is_read_only_until_unarchived() {
 
     // A plan_edit through an external grant on its Draft → INVALID_COMMAND,
     // text contains "archived".
+    let connection = app
+        .core
+        .grants()
+        .issue_external("grant-external".into(), vec![app.project.clone()])
+        .await
+        .unwrap()
+        .connection;
     let grant = app
         .core
         .grants()
-        .issue("grant-external".into(), &app.project)
+        .external_project(&connection.id, &app.project)
         .await
-        .unwrap()
-        .grant;
+        .unwrap();
     let err = app
         .core
         .plans()

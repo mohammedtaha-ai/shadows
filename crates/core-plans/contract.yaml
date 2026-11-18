@@ -626,6 +626,7 @@ shared_in_transaction:
   task_context: Reads approved task context in one owner snapshot after live grant checks.
   task_context_in: Assembles approved task context inside the caller's transaction; Runs saves it with an attempt.
   links_of: Private store entry used within the owner transaction.
+  get_external_plan: Private store entry; reads one plan in the selected project only, with its linked previews filtered to that project.
   notify_plan: Private store entry used within the owner transaction.
   preview: Private store entry used within the owner transaction.
   put_code_link: Private store entry used within the owner transaction.

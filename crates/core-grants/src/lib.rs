@@ -21,8 +21,6 @@ pub use external::{ExternalConnection, ExternalConnectionId, IssuedExternalConne
 pub use model::IssuedGrant;
 pub use model::{Grant, GrantId, GrantKind, TaskScope, Token};
 
-#[cfg(feature = "test-support")]
-use core_db::CommandContext;
 use core_db::Storage;
 use core_projects::ProjectId;
 
@@ -35,16 +33,6 @@ pub struct Grants {
     mcp_url: String,
 }
 
-/// What issuing answers. `token` and `command` are `Some` on the first issue
-/// only: a replay of the same command answers the grant without them,
-/// because a token is shown once.
-#[cfg(feature = "test-support")]
-pub struct IssuedView {
-    pub grant: Grant,
-    pub token: Option<String>,
-    pub command: Option<String>,
-}
-
 impl Grants {
     pub fn new(storage: Arc<Storage>, mcp_url: String) -> Self {
         Self {
@@ -53,49 +41,6 @@ impl Grants {
         }
     }
 
-    /// A project's grants for external agents, revoked ones included, newest
-    /// first. Never a token.
-    #[cfg(feature = "test-support")]
-    pub async fn list(&self, project: &ProjectId) -> Result<Vec<Grant>, GrantsError> {
-        Ok(self.store.list_project_grants(project).await?)
-    }
-    /// Issues the grant with the `claude mcp add` line for this daemon's `/mcp`, present only when
-    /// the token is.
-    #[cfg(feature = "test-support")]
-    pub async fn issue(
-        &self,
-        command_id: String,
-        project: &ProjectId,
-    ) -> Result<IssuedView, GrantsError> {
-        let c = CommandContext::user(
-            command_id,
-            "McpGrantIssue",
-            serde_json::json!({ "project": project }),
-        );
-        let issued = self.store.issue_project_grant(&c, project).await?;
-        let command = issued.token.as_ref().map(|token| {
-            format!(
-                "claude mcp add --transport http shadows {} --header \"Authorization: Bearer {}\"",
-                self.mcp_url,
-                token.as_str()
-            )
-        });
-        Ok(IssuedView {
-            grant: issued.grant,
-            token: issued.token.map(|t| t.as_str().to_string()),
-            command,
-        })
-    }
-    /// A thread grant is the Planner's, not the person's, and is not found here.
-    #[cfg(feature = "test-support")]
-    pub async fn revoke(&self, command_id: String, grant: &GrantId) -> Result<Grant, GrantsError> {
-        let c = CommandContext::user(
-            command_id,
-            "McpGrantRevoke",
-            serde_json::json!({ "grant": grant }),
-        );
-        Ok(self.store.revoke_grant(&c, grant).await?)
-    }
     /// Resolves a bearer by its hash; unknown or revoked tokens return none.
     pub async fn authorize(&self, token: &str) -> Result<Option<Grant>, GrantsError> {
         Ok(self.store.grant_for_token(token).await?)

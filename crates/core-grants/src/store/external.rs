@@ -130,20 +130,6 @@ impl GrantsStore {
     }
 }
 
-impl GrantsStore {
-    pub(crate) async fn connection_scope_in(
-        tx: &mut Tx,
-        grant: &GrantId,
-    ) -> Result<bool, StorageError> {
-        Ok(sqlx::query_scalar(
-            "SELECT EXISTS(SELECT 1 FROM external_connection_project WHERE grant_id = ?)",
-        )
-        .bind(grant.as_str())
-        .fetch_one(tx)
-        .await?)
-    }
-}
-
 async fn load(tx: &mut Tx, id: &ExternalConnectionId) -> Result<ExternalConnection, StorageError> {
     let (created_at, revoked_at) =
         sqlx::query_as("SELECT created_at, revoked_at FROM external_connection WHERE id = ?")

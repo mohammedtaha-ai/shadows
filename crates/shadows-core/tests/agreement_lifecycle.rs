@@ -233,12 +233,17 @@ async fn agreement_draft_replays_exact_result_and_refuses_stale_edit() {
             .is_err()
     );
     reader.close().await;
-    let grant = core
+    let connection = core
         .grants()
-        .issue("grant".into(), &project)
+        .issue_external("grant".into(), vec![project.clone()])
         .await
         .unwrap()
-        .grant;
+        .connection;
+    let grant = core
+        .grants()
+        .external_project(&connection.id, &project)
+        .await
+        .unwrap();
     let agent_content = core
         .design()
         .agreement(&project, &first.agreement_id, Some(1))
@@ -259,7 +264,7 @@ async fn agreement_draft_replays_exact_result_and_refuses_stale_edit() {
         .map_err(shadows_core::CoreError::from)
         .unwrap();
     core.grants()
-        .revoke("revoke-grant".into(), &grant.id)
+        .revoke_external("revoke-grant".into(), &connection.id)
         .await
         .unwrap();
     assert!(
