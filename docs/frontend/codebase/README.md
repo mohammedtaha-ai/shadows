@@ -166,7 +166,7 @@ it is that folder's `contract.yaml`.
 | `web/src/api/transport/index.ts` | Shared generated HTTP transport | `web/src/api/contract.yaml` |
 | `web/src/api/error.ts` | Public daemon failure types | `web/src/api/contract.yaml` |
 | `web/src/api/agreements.ts` | Agreement server state | `web/src/api/contract.yaml` |
-| `web/src/api/code.ts` | Code links and language server state | `web/src/api/contract.yaml` |
+| `web/src/api/code.ts` | The code service's web calls | `web/src/api/contract.yaml` |
 | `web/src/api/directories.ts` | Filesystem directory server state | `web/src/api/contract.yaml` |
 | `web/src/api/harnesses.ts` | Harness capabilities server state | `web/src/api/contract.yaml` |
 | `web/src/api/native-activity.ts` | Native activity query identity | `web/src/api/contract.yaml` |

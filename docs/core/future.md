@@ -37,6 +37,10 @@ written beyond the vision). A feature leaves this list when it is delivered.
 | Our own runtime replaces ACP | Core's agent connection moves from ACP to Shadows' own runtime, one capability at a time | planned | architecture plan, Phase 6 (`docs/backend/plans/2026-10-21-architecture.md` at `c604d06c`) |
 | The name index | `where_is`, `who_uses` and `outline` from the tree-sitter name index (`shadows-index`: Rust, TypeScript, JavaScript) | suspended (Mohammed, 2026-11-13): its code stays, nothing calls it; returns only if a need names it, such as a language with no language server | [language servers design](../backend/specs/2026-11-13-language-servers-design.md): `code_lsp` answers from the project's language servers instead |
 | Single-file adapter | The adapter runs without Node installed on the machine | idea | [harness controls, OPEN](specs/2026-09-24-harness-controls-design.md) |
+| Plan progress on the plan page | "N tasks · M done", a bar and one mark per task on the plan's page | partly built: each task's `done` and its Done route since PR #69; no one read gives every task's state, and the plan page still shows its `Planned` block | `docs/shared/requests/2026-11-02-plan-task-status.md` at `e78e07dc` |
+| Acceptance ticks | Each acceptance item of a task ticked as met, saved by Core | idea (asked by Masada 2026-11-02, never answered) | `docs/shared/requests/2026-11-02-acceptance-ticks.md` at `e78e07dc` |
+| A turn's stages | A stepper (plan, analyze, execute, verify, deliver) lit live on the Agent Mode board | idea (asked by Masada 2026-11-02, never answered) | `docs/shared/requests/2026-11-02-turn-run-stages.md` at `e78e07dc` |
+| What one operation spent | Tokens in, out, and read from and written to cache, per turn, from the harness's own report | idea (asked by Masada 2026-11-02, never answered) | `docs/shared/requests/2026-11-02-operation-context-use.md` at `e78e07dc` |
 
 ## Workspace and Dashboard
 

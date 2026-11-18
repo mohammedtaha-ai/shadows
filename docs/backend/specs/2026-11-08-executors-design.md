@@ -100,7 +100,8 @@ A new route for one task of one plan version. The current plan page's task panel
 
 The header's progress ("N tasks · M done") and the per-task marks become real: they read
 Core's task status. This answers the two shared requests waiting since 2026-11-02:
-`plan-task-status.md` and `acceptance-ticks.md` (§9).
+`plan-task-status.md` and `acceptance-ticks.md` (§9), both at `e78e07dc`. Not built yet: the plan
+page still shows its `Planned` block; both are rows of [Core future](../../core/future.md).
 
 ## 5. One task's life
 

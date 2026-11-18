@@ -152,7 +152,7 @@ export function AgentBoard({
           <Planned
             className="mt-5"
             title="Run stages"
-            reason="Waits for docs/shared/requests/2026-11-02-turn-run-stages.md"
+            reason={'Planned: docs/core/future.md, "A turn\'s stages"'}
           >
             <ol className="grid grid-cols-5 gap-2">
               {STAGES.map((stage, index) => (
@@ -332,7 +332,7 @@ export function AgentBoard({
               )}
               <Planned
                 title="Context per operation"
-                reason="Waits for docs/shared/requests/2026-11-02-operation-context-use.md"
+                reason='Planned: docs/core/future.md, "What one operation spent"'
               />
             </Panel>
 

@@ -71,6 +71,8 @@ Notes for the voice design when it starts; they decide nothing.
 | Personal memory with controls | Preferences remembered, correctable and forgettable; never used as project truth | idea | [vision §10](./vision.md#10-two-kinds-of-memory), [§37](./vision.md#37-the-liaison-as-a-personal-representative) |
 | Cost and token visibility | Model spend and token savings shown beside a decision (usage by provider and model is built in Settings) | idea | [vision §12](./vision.md#12-token-efficiency-as-a-product-feature), [§46](./vision.md#46-cost-and-budget-awareness) |
 | Delegated policies | Explicit, scoped, reversible permission to approve small things without him | planned | [§24.6](../core/specs/2026-10-08-approval-authority-design.md#246-external-human-confirmation-and-assessment), [vision §38](./vision.md#38-delegated-policies) |
+| An agent's context layers | Which context an agent keeps from turn to turn, each marked kept or not | idea (asked by Masada 2026-11-02, never answered) | `docs/shared/requests/2026-11-02-agent-context-layers.md` at `e78e07dc` |
+| An agent's runtime capabilities | What the agent's runtime can do (files and diffs, terminal, model handoff, subagents), each marked available | idea (asked by Masada 2026-11-02, never answered) | `docs/shared/requests/2026-11-02-agent-runtime-capabilities.md` at `e78e07dc` |
 
 ## Beyond one machine
 

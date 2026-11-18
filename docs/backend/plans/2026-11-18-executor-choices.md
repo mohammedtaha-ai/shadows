@@ -2,7 +2,7 @@
 
 The rest of this plan (B-155 to B-158, and the web task F-125) is on `main` at `0e281585` (PR #71).
 Its rulings are in [executors design](../specs/2026-11-08-executors-design.md) and its web API is in
-[the accepted request](../../shared/requests/2026-11-18-executor-choices.md). The full plan is in Git at `a1561e20`.
+the accepted request (`docs/shared/requests/2026-11-18-executor-choices.md` at `e78e07dc`). The full plan is in Git at `a1561e20`.
 
 ## Task B-159: acceptance in the browser
 

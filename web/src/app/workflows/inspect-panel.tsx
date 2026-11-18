@@ -70,7 +70,7 @@ export function InspectPanel({
         {task.acceptance.length > 0 && (
           <Planned
             title="Acceptance progress"
-            reason="Waits for docs/shared/requests/2026-11-02-acceptance-ticks.md"
+            reason='Planned: docs/core/future.md, "Acceptance ticks"'
             className="mb-2.5"
           >
             <div className="h-1.5 w-full rounded-full bg-muted ring-1 ring-accent-line/20" />

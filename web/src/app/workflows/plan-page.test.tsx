@@ -252,7 +252,7 @@ describe('the plan page', () => {
     const block = document.querySelector('section[aria-label="Plan progress (planned)"]')
     expect(block?.textContent).toContain('Planned')
     expect(block?.textContent).toContain('3 tasks')
-    expect(block?.textContent).toContain('docs/shared/requests/2026-11-02-plan-task-status.md')
+    expect(block?.textContent).toContain('docs/core/future.md')
     expect(block?.textContent).not.toContain('%')
     expect(document.querySelector('[role="progressbar"]')).toBeNull()
   })

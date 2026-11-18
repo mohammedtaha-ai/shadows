@@ -201,7 +201,7 @@ function Header({ plan, projectId, showPhases, onTogglePhases }: {
       <div className="flex flex-wrap items-center gap-4">
         <Planned
           title="Plan progress"
-          reason="Waits for docs/shared/requests/2026-11-02-plan-task-status.md"
+          reason='Planned: docs/core/future.md, "Plan progress on the plan page"'
           className="min-w-52"
         >
           <p className="text-xs tabular-nums">
