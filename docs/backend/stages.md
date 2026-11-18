@@ -62,7 +62,7 @@ this file at `db760593`.
   1 and 2 (evidence `docs/evidence/2026-11-04-planner-context-probe.md` at `4031168f`); slice 2's language servers on
   `testing4` (2026-11-13); slice 4's browser acceptance on `testing4` (2026-11-14, B-149); slice 6's
   browser acceptance on `testing6` (2026-11-16, B-118).
-- Slice 4's live tests ran on 2026-11-18 (`docs/evidence/2026-11-18-slice-4-live.md`): 7 pass; `live_executor_asks_about_a_planned_consumer` fails, B-166.
+- Slice 4's live tests ran on 2026-11-18 (`docs/evidence/2026-11-18-slice-4-live.md`): 7 pass; `live_executor_asks_about_a_planned_consumer` failed and passes since B-166.
 - Slice 6's live test (`stop_control_live`) and its evidence file were dropped (Mohammed, 2026-11-16).
 - B-150 keeps its own per-thread message queue beside Turns' queue; reusing Turns' queue needs the executor session restored by thread.
 - The web derives "stopped on the additions cap" itself; a Core field on `TaskRun` should own it.
@@ -138,7 +138,9 @@ this file at `db760593`.
 
 ### B-166 · The planned-consumer live test asks while its attempt still runs
 
-- Status: todo
+- Status: done (the test app never started the code service, so gopls stayed idle;
+  `gopls_warm` starts it and warms gopls before the attempt; two live passes in
+  `docs/evidence/2026-11-18-slice-4-live.md`)
 - Plan: none. In `docs/evidence/2026-11-18-slice-4-live.md`,
   `live_executor_asks_about_a_planned_consumer` failed with GRANT_SCOPE "no running attempt holds
   this grant's task": the test asks `task_question` on the executor's grant, retrying while
