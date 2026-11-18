@@ -23,6 +23,26 @@ Seen in step 7: the skip is silent. The Planner noticed it was accepted where a 
 been refused and could not tell why. Telling the Planner that the file check was skipped, and
 why, is not built.
 
-Not run live: the skip while a project's first file listing is still running. A listing of this
-project ends in milliseconds, so it cannot be held open from outside; the case is covered by
-`the_check_is_skipped_when_the_file_list_cannot_answer` in `crates/shadows-core/tests/task_contract.rs`.
+## The first listing still running (tried, not reachable)
+
+To hold a project's first file listing open, a new project `huge-app` was given 2,000,000 empty
+files under `data/` (plus the notes code). Its first listing ran from 23:29:40 to 23:33:26
+(`code.scan … elapsed_ms=218119`). The journey was driven straight through it:
+
+| # | Step | Observed |
+|---|---|---|
+| 8 | Five vision cards | Proposed and approved in 12 s, during the listing. |
+| 9 | The map | The Planner's first `map_propose` was refused (a layer path with a note in it); its second one got no answer: `The operation timed out.` The daemon logged no `/mcp` response from 23:30:12 to 23:33:39, and the other projects' listings stalled with it (`notes-app` 177 s, `big-app` 142 s, both normally milliseconds to 22 s). |
+| 10 | The plan | Not reached: no map was stored, so `draft_start` was refused with `STAGE_BLOCKED: no roadmap approved`. |
+
+So the skip while a first listing runs cannot be reached through the Planner: a big first listing
+holds back the daemon's other work until it ends, and a plan edit cannot be saved before the map
+and roadmap anyway. The case stays covered by `the_check_is_skipped_when_the_file_list_cannot_answer`
+in `crates/shadows-core/tests/task_contract.rs`.
+
+Found on the way, not part of B-167:
+
+- A project's first listing of 2,000,000 files took 218 s and stalled the Planner's tool calls on
+  every project until it ended, so a tool call timed out.
+- After the listing, each Planner turn on that project read the whole file list
+  (`SELECT path FROM code_inventory WHERE project_id = ? AND kind = 'file'`, 2,000,005 rows, 15 s).

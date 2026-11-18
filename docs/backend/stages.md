@@ -72,6 +72,8 @@ this file at `db760593`.
 - Slice 6's live test (`stop_control_live`) and its evidence file were dropped (Mohammed, 2026-11-16).
 - B-150 keeps its own per-thread message queue beside Turns' queue; reusing Turns' queue needs the executor session restored by thread.
 - The web derives "stopped on the additions cap" itself; a Core field on `TaskRun` should own it.
+- A project's first file listing of 2,000,000 files (218 s) stalled the Planner's tool calls on every project until it ended, and each later turn read the whole list (15 s): `docs/evidence/2026-11-18-missing-file-refusal-live.md`. Not yet traced to its cause.
+- When B-167's file check is skipped (no project folder, first listing running), the Planner is not told; it saw a like edit refused before and could not tell why.
 - A Planner's `Read` (Claude) and read-only sandbox (Codex) can read any file the account can, outside the project too; only its instructions keep it in the project. Accepted as is by Mohammed on 2026-11-18.
 
 ## Open
