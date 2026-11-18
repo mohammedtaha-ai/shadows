@@ -19,21 +19,21 @@ const STATE_DOT: Record<ServerStatus['state']['state'], string> = {
   not_installed: 'bg-muted-foreground', off: 'bg-border', failed: 'bg-red-500',
 }
 
-// Display names for the catalog's server ids; an added server or an unmapped id shows its id.
+// Display names for the ids in Core's catalog (codebase/src/lsp/catalog.json);
+// an added server or an id not listed here shows its id.
 const LANGUAGE: Record<string, string> = {
-  gopls: 'Go',
-  'typescript-language-server': 'TypeScript',
-  'rust-analyzer': 'Rust',
-  pyright: 'Python',
-  'python-lsp-server': 'Python',
   clangd: 'C and C++',
+  'csharp-ls': 'C#',
+  gopls: 'Go',
   jdtls: 'Java',
-  'lua-language-server': 'Lua',
-  'ruby-lsp': 'Ruby',
-  solargraph: 'Ruby',
+  'kotlin-lsp': 'Kotlin',
+  lua: 'Lua',
   intelephense: 'PHP',
-  omnisharp: 'C#',
-  zls: 'Zig',
+  pyright: 'Python',
+  'ruby-lsp': 'Ruby',
+  'rust-analyzer': 'Rust',
+  'sourcekit-lsp': 'Swift',
+  typescript: 'TypeScript',
 }
 
 const languageName = (id: string) => LANGUAGE[id] ?? id
@@ -77,13 +77,13 @@ function Servers({ projectId }: { projectId: string }) {
         </button>
         {open && <div className="mt-3 space-y-3 pl-4">
           {list(wanted)}
-          {others.length > 0 && !showMore && <button type="button" className="text-sm text-muted-foreground underline" onClick={() => setShowMore(true)}>
+          {others.length > 0 && !showMore && <button type="button" className="block text-sm text-muted-foreground underline" onClick={() => setShowMore(true)}>
             {others.length} more {others.length === 1 ? 'language' : 'languages'}
           </button>}
           {showMore && list(others)}
           {adding
             ? <AddServer projectId={projectId} />
-            : <button type="button" className="text-sm text-muted-foreground underline" onClick={() => setAdding(true)}>Add a server</button>}
+            : <button type="button" className="block text-sm text-muted-foreground underline" onClick={() => setAdding(true)}>Add a server</button>}
         </div>}
       </div>}
     </div>
