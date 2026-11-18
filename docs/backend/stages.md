@@ -142,19 +142,44 @@ required"). Hamoud's check (2026-11-18) found nothing Shadows uses changed:
   answer as 0.167.0 did. `features.multi_agent=false` is still read as false, with no warning.
 - **Release notes:** 0.168 and 0.169 change no app-server method Shadows calls.
 
-### B-160 · Codex CLI 0.169.0 is the pinned baseline
+The exact pin is replaced by a protocol check. Plan: [Codex protocol check](plans/2026-11-18-codex-protocol-check.md),
+approved by Mohammed (2026-11-18). Rulings:
+- A CLI below the tested version is refused.
+- A CLI at or above it opens if the parts of its app-server schema that Shadows uses match the tested
+  snapshot. Additions pass; anything removed or changed refuses, and the harness list's reason names
+  the change.
+- The check runs once per CLI version per daemon run.
+- 0.169.0 is the first snapshot and the first proof.
 
-- Status: todo (run after B-158; no other cargo run at the same time)
-- Owner: `shadows-agent` (`codex::Connection::open`), the program Harness opens.
-- Read: `crates/shadows-agent/contract.yaml` (`codex::Connection::open`); `docs/core/specs/2026-09-24-harness-controls-design.md` (the baseline paragraph, "The baseline is `codex-cli 0.167.0`").
-- Touch:
-  - `crates/shadows-agent/src/codex.rs`: `VERSION` becomes `"0.169.0"`.
-  - `crates/shadows-agent/contract.yaml`: `codex::Connection::open` refuses a CLI other than 0.169.0.
-  - `crates/fake-codex/src/main.rs`: the initialize answer's `userAgent` becomes `codex/0.169.0`.
-  - `docs/core/specs/2026-09-24-harness-controls-design.md`: the baseline paragraph names 0.169.0, verified by this task's live tests on 2026-11-18.
-  - No other path.
-- Needs: B-158 committed. B-155 to B-158 touch `shadows-agent`, so this waits for them.
+Order: B-160 → B-161, after B-158 is committed (both touch `shadows-agent` and `core-harness`). No other
+cargo run at the same time.
+
+### B-160 · The codex module checks a CLI's protocol against the tested one
+
+- Status: todo (after B-158)
+- Plan: [B-160](plans/2026-11-18-codex-protocol-check.md#task-b-160-the-codex-module-checks-a-clis-protocol-against-the-tested-one).
+- Owner: `shadows-agent`'s codex module (`CodexProgram`, `codex::Connection::open`).
+- Read: `crates/shadows-agent/contract.yaml` (the `CodexProgram` and `codex::Connection` lines); the plan's Rulings and Global Constraints.
+- Touch: the task's Files list in the plan; no other path.
+- Needs: B-158 committed.
 - Done when:
-  - `cargo test -p shadows-core --test codex_session` passes (fake-codex).
-  - These signed-in live tests pass with the installed 0.169.0, and their results go in the commit message: `codex_session` `live_a_codex_planner_reads_a_file_and_writes_none` and `live_a_codex_turn_sees_an_image`, and `harness_catalog` `live_the_codex_catalog_lists_each_models_efforts`.
+  - `tested_protocol.json` is adopted from the installed 0.169.0.
+  - The 12 `codex::protocol` unit tests and `shadows-agent --test codex` pass.
+  - The contract is updated.
+  - Scoped commit.
+
+### B-161 · Harness opens Codex on the checked version and lists the verdict
+
+- Status: todo (after B-160)
+- Plan: [B-161](plans/2026-11-18-codex-protocol-check.md#task-b-161-harness-opens-codex-on-the-checked-version-and-lists-the-verdict).
+- Owner: Harness (`Sessions`, the list, every Codex opening).
+- Read: `crates/core-harness/contract.yaml` (`list`, the executor opening, the catalog); `docs/core/specs/2026-09-24-harness-controls-design.md` (the baseline paragraph); the plan's Review Focus.
+- Touch: the task's Files list in the plan; no other path.
+- Needs: B-160.
+- Done when:
+  - The seven new `codex_session` tests and the fake suites in Step 4 pass.
+  - These signed-in live tests pass on 0.169.0, with results in the commit message: `codex_session`
+    `live_a_codex_planner_reads_a_file_and_writes_none` and `live_a_codex_turn_sees_an_image`, and
+    `harness_catalog` `live_the_codex_catalog_lists_each_models_efforts`.
+  - The spec is amended as the plan gives it, and the contract is updated.
   - Scoped commit.
