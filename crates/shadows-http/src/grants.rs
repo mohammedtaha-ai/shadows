@@ -75,7 +75,10 @@ pub(super) struct RevokeQuery {
     delete,
     path = "/api/external-connections/{id}",
     tag = "grants",
-    params(("id" = ExternalConnectionId, Path, description = "The external connection"), RevokeQuery),
+    params(
+        ("id" = ExternalConnectionId, Path, description = "The external connection"),
+        RevokeQuery
+    ),
     responses(
         (status = 200, body = ExternalConnection),
         (status = 400, body = ErrorBody),

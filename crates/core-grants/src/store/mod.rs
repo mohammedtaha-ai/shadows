@@ -186,7 +186,8 @@ impl GrantsStore {
             "SELECT id, kind, project_id, thread_id, created_at, revoked_at,
                 scope_workflow, scope_version, scope_task FROM mcp_grant \
             WHERE token_hash = ? AND revoked_at IS NULL
-              AND NOT EXISTS (SELECT 1 FROM external_connection_project WHERE grant_id = mcp_grant.id)",
+              AND NOT EXISTS (SELECT 1 FROM external_connection_project
+                              WHERE grant_id = mcp_grant.id)",
         )
         .bind(Token::hash_token(raw))
         .fetch_optional(self.storage.reader())

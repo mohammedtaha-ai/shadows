@@ -188,7 +188,8 @@ impl GraphRows {
                                 .is_some_and(|(project, _, _)| *project == root.project_id)
                         {
                             problems.push(Problem::new(format!(
-                                "T{number} links to a plan outside the selected project or unavailable"
+                                "T{number} links to a plan outside the selected project \
+                                 or unavailable"
                             )));
                             continue;
                         }

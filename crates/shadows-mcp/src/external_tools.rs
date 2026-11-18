@@ -19,27 +19,34 @@ pub(super) const PROJECT_LIST: &str = "project_list";
 
 #[tool_router(router = external_tool_router, vis = "pub(super)")]
 impl Shadows {
-    #[tool(
-        description = "List the live projects this connection may access. Pass a returned id as project_id to the other tools."
-    )]
+    #[tool(description = "List the live projects this connection may access. \
+                       Pass a returned id as project_id to the other tools.")]
     async fn project_list(
         &self,
         Extension(connection): Extension<ExternalConnection>,
     ) -> CallToolResult {
-        answer(self.core.projects().list().await.map(|projects| {
-            projects.into_iter()
+        let listed = self.core.projects().list().await;
+        let allowed = listed.map(|projects| {
+            projects
+                .into_iter()
                 .filter(|project| connection.project_ids.contains(&project.id))
-                .map(|project| json!({ "id": project.id, "name": project.name, "slug": project.slug }))
+                .map(|p| json!({ "id": p.id, "name": p.name, "slug": p.slug }))
                 .collect::<Vec<_>>()
-        }).map_err(|error| Refusal::from(CoreError::from(error))))
+        });
+        answer(allowed.map_err(|error| Refusal::from(CoreError::from(error))))
     }
 }
+
+const WORKFLOW_LIST: &str = "List the latest version of each plan in the selected project. \
+                             Set archived to include archived plans.";
+const WORKFLOW_GET: &str = "Read a plan version in the selected project, including its goal, \
+                            tasks, links, revision, state and approval blockers.";
 
 pub(super) fn external_schema(mut tool: Tool) -> Tool {
     if tool.name != PROJECT_LIST {
         match tool.name.as_ref() {
-            "workflow_list" => tool.description = Some("List the latest version of each plan in the selected project. Set archived to include archived plans.".into()),
-            "workflow_get" => tool.description = Some("Read a plan version in the selected project, including its goal, tasks, links, revision, state and approval blockers.".into()),
+            "workflow_list" => tool.description = Some(WORKFLOW_LIST.into()),
+            "workflow_get" => tool.description = Some(WORKFLOW_GET.into()),
             _ => {}
         }
         let schema = Arc::make_mut(&mut tool.input_schema);
