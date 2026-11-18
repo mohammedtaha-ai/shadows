@@ -111,9 +111,14 @@ impl From<CoreError> for Refusal {
             CoreError::Refused {
                 code: ErrorCode::GrantScope,
                 message,
+                // One text for every grant kind: the adapter does not know which
+                // kind the caller holds, so it names each kind's reach.
             } if message == "outside what the grant allows" => Self::scope(
-                "outside what this grant allows: use an authorized project and prepare \
-                    a fresh draft_ref in that project before starting a draft",
+                "outside what this grant allows: plan writes stay in the grant's own \
+                    project; a Planner can read an explicitly linked project with \
+                    workflow_list and workflow_get, an external connection only the \
+                    project_id it called with; draft_ref starts a plan only in its \
+                    own project, within the hour after draft_prepare",
             ),
             other @ CoreError::Refused {
                 code: ErrorCode::ThreadBusy | ErrorCode::QueuedMessageGone,
