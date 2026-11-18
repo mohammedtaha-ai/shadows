@@ -129,6 +129,12 @@ async fn live_the_planner_starts_the_task_it_was_asked_to_run() {
         format!("Run T1 of plan version {v1} with task_start, with model sonnet. Do nothing else.");
     let done = live::planner_turn_on(app, "live-start", &prompt, live::SUBSCRIPTION_MODEL).await;
     assert_eq!(done.status_kind, "Completed", "{done:?}");
+    l.app
+        .core
+        .runs()
+        .choose_executor_for_test(&v1, 1, "claude-code", live::SUBSCRIPTION_MODEL, None)
+        .await
+        .unwrap();
     let entries = app::entries(app).await;
     let called = entries
         .iter()
@@ -174,7 +180,7 @@ async fn started(goal: &str) -> (Run, shadows_core::WorkflowId, shadows_core::At
         .app
         .core
         .runs()
-        .start("live-t1".into(), &v1, 1, 1, live::SUBSCRIPTION_MODEL.into())
+        .start("live-t1".into(), &v1, 1, 1)
         .await
         .unwrap();
     let run = Run {

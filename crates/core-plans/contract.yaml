@@ -30,6 +30,7 @@
 # parameters reach this service.
 
 name: plans
+external_connections: External MCP reads resolve dependency previews and diagnostics within the selected project. Connection writers cannot add dependencies on another project's plans. Draft references stay bound to the scoped project grant.
 # approve_plan_with validates Planner authority transactionally and records §24 provenance.
 version: 2
 status: current
@@ -620,10 +621,12 @@ enums:
 
 
 shared_in_transaction:
+  task_lineage_in: Returns the task id followed by its recorded copy ancestors, newest first.
   version_ids_in: 'Runs snapshots the version identities for a done-mark recheck in its mark write; all workflow SQL remains owned by Plans'
   task_context: Reads approved task context in one owner snapshot after live grant checks.
   task_context_in: Assembles approved task context inside the caller's transaction; Runs saves it with an attempt.
   links_of: Private store entry used within the owner transaction.
+  get_external_plan: Private store entry; reads one plan in the selected project only, with its linked previews filtered to that project.
   notify_plan: Private store entry used within the owner transaction.
   preview: Private store entry used within the owner transaction.
   put_code_link: Private store entry used within the owner transaction.
@@ -634,7 +637,7 @@ shared_in_transaction:
   project_event_payload_in: Events projects plan identifiers in its journal read snapshot.
   workflow_in_project_in: "(conn, workflow, project) -> Result<bool, StorageError>; Turns reads focus membership in its snapshot."
   execution_plan_in: "(tx, workflow, version) -> Result<ExecutionPlan, PlansError>; Runs' Start preflight snapshot and its admission write, and an addition's write: the version with its linked tasks (version_in), another version number NotFound, and its refusal checked Archived, then NotFrozen, then Superseded (any next version, Draft or Frozen)."
-  version_in: "(conn, workflow) -> Result<Plan, PlansError>; Plans' own execution_plan_in: the workflow's version with its linked tasks, read inside the caller's transaction"
+  version_in: "(conn, workflow) -> Result<Plan, PlansError>; Plans' own execution_plan_in, and Runs' executor choice save (its newest-version and task-id checks, in the pre-check read and again in the write): the workflow's version with its linked tasks, read inside the caller's transaction"
   apply_design_links_in: Owner entry in the caller transaction; design links rules.
   anchor_plans_in: Owner entry in the caller transaction; design links rules.
   outcomes_with_plans_in: "Plans' own roadmap approval write: the outcomes a plan links to, which Design's removal refuses."

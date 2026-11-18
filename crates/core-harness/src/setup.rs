@@ -141,6 +141,7 @@ impl Setups {
         thread: &ThreadId,
         project: &ProjectId,
         kind: ThreadKind,
+        harness: &str,
     ) -> Result<SessionSetup, String> {
         self.forget(thread).await;
         let executor = self
@@ -151,7 +152,7 @@ impl Setups {
             .cloned();
         match (kind, executor) {
             (ThreadKind::Executor, Some(executor)) => {
-                return self.for_executor(thread, project, executor).await;
+                return self.for_executor(thread, project, executor, harness).await;
             }
             (ThreadKind::Executor, None) => {
                 return Err("an executor thread opens only for its attempt".into());
@@ -240,6 +241,7 @@ impl Setups {
         thread: &ThreadId,
         project: &ProjectId,
         executor: ExecutorSession,
+        harness: &str,
     ) -> Result<SessionSetup, String> {
         let (grant, mcp) = match &self.mcp_url {
             Some(url) => {
@@ -279,9 +281,9 @@ impl Setups {
         );
         Ok(SessionSetup {
             mcp,
-            append: Some(ExecutorSession::instructions().to_string()),
+            append: Some(ExecutorSession::instructions(harness)),
             allowed_tools: vec![ALLOWED.to_string()],
-            tools: Some(ExecutorSession::tools()),
+            tools: ExecutorSession::tools(harness),
             setting_sources: None,
             permissions: vec![],
         })

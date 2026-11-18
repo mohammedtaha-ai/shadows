@@ -10,9 +10,13 @@ use std::time::Duration;
 /// The thread a new opening answers; a fork answers `FORK`.
 const THREAD: &str = "fixture-thread";
 const FORK: &str = "fixture-fork";
+/// The tested protocol, which `generate-json-schema` writes back in bundle form.
+const TESTED: &str = include_str!("../../shadows-agent/src/codex/tested_protocol.json");
 
 struct Peer {
     output: io::StdoutLock<'static>,
+    /// The version `--version` prints and `initialize` reports.
+    version: String,
     thread: String,
     turn: usize,
     pending_approval: bool,
@@ -315,7 +319,9 @@ impl Peer {
         let id = &m["id"];
         let params = &m["params"];
         match m["method"].as_str() {
-            Some("initialize") => self.result(id, json!({"userAgent": "codex/0.167.0"}))?,
+            Some("initialize") => {
+                self.result(id, json!({"userAgent": format!("codex/{}", self.version)}))?
+            }
             Some("initialized") => {}
             Some("account/read") => self.result(id, json!({"account": {"type": "chatgpt"}}))?,
             Some("account/rateLimits/read") => {
@@ -411,9 +417,75 @@ impl Peer {
     }
 }
 
+/// A setting a test leaves in the Codex home, read on each start: the child's environment is
+/// cleared, and each test has its own home.
+fn setting(name: &str) -> Option<String> {
+    let home = PathBuf::from(std::env::var_os("CODEX_HOME")?);
+    std::fs::read_to_string(home.join(name))
+        .ok()
+        .map(|text| text.trim().to_owned())
+}
+
+/// Writes the tested protocol as a schema bundle, changed as `fake-codex-protocol` says:
+/// `same` (the default), `added`, `removed` or `broken`.
+fn generate_schema(args: &[String]) -> io::Result<()> {
+    let protocol = setting("fake-codex-protocol").unwrap_or_else(|| "same".into());
+    if protocol == "broken" {
+        eprintln!("error: unknown subcommand 'generate-json-schema'");
+        std::process::exit(1);
+    }
+    let out = args
+        .iter()
+        .skip_while(|arg| *arg != "--out")
+        .nth(1)
+        .ok_or_else(|| io::Error::other("--out is required"))?;
+    let tested: Value = serde_json::from_str(TESTED).map_err(io::Error::other)?;
+    let mut definitions = serde_json::Map::new();
+    let mut v2 = serde_json::Map::new();
+    for (key, definition) in tested["definitions"].as_object().into_iter().flatten() {
+        match key.strip_prefix("v2/") {
+            Some(name) => v2.insert(name.into(), definition.clone()),
+            None => definitions.insert(key.clone(), definition.clone()),
+        };
+    }
+    let requests = definitions["ClientRequest"]["oneOf"]
+        .as_array_mut()
+        .ok_or_else(|| io::Error::other("ClientRequest has no variants"))?;
+    match protocol.as_str() {
+        "added" => {
+            v2["ThreadStartResponse"]["properties"]["fixtureExtra"] = json!({"type": "string"});
+            requests.push(json!({
+                "properties": {"id": {"type": "integer"},
+                               "method": {"enum": ["fixture/added"], "type": "string"}},
+                "required": ["id", "method"], "type": "object"
+            }));
+        }
+        "removed" => requests
+            .retain(|variant| variant["properties"]["method"]["enum"][0] != json!("turn/steer")),
+        _ => {}
+    }
+    definitions.insert("v2".into(), Value::Object(v2));
+    let bundle = json!({"definitions": definitions});
+    std::fs::create_dir_all(out)?;
+    std::fs::write(
+        PathBuf::from(out).join("codex_app_server_protocol.schemas.json"),
+        bundle.to_string(),
+    )
+}
+
 fn main() -> io::Result<()> {
+    let version = setting("fake-codex-version").unwrap_or_else(|| "0.169.0".into());
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    if args.first().is_some_and(|arg| arg == "--version") {
+        println!("codex-cli {version}");
+        return Ok(());
+    }
+    if args.get(1).is_some_and(|arg| arg == "generate-json-schema") {
+        return generate_schema(&args);
+    }
     let mut peer = Peer {
         output: io::stdout().lock(),
+        version,
         thread: THREAD.into(),
         turn: 0,
         pending_approval: false,

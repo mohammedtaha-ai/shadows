@@ -65,17 +65,21 @@ fn tasks(v1: &WorkflowId) -> String {
 }
 
 async fn start(app: &App, v1: &WorkflowId, task: u32, command: &str) -> (u16, Value) {
+    seed_choice(app, v1, task).await;
     let path = format!("{}/{task}/attempts", tasks(v1));
-    post(
-        app,
-        &path,
-        json!({ "command_id": command, "model": "fake-small" }),
-    )
-    .await
+    post(app, &path, json!({ "command_id": command })).await
+}
+
+async fn seed_choice(app: &App, workflow: &WorkflowId, task: u32) {
+    app.core
+        .runs()
+        .choose_executor_for_test(workflow, task, "claude-code", "fake-small", Some("high"))
+        .await
+        .unwrap();
 }
 
 #[tokio::test]
-async fn the_task_answers_its_needs_start_and_suggested_model() {
+async fn the_task_answers_its_needs_start_and_executor_choice() {
     let (app, v1) = runs_app().await;
     let (status, t2) = call(&app, "GET", &format!("{}/2", tasks(&v1)), None).await;
     assert_eq!(status, 200, "{t2}");
@@ -92,7 +96,8 @@ async fn the_task_answers_its_needs_start_and_suggested_model() {
         t2["start"]["reason"].as_str().unwrap().contains("T1"),
         "{t2}"
     );
-    assert_eq!(t2["suggested_model"], Value::Null);
+    assert_eq!(t2["executor"], Value::Null);
+    seed_choice(&app, &v1, 1).await;
     let (_, t1) = call(&app, "GET", &format!("{}/1", tasks(&v1)), None).await;
     assert_eq!(
         t1["start"],
@@ -129,10 +134,44 @@ async fn a_replayed_start_returns_the_same_attempt() {
     let (status, again) = start(&app, &v1, 1, "s1").await;
     assert_eq!(status, 201);
     assert_eq!(again["id"], first["id"]);
-    let path = format!("{}/1/attempts", tasks(&v1));
-    let (status, other) = post(&app, &path, json!({ "command_id": "s1", "model": "x" })).await;
+    let path = format!("{}/2/attempts", tasks(&v1));
+    let (status, other) = post(&app, &path, json!({ "command_id": "s1" })).await;
     assert_eq!(status, 409);
     assert_eq!(other["code"], "command_conflict");
+}
+
+#[tokio::test]
+async fn start_without_a_choice_is_409_no_executor_choice() {
+    let (app, v1) = runs_app().await;
+    let (status, body) = post(
+        &app,
+        &format!("{}/1/attempts", tasks(&v1)),
+        json!({"command_id": "no-choice"}),
+    )
+    .await;
+    assert_eq!(status, 409, "{body}");
+    assert_eq!(body["code"], "no_executor_choice");
+}
+
+#[tokio::test]
+async fn the_person_saves_a_tasks_executor_over_http() {
+    let app = app::test_app().await;
+    let v1 = plan::approved_v1(&app).await;
+    let task = format!("{}/1", tasks(&v1));
+    let (status, saved) = call(
+        &app,
+        "PUT",
+        &format!("{task}/executor"),
+        Some(json!({
+            "command_id": "save", "harness": "claude-code", "model": "fake-large", "effort": "low",
+        })),
+    )
+    .await;
+    assert_eq!(status, 200, "{saved}");
+    assert_eq!(saved["chosen_by"], "person");
+    let (status, result) = call(&app, "GET", &task, None).await;
+    assert_eq!(status, 200);
+    assert_eq!(result["executor"], saved);
 }
 
 #[tokio::test]
@@ -185,6 +224,7 @@ async fn a_done_mark_frees_the_tasks_that_need_it() {
     assert_eq!(status, 200, "{t1}");
     assert_eq!(t1["done"], true);
     assert!(t1["done_at"].is_string());
+    seed_choice(&app, &v1, 2).await;
     let (_, t2) = call(&app, "GET", &format!("{}/2", tasks(&v1)), None).await;
     assert_eq!(t2["needs"][0]["done"], true);
     assert_eq!(t2["start"]["allowed"], true);

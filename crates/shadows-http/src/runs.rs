@@ -25,8 +25,42 @@ type TaskPath = Path<(WorkflowId, i64, u32)>;
 pub(super) struct StartAttempt {
     /// The idempotency key: the same key and body answer the first attempt.
     command_id: String,
-    /// The executor's model, one the harness offers.
-    model: String,
+}
+
+#[derive(serde::Deserialize, utoipa::ToSchema)]
+pub(super) struct SetExecutor {
+    command_id: String,
+    #[serde(flatten)]
+    executor: shadows_core::ExecutorInput,
+}
+
+/// Saves the executor choice for this task on the newest version.
+#[utoipa::path(
+    put, path = "/api/workflows/{workflow}/versions/{version}/tasks/{task}/executor",
+    tag = "runs",
+    params(("workflow" = WorkflowId, Path), ("version" = i64, Path), ("task" = u32, Path)),
+    request_body = SetExecutor,
+    responses(
+        (status = 200, body = shadows_core::ExecutorChoice),
+        (status = 404, description = "no such plan version or task", body = ErrorBody),
+        (status = 409, description = "executor choice refused", body = RunRefusal),
+        (status = 500, description = "STORAGE_UNAVAILABLE", body = ErrorBody),
+    )
+)]
+pub(super) async fn set_executor(
+    State(s): State<AppState>,
+    Path((workflow, version, task)): TaskPath,
+    Json(body): Json<SetExecutor>,
+) -> Result<Json<shadows_core::ExecutorChoice>, RunFailure> {
+    let saved = Transport::detached_as(async move {
+        s.core
+            .runs()
+            .set_executor(body.command_id, &workflow, version, task, body.executor)
+            .await
+            .map_err(RunFailure::from)
+    })
+    .await?;
+    Ok(Json(saved))
 }
 
 /// What a done mark takes.
@@ -105,7 +139,7 @@ pub(super) async fn attempts(
     ))
 }
 
-/// Starts an attempt: an executor session on this task, on `model`. An
+/// Starts an attempt on the task's saved executor choice. An
 /// attempt whose session or first turn could not start is answered `failed`
 /// with its reason. A replay of the same `command_id` and body answers the
 /// first attempt.
@@ -127,7 +161,7 @@ pub(super) async fn attempts(
             description = "Start refused, with the code a task's `start` answers: waiting, \
                            task_busy, overlap, not_git, dirty_scope, missing_input, \
                            input_unavailable, not_frozen, superseded, archived, bad_scope; \
-                           or command_conflict",
+                           no_executor_choice or command_conflict",
             body = RunRefusal,
         ),
         (status = 500, description = "STORAGE_UNAVAILABLE", body = ErrorBody),
@@ -141,7 +175,7 @@ pub(super) async fn start(
     let core = s.core.clone();
     let attempt = Transport::detached_as(async move {
         core.runs()
-            .start(body.command_id, &workflow, version, task, body.model)
+            .start(body.command_id, &workflow, version, task)
             .await
             .map_err(RunFailure::from)
     })

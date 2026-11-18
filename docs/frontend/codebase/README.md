@@ -171,6 +171,7 @@ it is that folder's `contract.yaml`.
 | `web/src/api/harnesses.ts` | Harness capabilities server state | `web/src/api/contract.yaml` |
 | `web/src/api/native-activity.ts` | Native activity query identity | `web/src/api/contract.yaml` |
 | `web/src/api/projects.ts` | Project server state | `web/src/api/contract.yaml` |
+| `web/src/api/external-connections.ts` | External connection server state | `web/src/api/contract.yaml` |
 | `web/src/api/sessions.ts` | Harness session server state | `web/src/api/contract.yaml` |
 | `web/src/api/threads.ts` | Thread server state | `web/src/api/contract.yaml` |
 | `web/src/api/workflows.ts` | Workflow server state | `web/src/api/contract.yaml` |
@@ -318,7 +319,6 @@ it is that folder's `contract.yaml`.
 | `web/src/app/new-project/index.ts` | Expose app/new-project public capabilities | `web/src/app/new-project/contract.yaml` |
 | `web/src/app/page-pending.tsx` | Pane shown while a lazy page loads | `web/src/app/home.tsx` |
 | `web/src/app/project-settings/code-index.tsx` | Code index status with its linked projects | `web/src/app/project-settings/contract.yaml` |
-| `web/src/app/project-settings/external-agents.tsx` | External agents allowed on the project, with grants | `web/src/app/project-settings/contract.yaml` |
 | `web/src/app/project-settings/instructions-editor.tsx` | Editor for the Planner's project instructions | `web/src/app/project-settings/contract.yaml` |
 | `web/src/app/project-settings/project-modes.tsx` | Checklist of the project's allowed modes | `web/src/app/project-settings/contract.yaml` |
 | `web/src/app/project-settings/project-settings.tsx` | Project settings page, assembled from its sections | `web/src/app/project-settings/contract.yaml` |
@@ -347,6 +347,7 @@ it is that folder's `contract.yaml`.
 | `web/src/api/extensions.ts` | Extension library server state | `web/src/api/contract.yaml` |
 | `web/src/app/settings/sections/plugins.tsx` | Extension library navigation | `web/src/app/settings/contract.yaml` |
 | `web/src/app/settings/sections/code.tsx` | Language servers panel | `web/src/app/settings/contract.yaml` |
+| `web/src/app/settings/sections/external-agents.tsx` | External MCP connection settings | `web/src/app/settings/contract.yaml` |
 | `web/src/app/settings/extension-import.tsx` | Daemon folder import form | `web/src/app/settings/contract.yaml` |
 | `web/src/app/settings/extension-list.tsx` | Shared extension removal controls | `web/src/app/settings/contract.yaml` |
 | `web/src/app/agents/agent-extensions.tsx` | Per-agent extension enablement | `web/src/app/agents/contract.yaml` |
@@ -382,6 +383,7 @@ it is that folder's `contract.yaml`.
 | `web/src/app/tasks/task-page.tsx` | The task page's tabs | `web/src/app/tasks/contract.yaml` |
 | `web/src/app/tasks/task-header.tsx` | The task header: state, needs, Start or Stop, mark done | `web/src/app/tasks/contract.yaml` |
 | `web/src/app/tasks/details-tab.tsx` | The Details tab | `web/src/app/tasks/contract.yaml` |
+| `web/src/app/tasks/executor-settings.tsx` | Editing a task's saved executor choice | `web/src/app/tasks/contract.yaml` |
 | `web/src/app/tasks/run-tab.tsx` | The latest attempt's executor thread | `web/src/app/tasks/contract.yaml` |
 | `web/src/app/tasks/diff-tab.tsx` | The Diff tab: the open file above, the changed files below | `web/src/app/tasks/contract.yaml` |
 | `web/src/app/tasks/file-view.tsx` | One file at the attempt's commit with its changes marked | `web/src/app/tasks/contract.yaml` |

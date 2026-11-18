@@ -33,6 +33,78 @@ const GREET_GO: &str = "package demo\n\n// Hello answers a greeting.\nfunc Hello
 const CALLER_GO: &str = "package demo\n\nfunc Caller() string {\n\treturn Hello()\n}\n";
 const MODEL: &str = live::SUBSCRIPTION_MODEL;
 
+#[tokio::test]
+#[ignore = "live: needs Codex CLI and a signed-in dedicated home"]
+async fn live_a_codex_executor_commits_only_its_writes() {
+    let world = World::start(true).await;
+    let app = world.app();
+    let workflow = world.approved(vec![shout(1, "Hello")], Vec::new()).await;
+    let catalog = app.core.harness().catalog("codex").await.unwrap();
+    let model = catalog
+        .models
+        .iter()
+        .find(|model| {
+            model
+                .efforts
+                .iter()
+                .any(|effort| effort.id == "low" && effort.enabled)
+        })
+        .expect("a Codex model offering low effort");
+    let runs = app.core.runs();
+    let choice = runs
+        .set_executor(
+            "choose-codex".into(),
+            &workflow,
+            1,
+            1,
+            shadows_core::ExecutorInput {
+                harness: "codex".into(),
+                model: model.id.clone(),
+                effort: Some("low".into()),
+            },
+        )
+        .await
+        .unwrap();
+    let attempt = runs
+        .start("start-codex".into(), &workflow, 1, 1)
+        .await
+        .unwrap();
+    assert_eq!(attempt.harness, choice.harness);
+    assert_eq!(attempt.model, choice.model);
+    assert_eq!(attempt.effort, choice.effort);
+    let done = tokio::time::timeout(Duration::from_secs(180), async {
+        loop {
+            let current = runs.attempt(&attempt.id).await.unwrap();
+            if current.state != AttemptState::Running {
+                break current;
+            }
+            tokio::time::sleep(Duration::from_millis(250)).await;
+        }
+    })
+    .await
+    .expect("Codex reached a terminal attempt");
+    assert_eq!(done.state, AttemptState::Committed, "{done:?}");
+    let operation = app
+        .core
+        .turns()
+        .operations(&done.thread_id)
+        .await
+        .unwrap()
+        .into_iter()
+        .find(|op| Some(&op.id) == done.operation_id.as_ref())
+        .unwrap();
+    assert_eq!(operation.invocation.unwrap().requested_mode, "ask");
+    let commit = done.commit.as_deref().unwrap();
+    assert_eq!(
+        git(
+            &world.root,
+            &["diff-tree", "--no-commit-id", "--name-only", "-r", commit]
+        )
+        .trim(),
+        "shout.go",
+    );
+}
+
 /// A listening app on the subscription whose project folder is a Go module
 /// in a Git repository, and the Planner thread its tests talk to.
 struct World {
@@ -144,6 +216,15 @@ impl World {
             .approve_plan_for_test(&app::ctx("approve-1", "PlanApprove"), &v1, 1)
             .await
             .unwrap();
+        for op in ops {
+            if let PlanOp::TaskAdd { task } = op {
+                app.core
+                    .runs()
+                    .choose_executor_for_test(&v1, task.number, "claude-code", MODEL, None)
+                    .await
+                    .unwrap();
+            }
+        }
         v1
     }
 
@@ -405,7 +486,7 @@ async fn live_executor_asks_about_a_planned_consumer() {
     let attempt = app
         .core
         .runs()
-        .start("q-t1".into(), &v1, 1, 1, MODEL.into())
+        .start("q-t1".into(), &v1, 1, 1)
         .await
         .unwrap();
     let client = w.executor_client(&attempt).await;
@@ -467,7 +548,7 @@ async fn conflict_reaches_the_planner(codex: bool) {
     let attempt = app
         .core
         .runs()
-        .start("c-t1".into(), &v1, 1, 1, MODEL.into())
+        .start("c-t1".into(), &v1, 1, 1)
         .await
         .unwrap();
     let mut conflict = None;
@@ -631,8 +712,8 @@ async fn live_parallel_commits_keep_their_own_files() {
     std::fs::write(w.root.join("notes.txt"), FOREIGN).unwrap();
     git(&w.root, &["add", "notes.txt"]);
     let runs = app.core.runs();
-    let one = runs.start("p-t1".into(), &v1, 1, 1, MODEL.into()).await;
-    let two = runs.start("p-t2".into(), &v1, 1, 2, MODEL.into()).await;
+    let one = runs.start("p-t1".into(), &v1, 1, 1).await;
+    let two = runs.start("p-t2".into(), &v1, 1, 2).await;
     let (one, two) = (one.unwrap(), two.unwrap());
     let (one, two) = tokio::join!(w.settled(&one, 900), w.settled(&two, 900));
     for (attempt, file) in [(&one, "shout.go"), (&two, "wave.go")] {
@@ -693,7 +774,7 @@ async fn live_cross_scope_staging_is_not_an_accepted_report() {
     let attempt = app
         .core
         .runs()
-        .start("s-t1".into(), &v1, 1, 1, MODEL.into())
+        .start("s-t1".into(), &v1, 1, 1)
         .await
         .unwrap();
     let client = w.executor_client(&attempt).await;

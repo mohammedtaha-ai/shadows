@@ -26,6 +26,29 @@ struct Model {
     supported_reasoning_efforts: Vec<Effort>,
 }
 
+impl Model {
+    fn choice(&self) -> Choice {
+        choice(
+            &self.model,
+            &self.display_name,
+            Some(self.description.clone()),
+        )
+    }
+
+    fn efforts(&self) -> Vec<Choice> {
+        self.supported_reasoning_efforts
+            .iter()
+            .map(|effort| {
+                choice(
+                    &effort.reasoning_effort,
+                    &effort.reasoning_effort,
+                    Some(effort.description.clone()),
+                )
+            })
+            .collect()
+    }
+}
+
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct ModelPage {
@@ -51,22 +74,8 @@ impl Selection {
                 "Codex selected a model outside its catalog",
             ))?;
         Ok(Offered {
-            models: self
-                .catalog
-                .iter()
-                .map(|m| choice(&m.model, &m.display_name, Some(m.description.clone())))
-                .collect(),
-            efforts: current
-                .supported_reasoning_efforts
-                .iter()
-                .map(|e| {
-                    choice(
-                        &e.reasoning_effort,
-                        &e.reasoning_effort,
-                        Some(e.description.clone()),
-                    )
-                })
-                .collect(),
+            models: self.catalog.iter().map(Model::choice).collect(),
+            efforts: current.efforts(),
             modes: crate::policy::modes(crate::policy::CODEX)
                 .iter()
                 .map(|m| choice(m.id, m.label, Some(m.description.into())))
@@ -159,15 +168,7 @@ impl Connection {
                 ));
             }
         }
-        let account: Value = self
-            .rpc
-            .request("account/read", json!({"refreshToken": false}))
-            .await?;
-        if account.pointer("/account/type").and_then(Value::as_str) != Some("chatgpt") {
-            return Err(ConnectionError::Rpc(
-                "Sign in to Codex in the dedicated Shadows home".into(),
-            ));
-        }
+        self.require_account().await?;
         let approvals: serde_json::Map<String, Value> = permitted_tools
             .iter()
             .filter(|name| !name.ends_with("_approve"))
@@ -330,6 +331,30 @@ impl Connection {
             ));
         }
         Ok(())
+    }
+
+    async fn require_account(&self) -> Result<(), ConnectionError> {
+        let account: Value = self
+            .rpc
+            .request("account/read", json!({"refreshToken": false}))
+            .await?;
+        if account.pointer("/account/type").and_then(Value::as_str) != Some("chatgpt") {
+            return Err(ConnectionError::Rpc(
+                "Sign in to Codex in the dedicated Shadows home".into(),
+            ));
+        }
+        Ok(())
+    }
+
+    /// The native model list already provides the efforts of every model.
+    pub async fn model_choices(&self) -> Result<Vec<(Choice, Vec<Choice>)>, ConnectionError> {
+        self.require_account().await?;
+        Ok(self
+            .catalog()
+            .await?
+            .iter()
+            .map(|model| (model.choice(), model.efforts()))
+            .collect())
     }
 
     async fn catalog(&self) -> Result<Vec<Model>, ConnectionError> {

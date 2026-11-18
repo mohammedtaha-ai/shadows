@@ -11,9 +11,6 @@ use core_grants::TaskScope;
 use core_plans::{FileAction, Plan, TaskContent, WorkflowId};
 use core_turns::SendTurn;
 
-/// The mode an executor's turns run in; its project's modes do not apply.
-pub(crate) const MODE: &str = shadows_agent::policy::EXECUTOR_MODE;
-
 pub(crate) struct Checked {
     pub(crate) plan: Plan,
     pub(crate) content: TaskContent,
@@ -22,6 +19,12 @@ pub(crate) struct Checked {
 }
 
 impl Runs {
+    pub(crate) fn executor_mode(harness: &str) -> String {
+        shadows_agent::policy::executor_mode(harness)
+            .expect("the executor harness has a mode")
+            .into()
+    }
+
     /// Starts an attempt at `task` of a frozen version, or answers the one a
     /// replay of `command` started, whatever the plan has become since. An
     /// attempt whose session or turn could not start is recorded, so it is
@@ -33,15 +36,19 @@ impl Runs {
         workflow: &WorkflowId,
         version: i64,
         task: u32,
-        model: String,
     ) -> Result<Attempt, RunsError> {
         let fingerprint = CommandContext::fingerprint(
             "run.start",
             &serde_json::json!({
-                "workflow": workflow, "version": version, "task": task, "model": model,
+                "workflow": workflow, "version": version, "task": task,
             }),
         );
-        if let Some(first) = self.inner.store.replay(&command, &fingerprint).await? {
+        if let Some(first) = self
+            .inner
+            .store
+            .replay(&command, &fingerprint, workflow, version, task)
+            .await?
+        {
             return Ok(first);
         }
         let Checked {
@@ -62,7 +69,6 @@ impl Runs {
                 workflow: workflow.clone(),
                 version,
                 task,
-                model: model.clone(),
                 writes: content.writes.clone(),
                 start_head,
             })
@@ -91,7 +97,12 @@ impl Runs {
         if let Err(error) = self
             .inner
             .harness
-            .open_executor(&attempt.thread_id, scope, model.clone())
+            .open_executor(
+                &attempt.thread_id,
+                scope,
+                model.clone(),
+                attempt.effort.clone(),
+            )
             .await
         {
             return self
@@ -115,8 +126,8 @@ impl Runs {
                     prompt,
                     attachments: vec![],
                     model,
-                    mode: MODE.into(),
-                    effort: None,
+                    mode: Self::executor_mode(&attempt.harness),
+                    effort: attempt.effort.clone(),
                     focus: None,
                     plan: None,
                     client_tab: None,

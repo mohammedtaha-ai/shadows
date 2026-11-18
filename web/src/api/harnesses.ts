@@ -1,12 +1,26 @@
 import { queryOptions } from '@tanstack/react-query'
 import type { components } from './schema'
-import { client, unwrap } from './transport'
+import { ApiError, client, unwrap } from './transport'
 
 export const harnessKeys = { list: () => ['harnesses'] }
 // Harness capabilities can change, so reads retain normal focus refetching.
 export const harnessesQuery = queryOptions({ queryKey: harnessKeys.list(), queryFn: listHarnesses })
 
 export type HarnessInfo = components['schemas']['HarnessInfo']
+export type CatalogModel = components['schemas']['CatalogModel']
+
+export function harnessCatalogQuery(kind: string) {
+  return queryOptions({
+    queryKey: ['harnesses', 'catalog', kind],
+    queryFn: () => unwrap(client.GET('/api/harnesses/{kind}/catalog', { params: { path: { kind } } })),
+    retry: false,
+    staleTime: 60_000,
+  })
+}
+
+export function catalogUnavailable(error: unknown): boolean {
+  return error instanceof ApiError && error.problem.kind === 'daemon' && error.problem.code === 'HARNESS_UNAVAILABLE'
+}
 
 /** The CLIs a conversation can run on, with what each remembers and its
  * latest reported limits. */

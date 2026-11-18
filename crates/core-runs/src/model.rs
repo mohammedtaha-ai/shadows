@@ -6,6 +6,33 @@ use core_plans::{TaskParent, WorkflowId};
 use core_projects::ProjectId;
 use core_threads::ThreadId;
 
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, utoipa::ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum Chooser {
+    Person,
+    Planner,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, utoipa::ToSchema)]
+pub struct ExecutorInput {
+    pub harness: String,
+    pub model: String,
+    #[schema(required)]
+    pub effort: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+pub struct ExecutorChoice {
+    pub harness: String,
+    pub model: String,
+    #[schema(required)]
+    pub effort: Option<String>,
+    pub chosen_by: Chooser,
+    pub chosen_at: String,
+}
+
 newtype_id! {
     /// One executor session working one task.
     AttemptId
@@ -183,6 +210,9 @@ pub struct Attempt {
     #[schema(required)]
     pub operation_id: Option<OperationId>,
     pub model: String,
+    pub harness: String,
+    #[schema(required)]
+    pub effort: Option<String>,
     pub state: AttemptState,
     /// The SHA of the commit the executor made and reported, once accepted.
     #[schema(required)]
@@ -256,10 +286,9 @@ pub struct TaskRun {
     /// In link order.
     pub needs: Vec<Need>,
     pub start: StartAnswer,
-    /// The model the plan's Planner conversation last asked for; `null`
-    /// without one.
+    /// The task's saved executor choice, including an inherited choice.
     #[schema(required)]
-    pub suggested_model: Option<String>,
+    pub executor: Option<ExecutorChoice>,
 }
 
 /// What the Planner's done mark answers: the task as it now stands, and, for
@@ -278,7 +307,7 @@ pub struct ReadyTask {
     pub task: u32,
     pub title: String,
     #[schema(required)]
-    pub suggested_model: Option<String>,
+    pub executor: Option<ExecutorChoice>,
 }
 
 /// Tasks of one approved version that may start now, ascending by number, no

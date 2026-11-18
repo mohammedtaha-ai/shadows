@@ -12,7 +12,8 @@ afterEach(() => { app?.unmount(); app = null })
 
 const attempt = (id: string, number: number, extra: Partial<Attempt> = {}): Attempt => ({
   id, project_id: 'p1', workflow_id: 'w1', version: 1, task: 1, number, thread_id: 't1', operation_id: null,
-  model: 'fake-large', state: 'committed', started_at: '2026-11-08T10:00:00Z', ended_at: null, commit: null,
+  harness: 'claude-code', model: 'fake-large', effort: null,
+  state: 'committed', started_at: '2026-11-08T10:00:00Z', ended_at: null, commit: null,
   reason: null, report: null, addition: null, origin: extra.addition == null ? 'start' : 'planner', ...extra,
 })
 

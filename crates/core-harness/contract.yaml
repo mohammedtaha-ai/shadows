@@ -75,14 +75,11 @@ layer_catalog: 'Planner standards text lists every kind presence and its layers 
 # for installing and the environment, and that a changed project file is noted with
 # project_change_note. In a read-only sandbox (Codex's Read only mode) it offers no install of
 # its own: the person installs the server or it is left.
-# `open_executor(thread, grant, model)` opens an executor the same way, from its one compiled-in
-# file, executor.md: the front matter's `tools:` (Read, Grep, Glob, Edit, Write, MultiEdit, Bash,
-# TodoWrite) as the session's tools, the body appended; settingSources [] and strictMcpConfig true,
-# no permission rules, the session working in its project's folder as every session does, and
-# `policy::EXECUTOR_MODE` (`auto`) set after opening. Nothing is asked or refused while it works;
-# Runs' check on the reported commit is its one write boundary. The file carries no model and no
-# mode (executor::tests parse it; executor_session's opening test; live in runs_attempts: an Edit
-# of an existing file in a subfolder runs unasked and its commit is accepted).
+# `open_executor(thread, grant, model, effort)` opens in the project's folder and appends the
+# compiled-in executor brief with the harness's tools instructions. Claude Code uses the front
+# matter's built-in tool list and `auto`. Codex uses its own tools, the executor grant's MCP
+# inventory, and `ask`. The session applies the model before the explicit effort and mode.
+# A value the session does not offer refuses the opening. Runs checks the reported commit.
 # `release_executor` forgets the thread's executor setup and closes the session (revoking its grant).
 # An executor-kind thread opens only while its setup is held: any other opening is refused, never
 # built as a Planner's (a_released_executor_thread_does_not_open_again). An executor thread's turns
@@ -93,7 +90,7 @@ layer_catalog: 'Planner standards text lists every kind presence and its layers 
 # §23.5 prompt names stable vision item ids, proposal cards and person-only approval.
 # §13.8 prompt: the Planner talks in the person's language and stores everything in English.
 # The prompt's "The task contract" section is held by mcp_tools::the_planner_is_told_what_a_contract_holds and, live, planner_live::live_the_planner_writes_a_contract_without_a_function_body.
-# executor.md's "Tools" section (no Python; files through Write, Edit and MultiEdit, never the
+# executor_tools_claude.md's "Tools" section (no Python; files through Write, Edit and MultiEdit, never the
 # shell) is held by executor::tests::the_executor_file_parses_and_names_its_eight_tools.
 # executor.md's contract bullets are held, live, by runs_routes::live_an_executor_builds_the_function_its_contract_names.
 # prompt.txt runs a plan group by group: task_ready, then every task of the group started at once;
@@ -167,6 +164,7 @@ modules:
   sessions.rs: private adapter lifecycle
   settings.rs: session option changes
   executor.rs: executor session opening
+  catalog.rs: native model catalog probes
   setup.rs: Planner and executor opening context
   standards.rs: standards prompt rendering
   titles.rs: ordered harness title writes
@@ -231,7 +229,9 @@ shapes:
     # "Claude Code", "Codex", "AYLUL", or "Unknown" (`label`).
     label: String
     available: bool
-    # Exactly when `available` is false: `Sessions::unavailable_reason`,
+    # Exactly when `available` is false: for a configured codex whose protocol
+    # check refused, that refusal (what changed, the version floor, or the
+    # generator's first stderr line); otherwise `Sessions::unavailable_reason`,
     # the configuration flags for codex, "Coming later" otherwise.
     reason: Option<String>
     # The last turn's model on this harness and that model's remembered
@@ -273,6 +273,8 @@ shapes:
   SessionsConfig:
     secrets: Option<Arc<Secrets>>
     aylul: Option<AylulConfig>
+    # The daemon's database directory. Probes open beneath catalog-probe.
+    catalog_root: PathBuf
     # Defaults: 15 min, 10 s, 20 s, None.
     idle_after: Duration
     cancel_wait: Duration
@@ -370,11 +372,25 @@ functions:
       # For each of `policy::KNOWN`: availability, `remembered_settings`,
       # `latest_limits`, and the modes, initial and unattended mode from policy
       # alone. Refusals: Storage. `codex` is available exactly when configured
-      # and always lists its policy mode `read-only` as the initial mode.
-    remembered_model:
-      signature: "(&self, kind: &str) -> Result<Option<String>, HarnessError>"
-      # The model of `remembered_settings(kind)`: the last turn started on that
-      # harness, so a model it offered then. Refusals: Storage.
+      # and its protocol check passed; a refused check is listed unavailable with
+      # its message as `reason`. It always lists its policy mode `read-only` as
+      # the initial mode.
+      # `executor` is true exactly for `policy::EXECUTOR_HARNESSES`
+      # (harness_choices::the_harness_list_names_the_executor_clis).
+    catalog:
+      signature: "(&self, kind: &str) -> Result<HarnessCatalog, HarnessError>"
+      rule: Reads each model's own efforts through an isolated probe with no Shadows thread or
+        grant, caches only success for the daemon lifetime, and coalesces concurrent successes
+        per harness. Claude Code switches models in one ACP session and excludes models the
+        account cannot select without more usage credits. Codex reads model/list.
+      tested_by: [the_catalog_is_read_once, concurrent_catalog_reads_open_one_probe,
+        a_failed_probe_is_tried_again, codex_not_configured_is_unavailable,
+        aylul_has_no_executor_catalog, live_the_claude_code_catalog_lists_each_models_efforts,
+        live_the_codex_catalog_lists_each_models_efforts]
+    executor_catalogs:
+      signature: "(&self) -> Vec<HarnessCatalog>"
+      # `catalog` of claude-code and codex at once; a CLI whose catalog cannot be read
+      # (Codex not configured, a failed probe) is left out.
     open_session:
       signature: "(&self, thread: &ThreadId) -> Result<SessionChoices, HarnessError>"
       # turn_context (NotFound → 404 INVALID_COMMAND) → harness_available
@@ -382,6 +398,7 @@ functions:
       # `From<OpenError>`: HarnessStartFailed, ProjectDirectoryUnusable,
       # Storage, typed Env errors) → the offer, or HarnessStartFailed "the session closed as it
       # opened" → `choices`.
+    codex_checks_for_test: "test-support: how many Codex protocol checks this daemon run made."
     change_model:
       signature: "(&self, thread: &ThreadId, model: &str) -> Result<SessionChoices, HarnessError>"
       # open_idle → `remembered` (the model's effort) → Sessions::change_model
@@ -498,8 +515,25 @@ functions:
       signature: "(&self, kind: &str) -> Result<bool, HarnessError>"
       # Harness delegates to private Sessions in assistant.rs, checking whether a
       # profile is configured with `policy::is_available_with`; `codex` is
-      # available exactly when SessionsConfig::codex is set. Shared by `list`,
+      # available when SessionsConfig::codex is set and `codex_checked` passes,
+      # whose refusal it returns as HarnessStartFailed. Shared by `list`,
       # `open_session`, `open_idle` and `Turns::send` share.
+    codex_checked:
+      signature: "(&self) -> Result<CheckedCodex, HarnessError>"
+      # pub(crate), on `Sessions`, in codex_check.rs: the Codex protocol verdict
+      # for one daemon run, kept in memory only. The first caller runs
+      # CodexProgram::check in catalog_root/codex-protocol/<uuid> under a tokio
+      # Mutex, so concurrent callers wait on one check. A refusal is
+      # HarnessStartFailed(<message>); Codex not configured is HarnessUnavailable.
+      # Every Codex opening (thread sessions, executors and the catalog probe)
+      # awaits it and passes the checked version to ManagedConnection::open; an
+      # opening refused with "Codex CLI changed to X" clears the verdict, so the
+      # next opening checks X. `Harness::codex_checks_for_test` (test-support)
+      # counts the checks.
+      tested_by: [a_matching_newer_codex_opens, a_changed_codex_is_listed_with_what_changed,
+        an_older_codex_is_refused_without_a_check, a_schema_that_cannot_be_generated_is_a_reason,
+        the_protocol_is_checked_once_per_run, concurrent_openings_run_one_check,
+        a_codex_upgraded_while_running_is_checked_again]
     change_model:
       signature: "(&self, thread, opened, model: &str, effort: Option<&str>) -> Result<Offered, SettingRefused>"
       # pub(crate), on `Sessions`, called by `Harness::change_model` only:
@@ -602,7 +636,8 @@ called_by_other_services:
   prepare_context: "Turns (spawn.rs, after compose): a turn that carried planning context records it unheard; a failed write logs planner.context_record_failed and the context stays owed."
   forget_context: "Turns (turn.rs accept, a completed compaction) and shadows-http (POST /api/threads/{id}/context/resend, with a command)."
   record_limits: "Turns (turns/turn.rs accept): a turn's watcher records the account limits the harness reports, before it publishes the usage that `limits_of` answers (§12.8)"
-  remembered_model: "Runs (lib.rs suggested_model): the executor's harness's last model, suggested when the Planner's last turn ran on another harness."
+  catalog: "Runs (executor_choice.rs save_executor): a saved choice's model and effort are checked against it; its failure is Runs' catalog_unavailable. shadows-http (GET /api/harnesses/{kind}/catalog)."
+  executor_catalogs: "shadows-mcp (executor_catalog): the native executor catalogs available to this daemon."
 
 
 shared_in_transaction:

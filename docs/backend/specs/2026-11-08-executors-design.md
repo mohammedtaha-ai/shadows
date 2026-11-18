@@ -41,7 +41,7 @@ Mohammed's, 2026-11-08, in conversation unless marked as the controller's call.
 | D3 | Concurrent tasks run **in the same project folder**, not in separate worktrees. Their declared `writes` keep them apart. |
 | D4 | A test that fails because another task's code is missing is not the executor's fault. It is pending on that task (vision §3). |
 | D5 | The task opens on **its own page** with tabs: Details, Run, Diff, Report (mockup "A", chosen 2026-11-08). |
-| D6 | Mohammed chooses the model for the executor and for the critic, per task. The Planner writes a **suggested model** on each task; the page starts on it. This replaces vision §4's "Shadows chooses the model per task". |
+| D6 | Each task stores its executor's CLI, model and effort. The Planner proposes them and Mohammed edits them on the task page. The latest saved choice is used at Start. Its lineage follows copied tasks across versions. A replacement starts without a choice. |
 | D7 | No manager in the first release. A failure reaches **the Planner**: the conversation that wrote the plan. |
 | D8 | The Planner retries on its own. The ladder is §5 below: two attempts, then the Planner investigates, then one directed attempt, then Mohammed. |
 | D9 | A retry or a directed fix is sent **into the same executor session**, so the executor keeps what it did and what it was told. |
@@ -543,10 +543,10 @@ this spec; each is marked as the controller's, not his.
    Mohammed marks a task done by hand on its page. A PASS with items pending on another task is
    complete for its dependants. When the blocking task passes, Runs dispatches the critic again
    for the pending items only; their marks then close.
-6. **The suggested model** is an optional `suggested_model` on `TaskContent`, written by the
-   Planner in a Draft. Existing Frozen versions keep their content and read it as absent; the
-   page then starts on the Planner thread's model. Mohammed's choice is recorded on each attempt
-   and remembered per task for the next Start; it never changes the plan version.
+6. **The executor choice** is the CLI, model and effort saved on a task. The Planner picks
+   the smallest model and lowest effort it judges capable from the CLI catalog. Mohammed
+   can edit the choice on the newest version. A copied task inherits it and a replacement
+   starts empty. Start requires a choice and records it on the attempt.
 
 **When the plan is wrong (Mohammed, 2026-11-08; amended 2026-11-14).** The Planner edits only
 the tasks the problem touches. A correction is still a new version, preserving history and

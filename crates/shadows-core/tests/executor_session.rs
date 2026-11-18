@@ -56,6 +56,48 @@ fn scope() -> TaskScope {
     }
 }
 
+#[tokio::test]
+async fn an_executor_opens_on_its_model_and_effort() {
+    let fixture = fixture_with_session().await;
+    let thread = fixture.executor_thread().await;
+    let catalog = fixture.sessions.catalog("claude-code").await.unwrap();
+    let model = catalog
+        .models
+        .iter()
+        .find(|model| model.id == "fake-large")
+        .unwrap();
+    let effort = model.efforts.first().unwrap().id.clone();
+    fixture
+        .sessions
+        .open_executor(&thread, scope(), model.id.clone(), Some(effort.clone()))
+        .await
+        .unwrap();
+    let offered = fixture.sessions.offered(&thread).await.unwrap();
+    assert_eq!(offered.current.model, model.id);
+    assert_eq!(offered.current.effort.as_deref(), Some(effort.as_str()));
+    assert_eq!(offered.current.mode, "auto");
+    fixture.sessions.release_executor(&thread).await.unwrap();
+}
+
+#[tokio::test]
+async fn an_effort_the_model_does_not_offer_refuses_the_opening() {
+    let fixture = fixture_with_session().await;
+    let thread = fixture.executor_thread().await;
+    let error = fixture
+        .sessions
+        .open_executor(
+            &thread,
+            scope(),
+            "fake-large".into(),
+            Some("invalid".into()),
+        )
+        .await
+        .err()
+        .expect("an invalid effort refuses the opening");
+    assert!(error.to_string().contains("effort: invalid is not offered"));
+    fixture.sessions.release_executor(&thread).await.unwrap();
+}
+
 async fn fixture_with_session() -> Fixture {
     let tmp = tempfile::tempdir().unwrap();
     let storage = Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
@@ -110,7 +152,7 @@ impl Fixture {
     /// On `fake-large`, the fake's one model that offers `auto`.
     async fn open(&self, thread: &ThreadId) {
         self.sessions
-            .open_executor(thread, scope(), "fake-large".into())
+            .open_executor(thread, scope(), "fake-large".into(), None)
             .await
             .unwrap();
     }
@@ -396,7 +438,13 @@ async fn existing_grants_survive_the_migration() {
 
     let after: Vec<GrantRow> = sqlx::query_as(rows).fetch_all(&pool).await.unwrap();
     assert_eq!(kept.len(), 2);
-    assert_eq!(kept, after);
+    // The thread grant is untouched; 0074 revokes the old project token and
+    // keeps its row for history and authorship.
+    assert_eq!(kept[0], after[0]);
+    assert!(kept[1].6.is_none() && after[1].6.is_some());
+    let mut unrevoked = after[1].clone();
+    unrevoked.6 = None;
+    assert_eq!(kept[1], unrevoked);
     let draft: String = sqlx::query_scalar("SELECT grant_id FROM draft_intent")
         .fetch_one(&pool)
         .await

@@ -326,11 +326,14 @@ async fn the_next_task_is_one_that_never_ran() {
 }
 
 #[tokio::test]
-async fn the_planner_start_needs_a_model() {
-    let f = fixture().await;
+async fn the_planners_start_needs_a_choice() {
+    let f = fixture_with(true, None).await;
     let grant = planner_grant(&f).await;
-    let refused = f.core.runs().start_for(&grant, &f.workflow, 3, None).await;
-    assert!(matches!(refused, Err(RunsError::NoModel)), "{refused:?}");
+    let refused = f.core.runs().start_for(&grant, &f.workflow, 3).await;
+    assert!(
+        matches!(refused, Err(RunsError::NoExecutorChoice)),
+        "{refused:?}"
+    );
     let attempts = f.core.runs().attempts(&f.workflow, 1, 3).await.unwrap();
     assert!(attempts.is_empty(), "{attempts:?}");
     f.finish().await;
@@ -349,9 +352,7 @@ async fn the_planner_tools_refuse_a_grant_that_is_not_a_planners() {
     .grant;
     let runs = f.core.runs();
     for grant in [executor_grant(&f), project] {
-        let started = runs
-            .start_for(&grant, &f.workflow, 3, Some("fake-large".into()))
-            .await;
+        let started = runs.start_for(&grant, &f.workflow, 3).await;
         assert!(matches!(started, Err(RunsError::NotFound)), "{started:?}");
         let marked = runs.mark_done_for(&grant, &f.workflow, 1, true, None).await;
         assert!(matches!(marked, Err(RunsError::NotFound)), "{marked:?}");
@@ -577,13 +578,7 @@ async fn a_refused_answer_is_starts_refusal() {
         let answer = runs.task(&f.workflow, 1, task).await.unwrap().start;
         assert!(!answer.allowed, "T{task}: {answer:?}");
         let started = runs
-            .start(
-                format!("start-{task}"),
-                &f.workflow,
-                1,
-                task,
-                "fake-large".into(),
-            )
+            .start(format!("start-{task}"), &f.workflow, 1, task)
             .await;
         let Err(error) = started else {
             panic!("T{task} started though refused: {started:?}")

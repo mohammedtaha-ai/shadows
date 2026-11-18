@@ -17,6 +17,22 @@ use axum::http::StatusCode;
 use shadows_core::ThreadId;
 use shadows_core::{HarnessInfo, SessionChoices};
 
+#[utoipa::path(
+    get, path = "/api/harnesses/{kind}/catalog", tag = "harnesses",
+    params(("kind" = String, Path, description = "Executor CLI id")),
+    responses(
+        (status = 200, body = shadows_core::HarnessCatalog),
+        (status = 422, description = "HARNESS_UNAVAILABLE or INVALID_COMMAND", body = ErrorBody),
+        (status = 502, description = "HARNESS_START_FAILED", body = ErrorBody),
+    )
+)]
+pub(super) async fn catalog(
+    State(s): State<AppState>,
+    Path(kind): Path<String>,
+) -> Result<Json<shadows_core::HarnessCatalog>, Failure> {
+    Ok(Json(s.core.harness().catalog(&kind).await?))
+}
+
 #[derive(serde::Serialize, utoipa::ToSchema)]
 pub(super) struct TaskStopped {
     stopped: bool,

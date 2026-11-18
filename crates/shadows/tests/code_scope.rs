@@ -100,10 +100,20 @@ async fn the_scope_is_the_project_and_its_links_only() {
     assert_eq!(status, 200, "{body}");
     settle_index(&l, &[&a, &b, &c]).await;
 
+    let planner = thread_client(&l, &l.app.thread).await;
     // Unlinked: GRANT_SCOPE over MCP, before any server is asked.
     let args = json!({ "operation": "documentSymbol", "file": "src/k.rs", "project": "secret" });
-    let refused_c = refused(&client, "code_lsp", args).await;
+    let refused_c = refused(&planner, "code_lsp", args).await;
     assert!(refused_c.contains("GRANT_SCOPE"), "{refused_c}");
+    // An external connection reaches only the projects it was given, never by a link.
+    for args in [
+        json!({ "operation": "documentSymbol", "file": "src/k.rs", "project_id": c }),
+        json!({ "operation": "documentSymbol", "file": "src/api.rs", "project_id": b }),
+        json!({ "operation": "documentSymbol", "file": "src/api.rs", "project": "backend" }),
+    ] {
+        let text = refused(&client, "code_lsp", args).await;
+        assert!(text.contains("GRANT_SCOPE"), "{text}");
+    }
 
     // A path out of the folder is refused.
     let args = json!({ "operation": "documentSymbol", "file": "../x.rs" });

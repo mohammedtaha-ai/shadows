@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query'
 import { getRouteApi, useNavigate } from '@tanstack/react-router'
 import { Code2, MessageSquarePlus, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { harnessesQuery, policyOf } from '@/api/harnesses'
+import { harnessCatalogQuery, harnessesQuery, policyOf } from '@/api/harnesses'
 import { outcomeQuery, partQuery } from '@/api/design'
 import type { ThreadPlanningAnchor } from '@/api/planning-context'
 import { planVersionsQuery, plansQuery } from '@/api/workflows'
@@ -55,10 +55,14 @@ function Draft({ projectId, planId, profile, provider, defaultModel, agentName, 
   // AYLUL's project runs on `aylul` alone.
   const harness = profile !== undefined || project?.assistant === true ? AYLUL_HARNESS : picked
   const harnesses = useQuery(harnessesQuery)
-  const label = harnesses.data?.find((h) => h.kind === harness)?.label ?? harness
+  const info = harnesses.data?.find((h) => h.kind === harness)
+  const label = info?.label ?? harness
+  const catalog = useQuery({ ...harnessCatalogQuery(harness), enabled: info?.executor === true && info.available })
+  const models = catalog.data?.models
   const allowed = project?.allowed_modes[harness]
   const policy = harnesses.data === undefined ? undefined : policyOf(harnesses.data, harness)
-  const ready = useMemo(() => draftSession(policy, allowed, provider, defaultModel), [policy, allowed, provider, defaultModel])
+  const ready = useMemo(() => draftSession(policy, allowed, provider, defaultModel, models, info?.remembered),
+    [policy, allowed, provider, defaultModel, models, info?.remembered])
   // Without the harness list no mode is offered; the composer shows why. A failed
   // refetch over a list already read keeps that list's policy.
   const session: SessionView =
@@ -151,8 +155,13 @@ function Draft({ projectId, planId, profile, provider, defaultModel, agentName, 
           {anchorName === undefined ? 'Planning anchor selected' : <>Anchored at <bdi>{anchorName}</bdi></>}
         </div>
       </div>}
+      {catalog.isFetching && models === undefined && (
+        <p role="status" className="mx-auto w-full max-w-3xl px-6 pb-1 text-xs text-muted-foreground">
+          Reading {label} models…
+        </p>
+      )}
       <Composer
-        to={{ draft, planId, selectableModels: profile !== undefined }}
+        to={{ draft, planId, selectableModels: profile !== undefined || (models?.length ?? 0) > 0, draftModels: models }}
         harness={harness}
         harnessLabel={label}
         session={session}

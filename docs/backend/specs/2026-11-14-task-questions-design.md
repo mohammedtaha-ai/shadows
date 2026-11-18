@@ -6,9 +6,9 @@ plan. This approval covers the design; product implementation has not started he
 This is the slice 4 revision of [17.0](../../core/specs/2026-10-01-task-contracts-and-evidence-design.md#170-approved-local-delivery-revision-2026-11-09).
 It builds on the shipped [executor design](2026-11-08-executors-design.md) and
 [language-server design](2026-11-13-language-servers-design.md). The
-[delivery program](../plans/2026-11-09-local-delivery-program.md) owns ordering. The
+delivery program (`docs/backend/plans/2026-11-09-local-delivery-program.md` at `449d4f95`) owns ordering. The
 old execution-briefs plan (`docs/backend/plans/2026-11-09-execution-briefs.md` at `d73bb646`) is superseded by the
-[detailed slice 4 plan](../plans/2026-11-14-slice-4-task-questions.md).
+detailed slice 4 plan (`docs/backend/plans/2026-11-14-slice-4-task-questions.md` at `449d4f95`).
 
 ## Decisions settled with Mohammed
 

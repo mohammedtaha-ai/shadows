@@ -597,16 +597,23 @@ async fn a_proposal_names_a_known_item_and_carries_text() {
                 .is_err()
         );
     }
-    let issued = f
+    let connection = f
         .core
         .grants()
-        .issue("external".into(), &f.p)
+        .issue_external("external".into(), vec![f.p.clone()])
+        .await
+        .unwrap()
+        .connection;
+    let external = f
+        .core
+        .grants()
+        .external_project(&connection.id, &f.p)
         .await
         .unwrap();
     assert!(matches!(
         f.core
             .design()
-            .propose_vision(&issued.grant, add("x"))
+            .propose_vision(&external, add("x"))
             .await
             .map_err(shadows_core::CoreError::from),
         Err(CoreError::Refused {

@@ -336,23 +336,7 @@ A grant is Shadows' answer to "who may do what" on `/mcp` (§2.12's
   grant. A new adapter's grant reaches a resumed session because `mcpServers`
   is read on every resume (`MCP_PROBE.md` §3).
 
-**An external agent's grant is bound to one project.**
-
-- Project settings → **Connect** issues one and shows, once, a command to copy:
-  `claude mcp add --transport http shadows http://127.0.0.1:4318/mcp --header "Authorization: Bearer …"`.
-- **Revoke** makes Shadows refuse it immediately. It does not remove the
-  server from the person's Claude configuration. Claude Code keeps configured
-  headers in plain text in `~/.claude.json`; the settings page says so. This is
-  accepted for a loopback-only daemon, a token bound to one project and unable
-  to approve, that the person can revoke.
-- A server that answers 401 with an empty body and no `WWW-Authenticate` is
-  reported by Claude Code 2.1.281 as failed to connect with a 401. It tried
-  twice and made no OAuth discovery request (`MCP_PROBE.md` §5). That was
-  observed when a session opens; acceptance step 6 records what Claude Code
-  shows when a token is revoked during a session.
-- Issuing and revoking are durable events, recorded without the token.
-- Issuing is an HTTP API route, open to any local process like approval is
-  (§13.2's OPEN block).
+**External MCP connections are managed in Settings.** The issuer selects the available projects for each token. An external tool call selects one of them for its project grant. See the [external connections design](../../backend/specs/2026-11-18-external-agent-connections-design.md).
 
 ## 13.8 Planner instructions and the session
 
@@ -483,8 +467,8 @@ The client branches on these kinds, as Milestone 1's already does on
 | `GET /api/workflows/{id}` | One version: tasks, links, revision, `previous`/`next` version ids, what blocks approval, and the last `plan_edit`'s summary with the task numbers it changed |
 | `POST /api/workflows/{id}/approve` | `{ command_id, expected_revision }` |
 | `GET` / `PUT /api/projects/{id}/planner-instructions` | Read and save project instructions |
-| `GET` / `POST /api/projects/{id}/mcp-grants` | List external grants; issue one (the token is in this answer only) |
-| `DELETE /api/mcp-grants/{id}` | Revoke |
+| `GET` / `POST /api/external-connections` | List external connections or issue one for the supplied project IDs. The issue response shows the token once. |
+| `DELETE /api/external-connections/{id}` | Revoke |
 
 The last edit's summary comes from the stored event, so a page opened later
 still marks what changed.
@@ -577,8 +561,7 @@ polling. Grant lists refetch after the person's own actions and every
   3 changes") with **Open plan**; `PlanView` cards and panels (§13.9); the
   focus chip.
 - **Project settings:** Planner instructions (text and Save, with when they
-  last changed); the allowed modes (§12.11); External agents (**Connect**, the one-time command with Copy
-  and the `~/.claude.json` notice, the list of grants with **Revoke**).
+  last changed) and the allowed modes (§12.11).
   - **Code index** (§15.6): the project's index as one coloured line —
     `● Ready · 277 files · updated 2 min ago`, or indexing with its count,
     inactive, no folder, folder missing. **Reads code from** lists the linked
@@ -597,6 +580,8 @@ polling. Grant lists refetch after the person's own actions and every
   line that this many recently used projects are watched and kept fresh and
   the others keep their index and answer as inactive. A number out of range
   is refused before it is sent.
+  **External agents** selects a token's projects, shows setup for Codex or
+  Claude Code once, and lists issued connections with **Revoke**.
 - Colours are Shadows' own theme tokens. The reference picture's glow and
   gradients are not used.
 

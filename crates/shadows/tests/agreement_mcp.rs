@@ -52,12 +52,7 @@ async fn agreement_mcp_exposes_proposals_without_person_approval() {
             .is_some_and(|s| uuid::Uuid::parse_str(s).is_ok()),
         "{named}"
     );
-    l.app
-        .core
-        .grants()
-        .revoke("revoke".into(), &grant)
-        .await
-        .unwrap();
+    listening::revoke_connection(&l, &client).await;
     assert!(client.list_all_tools().await.is_err());
 
     l.app

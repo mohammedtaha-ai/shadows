@@ -43,7 +43,6 @@ impl Runs {
         contents.sort_unstable_by_key(|content| content.number);
         let mut chosen: Vec<&[String]> = Vec::new();
         let mut tasks = Vec::new();
-        let mut model = None;
         for content in contents {
             let number = content.number;
             if chosen
@@ -67,14 +66,14 @@ impl Runs {
             {
                 continue;
             }
-            if model.is_none() {
-                model = Some(self.suggested_model(plan).await);
-            }
+            let Some(executor) = self.inner.store.executor_choice(&plan.id, number).await? else {
+                continue;
+            };
             chosen.push(&content.writes);
             tasks.push(ReadyTask {
                 task: number,
                 title: content.title.clone(),
-                suggested_model: model.clone().flatten(),
+                executor: Some(executor),
             });
         }
         Ok(tasks)

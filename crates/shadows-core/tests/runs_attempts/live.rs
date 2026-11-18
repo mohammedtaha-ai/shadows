@@ -122,10 +122,15 @@ impl Fixture {
 
     async fn start_live_on(&self, model: &str, command: &str, task: u32, prompt: &str) -> Attempt {
         self.core.runs().set_first_prompt_for_tests(prompt);
+        self.core
+            .runs()
+            .choose_executor_for_test(&self.workflow, task, "claude-code", model, None)
+            .await
+            .unwrap();
         let attempt = self
             .core
             .runs()
-            .start(command.into(), &self.workflow, 1, task, model.into())
+            .start(command.into(), &self.workflow, 1, task)
             .await
             .unwrap();
         assert_eq!(attempt.state, AttemptState::Running, "{:?}", attempt.reason);
@@ -407,7 +412,7 @@ async fn live_an_executor_turn_in_another_mode_is_refused() {
     };
     f.core
         .harness()
-        .open_executor(&thread, scope, PICKED.into())
+        .open_executor(&thread, scope, PICKED.into(), None)
         .await
         .unwrap();
     // A mode the project allows, and one Shadows offers no thread.
@@ -462,8 +467,10 @@ async fn live_stop_while_the_session_opens_sends_no_turn() {
     let workflow = f.workflow.clone();
     let starting = tokio::spawn(async move {
         core.runs()
-            .start("live-open".into(), &workflow, 1, 5, PICKED.into())
+            .choose_executor_for_test(&workflow, 5, "claude-code", PICKED, None)
             .await
+            .unwrap();
+        core.runs().start("live-open".into(), &workflow, 1, 5).await
     });
     let attempt = loop {
         let listed = f.core.runs().attempts(&f.workflow, 1, 5).await.unwrap();

@@ -20,7 +20,7 @@ decisions remain distinct kinds of state.
 Mohammed approved this design with the review corrections on 2026-11-09.
 This section supersedes conflicting machinery in 17.1-17.11, which remains
 earlier design material. Section 17.12 remains future production work.
-The [delivery program](../../backend/plans/2026-11-09-local-delivery-program.md)
+The delivery program (`docs/backend/plans/2026-11-09-local-delivery-program.md` at `449d4f95`)
 owns task ordering; this section owns behavior.
 
 ### The required outcome
@@ -164,7 +164,7 @@ Use current section 24 approval attribution; no executor/critic approval tools.
 
 The [slice 4 revision](../../backend/specs/2026-11-14-task-questions-design.md), approved
 2026-11-14, owns attempt context, task questions, conflict escalation and compatible
-ready groups. Its [implementation plan](../../backend/plans/2026-11-14-slice-4-task-questions.md)
+ready groups. Its implementation plan (`docs/backend/plans/2026-11-14-slice-4-task-questions.md` at `449d4f95`)
 replaces the earlier execution-briefs draft. Save one context per attempt, using existing
 attempt identity/model/base/addition metadata; no packet hash or parent transcript.
 

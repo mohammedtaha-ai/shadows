@@ -120,28 +120,29 @@ impl Runs {
         Ok(plan)
     }
 
-    /// Starts task `task` of `workflow` for the Planner, on `model` or, left
-    /// out, the task's suggested model. Start's own checks and answers.
+    /// Starts the task on its saved choice, using Start's admission checks.
     pub async fn start_for(
         &self,
         grant: &Grant,
         workflow: &WorkflowId,
         task: u32,
-        model: Option<String>,
     ) -> Result<Attempt, RunsError> {
         let plan = self.planner_plan(grant, workflow).await?;
-        let picked = model
-            .map(|m| m.trim().to_string())
-            .filter(|m| !m.is_empty());
-        let model = match picked {
-            Some(model) => model,
-            None => self
-                .suggested_model(&plan)
-                .await
-                .ok_or(RunsError::NoModel)?,
-        };
         let command = format!("planner-start-{}", AttemptId::generate());
-        self.start(command, workflow, plan.version, task, model)
+        self.start(command, workflow, plan.version, task).await
+    }
+
+    pub async fn set_executor_for(
+        &self,
+        grant: &Grant,
+        workflow: &WorkflowId,
+        task: u32,
+        input: crate::ExecutorInput,
+    ) -> Result<crate::ExecutorChoice, RunsError> {
+        self.planner_plan(grant, workflow).await?;
+        self.inner.store.grant_live(grant).await?;
+        let command = format!("planner-executor-{}", AttemptId::generate());
+        self.save_executor(command, workflow, task, input, Some(grant))
             .await
     }
 

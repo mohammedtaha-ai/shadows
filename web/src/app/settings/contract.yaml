@@ -24,6 +24,9 @@ external:
 # ── functions ────────────────────────────────────────────────────────────────────
 
 components:
+  ExternalAgentsSection:
+    signature: "() => JSX.Element"
+    note: Issues an MCP token for the checked projects and prepares Codex or Claude Code setup. The setup panel retains the token only until dismissed or unmounted. The list displays scope and revocation state.
   PluginsSection:
     signature: "() => JSX.Element"
     note: Accessible Plugins/Skills/MCP tools tabs; Add and MCP Edit replace the body without another dialog.

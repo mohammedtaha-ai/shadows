@@ -12,6 +12,10 @@ expands each task's named scope into exact caller, test, contract and map paths 
 affected test commands. A blocked task is not a builder assignment. Per-task checks are focused;
 the full gate and whole-branch review run once before each delivery PR.
 
+The local delivery program is complete: its slices 1, 1b, 3, 2, 4, 5 and 6 are on `main`, the last
+at `449d4f95` (PR #70). Its plan is `docs/backend/plans/2026-11-09-local-delivery-program.md` at
+`449d4f95`. Now: executor choices on `feature/executor-choices` (tasks below).
+
 ### Shipped
 
 A shipped task's entry, and its plan once deleted, are in this file in Git at the commit named.
@@ -36,9 +40,10 @@ A shipped task's entry, and its plan once deleted, are in this file in Git at th
 | #64 | Executors, slices 0 and 1 | B-89 to B-93, F-98 | `c71b263d` |
 | #65, #66 | Local delivery slices 1, 1b and 3, and its review fixes | B-95, B-96, B-99 to B-101, B-103, B-104, B-106, B-120 to B-136, F-106 to F-113 | `617d806f` |
 | #67 | Codex images and language servers, slice 2 ([design](specs/2026-11-13-language-servers-design.md)) | B-137, B-138a, B-138 to B-146, F-114 to F-116 | `db760593` |
-| #68 | Slice 4: attempt context, task questions, conflicts and compatible ready groups ([design](specs/2026-11-14-task-questions-design.md)) | B-107 to B-109, B-147, B-148, F-102 | `d73bb646` |
+| #68 | Slice 4: attempt context, task questions, conflicts and compatible ready groups ([design](specs/2026-11-14-task-questions-design.md)) | B-107 to B-109, B-147, B-148, F-102; B-149 (acceptance: browser on `testing4`, 2026-11-14; closed 2026-11-18, live tests written and not run) | `d73bb646` |
 | — | Codex in the real Planner and executors slice 1, accepted by Mohammed in the browser (2026-11-15); their plans deleted | B-88, B-94 | `7846c2d9` |
 | #69 | Slice 5: checks, returns and messages to a task's agent ([design §5.3, §5.4](specs/2026-11-08-executors-design.md#54-checks-shadows-runs-mohammed-2026-11-15)) | B-111, B-113, B-114, B-150, B-151 (acceptance, evidence (`docs/evidence/2026-11-15-slice-5-checks.md` at `4031168f`)) | `4031168f` |
+| #70 | Slice 6: stop control, interruption, project rechecks and decisions (plan `docs/backend/plans/2026-11-16-slice-6-stop-control.md` at `449d4f95`; accepted in the browser on `testing6`, 2026-11-16) | B-117, B-152, B-153, B-154, B-105, B-118; F-121 to F-124 | `449d4f95` |
 
 Replaced or dropped without being built: B-97, B-98, B-119 (by slice 2), B-102, B-110 (with the
 critic), B-112 (by the Planner's judgment), B-115, B-116 (by B-125 and B-126). Their entries are in
@@ -52,99 +57,132 @@ this file at `db760593`.
 - Real-provider acceptance of structure and depth slices 1 to 5 is not recorded.
 - Recorded acceptances: §10 of the AYLUL agents design (2026-11-03, desktop app); planner context slices
   1 and 2 (evidence `docs/evidence/2026-11-04-planner-context-probe.md` at `4031168f`); slice 2's language servers on
-  `testing4` (2026-11-13); slice 4's browser acceptance on `testing4` (2026-11-14, B-149).
-- Slice 4's live tests (`crates/shadows/tests/task_questions_live.rs`, B-149) are written and not run.
+  `testing4` (2026-11-13); slice 4's browser acceptance on `testing4` (2026-11-14, B-149); slice 6's
+  browser acceptance on `testing6` (2026-11-16, B-118).
+- Slice 4's live tests (`crates/shadows/tests/task_questions_live.rs`) are written and not run; B-149 is closed on the browser acceptance.
+- Slice 6's live test (`stop_control_live`) and its evidence file were dropped (Mohammed, 2026-11-16).
 - B-150 keeps its own per-thread message queue beside Turns' queue; reusing Turns' queue needs the executor session restored by thread.
 - The web derives "stopped on the additions cap" itself; a Core field on `TaskRun` should own it.
 
-## Tasks
+## Executor choices: CLI, model and effort per task
 
-## Approved local delivery implementation, 2026-11-09
+Plan: [executor choices](plans/2026-11-18-executor-choices.md), approved by Mohammed (2026-11-18) after
+three Codex reviews (last plan commit `a1561e20`). Rulings (Mohammed, 2026-11-18):
+- The choice is saved on the task and the last save wins.
+- It follows the task across versions, and a replaced task starts empty.
+- Lists come from each CLI; Claude Code's are read by one probe session per daemon run.
+- No choice refuses Start.
+- A Codex executor uses Codex's own tools in mode `ask`.
+- The Planner picks the smallest model that can build the task from its contract.
 
-Order and rulings: [the program](plans/2026-11-09-local-delivery-program.md). Slice 4 is on `main`
-at `d73bb646` (PR #68); its tasks B-108, B-148, B-107, B-109, B-147 and F-102 are shipped there.
-Slice 5 is on `main` at `4031168f` (PR #69). Only B-149 remains in its [plan](plans/2026-11-14-slice-4-task-questions.md).
-B-105 moved into slice 6 (Mohammed, 2026-11-16).
+Order: B-155 → B-156 → B-157 → B-158 → web tasks → B-159. B-155 and B-156 change nothing the web sees.
+B-157 and B-158 do, and build on the [shared request](../shared/requests/2026-11-18-executor-choices.md), accepted by Masada (`da7a6950`).
 
-### B-149 · Real slice 4 acceptance
+### B-155 · Harness reads each CLI's catalog
 
-- Status: doing. Browser acceptance is done (`testing4`, 2026-11-14): two tasks ran together with commits
-  holding only their own files; a contract conflict stopped its attempt, freed its scope and reached the
-  Planner, shown on the Report tab; `task_question` answered a planned consumer and, with `documentSymbol`,
-  gopls's symbols. The live tests (`crates/shadows/tests/task_questions_live.rs`) are written and not run.
-- Plan: [B-149](plans/2026-11-14-slice-4-task-questions.md#task-b-149-real-slice-acceptance).
-- Owner: integration acceptance through AppCore and the actual UI.
-- Read: approved design's Acceptance, B-149 steps and the live test patterns it names.
-- Touch: exact Files of B-149 plus Common Touch paths; acceptance entries only in frontend stages.
-- Needs: the slice 4 tasks and F-102, all shipped in `docs/backend/stages.md` at `d73bb646` (PR #68).
-- Done when: named live tests and disposable browser/log scenarios pass with dated evidence and scoped commit; unavailable checks remain reported, not passed.
-
-## Slice 6: stop control and full acceptance
-
-Plan: [slice 6](plans/2026-11-16-slice-6-stop-control.md), approved by Mohammed (2026-11-16) after two
-Codex reviews. Rulings: a contract problem stops only its own attempt and the Planner
-stops other affected work (2026-11-14); leftovers continue, a done mark rechecks the plan's done
-tasks, decisions are accepted on the person's card (2026-11-16).
-Order: B-117 → B-153 → B-152 → B-154 → B-105 → web tasks from F-121 → B-118.
-B-152, B-154 and B-105 build on the [shared request](../shared/requests/2026-11-16-slice-6-stop-control.md), accepted by Masada 2026-11-16 (`9dbb015c`).
-
-### B-117 · The Planner lists the attempts that hold a scope (`task_runs`)
-
-- Status: done (automated checks passed; manual acceptance remains with Mohammed)
-- Plan: [B-117](plans/2026-11-16-slice-6-stop-control.md#task-b-117-the-planner-lists-the-attempts-that-still-hold-a-scope).
-- Owner: Runs, with its MCP adapter.
-- Read: `crates/core-runs/contract.yaml` (`stop_for`, `planner_plan`, `start_for`); the plan's Global Constraints.
+- Status: done
+- Plan: [B-155](plans/2026-11-18-executor-choices.md#task-b-155-harness-reads-each-clis-catalog).
+- Owner: Harness, with Codex's catalog read in `shadows-agent`.
+- Read: `crates/core-harness/contract.yaml` (`list`, remembered settings, the Codex choices rule); `crates/shadows-agent/src/choices.rs` (`Offered`); `crates/shadows-agent/src/codex/session.rs` (`catalog`); the plan's Rulings.
 - Touch: the task's Files list in the plan; no other path.
-- Needs: slices 4 and 5 (shipped, `4031168f`).
-- Done when: the four `planner::task_runs_*` tests, `the_planner_lists_live_attempts_over_mcp`, `mcp_server` and `planner_instructions` pass; contracts updated; scoped commit.
+- Needs: nothing open.
+- Done when: the seven `harness_catalog` tests (live ones on the signed-in machine) and `harness_choices` pass; contract and code map updated; scoped commit.
 
-### B-153 · A new Start continues from the files a stopped attempt left
+### B-156 · Harness opens an executor on its attempt's CLI, model and effort
 
-- Status: done (automated checks passed; manual acceptance remains with Mohammed)
-- Plan: [B-153](plans/2026-11-16-slice-6-stop-control.md#task-b-153-a-new-start-continues-from-the-files-a-stopped-attempt-left).
-- Owner: Runs.
-- Read: `crates/core-runs/contract.yaml` (`start`, `start_answer`, the dirty-scope obligations); the plan's rulings.
+- Status: done
+- Plan: [B-156](plans/2026-11-18-executor-choices.md#task-b-156-harness-opens-an-executor-on-its-attempts-cli-model-and-effort).
+- Owner: Harness, with Turns' executor mode check and the two Runs call sites.
+- Read: `crates/core-harness/contract.yaml` (the executor comment block, `open_executor`); `crates/core-turns/contract.yaml` (the executor's mode); `crates/shadows-agent/src/policy.rs` (Codex modes).
 - Touch: the task's Files list in the plan; no other path.
-- Needs: B-117 (same `lib.rs` and contract).
-- Done when: the four `leftovers::` tests and the changed `conflict_keeps_uncommitted_files` pass, with all of `runs_attempts` and `task_conflicts`; contract updated; scoped commit.
+- Needs: B-155 (its tests read the catalog).
+- Done when: `executor::` unit tests, `executor_session`, `runs_attempts` and `core-turns` pass; Harness and Turns contracts updated; scoped commit.
 
-### B-152 · The Planner hears of an interrupted attempt and of the person's Stop
+### B-157 · Runs stores each task's choice and starts on it
 
-- Status: done (automated checks passed; manual acceptance remains with Mohammed)
-- Plan: [B-152](plans/2026-11-16-slice-6-stop-control.md#task-b-152-the-planner-hears-of-an-interrupted-attempt-and-of-the-persons-stop).
-- Owner: Runs.
-- Read: `crates/core-runs/contract.yaml` (`recover`, `stop`, `stop_for`, `notify`, transitions); the plan's Review Focus.
+- Status: done
+- Plan: [B-157](plans/2026-11-18-executor-choices.md#task-b-157-runs-stores-each-tasks-choice-and-starts-on-it).
+- Owner: Runs; Plans for `copied_from` and `task_lineage_in`; Events for the tail kind.
+- Read: `crates/core-runs/contract.yaml` (`start`, `start_for`, `task`, `amend`, `run_turn`, `ready_group`); `crates/core-plans/contract.yaml` (`start_draft`, `shared_in_transaction`); `crates/core-db/contract.yaml` (`command`); the plan's Rulings and Review Focus.
+- Touch: the task's Files list in the plan, including every named caller of `Runs::start` and `Runs::start_for`; no other path.
+- Needs: B-156; the accepted request.
+- Done when: the `executor_choice::` tests, the changed `plan_storage` copy test and the suites Step 5 names (with `openapi`) pass; Runs, Plans and Events contracts and spec D6 updated; scoped commit.
+
+### B-158 · The person's and the Planner's way to the choice
+
+- Status: done
+- Plan: [B-158](plans/2026-11-18-executor-choices.md#task-b-158-the-persons-and-the-planners-way-to-the-choice).
+- Owner: the HTTP and MCP adapters over Runs and Harness; Grants for the tool list.
+- Read: `crates/shadows-http/src/contract.yaml`, `crates/shadows-mcp/src/contract.yaml` (`task_start`); the plan's web API table.
 - Touch: the task's Files list in the plan; no other path.
-- Needs: B-153; the accepted request (`9dbb015c`).
-- Done when: the six `stops::` tests and `a_stopped_conflict_keeps_its_one_notice` pass, with all of `runs_attempts` and `recovery`; contract updated; scoped commit.
+- Needs: B-157; the accepted request.
+- Done when: the named `runs_routes`, `mcp_server`, `planner_instructions`, `harness_choices` tests and `openapi` pass; contracts updated; scoped commit.
 
-### B-154 · A done mark rechecks every done task of its plan
+### B-159 · Acceptance in the browser
 
-- Status: done (automated checks passed; manual acceptance remains with Mohammed)
-- Plan: [B-154](plans/2026-11-16-slice-6-stop-control.md#task-b-154-a-done-mark-rechecks-every-done-task-of-its-plan).
-- Owner: Runs.
-- Read: `crates/core-runs/contract.yaml` (`mark_done`, `confirmation`, `done_checks`, `recover`); `crates/core-plans/contract.yaml` (`plan`, `shared_in_transaction`); migration `0063_run_checks.sql`.
+- Status: blocked (needs the web tasks)
+- Plan: [B-159](plans/2026-11-18-executor-choices.md#task-b-159-acceptance-in-the-browser).
+- Owner: integration acceptance through AppCore and the real UI.
+- Touch: the task's Files list in the plan.
+- Done when: the browser journey and its logs, and the named signed-in live tests (or "not run" with the reason), are recorded in evidence.
+
+## Codex CLI 0.169.0
+
+Mohammed installed `codex-cli 0.169.0` in place of 0.167.0, and the pin refuses it ("Codex CLI 0.167.0 is
+required"). Hamoud's check (2026-11-18) found nothing Shadows uses changed:
+- **Schemas:** generated by both CLIs. These definitions are identical: `ThreadStartParams`/`Response`,
+  `ThreadResumeParams`, `ThreadForkParams`, `TurnStartParams`, `TurnSteerParams`, `Model`,
+  `ReasoningEffortOption`, `McpServerStatus`, `AskForApproval`, `SandboxPolicy`, `ApprovalsReviewer`,
+  `ThreadTokenUsage`, `RateLimitSnapshot`, `Turn` and every item status. `ServerRequest` and
+  `ServerNotification` are identical, so approvals and notifications are unchanged.
+- **Additions only:** `agentMessage.moderation`, `ItemCompletedNotification.contentTokenCount`,
+  `ModelListParams.modelProvider` (optional), `GetAccountResponse.userId`, the methods `modelProvider/*`
+  and `account/securitySetup/read`, and the error kind `inferenceHookDenied`.
+- **Live, without a turn:** initialize, `config/read` with Shadows' `-c` settings, and `account/read`
+  answer as 0.167.0 did. `features.multi_agent=false` is still read as false, with no warning.
+- **Release notes:** 0.168 and 0.169 change no app-server method Shadows calls.
+
+The exact pin is replaced by a protocol check. Plan: [Codex protocol check](plans/2026-11-18-codex-protocol-check.md),
+approved by Mohammed (2026-11-18). Rulings:
+- A CLI below the tested version is refused.
+- A CLI at or above it opens if the parts of its app-server schema that Shadows uses match the tested
+  snapshot. Additions pass; anything removed or changed refuses, and the harness list's reason names
+  the change.
+- The check runs once per CLI version per daemon run.
+- 0.169.0 is the first snapshot and the first proof.
+
+Order: B-160 → B-161, after B-158 is committed (both touch `shadows-agent` and `core-harness`). No other
+cargo run at the same time.
+
+### B-160 · The codex module checks a CLI's protocol against the tested one
+
+- Status: done
+- Plan: [B-160](plans/2026-11-18-codex-protocol-check.md#task-b-160-the-codex-module-checks-a-clis-protocol-against-the-tested-one).
+- Owner: `shadows-agent`'s codex module (`CodexProgram`, `codex::Connection::open`).
+- Read: `crates/shadows-agent/contract.yaml` (the `CodexProgram` and `codex::Connection` lines); the plan's Rulings and Global Constraints.
 - Touch: the task's Files list in the plan; no other path.
-- Needs: B-152 (same `recover.rs` and contract); the accepted request.
-- Done when: the nine `rechecks::` tests pass, with all of `runs_attempts`, `recovery` and `openapi`; contract and code map updated; scoped commit.
+- Needs: B-158 committed.
+- Done when:
+  - `tested_protocol.json` is adopted from the installed 0.169.0.
+  - The 12 `codex::protocol` unit tests and `shadows-agent --test codex` pass.
+  - The contract is updated.
+  - Scoped commit.
 
-### B-105 · Project decisions, proposed by the Planner and accepted by the person
+### B-161 · Harness opens Codex on the checked version and lists the verdict
 
-- Status: done (automated checks passed; manual acceptance remains with Mohammed)
-- Plan: [B-105](plans/2026-11-16-slice-6-stop-control.md#task-b-105-project-decisions-proposed-by-the-planner-and-accepted-by-the-person).
-- Owner: Design, with Plans for the pins and the adapters.
-- Read: `crates/core-design/contract.yaml` (`propose_vision`, `approve_vision_proposal`); `crates/core-plans/contract.yaml` (`TaskContract`, `TaskContext`, `task_context_in`); spec §17.3.
-- Touch: the task's Files list in the plan; no other path.
-- Needs: B-154 (migration order); the accepted request.
-- Done when: the named tests in `design_decisions`, `task_contract`, `attempt_briefs`, `design_routes` and `mcp_server` pass, with `openapi`; contracts, code map and spec updated; scoped commit.
-
-### B-118 · The full journey, live and in the browser
-
-- Status: done. Mohammed accepted slice 6 in the browser on `testing6` (2026-11-16, Planner on Codex,
-  executors on Sonnet): a decision accepted on its card and pinned in a brief; an attempt Interrupted by a
-  daemon restart, its card and leftover files shown, then continued by a new Start; an attempt stopped
-  from its task page and started again; a done mark rerunning every done task's checks in the project,
-  with the recheck card. The live test `stop_control_live` and the evidence file are dropped (Mohammed,
-  2026-11-16).
-- Fixes found by the run: `4d534e0c`, `c55d4c01`, `54242de1` (another attempt's leftovers go to the
-  Planner, not back to the executor; a stored flag; rechecks across the project, each failure told once).
+- Status: done
+- Plan: [B-161](plans/2026-11-18-codex-protocol-check.md#task-b-161-harness-opens-codex-on-the-checked-version-and-lists-the-verdict).
+- Owner: Harness (`Sessions`, the list, every Codex opening).
+- Read: `crates/core-harness/contract.yaml` (`list`, the executor opening, the catalog); `docs/core/specs/2026-09-24-harness-controls-design.md` (the baseline paragraph); the plan's Review Focus.
+- Touch: the task's Files list in the plan, and also:
+  - `crates/core-harness/src/live.rs`: the executor opening, the other caller of `ManagedConnection::open`.
+  - `docs/codebase/README.md`: one row for `crates/core-harness/src/codex_check.rs`, "the Codex protocol verdict for one daemon run", owned by `crates/core-harness/contract.yaml`, beside the `catalog.rs` row.
+  - No other path.
+- Needs: B-160.
+- Done when:
+  - The seven new `codex_session` tests and the fake suites in Step 4 pass.
+  - These signed-in live tests pass on 0.169.0, with results in the commit message: `codex_session`
+    `live_a_codex_planner_reads_a_file_and_writes_none` and `live_a_codex_turn_sees_an_image`, and
+    `harness_catalog` `live_the_codex_catalog_lists_each_models_efforts`.
+  - The spec is amended as the plan gives it, and the contract is updated.
+  - Scoped commit.

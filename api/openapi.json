@@ -987,11 +987,20 @@
               "null"
             ]
           },
+          "effort": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "ended_at": {
             "type": [
               "string",
               "null"
             ]
+          },
+          "harness": {
+            "type": "string"
           },
           "id": {
             "$ref": "#/components/schemas/AttemptId"
@@ -1068,6 +1077,8 @@
           "thread_id",
           "operation_id",
           "model",
+          "harness",
+          "effort",
           "state",
           "commit",
           "report",
@@ -1417,6 +1428,35 @@
         ],
         "type": "object"
       },
+      "CatalogModel": {
+        "properties": {
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "efforts": {
+            "items": {
+              "$ref": "#/components/schemas/Choice"
+            },
+            "type": "array"
+          },
+          "id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "description",
+          "efforts"
+        ],
+        "type": "object"
+      },
       "ChangeEffort": {
         "description": "The effort a person picked.",
         "properties": {
@@ -1605,6 +1645,13 @@
           "reason"
         ],
         "type": "object"
+      },
+      "Chooser": {
+        "enum": [
+          "person",
+          "planner"
+        ],
+        "type": "string"
       },
       "ConflictDelivery": {
         "description": "Whether the Planner's notice of a conflict was enqueued on its\nconversation. `delivered` is a durable enqueue, not a reply.",
@@ -2925,6 +2972,58 @@
         ],
         "type": "string"
       },
+      "ExecutorChoice": {
+        "properties": {
+          "chosen_at": {
+            "type": "string"
+          },
+          "chosen_by": {
+            "$ref": "#/components/schemas/Chooser"
+          },
+          "effort": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "harness": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "harness",
+          "model",
+          "effort",
+          "chosen_by",
+          "chosen_at"
+        ],
+        "type": "object"
+      },
+      "ExecutorInput": {
+        "properties": {
+          "effort": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "harness": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "harness",
+          "model",
+          "effort"
+        ],
+        "type": "object"
+      },
       "ExtensionKind": {
         "enum": [
           "plugin",
@@ -2960,6 +3059,38 @@
           "mcp"
         ],
         "type": "object"
+      },
+      "ExternalConnection": {
+        "properties": {
+          "created_at": {
+            "type": "string"
+          },
+          "id": {
+            "$ref": "#/components/schemas/ExternalConnectionId"
+          },
+          "project_ids": {
+            "items": {
+              "$ref": "#/components/schemas/ProjectId"
+            },
+            "type": "array"
+          },
+          "revoked_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "project_ids",
+          "created_at"
+        ],
+        "type": "object"
+      },
+      "ExternalConnectionId": {
+        "format": "uuid",
+        "type": "string"
       },
       "FileAction": {
         "description": "What the task does to a file.",
@@ -3066,58 +3197,8 @@
         ],
         "type": "object"
       },
-      "Grant": {
-        "description": "A grant as stored: never its token.",
-        "properties": {
-          "created_at": {
-            "type": "string"
-          },
-          "id": {
-            "$ref": "#/components/schemas/GrantId"
-          },
-          "kind": {
-            "$ref": "#/components/schemas/GrantKind"
-          },
-          "project_id": {
-            "$ref": "#/components/schemas/ProjectId"
-          },
-          "revoked_at": {
-            "description": "When it stopped being honoured; `null` while it is live.",
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "thread_id": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/ThreadId",
-                "description": "The Planner's thread; `null` for a project grant."
-              }
-            ]
-          }
-        },
-        "required": [
-          "id",
-          "kind",
-          "project_id",
-          "created_at"
-        ],
-        "type": "object"
-      },
       "GrantId": {
         "format": "uuid",
-        "type": "string"
-      },
-      "GrantKind": {
-        "description": "Whose grant it is: the Planner of one thread, or an external agent bound\nto one project. On the wire and in storage, `thread` and `project`.",
-        "enum": [
-          "thread",
-          "project"
-        ],
         "type": "string"
       },
       "Group": {
@@ -3160,10 +3241,31 @@
         "format": "uuid",
         "type": "string"
       },
+      "HarnessCatalog": {
+        "properties": {
+          "harness": {
+            "type": "string"
+          },
+          "models": {
+            "items": {
+              "$ref": "#/components/schemas/CatalogModel"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "harness",
+          "models"
+        ],
+        "type": "object"
+      },
       "HarnessInfo": {
         "description": "A CLI a conversation can run on. `kind` is `claude-code` or\n`codex`.",
         "properties": {
           "available": {
+            "type": "boolean"
+          },
+          "executor": {
             "type": "boolean"
           },
           "initial_mode": {
@@ -3225,6 +3327,7 @@
           "kind",
           "label",
           "available",
+          "executor",
           "reason",
           "remembered",
           "limits",
@@ -3556,30 +3659,31 @@
       "IssueGrant": {
         "properties": {
           "command_id": {
-            "description": "The idempotency key, scoped to the project.",
             "type": "string"
+          },
+          "project_ids": {
+            "items": {
+              "$ref": "#/components/schemas/ProjectId"
+            },
+            "type": "array"
           }
         },
         "required": [
-          "command_id"
+          "command_id",
+          "project_ids"
         ],
         "type": "object"
       },
       "IssuedGrantBody": {
-        "description": "A new grant, with its token and the command that connects Claude Code to\nit — or, for a replayed command, the grant alone.",
         "properties": {
-          "command": {
-            "description": "`claude mcp add …` with the token, to copy once; `null` on a replay.",
-            "type": [
-              "string",
-              "null"
-            ]
+          "connection": {
+            "$ref": "#/components/schemas/ExternalConnection"
           },
-          "grant": {
-            "$ref": "#/components/schemas/Grant"
+          "mcp_url": {
+            "type": "string"
           },
           "token": {
-            "description": "The bearer token, in this answer only; `null` on a replay.",
+            "description": "The bearer token on first issue. A replay omits the token.",
             "type": [
               "string",
               "null"
@@ -3587,7 +3691,8 @@
           }
         },
         "required": [
-          "grant"
+          "connection",
+          "mcp_url"
         ],
         "type": "object"
       },
@@ -6989,7 +7094,7 @@
         "type": "object"
       },
       "RunRefusal": {
-        "description": "A run Core refused. `code` is Core's opaque id (`waiting`, `task_busy`,\n`overlap`, `not_git`, `dirty_scope`, `not_frozen`, `superseded`,\n`archived`, `bad_scope`, `command_conflict`); `reason` is the text to show.",
+        "description": "A run Core refused. `code` is Core's opaque id (`waiting`, `task_busy`,\n`overlap`, `not_git`, `dirty_scope`, `not_frozen`, `superseded`,\n`archived`, `bad_scope`, `command_conflict`, `no_executor_choice`,\n`executor_not_offered`, `catalog_unavailable`); `reason` is the text to show.",
         "properties": {
           "code": {
             "type": "string"
@@ -7342,6 +7447,24 @@
         ],
         "type": "object"
       },
+      "SetExecutor": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ExecutorInput"
+          },
+          {
+            "properties": {
+              "command_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "command_id"
+            ],
+            "type": "object"
+          }
+        ]
+      },
       "Skipped": {
         "description": "Files not parsed, for one reason: `too_large`, `binary` or `not_utf8`.",
         "properties": {
@@ -7604,15 +7727,10 @@
           "command_id": {
             "description": "The idempotency key: the same key and body answer the first attempt.",
             "type": "string"
-          },
-          "model": {
-            "description": "The executor's model, one the harness offers.",
-            "type": "string"
           }
         },
         "required": [
-          "command_id",
-          "model"
+          "command_id"
         ],
         "type": "object"
       },
@@ -8171,6 +8289,17 @@
               "null"
             ]
           },
+          "executor": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ExecutorChoice",
+                "description": "The task's saved executor choice, including an inherited choice."
+              }
+            ]
+          },
           "latest": {
             "oneOf": [
               {
@@ -8191,13 +8320,6 @@
           "start": {
             "$ref": "#/components/schemas/StartAnswer"
           },
-          "suggested_model": {
-            "description": "The model the plan's Planner conversation last asked for; `null`\nwithout one.",
-            "type": [
-              "string",
-              "null"
-            ]
-          },
           "task": {
             "format": "int32",
             "minimum": 0,
@@ -8212,7 +8334,7 @@
           "latest",
           "needs",
           "start",
-          "suggested_model"
+          "executor"
         ],
         "type": "object"
       },
@@ -11415,6 +11537,186 @@
         ]
       }
     },
+    "/api/external-connections": {
+      "get": {
+        "operationId": "list_grants",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ExternalConnection"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "grants"
+        ]
+      },
+      "post": {
+        "operationId": "issue_grant",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IssueGrant"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IssuedGrantBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "grants"
+        ]
+      }
+    },
+    "/api/external-connections/{id}": {
+      "delete": {
+        "operationId": "revoke_grant",
+        "parameters": [
+          {
+            "description": "The external connection",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ExternalConnectionId"
+            }
+          },
+          {
+            "in": "query",
+            "name": "command_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalConnection"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "grants"
+        ]
+      }
+    },
     "/api/fs/dirs": {
       "get": {
         "description": "Exposes the machine's directory names to any client the CORS list admits.",
@@ -11912,23 +12214,14 @@
         ]
       }
     },
-    "/api/mcp-grants/{id}": {
-      "delete": {
-        "operationId": "revoke_grant",
+    "/api/harnesses/{kind}/catalog": {
+      "get": {
+        "operationId": "catalog",
         "parameters": [
           {
-            "description": "The project grant",
+            "description": "Executor CLI id",
             "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "$ref": "#/components/schemas/GrantId"
-            }
-          },
-          {
-            "description": "The idempotency key, scoped to the grant.",
-            "in": "query",
-            "name": "command_id",
+            "name": "kind",
             "required": true,
             "schema": {
               "type": "string"
@@ -11940,13 +12233,13 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Grant"
+                  "$ref": "#/components/schemas/HarnessCatalog"
                 }
               }
             },
-            "description": "Revoked, or the replay of the same command"
+            "description": ""
           },
-          "400": {
+          "422": {
             "content": {
               "application/json": {
                 "schema": {
@@ -11954,9 +12247,9 @@
                 }
               }
             },
-            "description": "INVALID_COMMAND: no `command_id`"
+            "description": "HARNESS_UNAVAILABLE or INVALID_COMMAND"
           },
-          "404": {
+          "502": {
             "content": {
               "application/json": {
                 "schema": {
@@ -11964,32 +12257,11 @@
                 }
               }
             },
-            "description": "INVALID_COMMAND: no such project grant"
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            },
-            "description": "COMMAND_CONFLICT"
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            },
-            "description": "STORAGE_UNAVAILABLE"
+            "description": "HARNESS_START_FAILED"
           }
         },
-        "summary": "Revoke: Shadows refuses the grant's token from now on. It does not\nremove the server from the person's Claude configuration.",
         "tags": [
-          "grants"
+          "harnesses"
         ]
       }
     },
@@ -14308,121 +14580,6 @@
         },
         "tags": [
           "design"
-        ]
-      }
-    },
-    "/api/projects/{id}/mcp-grants": {
-      "get": {
-        "operationId": "list_grants",
-        "parameters": [
-          {
-            "description": "The project",
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "$ref": "#/components/schemas/ProjectId"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/Grant"
-                  },
-                  "type": "array"
-                }
-              }
-            },
-            "description": ""
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            },
-            "description": "STORAGE_UNAVAILABLE"
-          }
-        },
-        "summary": "A project's grants for external agents, revoked ones included, newest\nfirst. Never a token.",
-        "tags": [
-          "grants"
-        ]
-      },
-      "post": {
-        "operationId": "issue_grant",
-        "parameters": [
-          {
-            "description": "The project",
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "$ref": "#/components/schemas/ProjectId"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/IssueGrant"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/IssuedGrantBody"
-                }
-              }
-            },
-            "description": "Issued, or the replay of the same command without its token"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            },
-            "description": "INVALID_COMMAND: no such project"
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            },
-            "description": "COMMAND_CONFLICT"
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            },
-            "description": "STORAGE_UNAVAILABLE"
-          }
-        },
-        "summary": "Connect: issues a grant bound to this project for an external\nagent. The token is shown once — here — and stored only as its hash.",
-        "tags": [
-          "grants"
         ]
       }
     },
@@ -17413,7 +17570,7 @@
                 }
               }
             },
-            "description": "Start refused, with the code a task's `start` answers: waiting, task_busy, overlap, not_git, dirty_scope, missing_input, input_unavailable, not_frozen, superseded, archived, bad_scope; or command_conflict"
+            "description": "Start refused, with the code a task's `start` answers: waiting, task_busy, overlap, not_git, dirty_scope, missing_input, input_unavailable, not_frozen, superseded, archived, bad_scope; no_executor_choice or command_conflict"
           },
           "500": {
             "content": {
@@ -17426,7 +17583,7 @@
             "description": "STORAGE_UNAVAILABLE"
           }
         },
-        "summary": "Starts an attempt: an executor session on this task, on `model`. An\nattempt whose session or first turn could not start is answered `failed`\nwith its reason. A replay of the same `command_id` and body answers the\nfirst attempt.",
+        "summary": "Starts an attempt on the task's saved executor choice. An\nattempt whose session or first turn could not start is answered `failed`\nwith its reason. A replay of the same `command_id` and body answers the\nfirst attempt.",
         "tags": [
           "runs"
         ]
@@ -17520,6 +17677,96 @@
           }
         },
         "summary": "Marks the task done or not done; the tasks that need it wait for this.",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/workflows/{workflow}/versions/{version}/tasks/{task}/executor": {
+      "put": {
+        "operationId": "set_executor",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workflow",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/WorkflowId"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "task",
+            "required": true,
+            "schema": {
+              "format": "int32",
+              "minimum": 0,
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetExecutor"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExecutorChoice"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "no such plan version or task"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunRefusal"
+                }
+              }
+            },
+            "description": "executor choice refused"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          }
+        },
+        "summary": "Saves the executor choice for this task on the newest version.",
         "tags": [
           "runs"
         ]

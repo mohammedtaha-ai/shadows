@@ -7,7 +7,6 @@ export const projectKeys = {
   all: () => ['projects'],
   project: (projectId: string) => ['projects', projectId],
   instructions: (projectId: string) => ['projects', projectId, 'instructions'],
-  grants: (projectId: string) => ['projects', projectId, 'grants'],
 }
 
 /** The project list, which the app shell also reads as "is the daemon there".
@@ -33,14 +32,6 @@ export function instructionsQuery(projectId: string) {
   })
 }
 
-/** Poll grants every 10 s while shown because no thread stream carries their changes. */
-export function grantsQuery(projectId: string) {
-  return queryOptions({
-    queryKey: projectKeys.grants(projectId),
-    queryFn: () => listGrants(projectId),
-    refetchInterval: 10_000,
-  })
-}
 export function saveProjectAnswer(client: QueryClient, project: Project) {
   return writeSaved<Project[]>(client, projectKeys.all(), projects =>
     projects?.map(value => value.id === project.id ? project : value))
@@ -52,10 +43,6 @@ export function saveRemovedProjectAnswer(client: QueryClient, projectId: string)
 export function saveInstructionsAnswer(client: QueryClient, projectId: string, version: InstructionsVersion) {
   return writeSaved(client, projectKeys.instructions(projectId), version)
 }
-export function saveRevokedGrantAnswer(client: QueryClient, projectId: string, revoked: Grant) {
-  return writeSaved<Grant[]>(client, projectKeys.grants(projectId), grants =>
-    grants?.map(value => value.id === revoked.id ? revoked : value))
-}
 
 export function invalidateProjects(client: QueryClient): void {
   void client.invalidateQueries({ queryKey: projectsQuery.queryKey, exact: true })
@@ -66,10 +53,6 @@ export type Project = components['schemas']['Project']
 type CreateProject = components['schemas']['CreateProject']
 
 export type InstructionsVersion = components['schemas']['InstructionsVersion']
-
-export type Grant = components['schemas']['Grant']
-
-type IssuedGrant = components['schemas']['IssuedGrantBody']
 
 /** Every project, oldest first. Also the reachability probe: it is the
  * cheapest call that proves the daemon answers this origin. */
@@ -125,34 +108,6 @@ export function saveInstructions(
     client.PUT('/api/projects/{id}/planner-instructions', {
       params: { path: { id: projectId } },
       body: { command_id: commandId, body },
-    }),
-  )
-}
-
-/** A project's grants for external agents, revoked ones included, newest
- * first. */
-function listGrants(projectId: string): Promise<Grant[]> {
-  return unwrap(
-    client.GET('/api/projects/{id}/mcp-grants', { params: { path: { id: projectId } } }),
-  )
-}
-
-/** Connect: issues a grant bound to the project. Its `command` and `token`
- * are in this answer only, and `null` when the command is a replay. */
-export function issueGrant(projectId: string, commandId: string): Promise<IssuedGrant> {
-  return unwrap(
-    client.POST('/api/projects/{id}/mcp-grants', {
-      params: { path: { id: projectId } },
-      body: { command_id: commandId },
-    }),
-  )
-}
-
-/** Revokes a project grant; Shadows refuses its token from then on. */
-export function revokeGrant(grantId: string, commandId: string): Promise<Grant> {
-  return unwrap(
-    client.DELETE('/api/mcp-grants/{id}', {
-      params: { path: { id: grantId }, query: { command_id: commandId } },
     }),
   )
 }

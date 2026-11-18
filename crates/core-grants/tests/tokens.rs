@@ -48,6 +48,107 @@ fn issue_ctx(id: &str) -> CommandContext {
     ctx(id, "McpGrantIssue")
 }
 
+#[tokio::test]
+async fn external_connection_replays_without_a_token_and_can_be_revoked() {
+    let app = world().await;
+    let grants = Grants::new(app.storage.clone(), "http://127.0.0.1:4318/mcp".into());
+    let issued = grants
+        .issue_external("global".into(), vec![app.project.clone()])
+        .await
+        .unwrap();
+    let token = issued.token.unwrap();
+    assert_eq!(
+        grants.authorize_external(&token).await.unwrap().unwrap(),
+        issued.connection
+    );
+    assert!(cells_holding(&app, &token).await.is_empty());
+    let scope = grants
+        .external_project(&issued.connection.id, &app.project)
+        .await
+        .unwrap();
+    let replay = grants
+        .issue_external("global".into(), vec![app.project.clone()])
+        .await
+        .unwrap();
+    assert_eq!(replay.connection, issued.connection);
+    assert!(replay.token.is_none());
+    grants
+        .revoke_external("revoke".into(), &issued.connection.id)
+        .await
+        .unwrap();
+    assert!(grants.authorize_external(&token).await.unwrap().is_none());
+    let mut tx = app.storage.reader().begin().await.unwrap();
+    assert!(matches!(
+        Grants::check_live_in(&mut tx, &scope).await,
+        Err(core_grants::GrantsError::GrantInvalid)
+    ));
+}
+
+#[tokio::test]
+async fn upgrading_revokes_old_external_bearers_and_keeps_their_grant_id() {
+    use sqlx::migrate::Migrator;
+    use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
+
+    let temp = tempfile::tempdir().unwrap();
+    let path = temp.path().join("upgrade.db");
+    let pool = SqlitePoolOptions::new()
+        .max_connections(1)
+        .connect_with(
+            SqliteConnectOptions::new()
+                .filename(&path)
+                .create_if_missing(true),
+        )
+        .await
+        .unwrap();
+    let before = sqlx::migrate!("../core-db/migrations");
+    Migrator::with_migrations(
+        before
+            .iter()
+            .filter(|migration| migration.version <= 73)
+            .cloned()
+            .collect(),
+    )
+    .run(&pool)
+    .await
+    .unwrap();
+    let token = Token::generate();
+    sqlx::query(
+        "INSERT INTO project (id, slug, name, directory, created_at)
+         VALUES ('p', 'old', 'Old', ?, '2026-01-01')",
+    )
+    .bind(temp.path().to_str().unwrap())
+    .execute(&pool)
+    .await
+    .unwrap();
+    sqlx::query(
+        "INSERT INTO mcp_grant (id, kind, project_id, token_hash, created_at)
+         VALUES ('old-grant', 'project', 'p', ?, '2026-01-01')",
+    )
+    .bind(token.hash())
+    .execute(&pool)
+    .await
+    .unwrap();
+    pool.close().await;
+
+    let storage = Arc::new(Storage::open(&path).await.unwrap());
+    let grants = Grants::new(storage.clone(), "http://127.0.0.1:4318/mcp".into());
+    assert!(grants.authorize(token.as_str()).await.unwrap().is_none());
+    assert!(
+        grants
+            .authorize_external(token.as_str())
+            .await
+            .unwrap()
+            .is_none()
+    );
+    let revoked: Option<String> =
+        sqlx::query_scalar("SELECT revoked_at FROM mcp_grant WHERE id = 'old-grant'")
+            .fetch_one(storage.reader())
+            .await
+            .unwrap();
+    assert!(revoked.is_some());
+    storage.close().await.unwrap();
+}
+
 /// Every text cell of every table that holds `needle`, as `table.column`.
 async fn cells_holding(app: &World, needle: &str) -> Vec<String> {
     let tables: Vec<String> = sqlx::query_scalar(

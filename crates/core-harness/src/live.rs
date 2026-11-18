@@ -166,6 +166,11 @@ impl Sessions {
             }
             let selected_model = aylul_models.as_ref().and(remembered.model.clone());
             let is_codex = context.harness == policy::CODEX;
+            let checked = if is_codex {
+                Some(self.codex_checked().await.map_err(OpenError::Env)?)
+            } else {
+                None
+            };
             let spec = if let Some(spec) = acp_spec {
                 spec
             } else {
@@ -176,7 +181,7 @@ impl Sessions {
                     .ok_or_else(|| OpenError::Start("Codex is not configured".into()))?;
                 setup = self
                     .setups
-                    .for_opening(thread, &context.project_id, context.kind)
+                    .for_opening(thread, &context.project_id, context.kind, &context.harness)
                     .await
                     .map_err(OpenError::Start)?;
                 match program.process_spec(&cwd, &setup) {
@@ -206,9 +211,10 @@ impl Sessions {
                     deadline,
                     ManagedConnection::open(
                         &mut handle,
-                        is_codex,
+                        checked.as_ref().map(|checked| checked.version.as_str()),
                         // AYLUL's and the Planner's requests wait for the person; an
-                        // executor runs in `auto`, and what it still asks is refused.
+                        // executor runs unattended in its harness's executor mode, and what
+                        // it still asks is refused.
                         if context.harness == policy::AYLUL
                             || context.kind == core_threads::ThreadKind::Planning
                         {
@@ -220,8 +226,14 @@ impl Sessions {
                     ),
                 )
                 .await
-                .map_err(|_| "harness setup timed out".to_string())?
-                .map_err(|e| e.to_string())?;
+                .map_err(|_| "harness setup timed out".to_string())?;
+                let connection = match connection {
+                    Ok(connection) => connection,
+                    Err(error) => {
+                        self.forget_codex_check_if_changed(&error).await;
+                        return Err(error.to_string());
+                    }
+                };
                 if let Err(error) = super::Harness::check_images(&connection, has_images) {
                     let reason = error.to_string();
                     image_refusal = Some(error);
@@ -238,7 +250,7 @@ impl Sessions {
                     setup
                 } else {
                     self.setups
-                        .for_opening(thread, &context.project_id, context.kind)
+                        .for_opening(thread, &context.project_id, context.kind, &context.harness)
                         .await?
                 };
                 // Grant issuance must finish before a timeout can revoke its held grant.
@@ -248,7 +260,14 @@ impl Sessions {
                             &cwd,
                             start,
                             &setup,
-                            core_grants::Grants::tools_for(core_grants::GrantKind::Thread),
+                            core_grants::Grants::tools_for(match context.kind {
+                                core_threads::ThreadKind::Executor => {
+                                    core_grants::GrantKind::Executor
+                                }
+                                core_threads::ThreadKind::Planning => {
+                                    core_grants::GrantKind::Thread
+                                }
+                            }),
                         )
                         .await
                         .map_err(|e| e.to_string())?;

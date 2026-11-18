@@ -9,7 +9,14 @@ import { ErrorLine } from '../error-line'
 /** The attempt's executor thread, read as the conversation reads its entries. */
 export function RunTab({ attempt }: { attempt: Attempt | null }) {
   if (attempt === null) return <p className="px-6 py-4 text-sm text-faint-foreground">No attempt yet.</p>
-  return <Entries attempt={attempt} />
+  return <>
+    <dl className="flex flex-wrap gap-x-6 gap-y-2 border-b border-border px-6 py-3 text-xs">
+      <div><dt className="text-muted-foreground">CLI</dt><dd>{attempt.harness}</dd></div>
+      <div><dt className="text-muted-foreground">Model</dt><dd>{attempt.model}</dd></div>
+      <div><dt className="text-muted-foreground">Effort</dt><dd>{attempt.effort ?? 'None recorded'}</dd></div>
+    </dl>
+    <Entries attempt={attempt} />
+  </>
 }
 
 /** Whether the attempt's turn may still add entries: an attempt that committed

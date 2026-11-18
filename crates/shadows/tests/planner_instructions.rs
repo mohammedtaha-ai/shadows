@@ -9,6 +9,14 @@ mod app;
 
 use app::{call, get_json, other_project, test_app};
 
+#[test]
+fn the_prompt_names_task_executor_set() {
+    let prompt = shadows_core::testing::PROMPT;
+    for part in ["task_executor_set", "executor_catalog", "smallest model"] {
+        assert!(prompt.contains(part), "{part}");
+    }
+}
+
 #[tokio::test]
 async fn each_save_is_a_new_numbered_version() {
     let app = test_app().await;

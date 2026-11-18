@@ -528,6 +528,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/external-connections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_grants"];
+        put?: never;
+        post: operations["issue_grant"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/external-connections/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["revoke_grant"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/fs/dirs": {
         parameters: {
             query?: never;
@@ -617,21 +649,17 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/mcp-grants/{id}": {
+    "/api/harnesses/{kind}/catalog": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        get: operations["catalog"];
         put?: never;
         post?: never;
-        /**
-         * Revoke: Shadows refuses the grant's token from now on. It does not
-         *     remove the server from the person's Claude configuration.
-         */
-        delete: operations["revoke_grant"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -1172,30 +1200,6 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["approve_map_proposal"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/projects/{id}/mcp-grants": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * A project's grants for external agents, revoked ones included, newest
-         *     first. Never a token.
-         */
-        get: operations["list_grants"];
-        put?: never;
-        /**
-         * Connect: issues a grant bound to this project for an external
-         *     agent. The token is shown once — here — and stored only as its hash.
-         */
-        post: operations["issue_grant"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1912,7 +1916,7 @@ export interface paths {
         get: operations["attempts"];
         put?: never;
         /**
-         * Starts an attempt: an executor session on this task, on `model`. An
+         * Starts an attempt on the task's saved executor choice. An
          *     attempt whose session or first turn could not start is answered `failed`
          *     with its reason. A replay of the same `command_id` and body answers the
          *     first attempt.
@@ -1934,6 +1938,23 @@ export interface paths {
         get?: never;
         /** Marks the task done or not done; the tasks that need it wait for this. */
         put: operations["mark_done"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/workflows/{workflow}/versions/{version}/tasks/{task}/executor": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Saves the executor choice for this task on the newest version. */
+        put: operations["set_executor"];
         post?: never;
         delete?: never;
         options?: never;
@@ -2204,7 +2225,9 @@ export interface components {
             addition: string | null;
             /** @description The SHA of the commit the executor made and reported, once accepted. */
             commit: string | null;
+            effort: string | null;
             ended_at: string | null;
+            harness: string;
             id: components["schemas"]["AttemptId"];
             model: string;
             /**
@@ -2335,6 +2358,12 @@ export interface components {
             sources: components["schemas"]["ContextSource"][];
             text: string;
         };
+        CatalogModel: {
+            description: string | null;
+            efforts: components["schemas"]["Choice"][];
+            id: string;
+            label: string;
+        };
         /** @description The effort a person picked. */
         ChangeEffort: {
             /** @description One of the session's `efforts`, for the model it holds. */
@@ -2382,6 +2411,8 @@ export interface components {
             label: string;
             reason: string | null;
         };
+        /** @enum {string} */
+        Chooser: "person" | "planner";
         /**
          * @description Whether the Planner's notice of a conflict was enqueued on its
          *     conversation. `delivered` is a durable enqueue, not a reply.
@@ -2756,6 +2787,18 @@ export interface components {
          * @enum {string}
          */
         ErrorCode: "CONTEXT_NOT_CARRIED" | "MAP_REFUSED" | "PERMISSION_NOT_FOUND" | "PERMISSION_SETTLED" | "PERMISSION_OPTION_NOT_OFFERED" | "EXTENSION_NOT_FOUND" | "EXTENSION_NAME_CONFLICT" | "RUNTIME_NOT_CONFIGURED" | "AYLUL_PROFILE_NOT_FOUND" | "AYLUL_PROVIDER_NOT_FOUND" | "PROVIDER_IN_USE" | "PROFILE_INVALID" | "SECRET_NAME_RESERVED" | "SECRET_NAME_INVALID" | "SECRET_VALUE_INVALID" | "SECRET_UNREADABLE" | "SECRETS_UNAVAILABLE" | "AYLUL_KEY_MISSING" | "AYLUL_NOT_CONFIGURED" | "STAGE_BLOCKED" | "DECISION_STALE" | "INVALID_DECISION" | "HARNESS_START_FAILED" | "PROCESS_SPAWN_FAILED" | "PROCESS_TERMINATED" | "PROCESS_TERMINATION_FAILED" | "RUNTIME_STOPPING" | "STORAGE_UNAVAILABLE" | "STORAGE_MIGRATION_FAILED" | "STORAGE_CONSTRAINT_VIOLATION" | "COMMAND_CONFLICT" | "IDEMPOTENCY_KEY_REQUIRED" | "INVALID_COMMAND" | "INVALID_CURSOR" | "INVENTORY_STALE" | "AGENT_AUTH_FAILED" | "AGENT_UNSUPPORTED_PROFILE" | "PATH_INVALID" | "PATH_NOT_FOUND" | "PATH_NOT_A_DIRECTORY" | "PATH_ACCESS_DENIED" | "PATH_ALREADY_EXISTS" | "PATH_UNAVAILABLE" | "ORIGIN_REFUSED" | "HARNESS_UNAVAILABLE" | "LANGUAGE_SERVER_UNAVAILABLE" | "SETTING_NOT_OFFERED" | "MODE_NOT_ALLOWED" | "HARNESS_LOCKED" | "THREAD_BUSY" | "QUEUED_MESSAGE_GONE" | "QUEUED_NOTICE_KEPT" | "FORK_POINT_NOT_SUPPORTED" | "WORKFLOW_FROZEN_IMMUTABLE" | "WORKFLOW_VALIDATION_FAILED" | "REVISION_CONFLICT" | "PROJECT_HAS_THREADS" | "GRANT_SCOPE" | "GRANT_INVALID";
+        ExecutorChoice: {
+            chosen_at: string;
+            chosen_by: components["schemas"]["Chooser"];
+            effort: string | null;
+            harness: string;
+            model: string;
+        };
+        ExecutorInput: {
+            effort: string | null;
+            harness: string;
+            model: string;
+        };
         /** @enum {string} */
         ExtensionKind: "plugin" | "skill" | "mcp";
         ExtensionLibrary: {
@@ -2763,6 +2806,14 @@ export interface components {
             plugins: components["schemas"]["Item"][];
             skills: components["schemas"]["Item"][];
         };
+        ExternalConnection: {
+            created_at: string;
+            id: components["schemas"]["ExternalConnectionId"];
+            project_ids: components["schemas"]["ProjectId"][];
+            revoked_at?: string | null;
+        };
+        /** Format: uuid */
+        ExternalConnectionId: string;
         /**
          * @description What the task does to a file.
          * @enum {string}
@@ -2806,24 +2857,8 @@ export interface components {
             /** @description The idempotency key, scoped to the source thread. */
             command_id: string;
         };
-        /** @description A grant as stored: never its token. */
-        Grant: {
-            created_at: string;
-            id: components["schemas"]["GrantId"];
-            kind: components["schemas"]["GrantKind"];
-            project_id: components["schemas"]["ProjectId"];
-            /** @description When it stopped being honoured; `null` while it is live. */
-            revoked_at?: string | null;
-            thread_id?: null | components["schemas"]["ThreadId"];
-        };
         /** Format: uuid */
         GrantId: string;
-        /**
-         * @description Whose grant it is: the Planner of one thread, or an external agent bound
-         *     to one project. On the wire and in storage, `thread` and `project`.
-         * @enum {string}
-         */
-        GrantKind: "thread" | "project";
         Group: {
             created_at: string;
             id: components["schemas"]["GroupId"];
@@ -2834,12 +2869,17 @@ export interface components {
         };
         /** Format: uuid */
         GroupId: string;
+        HarnessCatalog: {
+            harness: string;
+            models: components["schemas"]["CatalogModel"][];
+        };
         /**
          * @description A CLI a conversation can run on. `kind` is `claude-code` or
          *     `codex`.
          */
         HarnessInfo: {
             available: boolean;
+            executor: boolean;
             /** @description The mode a new conversation starts in. */
             initial_mode: string | null;
             kind: string;
@@ -2954,18 +2994,13 @@ export interface components {
             requested_model: string;
         };
         IssueGrant: {
-            /** @description The idempotency key, scoped to the project. */
             command_id: string;
+            project_ids: components["schemas"]["ProjectId"][];
         };
-        /**
-         * @description A new grant, with its token and the command that connects Claude Code to
-         *     it — or, for a replayed command, the grant alone.
-         */
         IssuedGrantBody: {
-            /** @description `claude mcp add …` with the token, to copy once; `null` on a replay. */
-            command?: string | null;
-            grant: components["schemas"]["Grant"];
-            /** @description The bearer token, in this answer only; `null` on a replay. */
+            connection: components["schemas"]["ExternalConnection"];
+            mcp_url: string;
+            /** @description The bearer token on first issue. A replay omits the token. */
             token?: string | null;
         };
         Item: {
@@ -3832,7 +3867,8 @@ export interface components {
         /**
          * @description A run Core refused. `code` is Core's opaque id (`waiting`, `task_busy`,
          *     `overlap`, `not_git`, `dirty_scope`, `not_frozen`, `superseded`,
-         *     `archived`, `bad_scope`, `command_conflict`); `reason` is the text to show.
+         *     `archived`, `bad_scope`, `command_conflict`, `no_executor_choice`,
+         *     `executor_not_offered`, `catalog_unavailable`); `reason` is the text to show.
          */
         RunRefusal: {
             code: string;
@@ -3926,6 +3962,9 @@ export interface components {
             command_id: string;
             value: string;
         };
+        SetExecutor: components["schemas"]["ExecutorInput"] & {
+            command_id: string;
+        };
         /** @description Files not parsed, for one reason: `too_large`, `binary` or `not_utf8`. */
         Skipped: {
             /** Format: int32 */
@@ -4001,8 +4040,6 @@ export interface components {
         StartAttempt: {
             /** @description The idempotency key: the same key and body answer the first attempt. */
             command_id: string;
-            /** @description The executor's model, one the harness offers. */
-            model: string;
         };
         /** @description Starts a turn as one command. */
         StartTurn: {
@@ -4161,15 +4198,11 @@ export interface components {
             done: boolean;
             done_at: string | null;
             done_reason: string | null;
+            executor: null | components["schemas"]["ExecutorChoice"];
             latest: null | components["schemas"]["Attempt"];
             /** @description In link order. */
             needs: components["schemas"]["Need"][];
             start: components["schemas"]["StartAnswer"];
-            /**
-             * @description The model the plan's Planner conversation last asked for; `null`
-             *     without one.
-             */
-            suggested_model: string | null;
             /** Format: int32 */
             task: number;
         };
@@ -6151,6 +6184,144 @@ export interface operations {
             };
         };
     };
+    list_grants: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExternalConnection"][];
+                };
+            };
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    issue_grant: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IssueGrant"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IssuedGrantBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    revoke_grant: {
+        parameters: {
+            query: {
+                command_id: string;
+            };
+            header?: never;
+            path: {
+                /** @description The external connection */
+                id: components["schemas"]["ExternalConnectionId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExternalConnection"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     list_dirs: {
         parameters: {
             query?: {
@@ -6536,32 +6707,28 @@ export interface operations {
             };
         };
     };
-    revoke_grant: {
+    catalog: {
         parameters: {
-            query: {
-                /** @description The idempotency key, scoped to the grant. */
-                command_id: string;
-            };
+            query?: never;
             header?: never;
             path: {
-                /** @description The project grant */
-                id: components["schemas"]["GrantId"];
+                /** @description Executor CLI id */
+                kind: string;
             };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description Revoked, or the replay of the same command */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Grant"];
+                    "application/json": components["schemas"]["HarnessCatalog"];
                 };
             };
-            /** @description INVALID_COMMAND: no `command_id` */
-            400: {
+            /** @description HARNESS_UNAVAILABLE or INVALID_COMMAND */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -6569,26 +6736,8 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
-            /** @description INVALID_COMMAND: no such project grant */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-            /** @description COMMAND_CONFLICT */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-            /** @description STORAGE_UNAVAILABLE */
-            500: {
+            /** @description HARNESS_START_FAILED */
+            502: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -8254,91 +8403,6 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-        };
-    };
-    list_grants: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description The project */
-                id: components["schemas"]["ProjectId"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Grant"][];
-                };
-            };
-            /** @description STORAGE_UNAVAILABLE */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-        };
-    };
-    issue_grant: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description The project */
-                id: components["schemas"]["ProjectId"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["IssueGrant"];
-            };
-        };
-        responses: {
-            /** @description Issued, or the replay of the same command without its token */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["IssuedGrantBody"];
-                };
-            };
-            /** @description INVALID_COMMAND: no such project */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-            /** @description COMMAND_CONFLICT */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-            /** @description STORAGE_UNAVAILABLE */
             500: {
                 headers: {
                     [name: string]: unknown;
@@ -10508,7 +10572,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
-            /** @description Start refused, with the code a task's `start` answers: waiting, task_busy, overlap, not_git, dirty_scope, missing_input, input_unavailable, not_frozen, superseded, archived, bad_scope; or command_conflict */
+            /** @description Start refused, with the code a task's `start` answers: waiting, task_busy, overlap, not_git, dirty_scope, missing_input, input_unavailable, not_frozen, superseded, archived, bad_scope; no_executor_choice or command_conflict */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -10566,6 +10630,60 @@ export interface operations {
                 };
             };
             /** @description command_conflict or checks_not_passed */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunRefusal"];
+                };
+            };
+            /** @description STORAGE_UNAVAILABLE */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    set_executor: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workflow: components["schemas"]["WorkflowId"];
+                version: number;
+                task: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetExecutor"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExecutorChoice"];
+                };
+            };
+            /** @description no such plan version or task */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description executor choice refused */
             409: {
                 headers: {
                     [name: string]: unknown;

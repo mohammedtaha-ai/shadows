@@ -13,7 +13,13 @@ use axum::http::{StatusCode, header};
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
 
-use shadows_core::AppCore;
+use shadows_core::{AppCore, ExternalConnection, Grant};
+
+#[derive(Clone)]
+pub(super) enum Credential {
+    Scoped(Grant),
+    External(ExternalConnection),
+}
 
 pub(super) async fn require_grant(
     State(core): State<Arc<AppCore>>,
@@ -24,7 +30,18 @@ pub(super) async fn require_grant(
         tracing::info!("mcp.unauthorized");
         return StatusCode::UNAUTHORIZED.into_response();
     };
-    match core.grants().authorize(token).await {
+    let grants = core.grants();
+    let checked = async {
+        if let Some(connection) = grants.authorize_external(token).await? {
+            return Ok(Some(Credential::External(connection)));
+        }
+        grants
+            .authorize(token)
+            .await
+            .map(|grant| grant.map(Credential::Scoped))
+    }
+    .await;
+    match checked {
         Ok(Some(grant)) => {
             request.extensions_mut().insert(grant);
             next.run(request).await

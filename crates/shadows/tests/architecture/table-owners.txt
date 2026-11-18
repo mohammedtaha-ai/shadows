@@ -45,6 +45,8 @@ harness_model_effort :: harness
 harness_preference :: harness
 harness_thread_mode :: harness
 mcp_grant :: grants
+external_connection :: grants
+external_connection_project :: grants
 run_attempts :: runs
 run_task_marks :: runs
 run_attempt_context :: runs
@@ -115,3 +117,5 @@ run_checks :: runs
 run_agent_messages :: runs
 run_rechecks :: runs
 run_recheck_results :: runs
+run_executor_saves :: runs
+run_task_executors :: runs

@@ -8,6 +8,7 @@
 # ThreadsError is translated through CoreError with unchanged responses.
 # CodebaseError converts through CoreError to preserve the MCP scope and storage envelope.
 name: shadows-mcp
+external_connections: The external tool set includes project_list restricted to the credential's selected live projects. Other external calls require project_id and bind a project grant before dispatch. A linked project's slug cannot widen that project scope.
 version: 1
 status: current
 source: crates/shadows-mcp/src
@@ -77,7 +78,9 @@ layout_only: Map records contain no starter files; the stage has no Structure st
 # inside a repository, and writes no project file. A Runs refusal
 # (already_git, no_folder, not_listed) leads its text. Tested by mcp_server::the_tool_list_depends_on_the_grant_kind
 # and, in Runs, runs_attempts::init.
-# task_start { workflow_id, task_number, model? } calls Runs::start_for and answers the Attempt;
+# task_start { workflow_id, task_number } calls Runs::start_for on the saved choice.
+# task_executor_set { workflow_id, task_number, harness, model, effort? } saves through Runs.
+# executor_catalog reads the available CLI catalogs through Harness. Both tools are Planner-only.
 # task_done { workflow_id, task_number, done } calls Runs::mark_done_for and answers the
 # DoneMark { task, next }; its description says a done mark also closes the executor's
 # session. Only the Planner's grant lists them. Runs' NotFound reads "not found:

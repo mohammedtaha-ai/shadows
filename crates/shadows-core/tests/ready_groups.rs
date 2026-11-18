@@ -169,6 +169,19 @@ async fn fixture() -> Fixture {
         mcp_url: acp::MCP_URL.to_string(),
     });
     core.runs().set_first_prompt_for_tests("wait-for-release");
+    let plan = core.plans().get(&workflow).await.unwrap();
+    for task in &plan.tasks {
+        core.runs()
+            .choose_executor_for_test(
+                &workflow,
+                task.content.number,
+                "claude-code",
+                "fake-large",
+                Some("high"),
+            )
+            .await
+            .unwrap();
+    }
     Fixture {
         core,
         storage,
@@ -182,9 +195,21 @@ async fn fixture() -> Fixture {
 
 impl Fixture {
     async fn start(&self, command: &str, task: u32) -> Result<Attempt, RunsError> {
+        let seed = self
+            .core
+            .runs()
+            .choose_executor_for_test(
+                &self.workflow,
+                task,
+                "claude-code",
+                "fake-large",
+                Some("high"),
+            )
+            .await;
+        seed.unwrap();
         self.core
             .runs()
-            .start(command.into(), &self.workflow, 1, task, "fake-large".into())
+            .start(command.into(), &self.workflow, 1, task)
             .await
     }
 
@@ -314,10 +339,7 @@ async fn first_group_has_two_independent_tasks() {
     assert_eq!(listed, [(1, "Task 1"), (3, "Task 3")], "T4 waits on T1");
     // Both start without waiting for one another.
     for task in [1, 3] {
-        let started = f
-            .core
-            .runs()
-            .start_for(&grant, &f.workflow, task, Some("fake-large".into()));
+        let started = f.core.runs().start_for(&grant, &f.workflow, task);
         assert_eq!(started.await.unwrap().state, AttemptState::Running);
     }
     f.finish().await;
@@ -365,11 +387,7 @@ async fn a_stale_group_cannot_bypass_start() {
     assert_eq!(f.group().await, [1, 3]);
     // T2 starts outside the group before the Planner acts on it.
     f.start("s2", 2).await.unwrap();
-    let stale = f
-        .core
-        .runs()
-        .start_for(&grant, &f.workflow, 1, Some("fake-large".into()))
-        .await;
+    let stale = f.core.runs().start_for(&grant, &f.workflow, 1).await;
     assert!(matches!(stale, Err(RunsError::Overlap { .. })), "{stale:?}");
     assert_eq!(f.attempts().await, 1, "the refused Start wrote nothing");
     assert_eq!(f.group().await, [3]);

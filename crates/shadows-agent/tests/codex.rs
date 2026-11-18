@@ -47,9 +47,13 @@ impl Peer {
         let spec = program.process_spec(&cwd, &setup).unwrap();
         let mut process = shadows_process::spawn(spec).expect("build fake-codex with test-support");
         let (send, events) = mpsc::unbounded_channel();
-        let connection = Connection::open(&mut process, move |e| {
-            let _ = send.send(e);
-        })
+        let connection = Connection::open(
+            &mut process,
+            move |e| {
+                let _ = send.send(e);
+            },
+            "0.169.0",
+        )
         .await
         .unwrap();
         let opened = connection
@@ -176,4 +180,22 @@ async fn codex_cannot_finish_a_replacement_generation() {
         TurnEnd::Ended
     );
     assert_eq!(peer.chunks(), ["current"]);
+}
+
+/// Adopts the installed CLI as the tested protocol: `SHADOWS_CODEX_ADOPT=1` and
+/// `SHADOWS_CODEX_PATH=<codex executable>` rewrite `src/codex/tested_protocol.json`.
+#[tokio::test]
+#[ignore = "rewrites the tested Codex protocol from the installed CLI"]
+async fn adopt_the_installed_codex_protocol() {
+    if std::env::var("SHADOWS_CODEX_ADOPT").as_deref() != Ok("1") {
+        return;
+    }
+    let executable =
+        PathBuf::from(std::env::var("SHADOWS_CODEX_PATH").expect("SHADOWS_CODEX_PATH"));
+    let scratch = std::env::temp_dir().join(format!("codex-adopt-{}", std::process::id()));
+    let program = CodexProgram::new(executable, scratch.join("home"));
+    let snapshot = program.adopt(&scratch.join("schema")).await.unwrap();
+    let _ = std::fs::remove_dir_all(&scratch);
+    let target = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/codex/tested_protocol.json");
+    std::fs::write(target, snapshot).unwrap();
 }

@@ -11,6 +11,8 @@ mod access;
 mod error;
 pub use error::HarnessError;
 mod assistant;
+mod catalog;
+mod codex_check;
 mod commands;
 mod context_record;
 mod executor;
@@ -43,8 +45,9 @@ use tokio::sync::broadcast;
 
 pub use assistant::AylulConfig;
 pub use model::{
-    AylulUsageSnapshot, CarriedContext, ContextSource, Forget, HarnessInfo, HarnessMode,
-    InvocationVersions, InvocationView, PlanningContextState, RememberedSettings,
+    AylulUsageSnapshot, CarriedContext, CatalogModel, ContextSource, Forget, HarnessCatalog,
+    HarnessInfo, HarnessMode, InvocationVersions, InvocationView, PlanningContextState,
+    RememberedSettings,
 };
 use sessions::Sessions;
 pub use sessions::{LeaseError, OpenError, OpenSession, SessionsConfig};
@@ -67,9 +70,16 @@ pub struct Harness {
     operations: core_operations::Operations,
     sessions: Arc<Sessions>,
     projects: Projects,
+    catalogs: catalog::Catalogs,
 }
 
 impl Harness {
+    /// How many times this daemon run has checked the Codex protocol.
+    #[cfg(feature = "test-support")]
+    pub fn codex_checks_for_test(&self) -> usize {
+        self.sessions.codex_check.checks()
+    }
+
     /// The configured AYLUL profile, without exposing its environment.
     pub fn aylul_profile(&self) -> Result<&str, HarnessError> {
         self.sessions
@@ -104,6 +114,7 @@ impl Harness {
             operations,
             sessions,
             projects,
+            catalogs: catalog::Catalogs::default(),
         })
     }
 
@@ -168,7 +179,14 @@ impl Harness {
     pub async fn list(&self) -> Result<Vec<HarnessInfo>, HarnessError> {
         let mut list = Vec::new();
         for kind in policy::KNOWN {
-            let available = self.sessions.harness_available(kind).await?;
+            let (available, reason) = match self.sessions.harness_available(kind).await {
+                Ok(available) => (
+                    available,
+                    (!available).then(|| Sessions::unavailable_reason(kind).to_string()),
+                ),
+                Err(HarnessError::HarnessStartFailed(reason)) => (false, Some(reason)),
+                Err(error) => return Err(error),
+            };
             let remembered = self
                 .store
                 .remembered_settings(kind)
@@ -178,7 +196,8 @@ impl Harness {
                 kind: kind.to_string(),
                 label: Self::label(kind).to_string(),
                 available,
-                reason: (!available).then(|| Sessions::unavailable_reason(kind).to_string()),
+                executor: policy::EXECUTOR_HARNESSES.contains(&kind),
+                reason,
                 remembered,
                 limits: self.store.latest_limits(kind).await?,
                 modes: policy::modes(kind)
@@ -194,16 +213,6 @@ impl Harness {
             });
         }
         Ok(list)
-    }
-
-    /// The model of the last turn started on harness `kind`, which that
-    /// harness offered then; None when no turn ran on it.
-    pub async fn remembered_model(&self, kind: &str) -> Result<Option<String>, HarnessError> {
-        Ok(self
-            .store
-            .remembered_settings(kind)
-            .await?
-            .map(|(model, _)| model))
     }
 
     /// Opens the thread's harness session and answers what it

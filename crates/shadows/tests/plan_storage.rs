@@ -530,6 +530,15 @@ async fn after_approval_start_draft_copies_tasks_and_links_with_their_numbers() 
     assert_eq!(copy.links, before.links);
     for (new, old) in copy.tasks.iter().zip(&before.tasks) {
         assert_ne!(new.id, old.id);
+        let mut snapshot = app.storage.reader().begin().await.unwrap();
+        let lineage = shadows_core::Plans::task_lineage_in(
+            &mut snapshot,
+            &v2.workflow_id,
+            new.content.number,
+        )
+        .await
+        .unwrap();
+        assert_eq!(lineage, [new.id.clone(), old.id.clone()]);
     }
     assert_eq!(
         shadows_core::AppCore::plans_for_tests(app.storage.clone())

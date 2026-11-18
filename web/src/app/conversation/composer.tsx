@@ -4,6 +4,7 @@ import { useSearch } from '@tanstack/react-router'
 import { Square } from 'lucide-react'
 import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { type TurnSettings } from '@/api/sessions'
+import type { CatalogModel } from '@/api/harnesses'
 import { Button } from '@/components/ui/button'
 import type { SlashCommand } from '@/stream'
 import { useCompanionSendProblem } from '@/desktop'
@@ -13,6 +14,7 @@ import { type CarriedSend } from './carried-send'
 import { type PendingImage } from './upload-images'
 import { AYLUL_HARNESS } from './cli-picker'
 import { ComposerBar } from './composer-bar'
+import { draftEffort } from './draft-session'
 import { ComposerFrame, ComposerInput, ComposerSendButton } from './composer-surface'
 import { FocusChip, type PointedTask } from './focus-chip'
 import { type SessionCommand, sessionCommand } from './session-commands'
@@ -31,7 +33,7 @@ import { type SessionView } from './use-session'
  * whose `draft` makes the thread first and answers the turn's operation. */
 export type SendTo =
   | { threadId: string }
-  | { draft: (commandId: string, text: string, settings: TurnSettings, images: PendingImage[], changed: () => void) => Promise<string>; planId?: string; selectableModels?: boolean }
+  | { draft: (commandId: string, text: string, settings: TurnSettings, images: PendingImage[], changed: () => void) => Promise<string>; planId?: string; selectableModels?: boolean; draftModels?: readonly CatalogModel[] }
 
 const NONE: readonly SlashCommand[] = []
 
@@ -151,13 +153,13 @@ export function Composer({
     if (choices === null || settings === null) {
       return setCarriedError(new Error('The session is not ready yet.'))
     }
-    if (command.setting === 'effort' && !effortsKnown(choices, settings.model)) {
+    if (command.setting === 'effort' && !effortsKnown(menuChoices ?? choices, settings.model)) {
       return setCarriedError(new Error('Efforts are known once the session holds the chosen model.'))
     }
     setCarriedError(null)
     setPrompt('')
     if (command.kind === 'open') return setOpened(command.setting)
-    if (command.setting === 'model') choose(withModel(choices, settings, command.id))
+    if (command.setting === 'model') choose(withModel(menuChoices ?? choices, settings, command.id))
     else choose({ ...settings, effort: command.id })
   }
 
@@ -166,7 +168,17 @@ export function Composer({
     choices, threadId, inFlight, clearAttempt, setCarriedError, carried?.images,
   )
   const busy = sending || running !== null
-  const { settings, note, choose, switching, error: settingsError, resetError: resetSettingsError } = useSessionSettings(choices, busy, threadId, clearAttempt)
+  const { settings, note, choose: chooseSetting, switching, error: settingsError, resetError: resetSettingsError } =
+    useSessionSettings(choices, busy, threadId, clearAttempt, threadId === null ? harness : undefined)
+  const draftModels = 'draft' in to ? to.draftModels : undefined
+  const menuChoices = draftModels !== undefined && settings !== null && choices !== null
+    ? { ...choices, current: settings, efforts: draftModels.find(item => item.id === settings.model)?.efforts ?? [] }
+    : choices
+  const choose = (next: TurnSettings) => {
+    chooseSetting(draftModels !== undefined && next.model !== settings?.model
+      ? { ...next, effort: draftEffort(draftModels.find(item => item.id === next.model), null) }
+      : next)
+  }
   const { stop, isPending: stopping, error: stopError, label: stopLabel } = useStop(running)
 
   // Send waits until the session holds the chosen model: only then are the
@@ -182,7 +194,7 @@ export function Composer({
     !images.some(image => image.error !== undefined) && (anchorRecovery === null || running === null)
 
   const submit = (withoutAnchor = false) => {
-    const command = sessionCommand(prompt, choices)
+    const command = sessionCommand(prompt, menuChoices)
     if (command !== null) return act(command)
     const text = prompt.trim()
     if (!canSend || settings === null) return
@@ -310,7 +322,7 @@ export function Composer({
           )} />
         <ComposerBar
           harnessLabel={harnessLabel}
-          session={session}
+          session={session.state === 'ready' && menuChoices !== null ? { state: 'ready', choices: menuChoices } : session}
           settings={settings}
           onSettings={choose}
           changingModel={switching}

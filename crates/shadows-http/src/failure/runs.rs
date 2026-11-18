@@ -13,7 +13,8 @@ use super::{Detail, Failure};
 
 /// A run Core refused. `code` is Core's opaque id (`waiting`, `task_busy`,
 /// `overlap`, `not_git`, `dirty_scope`, `not_frozen`, `superseded`,
-/// `archived`, `bad_scope`, `command_conflict`); `reason` is the text to show.
+/// `archived`, `bad_scope`, `command_conflict`, `no_executor_choice`,
+/// `executor_not_offered`, `catalog_unavailable`); `reason` is the text to show.
 #[derive(serde::Serialize, utoipa::ToSchema)]
 pub struct RunRefusal {
     pub code: String,

@@ -1,5 +1,6 @@
 mod app;
 pub use core_runs::LiveAttempt;
+pub use core_runs::{Chooser, ExecutorChoice, ExecutorInput};
 pub use core_runs::{RecheckFailure, RecheckNotice};
 pub use core_runtime::RuntimeError;
 mod error;
@@ -41,11 +42,12 @@ pub use core_extensions::{
     AgentExtensions, AgentItem, AgentTools, ExtensionKind, ExtensionLibrary, Extensions,
     ExtensionsError, Item, McpInput, McpItem, McpTool, ToolRule, ToolRuleEntry,
 };
-pub use core_grants::{Grant, GrantId, GrantKind, Grants, GrantsError, IssuedView};
+pub use core_grants::{ExternalConnection, ExternalConnectionId, IssuedExternalConnection};
+pub use core_grants::{Grant, GrantId, GrantKind, Grants, GrantsError};
 pub use core_harness::{
-    AylulConfig, AylulUsageSnapshot, CarriedContext, ContextSource, Forget, Harness, HarnessError,
-    HarnessInfo, LeaseError, OpenError, OpenSession, PermissionAnswer, PermissionOption,
-    RememberedSettings, WaitingPermission,
+    AylulConfig, AylulUsageSnapshot, CarriedContext, CatalogModel, ContextSource, Forget, Harness,
+    HarnessCatalog, HarnessError, HarnessInfo, LeaseError, OpenError, OpenSession,
+    PermissionAnswer, PermissionOption, RememberedSettings, WaitingPermission,
 };
 pub use core_instructions::{Instructions, InstructionsVersion};
 pub use core_messages::{

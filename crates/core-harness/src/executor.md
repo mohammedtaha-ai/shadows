@@ -55,11 +55,7 @@ tools: Read, Grep, Glob, Edit, Write, MultiEdit, Bash, TodoWrite
   commit itself. Shadows checks the commit; if it refuses, fix the commit as its reason says and
   report again.
 
-## Tools
-
-- Never use Python (`python`, `py`, `pip`), for anything.
-- Create and change files with `Write`, `Edit` and `MultiEdit`, never with a heredoc, `sed` or a
-  script. The shell is for running things: tests, git, generators.
+{executor_tools}
 
 Run your task's checks before you commit, and fix what fails in your own files. Other executors
 may be checking at once: a lock, busy or port error is not a failure. Go on with your code and

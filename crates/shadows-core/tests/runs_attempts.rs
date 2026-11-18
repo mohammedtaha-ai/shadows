@@ -8,6 +8,8 @@ mod checks;
 #[allow(dead_code)]
 #[path = "fixtures/cross_plan.rs"]
 mod cross_plan;
+#[path = "runs_attempts/executor_choice.rs"]
+mod executor_choice;
 #[path = "runs_attempts/init.rs"]
 mod init;
 #[path = "runs_attempts/leftovers.rs"]
@@ -129,7 +131,23 @@ fn repository(root: &Path) {
 }
 
 async fn fixture() -> Fixture {
-    fixture_with(true, None).await
+    let fixture = fixture_with(true, None).await;
+    let plan = fixture.core.plans().get(&fixture.workflow).await.unwrap();
+    for task in plan.tasks {
+        fixture
+            .core
+            .runs()
+            .choose_executor_for_test(
+                &fixture.workflow,
+                task.content.number,
+                "claude-code",
+                "fake-large",
+                Some("high"),
+            )
+            .await
+            .unwrap();
+    }
+    fixture
 }
 
 async fn fixture_with(approve: bool, adapter: Option<Arc<ClaudeAdapter>>) -> Fixture {
@@ -292,9 +310,21 @@ impl Fixture {
     }
 
     async fn start(&self, command: &str, task: u32) -> Result<Attempt, RunsError> {
+        let seed = self
+            .core
+            .runs()
+            .choose_executor_for_test(
+                &self.workflow,
+                task,
+                "claude-code",
+                "fake-large",
+                Some("high"),
+            )
+            .await;
+        assert!(seed.is_ok() || matches!(seed, Err(RunsError::NotFound)));
         self.core
             .runs()
-            .start(command.into(), &self.workflow, 1, task, "fake-large".into())
+            .start(command.into(), &self.workflow, 1, task)
             .await
     }
 
@@ -372,26 +402,6 @@ async fn planner_turn(f: &Fixture, id: &str, harness: &str, model: &str) {
     .unwrap();
 }
 
-/// The suggestion is a model the executor's harness offers: a Codex
-/// Planner's model is not, so the model last used on Claude is suggested.
-#[tokio::test]
-async fn the_suggested_model_is_one_the_executors_harness_offers() {
-    let f = fixture().await;
-    let suggested = |f: &Fixture| {
-        let runs = f.core.runs().clone();
-        let workflow = f.workflow.clone();
-        async move { runs.task(&workflow, 1, 1).await.unwrap().suggested_model }
-    };
-    assert_eq!(suggested(&f).await, None);
-    planner_turn(&f, "turn-1", "claude-code", "sonnet").await;
-    assert_eq!(suggested(&f).await.as_deref(), Some("sonnet"));
-    planner_turn(&f, "turn-2", "codex", "gpt-6-luna").await;
-    let after_codex = suggested(&f).await;
-    assert_ne!(after_codex.as_deref(), Some("gpt-6-luna"));
-    assert_eq!(after_codex.as_deref(), Some("sonnet"), "{after_codex:?}");
-    f.finish().await;
-}
-
 #[tokio::test]
 async fn start_opens_one_attempt_on_an_executor_thread() {
     let f = fixture().await;
@@ -431,11 +441,7 @@ async fn the_same_command_returns_the_same_attempt() {
         .await
         .unwrap();
     assert_eq!(rows, 1);
-    let other = f
-        .core
-        .runs()
-        .start("s1".into(), &f.workflow, 1, 3, "fake-small".into())
-        .await;
+    let other = f.core.runs().start("s1".into(), &f.workflow, 1, 4).await;
     assert!(
         matches!(other, Err(RunsError::CommandConflict)),
         "{other:?}"

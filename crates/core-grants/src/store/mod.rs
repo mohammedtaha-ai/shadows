@@ -1,9 +1,14 @@
 //! Grant persistence over the shared serialized database handle.
+mod external;
 use sqlx::SqliteConnection;
 
-use super::model::{Grant, GrantId, GrantKind, IssuedGrant, TaskScope, Token};
+#[cfg(feature = "test-support")]
+use super::model::IssuedGrant;
+use super::model::{Grant, GrantId, GrantKind, TaskScope, Token};
 use super::{Grants, GrantsError, Writer};
-use core_db::{Actor, CommandContext, JournalEntry, Storage, StorageError};
+#[cfg(feature = "test-support")]
+use core_db::CommandContext;
+use core_db::{Actor, JournalEntry, Storage, StorageError};
 use core_projects::ProjectId;
 use core_threads::ThreadId;
 use std::sync::Arc;
@@ -19,6 +24,7 @@ impl GrantsStore {
     pub(super) fn with_storage(storage: Arc<Storage>) -> Self {
         Self { storage }
     }
+    #[cfg(feature = "test-support")]
     pub(super) async fn issue_project_grant(
         &self,
         ctx: &CommandContext,
@@ -87,6 +93,7 @@ impl GrantsStore {
         )
         .await
     }
+    #[cfg(feature = "test-support")]
     pub(super) async fn revoke_grant(
         &self,
         ctx: &CommandContext,
@@ -178,13 +185,16 @@ impl GrantsStore {
         let row: Option<GrantRow> = sqlx::query_as(
             "SELECT id, kind, project_id, thread_id, created_at, revoked_at,
                 scope_workflow, scope_version, scope_task FROM mcp_grant \
-            WHERE token_hash = ? AND revoked_at IS NULL",
+            WHERE token_hash = ? AND revoked_at IS NULL
+              AND NOT EXISTS (SELECT 1 FROM external_connection_project
+                              WHERE grant_id = mcp_grant.id)",
         )
         .bind(Token::hash_token(raw))
         .fetch_optional(self.storage.reader())
         .await?;
         row.map(into_grant).transpose()
     }
+    #[cfg(feature = "test-support")]
     pub(super) async fn list_project_grants(
         &self,
         project: &ProjectId,

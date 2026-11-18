@@ -1033,3 +1033,131 @@ async fn live_a_codex_turn_sees_an_image() {
     );
     w.close().await;
 }
+
+impl World {
+    /// Starts on fake Codex with `settings` left in its home, such as its version or protocol.
+    async fn start_codex(settings: &[(&str, &str)]) -> Self {
+        let root = tempfile::tempdir().unwrap();
+        let home = root.path().join("codex-home");
+        std::fs::create_dir(&home).unwrap();
+        for (name, value) in settings {
+            std::fs::write(home.join(name), value).unwrap();
+        }
+        Self::start_with(root, fixture_executable(), home).await
+    }
+
+    fn codex_home(&self) -> PathBuf {
+        self._root.path().join("codex-home")
+    }
+
+    async fn second_thread(&self) -> ThreadId {
+        self.core
+            .threads()
+            .create(
+                "second".into(),
+                &self.project,
+                "Codex 2",
+                Some("codex"),
+                None,
+            )
+            .await
+            .unwrap()
+            .id
+    }
+}
+
+#[tokio::test]
+async fn a_matching_newer_codex_opens() {
+    let w = World::start_codex(&[
+        ("fake-codex-version", "0.170.0"),
+        ("fake-codex-protocol", "added"),
+    ])
+    .await;
+    w.core.harness().open_session(&w.thread).await.unwrap();
+    let codex = w.codex_listed().await;
+    assert_eq!(codex["available"], true);
+    assert_eq!(codex["reason"], Value::Null);
+    w.close().await;
+}
+
+#[tokio::test]
+async fn a_changed_codex_is_listed_with_what_changed() {
+    let w = World::start_codex(&[("fake-codex-protocol", "removed")]).await;
+    let codex = w.codex_listed().await;
+    assert_eq!(codex["available"], false);
+    let reason = codex["reason"].as_str().unwrap().to_owned();
+    assert!(reason.contains("turn/steer removed"), "{reason}");
+    let opened = format!(
+        "{:?}",
+        w.core.harness().open_session(&w.thread).await.unwrap_err()
+    );
+    assert!(opened.contains("HarnessStartFailed"), "{opened}");
+    assert!(opened.contains(&reason), "{opened}");
+    let catalog = format!("{:?}", w.core.harness().catalog("codex").await.unwrap_err());
+    assert!(catalog.contains("HarnessStartFailed"), "{catalog}");
+    assert!(catalog.contains(&reason), "{catalog}");
+    w.close().await;
+}
+
+#[tokio::test]
+async fn an_older_codex_is_refused_without_a_check() {
+    let w = World::start_codex(&[("fake-codex-version", "0.168.0")]).await;
+    let codex = w.codex_listed().await;
+    assert_eq!(codex["available"], false);
+    assert_eq!(codex["reason"], "Codex CLI 0.169.0 or later is required");
+    w.close().await;
+}
+
+#[tokio::test]
+async fn a_schema_that_cannot_be_generated_is_a_reason() {
+    let w = World::start_codex(&[("fake-codex-protocol", "broken")]).await;
+    let codex = w.codex_listed().await;
+    assert_eq!(codex["available"], false);
+    let reason = codex["reason"].as_str().unwrap();
+    assert!(reason.contains("unknown subcommand"), "{reason}");
+    w.close().await;
+}
+
+#[tokio::test]
+async fn the_protocol_is_checked_once_per_run() {
+    let w = World::start_codex(&[]).await;
+    assert_eq!(w.codex_listed().await["available"], true);
+    w.core.harness().open_session(&w.thread).await.unwrap();
+    w.core.harness().catalog("codex").await.unwrap();
+    assert_eq!(w.core.harness().codex_checks_for_test(), 1);
+    w.close().await;
+}
+
+#[tokio::test]
+async fn concurrent_openings_run_one_check() {
+    let w = World::start_codex(&[]).await;
+    let second = w.second_thread().await;
+    let harness = w.core.harness();
+    let (first, other) = tokio::join!(
+        harness.open_session(&w.thread),
+        harness.open_session(&second)
+    );
+    first.unwrap();
+    other.unwrap();
+    assert_eq!(w.core.harness().codex_checks_for_test(), 1);
+    w.close().await;
+}
+
+#[tokio::test]
+async fn a_codex_upgraded_while_running_is_checked_again() {
+    let w = World::start_codex(&[]).await;
+    w.core.harness().open_session(&w.thread).await.unwrap();
+    w.core.harness().terminate(&w.thread).await.unwrap();
+    std::fs::write(w.codex_home().join("fake-codex-version"), "0.170.0").unwrap();
+    let refused = w
+        .core
+        .harness()
+        .open_session(&w.thread)
+        .await
+        .unwrap_err()
+        .to_string();
+    assert!(refused.contains("changed to 0.170.0"), "{refused}");
+    w.core.harness().open_session(&w.thread).await.unwrap();
+    assert_eq!(w.core.harness().codex_checks_for_test(), 2);
+    w.close().await;
+}

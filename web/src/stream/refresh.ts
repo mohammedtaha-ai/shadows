@@ -6,11 +6,12 @@ import { invalidateProjects } from '@/api/projects'
 import { invalidateEntries, invalidateOperations, invalidateThreadLists } from '@/api/threads'
 import { invalidatePermissions } from '@/api/permissions'
 import { groupKeys } from '@/api/groups'
+import { invalidateExecutorChoices } from '@/api/runs'
 import type { DurableEvent } from './frames'
 import { subscribeProjectStream, subscribeThreadStream, type StreamSubscriber } from './thread-registry'
 
 type RefreshTarget =
-  | { kind: 'workflows' | 'projects' | 'thread-lists' | 'permissions' | 'groups' }
+  | { kind: 'workflows' | 'projects' | 'thread-lists' | 'permissions' | 'groups' | 'executor-choices' }
   | { kind: 'design' | 'agreements' | 'agreement-versions' | 'project-workflows'; projectId: string }
   | { kind: 'entries' | 'operations'; threadId: string }
   | { kind: 'group'; groupId: string }
@@ -37,6 +38,7 @@ export function classifyRefresh(event: RefreshEvent): RefreshTarget[] {
     if (REACH_EVENTS.has(event.kind)) targets.push({ kind: 'project-workflows', projectId })
   }
   if (event.kind === 'ProjectRemoved') targets.push({ kind: 'projects' })
+  if (event.kind === 'TaskExecutorChosen' && projectId !== undefined) targets.push({ kind: 'executor-choices' })
   if (event.kind === 'PermissionsChanged' && projectId !== undefined) targets.push({ kind: 'permissions' })
   if (event.kind === 'MessageAdded' && typeof payload === 'object' && payload !== null &&
       'group_id' in payload && typeof payload.group_id === 'string') {
@@ -65,6 +67,7 @@ export function dispatchRefresh(client: QueryClient, targets: readonly RefreshTa
       case 'agreement-versions': invalidateAgreementVersions(client, target.projectId); break
       case 'projects': invalidateProjects(client); break
       case 'permissions': void invalidatePermissions(client); break
+      case 'executor-choices': void invalidateExecutorChoices(client); break
       case 'groups': void client.invalidateQueries({ queryKey: groupKeys.list }); break
       case 'group':
         void client.invalidateQueries({ queryKey: groupKeys.detail(target.groupId) })
@@ -81,7 +84,7 @@ interface RefreshScope { projectId?: string; threadId?: string; plansOnly?: bool
 
 function baseline(scope: RefreshScope): RefreshTarget[] {
   return scope.threadId === undefined
-    ? [{ kind: 'agreements', projectId: scope.projectId! }, { kind: 'design', projectId: scope.projectId! }, { kind: 'project-workflows', projectId: scope.projectId! }, { kind: 'permissions' }]
+    ? [{ kind: 'agreements', projectId: scope.projectId! }, { kind: 'design', projectId: scope.projectId! }, { kind: 'project-workflows', projectId: scope.projectId! }, { kind: 'permissions' }, { kind: 'executor-choices' }]
     : scope.plansOnly ? [{ kind: 'workflows' }]
     : [{ kind: 'workflows' }, { kind: 'entries', threadId: scope.threadId }, { kind: 'operations', threadId: scope.threadId }]
 }
@@ -103,7 +106,7 @@ function refreshSubscriber(client: QueryClient, current: () => RefreshScope): St
       else for (const target of targets) {
         // Project design and agreement notices must reach dirty editors during replay.
         if (scope.threadId === undefined && target.kind !== 'workflows' && target.kind !== 'project-workflows' &&
-            target.kind !== 'group' && target.kind !== 'groups' && !PLAN_EVENTS.has(event.kind)) {
+            target.kind !== 'group' && target.kind !== 'groups' && target.kind !== 'executor-choices' && !PLAN_EVENTS.has(event.kind)) {
           dispatchRefresh(client, [target])
         } else pending.set(JSON.stringify(target), target)
       }

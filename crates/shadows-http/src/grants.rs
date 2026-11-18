@@ -1,113 +1,98 @@
-//! One job: the routes over external agents' MCP grants
-//! — a project's list, issuing one, revoking one.
-//!
-//! The token is in the issuing answer only, once: a replay answers the grant
-//! without it, and the list never carries one. Thread grants are the
-//! Planner's and never reach a route. Every handler here is `pub(super)`.
+//! HTTP translation for external connection issue, list and revocation.
 
 use axum::Json;
 use axum::extract::{Path, Query, State};
+use shadows_core::{ExternalConnection, ExternalConnectionId, ProjectId};
 
 use super::failure::ErrorBody;
 use super::{AppState, Failure};
-use shadows_core::ProjectId;
-use shadows_core::{Grant, GrantId};
 
-/// A project's grants for external agents, revoked ones included, newest
-/// first. Never a token.
 #[utoipa::path(
     get,
-    path = "/api/projects/{id}/mcp-grants",
+    path = "/api/external-connections",
     tag = "grants",
-    params(("id" = ProjectId, Path, description = "The project")),
     responses(
-        (status = 200, body = Vec<Grant>),
-        (status = 500, description = "STORAGE_UNAVAILABLE", body = ErrorBody),
+        (status = 200, body = Vec<ExternalConnection>),
+        (status = 500, body = ErrorBody),
     )
 )]
 pub(super) async fn list_grants(
     State(s): State<AppState>,
-    Path(project): Path<ProjectId>,
-) -> Result<Json<Vec<Grant>>, Failure> {
-    Ok(Json(s.core.grants().list(&project).await?))
+) -> Result<Json<Vec<ExternalConnection>>, Failure> {
+    Ok(Json(s.core.grants().list_external().await?))
 }
 
 #[derive(serde::Deserialize, utoipa::ToSchema)]
 pub(super) struct IssueGrant {
-    /// The idempotency key, scoped to the project.
     command_id: String,
+    project_ids: Vec<ProjectId>,
 }
 
-/// A new grant, with its token and the command that connects Claude Code to
-/// it — or, for a replayed command, the grant alone.
 #[derive(serde::Serialize, utoipa::ToSchema)]
 pub(super) struct IssuedGrantBody {
-    grant: Grant,
-    /// The bearer token, in this answer only; `null` on a replay.
+    connection: ExternalConnection,
+    /// The bearer token on first issue. A replay omits the token.
     token: Option<String>,
-    /// `claude mcp add …` with the token, to copy once; `null` on a replay.
-    command: Option<String>,
+    mcp_url: String,
 }
 
-/// Connect: issues a grant bound to this project for an external
-/// agent. The token is shown once — here — and stored only as its hash.
 #[utoipa::path(
     post,
-    path = "/api/projects/{id}/mcp-grants",
+    path = "/api/external-connections",
     tag = "grants",
-    params(("id" = ProjectId, Path, description = "The project")),
     request_body = IssueGrant,
     responses(
-        (
-            status = 200,
-            description = "Issued, or the replay of the same command without its token",
-            body = IssuedGrantBody,
-        ),
-        (status = 404, description = "INVALID_COMMAND: no such project", body = ErrorBody),
-        (status = 409, description = "COMMAND_CONFLICT", body = ErrorBody),
-        (status = 500, description = "STORAGE_UNAVAILABLE", body = ErrorBody),
+        (status = 200, body = IssuedGrantBody),
+        (status = 404, body = ErrorBody),
+        (status = 409, body = ErrorBody),
+        (status = 422, body = ErrorBody),
+        (status = 500, body = ErrorBody),
     )
 )]
 pub(super) async fn issue_grant(
     State(s): State<AppState>,
-    Path(project): Path<ProjectId>,
     Json(body): Json<IssueGrant>,
 ) -> Result<Json<IssuedGrantBody>, Failure> {
-    let issued = s.core.grants().issue(body.command_id, &project).await?;
+    let issued = s
+        .core
+        .grants()
+        .issue_external(body.command_id, body.project_ids)
+        .await?;
     Ok(Json(IssuedGrantBody {
-        grant: issued.grant,
+        connection: issued.connection,
         token: issued.token,
-        command: issued.command,
+        mcp_url: issued.mcp_url,
     }))
 }
 
-/// A `DELETE` has no body, so its idempotency key rides in the query.
 #[derive(serde::Deserialize, utoipa::IntoParams)]
 #[into_params(parameter_in = Query)]
 pub(super) struct RevokeQuery {
-    /// The idempotency key, scoped to the grant.
     command_id: String,
 }
 
-/// Revoke: Shadows refuses the grant's token from now on. It does not
-/// remove the server from the person's Claude configuration.
 #[utoipa::path(
     delete,
-    path = "/api/mcp-grants/{id}",
+    path = "/api/external-connections/{id}",
     tag = "grants",
-    params(("id" = GrantId, Path, description = "The project grant"), RevokeQuery),
+    params(
+        ("id" = ExternalConnectionId, Path, description = "The external connection"),
+        RevokeQuery
+    ),
     responses(
-        (status = 200, description = "Revoked, or the replay of the same command", body = Grant),
-        (status = 400, description = "INVALID_COMMAND: no `command_id`", body = ErrorBody),
-        (status = 404, description = "INVALID_COMMAND: no such project grant", body = ErrorBody),
-        (status = 409, description = "COMMAND_CONFLICT", body = ErrorBody),
-        (status = 500, description = "STORAGE_UNAVAILABLE", body = ErrorBody),
+        (status = 200, body = ExternalConnection),
+        (status = 400, body = ErrorBody),
+        (status = 404, body = ErrorBody),
+        (status = 409, body = ErrorBody),
+        (status = 500, body = ErrorBody),
     )
 )]
 pub(super) async fn revoke_grant(
     State(s): State<AppState>,
-    Path(grant): Path<GrantId>,
+    Path(id): Path<ExternalConnectionId>,
     Query(q): Query<RevokeQuery>,
-) -> Result<Json<Grant>, Failure> {
-    Ok(Json(s.core.grants().revoke(q.command_id, &grant).await?))
+) -> Result<Json<ExternalConnection>, Failure> {
+    Ok(Json(
+        s.core.grants().revoke_external(q.command_id, &id).await?,
+    ))
 }

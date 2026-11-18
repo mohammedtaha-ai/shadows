@@ -132,13 +132,13 @@ pub enum ManagedConnection {
 impl ManagedConnection {
     pub async fn open(
         handle: &mut ProcessHandle,
-        codex: bool,
+        codex: Option<&str>,
         policy: PermissionPolicy,
         events: impl Fn(HarnessEvent) + Clone + Send + Sync + 'static,
     ) -> Result<Self, ConnectionError> {
-        if codex {
+        if let Some(version) = codex {
             Ok(Self::Codex(
-                crate::codex::Connection::open(handle, events).await?,
+                crate::codex::Connection::open(handle, events, version).await?,
             ))
         } else {
             Ok(Self::Acp(

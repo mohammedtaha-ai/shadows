@@ -269,6 +269,8 @@ describe('the draft', () => {
 
   it('the first message creates the thread, then sends, then opens the thread', async () => {
     const routes = answers()
+    routes['GET /api/harnesses/claude-code/catalog'] = () =>
+      Response.json({ code: 'HARNESS_START_FAILED', message: 'Unavailable' }, { status: 502 })
     routes['POST /api/projects/p1/threads'] = () => Response.json(threadFixture, { status: 201 })
     const app = (open = await startApp('/projects/p1/new', routes))
     await until(() => app.button('Accept edits') !== undefined)
@@ -296,6 +298,24 @@ describe('the draft', () => {
       model: 'fake-large',
       effort: 'high',
     })
+  })
+
+  it('offers remembered settings and sends the picked model and its own effort', async () => {
+    const routes = answers({ harnesses: [{
+      ...claudeHarness, remembered: { model: 'fake-large', effort: 'high' },
+    }] })
+    routes['POST /api/projects/p1/threads'] = () => Response.json(threadFixture, { status: 201 })
+    const app = (open = await startApp('/projects/p1/new', routes))
+    await until(() => app.button('Fake large') !== undefined && app.button('high') !== undefined)
+    expect(app.calls.some(call => call.startsWith('POST'))).toBe(false)
+    await choose(app, 'Fake large', 'Fake small')
+    await until(() => app.button('low') !== undefined)
+    expect(app.button('high')).toBeUndefined()
+    typeInto(document.querySelector('textarea')!, 'Plan the release')
+    await until(() => app.button('Send')?.disabled === false)
+    await act(async () => app.button('Send')?.click())
+    await until(() => app.calls.includes(turnRoute))
+    expect(app.bodies.at(-1)).toMatchObject({ model: 'fake-small', effort: 'low' })
   })
 
   it('the mode chosen in the draft stays on the thread page and runs the second turn', async () => {

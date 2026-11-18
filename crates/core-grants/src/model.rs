@@ -118,6 +118,7 @@ impl Token {
 /// What issuing answers. `token` is `Some` on the first issue only: a replay
 /// of the same command answers the grant without it, because it is shown once.
 #[derive(Debug)]
+#[cfg(feature = "test-support")]
 pub struct IssuedGrant {
     pub grant: Grant,
     pub token: Option<Token>,

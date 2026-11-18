@@ -386,9 +386,11 @@ impl Case {
             .http_code(E::StorageUnavailable)
             .mcp(
                 E::GrantScope,
-                "outside what this grant allows: plan writes stay in its own project; \
-                 workflow_list and workflow_get can read an explicitly linked project; \
-                 draft_ref starts a plan only within the hour after draft_prepare",
+                "outside what this grant allows: plan writes stay in the grant's own \
+                 project; a Planner can read an explicitly linked project with \
+                 workflow_list and workflow_get, an external connection only the \
+                 project_id it called with; draft_ref starts a plan only in its \
+                 own project, within the hour after draft_prepare",
             ),
         );
         cases

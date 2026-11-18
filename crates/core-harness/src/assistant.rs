@@ -37,15 +37,20 @@ pub(super) struct Opening {
 impl Sessions {
     pub(crate) async fn harness_available(&self, kind: &str) -> Result<bool, HarnessError> {
         if kind == policy::CODEX {
-            return Ok(self.config.codex.is_some());
+            if self.config.codex.is_none() {
+                return Ok(false);
+            }
+            self.codex_checked().await?;
+            return Ok(true);
         }
         let configured =
             self.config.aylul.is_some() && !self.owners.agents.agents().await?.is_empty();
         Ok(policy::is_available_with(kind, configured))
     }
 
-    /// What a person can do about an unavailable harness. Codex needs only
-    /// daemon configuration; the others are not yet runnable here.
+    /// What a person can do about an unavailable harness. A configured Codex that failed its
+    /// protocol check is reported by `harness_available`'s refusal instead; the others are not
+    /// yet runnable here.
     pub(crate) fn unavailable_reason(kind: &str) -> &'static str {
         if kind == policy::CODEX {
             "Start Shadows with --codex and --codex-home to use Codex"

@@ -15,13 +15,15 @@ pub enum Asker<'a> {
     Person(&'a ProjectId),
     /// An agent holding an MCP grant: refusals are `GRANT_SCOPE`.
     Grant(&'a ProjectId),
+    /// The project selected by an external connection for this call.
+    External(&'a ProjectId),
 }
 
 impl Asker<'_> {
     /// The project a question starts from, which it also touches.
     pub(super) fn home(&self) -> &ProjectId {
         match self {
-            Asker::Person(p) | Asker::Grant(p) => p,
+            Asker::Person(p) | Asker::Grant(p) | Asker::External(p) => p,
         }
     }
 }
@@ -37,9 +39,12 @@ impl Codebase {
     ) -> Result<Vec<ScopeRow>, CodebaseError> {
         let refuse: fn(String) -> CodebaseError = match asker {
             Asker::Person(_) => CodebaseError::InvalidCommand,
-            Asker::Grant(_) => CodebaseError::GrantScope,
+            Asker::Grant(_) | Asker::External(_) => CodebaseError::GrantScope,
         };
-        let scope = self.inner.store.code_scope(asker.home()).await?;
+        let mut scope = self.inner.store.code_scope(asker.home()).await?;
+        if let Asker::External(project) = asker {
+            scope.retain(|(id, _, _)| id == *project);
+        }
         let Some(slug) = only else {
             return Ok(scope);
         };

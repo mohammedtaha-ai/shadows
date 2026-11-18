@@ -11,7 +11,7 @@ mod listening;
 mod plan;
 
 use app::other_project;
-use listening::{listening_app, ok, project_client, refused};
+use listening::{listening_app, ok, project_client, refused, thread_client};
 use plan::{add, draft_on};
 
 #[tokio::test]
@@ -21,21 +21,21 @@ async fn a_foreign_task_link_names_the_missing_project_link_as_invalid_command()
     let target = draft_on(&l.app, &target_thread, "target").await;
     plan::edit(&l.app, &target.workflow_id, 0, &[add(3)]).await;
     let source = plan::draft(&l.app).await;
-    let (_, client) = project_client(&l).await;
-    let text = refused(
-        &client,
-        "plan_edit",
-        json!({
-            "workflow_id": source.workflow_id, "expected_revision": 0,
-            "ops": [add(4), {"op": "link_put", "link": {
-                "task": 4, "after": {"plan_id": target.plan_id, "task": 3},
-                "kind": "needs", "label": "Login API", "waiting_items": []
-            }}]
-        }),
-    )
-    .await;
+    let edit = json!({
+        "workflow_id": source.workflow_id, "expected_revision": 0,
+        "ops": [add(4), {"op": "link_put", "link": {
+            "task": 4, "after": {"plan_id": target.plan_id, "task": 3},
+            "kind": "needs", "label": "Login API", "waiting_items": []
+        }}]
+    });
+    let planner = thread_client(&l, &l.app.thread).await;
+    let text = refused(&planner, "plan_edit", edit.clone()).await;
     assert!(text.starts_with("INVALID_COMMAND:"), "{text}");
     assert!(text.contains("project link"), "{text}");
+    // An external connection may link only inside its selected project.
+    let (_, external) = project_client(&l).await;
+    let text = refused(&external, "plan_edit", edit).await;
+    assert!(text.starts_with("GRANT_SCOPE:"), "{text}");
     assert_eq!(plan::revision(&l.app, &source.workflow_id).await, 0);
 
     l.app
@@ -50,7 +50,8 @@ async fn a_linked_project_can_be_read_but_never_written_by_the_source_grant() {
     let l = listening_app().await;
     let (target, thread) = other_project(&l.app).await;
     let theirs = draft_on(&l.app, &thread, "target-draft").await.workflow_id;
-    let (_, client) = project_client(&l).await;
+    let client = thread_client(&l, &l.app.thread).await;
+    let (_, external) = project_client(&l).await;
     let args = json!({ "workflow_id": theirs, "project": "other" });
     assert!(
         refused(&client, "workflow_get", args.clone())
@@ -81,6 +82,18 @@ async fn a_linked_project_can_be_read_but_never_written_by_the_source_grant() {
         .starts_with("GRANT_SCOPE:")
     );
     assert_eq!(plan::revision(&l.app, &theirs).await, 0);
+    // An external connection never follows a link: it reaches only the
+    // projects it was given, by project_id.
+    for args in [
+        args.clone(),
+        json!({ "workflow_id": theirs, "project_id": target }),
+    ] {
+        assert!(
+            refused(&external, "workflow_get", args)
+                .await
+                .starts_with("GRANT_SCOPE:")
+        );
+    }
     l.app
         .core
         .plans()

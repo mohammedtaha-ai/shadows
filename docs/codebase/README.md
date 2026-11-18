@@ -218,6 +218,8 @@ pattern to follow, not merely an example.
 | `crates/core-runs/src/checks.rs` | confirming an attempt's task checks | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/store/checks.rs` | check results SQL | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/message.rs` | plain questions to a task's executor | `crates/core-runs/contract.yaml` |
+| `crates/core-runs/src/executor_choice.rs` | validation of task executor choices | `crates/core-runs/contract.yaml` |
+| `crates/core-runs/src/store/executor_choice.rs` | persistence of task executor choices | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/store/messages.rs` | ordered questions SQL | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/store/` | run persistence | `crates/core-runs/contract.yaml` |
 | `crates/core-runtime/src/` | the runtime instance's lifecycle | `crates/core-runtime/src/lib.rs` |
@@ -264,6 +266,8 @@ pattern to follow, not merely an example.
 | `crates/core-harness/src/store/` | harness persistence | `crates/core-harness/contract.yaml` |
 | `crates/core-harness/src/assistant.rs` | choosing what a thread's adapter opens with, by harness kind | `crates/core-harness/src/assistant.rs` |
 | `crates/core-harness/src/executor.rs` | opening an executor session from its task | `crates/core-harness/src/executor.rs` |
+| `crates/core-harness/src/catalog.rs` | native model catalog probes | `crates/core-harness/contract.yaml` |
+| `crates/core-harness/src/codex_check.rs` | the Codex protocol verdict for one daemon run | `crates/core-harness/contract.yaml` |
 | `crates/core-harness/src/sessions.rs` | the live adapter connection each open thread holds | `crates/core-harness/src/sessions.rs` |
 | `crates/core-harness/src/settings.rs` | setting an open session's options | `crates/core-harness/src/settings.rs` |
 | `crates/core-harness/src/mode.rs` | durable conversation mode commands | `crates/core-harness/contract.yaml` |
@@ -302,6 +306,8 @@ pattern to follow, not merely an example.
 | `crates/core-plans/src/conversation.rs` | the plan in the conversation | `crates/core-plans/src/conversation.rs` |
 | `crates/core-grants/src/` | grant authorization | `crates/core-grants/src/lib.rs` |
 | `crates/core-grants/src/model.rs` | the grant types callers meet | `crates/core-grants/src/model.rs` |
+| `crates/core-grants/src/external.rs` | external connection lifecycle | `crates/core-grants/contract.yaml` |
+| `crates/core-grants/src/store/external.rs` | external connection persistence | `crates/core-grants/contract.yaml` |
 | `crates/core-grants/src/store/` | an MCP grant's rows, from issue to revocation | `crates/core-grants/src/store/` |
 | `crates/core-instructions/src/` | a project's numbered Planner instructions | `crates/core-instructions/src/lib.rs` |
 | `crates/core-design/src/` | a project's design workspace | `crates/core-design/src/lib.rs` |
@@ -499,6 +505,7 @@ file disagrees with either, they are right and this file is the defect.
 | `crates/shadows-http/src/standards.rs` | standards HTTP translation | `crates/shadows-http/src/contract.yaml` |
 | `crates/shadows-http/src/transport.rs` | shared HTTP request handling | `crates/shadows-http/src/contract.yaml` |
 | `crates/shadows-mcp/src/code_tools.rs` | code query MCP translation | `crates/shadows-mcp/src/contract.yaml` |
+| `crates/shadows-mcp/src/external_tools.rs` | project selection for external MCP calls | `crates/shadows-mcp/src/contract.yaml` |
 | `crates/shadows-mcp/src/turn_tools.rs` | plan display MCP translation | `crates/shadows-mcp/src/contract.yaml` |
 
 | `crates/shadows-http/src/adapter_agreements_tests.rs` | adapter entry point agreements | `crates/shadows-http/src/contract.yaml` |
@@ -553,6 +560,8 @@ file disagrees with either, they are right and this file is the defect.
 | `crates/core-harness/src/error.rs` | harness failure vocabulary | `crates/core-harness/contract.yaml` |
 | `crates/core-harness/src/prompt.txt` | Planner opening instructions | `crates/core-harness/contract.yaml` |
 | `crates/core-harness/src/executor.md` | executor instructions with their tool list | `crates/core-harness/contract.yaml` |
+| `crates/core-harness/src/executor_tools_claude.md` | Claude Code executor tool instructions | `crates/core-harness/contract.yaml` |
+| `crates/core-harness/src/executor_tools_codex.md` | Codex executor tool instructions | `crates/core-harness/contract.yaml` |
 | `crates/core-harness/src/schema_descriptions/` | harness wire description metadata | `crates/core-harness/contract.yaml` |
 
 | `crates/core-design/src/openapi-3.1-schema.json` | bundled OpenAPI document schema | `crates/core-design/contract.yaml` |

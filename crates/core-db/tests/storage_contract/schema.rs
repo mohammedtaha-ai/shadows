@@ -72,6 +72,8 @@ async fn fresh_database_migrates_and_applies_the_connection_policy() {
             "design_workspace",
             "draft_intent",
             "durable_event",
+            "external_connection",
+            "external_connection_project",
             "harness_limit",
             "harness_model_effort",
             "harness_preference",
@@ -96,9 +98,11 @@ async fn fresh_database_migrates_and_applies_the_connection_policy() {
             "run_attempt_context",
             "run_attempts",
             "run_checks",
+            "run_executor_saves",
             "run_lessons",
             "run_recheck_results",
             "run_rechecks",
+            "run_task_executors",
             "run_task_marks",
             "runtime_instance",
             "secret_env",
@@ -126,7 +130,9 @@ async fn fresh_database_migrates_and_applies_the_connection_policy() {
          0054 the project's file inventory, 0056 the lessons record, \
          0058 the language servers turned off and added, \
          0060 the person's questions, 0061 the task context an attempt received, \
-         0070 the recheck batches and their results, 0071 the project's design decisions)"
+         0070 the recheck batches and their results, 0071 the project's design decisions, \
+         0073 the task's executor choice and its saves, \
+         0074 the external connections and their project scopes)"
     );
 
     storage.close().await.unwrap();

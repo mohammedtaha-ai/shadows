@@ -106,15 +106,15 @@ async fn live_an_executor_commits_its_own_work_and_reports_it() {
     let root = folder(app).await;
     repository(&root);
     let v1 = approved_task(app).await;
+    app.core
+        .runs()
+        .choose_executor_for_test(&v1, 1, "claude-code", SUBSCRIPTION_MODEL, None)
+        .await
+        .unwrap();
     // The person's own change outside the task's writes.
     std::fs::write(root.join("notes.txt"), "x\n").unwrap();
     let path = format!("{}/1/attempts", tasks(&v1));
-    let (status, attempt) = post(
-        app,
-        &path,
-        json!({ "command_id": "live-1", "model": SUBSCRIPTION_MODEL }),
-    )
-    .await;
+    let (status, attempt) = post(app, &path, json!({ "command_id": "live-1" })).await;
     assert_eq!(status, 201, "{attempt}");
     assert_eq!(attempt["state"], "running", "{attempt}");
     let id = attempt["id"].as_str().unwrap().to_string();
@@ -185,13 +185,13 @@ async fn live_an_executor_builds_the_function_its_contract_names() {
         .approve_plan_for_test(&app::ctx("approve-cart", "PlanApprove"), &v1, 1)
         .await
         .unwrap();
+    app.core
+        .runs()
+        .choose_executor_for_test(&v1, 1, "claude-code", SUBSCRIPTION_MODEL, None)
+        .await
+        .unwrap();
     let path = format!("{}/1/attempts", tasks(&v1));
-    let (status, attempt) = post(
-        app,
-        &path,
-        json!({ "command_id": "live-cart", "model": SUBSCRIPTION_MODEL }),
-    )
-    .await;
+    let (status, attempt) = post(app, &path, json!({ "command_id": "live-cart" })).await;
     assert_eq!(status, 201, "{attempt}");
     let mut last = Value::Null;
     for _ in 0..1800 {

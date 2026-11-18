@@ -5,6 +5,21 @@
 use shadows_agent::events::AccountLimits;
 use shadows_agent::policy;
 
+#[derive(Debug, Clone, PartialEq, serde::Serialize, utoipa::ToSchema)]
+pub struct CatalogModel {
+    pub id: String,
+    pub label: String,
+    #[schema(required)]
+    pub description: Option<String>,
+    pub efforts: Vec<shadows_agent::choices::Choice>,
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, utoipa::ToSchema)]
+pub struct HarnessCatalog {
+    pub harness: String,
+    pub models: Vec<CatalogModel>,
+}
+
 /// The model and effort last chosen for this harness.
 #[derive(serde::Serialize, utoipa::ToSchema)]
 #[schema(description = include_str!("schema_descriptions/preferences.txt").replace("\r\n", "\n"))]
@@ -43,6 +58,7 @@ pub struct HarnessInfo {
     pub(super) kind: String,
     pub(super) label: String,
     pub(super) available: bool,
+    pub(super) executor: bool,
     /// Why it cannot run, when `available` is false.
     #[schema(required)]
     pub(super) reason: Option<String>,

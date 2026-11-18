@@ -121,11 +121,12 @@ async fn a_project_without_threads_is_removed_with_its_index_links_and_grants() 
     let issued = app
         .core
         .grants()
-        .issue(fresh_command(), &gone)
+        .issue_external(fresh_command(), vec![gone.clone()])
         .await
         .unwrap();
-    let token = issued.token.unwrap();
-    assert!(app.core.grants().authorize(&token).await.unwrap().is_some());
+    let connection = issued.connection.id.clone();
+    let grants = app.core.grants();
+    assert!(grants.external_project(&connection, &gone).await.is_ok());
     app.core
         .codebase()
         .start(CodebaseConfig::default())
@@ -142,7 +143,8 @@ async fn a_project_without_threads_is_removed_with_its_index_links_and_grants() 
     assert_eq!(rows(&app, TAGS, &gone).await, 0);
     assert_eq!(rows(&app, LINKS, &gone).await, 0);
     assert_eq!(rows(&app, FILES, &other).await, 1, "another index stays");
-    assert!(app.core.grants().authorize(&token).await.unwrap().is_none());
+    // The connection's scope for the removed project stops with it.
+    assert!(grants.external_project(&connection, &gone).await.is_err());
     assert!(!app.core.codebase().active_for_test().await.contains(&gone));
     app.core.codebase().shut_down_for_test().await;
 
@@ -189,15 +191,15 @@ async fn a_removed_project_is_not_found() {
         .save(fresh_command(), &gone, "be brief")
         .await
         .unwrap();
-    core.grants().issue(fresh_command(), &gone).await.unwrap();
+    core.grants()
+        .issue_external(fresh_command(), vec![gone.clone()])
+        .await
+        .unwrap();
     let (status, body) = remove(&app, &gone, &fresh_command()).await;
     assert_eq!(status, 200, "{body}");
 
     // Its reads answer as for an unknown project: nothing it held shows.
-    for (read, empty) in [
-        ("planner-instructions", json!(null)),
-        ("mcp-grants", json!([])),
-    ] {
+    for (read, empty) in [("planner-instructions", json!(null))] {
         let (status, body) = call(&app, "GET", &format!("/api/projects/{gone}/{read}"), None).await;
         assert_eq!((status, &body), (200, &empty), "{read}");
     }

@@ -10,8 +10,8 @@ use super::rules::Problem;
 use super::{DraftStart, Plans};
 use crate::PlansError;
 use core_db::{Anchor, CommandContext, StorageError};
-use core_grants::Grant;
 use core_grants::Writer;
+use core_grants::{Grant, GrantKind};
 use core_threads::ThreadId;
 
 impl Plans {
@@ -24,11 +24,14 @@ impl Plans {
         latest_only: bool,
     ) -> Result<Plan, PlansError> {
         let id = Scope::named(named)?.clone();
-        let plan = match self
-            .store
-            .get_plan_scoped(&id, Some(&grant.project_id), None)
-            .await
-        {
+        let read = if grant.kind == GrantKind::Project {
+            self.store.get_external_plan(&id, &grant.project_id).await
+        } else {
+            self.store
+                .get_plan_scoped(&id, Some(&grant.project_id), None)
+                .await
+        };
+        let plan = match read {
             Err(PlansError::Storage(StorageError::NotFound(_)) | PlansError::GrantScope(_)) => {
                 return Err(Scope::scope("that plan is not in this grant's project"));
             }

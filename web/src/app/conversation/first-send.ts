@@ -13,12 +13,13 @@ import {noteCompanionSend} from '@/desktop'
 import { tabId } from '@/stream'
 import { anchorWriteKey, anchorWriteRefused, carrySend } from './carried-send'
 import { uploadImages, type PendingImage } from './upload-images'
+import { DRAFT_SESSION_MODEL } from './draft-session'
 
 /** The API requires a title; the first message and harness supply its meaningful replacements. */
 const DRAFT_TITLE = 'New conversation'
 
 /** Send from a draft: create the thread, set its planning anchor when the draft
- * has one, open its session for the model it holds, start the turn with the chosen mode, then replace the draft's URL
+ * has one, open its session, start the turn with the chosen settings, then replace the draft's URL
  * with the thread's. A failed create stays in the draft for a retry with the
  * same command id; a turn that fails once the thread exists goes to the
  * thread with its text and error, so a retry never makes a second thread.
@@ -72,7 +73,9 @@ export function useFirstSend(projectId: string, harness: string, planId?: string
       if (profile !== undefined && chosen.model !== choices.current.model) {
         choices = await changeModel(thread.id, chosen.model)
       }
-      settings = { mode: chosen.mode, model: choices.current.model, effort: choices.current.effort }
+      settings = profile !== undefined || chosen.model === DRAFT_SESSION_MODEL
+        ? { mode: chosen.mode, model: choices.current.model, effort: choices.current.effort }
+        : chosen
       if (images.length > 0 && !choices.capabilities.image) {
         throw new Error(choices.capabilities.image_reason ?? 'This session does not support images.')
       }
