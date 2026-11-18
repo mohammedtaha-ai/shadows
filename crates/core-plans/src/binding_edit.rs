@@ -35,6 +35,7 @@ impl Plans {
                 workflow,
                 expected_revision,
                 &ops,
+                None,
             )
             .await
             .map_err(PlansError::invalid_constraint)

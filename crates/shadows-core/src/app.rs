@@ -459,6 +459,7 @@ impl AppCore {
             grants.clone(),
             operations.clone(),
             design.clone(),
+            code.clone(),
         );
         let turns = Turns::new(
             storage.clone(),
@@ -750,7 +751,8 @@ impl AppCore {
         let grants = Grants::new(storage.clone(), String::new());
         let operations = Operations::new(storage.clone());
         let design = Design::new(storage.clone(), operations.clone());
-        Plans::new(storage, grants, operations, design)
+        let code = Codebase::new(storage.clone(), Projects::new(storage.clone()));
+        Plans::new(storage, grants, operations, design, code)
     }
 }
 

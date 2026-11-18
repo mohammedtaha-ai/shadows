@@ -77,7 +77,7 @@ this file at `db760593`.
 
 ### B-167 · A task may not modify or delete a file the project does not have
 
-- Status: todo
+- Status: done. Codebase::files_present answers which paths are listed files (None when the list cannot answer); Plans gets Codebase in new, asks it before an edit (present_files), and the pure ContractRules::missing_file_problems refuses inside the edit transaction for changed tasks. Tests in crates/shadows-core/tests/task_contract.rs.
 - Plan: none; the ruling is §17 "The task contract" (`docs/core/specs/2026-10-01-task-contracts-and-evidence-design.md`,
   Mohammed, 2026-11-18). When a plan edit is saved, Plans refuses a task whose contract names a
   file with action `modify` or `delete` that is not in the project's file inventory, unless a task

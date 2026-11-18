@@ -517,6 +517,13 @@ functions:
       # the cursor's key: no scan row is Indexing, 0, []; a cursor of another
       # generation than the stored one is InventoryStale. `next` when the
       # extra row exists; Incomplete when the scan row says so, else Ready.
+    files_present:
+      signature: "(&self, project: &ProjectId, paths: &[String]) -> Result<Option<HashSet<String>>, CodebaseError>"
+      # Which of `paths` the stored list holds with kind file, one keyed
+      # read per path, never the whole list; no touch. None when the project
+      # has no directory or folder, or no scan row (first listing unfinished).
+      # An excluded path (ignored, secret, link) or a path outside the
+      # project is not present. Plans' edit asks it.
     refresh_inventory:
       signature: "(&self, asker: Asker<'_>) -> Result<InventoryPage, CodebaseError>"
       # Projects::get, `touch`, then a `Job::Refresh` to the project's

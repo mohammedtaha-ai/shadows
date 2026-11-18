@@ -86,6 +86,7 @@ pub struct Plans {
     grants: core_grants::Grants,
     operations: core_operations::Operations,
     design: core_design::Design,
+    code: codebase::Codebase,
 }
 
 /// `draft_start`'s arguments, as the tool received them.
@@ -159,13 +160,36 @@ impl Plans {
         grants: core_grants::Grants,
         operations: core_operations::Operations,
         design: core_design::Design,
+        code: codebase::Codebase,
     ) -> Self {
         Self {
             store: Arc::new(store::PlansStore { storage }),
             grants,
             operations,
             design,
+            code,
         }
+    }
+
+    /// Which files a contract in `ops` or the version's tasks would modify
+    /// or delete the project has, as Code's file list says; `None` when the
+    /// list cannot answer, so the edit skips that check.
+    async fn present_files(
+        &self,
+        workflow: &WorkflowId,
+        ops: &[PlanOp],
+    ) -> Result<Option<std::collections::HashSet<String>>, PlansError> {
+        let plan = self.store.get_plan(workflow).await?;
+        let content = plan.content();
+        let added = ops.iter().filter_map(|op| match op {
+            PlanOp::TaskAdd { task } | PlanOp::TaskUpdate { task } => Some(task),
+            _ => None,
+        });
+        let paths = task_contract::ContractRules::worked_paths(content.tasks.values().chain(added));
+        if paths.is_empty() {
+            return Ok(Some(Default::default()));
+        }
+        Ok(self.code.files_present(&plan.project_id, &paths).await?)
     }
 
     /// The plans of `project` by their latest versions: the Active ones, or
@@ -334,8 +358,17 @@ impl Plans {
             .command_id
             .unwrap_or_else(|| Anchor::derived_id(Anchor::Revision(expected), &fp));
         let ctx = Scope::command(&writer, id, "PlanEdit", fp);
+        let present = self.present_files(&plan.id, &args.ops).await?;
         self.store
-            .edit_plan(&ctx, &writer, turn.as_ref(), &plan.id, expected, &args.ops)
+            .edit_plan(
+                &ctx,
+                &writer,
+                turn.as_ref(),
+                &plan.id,
+                expected,
+                &args.ops,
+                present.as_ref(),
+            )
             .await
     }
 

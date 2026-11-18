@@ -242,6 +242,43 @@ impl Codebase {
         })
     }
 
+    /// Which of `paths` the project's file list holds as files, without paging
+    /// the whole list. `None` when the list cannot answer: the project has no
+    /// folder, or its first listing has not finished. A path the list leaves
+    /// out (ignored, secret, a link) is not a file here.
+    pub async fn files_present(
+        &self,
+        project: &ProjectId,
+        paths: &[String],
+    ) -> Result<Option<HashSet<String>>, CodebaseError> {
+        let project = self.inner.projects.get(project).await?;
+        let Some(directory) = project.directory else {
+            return Ok(None);
+        };
+        if !Codebase::folder_exists(Path::new(&directory)).await {
+            return Ok(None);
+        }
+        let store = &self.inner.store;
+        let mut present = HashSet::new();
+        for path in paths {
+            let Ok(inside) = Codebase::inside(path) else {
+                continue;
+            };
+            let key = Codebase::path_key(&inside);
+            let Some((_, _, _, rows)) = store.inventory_page(&project.id, &key, None, 1).await?
+            else {
+                return Ok(None);
+            };
+            let file = rows.first().is_some_and(|(found, entry)| {
+                *found == key && entry.kind == super::model::InventoryKind::File
+            });
+            if file {
+                present.insert(path.clone());
+            }
+        }
+        Ok(Some(present))
+    }
+
     /// Lists the folder again now, then answers the first page.
     pub async fn refresh_inventory(
         &self,

@@ -26,6 +26,9 @@ impl PlansStore {
     /// from its event, before any revision check), then the revision, then
     /// the change with its event and command record in one transaction.
     /// `operation` is a Planner's running turn, which its event names.
+    /// `present` is which worked files the project has, `None` when that
+    /// cannot be told and the check is skipped.
+    #[allow(clippy::too_many_arguments)]
     pub async fn edit_plan(
         &self,
         ctx: &CommandContext,
@@ -34,7 +37,9 @@ impl PlansStore {
         workflow: &WorkflowId,
         expected_revision: i64,
         ops: &[PlanOp],
+        present: Option<&std::collections::HashSet<String>>,
     ) -> Result<EditOutcome, crate::PlansError> {
+        let present = present.cloned();
         let (ctx, writer, workflow, ops, ts) = (
             ctx.clone(),
             writer.clone(),
@@ -70,6 +75,16 @@ impl PlansStore {
                     let applied = Ops::apply(&plan.content(), &ops)
                         .map_err(crate::PlansError::PlanInvalid)?;
                     pins(conn, &project, &applied.content, &applied.changed_tasks).await?;
+                    if let Some(present) = &present {
+                        let missing = crate::task_contract::ContractRules::missing_file_problems(
+                            &applied.content,
+                            &applied.changed_tasks,
+                            present,
+                        );
+                        if !missing.is_empty() {
+                            return Err(crate::PlansError::PlanInvalid(missing));
+                        }
+                    }
                     let project_only = matches!(writer, Writer::External { .. });
                     super::graph::GraphRows::check_parents(conn, &plan, &ops, project_only).await?;
                     let graph = super::graph::GraphRows::check(

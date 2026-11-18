@@ -288,6 +288,92 @@ pub struct ResolvedContract {
 pub(super) struct ContractRules;
 
 impl ContractRules {
+    /// Every path a contract in `tasks` would `modify` or `delete`: what the
+    /// project's file list is asked about before an edit is saved.
+    pub(super) fn worked_paths<'a>(
+        tasks: impl IntoIterator<Item = &'a crate::TaskContent>,
+    ) -> Vec<String> {
+        let mut paths = BTreeSet::new();
+        for task in tasks {
+            for f in task.contract.iter().flat_map(|c| &c.files) {
+                if matches!(f.action, FileAction::Modify | FileAction::Delete) {
+                    paths.insert(f.path.clone());
+                }
+            }
+        }
+        paths.into_iter().collect()
+    }
+
+    /// A file a task in `checked` modifies or deletes must be in `present`,
+    /// unless a task it depends on, directly or through others, creates it.
+    /// A path such a task deletes is refused the same way. One problem per
+    /// file, tasks ascending.
+    pub(super) fn missing_file_problems(
+        content: &PlanContent,
+        checked: &[u32],
+        present: &std::collections::HashSet<String>,
+    ) -> Vec<Problem> {
+        let mut out = Vec::new();
+        let numbers: BTreeSet<u32> = checked.iter().copied().collect();
+        for n in numbers {
+            let Some(contract) = content.tasks.get(&n).and_then(|t| t.contract.as_ref()) else {
+                continue;
+            };
+            let ancestors = Self::ancestors(content, n);
+            let along = |action: FileAction, path: &str| {
+                ancestors.iter().any(|a| {
+                    content.tasks[a]
+                        .contract
+                        .iter()
+                        .flat_map(|c| &c.files)
+                        .any(|f| f.action == action && f.path == path)
+                })
+            };
+            for f in &contract.files {
+                if !matches!(f.action, FileAction::Modify | FileAction::Delete) {
+                    continue;
+                }
+                let verb = if f.action == FileAction::Modify {
+                    "modifies"
+                } else {
+                    "deletes"
+                };
+                if along(FileAction::Delete, &f.path) {
+                    out.push(Problem::new(format!(
+                        "T{n} {verb} `{}`, which a task it depends on deletes",
+                        f.path
+                    )));
+                } else if !present.contains(&f.path) && !along(FileAction::Create, &f.path) {
+                    out.push(Problem::new(format!(
+                        "T{n} {verb} `{}`, which the project does not have and no task it depends on creates",
+                        f.path
+                    )));
+                }
+            }
+        }
+        out
+    }
+
+    /// The tasks `n` depends on through the plan's links, directly or through others.
+    fn ancestors(content: &PlanContent, n: u32) -> BTreeSet<u32> {
+        let mut found = BTreeSet::new();
+        let mut next = vec![n];
+        while let Some(task) = next.pop() {
+            for link in content.links.iter().filter(|l| l.task == task) {
+                if let Some(after) = link.after.local()
+                    && content.tasks.contains_key(&after)
+                    && after != n
+                    && found.insert(after)
+                {
+                    next.push(after);
+                }
+            }
+        }
+        found
+    }
+}
+
+impl ContractRules {
     /// What every stored contract must hold, tasks ascending, each task's
     /// problems in the order of the list below.
     pub(super) fn problems(content: &PlanContent) -> Vec<Problem> {
