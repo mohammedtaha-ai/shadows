@@ -18,7 +18,8 @@ at `449d4f95` (PR #70). Its plan is `docs/backend/plans/2026-11-09-local-deliver
 `main` (PR #71, `0e281585`). Plan progress for a plan version, the fix that keeps one delivery's storage
 error from stalling the other groups, and the slice 4 and structure-and-depth live records are on `main`
 (PR #72, `753b26a4`). Executor choices were accepted by Mohammed in the browser on 2026-11-18 (B-159).
-Now: B-167, a task may not modify or delete a file the project does not have (below).
+B-167 (a task may not modify or delete a file the project does not have) is done on this branch.
+Now: B-168, a big project's first file listing no longer stalls Shadows (below).
 
 ### Shipped
 
@@ -72,11 +73,51 @@ this file at `db760593`.
 - Slice 6's live test (`stop_control_live`) and its evidence file were dropped (Mohammed, 2026-11-16).
 - B-150 keeps its own per-thread message queue beside Turns' queue; reusing Turns' queue needs the executor session restored by thread.
 - The web derives "stopped on the additions cap" itself; a Core field on `TaskRun` should own it.
-- A project's first file listing of 2,000,000 files (218 s) stalled the Planner's tool calls on every project until it ended, and each later turn read the whole list (15 s): `docs/evidence/2026-11-18-missing-file-refusal-live.md`. Not yet traced to its cause.
 - When B-167's file check is skipped (no project folder, first listing running), the Planner is not told; it saw a like edit refused before and could not tell why.
 - A Planner's `Read` (Claude) and read-only sandbox (Codex) can read any file the account can, outside the project too; only its instructions keep it in the project. Accepted as is by Mohammed on 2026-11-18.
 
 ## Open
+
+### B-168 · A big project's file listing no longer stalls Shadows
+
+- Status: todo
+- Found live: `docs/evidence/2026-11-18-missing-file-refusal-live.md`, "The first listing still
+  running". A first listing of 2,000,000 files took 218 s; for all of it the Planner's tool calls
+  on every project got no answer (one timed out), and other projects' listings waited. After it,
+  each Planner turn on that project read the whole list (2,000,005 rows, 15 s).
+- Root cause, traced by the controller:
+  1. `CodeStore::write_inventory` (`crates/codebase/src/store/inventory.rs`) writes the whole
+     listing in one `Storage::write_txn`, one `INSERT` per row, after a `SELECT` of every stored
+     row inside the same transaction. `write_txn` holds Shadows' single write lock
+     (`crates/core-db/src/lib.rs`, `self.write.lock()`), so every other write in the daemon waits
+     until the listing's last row.
+  2. `CodeStore::file_extensions` (`crates/codebase/src/store/servers.rs`) reads every file path
+     of the project to find its extensions, and is asked on each turn.
+- Plan: none; the fix stays inside Codebase.
+  1. Read the stored rows through the reader, outside the write transaction, and work out the
+     upserts and deletes there. Write them in bounded batches (a few thousand rows per
+     transaction, multi-row `INSERT`), so the write lock is released between batches. The scan
+     row (`code_inventory_scan`) is written last, in its own transaction, so a first listing stays
+     "indexing" to readers until it is whole, as now. A later listing that changes rows moves the
+     generation (as now), so a reader paging across it gets `InventoryStale` rather than a mixed
+     page; say in the contract how a reader of single paths (`files_present`) sees a listing in
+     progress.
+  2. Keep each project's file extensions in Codebase's memory, computed from the rows the listing
+     already holds when it is recorded; `file_extensions` answers from there and reads the store
+     only when nothing is held yet (after a restart), once.
+- Read: `crates/codebase/contract.yaml`; `crates/codebase/src/inventory.rs` (`record_inventory`,
+  `files_present`, `inventory`); `crates/codebase/src/store/inventory.rs`; `crates/codebase/src/store/servers.rs`;
+  `crates/codebase/src/lib.rs` (the inner state); `crates/core-db/src/lib.rs` (`write_txn`, `reader`).
+- Touch: those codebase files, `crates/codebase/contract.yaml`, codebase's tests
+  (`crates/codebase/tests/`), this entry's status. Not `core-db`.
+- Done when: a test lists a folder of tens of thousands of files and shows another write
+  (any `write_txn`) completing while that listing is still being written; the existing inventory
+  invariants tests (generation, incomplete listings, deletes only when complete, stale cursors)
+  pass; a test shows `file_extensions` answering without reading the store a second time;
+  `cargo test -p codebase` (with its test-support feature if needed), `cargo test -p shadows-core
+  --features test-support --test task_contract` and
+  `cargo clippy --workspace --all-targets --features fake-acp/test-support -- -D warnings` pass.
+  The controller reruns the 2,000,000-file journey live afterwards.
 
 ### B-167 · A task may not modify or delete a file the project does not have
 
