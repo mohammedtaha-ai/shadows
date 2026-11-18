@@ -15,7 +15,6 @@ import {
   agentEntry,
   claudeHarness,
   choice,
-  codeStatusFixture,
   codexHarness,
   fakeChoices,
   planFixture,
@@ -262,7 +261,6 @@ export function answers(o: Overrides = {}): Record<string, Answer> {
       instructions = { body, number, created_at: '2026-09-25T09:30:00Z' }
       return Response.json(instructions)
     },
-    'GET /api/projects/p1/code/status': codeStatusFixture(project.slug),
     'GET /api/projects/p1/design/vision': { revision: 0, content: {
       purpose: [], users: [], goals: [], boundaries: [], technical_direction: [],
     } },

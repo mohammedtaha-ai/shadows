@@ -5,17 +5,7 @@ import { client, unwrap, unwrapEmpty } from './transport'
 
 export const codeKeys = {
   servers: (projectId: string) => ['projects', projectId, 'code', 'servers'],
-  status: (projectId: string) => ['projects', projectId, 'code', 'status'],
   links: (projectId: string) => ['projects', projectId, 'code', 'links'],
-}
-
-/** Poll while shown because files change independently: every 2 s while indexing, 10 s otherwise. */
-export function codeStatusQuery(projectId: string) {
-  return queryOptions({
-    queryKey: codeKeys.status(projectId),
-    queryFn: () => getCodeStatus(projectId),
-    refetchInterval: (query) => (query.state.data?.state.state === 'indexing' ? 2_000 : 10_000),
-  })
 }
 
 export function codeLinksQuery(projectId: string) {
@@ -37,21 +27,11 @@ export function saveUnlinkedCodeAnswer(client: QueryClient, projectId: string, l
   return writeSaved<ProjectLink[]>(client, codeKeys.links(projectId), links => links?.filter(value => value.linked !== linked))
 }
 
-export type ProjectStatus = components['schemas']['ProjectStatus']
-
-
 export type ProjectLink = components['schemas']['ProjectLink']
 
 export type ServerStatus = components['schemas']['ServerStatus']
 
 export type AddedServer = components['schemas']['AddedServer']
-
-/** How a project's code index stands. Asking does not make it active. */
-function getCodeStatus(projectId: string): Promise<ProjectStatus> {
-  return unwrap(
-    client.GET('/api/projects/{id}/code/status', { params: { path: { id: projectId } } }),
-  )
-}
 
 /** The projects whose index this one reads, by slug. */
 function listCodeLinks(projectId: string): Promise<ProjectLink[]> {

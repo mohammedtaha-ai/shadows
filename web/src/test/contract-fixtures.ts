@@ -7,7 +7,6 @@
 
 import type { HarnessInfo } from '@/api/harnesses'
 import type { Plan, PlanListing, PlanTask, PlanVersions } from '@/api/workflows'
-import type { ProjectStatus } from '@/api/code'
 import type { Project } from '@/api/projects'
 import type { Choice, SessionChoices } from '@/api/sessions'
 import type { InvocationView, Operation, PlanningThread, ThreadEntry, ToolCallCard } from '@/api/threads'
@@ -106,18 +105,6 @@ export const threadFixture: PlanningThread = {
   harness: 'claude-code',
   forked_from_thread: null,
   removed_at: null,
-}
-
-/** A project's code index, ready, by its slug. */
-export function codeStatusFixture(project: string, extra: Partial<ProjectStatus> = {}): ProjectStatus {
-  return {
-    project,
-    state: { state: 'ready' },
-    files: 277,
-    skipped: [],
-    updated_at: '2026-09-24T00:00:00Z',
-    ...extra,
-  }
 }
 
 export const invocationFixture: InvocationView = {

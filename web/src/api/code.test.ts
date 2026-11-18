@@ -1,6 +1,6 @@
 import { QueryClient } from '@tanstack/react-query'
 import { expect, it } from 'vitest'
-import { codeKeys, codeServersQuery, codeStatusQuery, codeLinksQuery, saveUnlinkedCodeAnswer } from './code'
+import { codeKeys, codeServersQuery, codeLinksQuery, saveUnlinkedCodeAnswer } from './code'
 import type { ProjectLink } from './code'
 it('unlink saved answers survive stale reads', async () => {
   const client = new QueryClient()
@@ -15,7 +15,6 @@ it('unlink saved answers survive stale reads', async () => {
   client.clear()
 })
 it('code query identities retain their arrays', () => {
-  expect(codeStatusQuery('p').queryKey).toEqual(['projects', 'p', 'code', 'status'])
   expect(codeLinksQuery('p').queryKey).toEqual(['projects', 'p', 'code', 'links'])
   expect(codeServersQuery('p').queryKey).toEqual(['projects', 'p', 'code', 'servers'])
 })

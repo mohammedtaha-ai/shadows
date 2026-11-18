@@ -172,7 +172,6 @@ projects_and_code:
   setProjectModes: "(projectId: string, commandId: string, allowedModes: Record<string, string[]>)
       -> Promise<Project>"
   removeProject: "(projectId: string, commandId: string) -> Promise<Project>"
-  getCodeStatus: "(projectId: string) -> Promise<ProjectStatus>"
   listCodeLinks: "(projectId: string) -> Promise<ProjectLink[]>"
   putCodeLink: "(projectId: string, linkedId: string, commandId: string) -> Promise<ProjectLink>"
   removeCodeLink: "(projectId: string, linkedId: string, commandId: string) -> Promise<void>"
@@ -300,8 +299,6 @@ query_keys:
   outcomesQuery: "(projectId: string, parent?: string, after?: string) -> queryOptions"
   partsQuery: "(projectId: string, parent?: string, after?: string) -> queryOptions"
   connectionsQuery: "global connection metadata; polled while mounted"
-  codeStatusQuery: "(projectId: string) -> queryOptions; ['projects', id, 'code', 'status']; 2 s
-      while indexing, else 10 s"
   codeLinksQuery: "(projectId: string) -> queryOptions; ['projects', id, 'code', 'links']"
   codeServersQuery: "(projectId) -> options; ['projects', id, 'code', 'servers']"
   dirsQuery: "(path: string | null) -> queryOptions; ['fs', 'dirs', path]; retry false"
@@ -791,8 +788,8 @@ projects_operations:
 
 code_operations:
   owner: code.ts
-  operations: "getCodeStatus listCodeLinks putCodeLink removeCodeLink listServers setServerOff addServer removeServer"
-  types: "ProjectStatus ProjectLink ServerStatus AddedServer; generated schema aliases"
+  operations: "listCodeLinks putCodeLink removeCodeLink listServers setServerOff addServer removeServer"
+  types: "ProjectLink ServerStatus AddedServer; generated schema aliases"
   transport: "transport/index.ts owns the shared generated client and error mapping"
 
 workflows_operations:
