@@ -371,6 +371,8 @@ functions:
       # `latest_limits`, and the modes, initial and unattended mode from policy
       # alone. Refusals: Storage. `codex` is available exactly when configured
       # and always lists its policy mode `read-only` as the initial mode.
+      # `executor` is true exactly for `policy::EXECUTOR_HARNESSES`
+      # (harness_choices::the_harness_list_names_the_executor_clis).
     catalog:
       signature: "(&self, kind: &str) -> Result<HarnessCatalog, HarnessError>"
       rule: Reads each model's own efforts through an isolated probe with no Shadows thread or
@@ -381,10 +383,10 @@ functions:
         a_failed_probe_is_tried_again, codex_not_configured_is_unavailable,
         aylul_has_no_executor_catalog, live_the_claude_code_catalog_lists_each_models_efforts,
         live_the_codex_catalog_lists_each_models_efforts]
-    remembered_model:
-      signature: "(&self, kind: &str) -> Result<Option<String>, HarnessError>"
-      # The model of `remembered_settings(kind)`: the last turn started on that
-      # harness, so a model it offered then. Refusals: Storage.
+    executor_catalogs:
+      signature: "(&self) -> Vec<HarnessCatalog>"
+      # `catalog` of claude-code and codex at once; a CLI whose catalog cannot be read
+      # (Codex not configured, a failed probe) is left out.
     open_session:
       signature: "(&self, thread: &ThreadId) -> Result<SessionChoices, HarnessError>"
       # turn_context (NotFound → 404 INVALID_COMMAND) → harness_available
@@ -612,7 +614,8 @@ called_by_other_services:
   prepare_context: "Turns (spawn.rs, after compose): a turn that carried planning context records it unheard; a failed write logs planner.context_record_failed and the context stays owed."
   forget_context: "Turns (turn.rs accept, a completed compaction) and shadows-http (POST /api/threads/{id}/context/resend, with a command)."
   record_limits: "Turns (turns/turn.rs accept): a turn's watcher records the account limits the harness reports, before it publishes the usage that `limits_of` answers (§12.8)"
-  executor_catalogs: "Planner MCP: the native executor catalogs available to this daemon."
+  catalog: "Runs (executor_choice.rs save_executor): a saved choice's model and effort are checked against it; its failure is Runs' catalog_unavailable. shadows-http (GET /api/harnesses/{kind}/catalog)."
+  executor_catalogs: "shadows-mcp (executor_catalog): the native executor catalogs available to this daemon."
 
 
 shared_in_transaction:

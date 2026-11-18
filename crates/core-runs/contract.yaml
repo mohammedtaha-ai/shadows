@@ -82,7 +82,7 @@ modules:
 
 dependencies:
   plans: Plans reads the frozen version, its tasks, its links and the tasks other plans' links reach; Plans::execution_plan_in decides, inside Runs' snapshot or write, whether a version may start work. Plans::task_context_in assembles, inside the same write, the context an attempt saves.
-  harness: Harness opens the executor session in its project's folder with its mode, releases it, and names the model last used on the executor's harness.
+  harness: Harness opens the executor session in its project's folder on the attempt's harness, model, effort and mode, releases it, and answers a CLI's catalog, which an executor choice is checked against before it is saved.
   turns: Turns sends the first turn and stops it, and queues the Planner's notice in the executor's name (Turns::queue_notice).
   threads: Threads creates the executor thread inside the Start write, and reads the executor's entries for a lessons record and a failed notice's last message.
   grants: Grants revokes an interrupted attempt's grant at startup; an executor grant names the attempt's task. Grants::check_live_in rechecks a task question's grant inside a read RunsStore opens on the shared storage, and a conflict's grant inside the conflict's own write; no Grants SQL is in Runs.
@@ -100,6 +100,8 @@ shapes:
     commit: absent until a reported commit is accepted
     report: the executor's account of what it did, ran and found; stored with the accepted commit
     addition: the Planner's addition this attempt carried on with, in the session of the attempt before it; null for an attempt Start began
+    harness: the executor CLI the attempt runs on, from the choice Start read; an addition or a checks return keeps its attempt's
+    effort: the effort the attempt runs on, null for a model that offers none; kept like harness
   # start_head, the commit HEAD named at Start (none on a branch with no commit), is stored, not served.
   Need: "{ task: TaskParent, title, done }: a task this one needs, in link order"
   TaskRun: "{ task, done, done_at, done_reason, latest, needs, start: StartAnswer, executor }"
@@ -174,7 +176,7 @@ functions:
   start_for: "(grant, workflow, task) -> Attempt; the Planner's project grant checked, then Start on the saved choice with a fresh command id"
   mark_done_for: "(grant, workflow, task, done, reason) -> DoneMark; the Planner's grant checked as start_for, then mark_done with the reason; a done mark answers next from ready_group, which the Planner starts on its own (Mohammed, 2026-11-11); a mark on a version that admits no new attempt still succeeds, with next empty, and starts nothing"
   ready_for: "(grant, workflow) -> ReadyGroup; the Planner's grant checked as start_for (a Thread grant of the plan's project, else NotFound); Plans::execution_plan's refusal is Archived, NotFrozen or Superseded; else the version's ready_group, empty when nothing is ready. MCP task_ready only"
-  amend: "(grant, workflow, task, addition) -> Attempt; the Planner's grant checked as start_for; an empty trimmed addition is EmptyAddition; no committed attempt still holding its scope is NotAwaiting; when additions_since_start is already 3, the waiting attempt is stopped (it keeps its commit and state Committed, its session closes, its scope is freed), record_lesson keeps its record, and AdditionsSpent, nothing else written; else continue_attempt in one write (the version must still start work, Archived, NotFrozen or Superseded otherwise, the waiting attempt keeping its scope; then the waiting attempt released, a Running attempt with the next number on the same thread, model and writes, recording the HEAD now and the addition), then run_turn with the addition's prompt"
+  amend: "(grant, workflow, task, addition) -> Attempt; the Planner's grant checked as start_for; an empty trimmed addition is EmptyAddition; no committed attempt still holding its scope is NotAwaiting; when additions_since_start is already 3, the waiting attempt is stopped (it keeps its commit and state Committed, its session closes, its scope is freed), record_lesson keeps its record, and AdditionsSpent, nothing else written; else continue_attempt in one write (the version must still start work, Archived, NotFrozen or Superseded otherwise, the waiting attempt keeping its scope; then the waiting attempt released, a Running attempt with the next number on the same thread, harness, model, effort and writes, recording the HEAD now and the addition), then run_turn with the addition's prompt"
   brief: "(attempt) -> AttemptBrief; unknown attempt NotFound; no run_attempt_context row ContextNotRecorded; reads only, never captures or reconstructs"
   brief_for: "(grant) -> AttemptBrief; an Executor grant with a thread and scope, else NotFound; the attempt is executor_attempt of that thread and scope (never one the caller names), then brief's read. MCP task_brief"
   question: "(grant, TaskQuestion) -> TaskAnswer; the attempt is executor_attempt of an Executor grant's thread and scope and must be Running, else NotFound; its saved context (ContextNotRecorded) gives plan; Plans::contract_facts for the attempt's workflow and task (its InvalidCommand is InvalidQuestion); an optional Codebase::lsp with Asker::Grant: Answered is code, NoServer or a LanguageServer failure is code_error (never an empty answer), any other CodebaseError is Code; then Grants::check_live_in in a fresh read and the attempt again Running and the same, after the awaited code work; producer_status per producer from Runs' own mark and attempts; observed_at now; over 64 KiB is QuestionTooLarge. Reads only. MCP task_question"
@@ -278,7 +280,7 @@ agreements:
     rule: HTTP Start and the Planner's task_start run one method.
     holds: true
     why: >
-      `start_for` checks only the Planner's grant and the model, then calls `start`; every
+      `start_for` checks only the Planner's grant, then calls `start`; every
       check and answer of Start is Start's own.
     tested_by: [the_planner_tools_refuse_a_grant_that_is_not_a_planners, live_the_planner_starts_the_task_it_was_asked_to_run]
   - between: [ready_for, mark_done_for]
@@ -352,7 +354,7 @@ obligations:
     tested_by: [a_path_under_the_folder_is_admitted_and_one_that_climbs_is_not]
   - rule: On the subscription the Planner reads the commit with its own tools after the notice before judging.
     tested_by: [live_the_planner_reads_the_commit_before_it_judges]
-  - rule: Start opens one Running attempt on an executor thread with the model given, recording the HEAD it saw.
+  - rule: Start opens one Running attempt on an executor thread with the saved choice's harness, model and effort, recording the HEAD it saw.
     tested_by: [start_opens_one_attempt_on_an_executor_thread]
   - rule: A report is refused with DirtyScope while the task's writes hold uncommitted changes; the attempt stays Running, and a change outside writes does not refuse it.
     tested_by: [a_report_is_refused_while_writes_hold_uncommitted_changes]
@@ -378,7 +380,7 @@ obligations:
     tested_by: [the_planner_marks_a_task_done_and_not_done, the_next_task_is_one_that_never_ran]
   - rule: Start reads the saved choice inside admission and writes nothing without one.
     tested_by: [the_planners_start_needs_a_choice, a_start_without_a_choice_is_refused,
-      a_start_runs_on_the_saved_choice]
+      a_start_runs_on_the_saved_choice, the_task_page_says_no_choice]
   - rule: Only a Planner's grant of the plan's project may start or mark a task through start_for and mark_done_for.
     tested_by: [the_planner_tools_refuse_a_grant_that_is_not_a_planners]
   - rule: An addition needs a committed attempt waiting for judgment and a non-empty text, from a Planner's grant; a refused one writes no row.

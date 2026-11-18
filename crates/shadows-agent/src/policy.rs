@@ -27,10 +27,11 @@ pub const AYLUL: &str = "aylul";
 /// The harnesses that can execute plan tasks, when configured.
 pub const EXECUTOR_HARNESSES: [&str; 2] = [CLAUDE_CODE, CODEX];
 
-/// The mode an executor session runs in: nothing is asked and nothing is
-/// refused while it works, since the check on its reported commit is its one
-/// write boundary. It is no project's choice: an executor thread runs in it
-/// and in no other mode, whatever its project allows its planning threads.
+/// The mode an executor session of harness `kind` runs in, unattended: Claude
+/// Code's `auto`, and Codex's Approve for me, whose own reviewer answers its
+/// approvals. The check on its reported commit is its one write boundary. None
+/// for a harness that cannot execute. It is no project's choice: an executor
+/// thread runs in it and in no other mode, whatever its project allows its planning threads.
 pub fn executor_mode(kind: &str) -> Option<&'static str> {
     match kind {
         CLAUDE_CODE => Some("auto"),

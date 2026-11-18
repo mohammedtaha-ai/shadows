@@ -26,6 +26,7 @@ type RunRefusal = components['schemas']['RunRefusal']
 
 const runKeys = {
   all: () => ['runs'] as const,
+  tasks: () => ['runs', 'task'] as const,
   task: (workflowId: string, version: number, task: number) => ['runs', 'task', workflowId, version, task],
   attempts: (workflowId: string, version: number, task: number) => ['runs', 'attempts', workflowId, version, task],
   diff: (attemptId: string) => ['runs', 'diff', attemptId],
@@ -137,7 +138,7 @@ export function invalidateRuns(queryClient: QueryClient): void {
 }
 
 export function invalidateExecutorChoices(queryClient: QueryClient): Promise<void> {
-  return queryClient.invalidateQueries({ queryKey: ['runs', 'task'] })
+  return queryClient.invalidateQueries({ queryKey: runKeys.tasks() })
 }
 
 function getTaskRun(workflowId: string, version: number, task: number): Promise<TaskRun> {

@@ -82,6 +82,11 @@ agreements:
 # Provider service failures translate through CoreError before HTTP mapping.
 # Harness errors translate through CoreError with unchanged adapter responses.
 
+harness_catalog:
+  module: harness.rs
+  route: 'GET /api/harnesses/{kind}/catalog -> Harness::catalog (HarnessCatalog); HARNESS_UNAVAILABLE and INVALID_COMMAND 422, HARNESS_START_FAILED 502'
+  tested_by: [the_catalog_route_answers_claude_codes_models]
+
 background_tasks:
   stop: POST /api/threads/{id}/session/tasks/{task_id}/stop delegates to Harness.
   stream: The tasks frame carries the current operation if any and the session task list.
@@ -101,7 +106,6 @@ runs:
   routes:
     - 'GET /api/workflows/{workflow}/versions/{version}/tasks/{task} -> Runs::task (TaskRun with needs, start, executor)'
     - 'PUT /api/workflows/{workflow}/versions/{version}/tasks/{task}/executor -> Runs::set_executor (ExecutorChoice)'
-    - 'GET /api/harnesses/{kind}/catalog -> Harness::catalog (HarnessCatalog)'
     - 'GET /api/workflows/{workflow}/versions/{version}/tasks/{task}/attempts -> Runs::attempts'
     - 'POST /api/workflows/{workflow}/versions/{version}/tasks/{task}/attempts -> Runs::start, 201, run detached'
     - 'PUT /api/workflows/{workflow}/versions/{version}/tasks/{task}/done -> Runs::mark_done'
@@ -117,6 +121,7 @@ runs:
     error and answer its own translation (failure/runs.rs). No route asks a task question.
   paths: Plan versions are global ids, as /api/workflows/{id} already is; no project segment.
   tested_by: [the_task_answers_its_needs_start_and_executor_choice,
+    the_person_saves_a_tasks_executor_over_http, start_without_a_choice_is_409_no_executor_choice,
     start_while_waiting_is_409_with_the_waiting_tasks, a_replayed_start_returns_the_same_attempt,
     the_attempts_are_listed_newest_first, stop_answers_the_attempt_as_it_stands,
     the_diff_of_an_attempt_with_no_commit_is_empty, a_done_mark_frees_the_tasks_that_need_it,

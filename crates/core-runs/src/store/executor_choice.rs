@@ -10,7 +10,7 @@ const SCOPE: &str = "run.executor_set";
 
 #[cfg(feature = "test-support")]
 impl RunsStore {
-    pub(crate) fn pause_next_save(
+    pub fn pause_next_save(
         &self,
     ) -> (
         tokio::sync::oneshot::Receiver<()>,
@@ -22,7 +22,7 @@ impl RunsStore {
         (heard, go)
     }
 
-    pub(crate) async fn choose_executor_for_test(
+    pub async fn choose_executor_for_test(
         &self,
         workflow: &WorkflowId,
         task: u32,
@@ -63,7 +63,7 @@ impl RunsStore {
 }
 
 impl RunsStore {
-    pub(crate) async fn executor_choice(
+    pub async fn executor_choice(
         &self,
         workflow: &WorkflowId,
         task: u32,
@@ -111,7 +111,7 @@ impl RunsStore {
         Ok(None)
     }
 
-    pub(crate) async fn executor_target(
+    pub async fn executor_target(
         &self,
         workflow: &WorkflowId,
         task: u32,
@@ -125,7 +125,7 @@ impl RunsStore {
         target_in(&mut read, workflow, task).await.map(|(_, id)| id)
     }
 
-    pub(crate) async fn replay_executor_save(
+    pub async fn replay_executor_save(
         &self,
         command: &CommandContext,
     ) -> Result<Option<ExecutorChoice>, RunsError> {
@@ -138,7 +138,7 @@ impl RunsStore {
         replay_in(&mut read, command).await
     }
 
-    pub(crate) async fn record_executor_save(
+    pub async fn record_executor_save(
         &self,
         command: CommandContext,
         workflow: WorkflowId,

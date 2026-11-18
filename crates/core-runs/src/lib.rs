@@ -143,7 +143,7 @@ impl Runs {
     }
 
     /// The task as its page reads it: whether it was marked done, its latest
-    /// attempt, the tasks it needs, Start's answer and the model to offer.
+    /// attempt, the tasks it needs, Start's answer and its saved executor choice.
     pub async fn task(
         &self,
         workflow: &WorkflowId,

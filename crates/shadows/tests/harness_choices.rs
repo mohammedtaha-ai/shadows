@@ -32,6 +32,24 @@ async fn the_catalog_route_answers_claude_codes_models() {
 }
 
 #[tokio::test]
+async fn the_harness_list_names_the_executor_clis() {
+    let app = test_app().await;
+    let listed: Vec<Value> = get_json(&app, "/api/harnesses").await;
+    let executors: Vec<(&str, bool)> = listed
+        .iter()
+        .map(|h| (h["kind"].as_str().unwrap(), h["executor"] == true))
+        .collect();
+    assert_eq!(
+        executors,
+        [("claude-code", true), ("codex", true), ("aylul", false)]
+    );
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
 async fn opening_a_session_answers_the_harness_choices_after_the_policy() {
     let app = test_app().await;
     let (s, c) = post(&app, &session_path(&app), json!({})).await;

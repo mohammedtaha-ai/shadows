@@ -208,7 +208,8 @@ impl Sessions {
                         &mut handle,
                         is_codex,
                         // AYLUL's and the Planner's requests wait for the person; an
-                        // executor runs in `auto`, and what it still asks is refused.
+                        // executor runs unattended in its harness's executor mode, and what
+                        // it still asks is refused.
                         if context.harness == policy::AYLUL
                             || context.kind == core_threads::ThreadKind::Planning
                         {

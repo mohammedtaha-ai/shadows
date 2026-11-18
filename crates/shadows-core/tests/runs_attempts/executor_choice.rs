@@ -108,6 +108,31 @@ async fn a_start_without_a_choice_is_refused() {
 }
 
 #[tokio::test]
+async fn the_task_page_says_no_choice() {
+    let f = fixture().await;
+    let grant = planner_grant(&f).await;
+    let runs = f.core.runs();
+    let page = runs.task(&f.workflow, 1, 1).await.unwrap();
+    assert!(page.executor.is_none());
+    assert_eq!(page.start.code.as_deref(), Some("no_executor_choice"));
+    let group = runs.ready_for(&grant, &f.workflow).await.unwrap();
+    assert!(group.tasks.iter().all(|ready| ready.task != 1));
+    runs.set_executor(
+        "one".into(),
+        &f.workflow,
+        1,
+        1,
+        input("fake-large", Some("low")),
+    )
+    .await
+    .unwrap();
+    let group = runs.ready_for(&grant, &f.workflow).await.unwrap();
+    let one = group.tasks.iter().find(|ready| ready.task == 1).unwrap();
+    assert_eq!(one.executor.as_ref().unwrap().model, "fake-large");
+    f.finish().await;
+}
+
+#[tokio::test]
 async fn a_start_runs_on_the_saved_choice() {
     let f = fixture().await;
     f.hold();
