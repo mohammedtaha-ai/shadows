@@ -19,7 +19,7 @@ F-126 below. F-125 (choose an executor on a task or in a new conversation) is on
   and a chevron. The row starts collapsed; clicking it (a button with `aria-expanded`) opens the
   list under it, indented. Open, the list shows only the servers whose `wanted` is true for the
   open project, one line each: the language name (from a small map of the catalog ids, e.g.
-  `gopls` → Go, `typescript-language-server` → TypeScript; an added server or an unmapped id
+  `gopls` → Go, `typescript` → TypeScript; an added server or an unmapped id
   shows its id), a coloured dot and one word for the state (Running, Starting, Idle,
   Not installed, Failed, Off), and the existing on/off switch with its existing confirm panel.
   A failed server keeps its error line. The servers whose `wanted` is false sit behind one
