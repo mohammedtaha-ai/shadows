@@ -106,6 +106,11 @@ impl Sessions {
         cwd: &Path,
     ) -> Result<Vec<CatalogModel>, HarnessError> {
         let is_codex = kind == policy::CODEX;
+        let checked = if is_codex {
+            Some(self.codex_checked().await?)
+        } else {
+            None
+        };
         let spec = if is_codex {
             self.config
                 .codex
@@ -122,10 +127,19 @@ impl Sessions {
         let result = async {
             let connection = tokio::time::timeout(
                 wait,
-                ManagedConnection::open(&mut handle, is_codex, PermissionPolicy::Refuse, |_| {}),
+                ManagedConnection::open(
+                    &mut handle,
+                    checked.as_ref().map(|checked| checked.version.as_str()),
+                    PermissionPolicy::Refuse,
+                    |_| {},
+                ),
             )
             .await
-            .map_err(|_| timeout("initialization"))??;
+            .map_err(|_| timeout("initialization"))?;
+            if let Err(error) = &connection {
+                self.forget_codex_check_if_changed(error).await;
+            }
+            let connection = connection?;
             match connection {
                 ManagedConnection::Codex(connection) => {
                     let choices = tokio::time::timeout(wait, connection.model_choices())

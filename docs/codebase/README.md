@@ -267,6 +267,7 @@ pattern to follow, not merely an example.
 | `crates/core-harness/src/assistant.rs` | choosing what a thread's adapter opens with, by harness kind | `crates/core-harness/src/assistant.rs` |
 | `crates/core-harness/src/executor.rs` | opening an executor session from its task | `crates/core-harness/src/executor.rs` |
 | `crates/core-harness/src/catalog.rs` | native model catalog probes | `crates/core-harness/contract.yaml` |
+| `crates/core-harness/src/codex_check.rs` | the Codex protocol verdict for one daemon run | `crates/core-harness/contract.yaml` |
 | `crates/core-harness/src/sessions.rs` | the live adapter connection each open thread holds | `crates/core-harness/src/sessions.rs` |
 | `crates/core-harness/src/settings.rs` | setting an open session's options | `crates/core-harness/src/settings.rs` |
 | `crates/core-harness/src/mode.rs` | durable conversation mode commands | `crates/core-harness/contract.yaml` |

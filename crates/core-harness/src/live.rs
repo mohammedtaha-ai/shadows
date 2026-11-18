@@ -166,6 +166,11 @@ impl Sessions {
             }
             let selected_model = aylul_models.as_ref().and(remembered.model.clone());
             let is_codex = context.harness == policy::CODEX;
+            let checked = if is_codex {
+                Some(self.codex_checked().await.map_err(OpenError::Env)?)
+            } else {
+                None
+            };
             let spec = if let Some(spec) = acp_spec {
                 spec
             } else {
@@ -206,7 +211,7 @@ impl Sessions {
                     deadline,
                     ManagedConnection::open(
                         &mut handle,
-                        is_codex,
+                        checked.as_ref().map(|checked| checked.version.as_str()),
                         // AYLUL's and the Planner's requests wait for the person; an
                         // executor runs unattended in its harness's executor mode, and what
                         // it still asks is refused.
@@ -221,8 +226,14 @@ impl Sessions {
                     ),
                 )
                 .await
-                .map_err(|_| "harness setup timed out".to_string())?
-                .map_err(|e| e.to_string())?;
+                .map_err(|_| "harness setup timed out".to_string())?;
+                let connection = match connection {
+                    Ok(connection) => connection,
+                    Err(error) => {
+                        self.forget_codex_check_if_changed(&error).await;
+                        return Err(error.to_string());
+                    }
+                };
                 if let Err(error) = super::Harness::check_images(&connection, has_images) {
                     let reason = error.to_string();
                     image_refusal = Some(error);

@@ -229,7 +229,9 @@ shapes:
     # "Claude Code", "Codex", "AYLUL", or "Unknown" (`label`).
     label: String
     available: bool
-    # Exactly when `available` is false: `Sessions::unavailable_reason`,
+    # Exactly when `available` is false: for a configured codex whose protocol
+    # check refused, that refusal (what changed, the version floor, or the
+    # generator's first stderr line); otherwise `Sessions::unavailable_reason`,
     # the configuration flags for codex, "Coming later" otherwise.
     reason: Option<String>
     # The last turn's model on this harness and that model's remembered
@@ -370,7 +372,9 @@ functions:
       # For each of `policy::KNOWN`: availability, `remembered_settings`,
       # `latest_limits`, and the modes, initial and unattended mode from policy
       # alone. Refusals: Storage. `codex` is available exactly when configured
-      # and always lists its policy mode `read-only` as the initial mode.
+      # and its protocol check passed; a refused check is listed unavailable with
+      # its message as `reason`. It always lists its policy mode `read-only` as
+      # the initial mode.
       # `executor` is true exactly for `policy::EXECUTOR_HARNESSES`
       # (harness_choices::the_harness_list_names_the_executor_clis).
     catalog:
@@ -510,8 +514,25 @@ functions:
       signature: "(&self, kind: &str) -> Result<bool, HarnessError>"
       # Harness delegates to private Sessions in assistant.rs, checking whether a
       # profile is configured with `policy::is_available_with`; `codex` is
-      # available exactly when SessionsConfig::codex is set. Shared by `list`,
+      # available when SessionsConfig::codex is set and `codex_checked` passes,
+      # whose refusal it returns as HarnessStartFailed. Shared by `list`,
       # `open_session`, `open_idle` and `Turns::send` share.
+    codex_checked:
+      signature: "(&self) -> Result<CheckedCodex, HarnessError>"
+      # pub(crate), on `Sessions`, in codex_check.rs: the Codex protocol verdict
+      # for one daemon run, kept in memory only. The first caller runs
+      # CodexProgram::check in catalog_root/codex-protocol/<uuid> under a tokio
+      # Mutex, so concurrent callers wait on one check. A refusal is
+      # HarnessStartFailed(<message>); Codex not configured is HarnessUnavailable.
+      # Every Codex opening (thread sessions, executors and the catalog probe)
+      # awaits it and passes the checked version to ManagedConnection::open; an
+      # opening refused with "Codex CLI changed to X" clears the verdict, so the
+      # next opening checks X. `Harness::codex_checks_for_test` (test-support)
+      # counts the checks.
+      tested_by: [a_matching_newer_codex_opens, a_changed_codex_is_listed_with_what_changed,
+        an_older_codex_is_refused_without_a_check, a_schema_that_cannot_be_generated_is_a_reason,
+        the_protocol_is_checked_once_per_run, concurrent_openings_run_one_check,
+        a_codex_upgraded_while_running_is_checked_again]
     change_model:
       signature: "(&self, thread, opened, model: &str, effort: Option<&str>) -> Result<Offered, SettingRefused>"
       # pub(crate), on `Sessions`, called by `Harness::change_model` only:

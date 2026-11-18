@@ -12,6 +12,7 @@ mod error;
 pub use error::HarnessError;
 mod assistant;
 mod catalog;
+mod codex_check;
 mod commands;
 mod context_record;
 mod executor;
@@ -73,6 +74,12 @@ pub struct Harness {
 }
 
 impl Harness {
+    /// How many times this daemon run has checked the Codex protocol.
+    #[cfg(feature = "test-support")]
+    pub fn codex_checks_for_test(&self) -> usize {
+        self.sessions.codex_check.checks()
+    }
+
     /// The configured AYLUL profile, without exposing its environment.
     pub fn aylul_profile(&self) -> Result<&str, HarnessError> {
         self.sessions
@@ -172,7 +179,14 @@ impl Harness {
     pub async fn list(&self) -> Result<Vec<HarnessInfo>, HarnessError> {
         let mut list = Vec::new();
         for kind in policy::KNOWN {
-            let available = self.sessions.harness_available(kind).await?;
+            let (available, reason) = match self.sessions.harness_available(kind).await {
+                Ok(available) => (
+                    available,
+                    (!available).then(|| Sessions::unavailable_reason(kind).to_string()),
+                ),
+                Err(HarnessError::HarnessStartFailed(reason)) => (false, Some(reason)),
+                Err(error) => return Err(error),
+            };
             let remembered = self
                 .store
                 .remembered_settings(kind)
@@ -183,7 +197,7 @@ impl Harness {
                 label: Self::label(kind).to_string(),
                 available,
                 executor: policy::EXECUTOR_HARNESSES.contains(&kind),
-                reason: (!available).then(|| Sessions::unavailable_reason(kind).to_string()),
+                reason,
                 remembered,
                 limits: self.store.latest_limits(kind).await?,
                 modes: policy::modes(kind)

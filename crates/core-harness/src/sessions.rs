@@ -122,6 +122,7 @@ pub(super) struct Sessions {
     pub(super) tasks: Arc<super::tasks::Tasks>,
     pub(super) generations: AtomicU64,
     pub(super) setups: Setups,
+    pub(super) codex_check: super::codex_check::CodexCheck,
 }
 
 impl Sessions {
@@ -154,6 +155,7 @@ impl Sessions {
             commands: Arc::new(Commands::new()),
             tasks: Arc::new(super::tasks::Tasks::new()),
             generations: AtomicU64::new(0),
+            codex_check: super::codex_check::CodexCheck::default(),
         });
         let reaper = Arc::downgrade(&sessions);
         tokio::spawn(async move {
