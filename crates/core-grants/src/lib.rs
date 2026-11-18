@@ -21,7 +21,9 @@ pub use external::{ExternalConnection, ExternalConnectionId, IssuedExternalConne
 pub use model::IssuedGrant;
 pub use model::{Grant, GrantId, GrantKind, TaskScope, Token};
 
-use core_db::{CommandContext, Storage};
+#[cfg(feature = "test-support")]
+use core_db::CommandContext;
+use core_db::Storage;
 use core_projects::ProjectId;
 
 /// Grants: what storage holds, and the `/mcp` address a `claude mcp add`
@@ -36,6 +38,7 @@ pub struct Grants {
 /// What issuing answers. `token` and `command` are `Some` on the first issue
 /// only: a replay of the same command answers the grant without them,
 /// because a token is shown once.
+#[cfg(feature = "test-support")]
 pub struct IssuedView {
     pub grant: Grant,
     pub token: Option<String>,
@@ -52,11 +55,13 @@ impl Grants {
 
     /// A project's grants for external agents, revoked ones included, newest
     /// first. Never a token.
+    #[cfg(feature = "test-support")]
     pub async fn list(&self, project: &ProjectId) -> Result<Vec<Grant>, GrantsError> {
         Ok(self.store.list_project_grants(project).await?)
     }
     /// Issues the grant with the `claude mcp add` line for this daemon's `/mcp`, present only when
     /// the token is.
+    #[cfg(feature = "test-support")]
     pub async fn issue(
         &self,
         command_id: String,
@@ -82,6 +87,7 @@ impl Grants {
         })
     }
     /// A thread grant is the Planner's, not the person's, and is not found here.
+    #[cfg(feature = "test-support")]
     pub async fn revoke(&self, command_id: String, grant: &GrantId) -> Result<Grant, GrantsError> {
         let c = CommandContext::user(
             command_id,

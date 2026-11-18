@@ -194,10 +194,7 @@ async fn a_removed_project_is_not_found() {
     assert_eq!(status, 200, "{body}");
 
     // Its reads answer as for an unknown project: nothing it held shows.
-    for (read, empty) in [
-        ("planner-instructions", json!(null)),
-        ("mcp-grants", json!([])),
-    ] {
+    for (read, empty) in [("planner-instructions", json!(null))] {
         let (status, body) = call(&app, "GET", &format!("/api/projects/{gone}/{read}"), None).await;
         assert_eq!((status, &body), (200, &empty), "{read}");
     }

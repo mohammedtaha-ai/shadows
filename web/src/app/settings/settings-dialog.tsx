@@ -8,6 +8,7 @@ import { AccountSection } from './sections/account'
 import { desktopSettingsSections } from '@/app/desktop'
 import { ProvidersSection } from './sections/providers'
 import { AgentsSection } from './sections/agents'
+import { ExternalAgentsSection } from './sections/external-agents'
 import { UsageSection } from './sections/usage'
 import { PluginsSection } from './sections/plugins'
 import { CodeSection } from './sections/code'
@@ -15,7 +16,7 @@ import { useCloseSettings, useOpenSettings } from '@/app/navigation'
 
 // A section with a half-filled form reports it, so nothing but its own Save or Cancel leaves it.
 const CONTENT: Partial<Record<SectionId, ComponentType<{ onUnsavedChange?: (unsaved: boolean) => void }>>> = {
-  general: GeneralSection, account: AccountSection, providers: ProvidersSection, agents: AgentsSection, usage: UsageSection, plugins: PluginsSection, code: CodeSection,
+  general: GeneralSection, account: AccountSection, providers: ProvidersSection, agents: AgentsSection, 'external-agents': ExternalAgentsSection, usage: UsageSection, plugins: PluginsSection, code: CodeSection,
   ...Object.fromEntries(desktopSettingsSections.map(section => [section.id, section.content])),
 }
 

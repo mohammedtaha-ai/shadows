@@ -2,7 +2,6 @@ import { useQuery } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
 import { projectsQuery } from '@/api/projects'
 import { CodeIndex } from './code-index'
-import { ExternalAgents } from './external-agents'
 import { InstructionsEditor } from './instructions-editor'
 import { ProjectModes } from './project-modes'
 import { RemoveProject } from './remove-project'
@@ -27,14 +26,11 @@ export function ProjectSettings() {
             </p>
           )}
         </header>
-        {/* The router keeps this page mounted when only the project changes, so
-            each section is keyed by it: one project's unsaved draft, pending
-            command id or one-time Connect command never shows under another. */}
+        {/* The router keeps this page mounted when only the project changes. */}
         <InstructionsEditor key={`instructions-${projectId}`} projectId={projectId} />
         {project !== undefined && (
           <ProjectModes key={`modes-${projectId}`} project={project} />
         )}
-        <ExternalAgents key={`agents-${projectId}`} projectId={projectId} />
         {project !== undefined && (
           <>
             <CodeIndex key={`code-${projectId}`} project={project} />

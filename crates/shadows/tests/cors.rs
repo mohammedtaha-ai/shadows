@@ -92,7 +92,7 @@ async fn a_delete_from_an_allowed_origin_is_preflighted_and_sent() {
 
     let preflight = Request::builder()
         .method("OPTIONS")
-        .uri("/api/mcp-grants/00000000-0000-4000-8000-000000000000?command_id=r1")
+        .uri("/api/external-connections/00000000-0000-4000-8000-000000000000?command_id=r1")
         .header(header::ORIGIN, ALLOWED)
         .header(header::ACCESS_CONTROL_REQUEST_METHOD, "DELETE")
         .body(Body::empty())
@@ -104,10 +104,12 @@ async fn a_delete_from_an_allowed_origin_is_preflighted_and_sent() {
 
     let (status, body) = send(
         &app,
-        Request::delete("/api/mcp-grants/00000000-0000-4000-8000-000000000000?command_id=r1")
-            .header(header::ORIGIN, ALLOWED)
-            .body(Body::empty())
-            .unwrap(),
+        Request::delete(
+            "/api/external-connections/00000000-0000-4000-8000-000000000000?command_id=r1",
+        )
+        .header(header::ORIGIN, ALLOWED)
+        .body(Body::empty())
+        .unwrap(),
     )
     .await;
     // Past the guard: an unknown grant, not a refused origin.

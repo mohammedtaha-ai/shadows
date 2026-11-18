@@ -8,7 +8,7 @@
 import type { HarnessInfo } from '@/api/harnesses'
 import type { Plan, PlanListing, PlanTask, PlanVersions } from '@/api/workflows'
 import type { ProjectStatus } from '@/api/code'
-import type { Grant, Project } from '@/api/projects'
+import type { Project } from '@/api/projects'
 import type { Choice, SessionChoices } from '@/api/sessions'
 import type { InvocationView, Operation, PlanningThread, ThreadEntry, ToolCallCard } from '@/api/threads'
 import type { VisionProposal } from '@/api/design'
@@ -116,19 +116,6 @@ export function codeStatusFixture(project: string, extra: Partial<ProjectStatus>
     files: 277,
     skipped: [],
     updated_at: '2026-09-24T00:00:00Z',
-    ...extra,
-  }
-}
-
-/** A live grant bound to project `p1`, for an external agent. */
-export function grantFixture(id: string, extra: Partial<Grant> = {}): Grant {
-  return {
-    id,
-    kind: 'project',
-    project_id: 'p1',
-    thread_id: null,
-    created_at: '2026-09-24T00:00:00Z',
-    revoked_at: null,
     ...extra,
   }
 }

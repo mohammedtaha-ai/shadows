@@ -42,8 +42,10 @@ pub use core_extensions::{
     AgentExtensions, AgentItem, AgentTools, ExtensionKind, ExtensionLibrary, Extensions,
     ExtensionsError, Item, McpInput, McpItem, McpTool, ToolRule, ToolRuleEntry,
 };
+#[cfg(feature = "test-support")]
+pub use core_grants::IssuedView;
 pub use core_grants::{ExternalConnection, ExternalConnectionId, IssuedExternalConnection};
-pub use core_grants::{Grant, GrantId, GrantKind, Grants, GrantsError, IssuedView};
+pub use core_grants::{Grant, GrantId, GrantKind, Grants, GrantsError};
 pub use core_harness::{
     AylulConfig, AylulUsageSnapshot, CarriedContext, CatalogModel, ContextSource, Forget, Harness,
     HarnessCatalog, HarnessError, HarnessInfo, LeaseError, OpenError, OpenSession,

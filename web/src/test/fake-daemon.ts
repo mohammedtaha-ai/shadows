@@ -5,7 +5,7 @@
 
 import type { EffectiveStandards, StandardsAdditions } from '@/api/design'
 import type { Plan, PlanListing } from '@/api/workflows'
-import type { Grant, InstructionsVersion, Project } from '@/api/projects'
+import type { InstructionsVersion, Project } from '@/api/projects'
 import type { Operation, ThreadEntry } from '@/api/threads'
 import type { Person, PersonPatch } from '@/api/person'
 import type { Answer } from '@/test/test-app'
@@ -18,7 +18,6 @@ import {
   codeStatusFixture,
   codexHarness,
   fakeChoices,
-  grantFixture,
   planFixture,
   planVersionsFixture,
   projectFixture,
@@ -96,11 +95,7 @@ interface Overrides {
   attemptDiff?: Answer
   /** The project's saved instructions; none by default. */
   instructions?: InstructionsVersion
-  /** The project's grants, newest first; none by default. */
-  grants?: Grant[]
-  /** `POST /api/projects/p1/mcp-grants`; by default issues grant `g9` with
-   * its token and command. */
-  issue?: Answer
+
 }
 
 export function answers(o: Overrides = {}): Record<string, Answer> {
@@ -111,7 +106,6 @@ export function answers(o: Overrides = {}): Record<string, Answer> {
     ? o.person as Person
     : { name: null, aylul_calls_me: null, language: null, theme: 'system', updated_at: null }
   let instructions = o.instructions ?? null
-  let grants = o.grants ?? []
   let standards: EffectiveStandards = {
     base: { version: 3,
       parts: [
@@ -130,7 +124,6 @@ export function answers(o: Overrides = {}): Record<string, Answer> {
       ],
     }, additions: null,
   }
-  const connect = 'claude mcp add --transport http shadows http://127.0.0.1:4318/mcp'
   return {
     'GET /api/aylul/agent-template': { instructions: 'Synthetic bundled agent instructions.' },
     'GET /api/aylul/extensions': { plugins: [], skills: [], mcp: [] },
@@ -269,18 +262,6 @@ export function answers(o: Overrides = {}): Record<string, Answer> {
       instructions = { body, number, created_at: '2026-09-25T09:30:00Z' }
       return Response.json(instructions)
     },
-    'GET /api/projects/p1/mcp-grants': () => Response.json(grants),
-    'POST /api/projects/p1/mcp-grants':
-      o.issue ??
-      (() => {
-        const grant = grantFixture('g9')
-        grants = [grant, ...grants]
-        return Response.json({
-          grant,
-          token: 'tok-9',
-          command: `${connect} --header "Authorization: Bearer tok-9"`,
-        })
-      }),
     'GET /api/projects/p1/code/status': codeStatusFixture(project.slug),
     'GET /api/projects/p1/design/vision': { revision: 0, content: {
       purpose: [], users: [], goals: [], boundaries: [], technical_direction: [],
@@ -290,16 +271,5 @@ export function answers(o: Overrides = {}): Record<string, Answer> {
     'GET /api/projects/p1/roadmap-proposals': [],
     'GET /api/projects/p1/code/links': [],
     'GET /api/projects/p1/code/servers': [],
-    // Any grant the test gave the project can be revoked.
-    ...Object.fromEntries(
-      grants.map((g) => [
-        `DELETE /api/mcp-grants/${g.id}`,
-        () => {
-          const revoked = { ...g, revoked_at: '2026-09-25T10:00:00Z' }
-          grants = grants.map((x) => (x.id === g.id ? revoked : x))
-          return Response.json(revoked)
-        },
-      ]),
-    ),
   }
 }

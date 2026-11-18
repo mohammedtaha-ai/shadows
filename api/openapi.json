@@ -3060,6 +3060,38 @@
         ],
         "type": "object"
       },
+      "ExternalConnection": {
+        "properties": {
+          "created_at": {
+            "type": "string"
+          },
+          "id": {
+            "$ref": "#/components/schemas/ExternalConnectionId"
+          },
+          "project_ids": {
+            "items": {
+              "$ref": "#/components/schemas/ProjectId"
+            },
+            "type": "array"
+          },
+          "revoked_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "project_ids",
+          "created_at"
+        ],
+        "type": "object"
+      },
+      "ExternalConnectionId": {
+        "format": "uuid",
+        "type": "string"
+      },
       "FileAction": {
         "description": "What the task does to a file.",
         "enum": [
@@ -3165,58 +3197,8 @@
         ],
         "type": "object"
       },
-      "Grant": {
-        "description": "A grant as stored: never its token.",
-        "properties": {
-          "created_at": {
-            "type": "string"
-          },
-          "id": {
-            "$ref": "#/components/schemas/GrantId"
-          },
-          "kind": {
-            "$ref": "#/components/schemas/GrantKind"
-          },
-          "project_id": {
-            "$ref": "#/components/schemas/ProjectId"
-          },
-          "revoked_at": {
-            "description": "When it stopped being honoured; `null` while it is live.",
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "thread_id": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/ThreadId",
-                "description": "The Planner's thread; `null` for a project grant."
-              }
-            ]
-          }
-        },
-        "required": [
-          "id",
-          "kind",
-          "project_id",
-          "created_at"
-        ],
-        "type": "object"
-      },
       "GrantId": {
         "format": "uuid",
-        "type": "string"
-      },
-      "GrantKind": {
-        "description": "Whose grant it is: the Planner of one thread, or an external agent bound\nto one project. On the wire and in storage, `thread` and `project`.",
-        "enum": [
-          "thread",
-          "project"
-        ],
         "type": "string"
       },
       "Group": {
@@ -3677,30 +3659,31 @@
       "IssueGrant": {
         "properties": {
           "command_id": {
-            "description": "The idempotency key, scoped to the project.",
             "type": "string"
+          },
+          "project_ids": {
+            "items": {
+              "$ref": "#/components/schemas/ProjectId"
+            },
+            "type": "array"
           }
         },
         "required": [
-          "command_id"
+          "command_id",
+          "project_ids"
         ],
         "type": "object"
       },
       "IssuedGrantBody": {
-        "description": "A new grant, with its token and the command that connects Claude Code to\nit — or, for a replayed command, the grant alone.",
         "properties": {
-          "command": {
-            "description": "`claude mcp add …` with the token, to copy once; `null` on a replay.",
-            "type": [
-              "string",
-              "null"
-            ]
+          "connection": {
+            "$ref": "#/components/schemas/ExternalConnection"
           },
-          "grant": {
-            "$ref": "#/components/schemas/Grant"
+          "mcp_url": {
+            "type": "string"
           },
           "token": {
-            "description": "The bearer token, in this answer only; `null` on a replay.",
+            "description": "The bearer token on first issue. A replay omits the token.",
             "type": [
               "string",
               "null"
@@ -3708,7 +3691,8 @@
           }
         },
         "required": [
-          "grant"
+          "connection",
+          "mcp_url"
         ],
         "type": "object"
       },
@@ -11553,6 +11537,186 @@
         ]
       }
     },
+    "/api/external-connections": {
+      "get": {
+        "operationId": "list_grants",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ExternalConnection"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "grants"
+        ]
+      },
+      "post": {
+        "operationId": "issue_grant",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IssueGrant"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IssuedGrantBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "grants"
+        ]
+      }
+    },
+    "/api/external-connections/{id}": {
+      "delete": {
+        "operationId": "revoke_grant",
+        "parameters": [
+          {
+            "description": "The external connection",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ExternalConnectionId"
+            }
+          },
+          {
+            "in": "query",
+            "name": "command_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalConnection"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "grants"
+        ]
+      }
+    },
     "/api/fs/dirs": {
       "get": {
         "description": "Exposes the machine's directory names to any client the CORS list admits.",
@@ -12098,87 +12262,6 @@
         },
         "tags": [
           "harnesses"
-        ]
-      }
-    },
-    "/api/mcp-grants/{id}": {
-      "delete": {
-        "operationId": "revoke_grant",
-        "parameters": [
-          {
-            "description": "The project grant",
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "$ref": "#/components/schemas/GrantId"
-            }
-          },
-          {
-            "description": "The idempotency key, scoped to the grant.",
-            "in": "query",
-            "name": "command_id",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Grant"
-                }
-              }
-            },
-            "description": "Revoked, or the replay of the same command"
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            },
-            "description": "INVALID_COMMAND: no `command_id`"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            },
-            "description": "INVALID_COMMAND: no such project grant"
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            },
-            "description": "COMMAND_CONFLICT"
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            },
-            "description": "STORAGE_UNAVAILABLE"
-          }
-        },
-        "summary": "Revoke: Shadows refuses the grant's token from now on. It does not\nremove the server from the person's Claude configuration.",
-        "tags": [
-          "grants"
         ]
       }
     },
@@ -14497,121 +14580,6 @@
         },
         "tags": [
           "design"
-        ]
-      }
-    },
-    "/api/projects/{id}/mcp-grants": {
-      "get": {
-        "operationId": "list_grants",
-        "parameters": [
-          {
-            "description": "The project",
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "$ref": "#/components/schemas/ProjectId"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/Grant"
-                  },
-                  "type": "array"
-                }
-              }
-            },
-            "description": ""
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            },
-            "description": "STORAGE_UNAVAILABLE"
-          }
-        },
-        "summary": "A project's grants for external agents, revoked ones included, newest\nfirst. Never a token.",
-        "tags": [
-          "grants"
-        ]
-      },
-      "post": {
-        "operationId": "issue_grant",
-        "parameters": [
-          {
-            "description": "The project",
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "$ref": "#/components/schemas/ProjectId"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/IssueGrant"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/IssuedGrantBody"
-                }
-              }
-            },
-            "description": "Issued, or the replay of the same command without its token"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            },
-            "description": "INVALID_COMMAND: no such project"
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            },
-            "description": "COMMAND_CONFLICT"
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorBody"
-                }
-              }
-            },
-            "description": "STORAGE_UNAVAILABLE"
-          }
-        },
-        "summary": "Connect: issues a grant bound to this project for an external\nagent. The token is shown once — here — and stored only as its hash.",
-        "tags": [
-          "grants"
         ]
       }
     },

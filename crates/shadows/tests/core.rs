@@ -57,16 +57,26 @@ async fn shut_down_through_the_core_cancels_and_records() {
 #[tokio::test]
 async fn revoked_grant_is_refused_after_the_move() {
     let l = listening_app().await;
-    let path = format!("/api/projects/{}/mcp-grants", l.app.project);
-    let (status, issued) = post(&l.app, &path, json!({ "command_id": "g1" })).await;
+    let path = "/api/external-connections";
+    let (status, issued) = post(
+        &l.app,
+        path,
+        json!({ "command_id": "g1", "project_ids": [l.app.project] }),
+    )
+    .await;
     assert_eq!(status, 200, "{issued}");
     let token = issued["token"].as_str().unwrap().to_string();
-    let id = issued["grant"]["id"].as_str().unwrap().to_string();
+    let id = issued["connection"]["id"].as_str().unwrap().to_string();
 
     let client = mcp_client(&l.base, &token).await;
-    ok(&client, "workflow_list", json!({})).await;
+    ok(
+        &client,
+        "workflow_list",
+        json!({"project_id": l.app.project}),
+    )
+    .await;
 
-    let delete = format!("/api/mcp-grants/{id}?command_id=r1");
+    let delete = format!("/api/external-connections/{id}?command_id=r1");
     let (status, revoked) = call(&l.app, "DELETE", &delete, None).await;
     assert_eq!(status, 200, "{revoked}");
 
@@ -100,12 +110,17 @@ async fn revoked_grant_is_refused_after_the_move() {
 #[tokio::test]
 async fn grant_command_fingerprints_do_not_move() {
     let app = test_app().await;
-    let path = format!("/api/projects/{}/mcp-grants", app.project);
-    let (status, issued) = post(&app, &path, json!({ "command_id": "pin-issue" })).await;
+    let path = "/api/external-connections";
+    let (status, issued) = post(
+        &app,
+        path,
+        json!({ "command_id": "pin-issue", "project_ids": [app.project] }),
+    )
+    .await;
     assert_eq!(status, 200, "{issued}");
-    let grant = issued["grant"]["id"].clone();
+    let grant = issued["connection"]["id"].clone();
     let delete = format!(
-        "/api/mcp-grants/{}?command_id=pin-revoke",
+        "/api/external-connections/{}?command_id=pin-revoke",
         grant.as_str().unwrap()
     );
     let (status, revoked) = call(&app, "DELETE", &delete, None).await;
@@ -115,7 +130,7 @@ async fn grant_command_fingerprints_do_not_move() {
         "SELECT principal_kind, principal_id, command_id, command_kind, command_schema_ver,
                 request_fingerprint
            FROM command_record
-          WHERE command_kind IN ('McpGrantIssue', 'McpGrantRevoke')",
+          WHERE command_kind IN ('ExternalConnectionIssue', 'ExternalConnectionRevoke')",
     )
     .fetch_all(app.storage.reader())
     .await
@@ -135,10 +150,14 @@ async fn grant_command_fingerprints_do_not_move() {
     let mut expected = vec![
         pinned(
             "pin-issue",
-            "McpGrantIssue",
-            json!({ "project": app.project }),
+            "ExternalConnectionIssue",
+            json!({ "project_ids": [app.project] }),
         ),
-        pinned("pin-revoke", "McpGrantRevoke", json!({ "grant": grant })),
+        pinned(
+            "pin-revoke",
+            "ExternalConnectionRevoke",
+            json!({ "connection_id": grant }),
+        ),
     ];
     expected.sort();
     assert_eq!(recorded, expected);

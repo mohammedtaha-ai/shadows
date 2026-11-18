@@ -2,9 +2,13 @@
 mod external;
 use sqlx::SqliteConnection;
 
-use super::model::{Grant, GrantId, GrantKind, IssuedGrant, TaskScope, Token};
+#[cfg(feature = "test-support")]
+use super::model::IssuedGrant;
+use super::model::{Grant, GrantId, GrantKind, TaskScope, Token};
 use super::{Grants, GrantsError, Writer};
-use core_db::{Actor, CommandContext, JournalEntry, Storage, StorageError};
+#[cfg(feature = "test-support")]
+use core_db::CommandContext;
+use core_db::{Actor, JournalEntry, Storage, StorageError};
 use core_projects::ProjectId;
 use core_threads::ThreadId;
 use std::sync::Arc;
@@ -20,6 +24,7 @@ impl GrantsStore {
     pub(super) fn with_storage(storage: Arc<Storage>) -> Self {
         Self { storage }
     }
+    #[cfg(feature = "test-support")]
     pub(super) async fn issue_project_grant(
         &self,
         ctx: &CommandContext,
@@ -88,6 +93,7 @@ impl GrantsStore {
         )
         .await
     }
+    #[cfg(feature = "test-support")]
     pub(super) async fn revoke_grant(
         &self,
         ctx: &CommandContext,
@@ -187,6 +193,7 @@ impl GrantsStore {
         .await?;
         row.map(into_grant).transpose()
     }
+    #[cfg(feature = "test-support")]
     pub(super) async fn list_project_grants(
         &self,
         project: &ProjectId,

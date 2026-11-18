@@ -24,29 +24,40 @@ fn issue_ctx(id: &str) -> shadows_core::testing::CommandContext {
 #[tokio::test]
 async fn a_replayed_issue_does_not_show_the_token_again() {
     let app = test_app().await;
-    let path = format!("/api/projects/{}/mcp-grants", app.project);
-    let (status, first) = post(&app, &path, json!({ "command_id": "g1" })).await;
+    let path = "/api/external-connections";
+    let (status, refused) =
+        post(&app, path, json!({ "command_id": "g1", "project_ids": [] })).await;
+    assert_eq!(status, 422, "{refused}");
+    let (status, first) = post(
+        &app,
+        path,
+        json!({ "command_id": "g1", "project_ids": [app.project, app.project] }),
+    )
+    .await;
     assert_eq!(status, 200, "{first}");
     let token = first["token"].as_str().unwrap().to_string();
-    assert_eq!(
-        first["command"],
-        format!(
-            "claude mcp add --transport http shadows {} --header \"Authorization: Bearer {token}\"",
-            acp::MCP_URL
-        )
-    );
-    assert_eq!(first["grant"]["kind"], "project");
+    assert_eq!(first["mcp_url"], acp::MCP_URL);
+    assert_eq!(first["connection"]["project_ids"], json!([app.project]));
 
-    let (status, replay) = post(&app, &path, json!({ "command_id": "g1" })).await;
+    let (status, replay) = post(
+        &app,
+        path,
+        json!({ "command_id": "g1", "project_ids": [app.project] }),
+    )
+    .await;
     assert_eq!(status, 200, "{replay}");
-    assert_eq!(replay["grant"], first["grant"]);
+    assert_eq!(replay["connection"], first["connection"]);
     assert_eq!(replay["token"], Value::Null);
-    assert_eq!(replay["command"], Value::Null);
 
     // The list never carries a token; newest first.
-    let (_, second) = post(&app, &path, json!({ "command_id": "g2" })).await;
-    let listed: Value = get_json(&app, &path).await;
-    assert_eq!(listed, json!([second["grant"], first["grant"]]));
+    let (_, second) = post(
+        &app,
+        path,
+        json!({ "command_id": "g2", "project_ids": [app.project] }),
+    )
+    .await;
+    let listed: Value = get_json(&app, path).await;
+    assert_eq!(listed, json!([second["connection"], first["connection"]]));
     assert!(!listed.to_string().contains(&token));
 
     // Storage answers a replay the same way: the grant, no token.
@@ -68,14 +79,25 @@ async fn a_replayed_issue_does_not_show_the_token_again() {
 #[tokio::test]
 async fn a_grant_is_revoked_by_delete_with_its_command_id_in_the_query() {
     let app = test_app().await;
-    let path = format!("/api/projects/{}/mcp-grants", app.project);
-    let (_, issued) = post(&app, &path, json!({ "command_id": "g1" })).await;
-    let id = issued["grant"]["id"].as_str().unwrap();
+    let path = "/api/external-connections";
+    let (_, issued) = post(
+        &app,
+        path,
+        json!({ "command_id": "g1", "project_ids": [app.project] }),
+    )
+    .await;
+    let id = issued["connection"]["id"].as_str().unwrap();
 
-    let (status, body) = call(&app, "DELETE", &format!("/api/mcp-grants/{id}"), None).await;
+    let (status, body) = call(
+        &app,
+        "DELETE",
+        &format!("/api/external-connections/{id}"),
+        None,
+    )
+    .await;
     assert_eq!(status, 400, "no command id: {body}");
 
-    let delete = format!("/api/mcp-grants/{id}?command_id=r1");
+    let delete = format!("/api/external-connections/{id}?command_id=r1");
     let (status, revoked) = call(&app, "DELETE", &delete, None).await;
     assert_eq!(status, 200, "{revoked}");
     assert!(revoked["revoked_at"].is_string(), "{revoked}");
@@ -84,13 +106,11 @@ async fn a_grant_is_revoked_by_delete_with_its_command_id_in_the_query() {
 
     let token = issued["token"].as_str().unwrap();
     assert_eq!(
-        shadows_core::Grants::grant_for_token_for_test(&app.storage, token)
-            .await
-            .unwrap(),
+        app.core.grants().authorize_external(token).await.unwrap(),
         None
     );
 
-    let unknown = "/api/mcp-grants/00000000-0000-4000-8000-000000000000?command_id=r2";
+    let unknown = "/api/external-connections/00000000-0000-4000-8000-000000000000?command_id=r2";
     let (status, body) = call(&app, "DELETE", unknown, None).await;
     assert_eq!(status, 404, "{body}");
 
@@ -105,16 +125,16 @@ async fn grant_events_never_carry_the_token() {
     let app = test_app().await;
     let (_, issued) = post(
         &app,
-        &format!("/api/projects/{}/mcp-grants", app.project),
-        json!({ "command_id": "g1" }),
+        "/api/external-connections",
+        json!({ "command_id": "g1", "project_ids": [app.project] }),
     )
     .await;
     let project_token = issued["token"].as_str().unwrap().to_string();
-    let grant_id = issued["grant"]["id"].as_str().unwrap().to_string();
+    let grant_id = issued["connection"]["id"].as_str().unwrap().to_string();
     let (_, revoked) = call(
         &app,
         "DELETE",
-        &format!("/api/mcp-grants/{grant_id}?command_id=r1"),
+        &format!("/api/external-connections/{grant_id}?command_id=r1"),
         None,
     )
     .await;
@@ -138,26 +158,29 @@ async fn grant_events_never_carry_the_token() {
         .into_iter()
         .map(|(k, p)| (k, serde_json::from_str(&p).unwrap()))
         .collect();
+    assert_eq!(payloads.len(), 4);
+    assert_eq!(payloads[0].0, "McpGrantIssued");
+    assert_eq!(payloads[0].1["kind"], "project");
     assert_eq!(
-        payloads,
-        [
-            (
-                "McpGrantIssued".to_string(),
-                json!({ "grant_id": grant_id, "kind": "project" })
-            ),
-            (
-                "McpGrantRevoked".to_string(),
-                json!({ "grant_id": grant_id })
-            ),
-            (
-                "McpGrantIssued".to_string(),
-                json!({ "grant_id": thread_grant.id, "kind": "thread" })
-            ),
-            (
-                "McpGrantRevoked".to_string(),
-                json!({ "grant_id": thread_grant.id })
-            ),
-        ]
+        payloads[1],
+        (
+            "McpGrantRevoked".into(),
+            json!({"grant_id": payloads[0].1["grant_id"]})
+        )
+    );
+    assert_eq!(
+        payloads[2],
+        (
+            "McpGrantIssued".into(),
+            json!({"grant_id": thread_grant.id, "kind": "thread"})
+        )
+    );
+    assert_eq!(
+        payloads[3],
+        (
+            "McpGrantRevoked".into(),
+            json!({"grant_id": thread_grant.id})
+        )
     );
 
     let every: Vec<String> = sqlx::query_scalar("SELECT payload_json FROM durable_event")

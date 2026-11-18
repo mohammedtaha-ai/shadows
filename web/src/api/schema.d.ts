@@ -528,6 +528,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/external-connections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_grants"];
+        put?: never;
+        post: operations["issue_grant"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/external-connections/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["revoke_grant"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/fs/dirs": {
         parameters: {
             query?: never;
@@ -628,26 +660,6 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/mcp-grants/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /**
-         * Revoke: Shadows refuses the grant's token from now on. It does not
-         *     remove the server from the person's Claude configuration.
-         */
-        delete: operations["revoke_grant"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1188,30 +1200,6 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["approve_map_proposal"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/projects/{id}/mcp-grants": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * A project's grants for external agents, revoked ones included, newest
-         *     first. Never a token.
-         */
-        get: operations["list_grants"];
-        put?: never;
-        /**
-         * Connect: issues a grant bound to this project for an external
-         *     agent. The token is shown once — here — and stored only as its hash.
-         */
-        post: operations["issue_grant"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2818,6 +2806,14 @@ export interface components {
             plugins: components["schemas"]["Item"][];
             skills: components["schemas"]["Item"][];
         };
+        ExternalConnection: {
+            created_at: string;
+            id: components["schemas"]["ExternalConnectionId"];
+            project_ids: components["schemas"]["ProjectId"][];
+            revoked_at?: string | null;
+        };
+        /** Format: uuid */
+        ExternalConnectionId: string;
         /**
          * @description What the task does to a file.
          * @enum {string}
@@ -2861,24 +2857,8 @@ export interface components {
             /** @description The idempotency key, scoped to the source thread. */
             command_id: string;
         };
-        /** @description A grant as stored: never its token. */
-        Grant: {
-            created_at: string;
-            id: components["schemas"]["GrantId"];
-            kind: components["schemas"]["GrantKind"];
-            project_id: components["schemas"]["ProjectId"];
-            /** @description When it stopped being honoured; `null` while it is live. */
-            revoked_at?: string | null;
-            thread_id?: null | components["schemas"]["ThreadId"];
-        };
         /** Format: uuid */
         GrantId: string;
-        /**
-         * @description Whose grant it is: the Planner of one thread, or an external agent bound
-         *     to one project. On the wire and in storage, `thread` and `project`.
-         * @enum {string}
-         */
-        GrantKind: "thread" | "project";
         Group: {
             created_at: string;
             id: components["schemas"]["GroupId"];
@@ -3014,18 +2994,13 @@ export interface components {
             requested_model: string;
         };
         IssueGrant: {
-            /** @description The idempotency key, scoped to the project. */
             command_id: string;
+            project_ids: components["schemas"]["ProjectId"][];
         };
-        /**
-         * @description A new grant, with its token and the command that connects Claude Code to
-         *     it — or, for a replayed command, the grant alone.
-         */
         IssuedGrantBody: {
-            /** @description `claude mcp add …` with the token, to copy once; `null` on a replay. */
-            command?: string | null;
-            grant: components["schemas"]["Grant"];
-            /** @description The bearer token, in this answer only; `null` on a replay. */
+            connection: components["schemas"]["ExternalConnection"];
+            mcp_url: string;
+            /** @description The bearer token on first issue. A replay omits the token. */
             token?: string | null;
         };
         Item: {
@@ -6209,6 +6184,144 @@ export interface operations {
             };
         };
     };
+    list_grants: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExternalConnection"][];
+                };
+            };
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    issue_grant: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IssueGrant"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IssuedGrantBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    revoke_grant: {
+        parameters: {
+            query: {
+                command_id: string;
+            };
+            header?: never;
+            path: {
+                /** @description The external connection */
+                id: components["schemas"]["ExternalConnectionId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExternalConnection"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     list_dirs: {
         parameters: {
             query?: {
@@ -6625,68 +6738,6 @@ export interface operations {
             };
             /** @description HARNESS_START_FAILED */
             502: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-        };
-    };
-    revoke_grant: {
-        parameters: {
-            query: {
-                /** @description The idempotency key, scoped to the grant. */
-                command_id: string;
-            };
-            header?: never;
-            path: {
-                /** @description The project grant */
-                id: components["schemas"]["GrantId"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Revoked, or the replay of the same command */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Grant"];
-                };
-            };
-            /** @description INVALID_COMMAND: no `command_id` */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-            /** @description INVALID_COMMAND: no such project grant */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-            /** @description COMMAND_CONFLICT */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-            /** @description STORAGE_UNAVAILABLE */
-            500: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -8352,91 +8403,6 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-        };
-    };
-    list_grants: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description The project */
-                id: components["schemas"]["ProjectId"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Grant"][];
-                };
-            };
-            /** @description STORAGE_UNAVAILABLE */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-        };
-    };
-    issue_grant: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description The project */
-                id: components["schemas"]["ProjectId"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["IssueGrant"];
-            };
-        };
-        responses: {
-            /** @description Issued, or the replay of the same command without its token */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["IssuedGrantBody"];
-                };
-            };
-            /** @description INVALID_COMMAND: no such project */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-            /** @description COMMAND_CONFLICT */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorBody"];
-                };
-            };
-            /** @description STORAGE_UNAVAILABLE */
             500: {
                 headers: {
                     [name: string]: unknown;
