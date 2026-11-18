@@ -14,7 +14,7 @@ mod listening;
 #[path = "fixtures/plan.rs"]
 mod plan;
 
-use listening::{Listening, listening_app, project_client, thread_client};
+use listening::{Listening, connect, listening_app, project_client, thread_client};
 use plan::{draft, issue_grant, revoke_grant};
 
 const INITIALIZE: &str = concat!(
@@ -64,12 +64,28 @@ async fn a_request_without_a_token_is_401() {
 #[tokio::test]
 async fn a_revoked_token_is_401() {
     let l = listening_app().await;
-    let (grant, token) = issue_grant(&l.app, "project", &l.app.project, None).await;
+    let (grant, token) = issue_grant(&l.app, "thread", &l.app.project, Some(&l.app.thread)).await;
     assert_eq!(
         raw_post(&l, Some(&token), &[], INITIALIZE).await.status(),
         200
     );
     revoke_grant(&l.app, &grant).await;
+    let response = raw_post(&l, Some(&token), &[], INITIALIZE).await;
+    assert_eq!(response.status(), 401);
+    assert_eq!(response.text().await.unwrap(), "");
+    // A revoked external connection is refused the same way.
+    let project = l.app.project.clone();
+    let (connection, token) = connect(&l, std::slice::from_ref(&project)).await;
+    assert_eq!(
+        raw_post(&l, Some(&token), &[], INITIALIZE).await.status(),
+        200
+    );
+    l.app
+        .core
+        .grants()
+        .revoke_external("revoke-connection".into(), &connection)
+        .await
+        .unwrap();
     let response = raw_post(&l, Some(&token), &[], INITIALIZE).await;
     assert_eq!(response.status(), 401);
     assert_eq!(response.text().await.unwrap(), "");
@@ -84,7 +100,7 @@ async fn a_revoked_token_is_401() {
 #[tokio::test]
 async fn a_foreign_origin_is_403() {
     let l = listening_app().await;
-    let (_, token) = issue_grant(&l.app, "project", &l.app.project, None).await;
+    let (_, token) = connect(&l, std::slice::from_ref(&l.app.project)).await;
     let origin = [("origin", "http://evil.example")];
     let response = raw_post(&l, Some(&token), &origin, INITIALIZE).await;
     assert_eq!(response.status(), 403);
@@ -173,6 +189,7 @@ async fn the_tool_list_depends_on_the_grant_kind() {
             "draft_prepare",
             "draft_start",
             "plan_edit",
+            "project_list",
             "task_context",
             "task_get",
             "workflow_get",
@@ -180,6 +197,19 @@ async fn the_tool_list_depends_on_the_grant_kind() {
             "workspace_get"
         ]
     );
+    // An external connection selects its project on every call but project_list.
+    let tools = external.list_all_tools().await.unwrap();
+    for tool in &tools {
+        let required = tool
+            .input_schema
+            .get("required")
+            .cloned()
+            .unwrap_or_default();
+        let selects = required
+            .as_array()
+            .is_some_and(|r| r.contains(&json!("project_id")));
+        assert_eq!(selects, tool.name != "project_list", "{}", tool.name);
+    }
     // A tool outside the grant's list is unknown to that client: rmcp's own
     // JSON-RPC "tool not found", not a tool result.
     let params = rmcp::model::CallToolRequestParams::new("draft_prepare")

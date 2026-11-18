@@ -13,9 +13,9 @@ use rmcp::service::RunningService;
 use rmcp::transport::StreamableHttpClientTransport;
 use rmcp::transport::streamable_http_client::StreamableHttpClientTransportConfig;
 use rmcp::{RoleClient, ServiceExt};
-use serde_json::Value;
-use shadows_core::GrantId;
+use serde_json::{Value, json};
 use shadows_core::ThreadId;
+use shadows_core::{ExternalConnectionId, GrantId, ProjectId};
 
 use std::path::Path;
 
@@ -25,8 +25,33 @@ use super::acp;
 use super::app::{App, test_app_unseeded_with, test_app_with};
 use super::plan::issue_grant;
 
-/// A connected MCP client, as `mcp_client` answers it.
-pub type Client = RunningService<RoleClient, ()>;
+/// A connected MCP client. On an external connection it also holds the
+/// connection and the project its tool calls select, as an agent would after
+/// `project_list`.
+pub struct Client {
+    service: RunningService<RoleClient, ()>,
+    connection: Option<ExternalConnectionId>,
+    project: Option<ProjectId>,
+}
+
+impl std::ops::Deref for Client {
+    type Target = RunningService<RoleClient, ()>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.service
+    }
+}
+
+impl Client {
+    pub async fn cancel(self) -> Result<rmcp::service::QuitReason, tokio::task::JoinError> {
+        self.service.cancel().await
+    }
+
+    /// The connection this client authenticates with, when it is external.
+    pub fn connection(&self) -> &ExternalConnectionId {
+        self.connection.as_ref().expect("an external connection")
+    }
+}
 
 pub struct Listening {
     pub app: App,
@@ -102,15 +127,28 @@ async fn listen(dir: &Path, config: SessionsConfig, roadmap: bool) -> Listening 
 pub async fn mcp_client(base: &str, token: &str) -> Client {
     let config =
         StreamableHttpClientTransportConfig::with_uri(format!("{base}/mcp")).auth_header(token);
-    ().serve(StreamableHttpClientTransport::from_config(config))
-        .await
-        .expect("the MCP client connects")
+    let service =
+        ().serve(StreamableHttpClientTransport::from_config(config))
+            .await
+            .expect("the MCP client connects");
+    Client {
+        service,
+        connection: None,
+        project: None,
+    }
 }
 
 /// `(is_error, text)` of a tool call that the server answered with a result.
+/// An external client's call names its selected project unless `args` sets
+/// `project_id` itself (`null` to send none).
 pub async fn call(client: &Client, tool: &str, args: Value) -> (bool, String) {
-    let params = rmcp::model::CallToolRequestParams::new(tool.to_string())
-        .with_arguments(args.as_object().expect("arguments are an object").clone());
+    let mut args = args.as_object().expect("arguments are an object").clone();
+    if let Some(project) = &client.project
+        && tool != "project_list"
+    {
+        args.entry("project_id").or_insert_with(|| json!(project));
+    }
+    let params = rmcp::model::CallToolRequestParams::new(tool.to_string()).with_arguments(args);
     let result = client.call_tool(params).await.expect("a tool result");
     let text = result.content[0]
         .as_text()
@@ -140,8 +178,61 @@ pub async fn thread_client(l: &Listening, thread: &ThreadId) -> Client {
     mcp_client(&l.base, &token).await
 }
 
-/// A client holding a new grant on the app's project: an external agent's.
+/// A new external connection to `projects`, as the person issues one in
+/// Settings: its id and its bearer token.
+pub async fn connect(l: &Listening, projects: &[ProjectId]) -> (ExternalConnectionId, String) {
+    let issued = l
+        .app
+        .core
+        .grants()
+        .issue_external(
+            format!("connect-{}", uuid::Uuid::new_v4()),
+            projects.to_vec(),
+        )
+        .await
+        .unwrap();
+    let token = issued.token.expect("a new connection shows its token");
+    (issued.connection.id, token)
+}
+
+/// An external agent's client: a new connection to `projects`, its calls
+/// selecting `project`. Answers the connection's grant on `project`, which
+/// writes as the agent.
+pub async fn connection_client(
+    l: &Listening,
+    projects: &[ProjectId],
+    project: &ProjectId,
+) -> (GrantId, Client) {
+    let (connection, token) = connect(l, projects).await;
+    let grant = l
+        .app
+        .core
+        .grants()
+        .external_project(&connection, project)
+        .await
+        .unwrap()
+        .id;
+    let mut client = mcp_client(&l.base, &token).await;
+    client.connection = Some(connection);
+    client.project = Some(project.clone());
+    (grant, client)
+}
+
+/// An external agent's client, connected to the app's project only.
 pub async fn project_client(l: &Listening) -> (GrantId, Client) {
-    let (grant, token) = issue_grant(&l.app, "project", &l.app.project, None).await;
-    (grant, mcp_client(&l.base, &token).await)
+    let project = l.app.project.clone();
+    connection_client(l, std::slice::from_ref(&project), &project).await
+}
+
+/// The person revokes `client`'s connection: its access stops.
+pub async fn revoke_connection(l: &Listening, client: &Client) {
+    l.app
+        .core
+        .grants()
+        .revoke_external(
+            format!("revoke-{}", uuid::Uuid::new_v4()),
+            client.connection(),
+        )
+        .await
+        .unwrap();
 }
