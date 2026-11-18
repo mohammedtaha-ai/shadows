@@ -30,6 +30,7 @@
 # parameters reach this service.
 
 name: plans
+external_connections: External MCP reads resolve dependency previews and diagnostics within the selected project. Connection writers cannot add dependencies on another project's plans. Draft references stay bound to the scoped project grant.
 # approve_plan_with validates Planner authority transactionally and records §24 provenance.
 version: 2
 status: current

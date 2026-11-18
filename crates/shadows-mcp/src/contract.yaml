@@ -8,6 +8,7 @@
 # ThreadsError is translated through CoreError with unchanged responses.
 # CodebaseError converts through CoreError to preserve the MCP scope and storage envelope.
 name: shadows-mcp
+external_connections: The external tool set includes project_list restricted to the credential's selected live projects. Other external calls require project_id and bind a project grant before dispatch. A linked project's slug cannot widen that project scope.
 version: 1
 status: current
 source: crates/shadows-mcp/src

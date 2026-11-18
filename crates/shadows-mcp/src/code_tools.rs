@@ -9,8 +9,8 @@ use rmcp::{
     tool, tool_router,
 };
 use serde::Deserialize;
-use shadows_core::Grant;
 use shadows_core::{Asker, CodebaseError, InventoryQuery, LspOperation, LspQuestion};
+use shadows_core::{Grant, GrantKind};
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
 struct LspArgs {
@@ -78,10 +78,12 @@ impl Shadows {
             query: args.query,
             project: args.project,
         };
-        let asked = self
-            .core
-            .codebase()
-            .lsp(Asker::Grant(&grant.project_id), question);
+        let asker = if grant.kind == GrantKind::Project {
+            Asker::External(&grant.project_id)
+        } else {
+            Asker::Grant(&grant.project_id)
+        };
+        let asked = self.core.codebase().lsp(asker, question);
         answer(asked.await.map_err(Refusal::from))
     }
 

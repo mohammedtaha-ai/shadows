@@ -20,7 +20,13 @@ use rmcp::service::RequestContext;
 use rmcp::{ErrorData, RoleServer, ServerHandler};
 
 use shadows_core::AppCore;
-use shadows_core::{Grant, GrantKind};
+use shadows_core::GrantKind;
+
+use super::{
+    auth::Credential,
+    external_tools::{PROJECT_LIST, external_schema, take_project},
+    refusal::{Refusal, answer},
+};
 
 /// Every tool once, and each grant kind's share of them, built once per
 /// daemon: a stateless server makes a handler for every request.
@@ -31,6 +37,7 @@ struct Routers {
     every: ToolRouter<Shadows>,
     thread: ToolRouter<Shadows>,
     project: ToolRouter<Shadows>,
+    external: ToolRouter<Shadows>,
     executor: ToolRouter<Shadows>,
 }
 
@@ -42,7 +49,8 @@ impl Tools {
             + Shadows::agreement_tool_router()
             + Shadows::workspace_tool_router()
             + Shadows::decision_tool_router()
-            + Shadows::run_tool_router();
+            + Shadows::run_tool_router()
+            + Shadows::external_tool_router();
         let only = |names: &[&str]| {
             let mut router = every.clone();
             for tool in every.list_all() {
@@ -57,10 +65,12 @@ impl Tools {
             only(shadows_core::Grants::tools_for(GrantKind::Project)),
             only(shadows_core::Grants::tools_for(GrantKind::Executor)),
         );
+        let external = project.clone() + Shadows::external_tool_router();
         Self(Arc::new(Routers {
             every,
             thread,
             project,
+            external,
             executor,
         }))
     }
@@ -89,11 +99,11 @@ impl Shadows {
 
 /// The grant `auth.rs` admitted this request with. Every request reaching a
 /// handler passed it, so its absence is the daemon's own defect.
-fn grant_of(context: &RequestContext<RoleServer>) -> Result<Grant, ErrorData> {
+fn grant_of(context: &RequestContext<RoleServer>) -> Result<Credential, ErrorData> {
     context
         .extensions
         .get::<Parts>()
-        .and_then(|parts| parts.extensions.get::<Grant>())
+        .and_then(|parts| parts.extensions.get::<Credential>())
         .cloned()
         .ok_or_else(|| {
             tracing::error!("mcp.request_without_grant");
@@ -119,7 +129,17 @@ impl ServerHandler for Shadows {
             .is_some_and(|v| v >= ProtocolVersion::V_2026_07_28);
         Ok(ListToolsResult {
             result_type: Some(ResultType::COMPLETE),
-            tools: self.tools.of(grant.kind).list_all(),
+            tools: match grant {
+                Credential::Scoped(grant) => self.tools.of(grant.kind).list_all(),
+                Credential::External(_) => self
+                    .tools
+                    .0
+                    .external
+                    .list_all()
+                    .into_iter()
+                    .map(external_schema)
+                    .collect(),
+            },
             meta: None,
             next_cursor: None,
             ttl_ms: hints.then_some(0),
@@ -129,13 +149,45 @@ impl ServerHandler for Shadows {
 
     async fn call_tool(
         &self,
-        request: CallToolRequestParams,
+        mut request: CallToolRequestParams,
         mut context: RequestContext<RoleServer>,
     ) -> Result<CallToolResponse, ErrorData> {
         let grant = grant_of(&context)?;
-        let router = self.tools.of(grant.kind);
-        // Put where a tool's `Extension<Grant>` argument reads it.
-        context.extensions.insert(grant);
+        let router = match grant {
+            Credential::Scoped(grant) => {
+                let kind = grant.kind;
+                context.extensions.insert(grant);
+                self.tools.of(kind)
+            }
+            Credential::External(connection) => {
+                let router = &self.tools.0.external;
+                if request.name == PROJECT_LIST {
+                    context.extensions.insert(connection);
+                } else if router.get(&request.name).is_some() {
+                    let project = match take_project(&mut request) {
+                        Ok(project) => project,
+                        Err(error) => {
+                            return Ok(CallToolResponse::Complete(answer::<()>(Err(error))));
+                        }
+                    };
+                    let grant = match self
+                        .core
+                        .grants()
+                        .external_project(&connection.id, &project)
+                        .await
+                    {
+                        Ok(grant) => grant,
+                        Err(error) => {
+                            return Ok(CallToolResponse::Complete(answer::<()>(Err(
+                                Refusal::from(shadows_core::CoreError::from(error)),
+                            ))));
+                        }
+                    };
+                    context.extensions.insert(grant);
+                }
+                router
+            }
+        };
         router
             .call(ToolCallContext::new(self, request, context))
             .await

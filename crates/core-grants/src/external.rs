@@ -1,9 +1,9 @@
 //! External connections issue one credential for an explicit set of projects.
 
-use core_db::{CommandContext, newtype_id};
+use core_db::{CommandContext, StorageError, Tx, newtype_id};
 use core_projects::ProjectId;
 
-use crate::{Grant, Grants, GrantsError};
+use crate::{Grant, Grants, GrantsError, Writer, store::GrantsStore};
 
 newtype_id! {
     /// Identity of one external MCP connection.
@@ -80,5 +80,12 @@ impl Grants {
         project: &ProjectId,
     ) -> Result<Grant, GrantsError> {
         self.store.external_project(connection, project).await
+    }
+
+    pub async fn connection_scope_in(tx: &mut Tx, writer: &Writer) -> Result<bool, StorageError> {
+        match writer {
+            Writer::External { grant } => GrantsStore::connection_scope_in(tx, grant).await,
+            _ => Ok(false),
+        }
     }
 }

@@ -3,15 +3,14 @@
 # Durable journal publication converts owned ids directly to core-db JournalEntry.
 # Database infrastructure: core-db; domain rules and private stores remain here.
 # Owns MCP grants from issue to revocation (spec §13.7): a person's issue and
-# revoke of an external agent's project grant, the bearer check `/mcp` asks of
+# revoke of an external connection, the bearer check `/mcp` asks of
 # every request, and startup's revocation of every thread grant an earlier
 # daemon left live (§14.4).
 #
 # A token exists in clear only between `Token::generate` and the one answer
 # that issues it. The row keeps its SHA-256 (`hash_token`), no event carries
 # either, and `Token`'s Debug prints `Token(shd_…)`. A replayed issue answers
-# the grant with no token and no `claude mcp add` line: it cannot show a token
-# it never kept.
+# the connection without the token.
 #
 # A grant is live while `revoked_at` is NULL. Two readers judge that: the
 # bearer check (`authorize`, through `grant_for_token`) before a tool runs,
@@ -33,6 +32,7 @@ external_connections:
   issue: Require a nonempty, normalized set of live project ids. Persist the connection hash and one scoped grant per project in the same transaction. Only the first response contains the token.
   list: Return authorized project ids for each connection, with no credential material.
   authorize: Resolve a connection bearer by hash. Select an active child grant only for a live project on that connection.
+  connection_scope_in: Identify a connection writer inside a service's transaction for project-local operations.
   revoke: Revoke the connection and every child scope in one transaction. Command replay does not append more events.
   cutover: Previously issued project credentials are revoked by migration. Child grants identify writes and cannot authenticate directly.
 
@@ -59,6 +59,7 @@ shapes:
     # `command` names. It differs from the configured address on port 0.
     mcp_url: String
   IssuedView:
+    # Test-only legacy response.
     grant: Grant
     # The bearer in clear, first issue only; `None` on a replay.
     token: Option<String>

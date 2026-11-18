@@ -16,6 +16,7 @@ impl GraphRows {
         conn: &mut SqliteConnection,
         source: &Plan,
         ops: &[PlanOp],
+        project_only: bool,
     ) -> Result<(), crate::PlansError> {
         for op in ops {
             let PlanOp::LinkPut { link } = op else {
@@ -30,7 +31,18 @@ impl GraphRows {
                     "use a local task number for a link inside this plan".to_string(),
                 ));
             }
-            let Some((project, version, _)) = GraphRows::owner(conn, plan_id).await? else {
+            let owner = GraphRows::owner(conn, plan_id).await?;
+            if project_only
+                && !owner
+                    .as_ref()
+                    .is_some_and(|(project, _, _)| *project == source.project_id)
+            {
+                return Err(core_grants::GrantsError::GrantScopeMessage(
+                    "The linked plan must belong to the selected project.".into(),
+                )
+                .into());
+            }
+            let Some((project, version, _)) = owner else {
                 return Err(invalid(format!("plan {plan_id} T{task} is unavailable")));
             };
             if !codebase::Codebase::project_reachable_in(conn, &source.project_id, &project).await?
@@ -102,8 +114,11 @@ impl GraphRows {
         conn: &mut SqliteConnection,
         root: &Plan,
         origin: Option<&ProjectId>,
+        project_only: bool,
     ) -> Result<Vec<Problem>, StorageError> {
-        Ok(Self::check(conn, root, origin, None).await?.problems)
+        Ok(Self::check(conn, root, origin, None, project_only)
+            .await?
+            .problems)
     }
 
     pub(super) async fn check(
@@ -111,6 +126,7 @@ impl GraphRows {
         root: &Plan,
         origin: Option<&ProjectId>,
         candidate: Option<&PlanContent>,
+        project_only: bool,
     ) -> Result<GraphCheck, StorageError> {
         use super::phase_refs::{PhaseRows, VersionSnapshot};
         let mut root_version = VersionSnapshot::from_plan(root);
@@ -165,8 +181,18 @@ impl GraphRows {
                 let target = match &link.after {
                     TaskParent::Local(_) => source.clone(),
                     TaskParent::Plan { plan_id, task } => {
-                        let Some((project, workflow, title)) = Self::owner(conn, plan_id).await?
-                        else {
+                        let owner = Self::owner(conn, plan_id).await?;
+                        if project_only
+                            && !owner
+                                .as_ref()
+                                .is_some_and(|(project, _, _)| *project == root.project_id)
+                        {
+                            problems.push(Problem::new(format!(
+                                "T{number} links to a plan outside the selected project or unavailable"
+                            )));
+                            continue;
+                        }
+                        let Some((project, workflow, title)) = owner else {
                             problems.push(Problem::new(format!(
                                 "T{number} links to unavailable plan {plan_id} T{task}"
                             )));

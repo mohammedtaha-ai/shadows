@@ -39,7 +39,10 @@ impl GrantsStore {
     pub(crate) async fn list_external(&self) -> Result<Vec<ExternalConnection>, StorageError> {
         let mut tx = self.storage.reader().begin().await?;
         let ids: Vec<String> = sqlx::query_scalar(
-            "SELECT id FROM external_connection ORDER BY julianday(created_at) DESC, id",
+            "SELECT c.id FROM external_connection c
+             JOIN durable_event e ON e.kind = 'ExternalConnectionIssued'
+                AND json_extract(e.payload_json, '$.connection_id') = c.id
+             ORDER BY e.seq DESC",
         )
         .fetch_all(&mut *tx)
         .await?;
@@ -124,6 +127,20 @@ impl GrantsStore {
             .await?
             .filter(|grant| grant.revoked_at.is_none())
             .ok_or(GrantsError::GrantInvalid)
+    }
+}
+
+impl GrantsStore {
+    pub(crate) async fn connection_scope_in(
+        tx: &mut Tx,
+        grant: &GrantId,
+    ) -> Result<bool, StorageError> {
+        Ok(sqlx::query_scalar(
+            "SELECT EXISTS(SELECT 1 FROM external_connection_project WHERE grant_id = ?)",
+        )
+        .bind(grant.as_str())
+        .fetch_one(tx)
+        .await?)
     }
 }
 

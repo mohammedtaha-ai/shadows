@@ -505,6 +505,7 @@ file disagrees with either, they are right and this file is the defect.
 | `crates/shadows-http/src/standards.rs` | standards HTTP translation | `crates/shadows-http/src/contract.yaml` |
 | `crates/shadows-http/src/transport.rs` | shared HTTP request handling | `crates/shadows-http/src/contract.yaml` |
 | `crates/shadows-mcp/src/code_tools.rs` | code query MCP translation | `crates/shadows-mcp/src/contract.yaml` |
+| `crates/shadows-mcp/src/external_tools.rs` | project selection for external MCP calls | `crates/shadows-mcp/src/contract.yaml` |
 | `crates/shadows-mcp/src/turn_tools.rs` | plan display MCP translation | `crates/shadows-mcp/src/contract.yaml` |
 
 | `crates/shadows-http/src/adapter_agreements_tests.rs` | adapter entry point agreements | `crates/shadows-http/src/contract.yaml` |

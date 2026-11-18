@@ -28,6 +28,26 @@ impl PlansStore {
         origin: Option<&ProjectId>,
         project: Option<&str>,
     ) -> Result<Plan, crate::PlansError> {
+        self.read_plan(workflow, origin, project, false).await
+    }
+
+    /// An external connection may read the selected project only, including
+    /// the resolved task and phase previews attached to that plan.
+    pub(crate) async fn get_external_plan(
+        &self,
+        workflow: &WorkflowId,
+        project: &ProjectId,
+    ) -> Result<Plan, crate::PlansError> {
+        self.read_plan(workflow, Some(project), None, true).await
+    }
+
+    async fn read_plan(
+        &self,
+        workflow: &WorkflowId,
+        origin: Option<&ProjectId>,
+        project: Option<&str>,
+        external: bool,
+    ) -> Result<Plan, crate::PlansError> {
         let mut snapshot = self
             .storage
             .reader()
@@ -48,10 +68,15 @@ impl PlansStore {
                 return Err(core_grants::GrantsError::GrantScope.into());
             }
         }
-        let mut plan = ReadRows::load_plan(&mut snapshot, workflow, origin).await?;
+        let mut plan =
+            ReadRows::load_plan_in_scope(&mut snapshot, workflow, origin, external).await?;
         plan.linked_tasks = super::linked::LinkedRows::read(&mut snapshot, &plan, origin).await?;
         plan.linked_phases =
             super::phase_projection::PhaseProjection::read(&mut snapshot, &plan).await?;
+        if external {
+            plan.linked_tasks
+                .retain(|link| link.project_id.as_ref() == Some(&plan.project_id));
+        }
         snapshot.commit().await.map_err(StorageError::from)?;
         Ok(plan)
     }
@@ -217,6 +242,15 @@ impl ReadRows {
         id: &WorkflowId,
         origin: Option<&ProjectId>,
     ) -> Result<Plan, StorageError> {
+        Self::load_plan_in_scope(conn, id, origin, false).await
+    }
+
+    async fn load_plan_in_scope(
+        conn: &mut SqliteConnection,
+        id: &WorkflowId,
+        origin: Option<&ProjectId>,
+        external: bool,
+    ) -> Result<Plan, StorageError> {
         let (
             project,
             version,
@@ -299,7 +333,7 @@ impl ReadRows {
         if plan.state == WorkflowState::Draft {
             plan.blockers = Rules::approval_problems(&plan.content());
             plan.blockers
-                .extend(super::graph::GraphRows::blockers(conn, &plan, origin).await?);
+                .extend(super::graph::GraphRows::blockers(conn, &plan, origin, external).await?);
         }
         Ok(plan)
     }
