@@ -66,7 +66,7 @@ pub(super) fn take_project(request: &mut CallToolRequestParams) -> Result<Projec
     let args = request.arguments.get_or_insert_with(Default::default);
     if args.remove("project").is_some_and(|value| !value.is_null()) {
         return Err(Refusal::scope(
-            "select the target directly with project_id from project_list",
+            "name the target only by project_id, as project_list returns it",
         ));
     }
     match args.remove("project_id") {
