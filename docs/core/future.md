@@ -65,7 +65,6 @@ written beyond the vision). A feature leaves this list when it is delivered.
 | Linux containment | The adapter dies with a crashed daemon on Linux too | idea | [§1.5 OPEN](specs/2026-09-21-architecture-design.md) |
 | Remote approvals and external authority | A person confirms an approval away from the machine, and the proof is checked outside the Planner | planned | [§24.6 OPEN](specs/2026-10-08-approval-authority-design.md#246-external-human-confirmation-and-assessment) |
 | A task on a file that is not there | Plans refuses a task whose contract file is `modify` or `delete` and is missing from the project's inventory (Code), catching a task written from a guessed layout | planned: ruled by Mohammed on 2026-11-18, B-167 | [§17 "The task contract"](specs/2026-10-01-task-contracts-and-evidence-design.md#the-task-contract) |
-| What a Planner reads outside the project | Claude's `Read` and Codex's read-only sandbox can read any file the account can (`~/.ssh`, another project's `.env`); only the instructions keep the Planner in the project | idea (waits for a ruling, 2026-11-11) | same plan at `c604d06c` |
 | Independent code-intelligence package | A code index any MCP client can use without Core or AYLUL running | planned | [service design](../code-intelligence/specs/2026-10-18-code-intelligence-service-design.md), [stages](../code-intelligence/stages.md) |
 
 ## Housekeeping
