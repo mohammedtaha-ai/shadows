@@ -17,7 +17,8 @@ at `449d4f95` (PR #70). Its plan is `docs/backend/plans/2026-11-09-local-deliver
 `449d4f95`. Executor choices per task, the Codex protocol check and global external connections are on
 `main` (PR #71, `0e281585`). Plan progress for a plan version, the fix that keeps one delivery's storage
 error from stalling the other groups, and the slice 4 and structure-and-depth live records are on `main`
-(PR #72, `753b26a4`). Now: B-159, the browser acceptance of executor choices (below).
+(PR #72, `753b26a4`). Executor choices were accepted by Mohammed in the browser on 2026-11-18 (B-159).
+No backend task is open.
 
 ### Shipped
 
@@ -49,6 +50,7 @@ A shipped task's entry, and its plan once deleted, are in this file in Git at th
 | #70 | Slice 6: stop control, interruption, project rechecks and decisions (plan `docs/backend/plans/2026-11-16-slice-6-stop-control.md` at `449d4f95`; accepted in the browser on `testing6`, 2026-11-16) | B-117, B-152, B-153, B-154, B-105, B-118; F-121 to F-124 | `449d4f95` |
 | #71 | Executor choices per task, the Codex protocol check (plan `docs/backend/plans/2026-11-18-codex-protocol-check.md` at `0e281585`), global external connections (plan `docs/backend/plans/2026-11-18-external-agent-connections.md` at `0e281585`; [spec](specs/2026-11-18-external-agent-connections-design.md)); executor choices plan at `0e281585`, shared request `docs/shared/requests/2026-11-18-executor-choices.md` at `0e281585` | B-155 to B-158, B-160, B-161; F-125 | `0e281585` |
 | #72 | Plan progress for a plan version (B-163, F-127), one delivery's start failure refused without stalling the others (B-162), slice 4's live tests and the planned-consumer fix (B-164, B-166; evidence `docs/evidence/2026-11-18-slice-4-live.md`), structure and depth on a real provider (B-165; evidence `docs/evidence/2026-11-18-structure-and-depth-live.md`), Settings › Code as one row (F-126), visual acceptances (F-128; evidence `docs/evidence/2026-11-18-visual-acceptance.md`) | B-162 to B-166; F-126 to F-128 | `753b26a4` |
+| — | Executor choices accepted by Mohammed in the browser (2026-11-18); the signed-in live tests were not recorded. Its plan is deleted (`docs/backend/plans/2026-11-18-executor-choices.md` at `7029198`) | B-159 | `7029198` |
 
 Replaced or dropped without being built: B-97, B-98, B-119 (by slice 2), B-102, B-110 (with the
 critic), B-112 (by the Planner's judgment), B-115, B-116 (by B-125 and B-126). Their entries are in
@@ -65,7 +67,7 @@ this file at `db760593`.
 - Recorded acceptances: §10 of the AYLUL agents design (2026-11-03, desktop app); planner context slices
   1 and 2 (evidence `docs/evidence/2026-11-04-planner-context-probe.md` at `4031168f`); slice 2's language servers on
   `testing4` (2026-11-13); slice 4's browser acceptance on `testing4` (2026-11-14, B-149); slice 6's
-  browser acceptance on `testing6` (2026-11-16, B-118).
+  browser acceptance on `testing6` (2026-11-16, B-118); executor choices in the browser (2026-11-18, B-159).
 - Slice 4's live tests ran on 2026-11-18 (`docs/evidence/2026-11-18-slice-4-live.md`): 7 pass; `live_executor_asks_about_a_planned_consumer` failed and passes since the fix in `docs/backend/stages.md` at `753b26a4`.
 - Slice 6's live test (`stop_control_live`) and its evidence file were dropped (Mohammed, 2026-11-16).
 - B-150 keeps its own per-thread message queue beside Turns' queue; reusing Turns' queue needs the executor session restored by thread.
@@ -73,10 +75,4 @@ this file at `db760593`.
 
 ## Open
 
-### B-159 · Acceptance in the browser
-
-- Status: todo (needs Mohammed's browser run and the signed-in live tests; B-155 to B-158, B-160, B-161 and F-125 are on `main` at `0e281585`)
-- Plan: [B-159](plans/2026-11-18-executor-choices.md#task-b-159-acceptance-in-the-browser).
-- Owner: integration acceptance through AppCore and the real UI.
-- Touch: the task's Files list in the plan.
-- Done when: the browser journey and its logs, and the named signed-in live tests (or "not run" with the reason), are recorded in evidence.
+None.

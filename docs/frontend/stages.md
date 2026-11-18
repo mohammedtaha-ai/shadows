@@ -6,7 +6,7 @@ here and set its status. Task shape: [`AGENTS.md`](./AGENTS.md#a-task-in-stagesm
 ## Now
 
 No frontend task is open on this branch. F-125 (choose an executor on a task or in a new conversation)
-is on `main` at `0e281585` (PR #71); its live acceptance is Mohammed's. The two leftovers under
+was accepted by Mohammed in the browser on 2026-11-18 (B-159). The two leftovers under
 "Known and left" below are Mohammed's too.
 
 ### Shipped
