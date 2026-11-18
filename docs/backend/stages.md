@@ -57,7 +57,7 @@ this file at `db760593`.
   holds back every group's turn endings until it links (`crates/core-messages/src/deliveries.rs`);
   bounding it would drop a running turn's reply. Dispatch of other groups continues (B-162).
 - `Plans::owner_thread` (planner context spec §6, slice 4) waits for messaging slice 3.
-- Real-provider acceptance of structure and depth slices 1 to 5 is not recorded.
+- Structure and depth slices 1 to 5 ran on a real provider on 2026-11-18 (`docs/evidence/2026-11-18-structure-and-depth-live.md`); the FastAPI example and the two-layers-at-one-place refusal were not run live.
 - Recorded acceptances: §10 of the AYLUL agents design (2026-11-03, desktop app); planner context slices
   1 and 2 (evidence `docs/evidence/2026-11-04-planner-context-probe.md` at `4031168f`); slice 2's language servers on
   `testing4` (2026-11-13); slice 4's browser acceptance on `testing4` (2026-11-14, B-149); slice 6's
@@ -158,7 +158,7 @@ this file at `db760593`.
 
 ### B-165 · Structure and depth on a real provider
 
-- Status: todo
+- Status: done (`docs/evidence/2026-11-18-structure-and-depth-live.md`; Mohammed confirms)
 - Plan: none. Slices 1 to 5 of `specs/2026-11-05-structure-and-depth-design.md` have no
   real-provider acceptance. In the browser on an existing project, with the real Planner on
   Claude Code: the Planner proposes a map of parts, the person approves it, a part's waiver with
