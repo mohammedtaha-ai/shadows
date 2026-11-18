@@ -602,6 +602,61 @@ async fn a_failed_turn_writes_a_notice_and_the_next_delivery_starts() {
 }
 
 #[tokio::test]
+async fn a_delivery_failing_on_storage_is_refused_and_other_groups_still_dispatch() {
+    let tmp = tempfile::tempdir().unwrap();
+    let app = world(tmp.path()).await;
+    let alpha = create(&app, "alpha", "Alpha group", &["alpha"]).await;
+    let beta = create(&app, "beta", "Beta group", &["beta"]).await;
+    let ids = [&alpha, &beta].map(|group| group["id"].as_str().unwrap().to_owned());
+    // Candidates go in group order, so the stuck group is the one read first.
+    let (stuck, other) = if ids[0] < ids[1] {
+        (&ids[0], &ids[1])
+    } else {
+        (&ids[1], &ids[0])
+    };
+    let sql = format!(
+        "CREATE TRIGGER stuck_start BEFORE UPDATE OF state ON message_delivery
+         WHEN NEW.state='starting' AND NEW.group_id='{stuck}'
+         BEGIN SELECT RAISE(ABORT, 'storage refused'); END"
+    );
+    app.storage
+        .write_txn_as(move |conn| {
+            Box::pin(async move {
+                sqlx::query(sqlx::AssertSqlSafe(sql)).execute(conn).await?;
+                Ok::<_, shadows_core::StorageError>(())
+            })
+        })
+        .await
+        .unwrap();
+    let stuck_path = format!("/api/groups/{stuck}/messages");
+    let other_path = format!("/api/groups/{other}/messages");
+    say(&app, &stuck_path, "stuck", "Hello").await;
+    say(&app, &other_path, "other", "Hello").await;
+    app.core.start_messages_for_test();
+    let rows = messages_until(&app, &other_path, |rows| rows.len() >= 2).await;
+    assert_eq!(rows[1]["body"], "hello from fake_acp", "{rows:?}");
+    let rows = messages_until(&app, &stuck_path, |rows| rows.len() >= 2).await;
+    assert_eq!(rows[1]["kind"], "notice", "{rows:?}");
+    assert!(
+        rows[1]["body"]
+            .as_str()
+            .unwrap()
+            .ends_with("could not answer: the turn could not be started"),
+        "{rows:?}"
+    );
+    let state: String = sqlx::query_scalar("SELECT state FROM message_delivery WHERE group_id=?")
+        .bind(stuck)
+        .fetch_one(app.storage.reader())
+        .await
+        .unwrap();
+    assert_eq!(state, "failed");
+    app.core
+        .shut_down(Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
 async fn parallel_mentions_stop_at_ten_deliveries_with_one_notice() {
     let tmp = tempfile::tempdir().unwrap();
     let app = world(tmp.path()).await;

@@ -53,8 +53,9 @@ this file at `db760593`.
 
 ### Known and left
 
-- A persistent storage error while starting a delivery retries forever and stalls dispatch for every
-  group (`crates/core-messages/src/deliveries.rs`).
+- A delivery whose turn started but whose link keeps failing on storage retries without a bound and
+  holds back every group's turn endings until it links (`crates/core-messages/src/deliveries.rs`);
+  bounding it would drop a running turn's reply. Dispatch of other groups continues (B-162).
 - `Plans::owner_thread` (planner context spec §6, slice 4) waits for messaging slice 3.
 - Real-provider acceptance of structure and depth slices 1 to 5 is not recorded.
 - Recorded acceptances: §10 of the AYLUL agents design (2026-11-03, desktop app); planner context slices
@@ -78,7 +79,9 @@ this file at `db760593`.
 
 ### B-162 · A delivery's storage error no longer stalls every group
 
-- Status: todo
+- Status: done (the test is `a_delivery_failing_on_storage_is_refused_and_other_groups_still_dispatch`
+  in `crates/shadows/tests/group_routes.rs`, beside the other dispatch tests: core-messages' own
+  tests cannot build `Turns`)
 - Plan: none; the defect is the "Known and left" entry above, written here in full.
   `Messages::dispatch_ready` (`crates/core-messages/src/deliveries.rs`) returns the first
   storage error of any candidate with `?`, so one delivery whose start keeps failing on storage

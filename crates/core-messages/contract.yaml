@@ -54,6 +54,8 @@ obligations:
     tested_by: [a_group_is_created_written_to_and_read_back, a_reply_without_member_mentions_wakes_no_one, a_reply_mentioning_another_member_reaches_it, a_reply_to_mohammed_only_wakes_no_one_and_marks_needs_you]
   - rule: One cause schedules at most three rounds and ten deliveries, with one limit notice.
     tested_by: [parallel_mentions_stop_at_ten_deliveries_with_one_notice, a_reply_mentioning_another_member_reaches_it]
+  - rule: A delivery whose start fails does not stop other deliveries; after three failed starts it is refused with a notice in its group. A failed link retries without a bound and holds back turn endings until it links.
+    tested_by: [a_delivery_failing_on_storage_is_refused_and_other_groups_still_dispatch, a_turn_that_ends_before_its_link_is_still_recorded]
   - rule: A failed turn writes a notice and the member's next delivery starts.
     tested_by: [a_failed_turn_writes_a_notice_and_the_next_delivery_starts]
   - rule: A busy session can release its lease without a journal event; its delivery remains retryable.
