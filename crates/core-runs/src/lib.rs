@@ -52,7 +52,8 @@ pub use model::{
     AttemptId, AttemptNotice, AttemptOrigin, AttemptState, CheckOutcome, CheckResult,
     ConflictDelivery, ConflictEvidence, ConflictInput, DoneMark, FileDiff, LessonAttempt,
     LessonCommand, LiveAttempt, Need, ReadyGroup, ReadyTask, RecheckFailure, RecheckNotice,
-    RecoverReport, ReportedCheck, ReportedOutcome, StartAnswer, TaskConflict, TaskLesson, TaskRun,
+    RecoverReport, ReportedCheck, ReportedOutcome, StartAnswer, TaskConflict, TaskLesson,
+    TaskProgress, TaskRun,
 };
 pub use model::{Chooser, ExecutorChoice, ExecutorInput};
 pub use question::{PlannedScope, ProducerStatus, TaskAnswer, TaskQuestion};
@@ -170,6 +171,43 @@ impl Runs {
             start: self.start_answer(&plan, task).await?,
             executor: self.inner.store.executor_choice(workflow, task).await?,
         })
+    }
+
+    /// One `TaskProgress` per task of the version, in task order: its done
+    /// mark and its latest attempt's state. NotFound, as `task` answers, for
+    /// a version that is not the plan's.
+    pub async fn progress(
+        &self,
+        workflow: &WorkflowId,
+        version: i64,
+    ) -> Result<Vec<TaskProgress>, RunsError> {
+        let plan = self.plan(workflow, version).await?;
+        let mut found = std::collections::HashMap::new();
+        for (task, done, done_at, state) in self.inner.store.progress(workflow, version).await? {
+            let entry: &mut (bool, Option<String>, Option<AttemptState>) =
+                found.entry(task).or_default();
+            if let Some(done) = done {
+                entry.0 = done;
+                entry.1 = done_at;
+            }
+            if let Some(state) = state {
+                entry.2 = AttemptState::parse(&state);
+            }
+        }
+        Ok(plan
+            .tasks
+            .iter()
+            .map(|t| {
+                let task = t.content.number;
+                let (done, done_at, state) = found.remove(&i64::from(task)).unwrap_or_default();
+                TaskProgress {
+                    task,
+                    done,
+                    done_at,
+                    state,
+                }
+            })
+            .collect())
     }
 
     /// The Planner invocation that determines where notices are delivered.

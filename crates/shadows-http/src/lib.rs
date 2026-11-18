@@ -311,6 +311,7 @@ fn plan_routes(table: OpenApiRouter<AppState>) -> OpenApiRouter<AppState> {
 fn run_routes(table: OpenApiRouter<AppState>) -> OpenApiRouter<AppState> {
     table
         .routes(routes!(runs::task))
+        .routes(routes!(runs::progress))
         .routes(routes!(runs::set_executor))
         .routes(routes!(runs::attempts, runs::start))
         .routes(routes!(runs::mark_done))

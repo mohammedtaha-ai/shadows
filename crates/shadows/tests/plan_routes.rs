@@ -408,3 +408,86 @@ async fn an_archived_plan_is_read_only_until_unarchived() {
         .await
         .unwrap();
 }
+
+/// Runs `git` in `root`, which must succeed.
+fn git(root: &std::path::Path, args: &[&str]) {
+    let out = std::process::Command::new("git")
+        .current_dir(root)
+        .args(args)
+        .output()
+        .unwrap();
+    assert!(out.status.success(), "git {args:?}: {out:?}");
+}
+
+#[tokio::test]
+async fn progress_reads_every_task_in_order() {
+    let tmp = tempfile::tempdir().unwrap();
+    let missing = acp::adapter_at(std::path::PathBuf::from("no-such-adapter"));
+    let app = app::test_app_on(tmp.path(), acp::test_config(), acp::MCP_URL, missing)
+        .await
+        .owning(tmp);
+    let project = app.core.projects().get(&app.project).await.unwrap();
+    let root = std::path::PathBuf::from(project.directory.unwrap());
+    git(&root, &["init", "-q"]);
+    git(&root, &["config", "user.email", "routes@example.invalid"]);
+    git(&root, &["config", "user.name", "Routes"]);
+    git(&root, &["config", "core.autocrlf", "false"]);
+    std::fs::write(root.join(".gitignore"), "*.sqlite3*\n").unwrap();
+    git(&root, &["add", ".gitignore"]);
+    git(&root, &["commit", "-q", "-m", "start"]);
+
+    let v1 = draft(&app).await.workflow_id;
+    let revision = edit(&app, &v1, 0, &[add(1), add(2), add(3)]).await;
+    let (status, body) = post(
+        &app,
+        &format!("/api/workflows/{v1}/approve"),
+        approve_body("approve-progress", revision),
+    )
+    .await;
+    assert_eq!(status, 200, "{body}");
+
+    let tasks = format!("/api/workflows/{v1}/versions/1/tasks");
+    let mark = json!({ "command_id": "m1", "done": true });
+    let (status, body) = call(&app, "PUT", &format!("{tasks}/1/done"), Some(mark)).await;
+    assert_eq!(status, 200, "{body}");
+    app.core
+        .runs()
+        .choose_executor_for_test(&v1, 2, "claude-code", "fake-small", Some("high"))
+        .await
+        .unwrap();
+    let start = json!({ "command_id": "s1" });
+    let (status, body) = post(&app, &format!("{tasks}/2/attempts"), start).await;
+    assert_eq!(status, 201, "{body}");
+
+    let (status, progress) = call(
+        &app,
+        "GET",
+        &format!("/api/workflows/{v1}/versions/1/progress"),
+        None,
+    )
+    .await;
+    assert_eq!(status, 200, "{progress}");
+    let rows = progress.as_array().unwrap();
+    assert_eq!(rows.len(), 3, "{progress}");
+    assert_eq!(rows[0]["task"], 1);
+    assert_eq!(rows[0]["done"], true);
+    assert!(rows[0]["done_at"].is_string(), "{progress}");
+    assert_eq!(rows[0]["state"], Value::Null);
+    assert_eq!(rows[1]["task"], 2);
+    assert_eq!(rows[1]["done"], false);
+    assert_eq!(rows[1]["done_at"], Value::Null);
+    assert_eq!(rows[1]["state"], "failed");
+    assert_eq!(
+        rows[2],
+        json!({ "task": 3, "done": false, "done_at": null, "state": null })
+    );
+
+    let (status, _) = call(
+        &app,
+        "GET",
+        &format!("/api/workflows/{v1}/versions/2/progress"),
+        None,
+    )
+    .await;
+    assert_eq!(status, 404);
+}

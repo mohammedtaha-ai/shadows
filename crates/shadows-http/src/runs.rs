@@ -14,7 +14,8 @@ use super::AppState;
 use super::failure::{ErrorBody, RunFailure, RunRefusal};
 use super::transport::Transport;
 use shadows_core::{
-    Attempt, AttemptBrief, AttemptFile, AttemptId, FileDiff, TaskConflict, TaskRun, WorkflowId,
+    Attempt, AttemptBrief, AttemptFile, AttemptId, FileDiff, TaskConflict, TaskProgress, TaskRun,
+    WorkflowId,
 };
 
 /// A task of a plan version: `/api/workflows/{workflow}/versions/{version}/tasks/{task}`.
@@ -113,6 +114,29 @@ pub(super) async fn task(
     Path((workflow, version, task)): TaskPath,
 ) -> Result<Json<TaskRun>, RunFailure> {
     Ok(Json(s.core.runs().task(&workflow, version, task).await?))
+}
+
+/// Every task of a plan version in task order: its done mark and the state
+/// of its latest attempt.
+#[utoipa::path(
+    get,
+    path = "/api/workflows/{workflow}/versions/{version}/progress",
+    tag = "runs",
+    params(
+        ("workflow" = WorkflowId, Path, description = "The plan version"),
+        ("version" = i64, Path, description = "Its version number"),
+    ),
+    responses(
+        (status = 200, body = Vec<TaskProgress>),
+        (status = 404, description = "no such plan version", body = ErrorBody),
+        (status = 500, description = "STORAGE_UNAVAILABLE", body = ErrorBody),
+    )
+)]
+pub(super) async fn progress(
+    State(s): State<AppState>,
+    Path((workflow, version)): Path<(WorkflowId, i64)>,
+) -> Result<Json<Vec<TaskProgress>>, RunFailure> {
+    Ok(Json(s.core.runs().progress(&workflow, version).await?))
 }
 
 /// The task's attempts, newest first.

@@ -291,6 +291,18 @@ pub struct TaskRun {
     pub executor: Option<ExecutorChoice>,
 }
 
+/// One task's progress on the plan page: its done mark and the state of
+/// its latest attempt, none before the first.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, utoipa::ToSchema)]
+pub struct TaskProgress {
+    pub task: u32,
+    pub done: bool,
+    #[schema(required)]
+    pub done_at: Option<String>,
+    #[schema(required)]
+    pub state: Option<AttemptState>,
+}
+
 /// What the Planner's done mark answers: the task as it now stands, and, for
 /// a done mark, the group of never-attempted tasks that may start now. Empty
 /// for a mark taken back or on a version that admits no new work. MCP only;

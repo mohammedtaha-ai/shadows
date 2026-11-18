@@ -8271,6 +8271,42 @@
         ],
         "type": "object"
       },
+      "TaskProgress": {
+        "description": "One task's progress on the plan page: its done mark and the state of\nits latest attempt, none before the first.",
+        "properties": {
+          "done": {
+            "type": "boolean"
+          },
+          "done_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "state": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AttemptState"
+              }
+            ]
+          },
+          "task": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "task",
+          "done",
+          "done_at",
+          "state"
+        ],
+        "type": "object"
+      },
       "TaskRun": {
         "description": "A task as the runs see it: marked done or not, its latest attempt, the\ntasks it needs, whether Start may run now, and the model to offer first.",
         "properties": {
@@ -17356,6 +17392,71 @@
         },
         "tags": [
           "agreements"
+        ]
+      }
+    },
+    "/api/workflows/{workflow}/versions/{version}/progress": {
+      "get": {
+        "operationId": "progress",
+        "parameters": [
+          {
+            "description": "The plan version",
+            "in": "path",
+            "name": "workflow",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/WorkflowId"
+            }
+          },
+          {
+            "description": "Its version number",
+            "in": "path",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TaskProgress"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "no such plan version"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          }
+        },
+        "summary": "Every task of a plan version in task order: its done mark and the state\nof its latest attempt.",
+        "tags": [
+          "runs"
         ]
       }
     },

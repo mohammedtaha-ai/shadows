@@ -105,6 +105,7 @@ shapes:
   # start_head, the commit HEAD named at Start (none on a branch with no commit), is stored, not served.
   Need: "{ task: TaskParent, title, done }: a task this one needs, in link order"
   TaskRun: "{ task, done, done_at, done_reason, latest, needs, start: StartAnswer, executor }"
+  TaskProgress: "{ task, done, done_at, state }: state is the latest attempt's AttemptState, null with none"
   StartAnswer: "{ allowed, code, reason }: code and reason null when allowed"
   DoneMark: "{ task: TaskRun, next: [ReadyTask] }: what the Planner's mark answers; next is ready_group's tasks for a done mark, else empty; empty too when the marked version admits no new attempt. MCP only, no route serves it"
   ReadyTask: "{ task, title, executor }: one ready task with its saved choice"
@@ -196,6 +197,7 @@ functions:
   file_for: "(grant, workflow, task, path) -> AttemptFile; file of planner_commit with path"
   task: "(workflow, version, task) -> TaskRun; needs from the version's needs links and the done marks, start from start_answer, executor the nearest saved choice along the task copy ancestry"
   attempts: "(workflow, version, task) -> Vec<Attempt>, newest first"
+  progress: "(workflow, version) -> Vec<TaskProgress>, one per task in plan order; NotFound as task for a version that is not the plan's; marks and latest attempt states in one store query; reads only"
   attempt: "(attempt) -> Attempt; one attempt as it stands, NotFound for an unknown id"
   set_first_prompt_for_tests: "test-support only: (prompt) scripts the first prompt of later attempts"
   mark_done: "(command, workflow, version, task, done, reason) -> TaskRun; the reason is trimmed, blank is none, and is in the fingerprint only when present (a mark without one fingerprints as { workflow, version, task, done }); the command record keeps every mark command: a replay writes nothing and answers before the checks rule, the same id with other input is CommandConflict; then done_checks.rule; put_mark records, in the mark's own write, judged_attempt_id: the task's latest attempt when it is Committed and still holds its scope, none for a not-done mark; put_mark answers that attempt while it is unreleased and the mark is still this command's, also on a replay, so a replay finishes the release its first call began and never frees an attempt admitted after it; that attempt is released (session closed, scope freed) unless a question to its agent is waiting or sent, when close_if_idle releases it after the reply; a fresh done mark also begins, in the same write, a recheck batch of the plan's other done tasks (rechecks), which mark_done spawns after the release"

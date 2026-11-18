@@ -102,7 +102,7 @@ this file at `db760593`.
 
 ### B-163 · One read gives every task's progress in a plan version
 
-- Status: todo
+- Status: done
 - Plan: none. The executors design (`specs/2026-11-08-executors-design.md`, "The plan page")
   promised the plan page's real progress; each task's `TaskRun` has `done`, but the plan page
   would need one call per task. Add `Runs::progress(workflow, version)` returning, in task

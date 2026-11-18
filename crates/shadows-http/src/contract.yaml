@@ -106,6 +106,7 @@ runs:
   module: runs.rs
   routes:
     - 'GET /api/workflows/{workflow}/versions/{version}/tasks/{task} -> Runs::task (TaskRun with needs, start, executor)'
+    - 'GET /api/workflows/{workflow}/versions/{version}/progress -> Runs::progress ([TaskProgress] in task order; 404 as the task read)'
     - 'PUT /api/workflows/{workflow}/versions/{version}/tasks/{task}/executor -> Runs::set_executor (ExecutorChoice)'
     - 'GET /api/workflows/{workflow}/versions/{version}/tasks/{task}/attempts -> Runs::attempts'
     - 'POST /api/workflows/{workflow}/versions/{version}/tasks/{task}/attempts -> Runs::start, 201, run detached'

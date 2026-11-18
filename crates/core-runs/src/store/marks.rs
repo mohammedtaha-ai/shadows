@@ -5,6 +5,9 @@ use core_db::{CommandContext, Storage, StorageError, Tx};
 use core_plans::WorkflowId;
 use core_threads::ThreadId;
 
+/// One row of `progress`: `(task, done, done_at, state)`.
+type ProgressRow = (i64, Option<bool>, Option<String>, Option<String>);
+
 /// The command record's scope for done marks: one id names one mark command.
 const MARK_SCOPE: &str = "run.mark_done";
 
@@ -222,5 +225,29 @@ impl RunsStore {
                 ThreadId::from_recorded(thread),
             )
         }))
+    }
+
+    /// The version's rows: one per marked task with `state` none, and one per
+    /// attempted task with its newest attempt's state and `done` none.
+    pub async fn progress(
+        &self,
+        workflow: &WorkflowId,
+        version: i64,
+    ) -> Result<Vec<ProgressRow>, RunsError> {
+        let rows: Vec<ProgressRow> = sqlx::query_as(
+            "SELECT task, done, done_at, NULL AS state FROM run_task_marks
+             WHERE workflow_id = ?1 AND version = ?2
+             UNION ALL
+             SELECT a.task, NULL, NULL, a.state FROM run_attempts a
+             WHERE a.workflow_id = ?1 AND a.version = ?2
+               AND a.number = (SELECT MAX(b.number) FROM run_attempts b
+                               WHERE b.workflow_id = a.workflow_id
+                                 AND b.version = a.version AND b.task = a.task)",
+        )
+        .bind(workflow.as_str())
+        .bind(version)
+        .fetch_all(self.storage.reader())
+        .await?;
+        Ok(rows)
     }
 }
