@@ -523,7 +523,9 @@ functions:
       # read per path, never the whole list; no touch. None when the project
       # has no directory or folder, or no scan row (first listing unfinished).
       # An excluded path (ignored, secret, link) or a path outside the
-      # project is not present. Plans' edit asks it.
+      # project is not present. Plans' edit asks it. While a later listing is
+      # written its rows change in batches, so a path may be answered from
+      # either listing; the scan row says `incomplete` until it ends.
     refresh_inventory:
       signature: "(&self, asker: Asker<'_>) -> Result<InventoryPage, CodebaseError>"
       # Projects::get, `touch`, then a `Job::Refresh` to the project's
@@ -537,10 +539,25 @@ functions:
     record_inventory:
       signature: "(&self, project: &ProjectId, dir: &Path) -> Option<FileStamps>"
       private: true
-      # `listed` on a blocking thread; nothing when the folder vanished;
-      # then `write_inventory` stamped Storage::now(). A failure is
-      # `code.inventory_failed`, never the scan's. Answers the listed files'
-      # stamps (None when the listing failed or the folder vanished).
+      # Under the project's `listing_lock`, so its listings run one at a
+      # time and an older one never writes over a newer one. `listed` on a
+      # blocking thread; nothing when the folder vanished; then
+      # `write_inventory` stamped Storage::now(). The held extensions are
+      # dropped before the write and set from the listed files after it. A
+      # failure is `code.inventory_failed`, never the scan's. Answers the
+      # listed files' stamps (None when the listing failed or the folder vanished).
+    extensions:
+      signature: "(&self, project: &ProjectId) -> Result<HashSet<String>, CodebaseError>"
+      private: true
+      # The last listing's file extensions (`extension`), held in memory from
+      # `record_inventory`; when none are held (after a restart, or while a
+      # listing is written) read once through `file_paths` and kept, unless a
+      # listing set them meanwhile. `servers` and `wanted_servers` ask it, so
+      # a turn never reads the whole list.
+    listing_lock:
+      signature: "(&self, project: &ProjectId) -> Arc<tokio::sync::Mutex<()>>"
+      private: true
+      # One lock per project, made on first use.
     follow:
       signature: "(self: FileStamps, known: &mut HashMap<String, (i64, i64)>) -> Vec<String>"
       # The paths added or changed (stamp differs) since `known`, and, when the
@@ -806,9 +823,10 @@ functions:
       signature: "(&self) -> Result<HashSet<String>, StorageError>"
     servers_added:
       signature: "(&self) -> Result<Vec<AddedRow>, StorageError>"
-    file_extensions:
-      signature: "(&self, project: &ProjectId) -> Result<HashSet<String>, StorageError>"
-      # The extensions of the listing's files (`code_inventory`), as written.
+    file_paths:
+      signature: "(&self, project: &ProjectId) -> Result<Vec<String>, StorageError>"
+      # The paths of the listing's files (`code_inventory`, kind file), by key.
+      # Reads the whole list: only `extensions` asks it, when nothing is held.
     code_file_stamp:
       signature: "(&self, project: &ProjectId, path_key: &str) -> Result<Option<(String, i64, i64)>, StorageError>"
     code_file_stamps:
@@ -856,10 +874,25 @@ functions:
       # the caller's write.
     write_inventory:
       signature: "(&self, project: &ProjectId, rows: Vec<InventoryRow>, incomplete: bool, observed_at: &str) -> Result<(), StorageError>"
-      # In store/inventory.rs. One write: nothing for a removed project;
-      # new keys inserted, changed rows updated, missing keys deleted only
-      # when complete. Generation 1 on the first write, else +1 when any row
-      # changed. Upserts the scan row.
+      # In store/inventory.rs. The stored list is read through the reader,
+      # outside any write; new keys inserted, changed rows updated, missing
+      # keys deleted only when complete, in `write_inventory_batch`es of at
+      # most BATCH_ROWS (5,000) rows, each its own write, so Shadows' one
+      # write lock is let go between them. The scan row is upserted last, in
+      # its own write: generation 1 on the first listing, which readers see as
+      # still being made until then. Nothing more is written once the project
+      # is removed (`live_in`). Its caller writes one listing of a project at a time.
+    write_inventory_batch:
+      signature: "(&self, project: &ProjectId, upserts: &[InventoryRow], gone: &[String], first: bool) -> Result<bool, StorageError>"
+      private: true
+      # One write: false and nothing written for a removed project. The first
+      # batch of a listing that changes a stored list moves its generation by
+      # one and sets `incomplete`, so a cursor from before is stale. Upserts
+      # STATEMENT_ROWS (500) rows per INSERT, under SQLite's bound-value limit.
+    live_in:
+      signature: "(conn: &mut Tx, project: &ProjectId) -> Result<bool, StorageError>"
+      private: true
+      # `Projects::require_live_in`, with NotFound as false.
     inventory_page:
       signature: "(&self, project: &ProjectId, prefix_key: &str, after_key: Option<&str>, limit: i64) -> Result<Option<StoredPage>, StorageError>"
       # One read snapshot: None without a scan row; else generation,
@@ -1178,6 +1211,16 @@ obligations:
       changed the stored entries.
     tested_by: inventory_pages_in_path_order_and_refuses_a_stale_cursor
 
+  - rule: >
+      A listing never holds Shadows' one write lock for its whole length:
+      it writes in batches, and another write lands between them.
+    tested_by: other_writes_go_on_while_a_big_listing_is_written
+
+  - rule: >
+      The servers a project wants come from its last listing held in memory,
+      so a turn does not read the whole file list.
+    tested_by: the_wanted_servers_come_from_the_listing_not_a_second_read
+
   - rule: An incomplete listing deletes nothing; a complete one removes what is gone.
     tested_by: an_incomplete_listing_deletes_nothing
     note: removing_a_file_removes_its_entry_and_moves_the_generation holds the complete side.
@@ -1227,6 +1270,17 @@ not_the_caller's:
 
 
 tests:
+  - name: other_writes_go_on_while_a_big_listing_is_written
+    checks: >
+      A folder of 30 folders of 1,000 files is listed in a spawned refresh;
+      meanwhile writes through `write_txn` read the stored row count and
+      whether the scan row exists. One of them lands with rows stored and no
+      scan row (between batches); the listing ends Ready at generation 1
+      with all 30,030 rows.
+  - name: the_wanted_servers_come_from_the_listing_not_a_second_read
+    checks: >
+      After listing a folder with src/lib.rs, the stored rows are deleted
+      by SQL; `servers` still wants rust-analyzer, from the held extensions.
   - name: hits_are_reloaded_when_indexing_finishes_before_the_stamp_check
     checks: >
       Read line 1 hits, replace the file through rename, then index line 2

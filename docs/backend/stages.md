@@ -80,7 +80,7 @@ this file at `db760593`.
 
 ### B-168 · A big project's file listing no longer stalls Shadows
 
-- Status: todo
+- Status: done (built by the controller at Mohammed's request: `write_inventory` reads outside the write and writes batches of 5,000 rows, scan row last; listings of a project run one at a time; extensions held in memory; tests `other_writes_go_on_while_a_big_listing_is_written` and `the_wanted_servers_come_from_the_listing_not_a_second_read`, both failing on the old code; the live rerun is in the evidence file)
 - Found live: `docs/evidence/2026-11-18-missing-file-refusal-live.md`, "The first listing still
   running". A first listing of 2,000,000 files took 218 s; for all of it the Planner's tool calls
   on every project got no answer (one timed out), and other projects' listings waited. After it,

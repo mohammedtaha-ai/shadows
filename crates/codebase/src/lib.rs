@@ -57,6 +57,11 @@ struct Inner {
     idle: std::sync::Mutex<Duration>,
     /// `CodebaseConfig::name_index`, as `start` set it; on before it.
     name_index: std::sync::atomic::AtomicBool,
+    /// Per project, the lock that keeps its listings one at a time.
+    listings: std::sync::Mutex<std::collections::HashMap<String, Arc<tokio::sync::Mutex<()>>>>,
+    /// Per project, its last listing's file extensions, for the servers it wants.
+    extensions:
+        std::sync::Mutex<std::collections::HashMap<String, std::collections::HashSet<String>>>,
 }
 
 /// A project's code on disk. Cheap to clone: `ProjectLifecycle`, `Turns` and `Runs`
@@ -76,6 +81,8 @@ impl Codebase {
                 uses: Default::default(),
                 idle: std::sync::Mutex::new(active::IDLE),
                 name_index: std::sync::atomic::AtomicBool::new(true),
+                listings: Default::default(),
+                extensions: Default::default(),
             }),
         }
     }
