@@ -2,7 +2,10 @@
 
 Date: 2026-10-18.
 Status: Runtime independence agreed in conversation; wire/implementation design
-is proposed for review. No replacement product has been implemented.
+is proposed for review. No replacement product has been implemented. Overtaken for Core's own
+code questions: Core runs the official language servers itself since PR #67
+([language servers design](../../backend/specs/2026-11-13-language-servers-design.md)); the
+standalone package stays an idea.
 
 This file owns the standalone service boundary. AYLUL's use of it in the
 explanation journey belongs to AYLUL's later work-profile design. Existing Shadows section 15 continues to
@@ -186,8 +189,8 @@ and AYLUL are stopped, then by two clients with distinct workspaces without cros
 results. Also test same-named symbols, client-specific cancellation, root revocation,
 worker failure and reinstall/start from an independent package artifact.
 
-The next executable work is the
-[baseline/contract-selection plan](../plans/2026-10-18-code-intelligence-baseline.md).
+The next executable work was the baseline/contract-selection plan
+(`docs/code-intelligence/plans/2026-10-18-code-intelligence-baseline.md` at `e78e07dc`).
 It produces evidence and an implementation choice, not a speculative new service.
 Replacement code starts only after its resulting package/contract plan is reviewed.
 

@@ -1,5 +1,6 @@
 use crate::{
     MessageKind, Messages, MessagesError, Speaker,
+    deliveries::Failures,
     store::{Draft, Store},
 };
 use core_events::{EndedOutcome, EndedTurn, Events};
@@ -50,8 +51,12 @@ impl Messages {
         let messages = self.clone();
         let mut committed = self.storage.watch_committed();
         let task = tokio::spawn(async move {
+            let mut failures = Failures::new();
             while !*stopping.borrow() {
-                match messages.work(&turns, &threads, &events, &stopping).await {
+                match messages
+                    .work(&turns, &threads, &events, &stopping, &mut failures)
+                    .await
+                {
                     Ok((true, _)) => continue,
                     Ok((false, busy)) => {
                         tokio::select! {
@@ -83,12 +88,17 @@ impl Messages {
         threads: &Threads,
         events: &Events,
         stopping: &watch::Receiver<bool>,
+        failures: &mut Failures,
     ) -> Result<(bool, bool), MessagesError> {
         // Reconcile starts before reading endings so a fast turn's event cannot outrun its link.
-        let busy = self.dispatch_ready(turns, stopping).await?;
+        let pass = self.dispatch_ready(turns, stopping, failures).await?;
         if *stopping.borrow() {
             return Ok((false, false));
         }
+        if pass.unlinked {
+            return Ok((false, true));
+        }
+        let busy = pass.busy;
         let mut conn = self.storage.reader().acquire().await?;
         let cursor = Store::cursor(&mut conn).await?;
         drop(conn);

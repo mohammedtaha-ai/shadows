@@ -6,8 +6,7 @@
 // of product behaviour depends on real Claude model names.
 
 import type { HarnessInfo } from '@/api/harnesses'
-import type { Plan, PlanListing, PlanTask, PlanVersions } from '@/api/workflows'
-import type { ProjectStatus } from '@/api/code'
+import type { Plan, PlanListing, PlanTask, PlanVersions, TaskProgress } from '@/api/workflows'
 import type { Project } from '@/api/projects'
 import type { Choice, SessionChoices } from '@/api/sessions'
 import type { InvocationView, Operation, PlanningThread, ThreadEntry, ToolCallCard } from '@/api/threads'
@@ -106,18 +105,6 @@ export const threadFixture: PlanningThread = {
   harness: 'claude-code',
   forked_from_thread: null,
   removed_at: null,
-}
-
-/** A project's code index, ready, by its slug. */
-export function codeStatusFixture(project: string, extra: Partial<ProjectStatus> = {}): ProjectStatus {
-  return {
-    project,
-    state: { state: 'ready' },
-    files: 277,
-    skipped: [],
-    updated_at: '2026-09-24T00:00:00Z',
-    ...extra,
-  }
 }
 
 export const invocationFixture: InvocationView = {
@@ -257,6 +244,11 @@ export function planFixture(extra: Partial<Plan> = {}): Plan {
     links: [{ task: 2, after: 1, kind: 'needs', label: 'the users table', waiting_items: [] }],
     ...extra,
   }
+}
+
+/** One task's progress: not done and no attempt unless `extra` says otherwise. */
+export function taskProgress(task: number, extra: Partial<TaskProgress> = {}): TaskProgress {
+  return { task, done: false, done_at: null, state: null, ...extra }
 }
 
 export function planListing(plan: Plan): PlanListing {

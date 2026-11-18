@@ -1884,6 +1884,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/workflows/{workflow}/versions/{version}/progress": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Every task of a plan version in task order: its done mark and the state
+         *     of its latest attempt.
+         */
+        get: operations["progress"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/workflows/{workflow}/versions/{version}/tasks/{task}": {
         parameters: {
             query?: never;
@@ -4189,6 +4209,17 @@ export interface components {
             number: number;
             state: string;
             title: string;
+        };
+        /**
+         * @description One task's progress on the plan page: its done mark and the state of
+         *     its latest attempt, none before the first.
+         */
+        TaskProgress: {
+            done: boolean;
+            done_at: string | null;
+            state: null | components["schemas"]["AttemptState"];
+            /** Format: int32 */
+            task: number;
         };
         /**
          * @description A task as the runs see it: marked done or not, its latest attempt, the
@@ -10446,6 +10477,48 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    progress: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The plan version */
+                workflow: components["schemas"]["WorkflowId"];
+                /** @description Its version number */
+                version: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskProgress"][];
+                };
+            };
+            /** @description no such plan version */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description STORAGE_UNAVAILABLE */
             500: {
                 headers: {
                     [name: string]: unknown;

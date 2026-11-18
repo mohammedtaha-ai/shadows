@@ -166,7 +166,7 @@ it is that folder's `contract.yaml`.
 | `web/src/api/transport/index.ts` | Shared generated HTTP transport | `web/src/api/contract.yaml` |
 | `web/src/api/error.ts` | Public daemon failure types | `web/src/api/contract.yaml` |
 | `web/src/api/agreements.ts` | Agreement server state | `web/src/api/contract.yaml` |
-| `web/src/api/code.ts` | Code index server state | `web/src/api/contract.yaml` |
+| `web/src/api/code.ts` | The code service's web calls | `web/src/api/contract.yaml` |
 | `web/src/api/directories.ts` | Filesystem directory server state | `web/src/api/contract.yaml` |
 | `web/src/api/harnesses.ts` | Harness capabilities server state | `web/src/api/contract.yaml` |
 | `web/src/api/native-activity.ts` | Native activity query identity | `web/src/api/contract.yaml` |
@@ -318,7 +318,7 @@ it is that folder's `contract.yaml`.
 | `web/src/app/new-project/slug.ts` | Derives a project's slug from its name | `web/src/app/new-project/contract.yaml` |
 | `web/src/app/new-project/index.ts` | Expose app/new-project public capabilities | `web/src/app/new-project/contract.yaml` |
 | `web/src/app/page-pending.tsx` | Pane shown while a lazy page loads | `web/src/app/home.tsx` |
-| `web/src/app/project-settings/code-index.tsx` | Code index status with its linked projects | `web/src/app/project-settings/contract.yaml` |
+| `web/src/app/project-settings/code-index.tsx` | The projects this one reads code from | `web/src/app/project-settings/contract.yaml` |
 | `web/src/app/project-settings/instructions-editor.tsx` | Editor for the Planner's project instructions | `web/src/app/project-settings/contract.yaml` |
 | `web/src/app/project-settings/project-modes.tsx` | Checklist of the project's allowed modes | `web/src/app/project-settings/contract.yaml` |
 | `web/src/app/project-settings/project-settings.tsx` | Project settings page, assembled from its sections | `web/src/app/project-settings/contract.yaml` |

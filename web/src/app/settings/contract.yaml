@@ -72,7 +72,7 @@ components:
     note: Each list row shows its resolved colour dot; the bound agent has a Companion tag on desktop only.
   CodeSection:
     signature: "() => JSX.Element"
-    note: Lists the open project's language servers with a switch (off warns first), install line with copy, Remove for added ones, and an add form.
+    note: One collapsible "Language servers" row with a running summary; open, it lists the wanted servers by language name with a state dot and word and a switch (off warns first, and acts in every project), "N more languages" reveals the rest, Remove for added ones, and "Add a server" opens the add form.
 
 private_helpers:
   Servers:

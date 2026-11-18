@@ -1,7 +1,7 @@
 # Slice 4: attempt context, task questions and parallel work
 
 Status: approved by Mohammed, 2026-11-14, with the request to prepare its implementation
-plan. This approval covers the design; product implementation has not started here.
+plan. This approval covers the design. It is built in PR #68 (`d73bb646`); its browser acceptance ran on 2026-11-14, and its live tests are written and not run (B-149).
 
 This is the slice 4 revision of [17.0](../../core/specs/2026-10-01-task-contracts-and-evidence-design.md#170-approved-local-delivery-revision-2026-11-09).
 It builds on the shipped [executor design](2026-11-08-executors-design.md) and

@@ -26,8 +26,6 @@ shapes:
 external:
   Project: "web/src/api/projects; id, slug, name, directory, allowed_modes"
   ProjectLink: "project, linked, created_at"
-  ProjectStatus: "state (ready | indexing | inactive | no_directory | directory_missing),
-    files, skipped, updated_at"
   InstructionsVersion: "body, number, created_at"
 
 
@@ -46,7 +44,7 @@ components:
     # One checkbox per mode each harness lists (GET /api/harnesses); a toggle sends the whole new set.
   CodeIndex:
     signature: "({ project: Project }) => JSX.Element"
-    # Index status, the links, and a picker for the unlinked projects.
+    # The projects this one reads code from, and a picker for the unlinked projects.
   RemoveProject:
     signature: "({ project: Project }) => JSX.Element"
     # The danger zone. Its Remove is off while the thread count is unknown or not zero.
@@ -56,16 +54,11 @@ pure:
     signature: "(iso: string) -> string"
     # The stored time in the reader's locale (medium date, short time); the raw
     # value when it does not parse.
-  ago:
-    signature: "(iso: string, now?: number) -> string"
-    # "2 min. ago"-style, with the locale's numeric auto. A future time reads as now.
 
 private_helpers:
   Editor:
     # The instructions text area. Keeps its base version and rebases the draft only
     # when the person has not typed since.
-    private: true
-  IndexStatus:
     private: true
   LinkedRow:
     private: true
@@ -133,17 +126,6 @@ obligations:
     tested_by:
       - "links another project, then unlinks it"
 
-  - rule: >
-      An index that is inactive still counts its files.
-    tested_by:
-      - "an inactive index still counts its files"
-
-  - rule: >
-      A missing folder counts no files in the status line; the line goes from state to date.
-    tested_by:
-      - "links another project, then unlinks it"
-    note: >
-      Checked inside the link test, not in its own test.
 
   - rule: >
       Remove is off until the conversation count is known and while it is not zero.
@@ -171,12 +153,6 @@ obligations:
     tested_by:
       - "a conversation started meanwhile is refused in the dialog, and turns Remove off"
 
-  - rule: >
-      A time less than a second in the future reads as "now", and a past time reads as
-      how long ago it was.
-    tested_by:
-      - "reads a past time as how long ago it was"
-      - "reads a time ahead of the browser clock as now"
 
 # ── agreements ───────────────────────────────────────────────────────────────────
 
@@ -256,11 +232,9 @@ tests:
     checks: "A listed harness with no modes shows the 'decided when <label> is enabled' sentence and no checklist."
   - name: "links another project, then unlinks it"
     checks: >
-      Linking PUTs the id and shows the row with its name, folder and status; the picker is
+      Linking PUTs the id and shows the row with its name and folder; the picker is
       disabled with no candidates; unlinking sends a DELETE with a command id and restores
       "Only this project.".
-  - name: "an inactive index still counts its files"
-    checks: "An inactive status shows 'Inactive · 277 files'."
   - name: "is off while the project has conversations, and says why"
     checks: "With one conversation, the text names it and Remove is disabled."
   - name: "with none, confirms, sends the command and goes home"
@@ -275,10 +249,6 @@ tests:
     checks: >
       A PROJECT_HAS_THREADS refusal shows its message in the dialog, the page stays on
       settings, and the count of one conversation disables Remove.
-  - name: "reads a past time as how long ago it was"
-    checks: "ago(two minutes before now) equals the Intl format of -2 minute."
-  - name: "reads a time ahead of the browser clock as now"
-    checks: "ago(three seconds after now) equals the Intl format of 0 second."
 
 project_cache_owner: "api/projects.ts owns saved modes, removed projects, instruction cache updates; forms preserve their existing requests and lifecycles"
 

@@ -452,18 +452,29 @@ fn called(entries: &[ThreadEntry], tool: &str) -> bool {
         .any(|e| e.kind == ThreadEntryKind::ToolCall && format!("{e:?}").contains(tool))
 }
 
-/// Answers `question` through the executor's own tool, retried for up to two
-/// minutes while gopls starts and the code half is not answered yet.
-async fn asked(client: &listening::Client, question: Value) -> Value {
+/// Starts the code service as the daemon does and waits, for up to two
+/// minutes, until gopls answers `findReferences` on Hello: the test app starts
+/// no worker, and a cold gopls can take longer than a live executor's turn.
+async fn gopls_warm(w: &World) {
+    let codebase = w.app().core.codebase();
+    let config = shadows_core::CodebaseConfig {
+        name_index: false,
+        ..shadows_core::CodebaseConfig::default()
+    };
+    codebase.start(config).await.unwrap();
+    let (_, client) = listening::project_client(&w.l).await;
+    let question = json!({
+        "operation": "findReferences", "file": "greet.go", "line": 4, "character": 6,
+    });
     let mut last = Value::Null;
     for _ in 0..60 {
-        last = listening::ok(client, "task_question", question.clone()).await;
-        if last["code"]["answer"] == "answered" {
-            return last;
+        last = listening::ok(&client, "code_lsp", question.clone()).await;
+        if last["answer"] == "answered" {
+            return;
         }
         tokio::time::sleep(Duration::from_secs(2)).await;
     }
-    panic!("the code half was never answered: {last}");
+    panic!("gopls never answered: {last}");
 }
 
 /// An executor asks about the output it builds: the plan names T2 as its
@@ -483,6 +494,7 @@ async fn live_executor_asks_about_a_planned_consumer() {
         .approved(vec![t1, banner()], vec![plan::needs(2, 1)])
         .await;
     w.planner_ready().await;
+    gopls_warm(&w).await;
     let attempt = app
         .core
         .runs()
@@ -490,20 +502,19 @@ async fn live_executor_asks_about_a_planned_consumer() {
         .await
         .unwrap();
     let client = w.executor_client(&attempt).await;
-    let answer = asked(
-        &client,
-        json!({
-            "selector": { "kind": "own" },
-            "code": {
-                "operation": "findReferences",
-                "file": "greet.go",
-                "line": 4,
-                "character": 6,
-            },
-        }),
-    )
-    .await;
+    // gopls is warm, so one question, asked at once, finds the attempt running.
+    let question = json!({
+        "selector": { "kind": "own" },
+        "code": {
+            "operation": "findReferences",
+            "file": "greet.go",
+            "line": 4,
+            "character": 6,
+        },
+    });
+    let answer = listening::ok(&client, "task_question", question).await;
     println!("live task_question answer: {answer}");
+    assert_eq!(answer["code"]["answer"], "answered", "{answer}");
     assert_eq!(answer["attempt_id"], attempt.id.as_str(), "{answer}");
     assert_eq!(answer["planned_scope"], "this_frozen_version", "{answer}");
     assert!(answer["code_error"].is_null(), "{answer}");

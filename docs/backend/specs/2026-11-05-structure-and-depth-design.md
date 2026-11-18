@@ -2,9 +2,9 @@
 
 Status: revised and approved 2026-11-06. Slices 1 to 5 are built and on `main`
 (PRs #59, #60 and #61; PR #61 is `a4f89386`). Their tasks are in
-`docs/backend/stages.md` at `a4f89386`. Mohammed owns their pending manual
-acceptance on an existing project; real-provider acceptance is not
-recorded.
+`docs/backend/stages.md` at `a4f89386`. A real-provider run on a new
+Laravel project is recorded in `docs/evidence/2026-11-18-structure-and-depth-live.md`;
+Mohammed confirms it.
 
 **Mohammed's decisions.**
 - **2026-11-05**

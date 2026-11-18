@@ -5,7 +5,7 @@ import { act } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Plan, PlanVersions } from '@/api/workflows'
 import { answers } from '@/test/fake-daemon'
-import { planFixture, planListing, planTask } from '@/test/contract-fixtures'
+import { planFixture, planListing, planTask, taskProgress } from '@/test/contract-fixtures'
 import { FakeResizeObserver, resize } from '@/test/fake-resize-observer'
 import { type TestApp, startApp, until } from '@/test/test-app'
 
@@ -244,17 +244,33 @@ describe('the plan page', () => {
     expect(a.text()).toContain('the users table')
   })
 
-  it('marks the progress block planned with the real task count and no percent', async () => {
+  it('draws the progress Core gives: the count, a third bar, a running mark and a link per task', async () => {
     const plan = planFixture({ tasks: [planTask(1, 'Schema'), planTask(2, 'API'), planTask(3, 'Screen')] })
-    const a = (app = await startApp(PAGE, answers({ plan })))
-    await until(() => a.text().includes('Plan progress'))
+    const a = (app = await startApp(PAGE, answers({ plan, progress: [
+      taskProgress(1, { done: true, done_at: '2026-11-18T00:00:00Z', state: 'committed' }),
+      taskProgress(2, { state: 'running' }),
+      taskProgress(3),
+    ] })))
+    await until(() => a.text().includes('3 tasks · 1 done'))
 
-    const block = document.querySelector('section[aria-label="Plan progress (planned)"]')
-    expect(block?.textContent).toContain('Planned')
-    expect(block?.textContent).toContain('3 tasks')
-    expect(block?.textContent).toContain('docs/shared/requests/2026-11-02-plan-task-status.md')
-    expect(block?.textContent).not.toContain('%')
-    expect(document.querySelector('[role="progressbar"]')).toBeNull()
+    const block = document.querySelector('section[aria-label="Plan progress"]')
+    expect(block?.textContent).not.toContain('Planned')
+    expect(document.querySelector('section[aria-label="Plan progress (planned)"]')).toBeNull()
+    const bar = block?.querySelector<HTMLElement>('[role="progressbar"]')
+    expect(bar?.getAttribute('aria-valuenow')).toBe('1')
+    expect(bar?.firstElementChild?.getAttribute('style')).toContain('33.3')
+    const marks = [...block?.querySelectorAll('a') ?? []]
+    expect(marks.map((m) => m.textContent)).toEqual(['T1', 'T2', 'T3'])
+    expect(marks.map((m) => m.getAttribute('data-mark'))).toEqual(['done', 'running', 'not started'])
+    expect(marks[1]?.getAttribute('href')).toContain('task=2')
+  })
+
+  it('shows "— done" and the error while the progress read fails', async () => {
+    const a = (app = await startApp(PAGE, answers({ plan: planFixture(), progress: () => Response.json(
+      { code: 'STORAGE_UNAVAILABLE', message: 'progress is unavailable' }, { status: 500 },
+    ) })))
+    await until(() => a.text().includes('progress is unavailable'))
+    expect(a.text()).toContain('2 tasks · — done')
   })
 
   it('an Arabic task title renders with dir auto', async () => {

@@ -4,10 +4,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronDown, X } from 'lucide-react'
 import { useRef } from 'react'
-import { type ProjectLink, type ProjectStatus, putCodeLink, removeCodeLink } from '@/api/code'
+import { type ProjectLink, putCodeLink, removeCodeLink } from '@/api/code'
 import { type Project } from '@/api/projects'
 import { type Attempt, attemptFor } from '@/api/command-id'
-import { codeLinksQuery, codeStatusQuery } from '@/api/code'
+import { codeLinksQuery } from '@/api/code'
 import { projectsQuery } from '@/api/projects'
 import { saveUnlinkedCodeAnswer } from '@/api/code'
 import { Button } from '@/components/ui/button'
@@ -18,10 +18,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { ErrorLine } from '../error-line'
-import { ago } from './when'
 
 export function CodeIndex({ project }: { project: Project }) {
-  const status = useQuery(codeStatusQuery(project.id))
   const links = useQuery(codeLinksQuery(project.id))
   const projects = useQuery(projectsQuery).data ?? []
 
@@ -30,13 +28,8 @@ export function CodeIndex({ project }: { project: Project }) {
 
   return (
     <section className="space-y-3">
-      <div className="space-y-1">
-        <h2 className="text-sm font-medium">Code index</h2>
-        {status.data !== undefined && <IndexStatus status={status.data} />}
-        {status.error !== null && <ErrorLine error={status.error} />}
-      </div>
       <div className="space-y-2">
-        <h3 className="text-xs text-muted-foreground">Reads code from</h3>
+        <h2 className="text-sm font-medium">Reads code from</h2>
         {links.error !== null && <ErrorLine error={links.error} />}
         {links.data !== undefined && links.data.length === 0 && (
           <p className="text-xs text-faint-foreground">Only this project.</p>
@@ -61,42 +54,7 @@ export function CodeIndex({ project }: { project: Project }) {
   )
 }
 
-/** `● Ready · 277 files · updated 2 min. ago`, coloured by the state. */
-function IndexStatus({ status }: { status: ProjectStatus }) {
-  const { state } = status
-  const [dot, label] =
-    state.state === 'ready'
-      ? ['bg-success', 'Ready']
-      : state.state === 'indexing'
-        ? ['animate-pulse bg-accent-line', `Indexing ${state.done} of ${state.found}`]
-        : state.state === 'inactive'
-          ? ['bg-faint-foreground', 'Inactive']
-          : state.state === 'no_directory'
-            ? ['bg-destructive', 'No folder']
-            : ['bg-destructive', 'Folder missing']
-  const skipped = status.skipped.reduce((sum, s) => sum + s.count, 0)
-  const parts = [
-    label,
-    // Counted only where the folder is there and its scan has ended.
-    (state.state === 'ready' || state.state === 'inactive') &&
-      `${status.files} ${status.files === 1 ? 'file' : 'files'}`,
-    skipped > 0 && `${skipped} skipped`,
-    status.updated_at != null && `updated ${ago(status.updated_at)}`,
-  ].filter((part) => part !== false)
-
-  return (
-    <p
-      className="flex items-center gap-2 text-xs text-muted-foreground"
-      // The reasons a file was left out, for whoever asks.
-      title={status.skipped.map((s) => `${s.count} ${s.reason}`).join('\n') || undefined}
-    >
-      <span aria-hidden className={`size-2 shrink-0 rounded-full ${dot}`} />
-      <span>{parts.join(' · ')}</span>
-    </p>
-  )
-}
-
-/** One project this one reads: its name, folder and index, and × to unlink. */
+/** One project this one reads: its name and folder, and × to unlink. */
 function LinkedRow({
   link,
   linked,
@@ -108,7 +66,6 @@ function LinkedRow({
   projectId: string
 }) {
   const queryClient = useQueryClient()
-  const status = useQuery({ ...codeStatusQuery(linked?.id ?? ''), enabled: linked !== undefined })
   const pending = useRef<Attempt | null>(null)
   const unlink = useMutation({
     mutationFn: ({ linkedId, commandId }: { linkedId: string; commandId: string }) =>
@@ -139,7 +96,6 @@ function LinkedRow({
               {linked.directory}
             </span>
           )}
-          {status.data !== undefined && <IndexStatus status={status.data} />}
         </span>
         <Button
           size="icon-xs"
@@ -152,7 +108,6 @@ function LinkedRow({
           <X />
         </Button>
       </div>
-      {status.error !== null && <ErrorLine error={status.error} />}
       {unlink.error !== null && <ErrorLine error={unlink.error} />}
     </li>
   )
