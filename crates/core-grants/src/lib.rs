@@ -8,6 +8,7 @@ pub use approver::{ApprovalRequest, ApprovedBy, Approver};
 pub use error::GrantsError;
 pub use writer::Writer;
 mod approval;
+mod external;
 mod store;
 #[cfg(feature = "test-support")]
 mod testing;
@@ -15,6 +16,7 @@ mod tools;
 
 use std::sync::Arc;
 
+pub use external::{ExternalConnection, ExternalConnectionId, IssuedExternalConnection};
 #[cfg(feature = "test-support")]
 pub use model::IssuedGrant;
 pub use model::{Grant, GrantId, GrantKind, TaskScope, Token};

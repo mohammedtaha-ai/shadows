@@ -306,6 +306,8 @@ pattern to follow, not merely an example.
 | `crates/core-plans/src/conversation.rs` | the plan in the conversation | `crates/core-plans/src/conversation.rs` |
 | `crates/core-grants/src/` | grant authorization | `crates/core-grants/src/lib.rs` |
 | `crates/core-grants/src/model.rs` | the grant types callers meet | `crates/core-grants/src/model.rs` |
+| `crates/core-grants/src/external.rs` | external connection lifecycle | `crates/core-grants/contract.yaml` |
+| `crates/core-grants/src/store/external.rs` | external connection persistence | `crates/core-grants/contract.yaml` |
 | `crates/core-grants/src/store/` | an MCP grant's rows, from issue to revocation | `crates/core-grants/src/store/` |
 | `crates/core-instructions/src/` | a project's numbered Planner instructions | `crates/core-instructions/src/lib.rs` |
 | `crates/core-design/src/` | a project's design workspace | `crates/core-design/src/lib.rs` |

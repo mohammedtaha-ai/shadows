@@ -27,7 +27,14 @@ version: 1
 status: current
 source: crates/core-grants/src
 
-owns_tables: [mcp_grant, draft_intent]
+owns_tables: [mcp_grant, draft_intent, external_connection, external_connection_project]
+
+external_connections:
+  issue: Require a nonempty, normalized set of live project ids. Persist the connection hash and one scoped grant per project in the same transaction. Only the first response contains the token.
+  list: Return authorized project ids for each connection, with no credential material.
+  authorize: Resolve a connection bearer by hash. Select an active child grant only for a live project on that connection.
+  revoke: Revoke the connection and every child scope in one transaction. Command replay does not append more events.
+  cutover: Previously issued project credentials are revoked by migration. Child grants identify writes and cannot authenticate directly.
 
 
 shapes:
@@ -92,6 +99,8 @@ shapes:
 
 
 modules:
+  external.rs: external connection lifecycle
+  store/external.rs: connection credentials with their project scopes
   lib.rs: grant service boundary
   model.rs: grant values without clear bearer serialization
   writer.rs: authenticated writer values
