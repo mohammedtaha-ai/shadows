@@ -170,11 +170,14 @@ cargo run at the same time.
 
 ### B-161 · Harness opens Codex on the checked version and lists the verdict
 
-- Status: doing
+- Status: todo. Built and passing, uncommitted; only the code-map row is left (Touch widened by Hamoud, 2026-11-18).
 - Plan: [B-161](plans/2026-11-18-codex-protocol-check.md#task-b-161-harness-opens-codex-on-the-checked-version-and-lists-the-verdict).
 - Owner: Harness (`Sessions`, the list, every Codex opening).
 - Read: `crates/core-harness/contract.yaml` (`list`, the executor opening, the catalog); `docs/core/specs/2026-09-24-harness-controls-design.md` (the baseline paragraph); the plan's Review Focus.
-- Touch: the task's Files list in the plan; no other path.
+- Touch: the task's Files list in the plan, and also:
+  - `crates/core-harness/src/live.rs`: the executor opening, the other caller of `ManagedConnection::open`.
+  - `docs/codebase/README.md`: one row for `crates/core-harness/src/codex_check.rs`, "the Codex protocol verdict for one daemon run", owned by `crates/core-harness/contract.yaml`, beside the `catalog.rs` row.
+  - No other path.
 - Needs: B-160.
 - Done when:
   - The seven new `codex_session` tests and the fake suites in Step 4 pass.
