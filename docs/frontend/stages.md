@@ -5,14 +5,7 @@ here and set its status. Task shape: [`AGENTS.md`](./AGENTS.md#a-task-in-stagesm
 
 ## Now
 
-### F-125 · Choose an executor on a task or in a new conversation
-
-- Status: done (automated checks passed; live acceptance is Mohammed's)
-- Plan: [Accepted executor choices request](../shared/requests/2026-11-18-executor-choices.md).
-- Read: task, conversation, API and stream contracts.
-- Touch: generated API types, harness and Runs API modules, task Details and Run views, draft composer, project event refresh, and their tests and contracts.
-- Needs: B-155 through B-158.
-- Done when: the task and draft tests, project refresh, architecture, typecheck, lint and build pass. Mohammed owns live acceptance.
+None open. F-125 (choose an executor on a task or in a new conversation) is on `main` at `0e281585` (PR #71); its live acceptance is Mohammed's.
 
 ### Shipped
 
@@ -40,6 +33,7 @@ A shipped task's entry, and its plan once deleted, are in this file in Git at th
 | #68 | Attempt briefs and contract conflicts on the task page and in the Planner's notices | F-102, F-117 to F-120 (skeleton loading and task-page follow-ups) | `d73bb646` |
 | #69 | Checks on the task's Report tab, the done reason under its title, and replies in the conversation | F-103 | `4031168f` |
 | #70 | Interrupted and stopped attempt cards, the recheck card, decisions with Accept and in the attempt brief ([shared request](../shared/requests/2026-11-16-slice-6-stop-control.md)) | F-121 to F-124 | `449d4f95` |
+| #71 | Executor choice on a task and in a new conversation | F-125 | `0e281585` |
 
 Dropped without being built: F-99 and F-101 (covered by F-102's brief panel and F-116's server list; the rest is in [future](../core/future.md)), F-100 (with B-102), F-104 and F-105 (with the repair plan; slice 6 replanned them as F-121 to F-124). Their entries and plan are at `d997393a`.
 

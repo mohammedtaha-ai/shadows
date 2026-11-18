@@ -4,7 +4,7 @@
 - Asked by: Masada, 2026-11-18
 - Screen: the task page (`web/src/app/tasks/`), the draft conversation's composer
   (`web/src/app/conversation/draft.tsx`); backend plan
-  [executor choices](../../backend/plans/2026-11-18-executor-choices.md), section "The web API"
+  `docs/backend/plans/2026-11-18-executor-choices.md` at `a1561e20`, section "The web API"
   (B-157, B-158). Web tasks follow once this is accepted.
 
 ## Need

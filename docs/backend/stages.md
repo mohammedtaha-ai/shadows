@@ -14,7 +14,8 @@ the full gate and whole-branch review run once before each delivery PR.
 
 The local delivery program is complete: its slices 1, 1b, 3, 2, 4, 5 and 6 are on `main`, the last
 at `449d4f95` (PR #70). Its plan is `docs/backend/plans/2026-11-09-local-delivery-program.md` at
-`449d4f95`. Now: executor choices on `feature/executor-choices` (tasks below).
+`449d4f95`. Executor choices per task, the Codex protocol check and global external connections are on
+`main` (PR #71, `0e281585`). Now: B-159, the browser acceptance of executor choices (below).
 
 ### Shipped
 
@@ -44,6 +45,7 @@ A shipped task's entry, and its plan once deleted, are in this file in Git at th
 | — | Codex in the real Planner and executors slice 1, accepted by Mohammed in the browser (2026-11-15); their plans deleted | B-88, B-94 | `7846c2d9` |
 | #69 | Slice 5: checks, returns and messages to a task's agent ([design §5.3, §5.4](specs/2026-11-08-executors-design.md#54-checks-shadows-runs-mohammed-2026-11-15)) | B-111, B-113, B-114, B-150, B-151 (acceptance, evidence (`docs/evidence/2026-11-15-slice-5-checks.md` at `4031168f`)) | `4031168f` |
 | #70 | Slice 6: stop control, interruption, project rechecks and decisions (plan `docs/backend/plans/2026-11-16-slice-6-stop-control.md` at `449d4f95`; accepted in the browser on `testing6`, 2026-11-16) | B-117, B-152, B-153, B-154, B-105, B-118; F-121 to F-124 | `449d4f95` |
+| #71 | Executor choices per task, the Codex protocol check (plan `docs/backend/plans/2026-11-18-codex-protocol-check.md` at `0e281585`), global external connections (plan `docs/backend/plans/2026-11-18-external-agent-connections.md` at `0e281585`; [spec](specs/2026-11-18-external-agent-connections-design.md)); executor choices plan at `0e281585`, [shared request](../shared/requests/2026-11-18-executor-choices.md) | B-155 to B-158, B-160, B-161; F-125 | `0e281585` |
 
 Replaced or dropped without being built: B-97, B-98, B-119 (by slice 2), B-102, B-110 (with the
 critic), B-112 (by the Planner's judgment), B-115, B-116 (by B-125 and B-126). Their entries are in
@@ -64,125 +66,12 @@ this file at `db760593`.
 - B-150 keeps its own per-thread message queue beside Turns' queue; reusing Turns' queue needs the executor session restored by thread.
 - The web derives "stopped on the additions cap" itself; a Core field on `TaskRun` should own it.
 
-## Executor choices: CLI, model and effort per task
-
-Plan: [executor choices](plans/2026-11-18-executor-choices.md), approved by Mohammed (2026-11-18) after
-three Codex reviews (last plan commit `a1561e20`). Rulings (Mohammed, 2026-11-18):
-- The choice is saved on the task and the last save wins.
-- It follows the task across versions, and a replaced task starts empty.
-- Lists come from each CLI; Claude Code's are read by one probe session per daemon run.
-- No choice refuses Start.
-- A Codex executor uses Codex's own tools in mode `ask`.
-- The Planner picks the smallest model that can build the task from its contract.
-
-Order: B-155 → B-156 → B-157 → B-158 → web tasks → B-159. B-155 and B-156 change nothing the web sees.
-B-157 and B-158 do, and build on the [shared request](../shared/requests/2026-11-18-executor-choices.md), accepted by Masada (`da7a6950`).
-
-### B-155 · Harness reads each CLI's catalog
-
-- Status: done
-- Plan: [B-155](plans/2026-11-18-executor-choices.md#task-b-155-harness-reads-each-clis-catalog).
-- Owner: Harness, with Codex's catalog read in `shadows-agent`.
-- Read: `crates/core-harness/contract.yaml` (`list`, remembered settings, the Codex choices rule); `crates/shadows-agent/src/choices.rs` (`Offered`); `crates/shadows-agent/src/codex/session.rs` (`catalog`); the plan's Rulings.
-- Touch: the task's Files list in the plan; no other path.
-- Needs: nothing open.
-- Done when: the seven `harness_catalog` tests (live ones on the signed-in machine) and `harness_choices` pass; contract and code map updated; scoped commit.
-
-### B-156 · Harness opens an executor on its attempt's CLI, model and effort
-
-- Status: done
-- Plan: [B-156](plans/2026-11-18-executor-choices.md#task-b-156-harness-opens-an-executor-on-its-attempts-cli-model-and-effort).
-- Owner: Harness, with Turns' executor mode check and the two Runs call sites.
-- Read: `crates/core-harness/contract.yaml` (the executor comment block, `open_executor`); `crates/core-turns/contract.yaml` (the executor's mode); `crates/shadows-agent/src/policy.rs` (Codex modes).
-- Touch: the task's Files list in the plan; no other path.
-- Needs: B-155 (its tests read the catalog).
-- Done when: `executor::` unit tests, `executor_session`, `runs_attempts` and `core-turns` pass; Harness and Turns contracts updated; scoped commit.
-
-### B-157 · Runs stores each task's choice and starts on it
-
-- Status: done
-- Plan: [B-157](plans/2026-11-18-executor-choices.md#task-b-157-runs-stores-each-tasks-choice-and-starts-on-it).
-- Owner: Runs; Plans for `copied_from` and `task_lineage_in`; Events for the tail kind.
-- Read: `crates/core-runs/contract.yaml` (`start`, `start_for`, `task`, `amend`, `run_turn`, `ready_group`); `crates/core-plans/contract.yaml` (`start_draft`, `shared_in_transaction`); `crates/core-db/contract.yaml` (`command`); the plan's Rulings and Review Focus.
-- Touch: the task's Files list in the plan, including every named caller of `Runs::start` and `Runs::start_for`; no other path.
-- Needs: B-156; the accepted request.
-- Done when: the `executor_choice::` tests, the changed `plan_storage` copy test and the suites Step 5 names (with `openapi`) pass; Runs, Plans and Events contracts and spec D6 updated; scoped commit.
-
-### B-158 · The person's and the Planner's way to the choice
-
-- Status: done
-- Plan: [B-158](plans/2026-11-18-executor-choices.md#task-b-158-the-persons-and-the-planners-way-to-the-choice).
-- Owner: the HTTP and MCP adapters over Runs and Harness; Grants for the tool list.
-- Read: `crates/shadows-http/src/contract.yaml`, `crates/shadows-mcp/src/contract.yaml` (`task_start`); the plan's web API table.
-- Touch: the task's Files list in the plan; no other path.
-- Needs: B-157; the accepted request.
-- Done when: the named `runs_routes`, `mcp_server`, `planner_instructions`, `harness_choices` tests and `openapi` pass; contracts updated; scoped commit.
+## Open
 
 ### B-159 · Acceptance in the browser
 
-- Status: blocked (needs the web tasks)
+- Status: todo (needs Mohammed's browser run and the signed-in live tests; B-155 to B-158, B-160, B-161 and F-125 are on `main` at `0e281585`)
 - Plan: [B-159](plans/2026-11-18-executor-choices.md#task-b-159-acceptance-in-the-browser).
 - Owner: integration acceptance through AppCore and the real UI.
 - Touch: the task's Files list in the plan.
 - Done when: the browser journey and its logs, and the named signed-in live tests (or "not run" with the reason), are recorded in evidence.
-
-## Codex CLI 0.169.0
-
-Mohammed installed `codex-cli 0.169.0` in place of 0.167.0, and the pin refuses it ("Codex CLI 0.167.0 is
-required"). Hamoud's check (2026-11-18) found nothing Shadows uses changed:
-- **Schemas:** generated by both CLIs. These definitions are identical: `ThreadStartParams`/`Response`,
-  `ThreadResumeParams`, `ThreadForkParams`, `TurnStartParams`, `TurnSteerParams`, `Model`,
-  `ReasoningEffortOption`, `McpServerStatus`, `AskForApproval`, `SandboxPolicy`, `ApprovalsReviewer`,
-  `ThreadTokenUsage`, `RateLimitSnapshot`, `Turn` and every item status. `ServerRequest` and
-  `ServerNotification` are identical, so approvals and notifications are unchanged.
-- **Additions only:** `agentMessage.moderation`, `ItemCompletedNotification.contentTokenCount`,
-  `ModelListParams.modelProvider` (optional), `GetAccountResponse.userId`, the methods `modelProvider/*`
-  and `account/securitySetup/read`, and the error kind `inferenceHookDenied`.
-- **Live, without a turn:** initialize, `config/read` with Shadows' `-c` settings, and `account/read`
-  answer as 0.167.0 did. `features.multi_agent=false` is still read as false, with no warning.
-- **Release notes:** 0.168 and 0.169 change no app-server method Shadows calls.
-
-The exact pin is replaced by a protocol check. Plan: [Codex protocol check](plans/2026-11-18-codex-protocol-check.md),
-approved by Mohammed (2026-11-18). Rulings:
-- A CLI below the tested version is refused.
-- A CLI at or above it opens if the parts of its app-server schema that Shadows uses match the tested
-  snapshot. Additions pass; anything removed or changed refuses, and the harness list's reason names
-  the change.
-- The check runs once per CLI version per daemon run.
-- 0.169.0 is the first snapshot and the first proof.
-
-Order: B-160 → B-161, after B-158 is committed (both touch `shadows-agent` and `core-harness`). No other
-cargo run at the same time.
-
-### B-160 · The codex module checks a CLI's protocol against the tested one
-
-- Status: done
-- Plan: [B-160](plans/2026-11-18-codex-protocol-check.md#task-b-160-the-codex-module-checks-a-clis-protocol-against-the-tested-one).
-- Owner: `shadows-agent`'s codex module (`CodexProgram`, `codex::Connection::open`).
-- Read: `crates/shadows-agent/contract.yaml` (the `CodexProgram` and `codex::Connection` lines); the plan's Rulings and Global Constraints.
-- Touch: the task's Files list in the plan; no other path.
-- Needs: B-158 committed.
-- Done when:
-  - `tested_protocol.json` is adopted from the installed 0.169.0.
-  - The 12 `codex::protocol` unit tests and `shadows-agent --test codex` pass.
-  - The contract is updated.
-  - Scoped commit.
-
-### B-161 · Harness opens Codex on the checked version and lists the verdict
-
-- Status: done
-- Plan: [B-161](plans/2026-11-18-codex-protocol-check.md#task-b-161-harness-opens-codex-on-the-checked-version-and-lists-the-verdict).
-- Owner: Harness (`Sessions`, the list, every Codex opening).
-- Read: `crates/core-harness/contract.yaml` (`list`, the executor opening, the catalog); `docs/core/specs/2026-09-24-harness-controls-design.md` (the baseline paragraph); the plan's Review Focus.
-- Touch: the task's Files list in the plan, and also:
-  - `crates/core-harness/src/live.rs`: the executor opening, the other caller of `ManagedConnection::open`.
-  - `docs/codebase/README.md`: one row for `crates/core-harness/src/codex_check.rs`, "the Codex protocol verdict for one daemon run", owned by `crates/core-harness/contract.yaml`, beside the `catalog.rs` row.
-  - No other path.
-- Needs: B-160.
-- Done when:
-  - The seven new `codex_session` tests and the fake suites in Step 4 pass.
-  - These signed-in live tests pass on 0.169.0, with results in the commit message: `codex_session`
-    `live_a_codex_planner_reads_a_file_and_writes_none` and `live_a_codex_turn_sees_an_image`, and
-    `harness_catalog` `live_the_codex_catalog_lists_each_models_efforts`.
-  - The spec is amended as the plan gives it, and the contract is updated.
-  - Scoped commit.

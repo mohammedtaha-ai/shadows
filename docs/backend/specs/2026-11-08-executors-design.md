@@ -1,7 +1,8 @@
 # Executors: running an approved plan's tasks
 
 - Date: 2026-11-08
-- Status: **approved** by Mohammed on 2026-11-08, in conversation, after a brainstorm with the
+- Status: **approved** by Mohammed on 2026-11-08; built: slices 0 to 6 on `main` (PRs #64 to #70, last at `449d4f95`) and the executor choice per task with the Codex protocol check (PR #71, `0e281585`). Earlier amendments follow.
+  The 2026-11-08 approval was in conversation, after a brainstorm with the
   controller; `core-runs` (§9) and the controller's calls (§12) approved with it. Amended
   2026-11-09 by Mohammed: the executor makes its own commit and reports it (§7). Amended
   2026-11-11 by Mohammed: the executor runs in `auto` from one file (§7); the Planner starts,
