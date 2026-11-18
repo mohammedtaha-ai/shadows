@@ -1,4 +1,4 @@
-//! A person's done marks, which `needs` links wait for.
+//! A person's done marks, which `needs` links wait for, and the plan's progress they make.
 use super::RunsStore;
 use crate::{AttemptId, RunsError};
 use core_db::{CommandContext, Storage, StorageError, Tx};
