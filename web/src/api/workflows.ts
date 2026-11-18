@@ -10,6 +10,7 @@ export const workflowKeys = {
   list: (projectId: string, archived: boolean) => ['workflows', 'list', projectId, { archived }],
   versions: (planId: string) => ['workflows', 'versions', planId],
   plan: (workflowId: string) => ['workflows', 'plan', workflowId],
+  progress: (workflowId: string, version: number) => ['workflows', 'progress', workflowId, version],
 }
 
 /** Every plan query, lists and versions alike: a thread's `Workflow*` event
@@ -42,6 +43,16 @@ export function planQuery(workflowId: string) {
     queryFn: () => getPlan(workflowId),
   })
 }
+/** Every task's done mark and latest attempt state; read again every two seconds while an attempt
+ * runs, as the task page's run is, and with the workflows prefix when a plan event arrives. */
+export function planProgressQuery(workflowId: string, version: number) {
+  return queryOptions({
+    queryKey: workflowKeys.progress(workflowId, version),
+    queryFn: () => getPlanProgress(workflowId, version),
+    refetchInterval: (query) => (query.state.data?.some((t) => t.state === 'running') ? 2000 : false),
+  })
+}
+
 export function savePlanAnswer(client: QueryClient, plan: Plan) {
   return writeSaved(client, workflowKeys.plan(plan.id), plan)
 }
@@ -76,6 +87,8 @@ export type PlanMap = components['schemas']['PlanMap']
 export type MapPlan = components['schemas']['MapPlan']
 
 export type PlanListing = components['schemas']['PlanListing']
+
+export type TaskProgress = components['schemas']['TaskProgress']
 
 export type PlanVersions = components['schemas']['PlanVersions']
 
@@ -122,6 +135,13 @@ export function unarchivePlan(planId: string, commandId: string): Promise<PlanVe
  * approval and what the last edit changed. */
 export function getPlan(workflowId: string): Promise<Plan> {
   return unwrap(client.GET('/api/workflows/{id}', { params: { path: { id: workflowId } } }))
+}
+
+/** One plan version's tasks in order: done or not, and the latest attempt's state. */
+function getPlanProgress(workflowId: string, version: number): Promise<TaskProgress[]> {
+  return unwrap(client.GET('/api/workflows/{workflow}/versions/{version}/progress', {
+    params: { path: { workflow: workflowId, version } },
+  }))
 }
 
 function getPlanMap(projectId: string): Promise<PlanMap> {

@@ -20,6 +20,7 @@ import {
   planFixture,
   planVersionsFixture,
   projectFixture,
+  taskProgress,
   threadFixture,
   userEntry,
 } from './contract-fixtures'
@@ -78,6 +79,8 @@ interface Overrides {
   plans?: PlanListing[]
   /** `GET /api/workflows/w1`; `planFixture()` by default. */
   plan?: Answer
+  /** `GET /api/workflows/w1/versions/1/progress`; every task of the plan, not done and not started, by default. */
+  progress?: Answer
   /** `POST /api/workflows/w1/approve` */
   approve?: Answer
   /** `GET /api/workflows/w1/versions/1/tasks/1`; an unstarted task Start may run. */
@@ -218,6 +221,10 @@ export function answers(o: Overrides = {}): Record<string, Answer> {
       return Response.json(all.filter((p) => p.plan_state !== 'Archived'))
     },
     'GET /api/workflows/w1': o.plan ?? planFixture(),
+    'GET /api/workflows/w1/versions/1/progress': o.progress ?? (() => {
+      const basePlan = typeof o.plan === 'function' ? planFixture() : (o.plan ?? planFixture())
+      return Response.json((basePlan as Plan).tasks.map((t) => taskProgress(t.number)))
+    }),
     'GET /api/plans/plan1': () => {
       const basePlan = typeof o.plan === 'function' ? planFixture() : (o.plan ?? planFixture())
       return Response.json(planVersionsFixture(basePlan as Plan))

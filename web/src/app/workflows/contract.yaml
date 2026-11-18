@@ -369,10 +369,12 @@ obligations:
     tested_by: the staggered columns (layout.test.ts)
 
   - rule: >
-      The plan's progress block and the inspect panel's acceptance bar sit inside
-      Planned: PlanTask has no status and acceptance ticks are not saved, so they
-      show the real task count and an empty bar, never a percent or a client-side guess.
-    tested_by: marks the progress block planned with the real task count and no percent
+      The plan's progress block shows Core's read (planProgressQuery): "N tasks · M done"
+      with M the tasks marked done, a bar at M / N and one read-only mark per task
+      (done, running or not started) linking to that task's page. While the read is
+      pending or fails it shows "— done" and the error line, never a client-side guess.
+      The inspect panel's acceptance bar stays inside Planned: acceptance ticks are not saved.
+    tested_by: draws the progress Core gives (plan-page.test.tsx) and shows "— done" while the progress read fails
 
 
 # ── agreements ───────────────────────────────────────────────────────────────

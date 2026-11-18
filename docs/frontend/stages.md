@@ -9,7 +9,7 @@ F-126, F-127 and F-128 below. F-125 (choose an executor on a task or in a new co
 
 ### F-127 · The plan page shows the plan's real progress
 
-- Status: todo (B-163 is built: `TaskProgress { task, done, done_at, state }`, state one of `AttemptState` or null)
+- Status: done (B-163 is built: `TaskProgress { task, done, done_at, state }`, state one of `AttemptState` or null)
 - Plan: none. The plan page's "Plan progress" block sits inside `Planned` with "— done", an
   empty bar and disabled task toggles. With B-163, read
   `GET /api/workflows/{workflow}/versions/{version}/progress` (a new `planProgressQuery` in

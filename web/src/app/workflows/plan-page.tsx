@@ -6,8 +6,7 @@ import { Archive, ChevronDown, Layers, Lock } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import type { Viewport } from '@xyflow/react'
 import { type PhaseEndpoint, type Plan, archivePlan, unarchivePlan } from '@/api/workflows'
-import { planVersionsQuery, workflowsKey } from '@/api/workflows'
-import { Planned } from '@/components/ui/planned'
+import { planProgressQuery, planVersionsQuery, workflowsKey } from '@/api/workflows'
 import { Button, buttonVariants } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -199,28 +198,7 @@ function Header({ plan, projectId, showPhases, onTogglePhases }: {
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-4">
-        <Planned
-          title="Plan progress"
-          reason='Planned: docs/core/future.md, "Plan progress on the plan page"'
-          className="min-w-52"
-        >
-          <p className="text-xs tabular-nums">
-            {plan.tasks.length} {plan.tasks.length === 1 ? 'task' : 'tasks'} · — done
-          </p>
-          <div className="h-1.5 w-full rounded-full bg-muted ring-1 ring-accent-line/20" />
-          <div className="flex flex-wrap gap-1">
-            {plan.tasks.map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                disabled
-                className="rounded border border-border px-1.5 py-0.5 font-mono text-2xs"
-              >
-                T{t.number}
-              </button>
-            ))}
-          </div>
-        </Planned>
+        <PlanProgress plan={plan} projectId={projectId} />
         <div className="flex items-center gap-2">
           {onTogglePhases && <Button variant="outline" size="sm" onClick={onTogglePhases}
             aria-pressed={showPhases} aria-controls="main-plan-graph">
@@ -285,5 +263,45 @@ function Header({ plan, projectId, showPhases, onTogglePhases }: {
         </div>
       </div>
     </header>
+  )
+}
+
+/** Core's per-task progress: the count, a bar and one read-only mark per task that opens its page.
+ * While the read is pending or fails the count shows "— done" and the error line says why. */
+function PlanProgress({ plan, projectId }: { plan: Plan; projectId: string }) {
+  const progress = useQuery(planProgressQuery(plan.id, plan.version))
+  const rows = progress.data
+  const count = plan.tasks.length
+  const done = rows?.filter((t) => t.done).length
+  return (
+    <section aria-label="Plan progress" className="min-w-52 space-y-1.5">
+      <p className="text-xs tabular-nums">
+        {count} {count === 1 ? 'task' : 'tasks'} · {done ?? '—'} done
+      </p>
+      <div role="progressbar" aria-label="Tasks done" aria-valuemin={0} aria-valuemax={count}
+        aria-valuenow={done ?? 0}
+        className="h-1.5 w-full overflow-hidden rounded-full bg-muted ring-1 ring-accent-line/20">
+        <div className="h-full bg-success"
+          style={{ width: done === undefined || count === 0 ? '0%' : `${(done / count) * 100}%` }} />
+      </div>
+      <div className="flex flex-wrap gap-1">
+        {plan.tasks.map((t) => {
+          const row = rows?.find((r) => r.task === t.number)
+          const mark = row === undefined ? null : row.done ? 'done' : row.state === 'running' ? 'running' : 'not started'
+          return (
+            <Link key={t.id} to="/projects/$projectId/workflows/$workflowId"
+              params={{ projectId, workflowId: plan.id }} search={{ task: t.number, selected: t.number }}
+              title={mark === null ? t.title : `${t.title} · ${mark}`} data-mark={mark ?? undefined}
+              className={cn('rounded border px-1.5 py-0.5 font-mono text-2xs',
+                mark === 'done' && 'border-success/40 bg-success/10 text-success',
+                mark === 'running' && 'animate-pulse border-accent-line/50 bg-accent-line/10 text-accent-line',
+                mark !== 'done' && mark !== 'running' && 'border-border text-faint-foreground')}>
+              T{t.number}
+            </Link>
+          )
+        })}
+      </div>
+      {progress.isError && <ErrorLine error={progress.error} />}
+    </section>
   )
 }

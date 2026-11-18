@@ -281,6 +281,7 @@ query_keys:
       archived }]"
   planVersionsQuery: "(planId: string) -> queryOptions; ['workflows', 'versions', planId]"
   planQuery: "(workflowId: string) -> queryOptions; ['workflows', 'plan', workflowId]"
+  planProgressQuery: "(workflowId: string, version: number) -> queryOptions; ['workflows', 'progress', workflowId, version]; read again every two seconds while a task's latest attempt runs"
   instructionsQuery: "(projectId: string) -> queryOptions; ['projects', id, 'instructions']"
   standardsQuery: "(projectId: string) -> queryOptions; ['projects', id, 'design', 'standards']"
   stageQuery: "(projectId: string) -> queryOptions; ['projects', id, 'design', 'stage']"
@@ -794,8 +795,8 @@ code_operations:
 
 workflows_operations:
   owner: workflows.ts
-  operations: "listPlans getPlanVersions archivePlan unarchivePlan getPlan getPlanMap approvePlan editBindings"
-  types: "PlanOp Plan PlanTask PlanLink LinkedTask PlanMap MapPlan PlanListing PlanVersions WrittenBy Approved; generated schema aliases"
+  operations: "listPlans getPlanVersions archivePlan unarchivePlan getPlan getPlanProgress getPlanMap approvePlan editBindings"
+  types: "PlanOp Plan PlanTask PlanLink LinkedTask PlanMap MapPlan PlanListing PlanVersions TaskProgress WrittenBy Approved; generated schema aliases"
   transport: "transport/index.ts owns the shared generated client and error mapping"
 
 agreements_operations:
