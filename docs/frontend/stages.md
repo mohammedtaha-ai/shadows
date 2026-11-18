@@ -9,7 +9,7 @@ F-126 below. F-125 (choose an executor on a task or in a new conversation) is on
 
 ### F-126 · Language servers become one collapsible row in Settings › Code
 
-- Status: todo
+- Status: done
 - Plan: none; the shape is Mohammed's ruling of 2026-11-18, written here in full.
   Settings › Code becomes a list of setting rows like Claude Code's own settings page: each row
   has a title, a one-line description under it, and its control on the right; rows are divided
@@ -32,6 +32,7 @@ F-126 below. F-125 (choose an executor on a task or in a new conversation) is on
 - Read: `web/src/app/settings/contract.yaml` (`CodeSection`), `web/src/api/code.ts`
   (`ServerStatus`, `codeServersQuery`), `web/src/app/settings/sections/code.tsx`.
 - Touch: `web/src/app/settings/sections/code.tsx`, `web/src/app/settings/sections/code.test.tsx`,
+  `web/src/app/settings/settings-dialog.test.tsx` (its `opening_code_shows_its_servers` opens the row first),
   `web/src/app/settings/contract.yaml`, this entry's status.
 - Needs: none.
 - Done when: `code.test.tsx` covers: the row starts collapsed with the running count; opening it

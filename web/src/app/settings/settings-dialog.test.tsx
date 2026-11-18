@@ -93,7 +93,9 @@ describe('settings', () => {
     open = await startApp('/projects/p1/new?settings=code', { ...answers(), 'GET /api/projects/p1/code/servers': [
       { id: 'gopls', added: false, wanted: true, extensions: ['.go'], state: { state: 'running' }, install: null },
     ] })
-    await until(() => document.querySelector('ul[aria-label="Language servers"]')?.textContent?.includes('gopls') === true)
+    await until(() => open!.button('Language servers') !== undefined)
+    act(() => open!.button('Language servers')!.click())
+    expect(document.querySelector('ul[aria-label="Language servers"]')?.textContent).toContain('Go')
     expect(document.querySelector('[data-slot="dialog-title"]')?.textContent).toBe('Code')
   })
 })
