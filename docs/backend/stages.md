@@ -156,7 +156,7 @@ cargo run at the same time.
 
 ### B-160 · The codex module checks a CLI's protocol against the tested one
 
-- Status: todo (after B-158)
+- Status: done
 - Plan: [B-160](plans/2026-11-18-codex-protocol-check.md#task-b-160-the-codex-module-checks-a-clis-protocol-against-the-tested-one).
 - Owner: `shadows-agent`'s codex module (`CodexProgram`, `codex::Connection::open`).
 - Read: `crates/shadows-agent/contract.yaml` (the `CodexProgram` and `codex::Connection` lines); the plan's Rulings and Global Constraints.
@@ -170,7 +170,7 @@ cargo run at the same time.
 
 ### B-161 · Harness opens Codex on the checked version and lists the verdict
 
-- Status: todo (after B-160)
+- Status: doing
 - Plan: [B-161](plans/2026-11-18-codex-protocol-check.md#task-b-161-harness-opens-codex-on-the-checked-version-and-lists-the-verdict).
 - Owner: Harness (`Sessions`, the list, every Codex opening).
 - Read: `crates/core-harness/contract.yaml` (`list`, the executor opening, the catalog); `docs/core/specs/2026-09-24-harness-controls-design.md` (the baseline paragraph); the plan's Review Focus.

@@ -2,6 +2,7 @@
 mod connection;
 mod mapping;
 mod prompt;
+mod protocol;
 mod session;
 
 use std::path::{Path, PathBuf};
@@ -17,12 +18,19 @@ use prompt::Prompts;
 use session::Selection;
 
 const GRANT_ENV: &str = "SHADOWS_CODEX_MCP_TOKEN";
-const VERSION: &str = "0.167.0";
+const SCHEMA_BUNDLE: &str = "codex_app_server_protocol.schemas.json";
+const CHECK_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(60);
 
 #[derive(Debug)]
 pub struct CodexProgram {
     executable: PathBuf,
     home: PathBuf,
+}
+
+/// A Codex CLI whose protocol matched the tested one, at the version that was checked.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CheckedCodex {
+    pub version: String,
 }
 
 impl CodexProgram {
@@ -90,6 +98,120 @@ impl CodexProgram {
             pipe_stdin: true,
         })
     }
+
+    /// Checks the installed CLI against the tested protocol. `scratch` receives the generated
+    /// schema and is removed afterwards.
+    pub async fn check(&self, scratch: &Path) -> Result<CheckedCodex, ConnectionError> {
+        let checked = self.checked(scratch).await;
+        let _ = std::fs::remove_dir_all(scratch);
+        checked
+    }
+
+    async fn checked(&self, scratch: &Path) -> Result<CheckedCodex, ConnectionError> {
+        let version = self.installed_version(scratch).await?;
+        let floor = protocol::tested_version();
+        if !protocol::version_at_least(&version, &floor) {
+            return Err(ConnectionError::Rpc(format!(
+                "Codex CLI {floor} or later is required"
+            )));
+        }
+        let found = self.installed_protocol(scratch, &version).await?;
+        let tested: Value = serde_json::from_str(protocol::TESTED)
+            .map_err(|_| ConnectionError::Protocol("the tested Codex protocol is not JSON"))?;
+        let changes = protocol::compare(&tested, &found);
+        if changes.is_empty() {
+            Ok(CheckedCodex { version })
+        } else {
+            Err(ConnectionError::Rpc(protocol::refusal(&version, &changes)))
+        }
+    }
+
+    /// The installed CLI's protocol in the tested snapshot's form, as the text to commit when
+    /// a new version is adopted. `scratch` is removed afterwards.
+    pub async fn adopt(&self, scratch: &Path) -> Result<String, ConnectionError> {
+        let adopted = async {
+            let version = self.installed_version(scratch).await?;
+            let found = self.installed_protocol(scratch, &version).await?;
+            serde_json::to_string_pretty(&protocol::sorted(found))
+                .map(|text| text + "\n")
+                .map_err(|error| ConnectionError::Rpc(error.to_string()))
+        }
+        .await;
+        let _ = std::fs::remove_dir_all(scratch);
+        adopted
+    }
+
+    async fn installed_version(&self, scratch: &Path) -> Result<String, ConnectionError> {
+        let output = self.run(scratch, &["--version"]).await?;
+        output
+            .split_whitespace()
+            .last()
+            .map(str::to_owned)
+            .ok_or_else(|| ConnectionError::Rpc("Codex CLI printed no version".into()))
+    }
+
+    async fn installed_protocol(
+        &self,
+        scratch: &Path,
+        version: &str,
+    ) -> Result<Value, ConnectionError> {
+        let out = scratch
+            .to_str()
+            .ok_or(ConnectionError::Protocol("scratch path is not UTF-8"))?;
+        self.run(
+            scratch,
+            &["app-server", "generate-json-schema", "--out", out],
+        )
+        .await?;
+        let bundle = std::fs::read_to_string(scratch.join(SCHEMA_BUNDLE)).map_err(|error| {
+            ConnectionError::Rpc(format!("Codex CLI wrote no {SCHEMA_BUNDLE}: {error}"))
+        })?;
+        let bundle: Value = serde_json::from_str(&bundle)
+            .map_err(|error| ConnectionError::Rpc(format!("{SCHEMA_BUNDLE}: {error}")))?;
+        protocol::extract(&bundle, version).map_err(ConnectionError::Rpc)
+    }
+
+    /// Runs the CLI with `catalog_spec`'s environment and the given arguments, and answers its
+    /// stdout. A failure answers its first stderr line.
+    async fn run(&self, scratch: &Path, args: &[&str]) -> Result<String, ConnectionError> {
+        use tokio::io::AsyncReadExt;
+        std::fs::create_dir_all(scratch)
+            .map_err(|error| ConnectionError::Rpc(format!("Codex check folder: {error}")))?;
+        let mut spec = self.catalog_spec(scratch)?;
+        spec.args = args.iter().map(|arg| (*arg).to_owned()).collect();
+        let mut handle = shadows_process::spawn(spec)
+            .map_err(|error| ConnectionError::Rpc(format!("Codex CLI could not start: {error}")))?;
+        let (stdin, mut stdout, mut stderr) = handle
+            .take_stdio()
+            .ok_or(ConnectionError::Protocol("Codex CLI has no stdio"))?;
+        drop(stdin);
+        let (mut out, mut err) = (Vec::new(), Vec::new());
+        let finished = tokio::time::timeout(CHECK_TIMEOUT, async {
+            let _ = tokio::join!(stdout.read_to_end(&mut out), stderr.read_to_end(&mut err));
+            handle.wait().await
+        })
+        .await;
+        let status = match finished {
+            Ok(Ok(status)) => status,
+            Ok(Err(error)) => return Err(ConnectionError::Rpc(error.to_string())),
+            Err(_) => {
+                let _ = handle.terminate_tree();
+                return Err(ConnectionError::Rpc(
+                    "Codex CLI did not finish its check".into(),
+                ));
+            }
+        };
+        if status.success() {
+            return Ok(String::from_utf8_lossy(&out).into_owned());
+        }
+        let err = String::from_utf8_lossy(&err);
+        Err(ConnectionError::Rpc(
+            err.lines()
+                .map(str::trim)
+                .find(|line| !line.is_empty())
+                .map_or_else(|| format!("Codex CLI exited with {status}"), str::to_owned),
+        ))
+    }
 }
 
 fn planner_server(setup: &SessionSetup) -> Result<(&str, &str), ConnectionError> {
@@ -124,6 +246,7 @@ impl Connection {
     pub async fn open(
         handle: &mut ProcessHandle,
         events: impl Fn(HarnessEvent) + Clone + Send + Sync + 'static,
+        version: &str,
     ) -> Result<Self, ConnectionError> {
         let permissions = crate::acp::Permissions::new(events.clone());
         let prompts = Arc::new(Prompts::new(events));
@@ -148,14 +271,17 @@ impl Connection {
                 }),
             )
             .await?;
-        if !init["userAgent"]
-            .as_str()
-            .unwrap_or("")
+        let agent = init["userAgent"].as_str().unwrap_or("");
+        if !agent
             .split_ascii_whitespace()
-            .any(|part| part.ends_with(&format!("/{VERSION}")))
+            .any(|part| part.ends_with(&format!("/{version}")))
         {
+            let found = agent
+                .split_ascii_whitespace()
+                .find_map(|part| part.split_once('/').map(|(_, found)| found))
+                .unwrap_or("an unknown version");
             return Err(ConnectionError::Rpc(format!(
-                "Codex CLI {VERSION} is required"
+                "Codex CLI changed to {found}; it is checked again on the next opening"
             )));
         }
         rpc.notify("initialized")?;

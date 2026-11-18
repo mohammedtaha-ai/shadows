@@ -14,6 +14,8 @@ modules:
   acp/mapping.rs: Translation of session updates to HarnessEvent.
   codex.rs: The configured Codex executable, its process-local Planner launch policy and handshake.
   codex/connection.rs: Ordered JSONL dispatch for one app-server child.
+  codex/protocol.rs: What Shadows uses of the app-server protocol, compared against a CLI's.
+  codex/tested_protocol.json: The tested protocol extract; its version is the floor.
   codex/session.rs: Thread opening, MCP inventory verification and native model choices.
   codex/prompt.rs: Turn start, binding to the acknowledged turn and confirmed interruption.
   codex/mapping.rs: Translation of the active turn's notifications to HarnessEvent.
@@ -55,7 +57,24 @@ functions:
   CodexProgram::catalog_spec: >
     The same app-server launch as process_spec without a thread grant in its
     environment, used only to read the model catalog.
-  codex::Connection::open: Initializes app-server and refuses a CLI other than 0.167.0.
+  CodexProgram::check: >
+    Runs the CLI's --version and app-server generate-json-schema in a scratch
+    folder it then removes, with catalog_spec's environment. Refuses a CLI below
+    the tested snapshot's version ("Codex CLI {tested} or later is required")
+    without generating; otherwise extracts the used methods, answers,
+    notifications and every definition they reach, and refuses removals and
+    changes (a removed method, definition, property or variant; a changed type
+    or $ref; a removed enum value; a changed or new required property),
+    naming five then "and N more". Additions pass. A failed generator answers
+    its first stderr line. Answers CheckedCodex { version }.
+  CodexProgram::adopt: >
+    The installed CLI's extract in the snapshot form with sorted keys, which
+    the ignored adopt_the_installed_codex_protocol test writes to
+    tested_protocol.json.
+  codex::Connection::open: >
+    Initializes app-server on the checked version and refuses a userAgent with
+    another one: "Codex CLI changed to {found}; it is checked again on the next
+    opening". ManagedConnection::open takes that version as codex: Option<&str>.
   codex::Connection::start_session: >
     Refuses a dedicated home with MCP configuration or without a ChatGPT
     sign-in, opens, resumes or forks the thread in Codex's default mode,
@@ -119,6 +138,15 @@ obligations:
       the answer goes back as its decision, a refusal or the turn's end as
       decline. A permissions approval is still answered empty at once.
     tested_by: [codex_approvals_wait_for_the_person, codex_approval_waits_for_the_person]
+  - rule: >
+      A Codex CLI opens only at or above the tested version and with the used
+      protocol unchanged; additions pass, removals and changes refuse by name.
+    tested_by: [the_tested_protocol_matches_itself, an_added_optional_property_passes,
+      an_added_method_passes, an_added_enum_value_passes, a_removed_method_refuses_and_names_it,
+      a_removed_property_refuses_and_names_it, a_changed_type_refuses,
+      a_newly_required_parameter_refuses, a_removed_union_variant_refuses,
+      versions_compare_by_number, the_snapshot_holds_every_used_method,
+      the_refusal_names_five_changes_then_counts]
   - rule: The Codex grant reaches only the child environment, under the isolation settings.
     tested_by: [the_codex_grant_reaches_only_the_child_environment]
   - rule: >
