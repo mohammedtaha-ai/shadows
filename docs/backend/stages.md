@@ -75,3 +75,73 @@ this file at `db760593`.
 - Owner: integration acceptance through AppCore and the real UI.
 - Touch: the task's Files list in the plan.
 - Done when: the browser journey and its logs, and the named signed-in live tests (or "not run" with the reason), are recorded in evidence.
+
+### B-162 · A delivery's storage error no longer stalls every group
+
+- Status: todo
+- Plan: none; the defect is the "Known and left" entry above, written here in full.
+  `Messages::dispatch_ready` (`crates/core-messages/src/deliveries.rs`) returns the first
+  storage error of any candidate with `?`, so one delivery whose start keeps failing on storage
+  stops the loop before the other groups' candidates, and the caller (`replies.rs`) retries the
+  same order for ever. Find the root cause and fix it in the owner: one failing delivery must not
+  keep the others from being dispatched, and a delivery that keeps failing must reach an end the
+  person can see (a refusal notice in its group) instead of retrying for ever. Transient errors
+  may still retry. Remove the "Known and left" entry when done.
+- Read: `crates/core-messages/contract.yaml`; `crates/core-messages/src/deliveries.rs`,
+  `replies.rs`, `store/`.
+- Touch: `crates/core-messages/src/deliveries.rs`, `crates/core-messages/src/replies.rs`,
+  `crates/core-messages/src/store/*.rs` if the end state needs a store write,
+  `crates/core-messages/tests/groups.rs` (or a new `tests/deliveries.rs`),
+  `crates/core-messages/contract.yaml`, this file.
+- Done when: a test where one group's delivery fails on storage every time shows a second
+  group's delivery still dispatched, and the failing one ends with a visible refusal after a
+  bounded number of tries; `cargo test -p core-messages` passes.
+
+### B-163 · One read gives every task's progress in a plan version
+
+- Status: todo
+- Plan: none. The executors design (`specs/2026-11-08-executors-design.md`, "The plan page")
+  promised the plan page's real progress; each task's `TaskRun` has `done`, but the plan page
+  would need one call per task. Add `Runs::progress(workflow, version)` returning, in task
+  order, one `TaskProgress { task, done, done_at, state }` per task, where `state` is the latest
+  attempt's state or `null` with none (reuse the store reads `Runs::task` uses; prefer one store
+  query over one per task). Route:
+  `GET /api/workflows/{workflow}/versions/{version}/progress` returns `Vec<TaskProgress>`, 404 as
+  the task read. Regenerate `api/openapi.json` and `web/src/api/schema.d.ts` with the repo's own
+  generators. No write: marking done stays on the task page.
+- Read: `crates/core-runs/contract.yaml`; `crates/core-runs/src/lib.rs` (`task`, `mark_done`);
+  `crates/shadows-http/src/runs.rs` (`task`); `crates/shadows-http/src/contract.yaml`.
+- Touch: `crates/core-runs/src/lib.rs` (or a new `src/progress.rs`), `crates/core-runs/src/model.rs`,
+  `crates/core-runs/src/store/*.rs` if a new query is needed, `crates/core-runs/contract.yaml`,
+  `crates/shadows-core/src/lib.rs` (re-export), `crates/shadows-http/src/runs.rs`,
+  `crates/shadows-http/src/lib.rs` (route), `crates/shadows-http/src/contract.yaml`,
+  `crates/shadows/tests/plan_routes.rs`, `api/openapi.json`, `web/src/api/schema.d.ts`, this file.
+- Done when: a `plan_routes.rs` test reads progress for a three-task plan with one task marked
+  done and one with an attempt, and gets them in order with the right `done` and `state`; an
+  unknown version is 404; `cargo test -p shadows --test plan_routes` passes and the regenerated
+  `api/openapi.json` is committed.
+
+### B-164 · Run slice 4's live tests and record them
+
+- Status: todo
+- Plan: none. `crates/shadows/tests/task_questions_live.rs` is written and has never run.
+  Run it as its header says (`-- --ignored --test-threads=1`, gopls on PATH, Claude Code and
+  Codex signed in) and record each test's outcome in
+  `docs/evidence/2026-11-18-slice-4-live.md`: pass, fail with its first failing line, or not run
+  with the reason. A failure is reported, not fixed in this task.
+- Read: the test file's header; `crates/shadows/tests/fixtures/live.rs`.
+- Touch: `docs/evidence/2026-11-18-slice-4-live.md`, this file and its "Known and left" entry.
+- Done when: the evidence file names every test in the file with its outcome.
+
+### B-165 · Structure and depth on a real provider
+
+- Status: todo
+- Plan: none. Slices 1 to 5 of `specs/2026-11-05-structure-and-depth-design.md` have no
+  real-provider acceptance. In the browser on an existing project, with the real Planner on
+  Claude Code: the Planner proposes a map of parts, the person approves it, a part's waiver with
+  a reason is kept, the roadmap gate refuses what the map lacks, and the result survives a
+  daemon restart. Record each step with its daemon log lines in
+  `docs/evidence/2026-11-18-structure-and-depth-live.md`. Mohammed confirms the record.
+- Read: the spec's slices and its acceptance section.
+- Touch: the evidence file, this file and its "Known and left" entry, the spec's status line.
+- Done when: the evidence file records each step's observed result.

@@ -5,7 +5,45 @@ here and set its status. Task shape: [`AGENTS.md`](./AGENTS.md#a-task-in-stagesm
 
 ## Now
 
-F-126 below. F-125 (choose an executor on a task or in a new conversation) is on `main` at `0e281585` (PR #71); its live acceptance is Mohammed's.
+F-126, F-127 and F-128 below. F-125 (choose an executor on a task or in a new conversation) is on `main` at `0e281585` (PR #71); its live acceptance is Mohammed's.
+
+### F-127 · The plan page shows the plan's real progress
+
+- Status: blocked (needs B-163's route and its regenerated `schema.d.ts`)
+- Plan: none. The plan page's "Plan progress" block sits inside `Planned` with "— done", an
+  empty bar and disabled task toggles. With B-163, read
+  `GET /api/workflows/{workflow}/versions/{version}/progress` (a new `planProgressQuery` in
+  `web/src/api/workflows.ts`, keyed under the plan version, refetched when a task's run changes
+  on the event stream as the task page's run is) and draw: "N tasks · M done" with M the count of
+  `done`, a bar whose width is M / N, and one small mark per task (`T1`, `T2`, ...) showing done,
+  running (latest state live), or not started; each mark links to that task's page. The marks
+  are read-only: marking done stays on the task page. Remove the `Planned` wrapper and its
+  reason. While the read is pending or fails, show the existing "— done" text and the error line.
+- Read: `web/src/app/workflows/contract.yaml`; `web/src/api/contract.yaml` (`workflows.ts`);
+  `web/src/app/workflows/plan-page.tsx` (the `Planned` block); B-163's `TaskProgress`.
+- Touch: `web/src/api/workflows.ts`, `web/src/api/contract.yaml`, `web/src/app/workflows/plan-page.tsx`,
+  `web/src/app/workflows/plan-page.test.tsx`, `web/src/app/workflows/contract.yaml`,
+  `web/src/test/fake-daemon.ts`, `web/src/test/contract-fixtures.ts`, `docs/core/future.md` (drop
+  its "Plan progress on the plan page" row), this entry's status.
+- Needs: none (B-163 is a backend task on this branch).
+- Done when: `plan-page.test.tsx` shows "3 tasks · 1 done", a bar at a third, a running mark and
+  a link per task, and no `Planned` block; `npx --prefix web vitest run src/app/workflows`,
+  `npm --prefix web run typecheck` and `npm --prefix web run lint` pass.
+
+### F-128 · Record the visual acceptances left open
+
+- Status: todo
+- Plan: none. "Known and left" below lists three looks never recorded. In the browser
+  (`npx --prefix web vite web` against a running daemon): the light palette on the main screens
+  (sidebar, a conversation, the plan page, settings), and the image tiles of F-114 (attach two
+  images in the composer, send, and see them in the conversation). Take a screenshot of each and
+  note any defect. The desktop login item (start with Windows) needs the AYLUL desktop app and
+  stays Mohammed's: record it as not run here, with that reason.
+  Record everything in `docs/evidence/2026-11-18-visual-acceptance.md`; a defect found is listed
+  there, not fixed in this task.
+- Read: `web/src/app/settings/person-theme.tsx`; F-114 in Git (`docs/frontend/stages.md` at `d997393a`).
+- Touch: the evidence file, this file's "Known and left" entries.
+- Done when: the evidence file has each look's observed result, or "not run" with its reason.
 
 ### F-126 · Language servers become one collapsible row in Settings › Code
 
