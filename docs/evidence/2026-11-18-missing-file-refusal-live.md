@@ -16,5 +16,13 @@ Project `notes-app`: an existing Git folder with `README.md`, `notes/__init__.py
 | 4 | `tests/test_cli.py` in the same edit | Not refused: the Planner had made T3 need T2, which creates it. |
 | 5 | The Planner's answer to the person | It quoted the refusal, listed the project's real files, and offered to create the two files or put the export in existing ones. |
 
-Not run: a `modify` of a path a dependency deletes, and the skip while the file list is still
-being made. Both are covered by `crates/shadows-core/tests/task_contract.rs`.
+| 6 | After a daemon restart on the same database: T3 (needs T2) deletes `README.md`, T4 (needs T3) modifies it, in one edit | Refused: `WORKFLOW_VALIDATION_FAILED: T4 modifies README.md, which a task it depends on deletes`. T3's delete of an existing file was not flagged. |
+| 7 | The project's folder moved away, then T3 (needs T2) modifies the absent `notes/ghost.py` | Accepted (revision 2): the file list cannot answer for a missing folder, so the check is skipped. The folder was put back after the turn. |
+
+Seen in step 7: the skip is silent. The Planner noticed it was accepted where a like edit had
+been refused and could not tell why. Telling the Planner that the file check was skipped, and
+why, is not built.
+
+Not run live: the skip while a project's first file listing is still running. A listing of this
+project ends in milliseconds, so it cannot be held open from outside; the case is covered by
+`the_check_is_skipped_when_the_file_list_cannot_answer` in `crates/shadows-core/tests/task_contract.rs`.
