@@ -1,3 +1,4 @@
 - [Loading .env](feedback_env_loading.md): use a read loop, never `. ./.env` (it once echoed a key)
 - [Open value sets](feedback_open_value_sets.md) — client-owned lists are opaque ids with a shape check, not backend enums (ruling 2026-10-21)
 - [Commit only my paths](feedback_commit_only_paths.md) — `git commit -- <paths>` when another task has staged files; no `python -`
+- [Stages after approval](feedback_stages_after_approval.md) — add a plan's tasks to stages.md only after Mohammed approves the plan
