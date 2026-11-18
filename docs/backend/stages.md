@@ -18,7 +18,7 @@ at `449d4f95` (PR #70). Its plan is `docs/backend/plans/2026-11-09-local-deliver
 `main` (PR #71, `0e281585`). Plan progress for a plan version, the fix that keeps one delivery's storage
 error from stalling the other groups, and the slice 4 and structure-and-depth live records are on `main`
 (PR #72, `753b26a4`). Executor choices were accepted by Mohammed in the browser on 2026-11-18 (B-159).
-No backend task is open.
+Now: B-167, a task may not modify or delete a file the project does not have (below).
 
 ### Shipped
 
@@ -75,4 +75,32 @@ this file at `db760593`.
 
 ## Open
 
-None.
+### B-167 · A task may not modify or delete a file the project does not have
+
+- Status: todo
+- Plan: none; the ruling is §17 "The task contract" (`docs/core/specs/2026-10-01-task-contracts-and-evidence-design.md`,
+  Mohammed, 2026-11-18). When a plan edit is saved, Plans refuses a task whose contract names a
+  file with action `modify` or `delete` that is not in the project's file inventory, unless a task
+  it depends on (directly or transitively, through the plan's existing dependency graph) has that
+  path with action `create`. A path that such a dependency has with action `delete` is refused
+  too. The refusal is the edit's existing invalid-plan answer, one problem per file, naming the
+  task and the path. When the inventory cannot answer (`InventoryState::Missing` or `Indexing`),
+  the check is skipped. Plans' rules stay pure: the in-plan part (creates and deletes along
+  dependencies) is a pure rule over `PlanContent`; only the existence question goes to Codebase.
+  Plans receives `Codebase` in its constructor (`AppCore::start`); if Codebase has no method that
+  answers "which of these paths does this project have" without paging the whole inventory, add
+  one there, with its contract line. Find the edit path from `crates/core-plans/contract.yaml`
+  and `crates/core-plans/src/rules.rs` (`edit_problems`).
+- Read: `crates/shadows-core/src/app.rs` (`Plans::new`, `Codebase::new`);
+  `crates/core-plans/contract.yaml`; `crates/core-plans/src/task_contract.rs`, `rules.rs`,
+  `dependency_graph.rs`; `crates/codebase/contract.yaml`; `crates/codebase/src/inventory.rs`.
+- Touch: `crates/core-plans/src/lib.rs`, the edit path and rule files it names,
+  `crates/core-plans/contract.yaml`, `crates/core-plans/tests/` (or the existing plan-edit tests
+  the contract names), `crates/codebase/src/inventory.rs` and `crates/codebase/contract.yaml` if a
+  method is added, `crates/shadows-core/src/app.rs`, `plans_for_tests` and any test fixture that
+  builds `Plans`, this entry's status.
+- Done when: tests show (1) `modify` of a missing path is refused naming task and path; (2) `modify`
+  of a path a dependency creates is accepted; (3) `modify` of a path a dependency deletes is
+  refused; (4) `modify` of an existing file is accepted; (5) a project with no folder or an
+  unfinished listing skips the check; the core-plans and codebase tests and
+  `cargo clippy --workspace --all-targets --features fake-acp/test-support -- -D warnings` pass.

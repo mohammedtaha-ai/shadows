@@ -145,7 +145,15 @@ workflow/version/task, or an existing file/symbol or shared-agreement operation.
 One producer definition is authoritative; a consumer does not copy/override it.
 Validate missing identities, path escapes, duplicate symbols, nonexistent output
 pins, same-project reach and dependency cycles. Required producer references
-participate in the existing dependency graph. Existing shared agreements retain
+participate in the existing dependency graph.
+
+A file the contract will `modify` or `delete` must exist (Mohammed, 2026-11-18). When a plan edit is
+saved, Plans refuses a task whose `modify` or `delete` path is not in the project's file inventory
+(Code), unless a task it depends on, directly or through others, creates that path. A path that a
+task it depends on deletes is refused the same way. The refusal names the task and the path, so
+the Planner reads the project and corrects the guess. When the inventory cannot answer (the project
+has no folder, or its first listing is still running), the check is skipped, never guessed. A file
+the inventory leaves out (ignored by Git) counts as absent: a task does not work on it. Existing shared agreements retain
 their exact operation/version authority.
 
 reads/writes remain permission scopes and may contain reviewed globs. Named work
