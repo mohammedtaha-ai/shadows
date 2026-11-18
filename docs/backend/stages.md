@@ -15,7 +15,9 @@ the full gate and whole-branch review run once before each delivery PR.
 The local delivery program is complete: its slices 1, 1b, 3, 2, 4, 5 and 6 are on `main`, the last
 at `449d4f95` (PR #70). Its plan is `docs/backend/plans/2026-11-09-local-delivery-program.md` at
 `449d4f95`. Executor choices per task, the Codex protocol check and global external connections are on
-`main` (PR #71, `0e281585`). Now: B-159, the browser acceptance of executor choices (below).
+`main` (PR #71, `0e281585`). Plan progress for a plan version, the fix that keeps one delivery's storage
+error from stalling the other groups, and the slice 4 and structure-and-depth live records are on `main`
+(PR #72, `753b26a4`). Now: B-159, the browser acceptance of executor choices (below).
 
 ### Shipped
 
@@ -45,7 +47,8 @@ A shipped task's entry, and its plan once deleted, are in this file in Git at th
 | — | Codex in the real Planner and executors slice 1, accepted by Mohammed in the browser (2026-11-15); their plans deleted | B-88, B-94 | `7846c2d9` |
 | #69 | Slice 5: checks, returns and messages to a task's agent ([design §5.3, §5.4](specs/2026-11-08-executors-design.md#54-checks-shadows-runs-mohammed-2026-11-15)) | B-111, B-113, B-114, B-150, B-151 (acceptance, evidence (`docs/evidence/2026-11-15-slice-5-checks.md` at `4031168f`)) | `4031168f` |
 | #70 | Slice 6: stop control, interruption, project rechecks and decisions (plan `docs/backend/plans/2026-11-16-slice-6-stop-control.md` at `449d4f95`; accepted in the browser on `testing6`, 2026-11-16) | B-117, B-152, B-153, B-154, B-105, B-118; F-121 to F-124 | `449d4f95` |
-| #71 | Executor choices per task, the Codex protocol check (plan `docs/backend/plans/2026-11-18-codex-protocol-check.md` at `0e281585`), global external connections (plan `docs/backend/plans/2026-11-18-external-agent-connections.md` at `0e281585`; [spec](specs/2026-11-18-external-agent-connections-design.md)); executor choices plan at `0e281585`, [shared request](../shared/requests/2026-11-18-executor-choices.md) | B-155 to B-158, B-160, B-161; F-125 | `0e281585` |
+| #71 | Executor choices per task, the Codex protocol check (plan `docs/backend/plans/2026-11-18-codex-protocol-check.md` at `0e281585`), global external connections (plan `docs/backend/plans/2026-11-18-external-agent-connections.md` at `0e281585`; [spec](specs/2026-11-18-external-agent-connections-design.md)); executor choices plan at `0e281585`, shared request `docs/shared/requests/2026-11-18-executor-choices.md` at `0e281585` | B-155 to B-158, B-160, B-161; F-125 | `0e281585` |
+| #72 | Plan progress for a plan version (B-163, F-127), one delivery's start failure refused without stalling the others (B-162), slice 4's live tests and the planned-consumer fix (B-164, B-166; evidence `docs/evidence/2026-11-18-slice-4-live.md`), structure and depth on a real provider (B-165; evidence `docs/evidence/2026-11-18-structure-and-depth-live.md`), Settings › Code as one row (F-126), visual acceptances (F-128; evidence `docs/evidence/2026-11-18-visual-acceptance.md`) | B-162 to B-166; F-126 to F-128 | `753b26a4` |
 
 Replaced or dropped without being built: B-97, B-98, B-119 (by slice 2), B-102, B-110 (with the
 critic), B-112 (by the Planner's judgment), B-115, B-116 (by B-125 and B-126). Their entries are in
@@ -55,14 +58,15 @@ this file at `db760593`.
 
 - A delivery whose turn started but whose link keeps failing on storage retries without a bound and
   holds back every group's turn endings until it links (`crates/core-messages/src/deliveries.rs`);
-  bounding it would drop a running turn's reply. Dispatch of other groups continues (B-162).
+  bounding it would drop a running turn's reply. Dispatch of other groups continues. A start that
+  keeps failing is refused after three tries (`docs/backend/stages.md` at `753b26a4`).
 - `Plans::owner_thread` (planner context spec §6, slice 4) waits for messaging slice 3.
 - Structure and depth slices 1 to 5 ran on a real provider on 2026-11-18 (`docs/evidence/2026-11-18-structure-and-depth-live.md`); the FastAPI example and the two-layers-at-one-place refusal were not run live.
 - Recorded acceptances: §10 of the AYLUL agents design (2026-11-03, desktop app); planner context slices
   1 and 2 (evidence `docs/evidence/2026-11-04-planner-context-probe.md` at `4031168f`); slice 2's language servers on
   `testing4` (2026-11-13); slice 4's browser acceptance on `testing4` (2026-11-14, B-149); slice 6's
   browser acceptance on `testing6` (2026-11-16, B-118).
-- Slice 4's live tests ran on 2026-11-18 (`docs/evidence/2026-11-18-slice-4-live.md`): 7 pass; `live_executor_asks_about_a_planned_consumer` failed and passes since B-166.
+- Slice 4's live tests ran on 2026-11-18 (`docs/evidence/2026-11-18-slice-4-live.md`): 7 pass; `live_executor_asks_about_a_planned_consumer` failed and passes since the fix in `docs/backend/stages.md` at `753b26a4`.
 - Slice 6's live test (`stop_control_live`) and its evidence file were dropped (Mohammed, 2026-11-16).
 - B-150 keeps its own per-thread message queue beside Turns' queue; reusing Turns' queue needs the executor session restored by thread.
 - The web derives "stopped on the additions cap" itself; a Core field on `TaskRun` should own it.
@@ -76,95 +80,3 @@ this file at `db760593`.
 - Owner: integration acceptance through AppCore and the real UI.
 - Touch: the task's Files list in the plan.
 - Done when: the browser journey and its logs, and the named signed-in live tests (or "not run" with the reason), are recorded in evidence.
-
-### B-162 · A delivery's storage error no longer stalls every group
-
-- Status: done (the test is `a_delivery_failing_on_storage_is_refused_and_other_groups_still_dispatch`
-  in `crates/shadows/tests/group_routes.rs`, beside the other dispatch tests: core-messages' own
-  tests cannot build `Turns`)
-- Plan: none; the defect is the "Known and left" entry above, written here in full.
-  `Messages::dispatch_ready` (`crates/core-messages/src/deliveries.rs`) returns the first
-  storage error of any candidate with `?`, so one delivery whose start keeps failing on storage
-  stops the loop before the other groups' candidates, and the caller (`replies.rs`) retries the
-  same order for ever. Find the root cause and fix it in the owner: one failing delivery must not
-  keep the others from being dispatched, and a delivery that keeps failing must reach an end the
-  person can see (a refusal notice in its group) instead of retrying for ever. Transient errors
-  may still retry. Remove the "Known and left" entry when done.
-- Read: `crates/core-messages/contract.yaml`; `crates/core-messages/src/deliveries.rs`,
-  `replies.rs`, `store/`.
-- Touch: `crates/core-messages/src/deliveries.rs`, `crates/core-messages/src/replies.rs`,
-  `crates/core-messages/src/store/*.rs` if the end state needs a store write,
-  `crates/core-messages/tests/groups.rs` (or a new `tests/deliveries.rs`),
-  `crates/core-messages/contract.yaml`, this file.
-- Done when: a test where one group's delivery fails on storage every time shows a second
-  group's delivery still dispatched, and the failing one ends with a visible refusal after a
-  bounded number of tries; `cargo test -p core-messages` passes.
-
-### B-163 · One read gives every task's progress in a plan version
-
-- Status: done
-- Plan: none. The executors design (`specs/2026-11-08-executors-design.md`, "The plan page")
-  promised the plan page's real progress; each task's `TaskRun` has `done`, but the plan page
-  would need one call per task. Add `Runs::progress(workflow, version)` returning, in task
-  order, one `TaskProgress { task, done, done_at, state }` per task, where `state` is the latest
-  attempt's state or `null` with none (reuse the store reads `Runs::task` uses; prefer one store
-  query over one per task). Route:
-  `GET /api/workflows/{workflow}/versions/{version}/progress` returns `Vec<TaskProgress>`, 404 as
-  the task read. Regenerate `api/openapi.json` and `web/src/api/schema.d.ts` with the repo's own
-  generators. No write: marking done stays on the task page.
-- Read: `crates/core-runs/contract.yaml`; `crates/core-runs/src/lib.rs` (`task`, `mark_done`);
-  `crates/shadows-http/src/runs.rs` (`task`); `crates/shadows-http/src/contract.yaml`.
-- Touch: `crates/core-runs/src/lib.rs` (or a new `src/progress.rs`), `crates/core-runs/src/model.rs`,
-  `crates/core-runs/src/store/*.rs` if a new query is needed, `crates/core-runs/contract.yaml`,
-  `crates/shadows-core/src/lib.rs` (re-export), `crates/shadows-http/src/runs.rs`,
-  `crates/shadows-http/src/lib.rs` (route), `crates/shadows-http/src/contract.yaml`,
-  `crates/shadows/tests/plan_routes.rs`, `api/openapi.json`, `web/src/api/schema.d.ts`, this file.
-- Done when: a `plan_routes.rs` test reads progress for a three-task plan with one task marked
-  done and one with an attempt, and gets them in order with the right `done` and `state`; an
-  unknown version is 404; `cargo test -p shadows --test plan_routes` passes and the regenerated
-  `api/openapi.json` is committed.
-
-### B-164 · Run slice 4's live tests and record them
-
-- Status: done (`docs/evidence/2026-11-18-slice-4-live.md`: 7 pass, 1 fail, B-166)
-- Plan: none. `crates/shadows/tests/task_questions_live.rs` is written and has never run.
-  Run it as its header says (`-- --ignored --test-threads=1`, gopls on PATH, Claude Code and
-  Codex signed in) and record each test's outcome in
-  `docs/evidence/2026-11-18-slice-4-live.md`: pass, fail with its first failing line, or not run
-  with the reason. A failure is reported, not fixed in this task.
-- Read: the test file's header; `crates/shadows/tests/fixtures/live.rs`.
-- Touch: `docs/evidence/2026-11-18-slice-4-live.md`, this file and its "Known and left" entry.
-- Done when: the evidence file names every test in the file with its outcome.
-
-### B-166 · The planned-consumer live test asks while its attempt still runs
-
-- Status: done (the test app never started the code service, so gopls stayed idle;
-  `gopls_warm` starts it and warms gopls before the attempt; two live passes in
-  `docs/evidence/2026-11-18-slice-4-live.md`)
-- Plan: none. In `docs/evidence/2026-11-18-slice-4-live.md`,
-  `live_executor_asks_about_a_planned_consumer` failed with GRANT_SCOPE "no running attempt holds
-  this grant's task": the test asks `task_question` on the executor's grant, retrying while
-  gopls starts, and the live executor can finish T1 first. Confirm the cause, then make the test
-  hold the question to a running attempt (for example: warm gopls on the module before the
-  attempt starts, or keep the executor from finishing until the test has asked) without
-  weakening what it checks. A product change is out of scope; if the cause is in the product,
-  stop and report.
-- Read: the evidence file; `crates/shadows/tests/task_questions_live.rs` (`asked`, the test);
-  `crates/shadows/tests/fixtures/live.rs`.
-- Touch: `crates/shadows/tests/task_questions_live.rs`, the evidence file, this file.
-- Done when: the test passes twice in a row live (`cargo test -p shadows --test
-  task_questions_live live_executor_asks_about_a_planned_consumer -- --ignored`), recorded in
-  the evidence file.
-
-### B-165 · Structure and depth on a real provider
-
-- Status: done (`docs/evidence/2026-11-18-structure-and-depth-live.md`; Mohammed confirms)
-- Plan: none. Slices 1 to 5 of `specs/2026-11-05-structure-and-depth-design.md` have no
-  real-provider acceptance. In the browser on an existing project, with the real Planner on
-  Claude Code: the Planner proposes a map of parts, the person approves it, a part's waiver with
-  a reason is kept, the roadmap gate refuses what the map lacks, and the result survives a
-  daemon restart. Record each step with its daemon log lines in
-  `docs/evidence/2026-11-18-structure-and-depth-live.md`. Mohammed confirms the record.
-- Read: the spec's slices and its acceptance section.
-- Touch: the evidence file, this file and its "Known and left" entry, the spec's status line.
-- Done when: the evidence file records each step's observed result.
