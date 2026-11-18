@@ -130,7 +130,9 @@ async fn fresh_database_migrates_and_applies_the_connection_policy() {
          0054 the project's file inventory, 0056 the lessons record, \
          0058 the language servers turned off and added, \
          0060 the person's questions, 0061 the task context an attempt received, \
-         0070 the recheck batches and their results, 0071 the project's design decisions,          0073 the task's executor choice and its saves,          0074 the external connections and their project scopes)"
+         0070 the recheck batches and their results, 0071 the project's design decisions, \
+         0073 the task's executor choice and its saves, \
+         0074 the external connections and their project scopes)"
     );
 
     storage.close().await.unwrap();
