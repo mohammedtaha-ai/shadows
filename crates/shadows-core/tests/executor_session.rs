@@ -438,7 +438,13 @@ async fn existing_grants_survive_the_migration() {
 
     let after: Vec<GrantRow> = sqlx::query_as(rows).fetch_all(&pool).await.unwrap();
     assert_eq!(kept.len(), 2);
-    assert_eq!(kept, after);
+    // The thread grant is untouched; 0074 revokes the old project token and
+    // keeps its row for history and authorship.
+    assert_eq!(kept[0], after[0]);
+    assert!(kept[1].6.is_none() && after[1].6.is_some());
+    let mut unrevoked = after[1].clone();
+    unrevoked.6 = None;
+    assert_eq!(kept[1], unrevoked);
     let draft: String = sqlx::query_scalar("SELECT grant_id FROM draft_intent")
         .fetch_one(&pool)
         .await
