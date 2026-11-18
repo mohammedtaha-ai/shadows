@@ -263,7 +263,7 @@ Sign-in does not upload projects. Linking is not backup, team publication, code
 sync or execution transfer. An offline personal computer cannot run a new Planner
 turn; retained explanations are visibly cached. The authoritative decisions are in
 [Shadows §1.7](../core/specs/2026-09-21-architecture-design.md#17-workspace-authority-and-deployment),
-with the [sharing inventory](../../../shadows-backend/docs/architecture.md#what-lives-where)
+with the [sharing inventory](https://github.com/mohammedtaha-ai/shadows-backend/blob/main/docs/architecture.md#what-lives-where)
 specifying what crosses into the cloud.
 
 ### 5.1 Why separation matters
@@ -357,7 +357,7 @@ If Shadows changes its internal storage later, the Liaison should not care.
 
 ## 6. High-Level Architecture
 
-The [shared architecture sections 2-4](../../../shadows-backend/docs/architecture.md#2-languages-and-technology-direction)
+The [shared architecture sections 2-4](https://github.com/mohammedtaha-ai/shadows-backend/blob/main/docs/architecture.md#2-languages-and-technology-direction)
 own the selected languages and connection topology. Desktop can reach local
 Shadows for navigation and presentation, and the cloud for NYLRA dialogue.
 Mobile reaches the cloud. Shadows maintains its own outbound connection even
@@ -616,7 +616,7 @@ and versioned evidence. That association is not inferred from whichever
 conversation happened to be newest globally. The companion can retrieve a
 relevant older decision without copying the complete conversation history.
 The sharing rules are owned by
-[shared architecture section 6](../../../shadows-backend/docs/architecture.md#6-current-work-context-not-transcript-replication).
+[shared architecture section 6](https://github.com/mohammedtaha-ai/shadows-backend/blob/main/docs/architecture.md#6-current-work-context-not-transcript-replication).
 
 ---
 
@@ -1150,7 +1150,7 @@ A model-produced `human` field or an automatically signed interpretation is
 not proof of human confirmation. NYLRA's model cannot call an unrestricted
 approval operation. The trusted confirmation flow and owner-side revalidation
 are prerequisites in
-[shared architecture sections 8 and 13](../../../shadows-backend/docs/architecture.md#8-decision-and-approval-integrity).
+[shared architecture sections 8 and 13](https://github.com/mohammedtaha-ai/shadows-backend/blob/main/docs/architecture.md#8-decision-and-approval-integrity).
 
 ---
 
@@ -1290,7 +1290,7 @@ These should be treated separately.
 Cloud reasoning requires permitted plaintext to be processed by NYLRA and the
 chosen provider. Do not promise end-to-end secrecy from those processors. Show
 data movement and recipient providers. The
-[sharing/lifecycle owner](../../../shadows-backend/docs/architecture.md#what-lives-where)
+[sharing/lifecycle owner](https://github.com/mohammedtaha-ai/shadows-backend/blob/main/docs/architecture.md#what-lives-where)
 defines selection, derived-context scope and revocation. Retention, redaction and
 deletion include cached summaries. Future local reasoning and encryption designs
 need their own reviewed boundaries.
@@ -1347,10 +1347,10 @@ nylra/
 ```
 
 These are agreed repository responsibilities, not existing source folders or
-a scaffolding plan. The [shared architecture](../../../shadows-backend/docs/architecture.md)
+a scaffolding plan. The [shared architecture](https://github.com/mohammedtaha-ai/shadows-backend/blob/main/docs/architecture.md)
 owns the technical boundaries and language decisions. Code is organized by
 responsibility with source contracts following the
-[supplied template](../../../shadows-backend/docs/contracts/TEMPLATE.yaml).
+[supplied template](https://github.com/mohammedtaha-ai/shadows-backend/blob/main/docs/contracts/TEMPLATE.yaml).
 
 ---
 
@@ -1863,7 +1863,7 @@ The full product direction is preserved. This inventory is not an approved
 implementation sequence or a claim that any capability is implemented.
 Delivery uses complete runnable paths inside the selected architecture;
 it does not plan a rewrite when the product grows.
-The [delivery order](../../../shadows-backend/docs/architecture.md#14-delivery-order)
+The [delivery order](https://github.com/mohammedtaha-ai/shadows-backend/blob/main/docs/architecture.md#14-delivery-order)
 starts with sourced text continuity, enforced assessment/confirmation, then voice
 and presence. Team work and cloud execution retain separate runtime gates.
 
@@ -1911,7 +1911,7 @@ and presence. Team work and cloud execution retain separate runtime gates.
 
 These responsibilities live within the shared backend and its client adapters
 as appropriate. The exact ownership boundaries are defined in
-[shared architecture section 3](../../../shadows-backend/docs/architecture.md#3-application-organization).
+[shared architecture section 3](https://github.com/mohammedtaha-ai/shadows-backend/blob/main/docs/architecture.md#3-application-organization).
 This conceptual map does not require a separate service or package per branch.
 
 ```text

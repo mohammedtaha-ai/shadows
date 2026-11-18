@@ -310,7 +310,7 @@ Decided 2026-10-10 for the personal/team boundary. This section owns workspace
 authority, runtime placement, synchronization semantics and execution ownership.
 It specifies future integration; it does not claim a server runtime, connector,
 PostgreSQL product store or remote worker is implemented.
-The [shared cloud architecture](../../../../shadows-backend/docs/architecture.md)
+The [shared cloud architecture](https://github.com/mohammedtaha-ai/shadows-backend/blob/main/docs/architecture.md)
 owns accounts, cloud delivery, NYLRA data and sharing lifecycle. §24 owns approval.
 
 ### One authority per workspace
