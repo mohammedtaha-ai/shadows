@@ -5,8 +5,8 @@ import type { CheckResult } from '@/api/runs'
 
 /** `reported` is false where no executor reported the check, as on a recheck: the row then draws only Core's own run. */
 export function CheckRow({ check, reported: reportedByExecutor = true }: { check: CheckResult; reported?: boolean }) {
-  // Shadows writes the `contract` row itself: no command, nothing an executor reported.
-  const own = check.id === 'contract'
+  // Core marks the check Shadows runs itself: it has no command and nothing an executor reported.
+  const own = check.by_shadows
   const reported = reportedByExecutor && !own
   const title = own ? 'Contract' : check.id
   const [open, setOpen] = useState(false)
