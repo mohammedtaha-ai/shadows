@@ -1,5 +1,5 @@
 # Owns the rule "does the code hold what the contract promised", its verdicts
-# and, later, the record (code-record plan, Rulings for every task).
+# and the record a done mark writes (code-record plan, Rulings for every task).
 # Project identities are imported from core-projects; the task contract's types
 # from core-plans, whose service it never calls. Runs owns the check rows and
 # their flow and calls `verify`; CodeRecord never calls Runs.
@@ -19,7 +19,7 @@ modules:
   error.rs: code record refusals
   model.rs: the verdict's values
   verify.rs: comparing a contract's symbols with the code
-  store/mod.rs: verdict persistence
+  store/mod.rs: code record persistence
 
 dependencies:
   code: crates/codebase/contract.yaml
@@ -40,7 +40,18 @@ shapes:
     # NoServer: unchecked, "no language server reads it"; Absent: the file is absent.
     values: [Symbols(Value), NoServer, Absent]
   CodeRecordStore:
-    storage: Arc<Storage>   # private; table code_record_verdict
+    storage: Arc<Storage>   # private; tables code_record_verdict, code_record_file, code_record_symbol, code_record_unpromised
+  DoneRecord:
+    # What a done mark records: attempt and commit none for a task done with
+    # no attempt; verdict none then, or when another attempt committed since.
+    project: ProjectId
+    workflow: WorkflowId
+    version: i64
+    task: u32
+    attempt: Option<String>
+    commit: Option<String>
+    contract: TaskContract
+    verdict: Option<Verdict>
   SymbolState:
     values: [found, missing, unchecked]
   PromisedSymbol:
@@ -124,6 +135,19 @@ functions:
       # name not in it, or the file was unchecked. Unpromised: a counted
       # top-level symbol of a created file that no contract symbol of that
       # file names (a `Class.method` names `Class`).
+  store_rows:
+    files:
+      signature: "DoneRecord::files(&self) -> Result<Vec<RecordedFile>, StorageError>"
+      private: true
+      # Every contract file: path, action, purpose.
+    symbols:
+      signature: "DoneRecord::symbols(&self) -> Result<Vec<RecordedSymbol>, StorageError>"
+      private: true
+      # Every promised symbol with its kind, contract_json and state.
+    unpromised:
+      signature: "DoneRecord::unpromised(&self) -> &[Unpromised]"
+      private: true
+      # The verdict's unpromised symbols; none without a verdict.
   store:
     put:
       signature: "(&self, key: &str, project: &ProjectId, verdict: &Verdict) -> Result<(), CodeRecordError>"
@@ -131,10 +155,22 @@ functions:
       # One write: upsert by key, verified_at Storage::now().
     delete_project_in:
       signature: "(conn: &mut Tx, project: &ProjectId) -> Result<(), StorageError>"
-      # Every verdict of the project, inside the caller's write.
+      # Every verdict and record row of the project, inside the caller's write.
+    record_done_in:
+      signature: "(tx: &mut Tx, done: &DoneRecord) -> Result<(), StorageError>"
+      # Inside Runs' marking write: replaces the task's rows. Every contract
+      # file; every promised symbol with its state found, missing or unchecked
+      # from the verdict by symbol id and path, unchecked when the verdict is
+      # none or does not name it; unpromised rows from the verdict only. No read
+      # method yet: its first user is code_where.
+    forget_done_in:
+      signature: "(tx: &mut Tx, workflow: &WorkflowId, version: i64, task: u32) -> Result<(), StorageError>"
+      # Inside Runs' marking write: deletes the task's rows.
 
 shared_in_transaction:
-  delete_project_in: "ProjectLifecycle's removal transaction: a removed project's verdicts go in the removal's own write"
+  delete_project_in: "ProjectLifecycle's removal transaction: a removed project's verdicts and record go in the removal's own write"
+  record_done_in: "Runs' put_mark write: a done mark records its task's contract and verdict"
+  forget_done_in: "Runs' put_mark write: a not-done mark, or a done one with no contract, removes the task's record"
 
 obligations:
   - rule: >
@@ -158,6 +194,16 @@ obligations:
       live_a_file_no_server_reads_is_unchecked]
     note: Ignored in CI (needs pyright-langserver on PATH); run with --include-ignored.
 
+  - rule: >
+      A done record replaces the task's rows: files, promised symbols with their
+      verdict's state (unchecked without a verdict) and unpromised symbols; a
+      contract with no files or symbols records nothing; forgetting the task or
+      removing its project removes them.
+    tested_by: [done_writes_the_record_and_not_done_removes_it,
+      a_second_done_replaces_the_rows,
+      a_task_without_a_contract_records_nothing,
+      removing_the_project_removes_its_record]
+
 not_the_caller's:
-  - Read or write code_record_verdict directly.
+  - Read or write code_record_verdict, code_record_file, code_record_symbol or code_record_unpromised directly.
   - Decide whether a symbol is found, missing or unchecked, or phrase the check's output.

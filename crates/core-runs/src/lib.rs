@@ -275,10 +275,15 @@ impl Runs {
             input["reason"] = serde_json::json!(reason);
         }
         let command = CommandContext::user(command, "run.mark_done", input);
+        let record = if done {
+            self.done_record(&plan, task).await?
+        } else {
+            None
+        };
         let marked = self
             .inner
             .store
-            .put_mark(command, plan, task, done, reason)
+            .put_mark(command, plan, task, done, reason, record)
             .await?;
         // Only the attempt the mark judged, and only while that mark stands:
         // a replay never frees work admitted after it.
@@ -292,6 +297,58 @@ impl Runs {
             });
         }
         self.task(workflow, version, task).await
+    }
+
+    /// What a done mark records of its task: the latest committed attempt's
+    /// contract (the one its check verified), commit and verdict; the frozen
+    /// version's contract, unchecked, when no attempt committed. None when
+    /// the task has no contract.
+    async fn done_record(
+        &self,
+        plan: &core_plans::Plan,
+        task: u32,
+    ) -> Result<Option<code_record::DoneRecord>, RunsError> {
+        let latest = self
+            .inner
+            .store
+            .latest_committed(&plan.id, plan.version, task)
+            .await?;
+        let (attempt, commit, contract, verdict) = match latest {
+            Some(id) => {
+                let commit = self.attempt(&id).await?.commit;
+                let contract = self
+                    .inner
+                    .store
+                    .context(&id)
+                    .await?
+                    .and_then(|(context, _)| context.task.contract);
+                let verdict = self
+                    .inner
+                    .code_record
+                    .verdict(id.as_str())
+                    .await
+                    .map_err(|e| RunsError::Unavailable(e.to_string()))?;
+                (Some(id.as_str().to_string()), commit, contract, verdict)
+            }
+            None => {
+                let contract = plan
+                    .tasks
+                    .iter()
+                    .find(|t| t.content.number == task)
+                    .and_then(|t| t.content.contract.clone());
+                (None, None, contract, None)
+            }
+        };
+        Ok(contract.map(|contract| code_record::DoneRecord {
+            project: plan.project_id.clone(),
+            workflow: plan.id.clone(),
+            version: plan.version,
+            task,
+            attempt,
+            commit,
+            contract,
+            verdict,
+        }))
     }
 
     /// The plan version `workflow`.

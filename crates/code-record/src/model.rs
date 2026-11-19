@@ -105,3 +105,19 @@ impl Verdict {
         out.join("\n")
     }
 }
+
+/// What a done mark records of its task: the contract, and what the code held
+/// of it. `attempt` and `commit` are none for a task done with no attempt;
+/// `verdict` is none then, or when no verdict matches the recorded attempt,
+/// and every promised symbol is recorded unchecked.
+#[derive(Debug, Clone, PartialEq)]
+pub struct DoneRecord {
+    pub project: core_projects::ProjectId,
+    pub workflow: core_plans::WorkflowId,
+    pub version: i64,
+    pub task: u32,
+    pub attempt: Option<String>,
+    pub commit: Option<String>,
+    pub contract: core_plans::TaskContract,
+    pub verdict: Option<Verdict>,
+}

@@ -491,3 +491,54 @@ async fn live_a_later_task_removing_a_done_tasks_function_is_told() {
     f.core.codebase().shut_down_for_test().await;
     f.finish().await;
 }
+
+#[tokio::test]
+async fn marking_done_writes_the_code_record_and_undone_removes_it() {
+    let (f, id) = candidate(vec![], &["login", "logout"], "def login():\n    pass\n").await;
+    f.core
+        .code_record()
+        .record_answer_for_tests(FILE, functions(&["login", "helper"]));
+    f.core.runs().recover().await.unwrap();
+    assert_eq!(
+        results(&f, &id, 1).await[0].outcome,
+        Some(CheckOutcome::Failed)
+    );
+    f.core
+        .runs()
+        .mark_done("record".into(), &f.workflow, 1, 3, true, Some("ok".into()))
+        .await
+        .unwrap();
+    let rows = || async {
+        let symbols: Vec<(String, String, String)> = sqlx::query_as(
+            "SELECT symbol_id, name, state FROM code_record_symbol
+             WHERE workflow_id = ? AND task = 3 ORDER BY symbol_id",
+        )
+        .bind(f.workflow.as_str())
+        .fetch_all(f.storage.reader())
+        .await
+        .unwrap();
+        let unpromised: Vec<String> =
+            sqlx::query_scalar("SELECT name FROM code_record_unpromised WHERE task = 3")
+                .fetch_all(f.storage.reader())
+                .await
+                .unwrap();
+        (symbols, unpromised)
+    };
+    assert_eq!(
+        rows().await,
+        (
+            vec![
+                ("s1".into(), "login".into(), "found".into()),
+                ("s2".into(), "logout".into(), "missing".into()),
+            ],
+            vec!["helper".to_string()],
+        )
+    );
+    f.core
+        .runs()
+        .mark_done("undo".into(), &f.workflow, 1, 3, false, None)
+        .await
+        .unwrap();
+    assert_eq!(rows().await, (vec![], vec![]));
+    f.finish().await;
+}

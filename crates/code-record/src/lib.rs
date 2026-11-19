@@ -15,7 +15,9 @@ use core_db::Storage;
 use store::CodeRecordStore;
 
 pub use error::CodeRecordError;
-pub use model::{PromisedSymbol, SymbolState, UncheckedFile, Unpromised, Verdict, VerdictOutcome};
+pub use model::{
+    DoneRecord, PromisedSymbol, SymbolState, UncheckedFile, Unpromised, Verdict, VerdictOutcome,
+};
 
 /// What a test records as one file's answer, in place of a language server's.
 #[cfg(feature = "test-support")]

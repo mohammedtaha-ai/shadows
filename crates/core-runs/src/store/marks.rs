@@ -1,6 +1,7 @@
 //! A person's done marks, which `needs` links wait for, and the plan's progress they make.
 use super::RunsStore;
 use crate::{AttemptId, RunsError};
+use code_record::{CodeRecord, DoneRecord};
 use core_db::{CommandContext, Storage, StorageError, Tx};
 use core_plans::WorkflowId;
 use core_threads::ThreadId;
@@ -71,6 +72,7 @@ impl RunsStore {
         task: u32,
         done: bool,
         reason: Option<String>,
+        record: Option<DoneRecord>,
     ) -> Result<super::Marked, RunsError> {
         let (workflow, version, ts) = (plan.id.clone(), plan.version, Storage::now());
         self.storage
@@ -189,6 +191,7 @@ impl RunsStore {
                         &ts,
                     )
                     .await?;
+                    Self::record_in(conn, &workflow, version, task, done, record).await?;
                     let recheck = if done {
                         Self::begin_recheck_in(conn, &plan, task, command_id).await?
                     } else {
@@ -200,6 +203,37 @@ impl RunsStore {
                 })
             })
             .await
+    }
+
+    /// The code record follows the mark in its own write: done records the
+    /// task's contract, without the verdict when another attempt committed
+    /// after `record` was read; not done, or no contract, removes it.
+    async fn record_in(
+        tx: &mut Tx,
+        workflow: &WorkflowId,
+        version: i64,
+        task: u32,
+        done: bool,
+        record: Option<DoneRecord>,
+    ) -> Result<(), RunsError> {
+        let Some(mut record) = record.filter(|_| done) else {
+            CodeRecord::forget_done_in(tx, workflow, version, task).await?;
+            return Ok(());
+        };
+        let latest: Option<String> = sqlx::query_scalar(
+            "SELECT id FROM run_attempts WHERE workflow_id=? AND version=?
+             AND task=? AND state='committed' ORDER BY number DESC LIMIT 1",
+        )
+        .bind(workflow.as_str())
+        .bind(version)
+        .bind(i64::from(task))
+        .fetch_optional(&mut *tx)
+        .await?;
+        if latest != record.attempt {
+            record.verdict = None;
+        }
+        CodeRecord::record_done_in(tx, &record).await?;
+        Ok(())
     }
 
     /// The unreleased attempt judged by the current mark, when `command` made it.
