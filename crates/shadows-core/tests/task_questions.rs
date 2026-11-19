@@ -418,7 +418,15 @@ impl Fixture {
         assert_eq!(reported.state, AttemptState::Committed);
         self.core
             .runs()
-            .mark_done("done-1".into(), &self.workflow, 1, attempt.task, true, None)
+            .mark_done(
+                "done-1".into(),
+                &self.workflow,
+                1,
+                attempt.task,
+                true,
+                // Marked at once, before its contract check runs, which asks a reason.
+                Some("Judged by the test".into()),
+            )
             .await
             .unwrap();
         sha
