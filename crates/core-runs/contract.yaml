@@ -87,6 +87,7 @@ dependencies:
   threads: Threads creates the executor thread inside the Start write, and reads the executor's entries for a lessons record and a failed notice's last message.
   grants: Grants revokes an interrupted attempt's grant at startup; an executor grant names the attempt's task. Grants::check_live_in rechecks a task question's grant inside a read RunsStore opens on the shared storage, and a conflict's grant inside the conflict's own write; no Grants SQL is in Runs.
   projects: Projects names the folder git runs in.
+  code_record: CodeRecord::verify compares the attempt's own contract with the code for the `contract` check, its verdict stored under the attempt id; CodeRecord never calls Runs.
   code: Codebase answers a task question's language-server question (Codebase::lsp, Asker::Grant). Codebase lists the project's files, to leave secret and dependency files out of the first commit (Codebase::refresh_inventory and Codebase::inventory, asked with Asker::Grant), and answers which of a task's required files are absent (Codebase::missing_inputs, Asker::Grant); the same check refuses a conflict's evidence path outside the project or holding a secret, an absent path being evidence too.
   # A running attempt holds `Codebase::hold` of its project until its turn ends, so the project stays active.
 
@@ -160,7 +161,7 @@ functions:
   checks_for: '(grant, workflow, task) -> Vec<CheckResult>; Planner project reach, latest committed attempt, NotFound when absent'
   check_results: '(attempt) -> Vec<CheckResult>; unknown attempt NotFound; reported outcomes apart from nullable Shadows outcomes, own task first then used task and ordinal'
   confirm: 'private: a committed attempt whose turn ended; waits for quiet, serializes per project, records commands, then returns a failed confirmation at most twice or notifies the Planner; a check inconclusive only for another attempt''s uncommitted files never returns; only the latest attempt acts'
-  new: "(storage, plans, harness, turns, projects, threads, code) -> Runs; AppCore constructs the service"
+  new: "(storage, plans, harness, turns, projects, threads, code, code_record) -> Runs; AppCore constructs the service"
   start: "(command, workflow, version, task) -> Attempt; a replay answers the first attempt before any check the plan's later state could fail, the same id with other input is CommandConflict; then checks: admit_in in one read snapshot (Archived, NotFrozen, Superseded from Plans::execution_plan_in, the task NotFound, BadScope, Waiting), then the folder: NotGit, DirtyScope when git lists a changed path inside writes unless last_ended qualifies; admitted paths and the previous attempt number are carried into the first prompt, then required_inputs through Codebase::missing_inputs (MissingInput, InputUnavailable); then begin_attempt, one write that replays, runs admit_in again, then the busy and overlap check, then reads the nearest saved choice (NoExecutorChoice when absent) and inserts; the attempt records the commit HEAD names then (start_head); an attempt whose session or turn cannot start is recorded, so it is answered Failed with its reason, not refused; once the session opened it sends the turn only if the attempt is still Running (a Stop while the session opened found no turn to stop), and a Stop between that check and the turn's record stops the turn"
   required_inputs: "private: (content) -> paths; the exact files a rich contract reads, modifies or deletes, and its Existing uses' paths; a Create target, a reads pattern and a task without a contract require nothing"
   admit_in: "private: (tx, workflow, version, task) -> (Plan, TaskContent); Plans::execution_plan_in's refusal mapped to Archived, NotFrozen or Superseded, another version NotFound, the task NotFound, BadScope, then Waiting from needs_in; the one durable admission check of the preflight and of begin_attempt"
@@ -322,6 +323,9 @@ agreements:
     tested_by: [live_an_addition_continues_the_executor_in_its_session]
 
 obligations:
+  - rule: A task whose contract promises symbols gets a `contract` check even with no checks of its own; a missing symbol returns to the executor by name, a found contract passes and the notice says so; done while the row is unfinished needs a reason; a not_run contract check (no language server) is shown, never returned, and asks no reason; Plans refuses a task check named `contract`.
+    tested_by: [a_task_with_no_checks_still_gets_its_contract_checked, a_missing_symbol_goes_back_to_the_executor_with_its_name, a_found_contract_passes_and_the_notice_says_so, done_while_the_contract_check_runs_needs_a_reason, no_language_server_is_said_and_not_returned, a_check_named_contract_is_refused, live_an_attempt_missing_a_promised_function_is_returned]
+    note: live_an_attempt_missing_a_promised_function_is_returned is ignored in CI (needs pyright-langserver on PATH).
   - rule: A fresh done command rechecks the project's other done tasks across plans and versions, using their judged attempt or newest committed fallback; a failure already told is rerun but not told again; replay starts no second batch and recovery preserves notice delivery.
     tested_by: [a_done_mark_reruns_the_checks_of_the_plans_done_tasks, a_done_mark_reruns_another_plans_done_tasks, a_failure_still_failing_is_rerun_but_not_told_again,a_failing_recheck_tells_the_planner_once, a_passing_recheck_sends_no_notice, a_replayed_mark_starts_no_second_recheck, a_restart_finishes_an_unfinished_recheck, a_finished_batch_never_loses_its_notice, an_older_versions_done_task_is_rechecked, a_task_marked_done_again_stays_in_the_recheck, a_done_task_with_no_commit_is_left_out]
   - rule: A person's Stop and an interruption notify the Planner once; enqueue failure leaves the notice owed for recovery, while a Planner Stop and a conflict produce no second generic notice.
@@ -495,6 +499,17 @@ confirmation:
     every project executor thread is checked, even a released one. Check-folder real paths
     must stay in the project. Commands use shadows-process without a shell and close stdin.
     The prompts carry check_line; the return adds the last 4,000 chars of each failing output.
+  contract_check: >
+    Shadows' own check, id `contract` (Plans refuses a task check with that id). It is due when
+    the attempt's own saved contract has a symbol whose file the task creates or modifies
+    (due_contract); confirm returns early only when it is not due or its row is finished. Under
+    the project check mutex, after the task's own and used checks, start_check records the row
+    unfinished (run empty, ordinal after the task's checks, for_task the attempt's task), then
+    CodeRecord::verify(attempt id, ...), then finish_check with the verdict's outcome (passed,
+    failed, not_run), output Verdict::lines and HEAD. A finished not_run `contract` row never
+    returns to the executor (returnable_checks) and asks no done reason (put_mark); an
+    unfinished one asks a reason as any unfinished check does. clear_unfinished resets it at a
+    restart, as it does every own-task row.
   returns: >
     Any non-passed check returns the latest committed attempt through run_turn as origin checks,
     at most twice since Start or the latest Planner addition. These attempts spend no additions.
@@ -517,7 +532,8 @@ done_checks:
     mark_done normalizes the optional reason and includes it in the command fingerprint only when present.
     put_mark classifies replay first, then in that same transaction reads the latest committed
     attempt, its own and used check specs through specs_in, and recorded outcomes. Missing,
-    unfinished or non-passed confirmations require a nonblank reason (checks_not_passed).
+    unfinished or non-passed confirmations require a nonblank reason (checks_not_passed); a
+    finished `contract` row whose outcome is not_run does not.
     Freed scopes do not bypass the rule. TaskRun.done_reason reads the stored reason.
   checks_for: >
     The Planner grant reaches only its project's requested workflow; checks_for returns the

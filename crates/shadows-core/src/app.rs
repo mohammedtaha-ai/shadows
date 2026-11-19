@@ -482,6 +482,7 @@ impl AppCore {
             design.clone(),
             ui.clone(),
         );
+        let code_record = CodeRecord::new(storage.clone(), code.clone());
         let runs = Runs::new(
             storage.clone(),
             plans.clone(),
@@ -490,6 +491,7 @@ impl AppCore {
             projects.clone(),
             threads.clone(),
             code.clone(),
+            code_record.clone(),
         );
         let events = Arc::new(Events::new(
             storage.clone(),
@@ -498,7 +500,6 @@ impl AppCore {
             turns.clone(),
             ui,
         ));
-        let code_record = CodeRecord::new(storage.clone(), code.clone());
         let project_lifecycle =
             ProjectLifecycle::new(storage.clone(), projects.clone(), code.clone());
         let messages = Messages::new(storage.clone(), agents.clone());

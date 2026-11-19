@@ -28,3 +28,7 @@ tracing = { workspace = true }
 tempfile = { workspace = true }
 # Fixtures stop the code workers they started.
 codebase = { path = "../codebase", features = ["test-support"] }
+
+[features]
+# Recorded answers for other crates' tests; never a default feature.
+test-support = []

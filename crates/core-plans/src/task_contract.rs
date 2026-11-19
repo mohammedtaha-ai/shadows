@@ -573,6 +573,13 @@ impl ContractRules {
             if id.trim().is_empty() || !checks.insert(id) {
                 say(format!("missing or repeated check id `{id}`"));
             }
+            if id == "contract" {
+                say(
+                    "the check id `contract` is Shadows' own: it checks the contract's symbols \
+                     by name; choose another id"
+                        .into(),
+                );
+            }
             if check
                 .run
                 .first()

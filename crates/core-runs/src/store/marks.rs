@@ -118,8 +118,11 @@ impl RunsStore {
                                     failed.insert(format!("T{for_task} {}", check.id));
                                 }
                             }
+                            // An unfinished `contract` row has no result yet; one that could
+                            // not be run judged nothing, so it asks no reason.
                             for (t, c, o) in rows {
-                                if o.as_deref() != Some("passed") {
+                                let unjudged = c == "contract" && o.as_deref() == Some("not_run");
+                                if o.as_deref() != Some("passed") && !unjudged {
                                     failed.insert(format!("T{t} {c}"));
                                 }
                             }

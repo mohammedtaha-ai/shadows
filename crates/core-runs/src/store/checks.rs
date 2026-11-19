@@ -177,11 +177,13 @@ impl RunsStore {
     }
 
     /// Whether any check of the attempt did not pass for a reason its executor can act on:
-    /// every non-passed result but one made inconclusive only by another attempt's files.
+    /// every non-passed result but one made inconclusive only by another attempt's files,
+    /// and a `contract` check that could not be run (no language server reads its files).
     pub async fn returnable_checks(&self, id: &AttemptId) -> Result<bool, RunsError> {
         Ok(sqlx::query_scalar(
             "SELECT EXISTS(SELECT 1 FROM run_checks WHERE attempt_id=?
-             AND (outcome IS NULL OR outcome<>'passed') AND foreign_leftovers=0)",
+             AND (outcome IS NULL OR outcome<>'passed') AND foreign_leftovers=0
+             AND NOT (check_id='contract' AND outcome='not_run'))",
         )
         .bind(id.as_str())
         .fetch_one(self.storage.reader())

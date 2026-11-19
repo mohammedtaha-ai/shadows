@@ -13,6 +13,7 @@ workspace = true
 
 [dependencies]
 codebase = { path = "../codebase" }
+code-record = { path = "../code-record" }
 core-db = { path = "../core-db" }
 core-grants = { path = "../core-grants" }
 core-harness = { path = "../core-harness" }

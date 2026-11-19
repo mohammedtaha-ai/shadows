@@ -602,7 +602,10 @@ functions:
       # which the task does not describe; ... names `{path}`, which the task
       # does not create or modify; ... names acceptance item {k}, which T{n}
       # does not have; a use has no purpose; an existing path not exact; a
-      # task cannot use its own output; the same source is used more than once.
+      # task cannot use its own output; the same source is used more than once;
+      # then per check: missing or repeated check id `{id}`; the check id
+      # `contract` is Shadows' own (Runs runs the symbol check under that id),
+      # so a task check may not take it.
     approval_problems:
       signature: "(content: &PlanContent) -> Vec<Problem>"
       private: true

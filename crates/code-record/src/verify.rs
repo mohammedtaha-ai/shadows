@@ -75,6 +75,28 @@ impl CodeRecord {
 
     /// One file: absent, its counted symbols, or why it could not be checked.
     async fn ask(&self, project: &ProjectId, path: &str) -> FileAnswer {
+        #[cfg(feature = "test-support")]
+        {
+            let recorded = self
+                .recorded
+                .lock()
+                .expect("recorded answers")
+                .get(path)
+                .cloned();
+            match recorded {
+                Some(crate::RecordedAnswer::Symbols(result)) => {
+                    return FileAnswer::Symbols {
+                        found: CodeRecord::document_symbols(&result),
+                        truncated: false,
+                    };
+                }
+                Some(crate::RecordedAnswer::NoServer) => {
+                    return FileAnswer::Unchecked("no language server reads it".into());
+                }
+                Some(crate::RecordedAnswer::Absent) => return FileAnswer::Absent,
+                None => {}
+            }
+        }
         match self
             .code
             .missing_inputs(Asker::Person(project), &[path.to_string()])

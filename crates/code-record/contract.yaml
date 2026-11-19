@@ -32,6 +32,13 @@ shapes:
     # Cheap to clone: built once in AppCore's assemble_services with the Codebase it shares.
     store: CodeRecordStore
     code: Codebase
+    # Only under the `test-support` feature, never a default: answers recorded
+    # by tests, by path, which `ask` answers from before any language server.
+    recorded: Arc<Mutex<HashMap<String, RecordedAnswer>>>
+  RecordedAnswer:
+    # test-support only. Symbols: a documentSymbol result, not truncated;
+    # NoServer: unchecked, "no language server reads it"; Absent: the file is absent.
+    values: [Symbols(Value), NoServer, Absent]
   CodeRecordStore:
     storage: Arc<Storage>   # private; table code_record_verdict
   SymbolState:
@@ -78,6 +85,9 @@ functions:
       # stored before. Only storage fails it.
     verdict:
       signature: "(&self, key: &str) -> Result<Option<Verdict>, CodeRecordError>"
+    record_answer_for_tests:
+      signature: "(&self, path: &str, answer: RecordedAnswer)"
+      # test-support only: `path` is answered with `answer` from then on.
     outcome:
       signature: "Verdict::outcome(&self) -> VerdictOutcome"
       # Failed when a symbol is missing; else passed when one is found; else not_run.

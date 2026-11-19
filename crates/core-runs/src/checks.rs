@@ -3,8 +3,9 @@ use crate::git::Git;
 use crate::scope::Scope;
 use crate::store::{Continued, checks::Finished};
 use crate::{Attempt, AttemptId, AttemptOrigin, CheckOutcome, CheckResult, Runs, RunsError};
+use code_record::VerdictOutcome;
 use core_db::Storage;
-use core_plans::TaskCheck;
+use core_plans::{FileAction, TaskCheck, TaskContract};
 use core_projects::ProjectId;
 use std::collections::VecDeque;
 use std::path::{Path, PathBuf};
@@ -12,6 +13,10 @@ use std::time::Duration;
 use tokio::io::{AsyncRead, AsyncReadExt};
 
 const OUTPUT_LIMIT: usize = 65_536;
+
+/// The id of the check Shadows runs itself: the contract's symbols, by name.
+/// Plans refuses a task check with this id.
+pub(crate) const CONTRACT_CHECK: &str = "contract";
 
 impl Runs {
     pub async fn check_results(&self, id: &AttemptId) -> Result<Vec<CheckResult>, RunsError> {
@@ -79,16 +84,20 @@ impl Runs {
         if self.inner.store.continued(&attempt.id).await? {
             return Ok(());
         }
+        let contract = self.due_contract(attempt).await?;
         let checks = self.inner.store.check_specs(&attempt.id).await?;
-        if checks.is_empty() {
-            return self.after_checks(attempt).await;
-        }
         let recorded = self.inner.store.check_results(&attempt.id).await?;
-        if checks.iter().all(|(task, _, check)| {
+        let finished = |task: u32, id: &str| {
             recorded
                 .iter()
-                .any(|row| row.for_task == *task && row.id == check.id && row.finished_at.is_some())
-        }) {
+                .any(|row| row.for_task == task && row.id == id && row.finished_at.is_some())
+        };
+        let contract_done = contract.is_none() || finished(attempt.task, CONTRACT_CHECK);
+        if contract_done
+            && checks
+                .iter()
+                .all(|(task, _, check)| finished(*task, &check.id))
+        {
             return self.after_checks(attempt).await;
         }
         self.wait_for_quiet(attempt).await?;
@@ -109,8 +118,85 @@ impl Runs {
                 .finish_check(&attempt.id, task, &check.id, result)
                 .await?;
         }
+        if let Some(contract) = contract {
+            self.check_contract(attempt, &contract).await?;
+        }
         drop(held);
         self.after_checks(attempt).await
+    }
+
+    /// The attempt's own contract, when its `contract` check is due: at least
+    /// one promised symbol in a file the task creates or modifies.
+    async fn due_contract(&self, attempt: &Attempt) -> Result<Option<TaskContract>, RunsError> {
+        let contract = self
+            .inner
+            .store
+            .context(&attempt.id)
+            .await?
+            .and_then(|(context, _)| context.task.contract);
+        Ok(contract.filter(|contract| {
+            contract.symbols.iter().any(|symbol| {
+                contract.files.iter().any(|file| {
+                    file.path == symbol.path
+                        && matches!(file.action, FileAction::Create | FileAction::Modify)
+                })
+            })
+        }))
+    }
+
+    /// Records the `contract` row unfinished, asks `CodeRecord` for the verdict
+    /// under the attempt's id, and finishes the row with its outcome and lines.
+    async fn check_contract(
+        &self,
+        attempt: &Attempt,
+        contract: &TaskContract,
+    ) -> Result<(), RunsError> {
+        let check = TaskCheck {
+            id: CONTRACT_CHECK.into(),
+            run: vec![],
+            folder: None,
+            timeout_secs: None,
+            proves: vec![],
+        };
+        let git = Git::at(&self.folder(&attempt.project_id).await?);
+        self.inner
+            .store
+            .start_check(
+                &attempt.id,
+                attempt.task,
+                &check,
+                contract.checks.len(),
+                git.head().await,
+            )
+            .await?;
+        let verdict = self
+            .inner
+            .code_record
+            .verify(
+                attempt.id.as_str(),
+                &attempt.project_id,
+                attempt.task,
+                contract,
+            )
+            .await
+            .map_err(|e| RunsError::Unavailable(e.to_string()))?;
+        let outcome = match verdict.outcome() {
+            VerdictOutcome::Passed => CheckOutcome::Passed,
+            VerdictOutcome::Failed => CheckOutcome::Failed,
+            VerdictOutcome::NotRun => CheckOutcome::NotRun,
+        };
+        let result = Finished {
+            outcome,
+            exit_code: None,
+            head: git.head().await,
+            output: verdict.lines(),
+            truncated: false,
+            foreign_leftovers: false,
+        };
+        self.inner
+            .store
+            .finish_check(&attempt.id, attempt.task, CONTRACT_CHECK, result)
+            .await
     }
 
     pub(crate) async fn run_check(

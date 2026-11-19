@@ -58,6 +58,7 @@ pub use model::{
 pub use model::{Chooser, ExecutorChoice, ExecutorInput};
 pub use question::{PlannedScope, ProducerStatus, TaskAnswer, TaskQuestion};
 
+use code_record::CodeRecord;
 use codebase::Codebase;
 use core_db::{CommandContext, Storage};
 use core_harness::Harness;
@@ -107,6 +108,8 @@ struct Inner {
     /// Lists a project's files, so a first commit leaves out secrets and
     /// dependencies.
     code: Codebase,
+    /// Compares an attempt's code with its contract: the `contract` check.
+    code_record: CodeRecord,
     /// Replaces the first prompt, so a test can script the fake adapter.
     prompt: Mutex<Option<String>>,
 }
@@ -118,6 +121,8 @@ pub struct Runs {
 }
 
 impl Runs {
+    /// Each argument is one service Runs calls, built once in AppCore.
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         storage: Arc<Storage>,
         plans: Plans,
@@ -126,6 +131,7 @@ impl Runs {
         projects: Projects,
         threads: Arc<Threads>,
         code: Codebase,
+        code_record: CodeRecord,
     ) -> Self {
         Self {
             inner: Arc::new(Inner {
@@ -138,6 +144,7 @@ impl Runs {
                 projects,
                 threads,
                 code,
+                code_record,
                 prompt: Mutex::new(None),
             }),
         }
