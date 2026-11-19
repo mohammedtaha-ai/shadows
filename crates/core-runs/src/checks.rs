@@ -7,7 +7,7 @@ use code_record::VerdictOutcome;
 use core_db::Storage;
 use core_plans::{FileAction, TaskCheck, TaskContract};
 use core_projects::ProjectId;
-use std::collections::VecDeque;
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 use tokio::io::{AsyncRead, AsyncReadExt};
@@ -315,10 +315,61 @@ impl Runs {
             ) && (before != result.head || dirty != after || hashes != after_hashes)
             {
                 result.outcome = CheckOutcome::Inconclusive;
+                let mut causes = Vec::new();
+                if before != result.head {
+                    let name =
+                        |head: &Option<String>| head.clone().unwrap_or_else(|| "no commit".into());
+                    causes.push(format!(
+                        "the check moved HEAD from {} to {}",
+                        name(&before),
+                        name(&result.head)
+                    ));
+                }
+                let changed = Self::tree_changes(&hashes, &after_hashes);
+                if !changed.is_empty() {
+                    causes.push(Self::changed_files_line(&changed));
+                }
+                for cause in causes {
+                    if !result.output.is_empty() && !result.output.ends_with('\n') {
+                        result.output.push('\n');
+                    }
+                    result.output.push_str(&cause);
+                }
             }
             return Ok(result);
         }
         unreachable!("the final repetition returns a result")
+    }
+
+    /// The paths a check changed: those in only one of the trees before and after it, and
+    /// those whose content hash differs between the two, in path order.
+    fn tree_changes(before: &[(String, String)], after: &[(String, String)]) -> Vec<String> {
+        let before: BTreeMap<_, _> = before.iter().map(|(p, h)| (p, h)).collect();
+        let after: BTreeMap<_, _> = after.iter().map(|(p, h)| (p, h)).collect();
+        let paths: BTreeSet<_> = before.keys().chain(after.keys()).collect();
+        paths
+            .into_iter()
+            .filter(|path| before.get(*path) != after.get(*path))
+            .map(|path| path.to_string())
+            .collect()
+    }
+
+    /// The line naming the files a check changed: 20 paths at most, then how many more.
+    fn changed_files_line(changed: &[String]) -> String {
+        const SHOWN: usize = 20;
+        let mut line = format!(
+            "the check changed files in the working tree: {}",
+            changed
+                .iter()
+                .take(SHOWN)
+                .cloned()
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+        if changed.len() > SHOWN {
+            line.push_str(&format!(" and {} more", changed.len() - SHOWN));
+        }
+        line
     }
 
     async fn execute_check(root: &Path, check: &TaskCheck) -> Finished {

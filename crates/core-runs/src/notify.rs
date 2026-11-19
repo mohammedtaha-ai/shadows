@@ -17,7 +17,7 @@
 use crate::amend::ADDITIONS;
 use crate::checks::CONTRACT_CHECK;
 use crate::model::{Attempt, AttemptNotice, AttemptState, ConflictDelivery, TaskConflict};
-use crate::{Runs, RunsError};
+use crate::{CheckResult, Runs, RunsError};
 use core_plans::{Plan, WrittenBy};
 use core_threads::{ThreadEntryKind, ThreadId};
 use core_turns::{Notice, SendTurn};
@@ -241,6 +241,16 @@ impl Runs {
             .unwrap_or_else(|| format!("T{}", attempt.task))
     }
 
+    /// `check` as a conversation card carries it, the attempt's and the recheck's alike: a
+    /// command's output is left to `task_checks`, while Shadows' own check keeps its short
+    /// verdict, so the person reads what is missing as the Planner does.
+    pub(crate) fn card_check(mut check: CheckResult) -> CheckResult {
+        if !check.by_shadows {
+            check.output = None;
+        }
+        check
+    }
+
     /// The notice that `attempt`, without a conflict, committed or failed:
     /// resolved once and saved, so a retry after a restart replays it.
     async fn notify_ended(&self, attempt: &Attempt) -> Result<(), RunsError> {
@@ -305,10 +315,7 @@ impl Runs {
         let prompt = match attempt.state {
             AttemptState::Committed => {
                 let results = self.check_results(&attempt.id).await?;
-                card.checks = results.clone();
-                for check in &mut card.checks {
-                    check.output = None;
-                }
+                card.checks = results.iter().cloned().map(Self::card_check).collect();
                 let mut checks = results
                     .iter()
                     .map(|c| {

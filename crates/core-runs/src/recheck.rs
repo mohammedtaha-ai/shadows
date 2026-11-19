@@ -124,7 +124,7 @@ impl Runs {
                 plans.insert(row.workflow_id.clone(), plan);
             }
             let plan = &plans[&row.workflow_id];
-            let mut check = Self::recheck_result(row)?;
+            let check = Self::recheck_result(row)?;
             let output = check.output.as_deref().unwrap_or_default();
             lines.push(format!(
                 "Plan \"{}\" version {}: {}\n{}",
@@ -133,7 +133,7 @@ impl Runs {
                 Self::check_line(&check, 0, "the executor"),
                 Self::output_excerpt(&row.check_id, output)
             ));
-            check.output = None;
+            let check = Self::card_check(check);
             if failed
                 .last()
                 .is_none_or(|last| last.attempt_id.as_str() != row.attempt_id)

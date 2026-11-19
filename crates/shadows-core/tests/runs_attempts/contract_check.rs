@@ -304,6 +304,22 @@ async fn no_language_server_is_said_and_not_returned() {
         )),
         "{prompt}"
     );
+    let card = f
+        .core
+        .turns()
+        .queued(&planner)
+        .await
+        .unwrap()
+        .into_iter()
+        .filter_map(|m| m.notice)
+        .find(|n| n.card["attempt_id"] == id.as_str())
+        .unwrap()
+        .card;
+    let verdict = card["checks"][0]["output"].as_str().unwrap_or_default();
+    assert!(
+        verdict.contains(&format!("unchecked: {FILE} (no language server reads it).")),
+        "the card carries Shadows' verdict: {card}"
+    );
     assert_eq!(
         f.core
             .runs()
@@ -493,6 +509,59 @@ async fn a_later_task_removing_a_done_tasks_function_is_told_once() {
         prompts[0]
     );
     assert!(f.core.runs().task(&f.workflow, 1, 3).await.unwrap().done);
+    f.finish().await;
+}
+
+#[tokio::test]
+async fn a_recheck_card_keeps_the_contract_verdict_but_no_command_output() {
+    let check = json!({"id":"c1","run":["git","rev-parse","--verify","-q","refs/tags/kept"],
+                       "timeout_secs":5});
+    let (f, id) = candidate(vec![check], &["login"], "def login():\n    pass\n").await;
+    let planner = prepare_planner(&f).await;
+    f.git(&["tag", "kept"]);
+    f.core
+        .code_record()
+        .record_answer_for_tests(FILE, functions(&["login"]));
+    f.core.runs().recover().await.unwrap();
+    assert!(
+        results(&f, &id, 2)
+            .await
+            .iter()
+            .all(|row| row.outcome == Some(CheckOutcome::Passed))
+    );
+    notice(&f, &planner, &id).await;
+    f.core
+        .runs()
+        .mark_done("done-three".into(), &f.workflow, 1, 3, true, None)
+        .await
+        .unwrap();
+    f.git(&["tag", "-d", "kept"]);
+    f.core
+        .code_record()
+        .record_answer_for_tests(FILE, functions(&[]));
+    recheck(&f, "cause").await;
+    let card = f
+        .core
+        .turns()
+        .queued(&planner)
+        .await
+        .unwrap()
+        .into_iter()
+        .filter_map(|m| m.notice)
+        .find(|n| n.card.get("recheck_id").is_some())
+        .expect("the recheck notice is queued")
+        .card;
+    let checks = card["failed"][0]["checks"].as_array().unwrap();
+    let row = |id: &str| checks.iter().find(|c| c["id"] == id).unwrap();
+    assert_eq!(row("c1")["outcome"], "failed", "{card}");
+    assert!(row("c1")["output"].is_null(), "{card}");
+    let verdict = row("contract")["output"].as_str().unwrap_or_default();
+    assert!(
+        verdict.contains(&format!(
+            "T3 promises login in {FILE}; the code does not have it."
+        )),
+        "{card}"
+    );
     f.finish().await;
 }
 
