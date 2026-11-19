@@ -79,6 +79,26 @@ describe('the task page', () => {
     expect(a.text()).not.toContain('<b>PASS</b>')
   })
 
+  it('shows_the_contract_check_as_shadows_own_without_command_or_reported', async () => {
+    const committed = attempt({ state: 'committed', commit: 'abc123' })
+    const routes = answers({ taskRun: taskRun({ latest: committed }), attempts: [committed] })
+    routes['GET /api/attempts/a1/checks'] = [{
+      for_task: 3, id: 'contract', run: [], reported: null, matches: null, outcome: 'failed',
+      output: 'T3 promises refresh_token in backend/auth/service.py; the code does not have it.',
+      truncated: false, started_at: 'now', finished_at: 'later',
+    }]
+    const a = (app = await startApp(PAGE, routes))
+    await until(() => a.button('Report') !== undefined)
+    await click(a.button('Report'))
+    await until(() => a.text().includes('Confirmed: failed'))
+    expect(a.text()).toContain('T3 · Contract')
+    expect(a.text()).not.toContain('Reported')
+    expect(a.text()).not.toContain('Mismatch')
+    expect(document.querySelector('p.font-mono')).toBeNull()
+    await click(a.button('Show output'))
+    expect(a.text()).toContain('T3 promises refresh_token in backend/auth/service.py; the code does not have it.')
+  })
+
   it('refreshes_unfinished_checks_and_keeps_cached_results_visible', async () => {
     const committed = attempt({ state: 'committed', commit: 'abc123' })
     let finished = false

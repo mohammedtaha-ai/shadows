@@ -11,7 +11,7 @@ was accepted by Mohammed in the browser on 2026-11-18 (B-159). The two leftovers
 
 ### F-129 · The Report tab shows the `contract` check as Shadows' own
 
-- Status: todo (needs B-171)
+- Status: done
 - Plan: `docs/backend/plans/2026-11-19-code-record.md`, "Task F-129".
 - Read: `web/src/app/check-row.tsx`; `web/src/app/tasks/report-tab.tsx`.
 - Touch: `web/src/app/check-row.tsx`, its test or `web/src/app/tasks/task-page.test.tsx`, this entry.
