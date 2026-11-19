@@ -5,19 +5,9 @@ here and set its status. Task shape: [`AGENTS.md`](./AGENTS.md#a-task-in-stagesm
 
 ## Now
 
-F-129 (below) is open on this branch. F-125 (choose an executor on a task or in a new conversation)
-was accepted by Mohammed in the browser on 2026-11-18 (B-159). The two leftovers under
-"Known and left" below are Mohammed's too.
-
-### F-129 · The Report tab shows the `contract` check as Shadows' own
-
-- Status: done
-- Plan: `docs/backend/plans/2026-11-19-code-record.md`, "Task F-129".
-- Read: `web/src/app/check-row.tsx`; `web/src/app/tasks/report-tab.tsx`.
-- Touch: `web/src/app/check-row.tsx`, its test or `web/src/app/tasks/task-page.test.tsx`, this entry.
-- Done when: a `contract` row renders titled "Contract", with no command line and no "Reported"
-  field, and its output as written; `npx --prefix web vitest run src/app/tasks`,
-  `npm --prefix web run typecheck` and `npm --prefix web run lint` pass.
+Nothing is open. F-125 (choose an executor on a task or in a new conversation) was accepted by
+Mohammed in the browser on 2026-11-18 (B-159). The two leftovers under "Known and left" below are
+Mohammed's too. F-129 (the Report tab shows the `contract` check as Shadows' own) is on `main` in PR #73.
 
 ### Shipped
 
@@ -47,6 +37,7 @@ A shipped task's entry, and its plan once deleted, are in this file in Git at th
 | #70 | Interrupted and stopped attempt cards, the recheck card, decisions with Accept and in the attempt brief (shared request `docs/shared/requests/2026-11-16-slice-6-stop-control.md` at `e78e07dc`) | F-121 to F-124 | `449d4f95` |
 | #71 | Executor choice on a task and in a new conversation | F-125 | `0e281585` |
 | #72 | Settings › Code as one collapsible row, the plan page's real progress (its read is in `docs/backend/stages.md` at `753b26a4`), the visual acceptances recorded | F-126 to F-128 | `753b26a4` |
+| #73 | The Report tab shows the `contract` check as Shadows' own (F-129; plan `docs/backend/plans/2026-11-19-code-record.md` at `7b7abec`) | F-129 | `7b7abec` |
 
 Dropped without being built: F-99 and F-101 (covered by F-102's brief panel and F-116's server list; the rest is in [future](../core/future.md)), F-100 (with B-102), F-104 and F-105 (with the repair plan; slice 6 replanned them as F-121 to F-124). Their entries and plan are at `d997393a`.
 

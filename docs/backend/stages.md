@@ -18,9 +18,12 @@ at `449d4f95` (PR #70). Its plan is `docs/backend/plans/2026-11-09-local-deliver
 `main` (PR #71, `0e281585`). Plan progress for a plan version, the fix that keeps one delivery's storage
 error from stalling the other groups, and the slice 4 and structure-and-depth live records are on `main`
 (PR #72, `753b26a4`). Executor choices were accepted by Mohammed in the browser on 2026-11-18 (B-159).
-B-167 (a task may not modify or delete a file the project does not have) is done on this branch.
-B-168 (a big project's file listing no longer stalls Shadows) and B-169 (a task may not create a
-file the project already has) are done on this branch, and so is the code record's first slice, B-170 to B-174 and F-129 (below; plan `plans/2026-11-19-code-record.md`). Next: the whole-branch review, then the PR.
+The contract check and the code record's first slice are on `main` (PR #73, `7b7abec`): file refusals
+(B-167, a task may not modify or delete a file the project does not have; B-169, nor create one it
+has), a big project's file listing no longer stalls Shadows (B-168), the `contract` check and the
+record written with the done mark (B-170 to B-173), its acceptance on a real provider (B-174), and the
+Report tab's contract row (F-129). Next: slice 2 of the code record (`code_where`). Its plan comes
+first, in `docs/backend/plans/`, as design §9 of `docs/backend/specs/2026-11-19-project-code-record-design.md` requires.
 
 ### Shipped
 
@@ -52,6 +55,7 @@ A shipped task's entry, and its plan once deleted, are in this file in Git at th
 | #70 | Slice 6: stop control, interruption, project rechecks and decisions (plan `docs/backend/plans/2026-11-16-slice-6-stop-control.md` at `449d4f95`; accepted in the browser on `testing6`, 2026-11-16) | B-117, B-152, B-153, B-154, B-105, B-118; F-121 to F-124 | `449d4f95` |
 | #71 | Executor choices per task, the Codex protocol check (plan `docs/backend/plans/2026-11-18-codex-protocol-check.md` at `0e281585`), global external connections (plan `docs/backend/plans/2026-11-18-external-agent-connections.md` at `0e281585`; [spec](specs/2026-11-18-external-agent-connections-design.md)); executor choices plan at `0e281585`, shared request `docs/shared/requests/2026-11-18-executor-choices.md` at `0e281585` | B-155 to B-158, B-160, B-161; F-125 | `0e281585` |
 | #72 | Plan progress for a plan version (B-163, F-127), one delivery's start failure refused without stalling the others (B-162), slice 4's live tests and the planned-consumer fix (B-164, B-166; evidence `docs/evidence/2026-11-18-slice-4-live.md`), structure and depth on a real provider (B-165; evidence `docs/evidence/2026-11-18-structure-and-depth-live.md`), Settings › Code as one row (F-126), visual acceptances (F-128; evidence `docs/evidence/2026-11-18-visual-acceptance.md`) | B-162 to B-166; F-126 to F-128 | `753b26a4` |
+| #73 | Task contracts checked against the code: file refusals (B-167, B-169), a big listing no longer stalls Shadows (B-168), the code record's first slice (plan `docs/backend/plans/2026-11-19-code-record.md` at `7b7abec`; the `contract` check and the record written with done, B-170 to B-173; acceptance on Sonnet with pyright, B-174; evidence `docs/evidence/2026-11-19-code-record-live.md`), the Report tab's contract row (F-129) | B-167 to B-174; F-129 | `7b7abec` |
 | — | Executor choices accepted by Mohammed in the browser (2026-11-18); the signed-in live tests were not recorded. Its plan is deleted (`docs/backend/plans/2026-11-18-executor-choices.md` at `7029198`) | B-159 | `7029198` |
 
 Replaced or dropped without being built: B-97, B-98, B-119 (by slice 2), B-102, B-110 (with the
@@ -74,127 +78,11 @@ this file at `db760593`.
 - Slice 6's live test (`stop_control_live`) and its evidence file were dropped (Mohammed, 2026-11-16).
 - B-150 keeps its own per-thread message queue beside Turns' queue; reusing Turns' queue needs the executor session restored by thread.
 - The web derives "stopped on the additions cap" itself; a Core field on `TaskRun` should own it.
-- When B-167's file check is skipped (no project folder, first listing running), the Planner is not told; it saw a like edit refused before and could not tell why.
+- When the file check of B-167 (`docs/backend/stages.md` at `7b7abec`) is skipped (no project folder, first listing running), the Planner is not told; it saw a like edit refused before and could not tell why.
 - TypeScript's language server is `tsc --lsp` (TypeScript 7); on a machine with TypeScript 6 a TypeScript task's `contract` check is `not_run` with the server's error line (`docs/evidence/2026-11-19-code-record-live.md`).
 - The contract check's Go shapes (`(*X).m`) are tested on recorded gopls answers only; no live gopls run yet.
 - A Planner's `Read` (Claude) and read-only sandbox (Codex) can read any file the account can, outside the project too; only its instructions keep it in the project. Accepted as is by Mohammed on 2026-11-18.
 
 ## Open
 
-### B-170 · `CodeRecord` and its comparison
-
-- Status: done (built by backend-builder; the controller added the gate files the plan left out: the migration checksum fixture and count, `code-record` in the architecture ratchet's services, its table owner and project-lifecycle's allowed owners, and a named import in place of a glob; it also moved B-168's batch upsert to `INSERT OR REPLACE` so the ratchet classifies it. Pyright tests 4/4 with `--include-ignored`; the unit and live matcher tests both fail when the matcher always answers found)
-- Plan: [plans/2026-11-19-code-record.md#task-b-170--coderecord-and-its-comparison](plans/2026-11-19-code-record.md#task-b-170--coderecord-and-its-comparison)
-- Read: the plan's "Rulings for every task"; `crates/shadows-core/src/app.rs`; `crates/codebase/contract.yaml` (`lsp`); `crates/core-plans/src/task_contract.rs`.
-- Touch: the plan task's Files.
-- Done when: the plan task's "Done when", including its real-pyright tests run here with `--include-ignored`.
-
-### B-171 · Runs runs the `contract` check
-
-- Status: done (built by backend-builder at `1ef4cda`, steps 1 to 4 and 6, with the seam in `CodeRecord`; the controller put step 5's line in the executor's first prompt (`FIRST_PROMPT`) instead of a new `AttemptBrief` field, so no API changes for it, and regenerated `api/openapi.json` and `web/src/api/schema.d.ts` for B-170's `SymbolWork::name` text. Seven tests pass, the real-pyright one with `--include-ignored`; break-checks: dropping the `not_run` exclusion from `returnable_checks`, and switching off the contract path, each fail the contract tests. The Planner's notice gives a `contract` check that did not pass with its output after its line, since `d613ae4`)
-- Plan: [plans/2026-11-19-code-record.md#task-b-171--runs-runs-the-contract-check](plans/2026-11-19-code-record.md#task-b-171--runs-runs-the-contract-check)
-- Read: the plan's "Rulings for every task"; the plan's "What is reused"; `crates/core-runs/contract.yaml`; executors design §5.4.
-- Touch: the plan task's Files.
-- Done when: the plan task's "Done when", including its real-pyright tests run here with `--include-ignored`.
-
-### B-172 · The project recheck runs the `contract` check of done tasks
-
-- Status: done (tests a_later_task_removing_a_done_tasks_function_is_told_once, a_not_run_recheck_never_hides_a_later_failure; live_a_later_task_removing_a_done_tasks_function_is_told passed with real pyright via --include-ignored; the second shown to fail without the failed_before guard)
-- Plan: [plans/2026-11-19-code-record.md#task-b-172--the-project-recheck-runs-the-contract-check-of-done-tasks](plans/2026-11-19-code-record.md#task-b-172--the-project-recheck-runs-the-contract-check-of-done-tasks)
-- Read: the plan's "Rulings for every task"; `crates/core-runs/src/recheck.rs`; `crates/core-runs/src/store/rechecks.rs`.
-- Touch: the plan task's Files.
-- Done when: the plan task's "Done when", including its real-pyright tests run here with `--include-ignored`.
-
-### B-173 · The record, written with the done mark
-
-- Status: done (real-pyright tests run here with --include-ignored: 4/4 passed)
-- Plan: [plans/2026-11-19-code-record.md#task-b-173--the-record-written-with-the-done-mark](plans/2026-11-19-code-record.md#task-b-173--the-record-written-with-the-done-mark)
-- Read: the plan's "Rulings for every task"; `crates/code-record/contract.yaml`; `crates/core-runs/src/store/marks.rs`.
-- Touch: the plan task's Files.
-- Done when: the plan task's "Done when", including its real-pyright tests run here with `--include-ignored`.
-
-### B-174 · The code record's acceptance on a real provider
-
-- Status: done (`docs/evidence/2026-11-19-code-record-live.md`: all three journeys on Sonnet with pyright)
-- Plan: [plans/2026-11-19-code-record.md#task-b-174--acceptance-on-a-real-provider](plans/2026-11-19-code-record.md#task-b-174--acceptance-on-a-real-provider)
-- Done when: the evidence file records the three journeys.
-
-### B-169 · A task may not create a file the project already has
-
-- Status: done (built by the controller: `ContractRules::file_problems` checks a create the edit
-  introduces; tests `a_task_may_not_create_a_file_the_project_already_has` and
-  `a_create_the_task_already_had_is_not_checked_again`, the second shown to fail without its guard)
-- Plan: none; the ruling is §17 "The task contract" (Mohammed, 2026-11-19), the other half of
-  B-167: the Planner modifies what is there instead of writing a second file beside it.
-- Done when: the two tests and `cargo test -p shadows-core --features test-support --test task_contract` pass.
-
-### B-168 · A big project's file listing no longer stalls Shadows
-
-- Status: done (built by the controller at Mohammed's request: `write_inventory` reads outside the write and writes batches of 5,000 rows, scan row last; listings of a project run one at a time; extensions held in memory; tests `other_writes_go_on_while_a_big_listing_is_written` and `the_wanted_servers_come_from_the_listing_not_a_second_read`, both failing on the old code; the live rerun is in the evidence file)
-- Found live: `docs/evidence/2026-11-18-missing-file-refusal-live.md`, "The first listing still
-  running". A first listing of 2,000,000 files took 218 s; for all of it the Planner's tool calls
-  on every project got no answer (one timed out), and other projects' listings waited. After it,
-  each Planner turn on that project read the whole list (2,000,005 rows, 15 s).
-- Root cause, traced by the controller:
-  1. `CodeStore::write_inventory` (`crates/codebase/src/store/inventory.rs`) writes the whole
-     listing in one `Storage::write_txn`, one `INSERT` per row, after a `SELECT` of every stored
-     row inside the same transaction. `write_txn` holds Shadows' single write lock
-     (`crates/core-db/src/lib.rs`, `self.write.lock()`), so every other write in the daemon waits
-     until the listing's last row.
-  2. `CodeStore::file_extensions` (`crates/codebase/src/store/servers.rs`) reads every file path
-     of the project to find its extensions, and is asked on each turn.
-- Plan: none; the fix stays inside Codebase.
-  1. Read the stored rows through the reader, outside the write transaction, and work out the
-     upserts and deletes there. Write them in bounded batches (a few thousand rows per
-     transaction, multi-row `INSERT`), so the write lock is released between batches. The scan
-     row (`code_inventory_scan`) is written last, in its own transaction, so a first listing stays
-     "indexing" to readers until it is whole, as now. A later listing that changes rows moves the
-     generation (as now), so a reader paging across it gets `InventoryStale` rather than a mixed
-     page; say in the contract how a reader of single paths (`files_present`) sees a listing in
-     progress.
-  2. Keep each project's file extensions in Codebase's memory, computed from the rows the listing
-     already holds when it is recorded; `file_extensions` answers from there and reads the store
-     only when nothing is held yet (after a restart), once.
-- Read: `crates/codebase/contract.yaml`; `crates/codebase/src/inventory.rs` (`record_inventory`,
-  `files_present`, `inventory`); `crates/codebase/src/store/inventory.rs`; `crates/codebase/src/store/servers.rs`;
-  `crates/codebase/src/lib.rs` (the inner state); `crates/core-db/src/lib.rs` (`write_txn`, `reader`).
-- Touch: those codebase files, `crates/codebase/contract.yaml`, codebase's tests
-  (`crates/codebase/tests/`), this entry's status. Not `core-db`.
-- Done when: a test lists a folder of tens of thousands of files and shows another write
-  (any `write_txn`) completing while that listing is still being written; the existing inventory
-  invariants tests (generation, incomplete listings, deletes only when complete, stale cursors)
-  pass; a test shows `file_extensions` answering without reading the store a second time;
-  `cargo test -p codebase` (with its test-support feature if needed), `cargo test -p shadows-core
-  --features test-support --test task_contract` and
-  `cargo clippy --workspace --all-targets --features fake-acp/test-support -- -D warnings` pass.
-  The controller reruns the 2,000,000-file journey live afterwards.
-
-### B-167 · A task may not modify or delete a file the project does not have
-
-- Status: done. Codebase::files_present answers which paths are listed files (None when the list cannot answer); Plans gets Codebase in new, asks it before an edit (present_files), and the pure ContractRules::missing_file_problems refuses inside the edit transaction for changed tasks. Tests in crates/shadows-core/tests/task_contract.rs.
-- Plan: none; the ruling is §17 "The task contract" (`docs/core/specs/2026-10-01-task-contracts-and-evidence-design.md`,
-  Mohammed, 2026-11-18). When a plan edit is saved, Plans refuses a task whose contract names a
-  file with action `modify` or `delete` that is not in the project's file inventory, unless a task
-  it depends on (directly or transitively, through the plan's existing dependency graph) has that
-  path with action `create`. A path that such a dependency has with action `delete` is refused
-  too. The refusal is the edit's existing invalid-plan answer, one problem per file, naming the
-  task and the path. When the inventory cannot answer (`InventoryState::Missing` or `Indexing`),
-  the check is skipped. Plans' rules stay pure: the in-plan part (creates and deletes along
-  dependencies) is a pure rule over `PlanContent`; only the existence question goes to Codebase.
-  Plans receives `Codebase` in its constructor (`AppCore::start`); if Codebase has no method that
-  answers "which of these paths does this project have" without paging the whole inventory, add
-  one there, with its contract line. Find the edit path from `crates/core-plans/contract.yaml`
-  and `crates/core-plans/src/rules.rs` (`edit_problems`).
-- Read: `crates/shadows-core/src/app.rs` (`Plans::new`, `Codebase::new`);
-  `crates/core-plans/contract.yaml`; `crates/core-plans/src/task_contract.rs`, `rules.rs`,
-  `dependency_graph.rs`; `crates/codebase/contract.yaml`; `crates/codebase/src/inventory.rs`.
-- Touch: `crates/core-plans/src/lib.rs`, the edit path and rule files it names,
-  `crates/core-plans/contract.yaml`, `crates/core-plans/tests/` (or the existing plan-edit tests
-  the contract names), `crates/codebase/src/inventory.rs` and `crates/codebase/contract.yaml` if a
-  method is added, `crates/shadows-core/src/app.rs`, `plans_for_tests` and any test fixture that
-  builds `Plans`, this entry's status.
-- Done when: tests show (1) `modify` of a missing path is refused naming task and path; (2) `modify`
-  of a path a dependency creates is accepted; (3) `modify` of a path a dependency deletes is
-  refused; (4) `modify` of an existing file is accepted; (5) a project with no folder or an
-  unfinished listing skips the check; the core-plans and codebase tests and
-  `cargo clippy --workspace --all-targets --features fake-acp/test-support -- -D warnings` pass.
+Nothing is open on `main`. The next task is slice 2 of the code record (`code_where`); its plan is written first.

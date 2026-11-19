@@ -2,8 +2,8 @@
 
 Status: approved by Mohammed, 2026-11-19: the direction (who writes which part), the owner, a new
 service (§8), and that a task is verified against its contract before it is marked done (§4).
-A missing symbol is returned to the executor as a failed check (§4). Slice 1's plan is
-`docs/backend/plans/2026-11-19-code-record.md`.
+A missing symbol is returned to the executor as a failed check (§4). Slice 1 is on `main` in PR #73
+(`7b7abec`); its plan was `docs/backend/plans/2026-11-19-code-record.md` at `7b7abec`, deleted once its tasks were done.
 
 Builds on the [task contract](../../core/specs/2026-10-01-task-contracts-and-evidence-design.md#the-task-contract)
 (§17), the [language-server design](2026-11-13-language-servers-design.md) (`code_lsp`) and the
@@ -13,7 +13,7 @@ Builds on the [task contract](../../core/specs/2026-10-01-task-contracts-and-evi
 
 A Planner that plans the next change to a project must know what is already there: which file
 holds the login logic, which functions it has, which database query and which screen use it.
-Today it reads the folder itself or guesses. B-167 and B-169 refuse a guess once it is written (a
+Today it reads the folder itself or guesses. B-167 and B-169 (`docs/backend/stages.md` at `7b7abec`) refuse a guess once it is written (a
 `modify` of a missing file, a `create` of a present one), but they only catch a wrong path, after
 the fact. The Planner should know before it writes the task.
 
@@ -134,7 +134,7 @@ Login logic: backend/auth/service.py  (Backend · application; plan "Auth" v1, T
 ```
 
 The Planner's instructions say: before a contract names a file, ask `code_where`; B-167 and B-169
-remain the guard when it does not.
+(`docs/backend/stages.md` at `7b7abec`) remain the guard when it does not.
 
 ## 6. Code no plan wrote
 
