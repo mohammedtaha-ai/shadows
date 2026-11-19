@@ -41,6 +41,11 @@ pub enum ErrorCode {
     DecisionStale,
     /// A decision text is empty or too long; 422.
     InvalidDecision,
+    // These codes are only carried by MCP until the elements HTTP surface ships.
+    #[serde(skip_deserializing)]
+    InvalidElement,
+    #[serde(skip_deserializing)]
+    ElementStale,
     HarnessStartFailed,
     ProcessSpawnFailed,
     ProcessTerminated,
@@ -554,6 +559,14 @@ impl From<core_design::DesignError> for CoreError {
             },
             DesignError::DecisionStale(message) => Self::Refused {
                 code: ErrorCode::DecisionStale,
+                message,
+            },
+            DesignError::InvalidElement(message) => Self::Refused {
+                code: ErrorCode::InvalidElement,
+                message,
+            },
+            DesignError::ElementStale(message) => Self::Refused {
+                code: ErrorCode::ElementStale,
                 message,
             },
             DesignError::ReasonMissing => Self::ReasonMissing,

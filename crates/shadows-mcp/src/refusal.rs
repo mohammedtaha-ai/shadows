@@ -245,6 +245,28 @@ mod mapping_tests {
     ));
 
     #[test]
+    fn element_refusals_keep_their_code_and_message() {
+        use shadows_core::DesignError;
+
+        for (error, code, message) in [
+            (
+                DesignError::InvalidElement("a table needs a database part".into()),
+                "INVALID_ELEMENT",
+                "a table needs a database part",
+            ),
+            (
+                DesignError::ElementStale("E1 is at revision 2, not 1".into()),
+                "ELEMENT_STALE",
+                "E1 is at revision 2, not 1",
+            ),
+        ] {
+            let result = serde_json::to_value(super::refused(error.into())).unwrap();
+            assert_eq!(result["isError"], true);
+            assert_eq!(result["content"][0]["text"], format!("{code}: {message}"));
+        }
+    }
+
+    #[test]
     fn every_core_error_keeps_its_mcp_mapping() {
         assert_eq!(Case::all().len(), 66);
         for case in Case::all() {

@@ -98,7 +98,7 @@ Dispatch is the controller's (Mohammed, 2026-11-19): the controller runs `backen
 
 ### B-175 · Design owns tables and screens
 
-- Status: todo
+- Status: done
 - Plan: [plans/2026-11-19-code-record-2a.md#task-b-175--design-owns-tables-and-screens](plans/2026-11-19-code-record-2a.md#task-b-175--design-owns-tables-and-screens)
 - Read: the plan's rulings and reuse table; `crates/shadows-core/src/app.rs`;
   `crates/core-design/contract.yaml`; `crates/core-design/src/decisions.rs` and

@@ -8,6 +8,7 @@ pub use agreement_scope::AgreementOrigin;
 mod agreement_validation;
 mod agreements;
 mod decisions;
+mod elements;
 mod map_proposals;
 mod map_rules;
 pub use map_proposals::{MapAction, MapProposal, MapPropose, ProposedPart, ProposedWaiver};
@@ -30,7 +31,13 @@ mod workspace;
 use std::sync::Arc;
 
 use core_projects::ProjectId;
+#[cfg(feature = "test-support")]
+pub use model::ElementSeed;
 pub use model::WorkspaceOp;
+pub use model::{
+    ColumnRef, DesignElement, ElementContent, ElementDelete, ElementInput, ElementKind,
+    ScreenContent, ScreenLink, TableColumn, TableContent,
+};
 pub use model::{
     ContractHead, DecisionInput, DecisionRecord, DecisionState, DesignAnchor, DesignChange,
     DesignRevision, Outcome, OutcomeContent, OutcomeId, OutcomePage, Part, PartContent, PartId,

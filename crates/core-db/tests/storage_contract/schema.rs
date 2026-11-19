@@ -61,6 +61,7 @@ async fn fresh_database_migrates_and_applies_the_connection_policy() {
             "context_forget",
             "design_command_result",
             "design_decisions",
+            "design_elements",
             "design_map_proposal",
             "design_map_version",
             "design_outcome",

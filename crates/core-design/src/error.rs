@@ -17,6 +17,10 @@ pub enum DesignError {
     InvalidDecision(String),
     #[error("{0}")]
     DecisionStale(String),
+    #[error("{0}")]
+    InvalidElement(String),
+    #[error("{0}")]
+    ElementStale(String),
     #[error(transparent)]
     Grants(#[from] core_grants::GrantsError),
     #[error(transparent)]

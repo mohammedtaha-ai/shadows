@@ -25,6 +25,8 @@ pub use codebase::{
 pub use core_agents::{Agent, AgentInput, AgentWorkspace, Agents, AgentsError};
 pub use core_db::Actor;
 pub use core_db::StorageError;
+#[cfg(feature = "test-support")]
+pub use core_design::ElementSeed;
 pub use core_design::MapRefusal;
 pub use core_design::{
     AgreementContent, AgreementId, AgreementIssue, AgreementParty, AgreementRole, AgreementState,
@@ -33,6 +35,10 @@ pub use core_design::{
     OutcomePage, Part, PartContent, PartId, PartLayer, PartPage, PartWaiver, ProposedPart,
     ProposedWaiver, Stage, StageView, VisionContent, VisionField, VisionItem, VisionView,
     WorkspaceView,
+};
+pub use core_design::{
+    ColumnRef, DesignElement, ElementContent, ElementDelete, ElementInput, ElementKind,
+    ScreenContent, ScreenLink, TableColumn, TableContent,
 };
 pub use core_design::{DecisionInput, DecisionRecord, DecisionState};
 pub use core_design::{ProposalStatus, VisionAction, VisionProposal, VisionPropose};

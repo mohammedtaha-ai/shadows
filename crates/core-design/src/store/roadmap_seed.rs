@@ -1,9 +1,10 @@
 //! Test-support seeds that put a project at the plans stage without a conversation.
 
-use super::DesignStore;
-use crate::{PartContent, PartId, VisionContent};
+use super::{DesignStore, map_versions::MapVersionsRows};
+use crate::{ElementSeed, OutcomeContent, OutcomeId, PartContent, PartId, VisionContent};
 use crate::{ProjectId, StorageError};
 use core_db::Storage;
+use sqlx::SqliteConnection;
 
 impl DesignStore {
     /// Seeds the map if absent, one part, and an approved roadmap; answers the part.
@@ -57,13 +58,7 @@ impl DesignStore {
                     .fetch_one(&mut *conn)
                     .await?;
                     if map == 0 {
-                        super::map_versions::MapVersionsRows::insert_version(
-                            conn,
-                            &p,
-                            None,
-                            &Storage::now(),
-                        )
-                        .await?;
+                        MapVersionsRows::insert_version(conn, &p, None, &Storage::now()).await?;
                     }
                     sqlx::query(
                         "UPDATE design_workspace SET roadmap_revision=MAX(roadmap_revision,1)
@@ -77,4 +72,116 @@ impl DesignStore {
             })
             .await
     }
+
+    pub(crate) async fn seed_elements_for_tests(
+        &self,
+        project: &ProjectId,
+    ) -> Result<ElementSeed, StorageError> {
+        self.seed_roadmap_for_tests(project).await?;
+        let project = project.clone();
+        self.storage
+            .write_txn(move |conn| {
+                Box::pin(async move {
+                    let (database, database_added) =
+                        seed_part(conn, &project, "database", "db").await?;
+                    let (frontend, frontend_added) =
+                        seed_part(conn, &project, "frontend", "web").await?;
+                    if database_added || frontend_added {
+                        MapVersionsRows::insert_version(conn, &project, None, &Storage::now())
+                            .await?;
+                    }
+                    let content = OutcomeContent {
+                        title: "Seeded elements outcome".into(),
+                        intended_result: "Exercise tables and screens".into(),
+                        acceptance: vec![],
+                    };
+                    let content = serde_json::to_string(&content)?;
+                    let existing: Option<String> = sqlx::query_scalar(
+                        "SELECT id FROM design_outcome WHERE project_id=? AND content_json=?
+                         ORDER BY ordinal,id LIMIT 1",
+                    )
+                    .bind(project.as_str())
+                    .bind(&content)
+                    .fetch_optional(&mut *conn)
+                    .await?;
+                    let outcome = match existing {
+                        Some(id) => OutcomeId::from_stored(id),
+                        None => {
+                            let id = OutcomeId::generate();
+                            sqlx::query(
+                                "INSERT INTO design_outcome
+                                 (id,project_id,parent_id,revision,ordinal,content_json)
+                                 SELECT ?,?,NULL,1,COALESCE(MAX(ordinal)+1,0),?
+                                   FROM design_outcome WHERE project_id=? AND parent_id IS NULL",
+                            )
+                            .bind(id.as_str())
+                            .bind(project.as_str())
+                            .bind(content)
+                            .bind(project.as_str())
+                            .execute(&mut *conn)
+                            .await?;
+                            id
+                        }
+                    };
+                    for part in [&database, &frontend] {
+                        sqlx::query(
+                            "INSERT OR IGNORE INTO design_outcome_part
+                             (project_id,outcome_id,part_id) VALUES (?,?,?)",
+                        )
+                        .bind(project.as_str())
+                        .bind(outcome.as_str())
+                        .bind(part.as_str())
+                        .execute(&mut *conn)
+                        .await?;
+                    }
+                    Ok(ElementSeed {
+                        database,
+                        frontend,
+                        outcome,
+                    })
+                })
+            })
+            .await
+    }
+}
+
+async fn seed_part(
+    conn: &mut SqliteConnection,
+    project: &ProjectId,
+    kind: &str,
+    folder: &str,
+) -> Result<(PartId, bool), StorageError> {
+    let content = PartContent {
+        title: format!("Seeded {kind}"),
+        responsibility: "Seeded for tests".into(),
+        design: "Seeded for tests".into(),
+        kind: Some(kind.into()),
+        folder: folder.into(),
+        ..Default::default()
+    };
+    let content = serde_json::to_string(&content)?;
+    let existing: Option<String> = sqlx::query_scalar(
+        "SELECT id FROM design_part WHERE project_id=? AND content_json=?
+         ORDER BY ordinal,id LIMIT 1",
+    )
+    .bind(project.as_str())
+    .bind(&content)
+    .fetch_optional(&mut *conn)
+    .await?;
+    if let Some(id) = existing {
+        return Ok((PartId::from_stored(id), false));
+    }
+    let id = PartId::generate();
+    sqlx::query(
+        "INSERT INTO design_part (id,project_id,parent_id,revision,ordinal,content_json)
+         SELECT ?,?,NULL,1,COALESCE(MAX(ordinal)+1,0),?
+           FROM design_part WHERE project_id=? AND parent_id IS NULL",
+    )
+    .bind(id.as_str())
+    .bind(project.as_str())
+    .bind(content)
+    .bind(project.as_str())
+    .execute(conn)
+    .await?;
+    Ok((id, true))
 }

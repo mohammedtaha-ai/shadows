@@ -125,6 +125,8 @@ pattern to follow, not merely an example.
 | `crates/core-db/src/write_observer.rs` | test-only committed-write observation | `crates/shadows/tests/openapi/read_only.rs` |
 | `crates/core-design/src/decisions.rs` | project decision entry points | `crates/core-design/contract.yaml` |
 | `crates/core-design/src/store/decisions.rs` | persisting project decision revisions | `crates/core-design/contract.yaml` |
+| `crates/core-design/src/elements.rs` | project element entry points | `crates/core-design/contract.yaml` |
+| `crates/core-design/src/store/elements.rs` | persisting project element revisions | `crates/core-design/contract.yaml` |
 | `crates/core-design/src/map_proposals.rs` | map proposal service entry points | `crates/core-design/contract.yaml` |
 | `crates/core-design/src/store/map_proposals.rs` | recording map proposals | `crates/core-design/contract.yaml` |
 | `crates/core-design/src/store/map_proposal_shape.rs` | assembling proposed map shapes | `crates/core-design/contract.yaml` |
