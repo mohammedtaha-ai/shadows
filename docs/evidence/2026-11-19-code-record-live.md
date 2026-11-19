@@ -58,3 +58,29 @@ ran. This is existing check behaviour, not part of this slice.
   run: a done task that a newer version of its plan also marks done is not rerun
   (`a_done_task_a_newer_version_marks_done_is_not_rechecked`).
 - The Report tab's `contract` row (F-129) was checked in its component tests, not in a browser.
+
+## In the browser, before the PR
+
+Date: 2026-11-19. The branch at `35136db`, served by `shadows serve` and the Vite web app
+(`http://127.0.0.1:5173`), on a fresh database and a fresh `notes-app`. The person's steps were
+made in the web app, driven by Playwright: create the project, write to the Planner, approve each
+card with its button (the map's with "Approve map and waivers"), approve the plan, start a task
+on its page, answer the Planner's question with its button, and mark a task not done and done
+again. The Planner ran on Sonnet 5.5.
+
+| # | Step | Seen in the web app |
+|---|---|---|
+| 1 | v1's T1 exposes `list_all = _list_all`; the person starts it | Attempt 1 committed. The Report tab shows `T1 · Contract`, "Confirmed: failed", with no command line and no Reported field. Attempt 2, "Returned by checks", quotes `contract failed` / `T1 promises list_all in notes/store.py; the code does not have it.` |
+| 2 | The executor reports the step against the contract; the Planner asks with three buttons | The person chose "Drop the step; define list_all directly with def", and v2 followed. |
+| 3 | v2's T1 and T2 | Both checks passed on T1 (`by_shadows` true only on `contract`). The Planner marked T1 done and started T2 itself; T2's pytest check passed and the Planner marked it done. The recheck after T2 ran T1's `c1` and `contract`: both passed, so no notice. |
+| 4 | The person removes `list_all` by hand and commits; marks T2 not done, then done with a reason | The conversation shows "Shadows · recheck after T2 (version 2)": `T1 · Contract`, "Confirmed: failed", "Their done marks stand". The Planner found the hand commit and offered three ways on. |
+
+Seen, and left:
+
+- `c1` (`python3 -c "import notes.store"`) was "inconclusive" with exit code 0, and the Report tab
+  showed a Mismatch with nothing saying why. The check itself wrote `notes/__pycache__/`, and a
+  check that changes the working tree is inconclusive. Adding `.gitignore` made it pass. The rule
+  is older than this branch; the missing reason is the gap.
+- The recheck card in the conversation shows `T1 · Contract  Confirmed: failed` without its
+  output, as for every check in that card. The Planner's notice names the missing function; the
+  person sees which one only by asking or by opening the task.
