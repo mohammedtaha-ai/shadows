@@ -1,7 +1,8 @@
 # The project's code record: the Planner asks, it never guesses
 
-Status: approved by Mohammed, 2026-11-19: the direction (who writes which part) and the owner,
-a new service (§8). Slice 1 is B-170. Whether the task page shows the gaps (§9) is open.
+Status: approved by Mohammed, 2026-11-19: the direction (who writes which part), the owner, a new
+service (§8), and that a task is verified against its contract before it is marked done (§4).
+What a missing symbol does (§4) is open. No slice has a plan yet.
 
 Builds on the [task contract](../../core/specs/2026-10-01-task-contracts-and-evidence-design.md#the-task-contract)
 (§17), the [language-server design](2026-11-13-language-servers-design.md) (`code_lsp`) and the
@@ -51,17 +52,36 @@ contract names:
 
 Lines are not stored: they move with every edit. A question answers them live (§5).
 
-## 4. When it is made
+## 4. When it is made: verified before done (Mohammed, 2026-11-19)
 
-When a task is marked done, Runs calls `CodeRecord::record_done` with the facts it owns (the
-plan version, the task, and the judged attempt's commit). The record takes the task's contract
-from Plans and the commit, asks the project's language server for each contract file's symbols (`documentSymbol`),
-matches them to the contract by name and kind, and writes the file and symbol entries and the
-gaps. A task marked done again later (a rework) replaces its own entries; a task marked not done
-loses them (`CodeRecord::forget_done`). Nothing is written for a task without a contract. The
-record is made after the mark is stored, off the mark's path, so a slow language server never
-delays a done mark. The map part and layer of a file are found when a question is answered
-(slice 2), not stored.
+A task is never marked done before Shadows has verified it. The comparison of code and contract
+is part of that verification, beside the checks Shadows already runs (executors design §5.4); it
+is not a record taken after the fact.
+
+1. **The executor reports** its commit (`task_report`), as today.
+2. **Shadows verifies the attempt,** after the report and before any done mark:
+   - it runs the task's checks, as today;
+   - it compares the code at the attempt's commit with the contract: for each contract file, the
+     project's language server's symbols (`documentSymbol`), matched to the contract's symbols by
+     name and kind. Each promised symbol is `found`, `missing`, or `unchecked` (no language server
+     answers for the file). A top-level symbol in a file the task created that no contract names
+     is `unpromised`.
+   The result is stored with the attempt, beside its checks' results.
+3. **Whoever marks done sees it first:** the person on the task page, the Planner in what it reads
+   when it judges the attempt. A mark is made knowing what is missing.
+4. **On done,** the attempt's verified result becomes the task's entries in the record (§3). A
+   task marked done again (a rework) replaces its entries; a task marked not done loses them.
+
+Nothing is compared for a task without a contract. The map part and layer of a file are found
+when a question is answered (slice 2), not stored.
+
+**OPEN, for Mohammed (asked 2026-11-19):** what a `missing` symbol does.
+- **(a) Returned to the executor,** with "`refresh_token` is promised in the contract and not
+  found in `backend/auth/service.py`", as a failed check is returned today; if the next attempt
+  still misses it, the attempt stops there and whoever marks done decides. Recommended: the same
+  path as a failed check, so an executor's forgotten function never reaches a person.
+- **(b) Shown only:** the person and the Planner see it, and whoever marks done decides.
+Closes when Mohammed picks one.
 
 ## 5. Asking it: `code_where`
 
@@ -112,12 +132,12 @@ one way (Runs → CodeRecord → Plans, Codebase). `code_where` is its method.
 
 ## 9. Slices
 
-1. **The record on done:** entries and gaps written when a task is marked done; the task page
-   shows the gaps. Tests: a done task with a contract writes its entries; a missing promised
-   symbol is one gap; a rework replaces the entries.
+1. **Verification and the record:** the comparison after a report (§4, step 2), stored with the
+   attempt; shown on the task page and to the Planner when it judges; what a `missing` symbol does
+   per the OPEN in §4; the record's entries written on done and removed on not done.
 2. **`code_where`:** the tool and its route, answered from the record and the language servers;
    the Planner's instructions ask it before naming a file. Acceptance: on a real provider, a
    second plan on a project names the first plan's files without reading the folder.
 3. **Code no plan wrote** (§6): the live answer for such files.
 
-**OPEN, for Mohammed:** whether slice 1 shows the gaps on the task page, or only to the Planner.
+Each slice gets its plan in `docs/backend/plans/` before any task is dispatched.

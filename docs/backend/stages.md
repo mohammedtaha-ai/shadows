@@ -20,7 +20,7 @@ error from stalling the other groups, and the slice 4 and structure-and-depth li
 (PR #72, `753b26a4`). Executor choices were accepted by Mohammed in the browser on 2026-11-18 (B-159).
 B-167 (a task may not modify or delete a file the project does not have) is done on this branch.
 B-168 (a big project's file listing no longer stalls Shadows) and B-169 (a task may not create a
-file the project already has) are done on this branch. Now: B-170, the code record's first slice (below).
+file the project already has) are done on this branch. Next: the code record's first slice (B-170), once its plan is written.
 
 ### Shipped
 
@@ -79,53 +79,13 @@ this file at `db760593`.
 
 ## Open
 
-### B-170 · The code record, slice 1: a done task's files and symbols are recorded
+### B-170 · The code record, slice 1: verification against the contract, and the record
 
-- Status: todo
-- Plan: none; the design is `specs/2026-11-19-project-code-record-design.md` §3, §4 and §8.
-  A new service crate `crates/code-record` (`CodeRecord`), shaped as CLAUDE.md "A fixed shape per
-  service crate": `lib.rs` (struct, `new(storage, plans, code)`), `model.rs` (no persistence
-  imports), `store/` (private SQL), `contract.yaml`, `tests/`.
-  - Migration `0075_code_record.sql`: one row per (project, workflow, version, task, path) for each
-    contract file with action create or modify (purpose, action, commit, recorded_at); one row per
-    contract symbol (symbol id, path, name, kind, inputs/returns/behavior/errors as JSON, state
-    `found` | `missing` | `unchecked`); one row per unpromised symbol (path, name, kind) found in a
-    file the task created. Ordering by explicit keys (path, symbol id), never rowid.
-  - `record_done(workflow, version, task, commit)`: reads the task's contract through
-    `Plans::get`; replaces that task's rows in one write. For each file it asks
-    `Codebase::lsp` (`Asker::Person` of the plan's project) `documentSymbol`; an `Answered` result's
-    symbols (children flattened) are matched to the contract by name (and kind where comparable):
-    present → `found`, absent → `missing`; a `NoServer` or an error → every symbol of that file
-    `unchecked`. Top-level symbols in a file the task created that no contract symbol names are the
-    unpromised rows. Nothing for a task without a contract.
-  - `forget_done(workflow, version, task)`: deletes that task's rows.
-  - `task_record(workflow, version, task) -> TaskRecord { files, symbols, unpromised }`, a read for
-    tests and for slice 2. No HTTP route and no MCP tool in this slice (their first user is
-    `code_where`, slice 2).
-  - Runs takes `CodeRecord` in its constructor. In `Runs::mark_done`, after the mark is stored:
-    done → spawn `record_done` with the judged attempt's commit (`Attempt::commit`); not done →
-    spawn `forget_done`, as `recheck_done` is spawned today. A failure is logged
-    (`code_record.failed`), never answered.
-  - `AppCore::start` builds `CodeRecord` once and passes it to Runs; an accessor `code_record()`;
-    its row in `AppCore`'s doc table; its row in `docs/codebase/README.md` (the codemap test).
-- Read: CLAUDE.md "Code structure"; `crates/shadows-core/src/app.rs`; `crates/core-runs/contract.yaml`
-  and `crates/core-runs/src/lib.rs` (`mark_done`, `recheck_done`); `crates/core-plans/src/task_contract.rs`
-  (`TaskContract`, `FileWork`, `SymbolWork`); `crates/codebase/contract.yaml` (`lsp`, `LspAnswer`);
-  `crates/core-db/migrations/0074_external_connections.sql` (migration style); one existing small
-  service crate as the shape to copy.
-- Touch: `crates/code-record/**` (new), `crates/core-db/migrations/0075_code_record.sql`,
-  `crates/core-runs/Cargo.toml`, `crates/core-runs/src/lib.rs`, `crates/core-runs/contract.yaml`,
-  `crates/shadows-core/Cargo.toml`, `crates/shadows-core/src/app.rs`, `crates/shadows-core/src/lib.rs`
-  if a type is re-exported, every test fixture that builds `Runs`, `docs/codebase/README.md`, this entry.
-- Done when: tests show (1) a done task with a contract records its files and symbols; (2) a
-  contract symbol absent from the language server's `documentSymbol` answer is `missing`, a present
-  one `found`, and a file with no server `unchecked` (a pure test of the matcher over a recorded
-  `documentSymbol` JSON is enough for found/missing if no language server runs in tests);
-  (3) an unpromised top-level symbol in a created file is recorded; (4) marking done again replaces
-  the rows, marking not done removes them; (5) a task without a contract records nothing.
-  `cargo test -p code-record`, `cargo test -p core-runs` (with its test-support feature),
-  `cargo test -p shadows --test codemap`, `cargo test -p shadows-core --features test-support --test contracts`,
-  and `cargo clippy --workspace --all-targets --features fake-acp/test-support -- -D warnings` pass.
+- Status: blocked (waits for its plan, `docs/backend/plans/2026-11-19-code-record.md`, written once
+  §4's OPEN in the design is ruled; the earlier text of this entry recorded after done, which
+  Mohammed corrected on 2026-11-19: a task is verified before it is done)
+- Plan: `docs/backend/plans/2026-11-19-code-record.md` (not written yet)
+- Design: `specs/2026-11-19-project-code-record-design.md` §3, §4, §8, §9 slice 1.
 
 ### B-169 · A task may not create a file the project already has
 
