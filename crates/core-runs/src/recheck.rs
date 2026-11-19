@@ -1,5 +1,5 @@
 //! Rechecking the recorded checks of other done tasks after a done mark.
-use crate::checks::{CONTRACT_CHECK, contract_outcome};
+use crate::checks::CONTRACT_CHECK;
 use crate::git::Git;
 use crate::notify::NoticeIntent;
 use crate::store::checks::Finished;
@@ -88,7 +88,7 @@ impl Runs {
             )
             .await
             .map_err(|e| RunsError::Unavailable(e.to_string()))?;
-        let outcome = contract_outcome(verdict.outcome());
+        let outcome = Self::contract_outcome(verdict.outcome());
         Ok(Finished {
             outcome,
             exit_code: None,

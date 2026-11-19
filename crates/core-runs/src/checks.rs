@@ -33,14 +33,14 @@ impl Runs {
             .or_insert_with(|| std::sync::Arc::new(tokio::sync::Mutex::new(())))
             .clone()
     }
-}
 
-/// The check outcome a contract verdict is stored as.
-pub(crate) fn contract_outcome(outcome: VerdictOutcome) -> CheckOutcome {
-    match outcome {
-        VerdictOutcome::Passed => CheckOutcome::Passed,
-        VerdictOutcome::Failed => CheckOutcome::Failed,
-        VerdictOutcome::NotRun => CheckOutcome::NotRun,
+    /// The check outcome a contract verdict is stored as.
+    pub(crate) fn contract_outcome(outcome: VerdictOutcome) -> CheckOutcome {
+        match outcome {
+            VerdictOutcome::Passed => CheckOutcome::Passed,
+            VerdictOutcome::Failed => CheckOutcome::Failed,
+            VerdictOutcome::NotRun => CheckOutcome::NotRun,
+        }
     }
 }
 
@@ -199,7 +199,7 @@ impl Runs {
             )
             .await
             .map_err(|e| RunsError::Unavailable(e.to_string()))?;
-        let outcome = contract_outcome(verdict.outcome());
+        let outcome = Self::contract_outcome(verdict.outcome());
         let result = Finished {
             outcome,
             exit_code: None,
