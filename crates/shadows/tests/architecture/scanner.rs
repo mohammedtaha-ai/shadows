@@ -12,7 +12,7 @@ const CORE: &str = "crates/shadows-core/src/";
 const FOUNDATIONS: [&str; 3] = ["db", "command", "testing"];
 
 /// Service crates that carry no `core-` prefix: a new or renamed service is named without it.
-const UNPREFIXED_SERVICES: [&str; 1] = ["codebase"];
+const UNPREFIXED_SERVICES: [&str; 2] = ["codebase", "code-record"];
 
 /// Whether a workspace crate is a service crate, the one test every check shares.
 pub(crate) fn service_crate(name: &str) -> bool {

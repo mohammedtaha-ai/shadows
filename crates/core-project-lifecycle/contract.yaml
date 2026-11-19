@@ -16,6 +16,7 @@ dependencies:
   threads: crates/core-threads/contract.yaml
   plans: crates/core-plans/contract.yaml
   code: crates/codebase/contract.yaml
+  code_record: crates/code-record/contract.yaml
   grants: crates/core-grants/contract.yaml
 shapes:
   ProjectLifecycle:
@@ -32,8 +33,8 @@ functions:
       signature: "(&self, command_id, project) -> Result<Project, ProjectLifecycleError>"
       rule: >
         One write classifies project.remove, requires a live project with no live threads,
-        soft-removes it through Projects, invalidates plan dependencies, deletes code index
-        and links, revokes grants, journals ProjectRemoved and records the command.
+        soft-removes it through Projects, invalidates plan dependencies, deletes code index,
+        links and code record verdicts (CodeRecord::delete_project_in), revokes grants, journals ProjectRemoved and records the command.
         A replay returns retained project metadata without another write.
         After commit a detached task forgets its Code worker, even if the client disconnects.
 obligations:

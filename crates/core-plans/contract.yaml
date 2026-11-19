@@ -274,7 +274,7 @@ shapes:
     id: String                   # unique within the task: s1
     path: String                 # a file of the task it creates or modifies
     kind: SymbolKind
-    name: String
+    name: String                 # bare, or Class.method; CodeRecord matches it exactly
     inputs: Vec<ContractValue>   # serde default
     returns: Option<ContractValue>  # serde default; null for a class
     behavior: Vec<String>        # short sentences, never code

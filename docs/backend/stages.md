@@ -81,7 +81,7 @@ this file at `db760593`.
 
 ### B-170 · `CodeRecord` and its comparison
 
-- Status: todo
+- Status: done (built by backend-builder; the controller added the gate files the plan left out: the migration checksum fixture and count, `code-record` in the architecture ratchet's services, its table owner and project-lifecycle's allowed owners, and a named import in place of a glob; it also moved B-168's batch upsert to `INSERT OR REPLACE` so the ratchet classifies it. Pyright tests 4/4 with `--include-ignored`; the unit and live matcher tests both fail when the matcher always answers found)
 - Plan: [plans/2026-11-19-code-record.md#task-b-170--coderecord-and-its-comparison](plans/2026-11-19-code-record.md#task-b-170--coderecord-and-its-comparison)
 - Read: the plan's "Rulings for every task"; `crates/shadows-core/src/app.rs`; `crates/codebase/contract.yaml` (`lsp`); `crates/core-plans/src/task_contract.rs`.
 - Touch: the plan task's Files.

@@ -162,7 +162,7 @@ impl CodeStore {
                     // Several rows a statement, each under SQLite's bound-variable limit.
                     for rows in upserts.chunks(STATEMENT_ROWS) {
                         let mut insert = sqlx::QueryBuilder::new(
-                            "INSERT INTO code_inventory
+                            "INSERT OR REPLACE INTO code_inventory
                                (project_id, path_key, path, kind, excluded_reason) ",
                         );
                         insert.push_values(rows, |mut row, r| {
@@ -172,11 +172,6 @@ impl CodeStore {
                                 .push_bind(r.kind)
                                 .push_bind(r.excluded_reason);
                         });
-                        insert.push(
-                            " ON CONFLICT (project_id, path_key) DO UPDATE SET
-                               path = excluded.path, kind = excluded.kind,
-                               excluded_reason = excluded.excluded_reason",
-                        );
                         insert.build().execute(&mut *conn).await?;
                     }
                     for key in &gone {

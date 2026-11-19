@@ -87,6 +87,16 @@ tests against a real `pyright-langserver`, marked `#[ignore = "needs pyright-lan
 as `crates/shadows/tests/code_lsp.rs` marks its gopls tests. The controller runs the ignored ones with
 `--include-ignored` before the task is done and records the result in the task's status line.
 
+## Gate files every task here touches
+
+Found building B-170. A new migration also updates `crates/core-db/tests/fixtures/base_migrations.sha384`
+(its `sha384sum` line) and the count in `crates/core-db/tests/migration_checksums.rs`. A new table
+gets its line in `crates/shadows/tests/architecture/table-owners.txt` (owner `code_record`). A
+crate that comes to depend on `code-record` is added to its allowed owners in
+`crates/shadows/tests/architecture/main.rs`. Test modules name their imports (the ratchet refuses
+`use super::*`), and a `QueryBuilder` is given only whole statements. `cargo test -p shadows --test architecture`
+and `cargo test -p core-db --test migration_checksums` are in every task's Done when.
+
 ## Task B-170 · `CodeRecord` and its comparison
 
 **Files:** create `crates/code-record/{Cargo.toml, contract.yaml, src/lib.rs, src/model.rs,

@@ -22,6 +22,7 @@ code_inventory :: codebase
 code_inventory_scan :: codebase
 code_server_added :: codebase
 code_server_off :: codebase
+code_record_verdict :: code_record
 code_tag :: codebase
 command_record :: db
 design_command_result :: design

@@ -356,6 +356,11 @@ pattern to follow, not merely an example.
 | `crates/codebase/src/watch.rs` | one active project's worker | `crates/codebase/src/watch.rs` |
 | `crates/codebase/src/active.rs` | which projects are active | `crates/codebase/src/active.rs` |
 | `crates/codebase/src/links.rs` | reading a project's links | `crates/codebase/src/links.rs` |
+| `crates/code-record/src/` | whether the code holds what a task's contract promised | `crates/code-record/contract.yaml` |
+| `crates/code-record/src/error.rs` | code record refusals | `crates/code-record/contract.yaml` |
+| `crates/code-record/src/model.rs` | the verdict's values | `crates/code-record/contract.yaml` |
+| `crates/code-record/src/verify.rs` | comparing a contract's symbols with the code | `crates/code-record/contract.yaml` |
+| `crates/code-record/src/store/` | verdict persistence | `crates/code-record/contract.yaml` |
 | `crates/core-events/src/` | what clients watch live | `crates/core-events/src/lib.rs` |
 | `crates/core-events/src/model.rs` | journal replay cursor | `crates/core-events/src/model.rs` |
 | `crates/core-events/src/subscription.rs` | one subscriber's replay-then-live stream | `crates/core-events/src/subscription.rs` |

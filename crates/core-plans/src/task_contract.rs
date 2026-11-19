@@ -142,6 +142,8 @@ pub struct SymbolWork {
     /// One of the task's files that it creates or modifies.
     pub path: String,
     pub kind: SymbolKind,
+    /// As the code writes it: a bare name (`refresh_token`), or `Class.method`
+    /// for a method of one class.
     pub name: String,
     #[serde(default)]
     pub inputs: Vec<ContractValue>,

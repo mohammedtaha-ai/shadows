@@ -15,6 +15,7 @@ use shadows_agent::claude::ClaudeAdapter;
 use shadows_process::{ProcessSpec, spawn};
 
 use crate::error::CoreError;
+use code_record::CodeRecord;
 use codebase::{Codebase, CodebaseConfig};
 use core_agents::Agents;
 use core_db::Storage;
@@ -154,6 +155,10 @@ pub struct CoreParts {
          a project's code on disk | \
          `crates/codebase/src` | \
          `crates/codebase/contract.yaml` |"]
+#[doc = " | `CodeRecord` | \
+         whether the code holds what a contract promised | \
+         `crates/code-record/src` | \
+         `crates/code-record/contract.yaml` |"]
 #[doc = " | `Runs` | \
          executor attempts at plan tasks | \
          `crates/core-runs/src` | \
@@ -197,6 +202,7 @@ pub struct AppCore {
     messages: Arc<Messages>,
     messages_worker: std::sync::OnceLock<MessagesWorker>,
     code: Codebase,
+    code_record: CodeRecord,
 }
 
 impl AppCore {
@@ -492,6 +498,7 @@ impl AppCore {
             turns.clone(),
             ui,
         ));
+        let code_record = CodeRecord::new(storage.clone(), code.clone());
         let project_lifecycle =
             ProjectLifecycle::new(storage.clone(), projects.clone(), code.clone());
         let messages = Messages::new(storage.clone(), agents.clone());
@@ -519,6 +526,7 @@ impl AppCore {
             messages,
             messages_worker: std::sync::OnceLock::new(),
             code,
+            code_record,
         })
     }
 
@@ -624,6 +632,10 @@ impl AppCore {
 
     pub fn codebase(&self) -> &Codebase {
         &self.code
+    }
+
+    pub fn code_record(&self) -> &CodeRecord {
+        &self.code_record
     }
 
     /// Stops Codebase's watchers and workers after their current file, then asks
