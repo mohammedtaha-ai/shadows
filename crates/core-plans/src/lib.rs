@@ -171,9 +171,9 @@ impl Plans {
         }
     }
 
-    /// Which files a contract in `ops` or the version's tasks would modify
-    /// or delete the project has, as Code's file list says; `None` when the
-    /// list cannot answer, so the edit skips that check.
+    /// Which files a contract in `ops` or the version's tasks would create,
+    /// modify or delete the project has, as Code's file list says; `None`
+    /// when the list cannot answer, so the edit skips that check.
     async fn present_files(
         &self,
         workflow: &WorkflowId,

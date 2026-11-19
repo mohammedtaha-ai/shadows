@@ -67,6 +67,27 @@ impl RunsStore {
         Self::specs_in(&mut conn, id).await
     }
 
+    /// Whether the attempt's own saved contract gets a `contract` check (`Runs::contract_due`).
+    pub(super) async fn contract_due_in(
+        tx: &mut core_db::Tx,
+        id: &AttemptId,
+    ) -> Result<bool, RunsError> {
+        let json: Option<String> =
+            sqlx::query_scalar("SELECT context_json FROM run_attempt_context WHERE attempt_id=?")
+                .bind(id.as_str())
+                .fetch_optional(&mut *tx)
+                .await?;
+        let Some(json) = json else {
+            return Ok(false);
+        };
+        let context: core_plans::TaskContext = serde_json::from_str(&json)?;
+        Ok(context
+            .task
+            .contract
+            .as_ref()
+            .is_some_and(crate::Runs::contract_due))
+    }
+
     pub(super) async fn specs_in(
         tx: &mut core_db::Tx,
         id: &AttemptId,

@@ -102,7 +102,10 @@ fn contract(files: &[(&str, FileAction)], symbols: &[(&str, &str, &str)]) -> Tas
     }
 }
 
-const SERVICE: &str = "class Auth:\n    def refresh(self) -> None:\n        pass\n\n\ndef login() -> None:\n    pass\n";
+const SERVICE: &str = concat!(
+    "class Auth:\n    def refresh(self) -> None:\n        pass\n\n\n",
+    "def login() -> None:\n    pass\n"
+);
 
 #[tokio::test]
 #[ignore = "needs pyright-langserver on PATH"]

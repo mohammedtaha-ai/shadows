@@ -3,7 +3,7 @@
 # Project identities are imported from core-projects; the task contract's types
 # from core-plans, whose service it never calls. Runs owns the check rows and
 # their flow and calls `verify`; CodeRecord never calls Runs.
-# Database infrastructure: core-db; the verdict table is private to its store.
+# Database infrastructure: core-db; its four tables are private to its store.
 #
 # What is compared is the folder as it stands when `verify` runs. The language
 # servers are asked through Codebase (`missing_inputs`, then `lsp`'s
@@ -17,7 +17,7 @@ source: crates/code-record/src
 modules:
   lib.rs: code record boundary
   error.rs: code record refusals
-  model.rs: the verdict's values
+  model.rs: the code record's values
   verify.rs: comparing a contract's symbols with the code
   store/mod.rs: code record persistence
 
@@ -139,7 +139,7 @@ functions:
     files:
       signature: "DoneRecord::files(&self) -> Result<Vec<RecordedFile>, StorageError>"
       private: true
-      # Every contract file: path, action, purpose.
+      # Every contract file the task creates or modifies: path, action, purpose.
     symbols:
       signature: "DoneRecord::symbols(&self) -> Result<Vec<RecordedSymbol>, StorageError>"
       private: true

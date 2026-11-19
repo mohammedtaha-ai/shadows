@@ -36,7 +36,8 @@ impl CodeRecordStore {
             .write_txn(move |conn| {
                 Box::pin(async move {
                     sqlx::query(
-                        "INSERT INTO code_record_verdict (attempt_id, project_id, verdict_json, verified_at)
+                        "INSERT INTO code_record_verdict
+                           (attempt_id, project_id, verdict_json, verified_at)
                          VALUES (?, ?, ?, ?)
                          ON CONFLICT (attempt_id) DO UPDATE SET
                            project_id = excluded.project_id,

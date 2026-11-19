@@ -233,7 +233,11 @@ async fn a_second_done_replaces_the_rows() {
 #[tokio::test]
 async fn a_task_without_a_contract_records_nothing() {
     let f = Fixture::new().await;
+    // A created file with no symbols is still a file the task left in the code.
     f.record(done("p", contract(&[]), None)).await;
+    assert_eq!(f.files().await.len(), 1);
+    assert!(f.symbols().await.is_empty());
+    // An empty contract replaces it with nothing.
     f.record(done(
         "p",
         serde_json::from_str::<TaskContract>("{}").unwrap(),
@@ -242,6 +246,7 @@ async fn a_task_without_a_contract_records_nothing() {
     .await;
     assert!(f.files().await.is_empty());
     assert!(f.symbols().await.is_empty());
+    assert!(f.unpromised().await.is_empty());
     f.storage.close().await.unwrap();
 }
 

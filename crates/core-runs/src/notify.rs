@@ -320,13 +320,7 @@ impl Runs {
                                 && c.outcome != Some(crate::CheckOutcome::Passed)
                                 && !output.is_empty()
                         }) {
-                            Some(output) => {
-                                let skip = output.chars().count().saturating_sub(4000);
-                                format!(
-                                    "{line}\n{}\n",
-                                    output.chars().skip(skip).collect::<String>()
-                                )
-                            }
+                            Some(output) => format!("{line}\n{}\n", Self::output_tail(output)),
                             None => format!("{line}\n"),
                         }
                     })

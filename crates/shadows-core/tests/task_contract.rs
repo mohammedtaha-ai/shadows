@@ -327,7 +327,9 @@ async fn a_contract_without_decisions_keeps_its_fingerprint() {
 fn working(number: u32, work: &[(&str, &str)]) -> PlanOp {
     let files: Vec<_> = work
         .iter()
-        .map(|(action, path)| serde_json::json!({ "path": path, "action": action, "purpose": "Work" }))
+        .map(|(action, path)| {
+            serde_json::json!({ "path": path, "action": action, "purpose": "Work" })
+        })
         .collect();
     let contract = serde_json::from_value(serde_json::json!({ "files": files })).unwrap();
     PlanOp::TaskAdd {
@@ -427,8 +429,14 @@ async fn a_task_may_not_modify_a_file_the_project_does_not_have() {
     assert_eq!(
         refused,
         vec![
-            "T1 modifies `src/missing.rs`, which the project does not have and no task it depends on creates",
-            "T1 deletes `dist/app.js`, which the project does not have and no task it depends on creates",
+            concat!(
+                "T1 modifies `src/missing.rs`, which the project does not have ",
+                "and no task it depends on creates"
+            ),
+            concat!(
+                "T1 deletes `dist/app.js`, which the project does not have ",
+                "and no task it depends on creates"
+            ),
         ]
     );
     edited(&storage, &[working(1, &[("modify", "src/lib.rs")])])
@@ -499,9 +507,10 @@ async fn a_task_may_not_create_a_file_the_project_already_has() {
         .unwrap_err();
     assert_eq!(
         refused,
-        vec![
-            "T1 creates `src/lib.rs`, which the project already has: modify it instead, and ask Shadows (code_lsp) what it holds"
-        ]
+        vec![concat!(
+            "T1 creates `src/lib.rs`, which the project already has: ",
+            "modify it instead, and ask Shadows (code_lsp) what it holds"
+        )]
     );
     // Two tasks along one dependency creating the same file, and a create
     // after a dependency deletes the file, are told apart.

@@ -34,7 +34,7 @@ functions:
       rule: >
         One write classifies project.remove, requires a live project with no live threads,
         soft-removes it through Projects, invalidates plan dependencies, deletes code index,
-        links and code record verdicts (CodeRecord::delete_project_in), revokes grants, journals ProjectRemoved and records the command.
+        links and code record (CodeRecord::delete_project_in), revokes grants, journals ProjectRemoved and records the command.
         A replay returns retained project metadata without another write.
         After commit a detached task forgets its Code worker, even if the client disconnects.
 obligations:

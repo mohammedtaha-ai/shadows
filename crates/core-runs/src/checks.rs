@@ -42,6 +42,23 @@ impl Runs {
             VerdictOutcome::NotRun => CheckOutcome::NotRun,
         }
     }
+
+    /// Whether `contract` gets a `contract` check: at least one promised symbol in a file the
+    /// task creates or modifies.
+    pub(crate) fn contract_due(contract: &TaskContract) -> bool {
+        contract.symbols.iter().any(|symbol| {
+            contract.files.iter().any(|file| {
+                file.path == symbol.path
+                    && matches!(file.action, FileAction::Create | FileAction::Modify)
+            })
+        })
+    }
+
+    /// The last 4,000 characters of a check's output, as a prompt carries it.
+    pub(crate) fn output_tail(output: &str) -> String {
+        let skip = output.chars().count().saturating_sub(4000);
+        output.chars().skip(skip).collect()
+    }
 }
 
 impl Runs {
@@ -153,14 +170,7 @@ impl Runs {
             .context(&attempt.id)
             .await?
             .and_then(|(context, _)| context.task.contract);
-        Ok(contract.filter(|contract| {
-            contract.symbols.iter().any(|symbol| {
-                contract.files.iter().any(|file| {
-                    file.path == symbol.path
-                        && matches!(file.action, FileAction::Create | FileAction::Modify)
-                })
-            })
-        }))
+        Ok(contract.filter(Self::contract_due))
     }
 
     /// Records the `contract` row unfinished, asks `CodeRecord` for the verdict
@@ -449,8 +459,7 @@ impl Runs {
                         return line;
                     }
                     let output = c.output.as_deref().unwrap_or_default();
-                    let skip = output.chars().count().saturating_sub(4000);
-                    format!("{line}\n{}", output.chars().skip(skip).collect::<String>())
+                    format!("{line}\n{}", Self::output_tail(output))
                 })
                 .collect::<Vec<_>>()
                 .join("\n");

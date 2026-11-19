@@ -126,13 +126,12 @@ impl Runs {
             let plan = &plans[&row.workflow_id];
             let mut check = Self::recheck_result(row)?;
             let output = check.output.as_deref().unwrap_or_default();
-            let skip = output.chars().count().saturating_sub(4000);
             lines.push(format!(
                 "Plan \"{}\" version {}: {}\n{}",
                 plan.title,
                 row.version,
                 Self::check_line(&check, 0, "the executor"),
-                output.chars().skip(skip).collect::<String>()
+                Self::output_tail(output)
             ));
             check.output = None;
             if failed

@@ -233,6 +233,34 @@ async fn done_while_the_contract_check_runs_needs_a_reason() {
 }
 
 #[tokio::test]
+async fn done_before_the_contract_check_starts_needs_a_reason() {
+    // Committed and reported, its checks not confirmed yet: the due row does not exist.
+    let (f, id) = candidate(vec![], &["login"], "def login():\n    pass\n").await;
+    assert!(f.core.runs().check_results(&id).await.unwrap().is_empty());
+    let error = f
+        .core
+        .runs()
+        .mark_done("judge".into(), &f.workflow, 1, 3, true, None)
+        .await
+        .unwrap_err();
+    assert_eq!(error.code(), "checks_not_passed");
+    assert!(format!("{error:?}").contains("T3 contract"), "{error:?}");
+    f.core
+        .runs()
+        .mark_done(
+            "judge-why".into(),
+            &f.workflow,
+            1,
+            3,
+            true,
+            Some("read".into()),
+        )
+        .await
+        .unwrap();
+    f.finish().await;
+}
+
+#[tokio::test]
 async fn no_language_server_is_said_and_not_returned() {
     let (f, id) = candidate(vec![], &["login"], "def login():\n    pass\n").await;
     let planner = prepare_planner(&f).await;

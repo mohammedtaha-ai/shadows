@@ -365,18 +365,21 @@ impl ContractRules {
                             )));
                         } else if !present.contains(path) && !along(FileAction::Create, path) {
                             out.push(Problem::new(format!(
-                                "T{n} {verb} `{path}`, which the project does not have and no task it depends on creates"
+                                "T{n} {verb} `{path}`, which the project does not have \
+                                 and no task it depends on creates"
                             )));
                         }
                     }
                     FileAction::Create if !had_create(path) => {
                         if along(FileAction::Create, path) {
                             out.push(Problem::new(format!(
-                                "T{n} creates `{path}`, which a task it depends on already creates: modify it instead"
+                                "T{n} creates `{path}`, which a task it depends on \
+                                 already creates: modify it instead"
                             )));
                         } else if present.contains(path) && !along(FileAction::Delete, path) {
                             out.push(Problem::new(format!(
-                                "T{n} creates `{path}`, which the project already has: modify it instead, and ask Shadows (code_lsp) what it holds"
+                                "T{n} creates `{path}`, which the project already has: \
+                                 modify it instead, and ask Shadows (code_lsp) what it holds"
                             )));
                         }
                     }

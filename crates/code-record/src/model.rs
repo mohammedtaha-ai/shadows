@@ -1,4 +1,4 @@
-//! One job: the verdict's values, and the plain lines it reads as.
+//! One job: the code record's values, and the plain lines a verdict reads as.
 
 use serde::{Deserialize, Serialize};
 

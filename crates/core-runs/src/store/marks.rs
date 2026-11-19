@@ -1,5 +1,6 @@
 //! A person's done marks, which `needs` links wait for, and the plan's progress they make.
 use super::RunsStore;
+use crate::checks::CONTRACT_CHECK;
 use crate::{AttemptId, RunsError};
 use code_record::{CodeRecord, DoneRecord};
 use core_db::{CommandContext, Storage, StorageError, Tx};
@@ -129,10 +130,19 @@ impl RunsStore {
                                     failed.insert(format!("T{for_task} {}", check.id));
                                 }
                             }
-                            // An unfinished `contract` row has no result yet; one that could
-                            // not be run judged nothing, so it asks no reason.
+                            // A due `contract` check not started yet, or unfinished, has no
+                            // result; one that could not be run judged nothing, so it asks no
+                            // reason.
+                            if !rows
+                                .iter()
+                                .any(|(t, c, _)| *t == task && c == CONTRACT_CHECK)
+                                && Self::contract_due_in(conn, &id).await?
+                            {
+                                failed.insert(format!("T{task} {CONTRACT_CHECK}"));
+                            }
                             for (t, c, o) in rows {
-                                let unjudged = c == "contract" && o.as_deref() == Some("not_run");
+                                let unjudged =
+                                    c == CONTRACT_CHECK && o.as_deref() == Some("not_run");
                                 if o.as_deref() != Some("passed") && !unjudged {
                                     failed.insert(format!("T{t} {c}"));
                                 }
