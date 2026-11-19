@@ -131,7 +131,7 @@ impl Runs {
                 plan.title,
                 row.version,
                 Self::check_line(&check, 0, "the executor"),
-                Self::output_tail(output)
+                Self::output_excerpt(&row.check_id, output)
             ));
             check.output = None;
             if failed
@@ -202,6 +202,7 @@ impl Runs {
         Ok(CheckResult {
             for_task: row.task,
             id: row.check_id.clone(),
+            by_shadows: row.check_id == CONTRACT_CHECK,
             run: check.run,
             folder: check.folder,
             reported: None,

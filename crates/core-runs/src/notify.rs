@@ -313,14 +313,16 @@ impl Runs {
                     .iter()
                     .map(|c| {
                         let line = Self::check_line(c, attempt.task, "the executor");
-                        // The contract check's output is Shadows' own short verdict, so the
+                        // The contract check's output is Shadows' own verdict, so the
                         // notice says it: what is missing, or why nothing could be checked.
                         match c.output.as_deref().filter(|output| {
                             c.id == CONTRACT_CHECK
                                 && c.outcome != Some(crate::CheckOutcome::Passed)
                                 && !output.is_empty()
                         }) {
-                            Some(output) => format!("{line}\n{}\n", Self::output_tail(output)),
+                            Some(output) => {
+                                format!("{line}\n{}\n", Self::output_excerpt(&c.id, output))
+                            }
                             None => format!("{line}\n"),
                         }
                     })

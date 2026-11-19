@@ -1511,6 +1511,10 @@
       "CheckResult": {
         "description": "What the executor reported alongside what Shadows independently observed.",
         "properties": {
+          "by_shadows": {
+            "description": "True for a check Shadows runs itself (the contract check), which has no command and\nnothing an executor reports.",
+            "type": "boolean"
+          },
           "exit_code": {
             "format": "int32",
             "type": [
@@ -1607,6 +1611,7 @@
         "required": [
           "for_task",
           "id",
+          "by_shadows",
           "run",
           "truncated"
         ],

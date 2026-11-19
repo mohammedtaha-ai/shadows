@@ -188,6 +188,28 @@ async fn a_missing_symbol_goes_back_to_the_executor_with_its_name() {
 }
 
 #[tokio::test]
+async fn a_long_verdict_keeps_its_first_missing_symbol() {
+    let names: Vec<String> = (0..100).map(|i| format!("missing_{i:03}")).collect();
+    let names: Vec<&str> = names.iter().map(String::as_str).collect();
+    let (f, id) = candidate(vec![], &names, "def other():\n    pass\n").await;
+    f.core
+        .code_record()
+        .record_answer_for_tests(FILE, functions(&["other"]));
+    f.core.runs().recover().await.unwrap();
+    let rows = results(&f, &id, 1).await;
+    assert!(rows[0].by_shadows);
+    assert!(rows[0].output.as_deref().unwrap().chars().count() > 4000);
+    let addition = returned(&f).await.addition.unwrap();
+    assert!(
+        addition.contains(&format!(
+            "T3 promises missing_000 in {FILE}; the code does not have it."
+        )),
+        "{addition}"
+    );
+    f.finish().await;
+}
+
+#[tokio::test]
 async fn a_found_contract_passes_and_the_notice_says_so() {
     let (f, id) = candidate(vec![], &["login"], "def login():\n    pass\n").await;
     let planner = prepare_planner(&f).await;

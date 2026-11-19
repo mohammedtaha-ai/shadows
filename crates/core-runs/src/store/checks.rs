@@ -176,9 +176,11 @@ impl RunsStore {
                             | (ReportedOutcome::NotRun, CheckOutcome::NotRun)
                     )
                 });
+                let id: String = r.try_get("check_id")?;
                 Ok(CheckResult {
                     for_task: r.try_get::<u32, _>("for_task")?,
-                    id: r.try_get("check_id")?,
+                    by_shadows: id == crate::checks::CONTRACT_CHECK,
+                    id,
                     run: serde_json::from_str(r.try_get::<&str, _>("run_json")?)?,
                     folder: r.try_get("folder")?,
                     reported,

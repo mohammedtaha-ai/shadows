@@ -54,8 +54,13 @@ impl Runs {
         })
     }
 
-    /// The last 4,000 characters of a check's output, as a prompt carries it.
-    pub(crate) fn output_tail(output: &str) -> String {
+    /// 4,000 characters of check `id`'s output, as a prompt carries it. A command's error comes
+    /// last, so its output keeps the end; the contract check lists the missing symbols first,
+    /// so its output keeps the start.
+    pub(crate) fn output_excerpt(id: &str, output: &str) -> String {
+        if id == CONTRACT_CHECK {
+            return output.chars().take(4000).collect();
+        }
         let skip = output.chars().count().saturating_sub(4000);
         output.chars().skip(skip).collect()
     }
@@ -459,7 +464,7 @@ impl Runs {
                         return line;
                     }
                     let output = c.output.as_deref().unwrap_or_default();
-                    format!("{line}\n{}", Self::output_tail(output))
+                    format!("{line}\n{}", Self::output_excerpt(&c.id, output))
                 })
                 .collect::<Vec<_>>()
                 .join("\n");

@@ -2402,6 +2402,11 @@ export interface components {
         CheckOutcome: "passed" | "failed" | "timed_out" | "inconclusive" | "not_run";
         /** @description What the executor reported alongside what Shadows independently observed. */
         CheckResult: {
+            /**
+             * @description True for a check Shadows runs itself (the contract check), which has no command and
+             *     nothing an executor reports.
+             */
+            by_shadows: boolean;
             /** Format: int32 */
             exit_code?: number | null;
             finished_at?: string | null;

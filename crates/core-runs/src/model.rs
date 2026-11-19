@@ -137,6 +137,9 @@ pub enum CheckOutcome {
 pub struct CheckResult {
     pub for_task: u32,
     pub id: String,
+    /// True for a check Shadows runs itself (the contract check), which has no command and
+    /// nothing an executor reports.
+    pub by_shadows: bool,
     pub run: Vec<String>,
     pub folder: Option<String>,
     pub reported: Option<ReportedOutcome>,
