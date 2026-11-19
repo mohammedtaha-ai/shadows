@@ -141,7 +141,9 @@ and clippy pass.
 
 **Files:** `crates/core-runs/{Cargo.toml, src/lib.rs, src/checks.rs, src/brief.rs,
 src/store/checks.rs, src/store/marks.rs, contract.yaml}`; `crates/shadows-core/src/app.rs`
-(pass `code_record` to `Runs::new`); `crates/core-plans/src/task_contract.rs` and its contract
+(pass `code_record` to `Runs::new`) and `crates/shadows-core/Cargo.toml` (its `test-support`
+gains `code-record/test-support`); `crates/code-record/{Cargo.toml, src/lib.rs, src/verify.rs,
+contract.yaml}` (the seam below); `crates/core-plans/src/task_contract.rs` and its contract
 (refuse a check named `contract`); tests in `crates/shadows-core/tests/runs_attempts/`.
 
 **Steps:**
@@ -161,9 +163,17 @@ src/store/checks.rs, src/store/marks.rs, contract.yaml}`; `crates/shadows-core/s
    as written."
 6. Plans refuses a task check whose id is `contract`.
 
-**Tests** (`crates/shadows-core/tests/runs_attempts/contract_check.rs`; the flow tests take recorded
-answers through a test-support seam: `CoreParts` gains an optional recorded `documentSymbol`
-answer per path, enabled by `shadows-core/test-support` → `code-record/test-support`):
+**The test seam lives in `CodeRecord`** (amended 2026-11-19 on the builder's report: a field on
+`CoreParts` would have touched 36 test files). Under a new `test-support` feature of
+`code-record`, never a default: a public `RecordedAnswer { Symbols(serde_json::Value) (a
+`documentSymbol` result, not truncated), NoServer, Absent }` and
+`CodeRecord::record_answer_for_tests(&self, path: &str, answer: RecordedAnswer)`, kept in a
+`std::sync::Mutex<HashMap<String, RecordedAnswer>>` field that exists only under the feature;
+`ask()` answers from it first when the path is recorded, and asks the language server otherwise.
+Tests reach it through the existing `app.code_record()`. `shadows-core`'s `test-support` enables
+`code-record/test-support`; CI's step 5 (no `test-support` in the shipped tree) still holds.
+
+**Tests** (`crates/shadows-core/tests/runs_attempts/contract_check.rs`, with recorded answers):
 `a_task_with_no_checks_still_gets_its_contract_checked`,
 `a_missing_symbol_goes_back_to_the_executor_with_its_name`,
 `a_found_contract_passes_and_the_notice_says_so`,

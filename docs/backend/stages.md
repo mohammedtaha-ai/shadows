@@ -89,7 +89,7 @@ this file at `db760593`.
 
 ### B-171 · Runs runs the `contract` check
 
-- Status: todo (needs B-170)
+- Status: todo (needs B-170; the seam is amended into the plan: it lives in `CodeRecord`)
 - Plan: [plans/2026-11-19-code-record.md#task-b-171--runs-runs-the-contract-check](plans/2026-11-19-code-record.md#task-b-171--runs-runs-the-contract-check)
 - Read: the plan's "Rulings for every task"; the plan's "What is reused"; `crates/core-runs/contract.yaml`; executors design §5.4.
 - Touch: the plan task's Files.
