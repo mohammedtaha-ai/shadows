@@ -195,6 +195,12 @@ async fn a_second_done_replaces_the_rows() {
         action: FileAction::Modify,
         purpose: "p".into(),
     });
+    // A file the task only reads is not one it left in the code.
+    second.files.push(FileWork {
+        path: "auth/readme.md".into(),
+        action: FileAction::Read,
+        purpose: "p".into(),
+    });
     f.record(done("p", second, None)).await;
     assert_eq!(
         f.files().await,

@@ -4,7 +4,7 @@
 use std::sync::Arc;
 
 use core_db::{Storage, StorageError, Tx};
-use core_plans::WorkflowId;
+use core_plans::{FileAction, WorkflowId};
 use core_projects::ProjectId;
 
 use crate::{CodeRecord, CodeRecordError, DoneRecord, SymbolState, Unpromised, Verdict};
@@ -109,11 +109,12 @@ struct RecordedSymbol<'a> {
 }
 
 impl DoneRecord {
-    /// Every contract file.
+    /// Every file the task created or modified: what it left in the code.
     fn files(&self) -> Result<Vec<RecordedFile<'_>>, StorageError> {
         self.contract
             .files
             .iter()
+            .filter(|file| matches!(file.action, FileAction::Create | FileAction::Modify))
             .map(|file| {
                 Ok(RecordedFile {
                     path: &file.path,

@@ -158,8 +158,8 @@ functions:
       # Every verdict and record row of the project, inside the caller's write.
     record_done_in:
       signature: "(tx: &mut Tx, done: &DoneRecord) -> Result<(), StorageError>"
-      # Inside Runs' marking write: replaces the task's rows. Every contract
-      # file; every promised symbol with its state found, missing or unchecked
+      # Inside Runs' marking write: replaces the task's rows. Every file the
+      # contract creates or modifies (read and delete are left out); every promised symbol with its state found, missing or unchecked
       # from the verdict by symbol id and path, unchecked when the verdict is
       # none or does not name it; unpromised rows from the verdict only. No read
       # method yet: its first user is code_where.

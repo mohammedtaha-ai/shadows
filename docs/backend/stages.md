@@ -75,6 +75,8 @@ this file at `db760593`.
 - B-150 keeps its own per-thread message queue beside Turns' queue; reusing Turns' queue needs the executor session restored by thread.
 - The web derives "stopped on the additions cap" itself; a Core field on `TaskRun` should own it.
 - When B-167's file check is skipped (no project folder, first listing running), the Planner is not told; it saw a like edit refused before and could not tell why.
+- The Planner's notice names a `not_run` contract check without its reason; the reason is in `task_checks` (B-174 evidence).
+- A done task of an older plan version is still rechecked after a newer version corrects its contract; its failure is told once (B-174 evidence).
 - A Planner's `Read` (Claude) and read-only sandbox (Codex) can read any file the account can, outside the project too; only its instructions keep it in the project. Accepted as is by Mohammed on 2026-11-18.
 
 ## Open
@@ -113,7 +115,7 @@ this file at `db760593`.
 
 ### B-174 · The code record's acceptance on a real provider
 
-- Status: todo (needs B-170 to B-173 and F-129)
+- Status: done (`docs/evidence/2026-11-19-code-record-live.md`: all three journeys on Sonnet with pyright)
 - Plan: [plans/2026-11-19-code-record.md#task-b-174--acceptance-on-a-real-provider](plans/2026-11-19-code-record.md#task-b-174--acceptance-on-a-real-provider)
 - Done when: the evidence file records the three journeys.
 
