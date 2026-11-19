@@ -84,3 +84,20 @@ Seen, and left:
 - The recheck card in the conversation shows `T1 · Contract  Confirmed: failed` without its
   output, as for every check in that card. The Planner's notice names the missing function; the
   person sees which one only by asking or by opening the task.
+
+## Another language: Rust, with rust-analyzer
+
+Same session, a fresh Rust library crate `notes-rs`. Its vision, map, roadmap and plan were made
+and approved in the web app, and each task was started from its page.
+
+| # | Step | Seen |
+|---|---|---|
+| 1 | T1 creates `src/store.rs`: `pub struct Store` with `impl Store { new, add, delete, list_all }`; its contract names `Store` (class) and `Store.new` … `Store.list_all` (method) | `contract not_run`: `the language server rust-analyzer failed:   14: <unknown>`. The `rust-analyzer` on PATH was rustup's stub without the component. The Planner marked T1 done with that reason. |
+| 2 | rust-analyzer's own answer for that file, asked directly | `Store` kind 23 (struct); `impl Store` kind 19 holding `new` 12, `add`/`delete`/`list_all` 6; a `tests` module kind 2. The check counted neither kind 23 nor methods under an `impl` block, so once the server ran, every promised symbol would have read missing and the attempt would have been returned with correct code. |
+| 3 | Fixed (`f9c6d0f`, `55c566b`): struct, interface and enum count as a class; an `impl X` / `impl Trait for X` block and a gopls `(*X).m` name give the method its type; a failed server reports its first stderr line that is not a backtrace frame | `live_a_rust_struct_and_its_impl_methods_are_found` passes on real rust-analyzer. |
+| 4 | After `rustup component add rust-analyzer` and a daemon restart on the fixed build: v2's T2 adds `Store.len` and `Store.is_empty` | `c1` (`cargo test -q`) passed, **`contract passed`**. The Planner marked T2 done. The record: `Store`, `Store.len`, `Store.is_empty` all `found`; files `src/store.rs` modify only. |
+
+TypeScript was not run: the machine has TypeScript 6.0.2, which has no `tsc --lsp`, the server
+the language-server design chose for TypeScript 7. A TypeScript project there gets `contract
+not_run` with the server's error line. Go is covered by recorded gopls answers only (gopls is
+not installed here).
