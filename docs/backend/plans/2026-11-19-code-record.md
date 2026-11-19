@@ -59,9 +59,11 @@ is the attempt's commit or a later one (the design's "at the attempt's commit" i
   no language server; or the question failed after the wait below.
 
 **Waiting for a server.** `Codebase::lsp` waits 20 s for a starting server. A `NoServer` answer
-whose `server` is `Some` (a server would read the file but is not running yet, as right after a
-restart, when `runs.recover()` runs before `code.start()`) is asked again every 5 s for up to 2
-minutes; only then, or with `server: None` (no server reads it), is the file unchecked.
+whose `server` is `Some` and whose `state` is `Idle`, `Starting` or `None` (a server would read the
+file but is not running yet, as right after a restart, when `runs.recover()` runs before
+`code.start()`) is asked again every 5 s for up to 2 minutes. Any other `NoServer` (`server: None`,
+or state `NotInstalled`, `Off` or `Failed`) makes the file unchecked at once, so a missing server
+never holds the project's `checking` lock.
 
 **The row's outcome and output:**
 - `passed`: no symbol missing and at least one found.
@@ -77,9 +79,12 @@ minutes; only then, or with `server: None` (no server reads it), is the file unc
   `unpromised: helper in backend/auth/service.py.`
   Unpromised symbols never fail it.
 
+**Verdict keys.** `CodeRecord` stores a verdict under a key: the attempt id for an attempt's
+check; `recheck:{recheck_id}:{attempt_id}` for a recheck.
+
 **Tests run a real server.** Each task has fast tests over recorded answers (they run in CI) and
 tests against a real `pyright-langserver`, marked `#[ignore = "needs pyright-langserver on PATH"]`
-as `code_lsp.rs` marks its gopls tests. The controller runs the ignored ones with
+as `crates/shadows/tests/code_lsp.rs` marks its gopls tests. The controller runs the ignored ones with
 `--include-ignored` before the task is done and records the result in the task's status line.
 
 ## Task B-170 · `CodeRecord` and its comparison
@@ -133,9 +138,10 @@ src/store/checks.rs, src/store/marks.rs, contract.yaml}`; `crates/shadows-core/s
 1. `Runs::new` takes `CodeRecord`.
 2. In `confirm_attempt`, compute `contract_due` first. Both early returns ("no checks" and "every
    check recorded") return only when the `contract` row is not due or is finished. Under the
-   project's `checking` lock, after the task's own checks: `start_check`-style insert of the
-   `contract` row (`run_json '[]'`, `head_before`), then `CodeRecord::verify(attempt id, …)`, then
-   finish it with the verdict's outcome, `output = lines()`, `head_after`, `finished_at`.
+   project's `checking` lock, after the task's own checks: insert the `contract` row unfinished
+   through the existing `start_check` with `TaskCheck { id: "contract", run: [] , ..}` (its other
+   fields empty) and the next ordinal after the task's checks, then `CodeRecord::verify(attempt
+   id, …)`, then `finish_check` with the verdict's outcome, `output = lines()`, `head_after`.
    `clear_unfinished` already resets an unfinished row of the attempt's own task at a restart.
 3. `returnable_checks` excludes a `contract` row whose outcome is `not_run`.
 4. `put_mark`'s reason rule: a `contract` row unfinished counts as "no finished result" (needs a
@@ -166,14 +172,20 @@ the contract test and clippy pass.
 
 **Steps:**
 1. `begin_recheck_in` adds, for each done task whose judged attempt had a `contract` row, a
-   recheck row `contract` (its `run_json` names no program).
-2. `run_recheck` runs such a row through `CodeRecord::verify` (key: the recheck id and the attempt)
-   instead of `run_check`; `end_recheck`, `failed_before` and the notice handle it as any row: a
-   failure is told to the marking plan's Planner once, and again only after it passed in between.
-   `not_run` is recorded and never told as a failure.
+   recheck row with `check_id 'contract'`, `run_json` the valid `TaskCheck` JSON
+   `{"id":"contract","run":[]}` (so `run_recheck` and `recheck_result` parse it as today), and
+   ordinal the done task's check count (after its own checks; `recheck_rows` orders by it).
+2. `run_recheck` branches on `check_id == "contract"` before running: such a row goes through
+   `CodeRecord::verify` (key `recheck:{recheck_id}:{attempt_id}`, the contract from the judged
+   attempt's stored context) instead of `run_check`, and is finished with the verdict's outcome.
+3. `end_recheck` leaves out a `contract` row whose outcome is `not_run` explicitly (recorded,
+   never told). `failed_before` skips earlier `contract` rows that are `not_run`, so a server that
+   was down once never hides the next real failure. A `failed` row is told to the marking plan's
+   Planner once, and again only after it passed in between, as any row.
 
-**Tests:** `a_later_task_removing_a_done_tasks_function_is_told_once` (recorded answers), and
-`live_…` of the same with real pyright, ignored in CI.
+**Tests:** `a_later_task_removing_a_done_tasks_function_is_told_once` and
+`a_not_run_recheck_never_hides_a_later_failure` (recorded answers), and
+`live_a_later_task_removing_a_done_tasks_function_is_told` with real pyright, ignored in CI.
 
 **Done when:** those tests (with `--include-ignored` here), the core-runs tests and clippy pass.
 
@@ -181,7 +193,8 @@ the contract test and clippy pass.
 
 **Files:** `crates/core-db/migrations/0076_code_record.sql` (a new file: 0075 may already have
 run on a development database); `crates/code-record/src/store/`, `src/record.rs`, `src/model.rs`,
-`contract.yaml`, `tests/record.rs`; `crates/core-runs/src/store/marks.rs`, `contract.yaml`.
+`contract.yaml`, `tests/record.rs`; `crates/core-runs/src/lib.rs` (`mark_done`),
+`src/store/marks.rs`, `contract.yaml`. Built after B-172 (both edit `core-runs/contract.yaml`).
 
 **Steps:**
 1. Tables `code_record_file (project_id, workflow_id, version, task, path, action, purpose,
@@ -189,14 +202,22 @@ run on a development database); `crates/code-record/src/store/`, `src/record.rs`
    (project_id, workflow_id, version, task, symbol_id, path, name, kind, contract_json, state)`
    keyed (workflow_id, version, task, symbol_id); `code_record_unpromised (project_id,
    workflow_id, version, task, path, name)`. `delete_project_in` removes them too.
-2. `CodeRecord::record_done_in(&mut Tx, project, workflow, version, task, contract, commit,
-   verdict: Option<&Verdict>)` replaces the task's rows; `forget_done_in(&mut Tx, workflow,
-   version, task)` deletes them.
-3. `put_mark` calls them inside the mark's own write: done → `record_done_in` with the latest
-   committed attempt of the task (its commit, and its verdict read before the write through
-   `CodeRecord::verdict`); not done → `forget_done_in`. A replayed mark writes nothing (it returns
-   before, as today). So the record and the mark never disagree, also after a crash.
-4. No read method and no route in this slice: their first user is `code_where` (slice 2). The
+2. Two associated functions, called inside another service's write as
+   `Codebase::delete_code_index_in` is (so `RunsStore` holds no `CodeRecord`):
+   `CodeRecord::record_done_in(tx: &mut Tx, done: &DoneRecord)` replaces the task's rows, where
+   `DoneRecord { project, workflow, version, task, attempt: Option<String>, commit:
+   Option<String>, contract: TaskContract, verdict: Option<Verdict> }`; and
+   `CodeRecord::forget_done_in(tx, workflow, version, task)` deletes them.
+3. Before the write, `Runs::mark_done` (done = true) reads the task's latest committed attempt (if
+   any), its stored context's contract (the contract the check verified; the frozen version's when
+   no attempt exists), its commit, and its verdict (`CodeRecord::verdict(attempt id)`), and passes
+   them to `put_mark` as an `Option<DoneRecord>`. `commit` and `attempt` are `None` for a task
+   done with no attempt, and then every symbol is `unchecked`.
+4. Inside its write, `put_mark` checks that the latest committed attempt is still the one in the
+   `DoneRecord`; if another committed meanwhile, it records with `verdict: None`. Then done →
+   `record_done_in`, not done → `forget_done_in`. A replayed mark writes nothing (it returns before,
+   as today). So the record and the mark never disagree, also after a crash.
+5. No read method and no route in this slice: their first user is `code_where` (slice 2). The
    tests read the tables directly in the owning crate.
 
 **Tests** (`crates/code-record/tests/record.rs` and one in `runs_attempts`):

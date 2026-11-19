@@ -105,7 +105,7 @@ this file at `db760593`.
 
 ### B-173 · The record, written with the done mark
 
-- Status: todo (needs B-171)
+- Status: todo (needs B-172)
 - Plan: [plans/2026-11-19-code-record.md#task-b-173--the-record-written-with-the-done-mark](plans/2026-11-19-code-record.md#task-b-173--the-record-written-with-the-done-mark)
 - Read: the plan's "Rulings for every task"; `crates/code-record/contract.yaml`; `crates/core-runs/src/store/marks.rs`.
 - Touch: the plan task's Files.
