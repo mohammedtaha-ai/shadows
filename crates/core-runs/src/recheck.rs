@@ -1,5 +1,5 @@
 //! Rechecking the recorded checks of other done tasks after a done mark.
-use crate::checks::CONTRACT_CHECK;
+use crate::checks::{CONTRACT_CHECK, contract_outcome};
 use crate::git::Git;
 use crate::notify::NoticeIntent;
 use crate::store::checks::Finished;
@@ -7,7 +7,6 @@ use crate::store::rechecks::{Batch, ResultRow};
 use crate::{
     Attempt, AttemptId, CheckOutcome, CheckResult, RecheckFailure, RecheckNotice, Runs, RunsError,
 };
-use code_record::VerdictOutcome;
 use core_plans::{TaskCheck, WorkflowId};
 use std::collections::BTreeMap;
 
@@ -29,14 +28,7 @@ impl Runs {
                     .get(&AttemptId::from_recorded(first.attempt_id.clone()))
                     .await?;
                 self.wait_for_quiet(&attempt).await?;
-                let lock = self
-                    .inner
-                    .checking
-                    .lock()
-                    .await
-                    .entry(attempt.project_id.clone())
-                    .or_insert_with(|| std::sync::Arc::new(tokio::sync::Mutex::new(())))
-                    .clone();
+                let lock = self.checking_lock(&attempt.project_id).await;
                 let held = lock.lock().await;
                 self.wait_for_quiet(&attempt).await?;
                 for row in rows.iter().filter(|row| row.finished_at.is_none()) {
@@ -96,11 +88,7 @@ impl Runs {
             )
             .await
             .map_err(|e| RunsError::Unavailable(e.to_string()))?;
-        let outcome = match verdict.outcome() {
-            VerdictOutcome::Passed => CheckOutcome::Passed,
-            VerdictOutcome::Failed => CheckOutcome::Failed,
-            VerdictOutcome::NotRun => CheckOutcome::NotRun,
-        };
+        let outcome = contract_outcome(verdict.outcome());
         Ok(Finished {
             outcome,
             exit_code: None,

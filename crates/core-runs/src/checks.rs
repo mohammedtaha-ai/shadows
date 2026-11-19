@@ -19,6 +19,32 @@ const OUTPUT_LIMIT: usize = 65_536;
 pub(crate) const CONTRACT_CHECK: &str = "contract";
 
 impl Runs {
+    /// The project's checking lock: Shadows runs one check at a time in a folder, and a
+    /// restart clears a check's unfinished result only while none runs.
+    pub(crate) async fn checking_lock(
+        &self,
+        project: &ProjectId,
+    ) -> std::sync::Arc<tokio::sync::Mutex<()>> {
+        self.inner
+            .checking
+            .lock()
+            .await
+            .entry(project.clone())
+            .or_insert_with(|| std::sync::Arc::new(tokio::sync::Mutex::new(())))
+            .clone()
+    }
+}
+
+/// The check outcome a contract verdict is stored as.
+pub(crate) fn contract_outcome(outcome: VerdictOutcome) -> CheckOutcome {
+    match outcome {
+        VerdictOutcome::Passed => CheckOutcome::Passed,
+        VerdictOutcome::Failed => CheckOutcome::Failed,
+        VerdictOutcome::NotRun => CheckOutcome::NotRun,
+    }
+}
+
+impl Runs {
     pub async fn check_results(&self, id: &AttemptId) -> Result<Vec<CheckResult>, RunsError> {
         self.inner.store.get(id).await?;
         self.inner.store.check_results(id).await
@@ -101,14 +127,7 @@ impl Runs {
             return self.after_checks(attempt).await;
         }
         self.wait_for_quiet(attempt).await?;
-        let lock = self
-            .inner
-            .checking
-            .lock()
-            .await
-            .entry(attempt.project_id.clone())
-            .or_insert_with(|| std::sync::Arc::new(tokio::sync::Mutex::new(())))
-            .clone();
+        let lock = self.checking_lock(&attempt.project_id).await;
         let held = lock.lock().await;
         self.wait_for_quiet(attempt).await?;
         for (task, ordinal, check) in checks {
@@ -180,11 +199,7 @@ impl Runs {
             )
             .await
             .map_err(|e| RunsError::Unavailable(e.to_string()))?;
-        let outcome = match verdict.outcome() {
-            VerdictOutcome::Passed => CheckOutcome::Passed,
-            VerdictOutcome::Failed => CheckOutcome::Failed,
-            VerdictOutcome::NotRun => CheckOutcome::NotRun,
-        };
+        let outcome = contract_outcome(verdict.outcome());
         let result = Finished {
             outcome,
             exit_code: None,
