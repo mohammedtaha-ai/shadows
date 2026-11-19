@@ -90,7 +90,7 @@ as `crates/shadows/tests/code_lsp.rs` marks its gopls tests. The controller runs
 ## Gate files every task here touches
 
 Found building B-170. A new migration also updates `crates/core-db/tests/fixtures/base_migrations.sha384`
-(its `sha384sum` line) and the count in `crates/core-db/tests/migration_checksums.rs`. A new table
+(its `sha384sum` line), the count in `crates/core-db/tests/migration_checksums.rs`, and a new table's name in the list in `crates/core-db/tests/storage_contract/schema.rs` (found in the full gate). A new table
 gets its line in `crates/shadows/tests/architecture/table-owners.txt` (owner `code_record`). A
 crate that comes to depend on `code-record` is added to its allowed owners in
 `crates/shadows/tests/architecture/main.rs`. Test modules name their imports (the ratchet refuses
