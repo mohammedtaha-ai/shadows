@@ -92,7 +92,7 @@ functions:
       signature: "(&self, key: &str, project: &ProjectId, task: u32, contract: &TaskContract) -> Result<Verdict, CodeRecordError>"
       # Each distinct file of the contract's symbols and created files is asked
       # once (`ask`); `compare` makes the verdict, stored under `key` (an
-      # attempt id, or `recheck:{recheck_id}:{attempt_id}`), replacing one
+      # attempt id, or `recheck:{attempt_id}`), replacing one
       # stored before. Only storage fails it.
     verdict:
       signature: "(&self, key: &str) -> Result<Option<Verdict>, CodeRecordError>"

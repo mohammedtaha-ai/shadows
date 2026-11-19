@@ -81,7 +81,7 @@ impl Runs {
             .inner
             .code_record
             .verify(
-                &format!("recheck:{id}:{}", attempt.id.as_str()),
+                &format!("recheck:{}", attempt.id.as_str()),
                 &attempt.project_id,
                 task,
                 &contract,

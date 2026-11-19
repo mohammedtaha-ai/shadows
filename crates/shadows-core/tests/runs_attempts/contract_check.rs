@@ -450,6 +450,16 @@ async fn a_later_task_removing_a_done_tasks_function_is_told_once() {
     recheck(&f, "cause").await;
     recheck(&f, "cause-again").await;
     assert_eq!(contract_rechecks(&f).await, vec!["failed", "failed"]);
+    let kept: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM code_record_verdict WHERE attempt_id LIKE 'recheck:%'",
+    )
+    .fetch_one(f.storage.reader())
+    .await
+    .unwrap();
+    assert_eq!(
+        kept, 1,
+        "each recheck replaces the attempt's recheck verdict"
+    );
     let prompts = recheck_prompts(&f, &planner).await;
     assert_eq!(prompts.len(), 1, "a failure already told is not told again");
     assert!(prompts[0].contains("T3 contract failed"), "{}", prompts[0]);

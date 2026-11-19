@@ -87,7 +87,7 @@ dependencies:
   threads: Threads creates the executor thread inside the Start write, and reads the executor's entries for a lessons record and a failed notice's last message.
   grants: Grants revokes an interrupted attempt's grant at startup; an executor grant names the attempt's task. Grants::check_live_in rechecks a task question's grant inside a read RunsStore opens on the shared storage, and a conflict's grant inside the conflict's own write; no Grants SQL is in Runs.
   projects: Projects names the folder git runs in.
-  code_record: CodeRecord::verify compares the attempt's own contract with the code for the `contract` check, its verdict stored under the attempt id, and a recheck's under recheck:{recheck_id}:{attempt_id}; a done mark's record is written by CodeRecord::record_done_in and removed by forget_done_in inside put_mark's write; CodeRecord never calls Runs.
+  code_record: CodeRecord::verify compares the attempt's own contract with the code for the `contract` check, its verdict stored under the attempt id, and a recheck's under recheck:{attempt_id}, which each recheck replaces, so the table does not grow per batch; a done mark's record is written by CodeRecord::record_done_in and removed by forget_done_in inside put_mark's write; CodeRecord never calls Runs.
   code: Codebase answers a task question's language-server question (Codebase::lsp, Asker::Grant). Codebase lists the project's files, to leave secret and dependency files out of the first commit (Codebase::refresh_inventory and Codebase::inventory, asked with Asker::Grant), and answers which of a task's required files are absent (Codebase::missing_inputs, Asker::Grant); the same check refuses a conflict's evidence path outside the project or holding a secret, an absent path being evidence too.
   # A running attempt holds `Codebase::hold` of its project until its turn ends, so the project stays active.
 
@@ -573,7 +573,7 @@ rechecks:
   contract: >
     When that attempt has a `contract` row in run_checks, the batch gets a `contract` row too
     (run_json {"id":"contract","run":[]}, ordinal the task's own check count). run_recheck
-    runs it through CodeRecord::verify, key recheck:{recheck_id}:{attempt_id}, with the contract
+    runs it through CodeRecord::verify, key recheck:{attempt_id} (the latest recheck's verdict), with the contract
     of that attempt's stored context, the folder as it stands; the row takes the verdict's
     outcome and lines. A not_run `contract` row is recorded and never told, and failed_before
     skips earlier not_run `contract` rows, so a server down once never hides a later failure.

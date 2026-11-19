@@ -80,7 +80,7 @@ never holds the project's `checking` lock.
   Unpromised symbols never fail it.
 
 **Verdict keys.** `CodeRecord` stores a verdict under a key: the attempt id for an attempt's
-check; `recheck:{recheck_id}:{attempt_id}` for a recheck.
+check; `recheck:{attempt_id}` for a recheck, each recheck replacing the last (the result per batch is in `run_recheck_results`; amended in the branch review so the verdict table does not grow per batch).
 
 **Tests run a real server.** Each task has fast tests over recorded answers (they run in CI) and
 tests against a real `pyright-langserver`, marked `#[ignore = "needs pyright-langserver on PATH"]`
@@ -197,7 +197,7 @@ the contract test and clippy pass.
    `{"id":"contract","run":[]}` (so `run_recheck` and `recheck_result` parse it as today), and
    ordinal the done task's check count (after its own checks; `recheck_rows` orders by it).
 2. `run_recheck` branches on `check_id == "contract"` before running: such a row goes through
-   `CodeRecord::verify` (key `recheck:{recheck_id}:{attempt_id}`, the contract from the judged
+   `CodeRecord::verify` (key `recheck:{attempt_id}`, the contract from the judged
    attempt's stored context) instead of `run_check`, and is finished with the verdict's outcome.
 3. `end_recheck` leaves out a `contract` row whose outcome is `not_run` explicitly (recorded,
    never told). `failed_before` skips earlier `contract` rows that are `not_run`, so a server that
