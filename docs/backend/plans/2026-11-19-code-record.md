@@ -1,175 +1,224 @@
 # The code record, slice 1: a task verified against its contract, and the record
 
 Design: [`../specs/2026-11-19-project-code-record-design.md`](../specs/2026-11-19-project-code-record-design.md)
-§3, §4, §8, §9 slice 1 (approved by Mohammed, 2026-11-19).
+§3, §4, §8, §9 slice 1. Rulings of Mohammed, 2026-11-19: a new service owns it; a task is verified
+before done; a missing symbol is returned as a failed check; an unchecked contract is said, never
+silent; a later task that removes a done task's promised symbol is caught now, by the project
+recheck; the executor is told up front its symbols are checked by name; the tests run a real
+language server, not only recorded answers. Reviewed 2026-11-19 (the review's ten findings are
+answered below, each where it applies).
 
 ## What is reused, and what is new
 
-Most of slice 1 already exists in Runs for checks (executors design §5.4). The comparison is stored
-as one more check result, so all of this works on it unchanged:
+The comparison is stored as one more check result, so the checks pipeline (executors design §5.4)
+carries it. Each row below was confirmed against the code by the review.
 
 | Existing piece | Where | What it gives the `contract` check |
 |---|---|---|
-| Confirming checks on a quiet project, one project at a time | `Runs::confirm_attempt`, `wait_for_quiet`, `Inner::checking` (`crates/core-runs/src/checks.rs`) | The code compared is the attempt's commit, with no other task's unfinished files |
-| Check results per attempt | table `run_checks`, `RunsStore::finish_check`, `Runs::check_results` | Storage, the `GET /api/attempts/{id}/checks` route, the task page's Report tab |
-| Return to the executor, at most two returns | `Runs::after_checks`, `RunsStore::returnable_checks`, `returns_since` | A missing symbol goes back to the same executor with the result |
-| The Planner's notice | `Runs::notify` (`notify.rs`), `Runs::check_line` | The Planner reads the result when it judges |
-| Done needs a reason when a check did not pass | `RunsStore::put_mark` (`store/marks.rs`) | A done mark over a missing symbol needs a reason |
-| Re-running unfinished checks after a restart | `Runs::confirm_attempt` at recovery | The check runs again if it has no result |
-| Asking a language server, waking the project and waiting for a starting server | `Codebase::lsp` (`documentSymbol`) | The facts |
+| Confirming checks on a quiet project, one project at a time | `Runs::confirm_attempt`, `wait_for_quiet`, `Inner::checking` (`crates/core-runs/src/checks.rs`) | No other task's unfinished files are in the folder |
+| Check rows per attempt, started then finished | table `run_checks`, `RunsStore::start_check` / `finish_check`, `clear_unfinished` | Storage, restart signal, `GET /api/attempts/{id}/checks`, the Report tab |
+| Return to the executor, at most two returns | `Runs::after_checks`, `RunsStore::returnable_checks`, `returns_since` | A missing symbol goes back to the same executor |
+| The Planner's notice and the return prompt | `notify.rs` (`ended_intent`), `Runs::check_line` | The Planner and the executor read `contract failed` with its output |
+| Done needs a reason when a stored row did not pass | `RunsStore::put_mark` (`store/marks.rs`), which loops over every stored row | A done over a missing symbol needs a reason |
+| The project recheck after each done | `begin_recheck_in` (`store/rechecks.rs`), `Runs::run_recheck`, `end_recheck`, `failed_before` | A later task that removed a done task's promised symbol is told once |
+| A language server question that wakes the project and waits for a starting server | `Codebase::lsp` (`crates/codebase/src/lsp/ask.rs`, `wait_running`, `START_WAIT` 20 s) | The facts |
 
-New: the `CodeRecord` service with the comparison rule (B-170), Runs running it as the `contract`
-check (B-171), and the record written on done (B-172).
+New: `CodeRecord` with the comparison (B-170); Runs running it as the `contract` check (B-171); the
+recheck running it for done tasks (B-172); the record written with the done mark (B-173); the Report
+tab's row (F-129).
 
 ## Rulings for every task
 
-- `CodeRecord` (crate `crates/code-record`) owns the rule "does the code hold what the contract
-  promised" and, from B-172, the record's tables. Runs owns check results and their flow, and
-  calls `CodeRecord`; `CodeRecord` never calls Runs. `CodeRecord` depends on `codebase` and
-  `core-db` (and `core-plans` for the contract types only).
-- The check's id is `contract`. A task's own check may not be named `contract`: Plans refuses it
-  in B-171 (one line in `ContractRules::problems`).
-- Matching: a contract symbol is `found` when the language server's `documentSymbol` answer for
-  its file has a symbol of the same name (children flattened, so a method inside a class counts).
-  Kinds are not compared in this slice: servers name kinds differently and a wrong kind is a
-  question for the Planner, not a missing function. Names compare exactly as written.
-- `unchecked`: the file has no language server (`LspAnswer::NoServer`) or the question failed.
-  `unpromised`: a top-level symbol (not a child) in a file the task creates that no contract
-  symbol names.
-- The check's outcome: no row when every contract file is unchecked; else `passed` when no
-  checked symbol is missing, `failed` when one is. Unpromised symbols are listed, never fail it.
-  Its `output` is the readable list, missing first:
-  `missing: refresh_token in backend/auth/service.py`, `unpromised: helper in backend/auth/service.py`,
-  `unchecked: backend/auth/schema.sql (no language server)`.
-- A task with no contract, or a contract with no symbols, gets no `contract` check.
+**Ownership.** `CodeRecord` (crate `crates/code-record`) owns the rule "does the code hold what the
+contract promised", its verdicts and, from B-173, the record. Runs owns check rows and their flow
+and calls `CodeRecord`; `CodeRecord` never calls Runs. `CodeRecord` depends on `core-db`,
+`core-projects` (`ProjectId`), `codebase` and `core-plans` (contract types only). It is built once
+in `AppCore`'s `assemble_services` with the `Codebase` it shares.
+
+**The check.** Its id is `contract`; Plans refuses a task check with that id. It is due for an
+attempt when the attempt's contract (from its stored context, as `specs_in` reads it) has at
+least one symbol whose file has action create or modify.
+
+**What is compared.** The folder as it stands when the check runs: the project is quiet, so HEAD
+is the attempt's commit or a later one (the design's "at the attempt's commit" is amended to this).
+
+**Matching** (amends the design's "by name and kind"):
+- Only these `documentSymbol` kinds count, for promised and unpromised alike: class (5), method
+  (6), constructor (9), function (12). A variable, parameter or field never matches.
+- A contract symbol's name is matched exactly, as written, against the counted symbols at any depth
+  (a method inside a class is found by its bare name). A dotted name `Class.method` is matched
+  against a method `method` whose parent is `Class`. The contract's schema text says names are
+  bare or `Class.method`.
+- Unpromised: a counted top-level symbol in a file the task creates that no contract symbol names.
+
+**States of a promised symbol:**
+- `found`: matched.
+- `missing`: not matched in a complete answer; or its file does not exist in the folder (an
+  absent create or modify file makes every symbol in it missing, never unchecked).
+- `unchecked`: the answer was `truncated` and the name was not in what came back; or the file has
+  no language server; or the question failed after the wait below.
+
+**Waiting for a server.** `Codebase::lsp` waits 20 s for a starting server. A `NoServer` answer
+whose `server` is `Some` (a server would read the file but is not running yet, as right after a
+restart, when `runs.recover()` runs before `code.start()`) is asked again every 5 s for up to 2
+minutes; only then, or with `server: None` (no server reads it), is the file unchecked.
+
+**The row's outcome and output:**
+- `passed`: no symbol missing and at least one found.
+- `failed`: a symbol missing.
+- `not_run`: nothing could be checked (every promised symbol unchecked). It is shown, never
+  silent: the Report tab and the Planner's notice read `contract not_run` with its output
+  ("no language server reads backend/auth/schema.sql"). It is not returned to the executor and
+  does not make a done mark need a reason (two explicit exclusions, B-171).
+- The output speaks plainly, missing first, one line each:
+  `T3 promises refresh_token in backend/auth/service.py; the code does not have it.`
+  `backend/auth/service.py is promised and does not exist.`
+  `unchecked: backend/auth/schema.sql (no language server reads it).`
+  `unpromised: helper in backend/auth/service.py.`
+  Unpromised symbols never fail it.
+
+**Tests run a real server.** Each task has fast tests over recorded answers (they run in CI) and
+tests against a real `pyright-langserver`, marked `#[ignore = "needs pyright-langserver on PATH"]`
+as `code_lsp.rs` marks its gopls tests. The controller runs the ignored ones with
+`--include-ignored` before the task is done and records the result in the task's status line.
 
 ## Task B-170 · `CodeRecord` and its comparison
 
-**Files:**
-- Create: `crates/code-record/Cargo.toml`, `src/lib.rs`, `src/model.rs`, `src/verify.rs`,
-  `src/store/mod.rs`, `src/error.rs`, `contract.yaml`, `tests/verify.rs`;
-  `crates/core-db/migrations/0075_code_record.sql` with its first table,
-  `code_record_verdict (attempt_id PRIMARY KEY, project_id, verdict_json, verified_at)`.
-- Modify: `Cargo.toml` (workspace members are `crates/*`, so nothing unless a list names crates),
-  `crates/shadows-core/Cargo.toml`, `crates/shadows-core/src/app.rs` (build once in
-  `AppCore::start` with `code.clone()`; accessor `code_record()`; its row in the doc table),
-  `docs/codebase/README.md` (its row; `cargo test -p shadows --test codemap` checks it).
+**Files:** create `crates/code-record/{Cargo.toml, contract.yaml, src/lib.rs, src/model.rs,
+src/verify.rs, src/store/mod.rs, src/error.rs, tests/verify.rs}`;
+`crates/core-db/migrations/0075_code_record_verdict.sql`; modify
+`crates/shadows-core/Cargo.toml`, `crates/shadows-core/src/app.rs` (`assemble_services`, the doc
+table row), `crates/core-plans/src/task_contract.rs` (the schema text of `SymbolWork::name`),
+`crates/core-plans/contract.yaml`, `docs/codebase/README.md`.
 
-**Shape:**
-- `model.rs`: `SymbolState { Found, Missing, Unchecked }`; `PromisedSymbol { id, path, name,
-  state }`; `Unpromised { path, name }`; `Verdict { symbols: Vec<PromisedSymbol>, unpromised:
-  Vec<Unpromised>, unchecked_files: Vec<String> }` with `outcome() -> Option<bool>` (None = nothing
-  checked, Some(true) = passed) and `lines() -> String` (the output above). Ordered by path, then
-  symbol id: never by map iteration.
-- `CodeRecord::new(storage, code: Codebase)`; `CodeRecord::verify(&self, attempt: &str, project:
-  &ProjectId, contract: &TaskContract) -> Result<Verdict, CodeRecordError>`: one `documentSymbol`
-  per distinct contract file with action create or modify that the contract's symbols name, asked
-  as `Asker::Person(project)`; a failed question makes that file `unchecked` and is logged
-  `code_record.lsp_failed`. It stores the verdict under the attempt (replacing one stored before),
-  so the record is later written from it; only a storage failure is an error.
-- `CodeRecord::verdict(&self, attempt: &str) -> Result<Option<Verdict>, CodeRecordError>`.
-- The answer's parsing is a private function over the `result` JSON (`DocumentSymbol[]` with
-  `children`, or `SymbolInformation[]` with `name` and no children), so it is tested without a
-  server.
+**Steps:**
+1. Migration `0075`: `code_record_verdict (attempt_id TEXT PRIMARY KEY, project_id TEXT NOT NULL,
+   verdict_json TEXT NOT NULL, verified_at TEXT NOT NULL)`.
+2. `model.rs`: `SymbolState { Found, Missing, Unchecked }`; `PromisedSymbol { id, path, name,
+   state, why: Option<String> }`; `Unpromised { path, name }`; `Verdict { symbols, unpromised,
+   unchecked_files }` ordered by path then symbol id; `Verdict::outcome() -> VerdictOutcome
+   { Passed, Failed, NotRun }`; `Verdict::lines() -> String` (the output above).
+3. `CodeRecord::new(storage, code)`; `verify(&self, key: &str, project: &ProjectId, task: u32,
+   contract: &TaskContract) -> Result<Verdict, CodeRecordError>` asks per distinct file:
+   existence first (an absent file: its symbols missing), then `documentSymbol` as
+   `Asker::Person(project)` (a system call; the contract says so), with the wait ruled above.
+   It stores the verdict under `key` (an attempt id, or a recheck key from B-172), replacing one
+   stored before. Only storage fails it.
+4. `verdict(&self, key: &str) -> Result<Option<Verdict>, CodeRecordError>`.
+5. Removing a project removes its verdict rows: `CodeRecord::delete_project_in(&mut Tx, project)`,
+   called from `core-project-lifecycle/src/store.rs` beside `delete_code_index_in`
+   (modify that file, its contract, and `ProjectLifecycle::new`'s caller in `app.rs`).
+6. The parser of the `documentSymbol` result is private and tested by a unit test.
 
-**Tests (`tests/verify.rs`, through the public API where possible; the parser by a unit test in
-`src/verify.rs`):**
-1. `document_symbols_are_read_with_their_children`: nested `DocumentSymbol` JSON gives the class
-   and its methods as names, and only the class as top level; `SymbolInformation` JSON gives its names.
-2. `a_promised_symbol_is_found_or_missing`: a verdict built from a contract with `login`,
-   `refresh_token` and an answer holding `login`: `login` found, `refresh_token` missing,
-   outcome failed, `lines()` starts with the missing line; `verdict(attempt)` reads it back.
-3. `a_file_without_a_server_is_unchecked_and_alone_makes_no_check`: every file unchecked →
-   `outcome()` is None.
-4. `an_unpromised_symbol_is_listed_and_does_not_fail`.
-For 2 to 4, `verify` takes the answers through a `#[cfg(feature = "test-support")]` constructor that
-replaces the language server with recorded answers per path; the real path is the same code after
-the answer arrives.
+**Tests:** unit (in `src/verify.rs`): `document_symbols_count_classes_methods_and_functions_only`,
+`a_truncated_answer_never_makes_a_symbol_missing`, `a_dotted_name_matches_a_method_in_its_class`.
+`tests/verify.rs`, real pyright (ignored in CI), on a temporary Python project:
+`live_a_promised_function_is_found_and_a_forgotten_one_missing`,
+`live_an_absent_promised_file_makes_its_symbols_missing`,
+`live_an_unpromised_function_in_a_created_file_is_listed`,
+`live_a_file_no_server_reads_is_unchecked` (a `.sql` file).
 
-**Done when:** `cargo test -p code-record --features test-support`,
+**Done when:** `cargo test -p code-record`, the same with `-- --include-ignored` here (pyright),
 `cargo test -p shadows --test codemap`, `cargo test -p shadows-core --features test-support --test contracts`
-and clippy pass. Test 2 fails if the matcher always answers found.
+and clippy pass.
 
 ## Task B-171 · Runs runs the `contract` check
 
-**Files:** `crates/core-runs/Cargo.toml`, `src/lib.rs` (field and constructor), `src/checks.rs`,
-`src/store/checks.rs`, `src/store/marks.rs`, `contract.yaml`, its tests; every fixture that calls
-`Runs::new`; `crates/shadows-core/src/app.rs` (pass `code_record.clone()`);
-`crates/core-plans/src/task_contract.rs` and `contract.yaml` (refuse a check named `contract`).
+**Files:** `crates/core-runs/{Cargo.toml, src/lib.rs, src/checks.rs, src/brief.rs,
+src/store/checks.rs, src/store/marks.rs, contract.yaml}`; `crates/shadows-core/src/app.rs`
+(pass `code_record` to `Runs::new`); `crates/core-plans/src/task_contract.rs` and its contract
+(refuse a check named `contract`); tests in `crates/shadows-core/tests/runs_attempts/`.
 
 **Steps:**
 1. `Runs::new` takes `CodeRecord`.
-2. In `confirm_attempt`, after the task's own checks and still under the project's `checking`
-   lock: when the attempt's contract has symbols and no finished `contract` row exists, call
-   `CodeRecord::verify` and, when its outcome is Some, store a `run_checks` row: `check_id
-   'contract'`, `for_task` the attempt's task, `ordinal` after the task's checks, `run_json` `[]`,
-   `outcome` passed or failed, `output` `Verdict::lines()`, `head_before`/`head_after` the HEAD,
-   `matches` NULL, `reported` NULL. The contract comes from the attempt's stored context
-   (`run_attempt_context`), as `specs_in` reads it.
-3. The early return in `confirm_attempt` ("every check recorded") also requires the `contract` row
-   when one is due, so a restart runs it.
-4. `put_mark`'s "done needs a reason" also counts a `contract` row that did not pass.
-5. Nothing else: `after_checks`, `returnable_checks`, `notify` and the route read every row.
-   The return prompt's text says "checks" and lists the row with `check_line`, so the executor
-   reads `contract failed` with its output.
+2. In `confirm_attempt`, compute `contract_due` first. Both early returns ("no checks" and "every
+   check recorded") return only when the `contract` row is not due or is finished. Under the
+   project's `checking` lock, after the task's own checks: `start_check`-style insert of the
+   `contract` row (`run_json '[]'`, `head_before`), then `CodeRecord::verify(attempt id, …)`, then
+   finish it with the verdict's outcome, `output = lines()`, `head_after`, `finished_at`.
+   `clear_unfinished` already resets an unfinished row of the attempt's own task at a restart.
+3. `returnable_checks` excludes a `contract` row whose outcome is `not_run`.
+4. `put_mark`'s reason rule: a `contract` row unfinished counts as "no finished result" (needs a
+   reason, as an unfinished check does); one finished `not_run` does not need a reason.
+5. The executor's brief (`brief.rs`) gains one line when its contract has symbols: "Shadows checks
+   by name that each symbol in your contract exists in its file after your commit; keep the names
+   as written."
 6. Plans refuses a task check whose id is `contract`.
 
-**Tests (with B-170's test-support verdicts, so no language server runs):**
-1. `a_missing_symbol_goes_back_to_the_executor`: an attempt whose contract promises
-   `refresh_token` and a verdict missing it: a `contract` failed row, and a continued attempt with
-   origin Checks whose prompt holds `refresh_token`.
-2. `a_found_contract_passes_and_the_notice_names_it`: all found: `contract passed` in the
-   Planner's notice; no return.
-3. `done_over_a_missing_symbol_needs_a_reason`.
-4. `no_language_server_means_no_contract_check`.
-5. `a_check_named_contract_is_refused` (Plans).
+**Tests** (`crates/shadows-core/tests/runs_attempts/contract_check.rs`; the flow tests take recorded
+answers through a test-support seam: `CoreParts` gains an optional recorded `documentSymbol`
+answer per path, enabled by `shadows-core/test-support` → `code-record/test-support`):
+`a_task_with_no_checks_still_gets_its_contract_checked`,
+`a_missing_symbol_goes_back_to_the_executor_with_its_name`,
+`a_found_contract_passes_and_the_notice_says_so`,
+`done_while_the_contract_check_runs_needs_a_reason`,
+`no_language_server_is_said_and_not_returned`,
+`a_check_named_contract_is_refused`; and one real-pyright test, ignored in CI:
+`live_an_attempt_missing_a_promised_function_is_returned`.
 
-**Done when:** those tests, `cargo test -p core-runs --features test-support`, the
-`shadows-core` contract test and clippy pass.
+**Done when:** those tests, with `--include-ignored` here, `cargo test -p core-runs --features test-support`,
+the contract test and clippy pass.
 
-## Task B-172 · The record, written on done
+## Task B-172 · The project recheck runs the `contract` check of done tasks
 
-**Files:** `crates/core-db/migrations/0075_code_record.sql`; `crates/code-record/src/store/`,
-`src/record.rs`, `src/model.rs`, `contract.yaml`, `tests/record.rs`; `crates/core-runs/src/lib.rs`
-(`mark_done`), `contract.yaml`.
+**Files:** `crates/core-runs/src/recheck.rs`, `src/store/rechecks.rs`, `contract.yaml`; tests in
+`crates/shadows-core/tests/runs_attempts/`.
 
 **Steps:**
-1. Tables, added to `0075_code_record.sql` (this branch has not shipped it; owned by
-   `CodeRecord`, keyed explicitly, no rowid ordering):
-   `code_record_file (project_id, workflow_id, version, task, path, action, purpose, commit_sha,
-   recorded_at)`, key (workflow_id, version, task, path);
-   `code_record_symbol (project_id, workflow_id, version, task, symbol_id, path, name, kind,
-   contract_json, state)`, key (workflow_id, version, task, symbol_id);
-   `code_record_unpromised (project_id, workflow_id, version, task, path, name)`.
-   Removing a project removes its rows (as `delete_code_index_in` does for Codebase's).
-2. `CodeRecord::record_done(project, workflow, version, task, contract, commit, attempt)`:
-   replaces that task's rows in one write, from the verdict stored under the judged attempt
-   (`verdict(attempt)`); with none (no server, or a task done without a committed attempt), the
-   symbols are written `unchecked`. Runs passes the judged attempt's id and commit and the
-   contract from its stored context.
-3. `CodeRecord::forget_done(workflow, version, task)` deletes them.
-4. `Runs::mark_done`, after the mark is stored and only when it is not a replay: done → spawn
-   `record_done`; not done → spawn `forget_done`, as `recheck_done` is spawned. A failure is logged
-   `code_record.failed`.
-5. `CodeRecord::task_record(workflow, version, task) -> TaskRecord`: the read slice 2 builds on.
+1. `begin_recheck_in` adds, for each done task whose judged attempt had a `contract` row, a
+   recheck row `contract` (its `run_json` names no program).
+2. `run_recheck` runs such a row through `CodeRecord::verify` (key: the recheck id and the attempt)
+   instead of `run_check`; `end_recheck`, `failed_before` and the notice handle it as any row: a
+   failure is told to the marking plan's Planner once, and again only after it passed in between.
+   `not_run` is recorded and never told as a failure.
 
-**Tests:** `done_writes_the_record_and_not_done_removes_it`, `a_second_done_replaces_the_rows`,
+**Tests:** `a_later_task_removing_a_done_tasks_function_is_told_once` (recorded answers), and
+`live_…` of the same with real pyright, ignored in CI.
+
+**Done when:** those tests (with `--include-ignored` here), the core-runs tests and clippy pass.
+
+## Task B-173 · The record, written with the done mark
+
+**Files:** `crates/core-db/migrations/0076_code_record.sql` (a new file: 0075 may already have
+run on a development database); `crates/code-record/src/store/`, `src/record.rs`, `src/model.rs`,
+`contract.yaml`, `tests/record.rs`; `crates/core-runs/src/store/marks.rs`, `contract.yaml`.
+
+**Steps:**
+1. Tables `code_record_file (project_id, workflow_id, version, task, path, action, purpose,
+   commit_sha, recorded_at)` keyed (workflow_id, version, task, path); `code_record_symbol
+   (project_id, workflow_id, version, task, symbol_id, path, name, kind, contract_json, state)`
+   keyed (workflow_id, version, task, symbol_id); `code_record_unpromised (project_id,
+   workflow_id, version, task, path, name)`. `delete_project_in` removes them too.
+2. `CodeRecord::record_done_in(&mut Tx, project, workflow, version, task, contract, commit,
+   verdict: Option<&Verdict>)` replaces the task's rows; `forget_done_in(&mut Tx, workflow,
+   version, task)` deletes them.
+3. `put_mark` calls them inside the mark's own write: done → `record_done_in` with the latest
+   committed attempt of the task (its commit, and its verdict read before the write through
+   `CodeRecord::verdict`); not done → `forget_done_in`. A replayed mark writes nothing (it returns
+   before, as today). So the record and the mark never disagree, also after a crash.
+4. No read method and no route in this slice: their first user is `code_where` (slice 2). The
+   tests read the tables directly in the owning crate.
+
+**Tests** (`crates/code-record/tests/record.rs` and one in `runs_attempts`):
+`done_writes_the_record_and_not_done_removes_it`, `a_second_done_replaces_the_rows`,
 `a_task_without_a_contract_records_nothing`, `removing_the_project_removes_its_record`.
 
-**Done when:** those tests, `cargo test -p code-record --features test-support`, the core-runs
-tests, the codemap and contract tests and clippy pass.
+**Done when:** those tests, the core-runs tests, the codemap and contract tests and clippy pass.
 
-## Task B-173 · Acceptance on a real provider
+## Task F-129 · The Report tab shows the `contract` row as Shadows' own
 
-On a project with a Python language server (pyright), Planner and executors on Sonnet:
-1. A plan whose T1 promises `add`, `delete` and `list_all` in `notes/store.py`; the person tells
-   the executor's task text to skip `list_all`. Observe: `contract failed` with `missing: list_all`,
-   the return to the executor, its second commit, `contract passed`, the done mark, and the
-   record's rows.
-2. A task touching only a file with no server: no `contract` check row.
-Recorded in `docs/evidence/` with dates, commits and log lines.
+In `web/src/app/check-row.tsx`, a row whose id is `contract` shows no command line and no
+"Reported" field (`reported={false}`), its title "Contract", and its output as written. Test in the
+Report tab's test. Written into `docs/frontend/stages.md` by the controller for Masada's builder.
 
-## Frontend
+## Task B-174 · Acceptance on a real provider
 
-The Report tab draws every check row it receives; whether a row with no command reads well is
-for Masada to check after B-171 (a `F-` task only if it does not).
+On a Python project with pyright, Planner and executors on Sonnet, recorded in `docs/evidence/`:
+1. T1 promises `add`, `delete` and `list_all` in `notes/store.py`. The person asks the Planner to
+   add, in T1's steps, "do not write list_all yet". Observe `contract failed` with
+   `T1 promises list_all…`, the return, the executor's second commit with `list_all`,
+   `contract passed`, the done mark and the record's rows.
+2. T2 (needs T1) deletes `list_all`. Observe its done mark's recheck telling the Planner once
+   that T1's `contract` failed.
+3. A task promising a symbol in a `.sql` file: `contract not_run` with its reason on the page and
+   in the notice; no return.

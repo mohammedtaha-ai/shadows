@@ -62,16 +62,19 @@ is not a record taken after the fact.
 1. **The executor reports** its commit (`task_report`), as today.
 2. **Shadows verifies the attempt,** after the report and before any done mark:
    - it runs the task's checks, as today;
-   - it compares the code at the attempt's commit with the contract: for each contract file, the
-     project's language server's symbols (`documentSymbol`), matched to the contract's symbols by
-     name and kind. Each promised symbol is `found`, `missing`, or `unchecked` (no language server
-     answers for the file). A top-level symbol in a file the task created that no contract names
-     is `unpromised`.
+   - it compares the code with the contract once the project is quiet (HEAD is the attempt's
+     commit or a later one): for each contract file, the language server's classes, methods,
+     constructors and functions (`documentSymbol`), matched to the contract's symbols by name (a
+     bare name at any depth, or `Class.method`). Each promised symbol is `found`, `missing` (not
+     in a complete answer, or its file does not exist), or `unchecked` (no language server reads
+     the file, or the answer was cut short and did not hold it). A top-level class or function in
+     a file the task created that no contract names is `unpromised`.
    The result is stored with the attempt, beside its checks' results.
 3. **Whoever marks done sees it first:** the person on the task page, the Planner in what it reads
    when it judges the attempt. A mark is made knowing what is missing.
-4. **On done,** the attempt's verified result becomes the task's entries in the record (§3). A
-   task marked done again (a rework) replaces its entries; a task marked not done loses them.
+4. **On done,** the verified result becomes the task's entries in the record (§3), written in the
+   done mark's own write, so a mark and its record never disagree. A task marked done again (a
+   rework) replaces its entries; a task marked not done loses them.
 
 Nothing is compared for a task without a contract. The map part and layer of a file are found
 when a question is answered (slice 2), not stored.
@@ -87,9 +90,20 @@ new path:
   (`task_amend`), done with a reason, or a stop;
 - a done mark while it has not passed needs a reason; the Planner's notice and the task page's
   Report tab show it as they show every check; a restart runs it again if it has no result.
-Its outcome is passed (every checked symbol found), failed (one missing; its output lists them and
-the unpromised ones), or no row at all when no contract file has a language server (nothing could
-be checked). Unpromised symbols alone do not fail it.
+Its outcome is passed (none missing), failed (one missing; its output names each in plain words,
+and the unpromised ones), or `not_run` when nothing could be checked: that is shown on the task
+page and in the Planner's notice with its reason, never silent (Mohammed, 2026-11-19), and it is
+neither returned nor makes a done need a reason.
+
+**The executor is told** in its brief that its contract's symbols are checked by name after its
+commit, and to keep the names as written (Mohammed, 2026-11-19).
+
+**A later change is caught** (Mohammed, 2026-11-19: in this slice): the project recheck after each
+done mark runs the `contract` check of every done task too, so a task that removed a done task's
+promised function is told to the Planner once, as a failing recheck is.
+
+**Tests run a real language server** (Mohammed, 2026-11-19), beside fast tests over recorded
+answers. Unpromised symbols alone do not fail it.
 
 ## 5. Asking it: `code_where`
 

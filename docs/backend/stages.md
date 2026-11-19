@@ -20,7 +20,7 @@ error from stalling the other groups, and the slice 4 and structure-and-depth li
 (PR #72, `753b26a4`). Executor choices were accepted by Mohammed in the browser on 2026-11-18 (B-159).
 B-167 (a task may not modify or delete a file the project does not have) is done on this branch.
 B-168 (a big project's file listing no longer stalls Shadows) and B-169 (a task may not create a
-file the project already has) are done on this branch. Next: the code record's first slice, B-170 to B-173 (below; plan `plans/2026-11-19-code-record.md`).
+file the project already has) are done on this branch. Next: the code record's first slice, B-170 to B-174 and F-129 (below; plan `plans/2026-11-19-code-record.md`).
 
 ### Shipped
 
@@ -79,35 +79,43 @@ this file at `db760593`.
 
 ## Open
 
-### B-170 · `CodeRecord` and its comparison of code with a contract
+### B-170 · `CodeRecord` and its comparison
 
 - Status: todo
 - Plan: [plans/2026-11-19-code-record.md#task-b-170--coderecord-and-its-comparison](plans/2026-11-19-code-record.md#task-b-170--coderecord-and-its-comparison)
 - Read: the plan's "Rulings for every task"; `crates/shadows-core/src/app.rs`; `crates/codebase/contract.yaml` (`lsp`); `crates/core-plans/src/task_contract.rs`.
 - Touch: the plan task's Files.
-- Done when: the plan task's tests and commands pass.
+- Done when: the plan task's "Done when", including its real-pyright tests run here with `--include-ignored`.
 
 ### B-171 · Runs runs the `contract` check
 
 - Status: todo (needs B-170)
 - Plan: [plans/2026-11-19-code-record.md#task-b-171--runs-runs-the-contract-check](plans/2026-11-19-code-record.md#task-b-171--runs-runs-the-contract-check)
-- Read: the plan's "What is reused"; `crates/core-runs/contract.yaml`; executors design §5.4.
+- Read: the plan's "Rulings for every task"; the plan's "What is reused"; `crates/core-runs/contract.yaml`; executors design §5.4.
 - Touch: the plan task's Files.
-- Done when: the plan task's tests and commands pass.
+- Done when: the plan task's "Done when", including its real-pyright tests run here with `--include-ignored`.
 
-### B-172 · The record, written on done
+### B-172 · The project recheck runs the `contract` check of done tasks
 
 - Status: todo (needs B-171)
-- Plan: [plans/2026-11-19-code-record.md#task-b-172--the-record-written-on-done](plans/2026-11-19-code-record.md#task-b-172--the-record-written-on-done)
-- Read: `crates/code-record/contract.yaml`; `crates/core-runs/src/lib.rs` (`mark_done`).
+- Plan: [plans/2026-11-19-code-record.md#task-b-172--the-project-recheck-runs-the-contract-check-of-done-tasks](plans/2026-11-19-code-record.md#task-b-172--the-project-recheck-runs-the-contract-check-of-done-tasks)
+- Read: the plan's "Rulings for every task"; `crates/core-runs/src/recheck.rs`; `crates/core-runs/src/store/rechecks.rs`.
 - Touch: the plan task's Files.
-- Done when: the plan task's tests and commands pass.
+- Done when: the plan task's "Done when", including its real-pyright tests run here with `--include-ignored`.
 
-### B-173 · The code record's acceptance on a real provider
+### B-173 · The record, written with the done mark
 
-- Status: todo (needs B-172)
-- Plan: [plans/2026-11-19-code-record.md#task-b-173--acceptance-on-a-real-provider](plans/2026-11-19-code-record.md#task-b-173--acceptance-on-a-real-provider)
-- Done when: the evidence file records both journeys.
+- Status: todo (needs B-171)
+- Plan: [plans/2026-11-19-code-record.md#task-b-173--the-record-written-with-the-done-mark](plans/2026-11-19-code-record.md#task-b-173--the-record-written-with-the-done-mark)
+- Read: the plan's "Rulings for every task"; `crates/code-record/contract.yaml`; `crates/core-runs/src/store/marks.rs`.
+- Touch: the plan task's Files.
+- Done when: the plan task's "Done when", including its real-pyright tests run here with `--include-ignored`.
+
+### B-174 · The code record's acceptance on a real provider
+
+- Status: todo (needs B-170 to B-173 and F-129)
+- Plan: [plans/2026-11-19-code-record.md#task-b-174--acceptance-on-a-real-provider](plans/2026-11-19-code-record.md#task-b-174--acceptance-on-a-real-provider)
+- Done when: the evidence file records the three journeys.
 
 ### B-169 · A task may not create a file the project already has
 

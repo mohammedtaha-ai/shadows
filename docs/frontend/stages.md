@@ -5,9 +5,19 @@ here and set its status. Task shape: [`AGENTS.md`](./AGENTS.md#a-task-in-stagesm
 
 ## Now
 
-No frontend task is open on this branch. F-125 (choose an executor on a task or in a new conversation)
+F-129 (below) is open on this branch. F-125 (choose an executor on a task or in a new conversation)
 was accepted by Mohammed in the browser on 2026-11-18 (B-159). The two leftovers under
 "Known and left" below are Mohammed's too.
+
+### F-129 · The Report tab shows the `contract` check as Shadows' own
+
+- Status: todo (needs B-171)
+- Plan: `docs/backend/plans/2026-11-19-code-record.md`, "Task F-129".
+- Read: `web/src/app/check-row.tsx`; `web/src/app/tasks/report-tab.tsx`.
+- Touch: `web/src/app/check-row.tsx`, its test or `web/src/app/tasks/task-page.test.tsx`, this entry.
+- Done when: a `contract` row renders titled "Contract", with no command line and no "Reported"
+  field, and its output as written; `npx --prefix web vitest run src/app/tasks`,
+  `npm --prefix web run typecheck` and `npm --prefix web run lint` pass.
 
 ### Shipped
 
