@@ -248,7 +248,7 @@ impl Codebase {
                  narrower",
                 ANSWER_WAIT.as_secs()
             ),
-            LspError::Exited(Some(line)) => format!("failed: it exited, its last line: {line}"),
+            LspError::Exited(Some(line)) => format!("failed: it exited, its error line: {line}"),
             LspError::Exited(None) => "failed: it exited with no error line".into(),
             LspError::Spawn(why) => format!("is not installed or could not start: {why}"),
             LspError::Initialize(why) => format!("failed: it refused to initialize: {why}"),

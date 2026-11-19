@@ -50,7 +50,7 @@ layout_only: Map records contain no starter files; the stage has no Structure st
 # code_lsp translates { operation, file, line, character, query, project } to
 # Codebase::lsp with Asker::Grant(grant.project_id). A server that could not answer is
 # LANGUAGE_SERVER_UNAVAILABLE through the generic refusal mapping, its text naming the
-# server and how it stands (running but silent, failed with its last line, not startable).
+# server and how it stands (running but silent, failed with its error line, not startable).
 # Tested by code_lsp::a_slow_answer_times_out.
 # project_files translates { prefix, after, limit } to Codebase::inventory and project_refresh
 # (no arguments) to Codebase::refresh_inventory, both with Asker::Grant(grant.project_id), and

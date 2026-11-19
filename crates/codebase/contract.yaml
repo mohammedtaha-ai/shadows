@@ -350,7 +350,7 @@ functions:
       signature: "(id: &str, error: LspError) -> CodebaseError"
       private: true
       # "the language server <id> " and how it stands: "is running but did not
-      # answer in time (20 s)", "failed: it exited, its last line: …" (or "with
+      # answer in time (20 s)", "failed: it exited, its error line: …" (or "with
       # no error line"), "failed: it refused to initialize: …", "is not installed
       # or could not start: …", "is running and refused this request (<code>): …".
     checked_path:
@@ -794,7 +794,9 @@ functions:
     server_started:
       signature: "(&mut self, server: Wanted, result: Result<Server, LspError>)"
       private: true
-      # Running, or Failed with the server's last stderr line (`code.server_failed`).
+      # Running, or Failed with the server's error line (`code.server_failed`):
+      # shadows-lsp's first non-empty stderr line that is not a backtrace frame
+      # (`^\s*\d+:`, `^\s*at `, "Stack backtrace"), else its last line.
     tell_servers:
       signature: "(&mut self, paths: &[String])"
       private: true
@@ -1015,7 +1017,10 @@ obligations:
       shadows-lsp holds the start's side: a server that refuses initialize or
       exits at once is that error and leaves no panic, since its client loop
       keeps a socket to itself and ends with the server's stdout
-      (crates/shadows-lsp/tests/start.rs). A server's own requests
+      (crates/shadows-lsp/tests/start.rs). An exit carries the first stderr
+      line that is not a backtrace frame, else the last line, so a crash
+      reports its reason and not `14: <unknown>` (shadows-lsp client.rs
+      a_crash_reports_its_first_line_not_its_last_frame). A server's own requests
       (client/registerCapability, workspace/configuration one null per item,
       window/workDoneProgress/create, any other) are answered null, so one that
       waits for them goes on (crates/shadows-lsp/tests/requests.rs).

@@ -424,7 +424,7 @@ impl Run {
         }
     }
 
-    /// A start task's report: the server runs, or reads `Failed` with its last line.
+    /// A start task's report: the server runs, or reads `Failed` with its error line.
     fn server_started(
         &mut self,
         server: Wanted,
