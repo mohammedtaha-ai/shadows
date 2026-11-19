@@ -248,7 +248,12 @@ async fn no_language_server_is_said_and_not_returned() {
         "{output}"
     );
     let prompt = notice(&f, &planner, &id).await;
-    assert!(prompt.contains("contract not_run"), "{prompt}");
+    assert!(
+        prompt.contains(&format!(
+            "contract not_run\nunchecked: {FILE} (no language server reads it)."
+        )),
+        "{prompt}"
+    );
     assert_eq!(
         f.core
             .runs()

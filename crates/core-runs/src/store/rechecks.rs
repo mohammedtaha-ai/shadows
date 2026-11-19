@@ -3,7 +3,8 @@ use super::{RunsStore, checks::Finished};
 use crate::checks::CONTRACT_CHECK;
 use crate::{AttemptId, RunsError};
 use core_db::{Storage, Tx};
-use core_plans::{Plan, TaskCheck, TaskContext, WorkflowId};
+use core_plans::{Plan, PlanId, Plans, TaskCheck, TaskContext, WorkflowId};
+use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(sqlx::FromRow)]
 pub(crate) struct Batch {
@@ -37,9 +38,11 @@ impl RunsStore {
     pub(super) async fn begin_recheck_in(
         conn: &mut Tx,
         plan: &Plan,
+        plans: &[PlanId],
         cause_task: u32,
         command: &str,
     ) -> Result<Option<String>, RunsError> {
+        let superseded = Self::superseded_in(conn, plans).await?;
         // Every done task of the project, in any plan and version: a done task is in the
         // project when one of its attempts ran there, and one with no attempt has no checks.
         let marks: Vec<(String, i64, u32, Option<String>)> = sqlx::query_as(
@@ -55,7 +58,9 @@ impl RunsStore {
         let mut pending = Vec::new();
         for (workflow, version, task, judged) in marks {
             let workflow = WorkflowId::from_recorded(workflow);
-            if workflow == plan.id && task == cause_task {
+            if (workflow == plan.id && task == cause_task)
+                || superseded.contains(&(workflow.as_str().to_string(), task))
+            {
                 continue;
             }
             let attempt =
@@ -176,6 +181,44 @@ impl RunsStore {
         .bind(id)
         .fetch_all(self.storage.reader())
         .await?)
+    }
+
+    /// The done tasks a newer version of their plan marks done too: the newest mark stands
+    /// for the task, so an older version's checks are not run again.
+    async fn superseded_in(
+        conn: &mut Tx,
+        plans: &[PlanId],
+    ) -> Result<BTreeSet<(String, u32)>, RunsError> {
+        let mut plan_of = BTreeMap::<String, String>::new();
+        for plan in plans {
+            for (workflow, _) in Plans::version_ids_in(conn, plan)
+                .await
+                .map_err(|e| RunsError::Unavailable(e.to_string()))?
+            {
+                plan_of.insert(workflow.as_str().to_string(), plan.as_str().to_string());
+            }
+        }
+        let marks: Vec<(String, i64, u32)> =
+            sqlx::query_as("SELECT workflow_id,version,task FROM run_task_marks WHERE done=1")
+                .fetch_all(&mut *conn)
+                .await?;
+        let mut newest = BTreeMap::<(&str, u32), i64>::new();
+        for (workflow, version, task) in &marks {
+            if let Some(plan) = plan_of.get(workflow) {
+                let entry = newest.entry((plan.as_str(), *task)).or_insert(*version);
+                *entry = (*entry).max(*version);
+            }
+        }
+        Ok(marks
+            .iter()
+            .filter(|(workflow, version, task)| {
+                plan_of
+                    .get(workflow)
+                    .and_then(|plan| newest.get(&(plan.as_str(), *task)))
+                    .is_some_and(|newest| newest > version)
+            })
+            .map(|(workflow, _, task)| (workflow.clone(), *task))
+            .collect())
     }
 
     /// Whether the same check of the same task did not pass either in the latest earlier batch

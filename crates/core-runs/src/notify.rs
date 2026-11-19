@@ -15,6 +15,7 @@
 //! `pending` until an enqueue (or its replay) succeeds, `no_planner` when the
 //! plan has no live Planner conversation.
 use crate::amend::ADDITIONS;
+use crate::checks::CONTRACT_CHECK;
 use crate::model::{Attempt, AttemptNotice, AttemptState, ConflictDelivery, TaskConflict};
 use crate::{Runs, RunsError};
 use core_plans::{Plan, WrittenBy};
@@ -310,7 +311,25 @@ impl Runs {
                 }
                 let mut checks = results
                     .iter()
-                    .map(|c| format!("{}\n", Self::check_line(c, attempt.task, "the executor")))
+                    .map(|c| {
+                        let line = Self::check_line(c, attempt.task, "the executor");
+                        // The contract check's output is Shadows' own short verdict, so the
+                        // notice says it: what is missing, or why nothing could be checked.
+                        match c.output.as_deref().filter(|output| {
+                            c.id == CONTRACT_CHECK
+                                && c.outcome != Some(crate::CheckOutcome::Passed)
+                                && !output.is_empty()
+                        }) {
+                            Some(output) => {
+                                let skip = output.chars().count().saturating_sub(4000);
+                                format!(
+                                    "{line}\n{}\n",
+                                    output.chars().skip(skip).collect::<String>()
+                                )
+                            }
+                            None => format!("{line}\n"),
+                        }
+                    })
                     .collect::<String>();
                 if results
                     .iter()

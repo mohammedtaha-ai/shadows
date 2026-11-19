@@ -92,7 +92,7 @@ new path:
   Report tab show it as they show every check; a restart runs it again if it has no result.
 Its outcome is passed (none missing), failed (one missing; its output names each in plain words,
 and the unpromised ones), or `not_run` when nothing could be checked: that is shown on the task
-page and in the Planner's notice with its reason, never silent (Mohammed, 2026-11-19), and it is
+page and in the Planner's notice with its reason, never silent (Mohammed, 2026-11-19): the notice gives the check's output after its line; it is
 neither returned nor makes a done need a reason.
 
 **The executor is told** in its brief that its contract's symbols are checked by name after its
@@ -100,7 +100,9 @@ commit, and to keep the names as written (Mohammed, 2026-11-19).
 
 **A later change is caught** (Mohammed, 2026-11-19: in this slice): the project recheck after each
 done mark runs the `contract` check of every done task too, so a task that removed a done task's
-promised function is told to the Planner once, as a failing recheck is.
+promised function is told to the Planner once, as a failing recheck is. A done task that a newer version of
+its plan marks done too is not rechecked: the newest mark stands for the task (2026-11-19, from
+the live run).
 
 **Tests run a real language server** (Mohammed, 2026-11-19), beside fast tests over recorded
 answers. Unpromised symbols alone do not fail it.

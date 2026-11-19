@@ -12,6 +12,14 @@ type ProgressRow = (i64, Option<bool>, Option<String>, Option<String>);
 /// The command record's scope for done marks: one id names one mark command.
 const MARK_SCOPE: &str = "run.mark_done";
 
+/// What a done mark's write needs that only other services know, read before it.
+pub struct DoneFacts {
+    /// The code record's entry for the task, when it has a contract.
+    pub record: Option<DoneRecord>,
+    /// Every plan of the project, so the recheck can tell which versions are superseded.
+    pub plans: Vec<core_plans::PlanId>,
+}
+
 impl RunsStore {
     /// `(done, done_at, reason)`, when the task was ever marked.
     pub async fn mark(
@@ -72,8 +80,9 @@ impl RunsStore {
         task: u32,
         done: bool,
         reason: Option<String>,
-        record: Option<DoneRecord>,
+        facts: DoneFacts,
     ) -> Result<super::Marked, RunsError> {
+        let DoneFacts { record, plans } = facts;
         let (workflow, version, ts) = (plan.id.clone(), plan.version, Storage::now());
         self.storage
             .write_txn_as(move |conn| {
@@ -193,7 +202,7 @@ impl RunsStore {
                     .await?;
                     Self::record_in(conn, &workflow, version, task, done, record).await?;
                     let recheck = if done {
-                        Self::begin_recheck_in(conn, &plan, task, command_id).await?
+                        Self::begin_recheck_in(conn, &plan, &plans, task, command_id).await?
                     } else {
                         None
                     };

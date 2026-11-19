@@ -275,15 +275,29 @@ impl Runs {
             input["reason"] = serde_json::json!(reason);
         }
         let command = CommandContext::user(command, "run.mark_done", input);
-        let record = if done {
-            self.done_record(&plan, task).await?
+        let facts = if done {
+            store::marks::DoneFacts {
+                record: self.done_record(&plan, task).await?,
+                plans: self
+                    .inner
+                    .plans
+                    .list(&plan.project_id, true)
+                    .await
+                    .map_err(|e| RunsError::Unavailable(e.to_string()))?
+                    .into_iter()
+                    .map(|listing| listing.plan_id)
+                    .collect(),
+            }
         } else {
-            None
+            store::marks::DoneFacts {
+                record: None,
+                plans: vec![],
+            }
         };
         let marked = self
             .inner
             .store
-            .put_mark(command, plan, task, done, reason, record)
+            .put_mark(command, plan, task, done, reason, facts)
             .await?;
         // Only the attempt the mark judged, and only while that mark stands:
         // a replay never frees work admitted after it.

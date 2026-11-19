@@ -48,10 +48,13 @@ ran. This is existing check behaviour, not part of this slice.
 | 10 | The Planner's notice and its mark | The notice listed `contract not_run` and pointed to `task_checks`; the Planner read the output there. It marked T3 done with the reason: "The contract check was not run because no language server reads SQL. I verified the symbol by reading sql/schema.sql at commit 82e5302". The mark would have been accepted without a reason. |
 | 11 | The record | `note_count unchecked`. Tasks marked done with no attempt of their own (v4's T1; v5's T1 and T2) recorded every symbol `unchecked`, with no commit. |
 
-## Seen, and left
+## Seen
 
-- The notice names a `not_run` check without its reason. The reason is in `task_checks`, as it is
-  for every check's output, and the design asks for the reason in the notice too.
-- A done task in an older plan version is rechecked after a newer version corrects its contract.
-  Here v3's T1 kept failing in the background. It was told only once.
+- The notice named a `not_run` check without its reason; the reason was only in `task_checks`.
+  Fixed after the run: a `contract` check that does not pass is followed by its output in the
+  notice (`no_language_server_is_said_and_not_returned`).
+- A done task in an older plan version was rechecked after a newer version corrected its
+  contract and marked it done: v3's T1 kept failing in the background, told once. Fixed after the
+  run: a done task that a newer version of its plan also marks done is not rerun
+  (`a_done_task_a_newer_version_marks_done_is_not_rechecked`).
 - The Report tab's `contract` row (F-129) was checked in its component tests, not in a browser.

@@ -379,3 +379,50 @@ async fn an_older_versions_done_task_is_rechecked() {
     assert_eq!(version, 1);
     f.finish().await;
 }
+
+#[tokio::test]
+async fn a_done_task_a_newer_version_marks_done_is_not_rechecked() {
+    let f = done_task(false).await;
+    let grant = planner_grant(&f).await;
+    let plans = f.core.plans();
+    let plan = plans.get(&f.workflow).await.unwrap();
+    let next = plans
+        .start_draft_for_test(
+            &command("next"),
+            &Writer::Planner {
+                thread: grant.thread_id.unwrap(),
+                grant: grant.id,
+            },
+            &f.project,
+            Some(&plan.plan_id),
+            Some(&f.workflow),
+            None,
+            Some("Correction"),
+            None,
+            None,
+            &[],
+        )
+        .await
+        .unwrap();
+    let draft = plans.get(&next.workflow_id).await.unwrap();
+    plans
+        .approve_plan_for_test(&command("approve-next"), &next.workflow_id, draft.revision)
+        .await
+        .unwrap();
+    // Version 2 marks T3 done too: its mark now stands for T3, so version 1's T3 is not
+    // run again by this recheck or by the next one.
+    for (command, task) in [("done-next-three", 3), ("done-next-one", 1)] {
+        f.core
+            .runs()
+            .mark_done(command.into(), &next.workflow_id, 2, task, true, None)
+            .await
+            .unwrap();
+        finished(&f).await;
+    }
+    let rows: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM run_recheck_results")
+        .fetch_one(f.storage.reader())
+        .await
+        .unwrap();
+    assert_eq!(rows, 0, "version 1's T3 is superseded by version 2's mark");
+    f.finish().await;
+}
