@@ -20,7 +20,7 @@ error from stalling the other groups, and the slice 4 and structure-and-depth li
 (PR #72, `753b26a4`). Executor choices were accepted by Mohammed in the browser on 2026-11-18 (B-159).
 B-167 (a task may not modify or delete a file the project does not have) is done on this branch.
 B-168 (a big project's file listing no longer stalls Shadows) and B-169 (a task may not create a
-file the project already has) are done on this branch. Next: the code record's first slice (B-170), once its plan is written.
+file the project already has) are done on this branch. Next: the code record's first slice, B-170 to B-173 (below; plan `plans/2026-11-19-code-record.md`).
 
 ### Shipped
 
@@ -79,13 +79,35 @@ this file at `db760593`.
 
 ## Open
 
-### B-170 · The code record, slice 1: verification against the contract, and the record
+### B-170 · `CodeRecord` and its comparison of code with a contract
 
-- Status: blocked (waits for its plan, `docs/backend/plans/2026-11-19-code-record.md`, written once
-  §4's OPEN in the design is ruled; the earlier text of this entry recorded after done, which
-  Mohammed corrected on 2026-11-19: a task is verified before it is done)
-- Plan: `docs/backend/plans/2026-11-19-code-record.md` (not written yet)
-- Design: `specs/2026-11-19-project-code-record-design.md` §3, §4, §8, §9 slice 1.
+- Status: todo
+- Plan: [plans/2026-11-19-code-record.md#task-b-170--coderecord-and-its-comparison](plans/2026-11-19-code-record.md#task-b-170--coderecord-and-its-comparison)
+- Read: the plan's "Rulings for every task"; `crates/shadows-core/src/app.rs`; `crates/codebase/contract.yaml` (`lsp`); `crates/core-plans/src/task_contract.rs`.
+- Touch: the plan task's Files.
+- Done when: the plan task's tests and commands pass.
+
+### B-171 · Runs runs the `contract` check
+
+- Status: todo (needs B-170)
+- Plan: [plans/2026-11-19-code-record.md#task-b-171--runs-runs-the-contract-check](plans/2026-11-19-code-record.md#task-b-171--runs-runs-the-contract-check)
+- Read: the plan's "What is reused"; `crates/core-runs/contract.yaml`; executors design §5.4.
+- Touch: the plan task's Files.
+- Done when: the plan task's tests and commands pass.
+
+### B-172 · The record, written on done
+
+- Status: todo (needs B-171)
+- Plan: [plans/2026-11-19-code-record.md#task-b-172--the-record-written-on-done](plans/2026-11-19-code-record.md#task-b-172--the-record-written-on-done)
+- Read: `crates/code-record/contract.yaml`; `crates/core-runs/src/lib.rs` (`mark_done`).
+- Touch: the plan task's Files.
+- Done when: the plan task's tests and commands pass.
+
+### B-173 · The code record's acceptance on a real provider
+
+- Status: todo (needs B-172)
+- Plan: [plans/2026-11-19-code-record.md#task-b-173--acceptance-on-a-real-provider](plans/2026-11-19-code-record.md#task-b-173--acceptance-on-a-real-provider)
+- Done when: the evidence file records both journeys.
 
 ### B-169 · A task may not create a file the project already has
 

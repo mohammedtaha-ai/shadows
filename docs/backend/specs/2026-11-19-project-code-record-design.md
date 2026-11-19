@@ -2,7 +2,8 @@
 
 Status: approved by Mohammed, 2026-11-19: the direction (who writes which part), the owner, a new
 service (§8), and that a task is verified against its contract before it is marked done (§4).
-What a missing symbol does (§4) is open. No slice has a plan yet.
+A missing symbol is returned to the executor as a failed check (§4). Slice 1's plan is
+`docs/backend/plans/2026-11-19-code-record.md`.
 
 Builds on the [task contract](../../core/specs/2026-10-01-task-contracts-and-evidence-design.md#the-task-contract)
 (§17), the [language-server design](2026-11-13-language-servers-design.md) (`code_lsp`) and the
@@ -75,13 +76,20 @@ is not a record taken after the fact.
 Nothing is compared for a task without a contract. The map part and layer of a file are found
 when a question is answered (slice 2), not stored.
 
-**OPEN, for Mohammed (asked 2026-11-19):** what a `missing` symbol does.
-- **(a) Returned to the executor,** with "`refresh_token` is promised in the contract and not
-  found in `backend/auth/service.py`", as a failed check is returned today; if the next attempt
-  still misses it, the attempt stops there and whoever marks done decides. Recommended: the same
-  path as a failed check, so an executor's forgotten function never reaches a person.
-- **(b) Shown only:** the person and the Planner see it, and whoever marks done decides.
-Closes when Mohammed picks one.
+**A missing symbol goes back to the executor** (Mohammed, 2026-11-19), exactly as a failed check
+does today (executors design §5.4), because it is one: the comparison is stored as the attempt's
+check `contract`, beside the task's own checks, after them, on the same quiet project. So, with no
+new path:
+- a `contract` check that does not pass is returned to the same executor with its result ("T3
+  promises `refresh_token` in `backend/auth/service.py`; it is not there"), within the same two
+  returns as any check;
+- after two returns it goes to the Planner with the results, which judges: an addition
+  (`task_amend`), done with a reason, or a stop;
+- a done mark while it has not passed needs a reason; the Planner's notice and the task page's
+  Report tab show it as they show every check; a restart runs it again if it has no result.
+Its outcome is passed (every checked symbol found), failed (one missing; its output lists them and
+the unpromised ones), or no row at all when no contract file has a language server (nothing could
+be checked). Unpromised symbols alone do not fail it.
 
 ## 5. Asking it: `code_where`
 
@@ -132,9 +140,8 @@ one way (Runs → CodeRecord → Plans, Codebase). `code_where` is its method.
 
 ## 9. Slices
 
-1. **Verification and the record:** the comparison after a report (§4, step 2), stored with the
-   attempt; shown on the task page and to the Planner when it judges; what a `missing` symbol does
-   per the OPEN in §4; the record's entries written on done and removed on not done.
+1. **Verification and the record:** the `contract` check after a report (§4), and the record's
+   entries written on done and removed on not done.
 2. **`code_where`:** the tool and its route, answered from the record and the language servers;
    the Planner's instructions ask it before naming a file. Acceptance: on a real provider, a
    second plan on a project names the first plan's files without reading the folder.
