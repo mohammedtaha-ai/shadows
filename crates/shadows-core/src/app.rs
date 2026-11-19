@@ -15,6 +15,7 @@ use shadows_agent::claude::ClaudeAdapter;
 use shadows_process::{ProcessSpec, spawn};
 
 use crate::error::CoreError;
+use code_record::CodeRecord;
 use codebase::{Codebase, CodebaseConfig};
 use core_agents::Agents;
 use core_db::Storage;
@@ -154,6 +155,10 @@ pub struct CoreParts {
          a project's code on disk | \
          `crates/codebase/src` | \
          `crates/codebase/contract.yaml` |"]
+#[doc = " | `CodeRecord` | \
+         whether the code holds what a contract promised | \
+         `crates/code-record/src` | \
+         `crates/code-record/contract.yaml` |"]
 #[doc = " | `Runs` | \
          executor attempts at plan tasks | \
          `crates/core-runs/src` | \
@@ -197,6 +202,7 @@ pub struct AppCore {
     messages: Arc<Messages>,
     messages_worker: std::sync::OnceLock<MessagesWorker>,
     code: Codebase,
+    code_record: CodeRecord,
 }
 
 impl AppCore {
@@ -459,6 +465,7 @@ impl AppCore {
             grants.clone(),
             operations.clone(),
             design.clone(),
+            code.clone(),
         );
         let turns = Turns::new(
             storage.clone(),
@@ -475,6 +482,7 @@ impl AppCore {
             design.clone(),
             ui.clone(),
         );
+        let code_record = CodeRecord::new(storage.clone(), code.clone());
         let runs = Runs::new(
             storage.clone(),
             plans.clone(),
@@ -483,6 +491,7 @@ impl AppCore {
             projects.clone(),
             threads.clone(),
             code.clone(),
+            code_record.clone(),
         );
         let events = Arc::new(Events::new(
             storage.clone(),
@@ -518,6 +527,7 @@ impl AppCore {
             messages,
             messages_worker: std::sync::OnceLock::new(),
             code,
+            code_record,
         })
     }
 
@@ -623,6 +633,10 @@ impl AppCore {
 
     pub fn codebase(&self) -> &Codebase {
         &self.code
+    }
+
+    pub fn code_record(&self) -> &CodeRecord {
+        &self.code_record
     }
 
     /// Stops Codebase's watchers and workers after their current file, then asks
@@ -750,7 +764,8 @@ impl AppCore {
         let grants = Grants::new(storage.clone(), String::new());
         let operations = Operations::new(storage.clone());
         let design = Design::new(storage.clone(), operations.clone());
-        Plans::new(storage, grants, operations, design)
+        let code = Codebase::new(storage.clone(), Projects::new(storage.clone()));
+        Plans::new(storage, grants, operations, design, code)
     }
 }
 

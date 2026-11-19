@@ -598,6 +598,7 @@ fn extracted_project_lifecycle_depends_only_on_declared_lower_owners() {
                     || [
                         "core-db",
                         "codebase",
+                        "code-record",
                         "core-grants",
                         "core-plans",
                         "core-projects",

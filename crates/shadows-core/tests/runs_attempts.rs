@@ -5,6 +5,8 @@
 
 #[path = "runs_attempts/checks.rs"]
 mod checks;
+#[path = "runs_attempts/contract_check.rs"]
+mod contract_check;
 #[allow(dead_code)]
 #[path = "fixtures/cross_plan.rs"]
 mod cross_plan;

@@ -583,6 +583,33 @@ async fn head_moved_during_check_is_inconclusive() {
     let rows = results(&f, &id, 1).await;
     assert_eq!(rows[0].outcome, Some(CheckOutcome::Inconclusive));
     assert_ne!(rows[0].head_before, rows[0].head_after);
+    let moved = format!(
+        "the check moved HEAD from {} to {}",
+        rows[0].head_before.as_deref().unwrap(),
+        rows[0].head_after.as_deref().unwrap()
+    );
+    assert!(rows[0].output.as_deref().unwrap().contains(&moved));
+    f.finish().await;
+}
+
+#[tokio::test]
+async fn file_the_check_wrote_is_named() {
+    let (f, id, _, _) = candidate(vec![cmd(&[
+        "git",
+        "-c",
+        "alias.write=!echo made > made-by-check.txt",
+        "write",
+    ])])
+    .await;
+    f.core.runs().recover().await.unwrap();
+    let rows = results(&f, &id, 1).await;
+    assert_eq!(rows[0].outcome, Some(CheckOutcome::Inconclusive));
+    assert_eq!(rows[0].exit_code, Some(0));
+    let output = rows[0].output.as_deref().unwrap();
+    assert!(
+        output.contains("the check changed files in the working tree: made-by-check.txt"),
+        "{output}"
+    );
     f.finish().await;
 }
 

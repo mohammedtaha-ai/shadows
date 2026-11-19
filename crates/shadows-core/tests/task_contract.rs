@@ -322,3 +322,256 @@ async fn a_contract_without_decisions_keeps_its_fingerprint() {
     assert!(back.decisions.is_empty());
     assert_eq!(serde_json::to_string(&back).unwrap(), json);
 }
+
+/// A task whose contract does `action` to each of `paths`.
+fn working(number: u32, work: &[(&str, &str)]) -> PlanOp {
+    let files: Vec<_> = work
+        .iter()
+        .map(|(action, path)| {
+            serde_json::json!({ "path": path, "action": action, "purpose": "Work" })
+        })
+        .collect();
+    let contract = serde_json::from_value(serde_json::json!({ "files": files })).unwrap();
+    PlanOp::TaskAdd {
+        task: task_with(number, contract),
+    }
+}
+
+fn needs(task: u32, after: u32) -> PlanOp {
+    PlanOp::LinkPut {
+        link: Link {
+            task,
+            after: shadows_core::TaskParent::Local(after),
+            kind: LinkKind::Needs,
+            label: "first".into(),
+            waiting_items: vec![],
+        },
+    }
+}
+
+/// Points the fixture's project at `folder`; with `files`, its first listing
+/// has finished and holds those files and one ignored path.
+async fn listed(
+    storage: &shadows_core::testing::Storage,
+    folder: &std::path::Path,
+    files: Option<&[&str]>,
+) {
+    sqlx::query("UPDATE project SET directory = ? WHERE id = 'p'")
+        .bind(folder.to_str().unwrap())
+        .execute(storage.reader())
+        .await
+        .unwrap();
+    let Some(files) = files else { return };
+    sqlx::query(
+        "INSERT INTO code_inventory_scan (project_id, generation, incomplete, observed_at)
+         VALUES ('p', 1, 0, '2026-11-18T00:00:00Z')",
+    )
+    .execute(storage.reader())
+    .await
+    .unwrap();
+    sqlx::query(
+        "INSERT INTO code_inventory (project_id, path_key, path, kind, excluded_reason)
+         VALUES ('p', 'dist/app.js', 'dist/app.js', 'excluded', 'ignored')",
+    )
+    .execute(storage.reader())
+    .await
+    .unwrap();
+    for file in files {
+        sqlx::query(
+            "INSERT INTO code_inventory (project_id, path_key, path, kind, excluded_reason)
+             VALUES ('p', ?, ?, 'file', NULL)",
+        )
+        .bind(file)
+        .bind(file)
+        .execute(storage.reader())
+        .await
+        .unwrap();
+    }
+}
+
+async fn edited(
+    storage: &std::sync::Arc<shadows_core::testing::Storage>,
+    ops: &[PlanOp],
+) -> Result<(), Vec<String>> {
+    let plans = AppCore::plans_for_tests(storage.clone());
+    match plans
+        .edit_plan_for_test(
+            &command("files"),
+            &Writer::Person,
+            None,
+            &WorkflowId::from_literal(SOURCE),
+            0,
+            ops,
+        )
+        .await
+    {
+        Ok(_) => Ok(()),
+        Err(PlansError::PlanInvalid(problems)) => {
+            Err(problems.into_iter().map(|p| p.message).collect())
+        }
+        Err(other) => panic!("{other}"),
+    }
+}
+
+#[tokio::test]
+async fn a_task_may_not_modify_a_file_the_project_does_not_have() {
+    let (tmp, storage) = fixture().await;
+    listed(&storage, tmp.path(), Some(&["src/lib.rs"])).await;
+    let refused = edited(
+        &storage,
+        &[working(
+            1,
+            &[("modify", "src/missing.rs"), ("delete", "dist/app.js")],
+        )],
+    )
+    .await
+    .unwrap_err();
+    assert_eq!(
+        refused,
+        vec![
+            concat!(
+                "T1 modifies `src/missing.rs`, which the project does not have ",
+                "and no task it depends on creates"
+            ),
+            concat!(
+                "T1 deletes `dist/app.js`, which the project does not have ",
+                "and no task it depends on creates"
+            ),
+        ]
+    );
+    edited(&storage, &[working(1, &[("modify", "src/lib.rs")])])
+        .await
+        .unwrap();
+    storage.close().await.unwrap();
+}
+
+#[tokio::test]
+async fn a_dependency_that_creates_a_file_lets_a_task_modify_it_and_one_that_deletes_it_does_not() {
+    let (tmp, storage) = fixture().await;
+    listed(&storage, tmp.path(), Some(&["src/lib.rs"])).await;
+    let refused = edited(
+        &storage,
+        &[
+            working(1, &[("delete", "src/lib.rs")]),
+            working(2, &[("read", "src/lib.rs")]),
+            working(3, &[("modify", "src/lib.rs")]),
+            needs(2, 1),
+            needs(3, 2),
+        ],
+    )
+    .await
+    .unwrap_err();
+    assert_eq!(
+        refused,
+        vec!["T3 modifies `src/lib.rs`, which a task it depends on deletes"]
+    );
+    edited(
+        &storage,
+        &[
+            working(1, &[("create", "src/new.rs")]),
+            working(2, &[("read", "src/lib.rs")]),
+            working(3, &[("modify", "src/new.rs")]),
+            needs(2, 1),
+            needs(3, 2),
+        ],
+    )
+    .await
+    .unwrap();
+    storage.close().await.unwrap();
+}
+
+#[tokio::test]
+async fn the_check_is_skipped_when_the_file_list_cannot_answer() {
+    let (tmp, storage) = fixture().await;
+    // The listing has not finished.
+    listed(&storage, tmp.path(), None).await;
+    edited(&storage, &[working(1, &[("modify", "src/missing.rs")])])
+        .await
+        .unwrap();
+    storage.close().await.unwrap();
+    // The project has no folder, even with a stored listing.
+    let (tmp, storage) = fixture().await;
+    listed(&storage, &tmp.path().join("gone"), Some(&["src/lib.rs"])).await;
+    edited(&storage, &[working(1, &[("modify", "src/missing.rs")])])
+        .await
+        .unwrap();
+    storage.close().await.unwrap();
+}
+
+#[tokio::test]
+async fn a_task_may_not_create_a_file_the_project_already_has() {
+    let (tmp, storage) = fixture().await;
+    listed(&storage, tmp.path(), Some(&["src/lib.rs"])).await;
+    let refused = edited(&storage, &[working(1, &[("create", "src/lib.rs")])])
+        .await
+        .unwrap_err();
+    assert_eq!(
+        refused,
+        vec![concat!(
+            "T1 creates `src/lib.rs`, which the project already has: ",
+            "modify it instead, and ask Shadows (code_lsp) what it holds"
+        )]
+    );
+    // Two tasks along one dependency creating the same file, and a create
+    // after a dependency deletes the file, are told apart.
+    let refused = edited(
+        &storage,
+        &[
+            working(1, &[("create", "src/new.rs")]),
+            working(2, &[("create", "src/new.rs")]),
+            needs(2, 1),
+        ],
+    )
+    .await
+    .unwrap_err();
+    assert_eq!(
+        refused,
+        vec![
+            "T2 creates `src/new.rs`, which a task it depends on already creates: modify it instead"
+        ]
+    );
+    edited(
+        &storage,
+        &[
+            working(1, &[("delete", "src/lib.rs")]),
+            working(2, &[("create", "src/lib.rs")]),
+            needs(2, 1),
+        ],
+    )
+    .await
+    .unwrap();
+    storage.close().await.unwrap();
+}
+
+#[tokio::test]
+async fn a_create_the_task_already_had_is_not_checked_again() {
+    let (tmp, storage) = fixture().await;
+    listed(&storage, tmp.path(), Some(&["src/lib.rs"])).await;
+    edited(&storage, &[working(1, &[("create", "src/made.rs")])])
+        .await
+        .unwrap();
+    // The task ran and made the file; the next listing holds it.
+    sqlx::query(
+        "INSERT INTO code_inventory (project_id, path_key, path, kind, excluded_reason)
+         VALUES ('p', 'src/made.rs', 'src/made.rs', 'file', NULL)",
+    )
+    .execute(storage.reader())
+    .await
+    .unwrap();
+    let PlanOp::TaskAdd { task } = working(1, &[("create", "src/made.rs"), ("read", "src/lib.rs")])
+    else {
+        unreachable!()
+    };
+    AppCore::plans_for_tests(storage.clone())
+        .edit_plan_for_test(
+            &command("files-again"),
+            &Writer::Person,
+            None,
+            &WorkflowId::from_literal(SOURCE),
+            1,
+            &[PlanOp::TaskUpdate { task }],
+        )
+        .await
+        .unwrap();
+    storage.close().await.unwrap();
+}

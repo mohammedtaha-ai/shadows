@@ -67,6 +67,27 @@ impl RunsStore {
         Self::specs_in(&mut conn, id).await
     }
 
+    /// Whether the attempt's own saved contract gets a `contract` check (`Runs::contract_due`).
+    pub(super) async fn contract_due_in(
+        tx: &mut core_db::Tx,
+        id: &AttemptId,
+    ) -> Result<bool, RunsError> {
+        let json: Option<String> =
+            sqlx::query_scalar("SELECT context_json FROM run_attempt_context WHERE attempt_id=?")
+                .bind(id.as_str())
+                .fetch_optional(&mut *tx)
+                .await?;
+        let Some(json) = json else {
+            return Ok(false);
+        };
+        let context: core_plans::TaskContext = serde_json::from_str(&json)?;
+        Ok(context
+            .task
+            .contract
+            .as_ref()
+            .is_some_and(crate::Runs::contract_due))
+    }
+
     pub(super) async fn specs_in(
         tx: &mut core_db::Tx,
         id: &AttemptId,
@@ -155,9 +176,11 @@ impl RunsStore {
                             | (ReportedOutcome::NotRun, CheckOutcome::NotRun)
                     )
                 });
+                let id: String = r.try_get("check_id")?;
                 Ok(CheckResult {
                     for_task: r.try_get::<u32, _>("for_task")?,
-                    id: r.try_get("check_id")?,
+                    by_shadows: id == crate::checks::CONTRACT_CHECK,
+                    id,
                     run: serde_json::from_str(r.try_get::<&str, _>("run_json")?)?,
                     folder: r.try_get("folder")?,
                     reported,
@@ -177,11 +200,13 @@ impl RunsStore {
     }
 
     /// Whether any check of the attempt did not pass for a reason its executor can act on:
-    /// every non-passed result but one made inconclusive only by another attempt's files.
+    /// every non-passed result but one made inconclusive only by another attempt's files,
+    /// and a `contract` check that could not be run (no language server reads its files).
     pub async fn returnable_checks(&self, id: &AttemptId) -> Result<bool, RunsError> {
         Ok(sqlx::query_scalar(
             "SELECT EXISTS(SELECT 1 FROM run_checks WHERE attempt_id=?
-             AND (outcome IS NULL OR outcome<>'passed') AND foreign_leftovers=0)",
+             AND (outcome IS NULL OR outcome<>'passed') AND foreign_leftovers=0
+             AND NOT (check_id='contract' AND outcome='not_run'))",
         )
         .bind(id.as_str())
         .fetch_one(self.storage.reader())

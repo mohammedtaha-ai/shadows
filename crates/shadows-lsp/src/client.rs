@@ -74,7 +74,7 @@ raw_requests! {
 pub struct Server {
     socket: ServerSocket,
     capabilities: Value,
-    last_error: Arc<Mutex<Option<String>>>,
+    error_lines: Arc<Mutex<ErrorLines>>,
     handle: Mutex<ProcessHandle>,
     /// One question at a time: a file is opened, asked and closed whole.
     asking: tokio::sync::Mutex<HashMap<PathBuf, i32>>,
@@ -97,15 +97,13 @@ impl Server {
             .take_stdio()
             .ok_or_else(|| LspError::Spawn("the server's stdio was not piped".into()))?;
 
-        let last_error = Arc::new(Mutex::new(None));
-        let keep = last_error.clone();
+        let error_lines = Arc::new(Mutex::new(ErrorLines::default()));
+        let keep = error_lines.clone();
         tokio::spawn(async move {
             let mut lines = tokio::io::BufReader::new(stderr).lines();
             while let Ok(Some(line)) = lines.next_line().await {
-                if !line.trim().is_empty()
-                    && let Ok(mut last) = keep.lock()
-                {
-                    *last = Some(line);
+                if let Ok(mut kept) = keep.lock() {
+                    kept.push(line);
                 }
             }
         });
@@ -139,7 +137,7 @@ impl Server {
         let server = Server {
             socket,
             capabilities: Value::Null,
-            last_error,
+            error_lines,
             handle: Mutex::new(handle),
             asking: tokio::sync::Mutex::new(HashMap::new()),
         };
@@ -177,7 +175,7 @@ impl Server {
         {
             Err(_) => Err(LspError::Timeout),
             Ok(Err(async_lsp::Error::Response(e))) => Err(LspError::Initialize(e.message)),
-            Ok(Err(_)) => Err(LspError::Exited(server.last_error_line())),
+            Ok(Err(_)) => Err(LspError::Exited(server.error_line())),
             Ok(Ok(answer)) => Ok(answer),
         };
         let answer = match answer {
@@ -278,9 +276,12 @@ impl Server {
         &self.capabilities
     }
 
-    /// The last line the server wrote to stderr, which usually says why it failed.
-    pub fn last_error_line(&self) -> Option<String> {
-        self.last_error.lock().ok().and_then(|last| last.clone())
+    /// The stderr line that best says why the server failed (see `ErrorLines`).
+    pub fn error_line(&self) -> Option<String> {
+        self.error_lines
+            .lock()
+            .ok()
+            .and_then(|kept| kept.reported())
     }
 
     pub fn pid(&self) -> Option<u32> {
@@ -309,7 +310,7 @@ impl Server {
     }
 
     fn exited(&self) -> LspError {
-        LspError::Exited(self.last_error_line())
+        LspError::Exited(self.error_line())
     }
 
     fn uri(path: &Path) -> Result<Url, LspError> {
@@ -317,5 +318,75 @@ impl Server {
             code: -32602,
             message: format!("{} is not an absolute path", path.display()),
         })
+    }
+}
+
+/// What a server wrote to stderr, kept to say why it failed. A crash ends with
+/// a backtrace whose last line (`  14: <unknown>`) says nothing, while the
+/// reason comes first, so the first line that is not a frame is reported, and
+/// the last line only when every line is a frame.
+#[derive(Debug, Default)]
+struct ErrorLines {
+    first: Option<String>,
+    last: Option<String>,
+}
+
+impl ErrorLines {
+    fn push(&mut self, line: String) {
+        if line.trim().is_empty() {
+            return;
+        }
+        if self.first.is_none() && !ErrorLines::is_frame(&line) {
+            self.first = Some(line.clone());
+        }
+        self.last = Some(line);
+    }
+
+    fn reported(&self) -> Option<String> {
+        self.first.clone().or_else(|| self.last.clone())
+    }
+
+    /// A backtrace line: `  14: <unknown>`, `      at src/main.rs:3`, or its heading.
+    fn is_frame(line: &str) -> bool {
+        let trimmed = line.trim_start();
+        let numbered = trimmed
+            .split_once(':')
+            .is_some_and(|(n, _)| !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()));
+        numbered || trimmed.starts_with("at ") || line.starts_with("Stack backtrace")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ErrorLines;
+
+    #[test]
+    fn a_crash_reports_its_first_line_not_its_last_frame() {
+        let stderr = concat!(
+            "error: Unknown binary 'rust-analyzer' in official toolchain ",
+            "'stable-x86_64-unknown-linux-gnu'.\n",
+            "Stack backtrace:\n",
+            "   0: rustup::main\n",
+            "             at src/main.rs:12\n",
+            "\n",
+            "  13: __libc_start_main\n",
+            "  14: <unknown>\n",
+        );
+        let mut kept = ErrorLines::default();
+        for line in stderr.lines() {
+            kept.push(line.to_string());
+        }
+        assert_eq!(
+            kept.reported().as_deref(),
+            Some(
+                "error: Unknown binary 'rust-analyzer' in official toolchain \
+                 'stable-x86_64-unknown-linux-gnu'."
+            )
+        );
+        let mut frames = ErrorLines::default();
+        frames.push("  13: __libc_start_main".into());
+        frames.push("  14: <unknown>".into());
+        assert_eq!(frames.reported().as_deref(), Some("  14: <unknown>"));
+        assert_eq!(ErrorLines::default().reported(), None);
     }
 }

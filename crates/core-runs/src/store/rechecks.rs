@@ -1,8 +1,10 @@
 //! Durable recheck batches and their per-check results.
 use super::{RunsStore, checks::Finished};
+use crate::checks::CONTRACT_CHECK;
 use crate::{AttemptId, RunsError};
 use core_db::{Storage, Tx};
-use core_plans::{Plan, TaskCheck, TaskContext, WorkflowId};
+use core_plans::{Plan, PlanId, Plans, TaskCheck, TaskContext, WorkflowId};
+use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(sqlx::FromRow)]
 pub(crate) struct Batch {
@@ -36,9 +38,11 @@ impl RunsStore {
     pub(super) async fn begin_recheck_in(
         conn: &mut Tx,
         plan: &Plan,
+        plans: &[PlanId],
         cause_task: u32,
         command: &str,
     ) -> Result<Option<String>, RunsError> {
+        let superseded = Self::superseded_in(conn, plans).await?;
         // Every done task of the project, in any plan and version: a done task is in the
         // project when one of its attempts ran there, and one with no attempt has no checks.
         let marks: Vec<(String, i64, u32, Option<String>)> = sqlx::query_as(
@@ -54,7 +58,9 @@ impl RunsStore {
         let mut pending = Vec::new();
         for (workflow, version, task, judged) in marks {
             let workflow = WorkflowId::from_recorded(workflow);
-            if workflow == plan.id && task == cause_task {
+            if (workflow == plan.id && task == cause_task)
+                || superseded.contains(&(workflow.as_str().to_string(), task))
+            {
                 continue;
             }
             let attempt =
@@ -84,6 +90,7 @@ impl RunsStore {
             };
             let context: TaskContext = serde_json::from_str(&json)?;
             if let Some(contract) = context.task.contract {
+                let own = contract.checks.len();
                 for (ordinal, check) in contract.checks.into_iter().enumerate() {
                     pending.push((
                         attempt.clone(),
@@ -93,6 +100,27 @@ impl RunsStore {
                         ordinal,
                         check,
                     ));
+                }
+                // The contract check is rechecked when the judged attempt had one, after the
+                // task's own checks.
+                let contract_row: bool = sqlx::query_scalar(
+                    "SELECT EXISTS(SELECT 1 FROM run_checks
+                     WHERE attempt_id=? AND for_task=? AND check_id=?)",
+                )
+                .bind(&attempt)
+                .bind(i64::from(task))
+                .bind(CONTRACT_CHECK)
+                .fetch_one(&mut *conn)
+                .await?;
+                if contract_row {
+                    let check = TaskCheck {
+                        id: CONTRACT_CHECK.into(),
+                        run: vec![],
+                        folder: None,
+                        timeout_secs: None,
+                        proves: vec![],
+                    };
+                    pending.push((attempt.clone(), workflow.clone(), version, task, own, check));
                 }
             }
         }
@@ -155,14 +183,54 @@ impl RunsStore {
         .await?)
     }
 
+    /// The done tasks a newer version of their plan marks done too: the newest mark stands
+    /// for the task, so an older version's checks are not run again.
+    async fn superseded_in(
+        conn: &mut Tx,
+        plans: &[PlanId],
+    ) -> Result<BTreeSet<(String, u32)>, RunsError> {
+        let mut plan_of = BTreeMap::<String, String>::new();
+        for plan in plans {
+            for (workflow, _) in Plans::version_ids_in(conn, plan)
+                .await
+                .map_err(|e| RunsError::Unavailable(e.to_string()))?
+            {
+                plan_of.insert(workflow.as_str().to_string(), plan.as_str().to_string());
+            }
+        }
+        let marks: Vec<(String, i64, u32)> =
+            sqlx::query_as("SELECT workflow_id,version,task FROM run_task_marks WHERE done=1")
+                .fetch_all(&mut *conn)
+                .await?;
+        let mut newest = BTreeMap::<(&str, u32), i64>::new();
+        for (workflow, version, task) in &marks {
+            if let Some(plan) = plan_of.get(workflow) {
+                let entry = newest.entry((plan.as_str(), *task)).or_insert(*version);
+                *entry = (*entry).max(*version);
+            }
+        }
+        Ok(marks
+            .iter()
+            .filter(|(workflow, version, task)| {
+                plan_of
+                    .get(workflow)
+                    .and_then(|plan| newest.get(&(plan.as_str(), *task)))
+                    .is_some_and(|newest| newest > version)
+            })
+            .map(|(workflow, _, task)| (workflow.clone(), *task))
+            .collect())
+    }
+
     /// Whether the same check of the same task did not pass either in the latest earlier batch
     /// that ran it: such a failure was told already, and is told again only after a pass.
+    /// A `contract` row that could not run is skipped, so a server down once hides nothing.
     pub async fn failed_before(&self, batch: &str, row: &ResultRow) -> Result<bool, RunsError> {
         let previous: Option<Option<String>> = sqlx::query_scalar(
             "SELECT r.outcome FROM run_recheck_results r
              JOIN run_rechecks b ON b.id=r.recheck_id
              JOIN run_rechecks cur ON cur.id=?
              WHERE r.workflow_id=? AND r.task=? AND r.check_id=? AND r.finished_at IS NOT NULL
+               AND NOT (r.check_id='contract' AND r.outcome='not_run')
                AND (b.created_at<cur.created_at OR (b.created_at=cur.created_at AND b.id<cur.id))
              ORDER BY b.created_at DESC,b.id DESC LIMIT 1",
         )

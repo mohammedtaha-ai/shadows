@@ -15,7 +15,7 @@ afterEach(() => {
 })
 
 const check = (extra: Partial<CheckResult> = {}): CheckResult => ({
-  for_task: 3, id: 'unit', run: ['cargo', 'test'], reported: 'passed', outcome: 'failed',
+  for_task: 3, id: 'unit', by_shadows: false, run: ['cargo', 'test'], reported: 'passed', outcome: 'failed',
   ...extra,
 } as CheckResult)
 

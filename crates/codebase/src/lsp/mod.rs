@@ -108,7 +108,7 @@ impl Codebase {
         extra: &HashSet<String>,
     ) -> Result<Vec<Wanted>, CodebaseError> {
         let store = &self.inner.store;
-        let mut extensions = store.file_extensions(project).await?;
+        let mut extensions = self.extensions(project).await?;
         extensions.extend(extra.iter().cloned());
         let off = store.servers_off().await?;
         let added = store.servers_added().await?;
@@ -121,7 +121,7 @@ impl Codebase {
     pub async fn servers(&self, asker: Asker<'_>) -> Result<Vec<ServerStatus>, CodebaseError> {
         let project = self.inner.projects.get(asker.home()).await?.id;
         let store = &self.inner.store;
-        let extensions = store.file_extensions(&project).await?;
+        let extensions = self.extensions(&project).await?;
         let off = store.servers_off().await?;
         let added = store.servers_added().await?;
         let wanted: HashSet<String> = self

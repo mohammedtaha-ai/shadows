@@ -120,6 +120,7 @@ shapes:
     design: Design
     grants: Grants
     operations: Operations
+    code: Codebase
   DraftStart:
     title: Option<String>
     goal: Option<String>
@@ -273,7 +274,7 @@ shapes:
     id: String                   # unique within the task: s1
     path: String                 # a file of the task it creates or modifies
     kind: SymbolKind
-    name: String
+    name: String                 # bare, or Class.method; CodeRecord matches it exactly
     inputs: Vec<ContractValue>   # serde default
     returns: Option<ContractValue>  # serde default; null for a class
     behavior: Vec<String>        # short sentences, never code
@@ -412,7 +413,7 @@ functions:
   execution_plan: "(&self, workflow, version) -> Result<ExecutionPlan, PlansError>; execution_plan_in in a read snapshot of its own."
   contract_facts: "(&self, workflow, task, selector: ContractSelector, after: Option<u32>, limit: u16) -> Result<ContractFacts, PlansError>; one read of the version, which must be Frozen (else NotFound; an archived or superseded Frozen version still answers, for its running attempts). limit outside 1..=50, an unknown task's selector symbol/output, a use the task does not declare, a symbol/output/use selector on a task with no contract, or after past the consumer count is InvalidCommand. own answers the whole contract, every resolved use and the distinct producers of its task uses; symbol answers that symbol, its declared file and the outputs naming it; output answers that output, its symbol and its symbol's or artifact's file; use answers contract null, that use's resolved entry and its producer (none for an existing source). consumers are ContractRules::consumers of the selection (the own task's outputs as Task { Local { task }, output } sources, or the use's exact source), one page from after, next = the following offset or null. No other version or plan, no source code. Runs::question and Runs::brief call it."
   version_in: "private: (conn, workflow) -> Plan; load_plan and LinkedRows in the caller's snapshot, the one loader of execution_plan_in."
-  new: Constructs Plans with its declared Design, Grants and Operations dependencies.
+  new: Constructs Plans with its declared Design, Grants, Operations and Codebase dependencies.
   from_recorded: Reconstructs plan, workflow and task identities retained by other services.
   event_projection:
     project_event_payload_in:
@@ -481,6 +482,21 @@ functions:
       signature: "(&self, grant: &Grant, args: PlanEdit) -> Result<EditOutcome, PlansError>"
       # "PlanEdit", params { workflow, expected_revision, ops }. A Planner's
       # edit passes its running turn, when there is one, to the event.
+      # Before the write it asks Code which worked files the project has
+      # (`present_files`); inside it, each changed task's files must agree
+      # with that list and with the tasks it depends on through the links
+      # (`ContractRules::file_problems`): a `modify`/`delete` path present or
+      # created by such a task and never deleted by one; a `create` path the
+      # edit introduces not present (unless such a task deletes it) and not
+      # created by such a task. Else PlanInvalid naming the task and the path.
+      # Skipped when Code's file list cannot answer (no folder, first listing
+      # unfinished).
+    present_files:
+      signature: "(&self, workflow: &WorkflowId, ops: &[PlanOp]) -> Result<Option<HashSet<String>>, PlansError>"
+      private: true
+      # Every create/modify/delete path of the version's tasks and of the ops'
+      # TaskAdd/TaskUpdate, through Codebase::files_present; `edit` and
+      # `edit_plan_for_test` call it, the bindings edit passes None.
     show:
       signature: "(&self, grant: &Grant, args: PlanShow) -> Result<(PlanShown, OperationId, ThreadId), PlansError>"
       # "PlanShow", params { workflow, task_number, place }, id anchored to the
@@ -523,7 +539,7 @@ functions:
     get_plan_versions: "(&self, plan: &PlanId) -> Result<PlanVersions, StorageError>"
     archive_plan: "(&self, ctx: &CommandContext, plan: &PlanId) -> Result<PlanVersions, StorageError>"
     unarchive_plan: "(&self, ctx: &CommandContext, plan: &PlanId) -> Result<PlanVersions, StorageError>"
-    edit_plan: "(&self, ctx: &CommandContext, writer: &Writer, operation: Option<&OperationId>, workflow: &WorkflowId, expected_revision: i64, ops: &[PlanOp]) -> Result<EditOutcome, PlansError>"
+    edit_plan: "(&self, ctx: &CommandContext, writer: &Writer, operation: Option<&OperationId>, workflow: &WorkflowId, expected_revision: i64, ops: &[PlanOp], present: Option<&HashSet<String>>) -> Result<EditOutcome, PlansError>"
     approve_plan:
       signature: "(&self, ctx: &CommandContext, workflow: &WorkflowId, expected_revision: i64) -> Result<Approved, PlansError>"
       # Its PlanApproved entry goes to the version's `written_by_thread` when
@@ -586,7 +602,10 @@ functions:
       # which the task does not describe; ... names `{path}`, which the task
       # does not create or modify; ... names acceptance item {k}, which T{n}
       # does not have; a use has no purpose; an existing path not exact; a
-      # task cannot use its own output; the same source is used more than once.
+      # task cannot use its own output; the same source is used more than once;
+      # then per check: missing or repeated check id `{id}`; the check id
+      # `contract` is Shadows' own (Runs runs the symbol check under that id),
+      # so a task check may not take it.
     approval_problems:
       signature: "(content: &PlanContent) -> Vec<Problem>"
       private: true
@@ -651,6 +670,27 @@ shared_in_transaction:
 
 
 obligations:
+  - rule: >
+      A file a task's contract will modify or delete must exist, and one it
+      creates must not (§17, 2026-11-18 and 2026-11-19): an edit is refused
+      PlanInvalid, one problem per file naming the task and the path, when a
+      changed task's modify/delete path is not a file in Code's list and no
+      task it depends on through the links creates it, or such a task deletes
+      it; or when a create the edit introduces names a file in the list (and
+      no such task deletes it first) or one such a task already creates. A
+      create the task already had is not checked again: it may have run.
+      Skipped when the list cannot answer.
+    tested_by:
+      - a_task_may_not_modify_a_file_the_project_does_not_have
+      - a_dependency_that_creates_a_file_lets_a_task_modify_it_and_one_that_deletes_it_does_not
+      - a_task_may_not_create_a_file_the_project_already_has
+      - a_create_the_task_already_had_is_not_checked_again
+      - the_check_is_skipped_when_the_file_list_cannot_answer
+    note: >
+      In crates/shadows-core/tests/task_contract.rs; they seed the stored
+      listing by SQL. Only changed tasks are checked, so a file removed later
+      does not block edits to other tasks.
+
   - rule: >
       A tool call's grant decides which plan versions it reaches (§16.4): both
       grant kinds may name any version in their project; a Planner may edit

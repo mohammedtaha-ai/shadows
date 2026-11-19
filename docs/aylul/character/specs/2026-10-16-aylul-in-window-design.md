@@ -51,8 +51,8 @@ checkout; the user explicitly forbids worktrees.
   `file://` policy; no runtime acceptance is claimed here.
 
 Architecture and source-placement owners remain [Vision](../../vision.md),
-[shared architecture](../../../../../shadows-backend/docs/architecture.md), and
-[source-contract convention](../../../../../shadows-backend/docs/contracts/README.md).
+[shared architecture](https://github.com/mohammedtaha-ai/shadows-backend/blob/main/docs/architecture.md), and
+[source-contract convention](https://github.com/mohammedtaha-ai/shadows-backend/blob/main/docs/contracts/README.md).
 
 ## 3. Selected approach and alternatives
 

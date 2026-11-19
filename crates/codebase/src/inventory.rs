@@ -242,6 +242,43 @@ impl Codebase {
         })
     }
 
+    /// Which of `paths` the project's file list holds as files, without paging
+    /// the whole list. `None` when the list cannot answer: the project has no
+    /// folder, or its first listing has not finished. A path the list leaves
+    /// out (ignored, secret, a link) is not a file here.
+    pub async fn files_present(
+        &self,
+        project: &ProjectId,
+        paths: &[String],
+    ) -> Result<Option<HashSet<String>>, CodebaseError> {
+        let project = self.inner.projects.get(project).await?;
+        let Some(directory) = project.directory else {
+            return Ok(None);
+        };
+        if !Codebase::folder_exists(Path::new(&directory)).await {
+            return Ok(None);
+        }
+        let store = &self.inner.store;
+        let mut present = HashSet::new();
+        for path in paths {
+            let Ok(inside) = Codebase::inside(path) else {
+                continue;
+            };
+            let key = Codebase::path_key(&inside);
+            let Some((_, _, _, rows)) = store.inventory_page(&project.id, &key, None, 1).await?
+            else {
+                return Ok(None);
+            };
+            let file = rows.first().is_some_and(|(found, entry)| {
+                *found == key && entry.kind == super::model::InventoryKind::File
+            });
+            if file {
+                present.insert(path.clone());
+            }
+        }
+        Ok(Some(present))
+    }
+
     /// Lists the folder again now, then answers the first page.
     pub async fn refresh_inventory(
         &self,
@@ -289,13 +326,17 @@ impl Codebase {
     }
 
     /// Lists `dir` and stores what it found; a failure is logged, never
-    /// answered, so a scan never fails because of its listing. Answers the
+    /// answered, so a scan never fails because of its listing. One listing of
+    /// a project runs at a time, so an older listing never writes over a newer
+    /// one. Keeps the listed files' extensions for `extensions`. Answers the
     /// listed files' stamps, or `None` when nothing was listed.
     pub(super) async fn record_inventory(
         &self,
         project: &ProjectId,
         dir: &Path,
     ) -> Option<FileStamps> {
+        let turn = self.listing_lock(project);
+        let _one_at_a_time = turn.lock().await;
         let owned: PathBuf = dir.to_path_buf();
         let found = match tokio::task::spawn_blocking(move || listed(&owned)).await {
             Ok(found) => found,
@@ -312,14 +353,74 @@ impl Codebase {
             files: found.stamps,
             complete: !found.incomplete,
         };
+        let extensions: HashSet<String> = found
+            .rows
+            .iter()
+            .filter(|row| row.kind == "file")
+            .filter_map(|row| Codebase::extension(&row.path).map(String::from))
+            .collect();
         let store = &self.inner.store;
-        if let Err(error) = store
+        self.inner
+            .extensions
+            .lock()
+            .expect("extensions lock")
+            .remove(project.as_str());
+        match store
             .write_inventory(project, found.rows, found.incomplete, &Storage::now())
             .await
         {
-            tracing::warn!(project = project.as_str(), error = %error, "code.inventory_failed");
+            Ok(()) => {
+                let mut held = self.inner.extensions.lock().expect("extensions lock");
+                held.insert(project.as_str().to_string(), extensions);
+            }
+            Err(error) => {
+                tracing::warn!(project = project.as_str(), error = %error, "code.inventory_failed");
+            }
         }
         Some(stamps)
+    }
+
+    /// The extensions of the files the project's last listing found, as
+    /// written (`.rs`). Held in memory from the listing; read from the store
+    /// once when nothing is held, as after a restart.
+    pub(super) async fn extensions(
+        &self,
+        project: &ProjectId,
+    ) -> Result<HashSet<String>, CodebaseError> {
+        if let Some(held) = self
+            .inner
+            .extensions
+            .lock()
+            .expect("extensions lock")
+            .get(project.as_str())
+        {
+            return Ok(held.clone());
+        }
+        let read: HashSet<String> = self
+            .inner
+            .store
+            .file_paths(project)
+            .await?
+            .iter()
+            .filter_map(|path| Codebase::extension(path).map(String::from))
+            .collect();
+        // A listing that ended meanwhile holds the newer answer: keep it.
+        let mut held = self.inner.extensions.lock().expect("extensions lock");
+        Ok(held
+            .entry(project.as_str().to_string())
+            .or_insert(read)
+            .clone())
+    }
+
+    /// The lock that keeps a project's listings one at a time.
+    fn listing_lock(&self, project: &ProjectId) -> std::sync::Arc<tokio::sync::Mutex<()>> {
+        self.inner
+            .listings
+            .lock()
+            .expect("listings lock")
+            .entry(project.as_str().to_string())
+            .or_default()
+            .clone()
     }
 }
 

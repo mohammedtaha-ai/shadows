@@ -56,7 +56,7 @@ describe('the task page', () => {
     const committed = attempt({ state: 'committed', commit: 'abc123' })
     const routes = answers({ taskRun: taskRun({ latest: committed }), attempts: [committed] })
     routes['GET /api/attempts/a1/checks'] = [{
-      for_task: 1, id: 'count', run: ['go', 'test', './internal/service/...'], folder: '.',
+      for_task: 1, id: 'count', by_shadows: false, run: ['go', 'test', './internal/service/...'], folder: '.',
       reported: 'not_run', reported_note: 'Shared build was busy', outcome: 'passed', matches: false,
       exit_code: 0, head_before: 'abc123', head_after: 'abc123', output: '<b>PASS</b>',
       truncated: true, started_at: 'now', finished_at: 'later',
@@ -79,12 +79,50 @@ describe('the task page', () => {
     expect(a.text()).not.toContain('<b>PASS</b>')
   })
 
+  it('shows_the_contract_check_as_shadows_own_without_command_or_reported', async () => {
+    const committed = attempt({ state: 'committed', commit: 'abc123' })
+    const routes = answers({ taskRun: taskRun({ latest: committed }), attempts: [committed] })
+    routes['GET /api/attempts/a1/checks'] = [{
+      for_task: 3, id: 'contract', by_shadows: true, run: [], reported: null, matches: null, outcome: 'failed',
+      output: 'T3 promises refresh_token in backend/auth/service.py; the code does not have it.',
+      truncated: false, started_at: 'now', finished_at: 'later',
+    }]
+    const a = (app = await startApp(PAGE, routes))
+    await until(() => a.button('Report') !== undefined)
+    await click(a.button('Report'))
+    await until(() => a.text().includes('Confirmed: failed'))
+    expect(a.text()).toContain('T3 · Contract')
+    expect(a.text()).not.toContain('Reported')
+    expect(a.text()).not.toContain('Mismatch')
+    expect(document.querySelector('p.font-mono')).toBeNull()
+    await click(a.button('Show output'))
+    expect(a.text()).toContain('T3 promises refresh_token in backend/auth/service.py; the code does not have it.')
+  })
+
+  it('a_check_named_contract_that_shadows_does_not_run_is_an_ordinary_check', async () => {
+    const committed = attempt({ state: 'committed', commit: 'abc123' })
+    const routes = answers({ taskRun: taskRun({ latest: committed }), attempts: [committed] })
+    routes['GET /api/attempts/a1/checks'] = [{
+      for_task: 2, id: 'contract', by_shadows: false, run: ['npm', 'run', 'contract'], reported: 'passed',
+      matches: false, outcome: 'failed', truncated: false, started_at: 'now', finished_at: 'later',
+    }]
+    const a = (app = await startApp(PAGE, routes))
+    await until(() => a.button('Report') !== undefined)
+    await click(a.button('Report'))
+    await until(() => a.text().includes('Confirmed: failed'))
+    expect(a.text()).toContain('T2 · contract')
+    expect(a.text()).not.toContain('T2 · Contract')
+    expect(a.text()).toContain('Reported: passed')
+    expect(a.text()).toContain('Mismatch')
+    expect(document.querySelector('p.font-mono')?.textContent).toBe('npm run contract')
+  })
+
   it('refreshes_unfinished_checks_and_keeps_cached_results_visible', async () => {
     const committed = attempt({ state: 'committed', commit: 'abc123' })
     let finished = false
     const routes = answers({ taskRun: taskRun({ latest: committed }), attempts: [committed] })
     routes['GET /api/attempts/a1/checks'] = () => Response.json([{
-      for_task: 1, id: 'count', run: ['go', 'test'], reported: 'passed',
+      for_task: 1, id: 'count', by_shadows: false, run: ['go', 'test'], reported: 'passed',
       outcome: finished ? 'passed' : null, truncated: false, finished_at: finished ? 'now' : null,
     }])
     const a = (app = await startApp(PAGE, routes))

@@ -42,26 +42,18 @@ impl CodeStore {
             .collect())
     }
 
-    /// The extensions of the files the project's last listing found, as written.
-    pub(in super::super) async fn file_extensions(
+    /// The paths of the files the project's last listing found, by key.
+    pub(in super::super) async fn file_paths(
         &self,
         project: &core_projects::ProjectId,
-    ) -> Result<HashSet<String>, StorageError> {
-        let paths: Vec<String> = sqlx::query_scalar(
+    ) -> Result<Vec<String>, StorageError> {
+        Ok(sqlx::query_scalar(
             "SELECT path FROM code_inventory WHERE project_id = ? AND kind = 'file'
               ORDER BY path_key",
         )
         .bind(project.as_str())
         .fetch_all(self.storage.reader())
-        .await?;
-        Ok(paths
-            .iter()
-            .filter_map(|p| {
-                let name = p.rsplit('/').next()?;
-                let dot = name.rfind('.').filter(|&i| i > 0)?;
-                Some(name[dot..].to_string())
-            })
-            .collect())
+        .await?)
     }
 }
 

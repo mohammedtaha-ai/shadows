@@ -15,8 +15,9 @@
 //! `pending` until an enqueue (or its replay) succeeds, `no_planner` when the
 //! plan has no live Planner conversation.
 use crate::amend::ADDITIONS;
+use crate::checks::CONTRACT_CHECK;
 use crate::model::{Attempt, AttemptNotice, AttemptState, ConflictDelivery, TaskConflict};
-use crate::{Runs, RunsError};
+use crate::{CheckResult, Runs, RunsError};
 use core_plans::{Plan, WrittenBy};
 use core_threads::{ThreadEntryKind, ThreadId};
 use core_turns::{Notice, SendTurn};
@@ -240,6 +241,16 @@ impl Runs {
             .unwrap_or_else(|| format!("T{}", attempt.task))
     }
 
+    /// `check` as a conversation card carries it, the attempt's and the recheck's alike: a
+    /// command's output is left to `task_checks`, while Shadows' own check keeps its short
+    /// verdict, so the person reads what is missing as the Planner does.
+    pub(crate) fn card_check(mut check: CheckResult) -> CheckResult {
+        if !check.by_shadows {
+            check.output = None;
+        }
+        check
+    }
+
     /// The notice that `attempt`, without a conflict, committed or failed:
     /// resolved once and saved, so a retry after a restart replays it.
     async fn notify_ended(&self, attempt: &Attempt) -> Result<(), RunsError> {
@@ -304,13 +315,24 @@ impl Runs {
         let prompt = match attempt.state {
             AttemptState::Committed => {
                 let results = self.check_results(&attempt.id).await?;
-                card.checks = results.clone();
-                for check in &mut card.checks {
-                    check.output = None;
-                }
+                card.checks = results.iter().cloned().map(Self::card_check).collect();
                 let mut checks = results
                     .iter()
-                    .map(|c| format!("{}\n", Self::check_line(c, attempt.task, "the executor")))
+                    .map(|c| {
+                        let line = Self::check_line(c, attempt.task, "the executor");
+                        // The contract check's output is Shadows' own verdict, so the
+                        // notice says it: what is missing, or why nothing could be checked.
+                        match c.output.as_deref().filter(|output| {
+                            c.id == CONTRACT_CHECK
+                                && c.outcome != Some(crate::CheckOutcome::Passed)
+                                && !output.is_empty()
+                        }) {
+                            Some(output) => {
+                                format!("{line}\n{}\n", Self::output_excerpt(&c.id, output))
+                            }
+                            None => format!("{line}\n"),
+                        }
+                    })
                     .collect::<String>();
                 if results
                     .iter()

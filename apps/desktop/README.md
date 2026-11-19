@@ -50,7 +50,7 @@ $env:AYLUL_HOOK_EXE=(Resolve-Path 'apps/desktop/hook/target/debug/aylul-hook.exe
 ```
 
 Start the sibling backend using its
-[handoff](../../../shadows-backend/docs/nylra-local-auth-handoff.md) when those
+[handoff](https://github.com/mohammedtaha-ai/shadows-backend/blob/main/docs/nylra-local-auth-handoff.md) when those
 account actions need it. The public development CA configures the native client;
 do not bypass certificate verification. Account credentials remain in native
 DPAPI storage. No credential migration or personal hook installation is implied.

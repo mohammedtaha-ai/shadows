@@ -78,6 +78,7 @@ impl Fixture {
             Grants::new(storage.clone(), String::new()),
             operations,
             design.clone(),
+            codebase::Codebase::new(storage.clone(), Projects::new(storage.clone())),
         );
         Self {
             _dir: dir,

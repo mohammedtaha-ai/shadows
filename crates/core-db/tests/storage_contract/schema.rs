@@ -50,6 +50,10 @@ async fn fresh_database_migrates_and_applies_the_connection_policy() {
             "code_file",
             "code_inventory",
             "code_inventory_scan",
+            "code_record_file",
+            "code_record_symbol",
+            "code_record_unpromised",
+            "code_record_verdict",
             "code_server_added",
             "code_server_off",
             "code_tag",
@@ -132,7 +136,8 @@ async fn fresh_database_migrates_and_applies_the_connection_policy() {
          0060 the person's questions, 0061 the task context an attempt received, \
          0070 the recheck batches and their results, 0071 the project's design decisions, \
          0073 the task's executor choice and its saves, \
-         0074 the external connections and their project scopes)"
+         0074 the external connections and their project scopes, \
+         0075 the code record's verdicts, 0076 the code record)"
     );
 
     storage.close().await.unwrap();

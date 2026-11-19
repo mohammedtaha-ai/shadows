@@ -241,3 +241,90 @@ async fn a_link_out_of_the_folder_is_listed_and_never_entered() {
     assert!(page.entries.iter().all(|e| !e.path.starts_with("out/")));
     storage.close().await.unwrap();
 }
+
+#[tokio::test]
+async fn other_writes_go_on_while_a_big_listing_is_written() {
+    let dir = tempfile::tempdir().unwrap();
+    for i in 0..30 {
+        let folder = dir.path().join(format!("d{i:02}"));
+        std::fs::create_dir_all(&folder).unwrap();
+        for j in 0..1000 {
+            std::fs::File::create(folder.join(format!("f{j:03}.txt"))).unwrap();
+        }
+    }
+    let (storage, code, project, _db) = project_on(dir.path()).await;
+    let listing = {
+        let (code, project) = (code.clone(), project.clone());
+        tokio::spawn(async move { code.refresh_inventory(Asker::Person(&project)).await })
+    };
+    // Each of these writes takes Shadows' one write lock; one that lands while
+    // the listing's rows are only partly written shows the lock was let go.
+    let mut during = false;
+    for _ in 0..10_000 {
+        let p = project.as_str().to_string();
+        let (rows, scanned): (i64, bool) = storage
+            .write_txn(move |conn| {
+                Box::pin(async move {
+                    let rows: i64 = sqlx::query_scalar(
+                        "SELECT COUNT(*) FROM code_inventory WHERE project_id = ?",
+                    )
+                    .bind(&p)
+                    .fetch_one(&mut *conn)
+                    .await?;
+                    let scanned: bool = sqlx::query_scalar(
+                        "SELECT EXISTS (SELECT 1 FROM code_inventory_scan WHERE project_id = ?)",
+                    )
+                    .bind(&p)
+                    .fetch_one(&mut *conn)
+                    .await?;
+                    Ok((rows, scanned))
+                })
+            })
+            .await
+            .unwrap();
+        if rows > 0 && !scanned {
+            during = true;
+        }
+        if scanned {
+            break;
+        }
+        tokio::task::yield_now().await;
+    }
+    let page = listing.await.unwrap().unwrap();
+    assert!(
+        during,
+        "no write landed while the listing was being written"
+    );
+    assert_eq!((page.state, page.generation), (InventoryState::Ready, 1));
+    let total: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM code_inventory WHERE project_id = ?")
+        .bind(project.as_str())
+        .fetch_one(storage.reader())
+        .await
+        .unwrap();
+    assert_eq!(total, 30 + 30_000);
+}
+
+#[tokio::test]
+async fn the_wanted_servers_come_from_the_listing_not_a_second_read() {
+    let dir = tempfile::tempdir().unwrap();
+    write(dir.path(), "src/lib.rs", "pub fn a() {}");
+    let (storage, code, project, _db) = project_on(dir.path()).await;
+    let me = Asker::Person(&project);
+    code.refresh_inventory(me).await.unwrap();
+    // The stored list is emptied behind Codebase's back: an answer that read
+    // it again would want no server.
+    sqlx::query("DELETE FROM code_inventory WHERE project_id = ?")
+        .bind(project.as_str())
+        .execute(storage.reader())
+        .await
+        .unwrap();
+    let wanted: Vec<String> = code
+        .servers(me)
+        .await
+        .unwrap()
+        .into_iter()
+        .filter(|s| s.wanted)
+        .map(|s| s.id)
+        .collect();
+    assert_eq!(wanted, ["rust-analyzer"]);
+}

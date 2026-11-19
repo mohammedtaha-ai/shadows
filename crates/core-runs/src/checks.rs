@@ -3,15 +3,68 @@ use crate::git::Git;
 use crate::scope::Scope;
 use crate::store::{Continued, checks::Finished};
 use crate::{Attempt, AttemptId, AttemptOrigin, CheckOutcome, CheckResult, Runs, RunsError};
+use code_record::VerdictOutcome;
 use core_db::Storage;
-use core_plans::TaskCheck;
+use core_plans::{FileAction, TaskCheck, TaskContract};
 use core_projects::ProjectId;
-use std::collections::VecDeque;
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 use tokio::io::{AsyncRead, AsyncReadExt};
 
 const OUTPUT_LIMIT: usize = 65_536;
+
+/// The id of the check Shadows runs itself: the contract's symbols, by name.
+/// Plans refuses a task check with this id.
+pub(crate) const CONTRACT_CHECK: &str = "contract";
+
+impl Runs {
+    /// The project's checking lock: Shadows runs one check at a time in a folder, and a
+    /// restart clears a check's unfinished result only while none runs.
+    pub(crate) async fn checking_lock(
+        &self,
+        project: &ProjectId,
+    ) -> std::sync::Arc<tokio::sync::Mutex<()>> {
+        self.inner
+            .checking
+            .lock()
+            .await
+            .entry(project.clone())
+            .or_insert_with(|| std::sync::Arc::new(tokio::sync::Mutex::new(())))
+            .clone()
+    }
+
+    /// The check outcome a contract verdict is stored as.
+    pub(crate) fn contract_outcome(outcome: VerdictOutcome) -> CheckOutcome {
+        match outcome {
+            VerdictOutcome::Passed => CheckOutcome::Passed,
+            VerdictOutcome::Failed => CheckOutcome::Failed,
+            VerdictOutcome::NotRun => CheckOutcome::NotRun,
+        }
+    }
+
+    /// Whether `contract` gets a `contract` check: at least one promised symbol in a file the
+    /// task creates or modifies.
+    pub(crate) fn contract_due(contract: &TaskContract) -> bool {
+        contract.symbols.iter().any(|symbol| {
+            contract.files.iter().any(|file| {
+                file.path == symbol.path
+                    && matches!(file.action, FileAction::Create | FileAction::Modify)
+            })
+        })
+    }
+
+    /// 4,000 characters of check `id`'s output, as a prompt carries it. A command's error comes
+    /// last, so its output keeps the end; the contract check lists the missing symbols first,
+    /// so its output keeps the start.
+    pub(crate) fn output_excerpt(id: &str, output: &str) -> String {
+        if id == CONTRACT_CHECK {
+            return output.chars().take(4000).collect();
+        }
+        let skip = output.chars().count().saturating_sub(4000);
+        output.chars().skip(skip).collect()
+    }
+}
 
 impl Runs {
     pub async fn check_results(&self, id: &AttemptId) -> Result<Vec<CheckResult>, RunsError> {
@@ -79,27 +132,24 @@ impl Runs {
         if self.inner.store.continued(&attempt.id).await? {
             return Ok(());
         }
+        let contract = self.due_contract(attempt).await?;
         let checks = self.inner.store.check_specs(&attempt.id).await?;
-        if checks.is_empty() {
-            return self.after_checks(attempt).await;
-        }
         let recorded = self.inner.store.check_results(&attempt.id).await?;
-        if checks.iter().all(|(task, _, check)| {
+        let finished = |task: u32, id: &str| {
             recorded
                 .iter()
-                .any(|row| row.for_task == *task && row.id == check.id && row.finished_at.is_some())
-        }) {
+                .any(|row| row.for_task == task && row.id == id && row.finished_at.is_some())
+        };
+        let contract_done = contract.is_none() || finished(attempt.task, CONTRACT_CHECK);
+        if contract_done
+            && checks
+                .iter()
+                .all(|(task, _, check)| finished(*task, &check.id))
+        {
             return self.after_checks(attempt).await;
         }
         self.wait_for_quiet(attempt).await?;
-        let lock = self
-            .inner
-            .checking
-            .lock()
-            .await
-            .entry(attempt.project_id.clone())
-            .or_insert_with(|| std::sync::Arc::new(tokio::sync::Mutex::new(())))
-            .clone();
+        let lock = self.checking_lock(&attempt.project_id).await;
         let held = lock.lock().await;
         self.wait_for_quiet(attempt).await?;
         for (task, ordinal, check) in checks {
@@ -109,8 +159,74 @@ impl Runs {
                 .finish_check(&attempt.id, task, &check.id, result)
                 .await?;
         }
+        if let Some(contract) = contract {
+            self.check_contract(attempt, &contract).await?;
+        }
         drop(held);
         self.after_checks(attempt).await
+    }
+
+    /// The attempt's own contract, when its `contract` check is due: at least
+    /// one promised symbol in a file the task creates or modifies.
+    async fn due_contract(&self, attempt: &Attempt) -> Result<Option<TaskContract>, RunsError> {
+        let contract = self
+            .inner
+            .store
+            .context(&attempt.id)
+            .await?
+            .and_then(|(context, _)| context.task.contract);
+        Ok(contract.filter(Self::contract_due))
+    }
+
+    /// Records the `contract` row unfinished, asks `CodeRecord` for the verdict
+    /// under the attempt's id, and finishes the row with its outcome and lines.
+    async fn check_contract(
+        &self,
+        attempt: &Attempt,
+        contract: &TaskContract,
+    ) -> Result<(), RunsError> {
+        let check = TaskCheck {
+            id: CONTRACT_CHECK.into(),
+            run: vec![],
+            folder: None,
+            timeout_secs: None,
+            proves: vec![],
+        };
+        let git = Git::at(&self.folder(&attempt.project_id).await?);
+        self.inner
+            .store
+            .start_check(
+                &attempt.id,
+                attempt.task,
+                &check,
+                contract.checks.len(),
+                git.head().await,
+            )
+            .await?;
+        let verdict = self
+            .inner
+            .code_record
+            .verify(
+                attempt.id.as_str(),
+                &attempt.project_id,
+                attempt.task,
+                contract,
+            )
+            .await
+            .map_err(|e| RunsError::Unavailable(e.to_string()))?;
+        let outcome = Self::contract_outcome(verdict.outcome());
+        let result = Finished {
+            outcome,
+            exit_code: None,
+            head: git.head().await,
+            output: verdict.lines(),
+            truncated: false,
+            foreign_leftovers: false,
+        };
+        self.inner
+            .store
+            .finish_check(&attempt.id, attempt.task, CONTRACT_CHECK, result)
+            .await
     }
 
     pub(crate) async fn run_check(
@@ -199,10 +315,61 @@ impl Runs {
             ) && (before != result.head || dirty != after || hashes != after_hashes)
             {
                 result.outcome = CheckOutcome::Inconclusive;
+                let mut causes = Vec::new();
+                if before != result.head {
+                    let name =
+                        |head: &Option<String>| head.clone().unwrap_or_else(|| "no commit".into());
+                    causes.push(format!(
+                        "the check moved HEAD from {} to {}",
+                        name(&before),
+                        name(&result.head)
+                    ));
+                }
+                let changed = Self::tree_changes(&hashes, &after_hashes);
+                if !changed.is_empty() {
+                    causes.push(Self::changed_files_line(&changed));
+                }
+                for cause in causes {
+                    if !result.output.is_empty() && !result.output.ends_with('\n') {
+                        result.output.push('\n');
+                    }
+                    result.output.push_str(&cause);
+                }
             }
             return Ok(result);
         }
         unreachable!("the final repetition returns a result")
+    }
+
+    /// The paths a check changed: those in only one of the trees before and after it, and
+    /// those whose content hash differs between the two, in path order.
+    fn tree_changes(before: &[(String, String)], after: &[(String, String)]) -> Vec<String> {
+        let before: BTreeMap<_, _> = before.iter().map(|(p, h)| (p, h)).collect();
+        let after: BTreeMap<_, _> = after.iter().map(|(p, h)| (p, h)).collect();
+        let paths: BTreeSet<_> = before.keys().chain(after.keys()).collect();
+        paths
+            .into_iter()
+            .filter(|path| before.get(*path) != after.get(*path))
+            .map(|path| path.to_string())
+            .collect()
+    }
+
+    /// The line naming the files a check changed: 20 paths at most, then how many more.
+    fn changed_files_line(changed: &[String]) -> String {
+        const SHOWN: usize = 20;
+        let mut line = format!(
+            "the check changed files in the working tree: {}",
+            changed
+                .iter()
+                .take(SHOWN)
+                .cloned()
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+        if changed.len() > SHOWN {
+            line.push_str(&format!(" and {} more", changed.len() - SHOWN));
+        }
+        line
     }
 
     async fn execute_check(root: &Path, check: &TaskCheck) -> Finished {
@@ -348,8 +515,7 @@ impl Runs {
                         return line;
                     }
                     let output = c.output.as_deref().unwrap_or_default();
-                    let skip = output.chars().count().saturating_sub(4000);
-                    format!("{line}\n{}", output.chars().skip(skip).collect::<String>())
+                    format!("{line}\n{}", Self::output_excerpt(&c.id, output))
                 })
                 .collect::<Vec<_>>()
                 .join("\n");

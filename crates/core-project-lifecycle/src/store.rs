@@ -1,5 +1,6 @@
 //! Removal composes table owners in one serialized transaction.
 use crate::ProjectLifecycleError;
+use code_record::CodeRecord;
 use codebase::Codebase;
 use core_db::{Actor, CommandContext, JournalEntry, Storage};
 use core_grants::Grants;
@@ -41,6 +42,7 @@ impl ProjectLifecycleStore {
                     let actor = Actor::user(&ctx.principal_id);
                     Plans::notify_project_dependencies_in(conn, &id, &actor, &ts).await?;
                     Codebase::delete_code_index_in(conn, &id).await?;
+                    CodeRecord::delete_project_in(conn, &id).await?;
                     Codebase::delete_code_links_in(conn, &id).await?;
                     Grants::revoke_project_grants_in(conn, &id, actor.clone(), &ts).await?;
                     JournalEntry::append_event(

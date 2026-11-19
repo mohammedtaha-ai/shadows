@@ -9,8 +9,8 @@ Read [AYLUL](../../docs/aylul/README.md),
 [inspected code map](../../docs/aylul/codebase/README.md) before source edits.
 Read the colocated contract before changing a module. Update its contract and
 code-map row in the same change when its public behavior or ownership changes.
-The [contract convention](../../../shadows-backend/docs/contracts/README.md)
-and [template](../../../shadows-backend/docs/contracts/TEMPLATE.yaml) remain
+The [contract convention](https://github.com/mohammedtaha-ai/shadows-backend/blob/main/docs/contracts/README.md)
+and [template](https://github.com/mohammedtaha-ai/shadows-backend/blob/main/docs/contracts/TEMPLATE.yaml) remain
 externally owned references; do not invent a second contract format.
 
 - Keep TypeScript/React presentation, Rust/Tauri platform integration, Node

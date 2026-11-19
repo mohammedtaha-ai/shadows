@@ -9,7 +9,7 @@ pub(super) mod checks;
 mod conflict;
 mod executor_choice;
 mod lessons;
-mod marks;
+pub(super) mod marks;
 pub(super) mod messages;
 pub(super) mod rechecks;
 mod recover;

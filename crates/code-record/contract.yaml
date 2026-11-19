@@ -1,0 +1,235 @@
+# Owns the rule "does the code hold what the contract promised", its verdicts
+# and the record a done mark writes (code-record plan, Rulings for every task).
+# Project identities are imported from core-projects; the task contract's types
+# from core-plans, whose service it never calls. Runs owns the check rows and
+# their flow and calls `verify`; CodeRecord never calls Runs.
+# Database infrastructure: core-db; its four tables are private to its store.
+#
+# What is compared is the folder as it stands when `verify` runs. The language
+# servers are asked through Codebase (`missing_inputs`, then `lsp`'s
+# documentSymbol) as Asker::Person of the project: a system call made for the
+# project, not a person's question.
+name: code_record
+version: 1
+status: current
+source: crates/code-record/src
+
+modules:
+  lib.rs: code record boundary
+  error.rs: code record refusals
+  model.rs: the code record's values
+  verify.rs: comparing a contract's symbols with the code
+  store/mod.rs: code record persistence
+
+dependencies:
+  code: crates/codebase/contract.yaml
+  projects: crates/core-projects/contract.yaml
+  # Types only: TaskContract, SymbolWork, FileAction.
+  plans: crates/core-plans/contract.yaml
+
+shapes:
+  CodeRecord:
+    # Cheap to clone: built once in AppCore's assemble_services with the Codebase it shares.
+    store: CodeRecordStore
+    code: Codebase
+    # Only under the `test-support` feature, never a default: answers recorded
+    # by tests, by path, which `ask` answers from before any language server.
+    recorded: Arc<Mutex<HashMap<String, RecordedAnswer>>>
+  RecordedAnswer:
+    # test-support only. Symbols: a documentSymbol result, not truncated;
+    # NoServer: unchecked, "no language server reads it"; Absent: the file is absent.
+    values: [Symbols(Value), NoServer, Absent]
+  CodeRecordStore:
+    storage: Arc<Storage>   # private; tables code_record_verdict, code_record_file, code_record_symbol, code_record_unpromised
+  DoneRecord:
+    # What a done mark records: attempt and commit none for a task done with
+    # no attempt; verdict none then, or when another attempt committed since.
+    project: ProjectId
+    workflow: WorkflowId
+    version: i64
+    task: u32
+    attempt: Option<String>
+    commit: Option<String>
+    contract: TaskContract
+    verdict: Option<Verdict>
+  SymbolState:
+    values: [found, missing, unchecked]
+  PromisedSymbol:
+    id: String
+    path: String
+    name: String
+    state: SymbolState
+    why: Option<String>     # none when found
+  Unpromised:
+    path: String
+    name: String
+  UncheckedFile:
+    path: String
+    why: String
+  Verdict:
+    # Ordered by path, then symbol id (symbols) or name (unpromised).
+    task: u32
+    symbols: Vec<PromisedSymbol>
+    unpromised: Vec<Unpromised>
+    unchecked_files: Vec<UncheckedFile>
+  VerdictOutcome:
+    values: [passed, failed, not_run]
+  Found:
+    # One counted documentSymbol: its name, its type or the counted symbol it is
+    # in, top level.
+    name: String
+    parent: Option<String>
+    top: bool
+  FileAnswer:
+    Absent: unit
+    Symbols: "{ found: Vec<Found>, truncated: bool }"
+    Unchecked: String
+
+functions:
+  service:
+    new:
+      signature: "(storage: Arc<Storage>, code: Codebase) -> CodeRecord"
+    verify:
+      signature: "(&self, key: &str, project: &ProjectId, task: u32, contract: &TaskContract) -> Result<Verdict, CodeRecordError>"
+      # Each distinct file of the contract's symbols and created files is asked
+      # once (`ask`); `compare` makes the verdict, stored under `key` (an
+      # attempt id, or `recheck:{attempt_id}`), replacing one
+      # stored before. Only storage fails it.
+    verdict:
+      signature: "(&self, key: &str) -> Result<Option<Verdict>, CodeRecordError>"
+    record_answer_for_tests:
+      signature: "(&self, path: &str, answer: RecordedAnswer)"
+      # test-support only: `path` is answered with `answer` from then on.
+    outcome:
+      signature: "Verdict::outcome(&self) -> VerdictOutcome"
+      # Failed when a symbol is missing; else passed when one is found; else not_run.
+    lines:
+      signature: "Verdict::lines(&self) -> String"
+      # One line each, missing first: "T3 promises refresh_token in
+      # backend/auth/service.py; the code does not have it.", "<path> is
+      # promised and does not exist." (once per file), then "unchecked: <path>
+      # (<why>).", then "unpromised: <name> in <path>.".
+  comparison:
+    ask:
+      signature: "(&self, project: &ProjectId, path: &str) -> FileAnswer"
+      private: true
+      # `missing_inputs` first: an absent file is Absent (its symbols missing,
+      # never unchecked). Then documentSymbol through `Codebase::lsp`. A NoServer
+      # whose server is Some and state Idle, Starting or None is asked again
+      # every 5 s for up to 2 minutes; any other NoServer, or an error, is
+      # Unchecked at once, so a missing server never holds the project.
+    document_symbols:
+      signature: "(result: &Value) -> Vec<Found>"
+      private: true
+      # Kinds class (5), method (6), constructor (9), enum (10), interface (11),
+      # function (12) and struct (23) only, at any depth; a DocumentSymbol tree
+      # (`children`) or a flat SymbolInformation list (`containerName`). An
+      # `impl` block (kind 19, rust-analyzer) is no symbol: its children's
+      # parent is `owner`'s type, and they are not top-level. A gopls
+      # `(*X).m` or `(X).m` is `m` with parent `X` (`receiver`), not top-level.
+    owner:
+      signature: "(container: &str) -> &str"
+      private: true
+      # `impl X`, `impl<T> X<T>`, `impl Trait for X`, `impl<T> Trait for p::X<T>`
+      # give `X`: after `for` if present, else after `impl` and its `<...>`,
+      # generic arguments stripped, last path segment. Any other name is itself.
+    receiver:
+      signature: "(name: &str) -> Option<(&str, &str)>"
+      private: true
+      # A gopls method name `(*X).m` or `(X).m` as (`m`, `X`); else None.
+    matches:
+      signature: "(name: &str, found: &Found) -> bool"
+      private: true
+      # Exact, as written, at any depth; `Class.method` is `method` whose parent is `Class`.
+    compare:
+      signature: "(task: u32, contract: &TaskContract, answers: &BTreeMap<String, FileAnswer>) -> Verdict"
+      private: true
+      # Found when matched; missing when not matched in a complete answer or
+      # its file is absent; unchecked when the answer was truncated and the
+      # name not in it, or the file was unchecked. Unpromised: a counted
+      # top-level symbol of a created file that no contract symbol of that
+      # file names (a `Class.method` names `Class`).
+  store_rows:
+    files:
+      signature: "DoneRecord::files(&self) -> Result<Vec<RecordedFile>, StorageError>"
+      private: true
+      # Every contract file the task creates or modifies: path, action, purpose.
+    symbols:
+      signature: "DoneRecord::symbols(&self) -> Result<Vec<RecordedSymbol>, StorageError>"
+      private: true
+      # Every promised symbol with its kind, contract_json and state.
+    unpromised:
+      signature: "DoneRecord::unpromised(&self) -> &[Unpromised]"
+      private: true
+      # The verdict's unpromised symbols; none without a verdict.
+  store:
+    put:
+      signature: "(&self, key: &str, project: &ProjectId, verdict: &Verdict) -> Result<(), CodeRecordError>"
+      private: true
+      # One write: upsert by key, verified_at Storage::now().
+    delete_project_in:
+      signature: "(conn: &mut Tx, project: &ProjectId) -> Result<(), StorageError>"
+      # Every verdict and record row of the project, inside the caller's write.
+    record_done_in:
+      signature: "(tx: &mut Tx, done: &DoneRecord) -> Result<(), StorageError>"
+      # Inside Runs' marking write: replaces the task's rows. Every file the
+      # contract creates or modifies (read and delete are left out); every promised symbol with its state found, missing or unchecked
+      # from the verdict by symbol id and path, unchecked when the verdict is
+      # none or does not name it; unpromised rows from the verdict only. No read
+      # method yet: its first user is code_where.
+    forget_done_in:
+      signature: "(tx: &mut Tx, workflow: &WorkflowId, version: i64, task: u32) -> Result<(), StorageError>"
+      # Inside Runs' marking write: deletes the task's rows.
+
+shared_in_transaction:
+  delete_project_in: "ProjectLifecycle's removal transaction: a removed project's verdicts and record go in the removal's own write"
+  record_done_in: "Runs' put_mark write: a done mark records its task's contract and verdict"
+  forget_done_in: "Runs' put_mark write: a not-done mark, or a done one with no contract, removes the task's record"
+
+obligations:
+  - rule: >
+      Only class, method, constructor and function symbols count, for promised
+      and unpromised alike, with struct, interface and enum counting as a
+      class; a variable, parameter, field, constant, property or module never
+      matches.
+    tested_by: document_symbols_count_classes_methods_and_functions_only
+  - rule: >
+      A method's class is its type: rust-analyzer's `impl X` / `impl Trait for
+      X` block (generics stripped) or gopls' `(*X).m` / `(X).m` gives `X`.
+      Neither an impl block nor a `tests` module is ever unpromised.
+    tested_by: [a_rust_impl_block_gives_its_methods_their_type,
+      an_impl_name_gives_its_type, a_gopls_receiver_name_gives_its_type,
+      live_a_rust_struct_and_its_impl_methods_are_found]
+  - rule: >
+      A truncated answer never makes a symbol missing: a name not in it is unchecked.
+    tested_by: a_truncated_answer_never_makes_a_symbol_missing
+  - rule: >
+      A dotted name `Class.method` matches only a method of that name inside that class.
+    tested_by: a_dotted_name_matches_a_method_in_its_class
+  - rule: >
+      Against a real language server, a promised function is found, a forgotten
+      one missing, an absent promised file makes its symbols missing, an
+      unpromised top-level function of a created file is listed without failing,
+      and a file no server reads is unchecked (not_run).
+    tested_by: [live_a_promised_function_is_found_and_a_forgotten_one_missing,
+      live_an_absent_promised_file_makes_its_symbols_missing,
+      live_an_unpromised_function_in_a_created_file_is_listed,
+      live_a_file_no_server_reads_is_unchecked]
+    note: >
+      Ignored in CI (needs pyright-langserver, and rust-analyzer for
+      live_a_rust_struct_and_its_impl_methods_are_found, on PATH); run with
+      --include-ignored.
+
+  - rule: >
+      A done record replaces the task's rows: files, promised symbols with their
+      verdict's state (unchecked without a verdict) and unpromised symbols; a
+      contract with no files or symbols records nothing; forgetting the task or
+      removing its project removes them.
+    tested_by: [done_writes_the_record_and_not_done_removes_it,
+      a_second_done_replaces_the_rows,
+      a_task_without_a_contract_records_nothing,
+      removing_the_project_removes_its_record]
+
+not_the_caller's:
+  - Read or write code_record_verdict, code_record_file, code_record_symbol or code_record_unpromised directly.
+  - Decide whether a symbol is found, missing or unchecked, or phrase the check's output.

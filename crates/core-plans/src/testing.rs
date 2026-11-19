@@ -47,8 +47,17 @@ impl Plans {
         expected_revision: i64,
         ops: &[PlanOp],
     ) -> Result<EditOutcome, crate::PlansError> {
+        let present = self.present_files(workflow, ops).await?;
         self.store
-            .edit_plan(ctx, writer, operation, workflow, expected_revision, ops)
+            .edit_plan(
+                ctx,
+                writer,
+                operation,
+                workflow,
+                expected_revision,
+                ops,
+                present.as_ref(),
+            )
             .await
     }
     pub async fn approve_plan_for_test(

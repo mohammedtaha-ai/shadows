@@ -142,6 +142,8 @@ pub struct SymbolWork {
     /// One of the task's files that it creates or modifies.
     pub path: String,
     pub kind: SymbolKind,
+    /// As the code writes it: a bare name (`refresh_token`), or `Class.method`
+    /// for a method of one class.
     pub name: String,
     #[serde(default)]
     pub inputs: Vec<ContractValue>,
@@ -286,6 +288,126 @@ pub struct ResolvedContract {
 
 /// The rules every stored contract holds.
 pub(super) struct ContractRules;
+
+impl ContractRules {
+    /// Every path a contract in `tasks` would create, modify or delete: what
+    /// the project's file list is asked about before an edit is saved.
+    pub(super) fn worked_paths<'a>(
+        tasks: impl IntoIterator<Item = &'a crate::TaskContent>,
+    ) -> Vec<String> {
+        let mut paths = BTreeSet::new();
+        for task in tasks {
+            for f in task.contract.iter().flat_map(|c| &c.files) {
+                if matches!(
+                    f.action,
+                    FileAction::Create | FileAction::Modify | FileAction::Delete
+                ) {
+                    paths.insert(f.path.clone());
+                }
+            }
+        }
+        paths.into_iter().collect()
+    }
+
+    /// The files a task in `checked` works on must agree with the project's
+    /// file list (`present`) and with the tasks it depends on, directly or
+    /// through others. A file it modifies or deletes must be present or
+    /// created by such a task, and never deleted by one. A file it creates
+    /// must not be present, unless such a task deletes it first, nor created
+    /// by such a task; a create the task already had before this edit
+    /// (`before`) is not checked again, since the task may have run and made
+    /// it. One problem per file, tasks ascending.
+    pub(super) fn file_problems(
+        before: &PlanContent,
+        content: &PlanContent,
+        checked: &[u32],
+        present: &std::collections::HashSet<String>,
+    ) -> Vec<Problem> {
+        let mut out = Vec::new();
+        let numbers: BTreeSet<u32> = checked.iter().copied().collect();
+        for n in numbers {
+            let Some(contract) = content.tasks.get(&n).and_then(|t| t.contract.as_ref()) else {
+                continue;
+            };
+            let ancestors = Self::ancestors(content, n);
+            let along = |action: FileAction, path: &str| {
+                ancestors.iter().any(|a| {
+                    content.tasks[a]
+                        .contract
+                        .iter()
+                        .flat_map(|c| &c.files)
+                        .any(|f| f.action == action && f.path == path)
+                })
+            };
+            let had_create = |path: &str| {
+                before
+                    .tasks
+                    .get(&n)
+                    .and_then(|t| t.contract.as_ref())
+                    .is_some_and(|c| {
+                        c.files
+                            .iter()
+                            .any(|f| f.action == FileAction::Create && f.path == path)
+                    })
+            };
+            for f in &contract.files {
+                let path = &f.path;
+                match f.action {
+                    FileAction::Modify | FileAction::Delete => {
+                        let verb = if f.action == FileAction::Modify {
+                            "modifies"
+                        } else {
+                            "deletes"
+                        };
+                        if along(FileAction::Delete, path) {
+                            out.push(Problem::new(format!(
+                                "T{n} {verb} `{path}`, which a task it depends on deletes"
+                            )));
+                        } else if !present.contains(path) && !along(FileAction::Create, path) {
+                            out.push(Problem::new(format!(
+                                "T{n} {verb} `{path}`, which the project does not have \
+                                 and no task it depends on creates"
+                            )));
+                        }
+                    }
+                    FileAction::Create if !had_create(path) => {
+                        if along(FileAction::Create, path) {
+                            out.push(Problem::new(format!(
+                                "T{n} creates `{path}`, which a task it depends on \
+                                 already creates: modify it instead"
+                            )));
+                        } else if present.contains(path) && !along(FileAction::Delete, path) {
+                            out.push(Problem::new(format!(
+                                "T{n} creates `{path}`, which the project already has: \
+                                 modify it instead, and ask Shadows (code_lsp) what it holds"
+                            )));
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+        out
+    }
+
+    /// The tasks `n` depends on through the plan's links, directly or through others.
+    fn ancestors(content: &PlanContent, n: u32) -> BTreeSet<u32> {
+        let mut found = BTreeSet::new();
+        let mut next = vec![n];
+        while let Some(task) = next.pop() {
+            for link in content.links.iter().filter(|l| l.task == task) {
+                if let Some(after) = link.after.local()
+                    && content.tasks.contains_key(&after)
+                    && after != n
+                    && found.insert(after)
+                {
+                    next.push(after);
+                }
+            }
+        }
+        found
+    }
+}
 
 impl ContractRules {
     /// What every stored contract must hold, tasks ascending, each task's
@@ -453,6 +575,13 @@ impl ContractRules {
             let id = &check.id;
             if id.trim().is_empty() || !checks.insert(id) {
                 say(format!("missing or repeated check id `{id}`"));
+            }
+            if id == "contract" {
+                say(
+                    "the check id `contract` is Shadows' own: it checks the contract's symbols \
+                     by name; choose another id"
+                        .into(),
+                );
             }
             if check
                 .run

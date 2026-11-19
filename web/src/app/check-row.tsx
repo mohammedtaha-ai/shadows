@@ -4,16 +4,20 @@ import { useId, useState } from 'react'
 import type { CheckResult } from '@/api/runs'
 
 /** `reported` is false where no executor reported the check, as on a recheck: the row then draws only Core's own run. */
-export function CheckRow({ check, reported = true }: { check: CheckResult; reported?: boolean }) {
+export function CheckRow({ check, reported: reportedByExecutor = true }: { check: CheckResult; reported?: boolean }) {
+  // Core marks the check Shadows runs itself: it has no command and nothing an executor reported.
+  const own = check.by_shadows
+  const reported = reportedByExecutor && !own
+  const title = own ? 'Contract' : check.id
   const [open, setOpen] = useState(false)
   const outputId = useId()
   const outcome = (value: string | null | undefined) => value?.replaceAll('_', ' ') ?? 'pending'
   return <li className="space-y-2 rounded-lg border border-border p-3">
     <div className="flex flex-wrap items-center gap-2">
-      <h4 className="font-semibold">T{check.for_task} · {check.id}</h4>
+      <h4 className="font-semibold">T{check.for_task} · {title}</h4>
       {reported && check.matches === false && <span className="rounded bg-warning/15 px-2 py-0.5 text-xs text-warning">Mismatch</span>}
     </div>
-    <p className="break-words font-mono text-xs">{check.run.join(' ')}</p>
+    {!own && <p className="break-words font-mono text-xs">{check.run.join(' ')}</p>}
     <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs">
       {reported && <span>Reported: {outcome(check.reported)}</span>}
       <span className={check.outcome === 'passed' ? 'text-success' : check.outcome != null ? 'text-warning' : 'text-muted-foreground'}>
@@ -27,7 +31,7 @@ export function CheckRow({ check, reported = true }: { check: CheckResult; repor
     {check.head_after != null && <p className="break-all font-mono text-xs text-muted-foreground">HEAD after: {check.head_after}</p>}
     {check.output != null && <div>
       <button type="button" aria-expanded={open} aria-controls={outputId}
-        aria-label={`${open ? 'Hide' : 'Show'} output for T${check.for_task} ${check.id}`} onClick={() => setOpen(!open)}
+        aria-label={`${open ? 'Hide' : 'Show'} output for T${check.for_task} ${title}`} onClick={() => setOpen(!open)}
         className="cursor-pointer text-xs text-accent-line underline underline-offset-2">{open ? 'Hide output' : 'Show output'}</button>
       {open && <div id={outputId} className="mt-2">
         {check.truncated && <p className="text-xs text-warning">Output truncated; showing its end.</p>}

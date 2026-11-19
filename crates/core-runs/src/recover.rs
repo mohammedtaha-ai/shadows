@@ -59,7 +59,13 @@ impl Runs {
                         continue;
                     }
                 };
-                if let Err(error) = runs.inner.store.clear_unfinished(&id).await {
+                // Under the project's checking lock, so a check another pass is running
+                // keeps its start.
+                let lock = runs.checking_lock(&attempt.project_id).await;
+                let held = lock.lock().await;
+                let cleared = runs.inner.store.clear_unfinished(&id).await;
+                drop(held);
+                if let Err(error) = cleared {
                     tracing::warn!(%id, %error, "runs.recover_clear_failed");
                     continue;
                 }
