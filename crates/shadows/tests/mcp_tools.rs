@@ -961,6 +961,23 @@ async fn the_planner_is_told_an_indexing_listing_is_not_complete() {
 }
 
 #[test]
+fn the_planner_is_told_to_write_tables_and_screens() {
+    let prompt = shadows_core::testing::PROMPT;
+    let expected = concat!(
+        "- design_element_put, design_element_delete, design_elements: the project's ",
+        "tables and screens live in Shadows' design, not in a task. Before a task ",
+        "builds a table or a screen, write it with design_element_put: a table in a ",
+        "database part, a screen in a frontend part, each serving the roadmap ",
+        "outcomes it is for. A table has its columns with their types, primary key ",
+        "and the column each foreign key refers to; a screen has its route and the ",
+        "screens it leads to, and when. A change is a new revision of the same id, ",
+        "never a second element with the same name. Read them with design_elements ",
+        "before you write one."
+    );
+    assert!(prompt.lines().any(|line| line == expected));
+}
+
+#[test]
 fn the_planner_sets_the_project_up_first() {
     let prompt = shadows_core::testing::PROMPT;
     let texts: &[&str] = &[

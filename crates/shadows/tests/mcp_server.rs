@@ -139,6 +139,9 @@ async fn the_tool_list_depends_on_the_grant_kind() {
             "code_lsp",
             "decision_list",
             "decision_propose",
+            "design_element_delete",
+            "design_element_put",
+            "design_elements",
             "draft_start",
             "executor_catalog",
             "map_approve",
@@ -268,6 +271,9 @@ async fn the_legacy_initialize_lifecycle_works_without_a_session() {
             "code_lsp",
             "decision_list",
             "decision_propose",
+            "design_element_delete",
+            "design_element_put",
+            "design_elements",
             "draft_start",
             "executor_catalog",
             "map_approve",
@@ -355,7 +361,7 @@ async fn the_discover_lifecycle_works_without_a_session() {
     let tools = answer["result"]["tools"]
         .as_array()
         .unwrap_or_else(|| panic!("{answer}"));
-    assert_eq!(tools.len(), 41, "{answer}");
+    assert_eq!(tools.len(), 44, "{answer}");
     for tool in ["task_executor_set", "executor_catalog"] {
         assert!(tools.iter().any(|item| item["name"] == tool), "{answer}");
     }

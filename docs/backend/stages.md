@@ -110,7 +110,7 @@ Dispatch is the controller's (Mohammed, 2026-11-19): the controller runs `backen
 
 ### B-176 · The Planner writes tables and screens
 
-- Status: todo
+- Status: done
 - Plan: [plans/2026-11-19-code-record-2a.md#task-b-176--the-planner-writes-tables-and-screens](plans/2026-11-19-code-record-2a.md#task-b-176--the-planner-writes-tables-and-screens)
 - Read: the plan's rulings; `crates/shadows-mcp/src/contract.yaml`;
   `crates/shadows-mcp/src/decision_tools.rs`; `crates/core-grants/contract.yaml` (`tools_for`);
