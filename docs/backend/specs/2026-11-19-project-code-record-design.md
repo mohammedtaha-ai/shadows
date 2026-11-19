@@ -65,7 +65,10 @@ is not a record taken after the fact.
    - it compares the code with the contract once the project is quiet (HEAD is the attempt's
      commit or a later one): for each contract file, the language server's classes, methods,
      constructors and functions (`documentSymbol`), matched to the contract's symbols by name (a
-     bare name at any depth, or `Class.method`). Each promised symbol is `found`, `missing` (not
+     bare name at any depth, or `Class.method`). A type-like kind (struct, interface, enum) counts
+     as a class. A method's class is its type: the type an `impl` block names (`impl X`,
+     `impl Trait for X`, generics stripped), or the receiver of a Go name `(*X).m` or `(X).m`;
+     an `impl` block or a module is not itself a symbol. Each promised symbol is `found`, `missing` (not
      in a complete answer, or its file does not exist), or `unchecked` (no language server reads
      the file, or the answer was cut short and did not hold it). A top-level class or function in
      a file the task created that no contract names is `unpromised`.

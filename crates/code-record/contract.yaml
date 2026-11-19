@@ -75,7 +75,8 @@ shapes:
   VerdictOutcome:
     values: [passed, failed, not_run]
   Found:
-    # One counted documentSymbol: its name, the counted symbol it is in, top level.
+    # One counted documentSymbol: its name, its type or the counted symbol it is
+    # in, top level.
     name: String
     parent: Option<String>
     top: bool
@@ -120,9 +121,22 @@ functions:
     document_symbols:
       signature: "(result: &Value) -> Vec<Found>"
       private: true
-      # Kinds class (5), method (6), constructor (9), function (12) only, at
-      # any depth; a DocumentSymbol tree (`children`) or a flat
-      # SymbolInformation list (`containerName`).
+      # Kinds class (5), method (6), constructor (9), enum (10), interface (11),
+      # function (12) and struct (23) only, at any depth; a DocumentSymbol tree
+      # (`children`) or a flat SymbolInformation list (`containerName`). An
+      # `impl` block (kind 19, rust-analyzer) is no symbol: its children's
+      # parent is `owner`'s type, and they are not top-level. A gopls
+      # `(*X).m` or `(X).m` is `m` with parent `X` (`receiver`), not top-level.
+    owner:
+      signature: "(container: &str) -> &str"
+      private: true
+      # `impl X`, `impl<T> X<T>`, `impl Trait for X`, `impl<T> Trait for p::X<T>`
+      # give `X`: after `for` if present, else after `impl` and its `<...>`,
+      # generic arguments stripped, last path segment. Any other name is itself.
+    receiver:
+      signature: "(name: &str) -> Option<(&str, &str)>"
+      private: true
+      # A gopls method name `(*X).m` or `(X).m` as (`m`, `X`); else None.
     matches:
       signature: "(name: &str, found: &Found) -> bool"
       private: true
@@ -175,8 +189,17 @@ shared_in_transaction:
 obligations:
   - rule: >
       Only class, method, constructor and function symbols count, for promised
-      and unpromised alike; a variable, parameter or field never matches.
+      and unpromised alike, with struct, interface and enum counting as a
+      class; a variable, parameter, field, constant, property or module never
+      matches.
     tested_by: document_symbols_count_classes_methods_and_functions_only
+  - rule: >
+      A method's class is its type: rust-analyzer's `impl X` / `impl Trait for
+      X` block (generics stripped) or gopls' `(*X).m` / `(X).m` gives `X`.
+      Neither an impl block nor a `tests` module is ever unpromised.
+    tested_by: [a_rust_impl_block_gives_its_methods_their_type,
+      an_impl_name_gives_its_type, a_gopls_receiver_name_gives_its_type,
+      live_a_rust_struct_and_its_impl_methods_are_found]
   - rule: >
       A truncated answer never makes a symbol missing: a name not in it is unchecked.
     tested_by: a_truncated_answer_never_makes_a_symbol_missing
@@ -192,7 +215,10 @@ obligations:
       live_an_absent_promised_file_makes_its_symbols_missing,
       live_an_unpromised_function_in_a_created_file_is_listed,
       live_a_file_no_server_reads_is_unchecked]
-    note: Ignored in CI (needs pyright-langserver on PATH); run with --include-ignored.
+    note: >
+      Ignored in CI (needs pyright-langserver, and rust-analyzer for
+      live_a_rust_struct_and_its_impl_methods_are_found, on PATH); run with
+      --include-ignored.
 
   - rule: >
       A done record replaces the task's rows: files, promised symbols with their

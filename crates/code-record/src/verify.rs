@@ -19,8 +19,13 @@ const RETRY_EVERY: Duration = Duration::from_secs(5);
 /// The longest a file waits for such a server.
 const RETRY_FOR: Duration = Duration::from_secs(120);
 
-/// The `documentSymbol` kinds that count: class, method, constructor, function.
-const COUNTED: [u64; 4] = [5, 6, 9, 12];
+/// The `documentSymbol` kinds that count: class, method, constructor, enum,
+/// interface, function and struct. Enum, interface and struct are the
+/// languages' type-like kinds and match a contract's `class`. Field, variable,
+/// constant, property and module never count.
+const COUNTED: [u64; 7] = [5, 6, 9, 10, 11, 12, 23];
+/// Kind Object, which rust-analyzer gives an `impl` block.
+const IMPL: u64 = 19;
 
 /// One counted symbol of a `documentSymbol` answer.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -163,17 +168,28 @@ impl CodeRecord {
 
     /// The counted symbols of a `documentSymbol` result, at any depth: a
     /// `DocumentSymbol` tree (`children`) or a flat `SymbolInformation` list
-    /// (`containerName`). A variable, parameter or field is never counted.
+    /// (`containerName`). A variable, parameter, field or module is never
+    /// counted. A method's parent is its type, which `owner` reads from an
+    /// `impl` block and `receiver` from a gopls `(*X).m`; either makes it not
+    /// top-level, and an `impl` block is no symbol of its own.
     fn document_symbols(result: &Value) -> Vec<Found> {
         fn walk(items: &Value, parent: Option<&str>, top: bool, out: &mut Vec<Found>) {
             for item in items.as_array().into_iter().flatten() {
                 let name = item.get("name").and_then(Value::as_str);
                 let kind = item.get("kind").and_then(Value::as_u64);
-                let counted = kind.is_some_and(|k| COUNTED.contains(&k));
                 let flat_parent = item.get("containerName").and_then(Value::as_str);
                 let (parent, top) = match flat_parent {
-                    Some(c) if !c.is_empty() => (Some(c), false),
+                    Some(c) if !c.is_empty() => (Some(CodeRecord::owner(c)), false),
                     _ => (parent, top),
+                };
+                let impl_of = name
+                    .filter(|_| kind == Some(IMPL))
+                    .map(CodeRecord::owner)
+                    .filter(|owner| Some(*owner) != name);
+                let counted = impl_of.is_none() && kind.is_some_and(|k| COUNTED.contains(&k));
+                let (name, parent, top) = match name.and_then(CodeRecord::receiver) {
+                    Some((method, receiver)) => (Some(method), Some(receiver), false),
+                    None => (name, parent, top),
                 };
                 if let (Some(name), true) = (name, counted) {
                     out.push(Found {
@@ -183,7 +199,11 @@ impl CodeRecord {
                     });
                 }
                 if let Some(children) = item.get("children") {
-                    let next = if counted { name } else { parent };
+                    let next = match impl_of {
+                        Some(owner) => Some(owner),
+                        None if counted => name,
+                        None => parent,
+                    };
                     walk(children, next, false, out);
                 }
             }
@@ -191,6 +211,62 @@ impl CodeRecord {
         let mut out = Vec::new();
         walk(result, None, true, &mut out);
         out
+    }
+
+    /// The type a container stands for. rust-analyzer names an `impl` block
+    /// (`impl<T> Trait for path::X<T>`) rather than its type: the type is the
+    /// part after `for` (else after `impl` and its `<...>`), without its
+    /// generic arguments, at its last path segment. Any other name is itself.
+    fn owner(container: &str) -> &str {
+        let Some(rest) = container.strip_prefix("impl") else {
+            return container;
+        };
+        if !rest.starts_with([' ', '<']) {
+            return container;
+        }
+        let mut ty = rest.trim_start();
+        let mut depth = 0usize;
+        let mut generics_end = None;
+        for (i, c) in ty.char_indices() {
+            match c {
+                '<' => depth += 1,
+                '>' => depth = depth.saturating_sub(1),
+                _ => {}
+            }
+            if i == 0 && c != '<' {
+                break;
+            }
+            if depth == 0 {
+                generics_end = Some(i + 1);
+                break;
+            }
+        }
+        if let Some(end) = generics_end {
+            ty = &ty[end..];
+        }
+        let mut depth = 0usize;
+        for (i, c) in ty.char_indices() {
+            match c {
+                '<' => depth += 1,
+                '>' => depth = depth.saturating_sub(1),
+                ' ' if depth == 0 && ty[i..].starts_with(" for ") => {
+                    ty = &ty[i + " for ".len()..];
+                    break;
+                }
+                _ => {}
+            }
+        }
+        let ty = ty.trim();
+        let ty = ty.split_once('<').map_or(ty, |(head, _)| head).trim_end();
+        ty.rsplit("::").next().unwrap_or(ty)
+    }
+
+    /// A gopls method name, `(*X).m` or `(X).m`, as its method and its type.
+    fn receiver(name: &str) -> Option<(&str, &str)> {
+        let (receiver, method) = name.strip_prefix('(')?.split_once(").")?;
+        let receiver = receiver.trim_start_matches('*');
+        let receiver = receiver.split_once('[').map_or(receiver, |(head, _)| head);
+        Some((method, receiver))
     }
 
     /// Whether a contract name matches a counted symbol: exactly, at any
@@ -448,5 +524,126 @@ mod tests {
                 name: "login".into()
             }]
         );
+    }
+
+    /// What rust-analyzer 1.97 answers for a struct with two `impl` blocks, a
+    /// test module, and one free function.
+    fn rust_analyzer_answer() -> Value {
+        json!([
+            { "name": "Store", "kind": 23, "children": [
+                { "name": "notes", "kind": 8 },
+                { "name": "next_id", "kind": 8 }
+            ]},
+            { "name": "impl Store", "kind": 19, "children": [
+                { "name": "new", "kind": 12 },
+                { "name": "add", "kind": 6 },
+                { "name": "delete", "kind": 6 },
+                { "name": "list_all", "kind": 6 }
+            ]},
+            { "name": "impl Default for Store", "kind": 19, "children": [
+                { "name": "default", "kind": 12 }
+            ]},
+            { "name": "helper", "kind": 12 },
+            { "name": "tests", "kind": 2, "children": [
+                { "name": "add_gives_the_next_id", "kind": 12 }
+            ]}
+        ])
+    }
+
+    fn store_contract(path: &str, prefix: &str) -> TaskContract {
+        let names: Vec<String> = ["new", "add", "delete", "list_all"]
+            .iter()
+            .map(|m| format!("{prefix}{m}"))
+            .collect();
+        let mut symbols = vec![("s0", path, "Store")];
+        for (id, name) in ["s1", "s2", "s3", "s4"].iter().zip(&names) {
+            symbols.push((id, path, name));
+        }
+        contract(&[(path, FileAction::Create)], &symbols)
+    }
+
+    #[test]
+    fn a_rust_impl_block_gives_its_methods_their_type() {
+        let c = store_contract("src/store.rs", "Store.");
+        let answers = BTreeMap::from([(
+            "src/store.rs".to_string(),
+            FileAnswer::Symbols {
+                found: CodeRecord::document_symbols(&rust_analyzer_answer()),
+                truncated: false,
+            },
+        )]);
+        let verdict = CodeRecord::compare(1, &c, &answers);
+        let states: Vec<SymbolState> = verdict.symbols.iter().map(|s| s.state).collect();
+        assert_eq!(states, vec![SymbolState::Found; 5], "{verdict:?}");
+        // No impl block and no test module is unpromised; the free function is.
+        assert_eq!(
+            verdict.unpromised,
+            vec![Unpromised {
+                path: "src/store.rs".into(),
+                name: "helper".into()
+            }]
+        );
+    }
+
+    #[test]
+    fn an_impl_name_gives_its_type() {
+        let cases = [
+            ("impl Store", "Store"),
+            ("impl<T> Store<T>", "Store"),
+            ("impl Default for Store", "Store"),
+            (
+                "impl<T: Clone> From<Vec<T>> for crate::store::Store<T>",
+                "Store",
+            ),
+            ("Auth", "Auth"),
+        ];
+        for (container, owner) in cases {
+            assert_eq!(CodeRecord::owner(container), owner, "{container}");
+        }
+    }
+
+    #[test]
+    fn a_gopls_receiver_name_gives_its_type() {
+        let flat = json!([
+            { "name": "Store", "kind": 23, "location": {} },
+            { "name": "(*Store).Add", "kind": 6, "location": {} },
+            { "name": "(Store).Len", "kind": 6, "location": {} },
+            { "name": "Reader", "kind": 11, "location": {} }
+        ]);
+        let tree = json!([
+            { "name": "Store", "kind": 23, "children": [
+                { "name": "items", "kind": 8 }
+            ]},
+            { "name": "(*Store).Add", "kind": 6 },
+            { "name": "(Store).Len", "kind": 6 },
+            { "name": "Reader", "kind": 11 }
+        ]);
+        let c = contract(
+            &[("store.go", FileAction::Create)],
+            &[
+                ("s1", "store.go", "Store"),
+                ("s2", "store.go", "Store.Add"),
+                ("s3", "store.go", "Store.Len"),
+            ],
+        );
+        for answer in [flat, tree] {
+            let answers = BTreeMap::from([(
+                "store.go".to_string(),
+                FileAnswer::Symbols {
+                    found: CodeRecord::document_symbols(&answer),
+                    truncated: false,
+                },
+            )]);
+            let verdict = CodeRecord::compare(1, &c, &answers);
+            let states: Vec<SymbolState> = verdict.symbols.iter().map(|s| s.state).collect();
+            assert_eq!(states, vec![SymbolState::Found; 3], "{verdict:?}");
+            assert_eq!(
+                verdict.unpromised,
+                vec![Unpromised {
+                    path: "store.go".into(),
+                    name: "Reader".into()
+                }]
+            );
+        }
     }
 }

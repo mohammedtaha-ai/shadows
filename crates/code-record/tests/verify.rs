@@ -1,4 +1,5 @@
-//! The comparison against a real `pyright-langserver`, on a temporary Python project.
+//! The comparison against a real `pyright-langserver` and `rust-analyzer`, on
+//! temporary Python and Cargo projects.
 
 use std::path::Path;
 use std::sync::Arc;
@@ -191,6 +192,80 @@ async fn live_an_unpromised_function_in_a_created_file_is_listed() {
         }]
     );
     assert_eq!(verdict.lines(), "unpromised: helper in auth/tokens.py.");
+    f.close().await;
+}
+
+const CARGO_TOML: &str = "[package]\nname = \"notes\"\nversion = \"0.1.0\"\nedition = \"2024\"\n";
+
+const STORE: &str = r#"pub struct Store {
+    notes: Vec<(u32, String)>,
+    next_id: u32,
+}
+
+impl Store {
+    pub fn new() -> Store {
+        Store { notes: Vec::new(), next_id: 1 }
+    }
+
+    pub fn add(&mut self, text: &str) -> u32 {
+        let id = self.next_id;
+        self.next_id += 1;
+        self.notes.push((id, text.to_string()));
+        id
+    }
+
+    pub fn delete(&mut self, id: u32) -> bool {
+        let before = self.notes.len();
+        self.notes.retain(|(n, _)| *n != id);
+        self.notes.len() != before
+    }
+
+    pub fn list_all(&self) -> Vec<(u32, String)> {
+        self.notes.clone()
+    }
+}
+
+impl Default for Store {
+    fn default() -> Store {
+        Store::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Store;
+
+    #[test]
+    fn add_gives_the_next_id() {
+        assert_eq!(Store::new().add("a"), 1);
+    }
+}
+"#;
+
+#[tokio::test]
+#[ignore = "needs rust-analyzer on PATH"]
+async fn live_a_rust_struct_and_its_impl_methods_are_found() {
+    let f = Fixture::new(&[
+        ("Cargo.toml", CARGO_TOML),
+        ("src/lib.rs", "pub mod store;\n"),
+        ("src/store.rs", STORE),
+    ])
+    .await;
+    let c = contract(
+        &[("src/store.rs", FileAction::Create)],
+        &[
+            ("s1", "src/store.rs", "Store"),
+            ("s2", "src/store.rs", "Store.new"),
+            ("s3", "src/store.rs", "Store.add"),
+            ("s4", "src/store.rs", "Store.delete"),
+            ("s5", "src/store.rs", "Store.list_all"),
+        ],
+    );
+    let verdict = f.record.verify("a5", &f.project, 5, &c).await.unwrap();
+    let states: Vec<SymbolState> = verdict.symbols.iter().map(|s| s.state).collect();
+    assert_eq!(states, vec![SymbolState::Found; 5], "{verdict:?}");
+    assert_eq!(verdict.outcome(), VerdictOutcome::Passed);
+    assert!(verdict.unpromised.is_empty(), "{verdict:?}");
     f.close().await;
 }
 
