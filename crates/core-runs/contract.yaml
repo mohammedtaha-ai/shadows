@@ -364,7 +364,7 @@ obligations:
     tested_by: [start_opens_one_attempt_on_an_executor_thread]
   - rule: A report is refused with DirtyScope while the task's writes hold uncommitted changes; the attempt stays Running, and a change outside writes does not refuse it.
     tested_by: [a_report_is_refused_while_writes_hold_uncommitted_changes]
-  - rule: The first prompt names only the task number and says how the work ends (commit your own files, leave nothing uncommitted inside the task's writes, then task_report; if nothing needs to change, commit nothing and say why in a last message); the executor reads its task with task_context naming no plan version, which Plans answers from its grant. The live run uses the production prompt.
+  - rule: The first prompt names only the task number and says how the work ends (commit your own files, leave nothing uncommitted inside the task's writes, then task_report; if nothing needs to change, commit nothing and say why in a last message), and that a contract's symbols are checked by name after the commit, so their names stay as written; the executor reads its task with task_context naming no plan version, which Plans answers from its grant. The live run uses the production prompt.
     tested_by: [the_first_prompt_says_how_an_attempt_ends, live_an_executor_commits_its_own_work_and_reports_it, an_executor_grant_reads_only_its_own_task]
   - rule: The same command id answers the same attempt, even once the plan could not start it; the same id with other input is a conflict.
     tested_by: [the_same_command_returns_the_same_attempt]

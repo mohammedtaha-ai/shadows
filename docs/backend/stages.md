@@ -74,6 +74,7 @@ this file at `db760593`.
 - Slice 6's live test (`stop_control_live`) and its evidence file were dropped (Mohammed, 2026-11-16).
 - B-150 keeps its own per-thread message queue beside Turns' queue; reusing Turns' queue needs the executor session restored by thread.
 - The web derives "stopped on the additions cap" itself; a Core field on `TaskRun` should own it.
+- `checks::checks_of_one_project_run_one_at_a_time` (`crates/shadows-core/tests/runs_attempts/checks.rs`) fails when the whole `runs_attempts` suite runs and passes alone (5 of 5), on this branch on 2026-11-19; it still fails with B-171's contract path switched off, so it is older than B-171. Not yet traced; the full gate before the PR must pass it.
 - When B-167's file check is skipped (no project folder, first listing running), the Planner is not told; it saw a like edit refused before and could not tell why.
 - A Planner's `Read` (Claude) and read-only sandbox (Codex) can read any file the account can, outside the project too; only its instructions keep it in the project. Accepted as is by Mohammed on 2026-11-18.
 
@@ -89,7 +90,7 @@ this file at `db760593`.
 
 ### B-171 · Runs runs the `contract` check
 
-- Status: todo (needs B-170; the seam is amended into the plan: it lives in `CodeRecord`)
+- Status: done (built by backend-builder at `1ef4cda`, steps 1 to 4 and 6, with the seam in `CodeRecord`; the controller put step 5's line in the executor's first prompt (`FIRST_PROMPT`) instead of a new `AttemptBrief` field, so no API changes for it, and regenerated `api/openapi.json` and `web/src/api/schema.d.ts` for B-170's `SymbolWork::name` text. Seven tests pass, the real-pyright one with `--include-ignored`; break-checks: dropping the `not_run` exclusion from `returnable_checks`, and switching off the contract path, each fail the contract tests. The Planner's notice reads `contract not_run` and points to `task_checks` for the output; `notify.rs` is unchanged)
 - Plan: [plans/2026-11-19-code-record.md#task-b-171--runs-runs-the-contract-check](plans/2026-11-19-code-record.md#task-b-171--runs-runs-the-contract-check)
 - Read: the plan's "Rulings for every task"; the plan's "What is reused"; `crates/core-runs/contract.yaml`; executors design §5.4.
 - Touch: the plan task's Files.

@@ -4094,6 +4094,10 @@ export interface components {
             id: string;
             inputs?: components["schemas"]["ContractValue"][];
             kind: components["schemas"]["SymbolKind"];
+            /**
+             * @description As the code writes it: a bare name (`refresh_token`), or `Class.method`
+             *     for a method of one class.
+             */
             name: string;
             /** @description One of the task's files that it creates or modifies. */
             path: string;

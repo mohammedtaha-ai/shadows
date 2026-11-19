@@ -72,8 +72,9 @@ use store::RunsStore;
 /// `task_brief` answers the context saved for the executor's own attempt. It
 /// says how the work ends, because the executor makes its own commit.
 const FIRST_PROMPT: &str = "Do task T{n}. Read it first: call task_brief, which answers the task \
-    and the context saved for this attempt. {commit} If nothing needs to change, commit nothing \
-    and end with a last message saying why.";
+    and the context saved for this attempt. When its contract names symbols, Shadows checks by name \
+    that each one exists in its file after your commit: keep the names as written. {commit} If \
+    nothing needs to change, commit nothing and end with a last message saying why.";
 
 /// How an executor commits in a folder other executors may share, as its
 /// first turn and every addition say it: Git's own `--only` commit of its
@@ -380,6 +381,7 @@ mod tests {
             "never delete the lock",
             "reported as not run, never as passed",
             "call task_brief",
+            "Shadows checks by name that each one exists in its file after your commit",
         ] {
             assert!(prompt.contains(text), "{text}");
         }

@@ -158,9 +158,10 @@ contract.yaml}` (the seam below); `crates/core-plans/src/task_contract.rs` and i
 3. `returnable_checks` excludes a `contract` row whose outcome is `not_run`.
 4. `put_mark`'s reason rule: a `contract` row unfinished counts as "no finished result" (needs a
    reason, as an unfinished check does); one finished `not_run` does not need a reason.
-5. The executor's brief (`brief.rs`) gains one line when its contract has symbols: "Shadows checks
-   by name that each symbol in your contract exists in its file after your commit; keep the names
-   as written."
+5. The executor's first prompt (`FIRST_PROMPT` in `src/lib.rs`, every executor reads it) gains:
+   "When its contract names symbols, Shadows checks by name that each one exists in its file after
+   your commit: keep the names as written." (Amended 2026-11-19: the brief is an API answer, and a
+   new field there would change `api/openapi.json` for one sentence.)
 6. Plans refuses a task check whose id is `contract`.
 
 **The test seam lives in `CodeRecord`** (amended 2026-11-19 on the builder's report: a field on

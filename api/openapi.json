@@ -7842,6 +7842,7 @@
             "$ref": "#/components/schemas/SymbolKind"
           },
           "name": {
+            "description": "As the code writes it: a bare name (`refresh_token`), or `Class.method`\nfor a method of one class.",
             "type": "string"
           },
           "path": {
