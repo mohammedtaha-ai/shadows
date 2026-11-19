@@ -1,7 +1,7 @@
 # The project's code record: the Planner asks, it never guesses
 
-Status: draft for Mohammed's review, 2026-11-19. The direction (who writes which part) was agreed
-with Mohammed on 2026-11-19; the owner (§8) and the slices (§9) wait for his ruling.
+Status: approved by Mohammed, 2026-11-19: the direction (who writes which part) and the owner,
+a new service (§8). Slice 1 is B-170. Whether the task page shows the gaps (§9) is open.
 
 Builds on the [task contract](../../core/specs/2026-10-01-task-contracts-and-evidence-design.md#the-task-contract)
 (§17), the [language-server design](2026-11-13-language-servers-design.md) (`code_lsp`) and the
@@ -53,11 +53,15 @@ Lines are not stored: they move with every edit. A question answers them live (�
 
 ## 4. When it is made
 
-When a task is marked done (Runs), Shadows takes the task's contract and its accepted attempt's
-commit, asks the project's language server for each contract file's symbols (`documentSymbol`),
+When a task is marked done, Runs calls `CodeRecord::record_done` with the facts it owns (the
+plan version, the task, and the judged attempt's commit). The record takes the task's contract
+from Plans and the commit, asks the project's language server for each contract file's symbols (`documentSymbol`),
 matches them to the contract by name and kind, and writes the file and symbol entries and the
-gaps. A task marked done again later (a rework) replaces its own entries. Nothing is written for a
-task without a contract.
+gaps. A task marked done again later (a rework) replaces its own entries; a task marked not done
+loses them (`CodeRecord::forget_done`). Nothing is written for a task without a contract. The
+record is made after the mark is stored, off the mark's path, so a slow language server never
+delays a done mark. The map part and layer of a file are found when a question is answered
+(slice 2), not stored.
 
 ## 5. Asking it: `code_where`
 
@@ -100,17 +104,11 @@ later slice.
 
 ## 8. Owner
 
-**OPEN, for Mohammed:** which service owns the record.
-
-- **(a) A new service, `CodeRecord` (crate `code-record`).** It owns the record's tables and the
-  rule "what a done task left in the code". It depends on Plans (the contract), Runs (the done
-  mark and the commit), Design (the map's parts and layers) and Codebase (the language servers).
-  Runs tells it a task is done; `code_where` is its method. Recommended: one job, one owner, and
-  none of the four grows a second job.
-- **(b) Plans.** It owns the contracts already; it would gain a dependency on Runs and the
-  record's tables, and a second job ("what the code holds") beside "the plan's lifecycle".
-
-Closes when Mohammed picks one.
+A new service, `CodeRecord` (crate `code-record`), owns the record's tables and the rule "what a
+done task left in the code" (Mohammed, 2026-11-19, over making it part of Plans). It depends on
+Plans (the contract) and Codebase (the language servers), and on Design for the map in slice 2.
+Runs depends on it and calls it when a mark is stored, supplying the commit; so dependencies stay
+one way (Runs → CodeRecord → Plans, Codebase). `code_where` is its method.
 
 ## 9. Slices
 
