@@ -26,8 +26,9 @@ Report tab's contract row (F-129). Now, on `ccr-9e1b02d8-b0ylm1`: slice 2 of the
 plans on this one branch (Mohammed, 2026-11-19; design §5, §8, §9 of
 `docs/backend/specs/2026-11-19-project-code-record-design.md`). Plan 2a,
 `docs/backend/plans/2026-11-19-code-record-2a.md`: tables and screens as Design's elements (§18.13),
-pinned by task contracts, their states from the record, and `project_state`. Its tasks are below. Plan
-2b (`code_where`) is written after 2a.
+pinned by task contracts, their states from the record, and `project_state` (B-175 to B-181). Plan 2b,
+`docs/backend/plans/2026-11-19-code-record-2b.md`: `code_where` (B-182 to B-186). The controller
+dispatches the builders and fixers (Mohammed, 2026-11-19); the backend lead prepares and checks.
 
 ### Shipped
 
@@ -92,6 +93,8 @@ this file at `db760593`.
 Slice 2a of the code record. Plan: `docs/backend/plans/2026-11-19-code-record-2a.md`. Shared request:
 `docs/shared/requests/2026-11-19-project-state-and-diagrams.md` (answered, waiting for Masada).
 The plan's "Rulings for every task" and "Gate files every task here touches" bind every task below.
+Dispatch is the controller's (Mohammed, 2026-11-19): the controller runs `backend-builder` and
+`backend-fixer` on these tasks; the backend lead prepares them and checks each report.
 
 ### B-175 · Design owns tables and screens
 
@@ -140,13 +143,13 @@ The plan's "Rulings for every task" and "Gate files every task here touches" bin
 
 ### B-179 · `ProjectState`: the project's state, and the `project_state` tool
 
-- Status: blocked (Mohammed confirms the new owner `ProjectState`, plan Ruling 7; then on B-178)
+- Status: blocked (on B-178; its owner `ProjectState` was approved by Mohammed on 2026-11-19)
 - Plan: [plans/2026-11-19-code-record-2a.md#task-b-179--projectstate-the-projects-state-and-the-project_state-tool](plans/2026-11-19-code-record-2a.md#task-b-179--projectstate-the-projects-state-and-the-project_state-tool)
 - Read: the plan's rulings; `crates/shadows-core/src/app.rs` (`assemble_services`);
   `crates/core-runs/contract.yaml` (`progress`); `crates/core-plans/contract.yaml` (`list`,
   `plan_parts_in`); `docs/codebase/contracts/TEMPLATE.yaml`; design §5.3, §8.
 - Touch: the plan task's Files.
-- Needs: B-178; Mohammed's confirmation.
+- Needs: B-178.
 - Done when: the plan task's "Done when".
 
 ### B-180 · Routes and events for the web
@@ -165,4 +168,55 @@ The plan's "Rulings for every task" and "Gate files every task here touches" bin
 - Plan: [plans/2026-11-19-code-record-2a.md#task-b-181--acceptance-on-a-real-provider-2a](plans/2026-11-19-code-record-2a.md#task-b-181--acceptance-on-a-real-provider-2a)
 - Touch: `docs/evidence/` (one new file); this entry's status.
 - Needs: B-176 to B-180; the frontend's tasks under the shared request.
+- Done when: the evidence file records the three steps as they happened.
+
+Slice 2b of the code record: `code_where`. Plan: `docs/backend/plans/2026-11-19-code-record-2b.md`.
+Shared request for its route: `docs/shared/requests/2026-11-19-code-where.md` (answered, waiting for
+Masada). The plan's rulings and gate list bind every task below; dispatch is the controller's.
+
+### B-182 · `code_where`, Shadows' half: the record read and ranked
+
+- Status: blocked (on B-178)
+- Plan: [plans/2026-11-19-code-record-2b.md#task-b-182--code_where-shadows-half-the-record-read-and-ranked](plans/2026-11-19-code-record-2b.md#task-b-182--code_where-shadows-half-the-record-read-and-ranked)
+- Read: the plan's rulings and reuse table; `crates/code-record/contract.yaml`;
+  `crates/code-record/src/store/mod.rs`; `crates/core-design/src/layout.rs` (`owners`); design §5.3.
+- Touch: the plan task's Files.
+- Needs: B-178.
+- Done when: the plan task's "Done when".
+
+### B-183 · `code_where`, the code's half: confirmed within a budget
+
+- Status: blocked (on B-182)
+- Plan: [plans/2026-11-19-code-record-2b.md#task-b-183--code_where-the-codes-half-confirmed-within-a-budget](plans/2026-11-19-code-record-2b.md#task-b-183--code_where-the-codes-half-confirmed-within-a-budget)
+- Read: the plan's rulings; `crates/code-record/src/verify.rs` (`ask`, `document_symbols`,
+  `matches`); `crates/codebase/contract.yaml` (`lsp`, `missing_inputs`, `inventory`).
+- Touch: the plan task's Files.
+- Needs: B-182.
+- Done when: the plan task's "Done when", including its real-pyright tests run here with `--include-ignored`.
+
+### B-184 · The `code_where` tool, and the Planner asks first
+
+- Status: blocked (on B-183 and B-179)
+- Plan: [plans/2026-11-19-code-record-2b.md#task-b-184--the-code_where-tool-and-the-planner-asks-first](plans/2026-11-19-code-record-2b.md#task-b-184--the-code_where-tool-and-the-planner-asks-first)
+- Read: the plan's rulings; `crates/shadows-mcp/src/contract.yaml`;
+  `crates/core-grants/contract.yaml` (`tools_for`); `crates/core-harness/contract.yaml`.
+- Touch: the plan task's Files.
+- Needs: B-183, B-179.
+- Done when: the plan task's "Done when".
+
+### B-185 · The `code_where` route
+
+- Status: blocked (the shared request `2026-11-19-code-where.md` is not accepted; then on B-183)
+- Plan: [plans/2026-11-19-code-record-2b.md#task-b-185--the-code_where-route](plans/2026-11-19-code-record-2b.md#task-b-185--the-code_where-route)
+- Read: the plan's rulings; `crates/shadows-http/src/contract.yaml`; the shared request.
+- Touch: the plan task's Files.
+- Needs: B-183; the shared request accepted.
+- Done when: the plan task's "Done when".
+
+### B-186 · Acceptance on a real provider (2b)
+
+- Status: blocked (on B-184 and B-181)
+- Plan: [plans/2026-11-19-code-record-2b.md#task-b-186--acceptance-on-a-real-provider-2b](plans/2026-11-19-code-record-2b.md#task-b-186--acceptance-on-a-real-provider-2b)
+- Touch: `docs/evidence/` (one new file); this entry's status.
+- Needs: B-184; B-181 run on the same project.
 - Done when: the evidence file records the three steps as they happened.

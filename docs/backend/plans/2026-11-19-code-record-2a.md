@@ -5,7 +5,9 @@ Design: [`../specs/2026-11-19-project-code-record-design.md`](../specs/2026-11-1
 [§18.13](../../core/specs/2026-10-03-project-planning-workspace-design.md#1813-tables-and-screens-design-elements-mohammed-2026-11-19);
 the pins are [§17 "The task contract"](../../core/specs/2026-10-01-task-contracts-and-evidence-design.md#the-task-contract).
 Shared request: [`../../shared/requests/2026-11-19-project-state-and-diagrams.md`](../../shared/requests/2026-11-19-project-state-and-diagrams.md).
-Branch: `ccr-9e1b02d8-b0ylm1`; plan 2b (`code_where`) follows on the same branch.
+Branch: `ccr-9e1b02d8-b0ylm1`; plan 2b ([`2026-11-19-code-record-2b.md`](2026-11-19-code-record-2b.md),
+`code_where`) follows on the same branch. Dispatch: the controller runs the builders and fixers
+(Mohammed, 2026-11-19); the backend lead prepares the tasks and checks the reports.
 
 ## Rulings for every task
 
@@ -28,8 +30,7 @@ From Mohammed, 2026-11-19, unless marked otherwise.
    the plan is Active.
 7. **`ProjectState` is a new service** (crate `project-state`). It composes and holds no table.
    CodeRecord cannot own `project_state`: task progress is Runs', and Runs depends on CodeRecord.
-   This departs from the earlier ruling "CodeRecord owns project state", **so B-179 is blocked until
-   Mohammed confirms it**. B-175 to B-178 do not depend on it.
+   Mohammed approved it on 2026-11-19, over the earlier "CodeRecord owns project state".
 8. **The frontend sees nothing before the shared request is accepted.** A task that changes
    `api/openapi.json` (a route, or a type a route serializes, such as `TaskContract` and
    `TaskContext`) or the project event stream's kinds is blocked until it is.
@@ -747,7 +748,7 @@ Unit tests in `src/elements.rs`, over `judge`:
 
 ## Task B-179 · `ProjectState`: the project's state, and the `project_state` tool
 
-**Status at writing:** blocked until Mohammed confirms the new owner (Ruling 7).
+**Status at writing:** waits on B-178. Its owner was approved by Mohammed on 2026-11-19 (Ruling 7).
 
 **Files:**
 - **Create:**
@@ -773,7 +774,7 @@ Unit tests in `src/elements.rs`, over `judge`:
   - the architecture gate (`project-state` in the services list and as an allowed dependent of
     `core-design`, `core-plans`, `core-runs`, `code-record`).
 - **Not:** a route (B-180); the events (B-180).
-- **Needs:** B-178; Mohammed's confirmation of Ruling 7.
+- **Needs:** B-178.
 
 **Plans' read** (`live_versions.rs`, `impl Plans`):
 

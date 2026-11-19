@@ -98,8 +98,8 @@ Reading the shapes:
 
 As written above. The backend drafted it from the ruled design, so these are the shapes the backend
 builds:
-- `ProjectState` (new crate `project-state`, B-179) composes Design, Plans, Runs and CodeRecord, and
-  its owner awaits Mohammed's confirmation. Its methods `state` and `elements` serve the first two
+- `ProjectState` (new crate `project-state`, B-179) composes Design, Plans, Runs and CodeRecord; its
+  owner was approved by Mohammed on 2026-11-19. Its methods `state` and `elements` serve the first two
   routes and the Planner's `project_state` tool.
 - `Design::element_revisions` serves the third route.
 - `TaskContract.elements` and `TaskContext.elements` are Plans' (B-177).

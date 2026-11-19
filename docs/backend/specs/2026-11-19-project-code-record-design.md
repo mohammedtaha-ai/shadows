@@ -209,11 +209,14 @@ Each question is an MCP tool for the Planner and a route for the web, calling th
      element id, element name or symbol name; then a path the topic is a prefix of; then a part
      whose title is the topic; then the words of the topic in a purpose or behavior. Ties by path,
      then element number. No fuzzy matching. At most 20 entries, then a count.
-  2. For each matched symbol, its line now (`workspaceSymbol` or `documentSymbol`) and who uses it
-     (`findReferences`, `incomingCalls`), grouped by the map part and layer of the using file
-     (Design's `owners`), so "the database query" and "the screen" show as such. A question asks
-     the language servers at most 30 times and waits at most 20 s in all; uses beyond 10 per
-     symbol are counted, not listed.
+  2. For each matched symbol, its line now (`documentSymbol` of its file) and who uses it
+     (`findReferences`, whose answer includes the callers, so `incomingCalls` is not asked and
+     the budget goes further), grouped by the map part and layer of the using file (Design's
+     `owners`), so "the database query" and "the screen" show as such. A topic that is not a path
+     also asks `workspaceSymbol` once. A question asks the language servers at most 30 times and
+     waits at most 20 s in all; what the budget does not reach is marked unchecked with that
+     reason. Uses beyond 10 per symbol are counted, not listed. A recorded file with no symbols
+     is confirmed `file_only` when it exists.
   3. The gaps on those entries.
   4. Files that match the topic in the project's file list and that no done task's contract
      names: their live facts (symbols, part and layer), marked "not in the record", never hidden.
@@ -278,7 +281,7 @@ the analysis. Closes when the import gets its design.
 | `Design` | the elements: identity, revisions, content, rules, writer (§18.13) | it holds the map, the roadmap and the decisions they are tied to |
 | `Plans` | the contract's pins and their rules; which version of a plan is live | it owns the task contract and plan versions |
 | `CodeRecord` (crate `code-record`) | the record, the pins of done tasks, each element's state (§5.2) and, in 2b, `code_where` | its one job is "whether the code holds what was promised" (Mohammed, 2026-11-19, over making it part of Plans) |
-| `ProjectState` (crate `project-state`, new; pending Mohammed's confirmation) | `project_state`: composing the stage, the parts, the live plans with their task progress, and the element states | see below |
+| `ProjectState` (crate `project-state`, new; approved by Mohammed, 2026-11-19) | `project_state`: composing the stage, the parts, the live plans with their task progress, and the element states | see below |
 | `Harness` | the Planner's prompt (`prompt.txt`) and the executor's (`executor.md`) | it owns both texts; `Instructions` holds the person's own instructions, which this slice does not change |
 
 Runs depends on CodeRecord and calls it when a mark is stored (Runs → CodeRecord → Codebase, and
@@ -288,7 +291,11 @@ would be a cycle. Hence `ProjectState`, which holds no table and no rule of its 
 composition and its bounds: it reads Design's stage, layout and elements, Plans' live versions,
 Runs' progress, and asks CodeRecord for the element states, supplying the planned pins as facts.
 (Changed on 2026-11-19 while planning 2a from "CodeRecord owns `project_state`", which assumed
-CodeRecord could read task progress; it needs Mohammed's confirmation.)
+CodeRecord could read task progress; approved by Mohammed the same day.)
+
+`code_where` (2b) stays in CodeRecord: an element's state does not depend on the planned pins (they
+only list the tasks to come), so CodeRecord answers it without Runs, calling Design's `elements`
+and `layout` (CodeRecord → Design; Design depends on no service that depends on CodeRecord).
 
 ## 9. Slices
 
@@ -304,9 +311,11 @@ CodeRecord could read task progress; it needs Mohammed's confirmation.)
      to read the state and write elements; acceptance on a real provider: a second plan pins the
      first plan's tables and screens by id from `project_state`, writes no duplicate, and the
      diagrams show them with their states in the browser.
-   - **2b** (its plan follows 2a): `code_where` (§5.3), the Planner told to ask it before naming a
-     file, and its acceptance: a second plan names the first plan's files without reading the
-     folder.
+   - **2b** ([plan](../plans/2026-11-19-code-record-2b.md)): `code_where` (§5.3), owned by
+     CodeRecord, its MCP tool and route (after the shared request
+     `docs/shared/requests/2026-11-19-code-where.md` is accepted), the Planner told to ask it
+     before naming a file, and its acceptance: a second plan names the first plan's files without
+     reading the folder.
 3. **Code no plan wrote:** moved to importing a project (§6).
 
 Each plan is in `docs/backend/plans/` before any of its tasks is dispatched.
