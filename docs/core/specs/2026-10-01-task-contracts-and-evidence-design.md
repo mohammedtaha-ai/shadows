@@ -162,6 +162,12 @@ to ask Shadows what it holds, never to write a second one beside it. A create th
 before the edit is not checked again, since the task may have run and made the file. Existing shared agreements retain
 their exact operation/version authority.
 
+A contract also names the database tables and the screens the task builds (Mohammed,
+2026-11-19): a table with its action, purpose, defining file, optional modelling symbol and its
+columns after the task; a screen with its purpose, route, file, optional symbol and the screens it
+leads to. The project's ER diagram and screen flow are built from them. Their shape, rules and
+states are owned by the [code record design §5.1, §5.2](../../backend/specs/2026-11-19-project-code-record-design.md#51-tables-and-screens-in-the-task-contract).
+
 reads/writes remain permission scopes and may contain reviewed globs. Named work
 must fit those scopes. A contract is not permission to expand them. Tasks whose
 main behavior is a function/class must include symbol work; configuration and

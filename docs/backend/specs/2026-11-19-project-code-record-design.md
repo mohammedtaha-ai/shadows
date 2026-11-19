@@ -2,7 +2,10 @@
 
 Status: approved by Mohammed, 2026-11-19: the direction (who writes which part), the owner, a new
 service (§8), and that a task is verified against its contract before it is marked done (§4).
-A missing symbol is returned to the executor as a failed check (§4). Slice 1 is on `main` in PR #73
+A missing symbol is returned to the executor as a failed check (§4). Amended by Mohammed on
+2026-11-19 for slice 2: Shadows answers from its own knowledge and the code confirms (§5), tables
+and screens join the contract and the ER and screen-flow diagrams are built from the plans
+(§5.1, §5.2), and code no plan wrote moves to importing a project (§6). Slice 1 is on `main` in PR #73
 (`7b7abec`); its plan was `docs/backend/plans/2026-11-19-code-record.md` at `7b7abec`, deleted once its tasks were done.
 
 Builds on the [task contract](../../core/specs/2026-10-01-task-contracts-and-evidence-design.md#the-task-contract)
@@ -50,6 +53,9 @@ contract names:
   language server answers for the file).
 - **Gaps:** a promised symbol missing from its file; a symbol the language server finds in a file
   the task created that no contract names. Each gap names the task, the file and the symbol.
+- **Table and screen** (slice 2, §5.1): each one the done task's contract names, with its shape
+  from the contract (columns and keys; route and where it leads), its file and symbol, and its
+  state from the verdict (§5.2).
 
 Lines are not stored: they move with every edit. A question answers them live (§5).
 
@@ -110,17 +116,85 @@ the live run).
 **Tests run a real language server** (Mohammed, 2026-11-19), beside fast tests over recorded
 answers. Unpromised symbols alone do not fail it.
 
-## 5. Asking it: `code_where`
+## 5. The project's state: Shadows answers first, the code confirms (Mohammed, 2026-11-19)
 
-A new MCP tool for the Planner (and a route for the web), one argument: a topic (`login`), a path
-(`backend/auth`) or a symbol name. It answers from the record first, then the code:
+Shadows knows the project before it reads the code: its map, its roadmap, its plans and tasks, and
+what each done task left (§3). A question is answered from that knowledge first; the language
+servers then confirm it. `code_where` is the confirmation, not the source. When the two disagree,
+the answer shows the gap; it never picks one silently.
 
-1. The record's entries whose path, part, purpose, symbol name or behavior match the topic,
-   best first.
-2. For each matched symbol, its line now (`workspaceSymbol` or `documentSymbol`), and who uses it
-   (`findReferences`, `incomingCalls`), grouped by the map part and layer of the using file, so
-   "the database query" and "the screen" show as such.
-3. Gaps on those entries.
+```text
+1. The Planner asks Shadows: "where is the login?"
+2. Shadows answers from what it knows:
+     part Backend, layer application, plan "Auth" v1, T3, backend/auth/service.py;
+     the screen Login in part Frontend, web/src/login.tsx
+3. The code confirms (language servers): login at line 12, used by LoginForm.submit,
+   or: ⚠ refresh_token promised by T3, not in the file
+```
+
+### 5.1 Tables and screens in the task contract
+
+So that Shadows knows the project's shape and not only its files, a task contract names the
+database tables and the screens a task builds, beside its files and symbols (§17 "The task
+contract", amended 2026-11-19). The Planner writes them as it writes symbols today; nobody else
+does.
+
+- **A table:** id, name, action (`create`, `modify`, `delete`), purpose, the contract file that
+  defines it (a migration or a model), optionally the id of the contract symbol that models it
+  (a class), and its columns as they are after the task: name, type as the project writes it,
+  meaning, primary key, and the `table.column` a foreign key refers to.
+- **A screen:** id, name, purpose, its route when it has one (`/login`), the contract file that
+  holds it, optionally the id of the contract symbol that is it (a component), and where it leads:
+  the screens it goes to and when ("after a successful login").
+
+A table's or screen's file must be one of the task's `create` or `modify` files; its symbol, when
+given, one of the task's symbols. Ids are unique within the task. Names are the project's: one
+table or screen name means one thing across the project's plans.
+
+### 5.2 The diagrams are built from the plans
+
+The project's ER diagram (tables, columns, keys and relations) and its screen flow (screens and
+where each leads; not their look) are **built from the roadmap, the plans and their tasks**,
+never drawn or edited by hand. To change a diagram, the plan changes; the diagram follows.
+
+Each element has one state, from its tasks:
+
+| State | When |
+|---|---|
+| ⏳ planned | a task of a live plan names it and is not done |
+| ✅ built | its latest done task's file exists and its symbol, when named, is `found` |
+| ⚠ gap | its latest done task's file is absent, or its symbol is `missing` |
+| ? unchecked | done, and no language server could confirm it |
+
+When several tasks name one table or screen, the latest done task gives its shape now, and the
+not-done tasks that name it show as planned changes on it. A task of an older plan whose
+contract has no tables or screens adds nothing: it is not rewritten.
+
+What is confirmed in this plan is the file and the symbol only. A table's columns and a screen's
+arrows are shown as the plan says, marked "as planned", never as confirmed.
+
+**OPEN (deeper confirmation):** confirming a table's columns against the migrations or the
+database, and a screen's routes and links against the code. Closes when a task shows a
+"✅ built" table or screen that the code does not match. The states above stay; a check is added
+under them.
+
+### 5.3 Asking
+
+Two questions, one owner (§8), each an MCP tool for the Planner and a route for the web, calling
+the same method:
+
+- **`project_state`** (no argument): the overview from Shadows' own knowledge. The project's
+  stage on the roadmap; each map part with its plans and their tasks by status; its tables and
+  screens with their states; the gaps. Bounded: a large project is summarised per part, and a
+  part is asked for in full by its id.
+- **`code_where`** (one argument: a topic `login`, a path `backend/auth`, a symbol, a table or a
+  screen): Shadows' answer first, then the code's confirmation:
+  1. The record's entries, and the planned tables and screens, whose path, part, purpose, name or
+     behavior match the topic, best first.
+  2. For each matched symbol, its line now (`workspaceSymbol` or `documentSymbol`) and who uses it
+     (`findReferences`, `incomingCalls`), grouped by the map part and layer of the using file
+     (Design's `owners`), so "the database query" and "the screen" show as such.
+  3. The gaps on those entries.
 
 Example answer:
 
@@ -131,39 +205,70 @@ Login logic: backend/auth/service.py  (Backend · application; plan "Auth" v1, T
     used by LoginForm.submit web/src/login.tsx:18           (Frontend · screens)
   verify_token(token) -> User          line 41
   ⚠ refresh_token promised by T3, not found in the file
+Table users ✅  migrations/0003_users.sql, model User (plan "Auth" v1, T2)
+Screen Login ✅  /login, web/src/login.tsx → Dashboard after a successful login
 ```
 
-The Planner's instructions say: before a contract names a file, ask `code_where`; B-167 and B-169
-(`docs/backend/stages.md` at `7b7abec`) remain the guard when it does not.
+When a language server cannot answer, Shadows' part of the answer still comes, with its lines
+marked unchecked and the reason; it never waits on the server or drops the record's answer.
 
-## 6. Code no plan wrote
+The Planner's instructions say: before a contract names a file, a table or a screen, ask
+`project_state` or `code_where`; write the tables and screens a task builds into its contract.
+B-167 and B-169 remain the guard when it does not ask.
 
-A project that existed before Shadows has files no contract describes. For them `code_where`
-answers the facts only (symbols, lines, uses, part and layer from the map), marked "no plan says
-why". Recording an intent for such code (the Planner describing a module it read) is left for a
-later slice.
+### 5.4 Seeing it
+
+The web shows the project's state and its two diagrams, read only: the ER diagram for the
+project's tables and the screen flow for its screens, each element with its state and, when
+opened, its plan, task, file and symbol. A part's page shows the elements of that part.
+
+## 6. Code no plan wrote: moved to importing a project (Mohammed, 2026-11-19)
+
+Shadows relies on its plans, contracts and standards. A project that existed before Shadows
+enters it through **importing an existing codebase** (guided planning §23.1): agents analyse it,
+map it into Shadows, and the import is accepted only once the code meets the standards. After an
+import every file has a contract, so the earlier "facts only, no plan says why" answer is not
+built.
+
+**OPEN (import):** what the import writes for existing code (a contract per file, marked
+described rather than decided, accepted by the person) and how `code_where` serves the analysis.
+Closes when the import gets its design.
 
 ## 7. Not in scope
 
 - Reading every file into a stored symbol table: the language servers stay the source of facts.
-- A record for files outside any done task's contract, beyond §6's live answer.
+- Drawing or editing a diagram by hand, and the screens' look (mockups).
+- Confirming columns and arrows against the code (§5.2 OPEN).
 - Changing what an executor reports.
 
 ## 8. Owner
 
 A new service, `CodeRecord` (crate `code-record`), owns the record's tables and the rule "what a
-done task left in the code" (Mohammed, 2026-11-19, over making it part of Plans). It depends on
-Plans (the contract) and Codebase (the language servers), and on Design for the map in slice 2.
-Runs depends on it and calls it when a mark is stored, supplying the commit; so dependencies stay
-one way (Runs → CodeRecord → Plans, Codebase). `code_where` is its method.
+done task left in the code" (Mohammed, 2026-11-19, over making it part of Plans). It also owns
+the project's state, the diagrams built from it and `code_where` (Mohammed, 2026-11-19): one
+owner for "what Shadows knows of the project's code, and whether the code agrees". It depends
+on Plans (the contracts, and the tasks of live plans), Codebase (the language servers) and Design
+(the map and the roadmap stage). Runs depends on it and calls it when a mark is stored,
+supplying the commit; so dependencies stay one way (Runs → CodeRecord → Plans, Codebase, Design).
+
+Plans owns the contract's tables and screens and their rules (§5.1); the Planner's instructions
+are Instructions'.
 
 ## 9. Slices
 
 1. **Verification and the record:** the `contract` check after a report (§4), and the record's
-   entries written on done and removed on not done.
-2. **`code_where`:** the tool and its route, answered from the record and the language servers;
-   the Planner's instructions ask it before naming a file. Acceptance: on a real provider, a
-   second plan on a project names the first plan's files without reading the folder.
-3. **Code no plan wrote** (§6): the live answer for such files.
+   entries written on done and removed on not done. On `main` in PR #73 (`7b7abec`).
+2. **The project's state, its diagrams and `code_where`** (one plan, Mohammed, 2026-11-19), in
+   this order:
+   1. tables and screens in the contract (§5.1), and the Planner told to write them;
+   2. the record keeps a done task's tables and screens with their states, and `project_state`
+      answers (§5.2, §5.3);
+   3. `code_where`: Shadows' answer confirmed by the language servers, and the Planner told to ask
+      first (§5.3);
+   4. the web's state view, ER diagram and screen flow (§5.4);
+   5. acceptance on a real provider: a second plan on a project names the first plan's files,
+      tables and screens from `project_state` and `code_where` without reading the folder, and the
+      diagrams show them with their states in the browser.
+3. **Code no plan wrote:** moved to importing a project (§6).
 
 Each slice gets its plan in `docs/backend/plans/` before any task is dispatched.

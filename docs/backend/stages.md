@@ -22,8 +22,11 @@ The contract check and the code record's first slice are on `main` (PR #73, `7b7
 (B-167, a task may not modify or delete a file the project does not have; B-169, nor create one it
 has), a big project's file listing no longer stalls Shadows (B-168), the `contract` check and the
 record written with the done mark (B-170 to B-173), its acceptance on a real provider (B-174), and the
-Report tab's contract row (F-129). Next: slice 2 of the code record (`code_where`). Its plan comes
-first, in `docs/backend/plans/`, as design §9 of `docs/backend/specs/2026-11-19-project-code-record-design.md` requires.
+Report tab's contract row (F-129). Next: slice 2 of the code record, amended by Mohammed on 2026-11-19
+as one plan: tables and screens in the task contract, the project's state (`project_state`) and its
+ER and screen-flow diagrams built from the plans, and `code_where` confirming Shadows' answer
+against the code (design §5 and §9 of `docs/backend/specs/2026-11-19-project-code-record-design.md`).
+Its plan comes first, in `docs/backend/plans/`.
 
 ### Shipped
 
