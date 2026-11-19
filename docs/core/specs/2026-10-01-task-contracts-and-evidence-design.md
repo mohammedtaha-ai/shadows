@@ -153,7 +153,13 @@ saved, Plans refuses a task whose `modify` or `delete` path is not in the projec
 task it depends on deletes is refused the same way. The refusal names the task and the path, so
 the Planner reads the project and corrects the guess. When the inventory cannot answer (the project
 has no folder, or its first listing is still running), the check is skipped, never guessed. A file
-the inventory leaves out (ignored by Git) counts as absent: a task does not work on it. Existing shared agreements retain
+the inventory leaves out (ignored by Git) counts as absent: a task does not work on it.
+
+A file the contract will `create` must not exist (Mohammed, 2026-11-19): Plans refuses a create the
+edit introduces when the path is in the inventory, unless a task it depends on deletes it first, or
+when a task it depends on already creates it. The refusal tells the Planner to modify the file and
+to ask Shadows what it holds, never to write a second one beside it. A create the task already had
+before the edit is not checked again, since the task may have run and made the file. Existing shared agreements retain
 their exact operation/version authority.
 
 reads/writes remain permission scopes and may contain reviewed globs. Named work

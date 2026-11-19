@@ -19,7 +19,8 @@ at `449d4f95` (PR #70). Its plan is `docs/backend/plans/2026-11-09-local-deliver
 error from stalling the other groups, and the slice 4 and structure-and-depth live records are on `main`
 (PR #72, `753b26a4`). Executor choices were accepted by Mohammed in the browser on 2026-11-18 (B-159).
 B-167 (a task may not modify or delete a file the project does not have) is done on this branch.
-Now: B-168, a big project's first file listing no longer stalls Shadows (below).
+B-168 (a big project's file listing no longer stalls Shadows) and B-169 (a task may not create a
+file the project already has) are done on this branch.
 
 ### Shipped
 
@@ -77,6 +78,15 @@ this file at `db760593`.
 - A Planner's `Read` (Claude) and read-only sandbox (Codex) can read any file the account can, outside the project too; only its instructions keep it in the project. Accepted as is by Mohammed on 2026-11-18.
 
 ## Open
+
+### B-169 · A task may not create a file the project already has
+
+- Status: done (built by the controller: `ContractRules::file_problems` checks a create the edit
+  introduces; tests `a_task_may_not_create_a_file_the_project_already_has` and
+  `a_create_the_task_already_had_is_not_checked_again`, the second shown to fail without its guard)
+- Plan: none; the ruling is §17 "The task contract" (Mohammed, 2026-11-19), the other half of
+  B-167: the Planner modifies what is there instead of writing a second file beside it.
+- Done when: the two tests and `cargo test -p shadows-core --features test-support --test task_contract` pass.
 
 ### B-168 · A big project's file listing no longer stalls Shadows
 

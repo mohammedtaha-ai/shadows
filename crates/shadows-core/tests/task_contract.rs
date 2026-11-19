@@ -489,3 +489,80 @@ async fn the_check_is_skipped_when_the_file_list_cannot_answer() {
         .unwrap();
     storage.close().await.unwrap();
 }
+
+#[tokio::test]
+async fn a_task_may_not_create_a_file_the_project_already_has() {
+    let (tmp, storage) = fixture().await;
+    listed(&storage, tmp.path(), Some(&["src/lib.rs"])).await;
+    let refused = edited(&storage, &[working(1, &[("create", "src/lib.rs")])])
+        .await
+        .unwrap_err();
+    assert_eq!(
+        refused,
+        vec![
+            "T1 creates `src/lib.rs`, which the project already has: modify it instead, and ask Shadows (code_lsp) what it holds"
+        ]
+    );
+    // Two tasks along one dependency creating the same file, and a create
+    // after a dependency deletes the file, are told apart.
+    let refused = edited(
+        &storage,
+        &[
+            working(1, &[("create", "src/new.rs")]),
+            working(2, &[("create", "src/new.rs")]),
+            needs(2, 1),
+        ],
+    )
+    .await
+    .unwrap_err();
+    assert_eq!(
+        refused,
+        vec![
+            "T2 creates `src/new.rs`, which a task it depends on already creates: modify it instead"
+        ]
+    );
+    edited(
+        &storage,
+        &[
+            working(1, &[("delete", "src/lib.rs")]),
+            working(2, &[("create", "src/lib.rs")]),
+            needs(2, 1),
+        ],
+    )
+    .await
+    .unwrap();
+    storage.close().await.unwrap();
+}
+
+#[tokio::test]
+async fn a_create_the_task_already_had_is_not_checked_again() {
+    let (tmp, storage) = fixture().await;
+    listed(&storage, tmp.path(), Some(&["src/lib.rs"])).await;
+    edited(&storage, &[working(1, &[("create", "src/made.rs")])])
+        .await
+        .unwrap();
+    // The task ran and made the file; the next listing holds it.
+    sqlx::query(
+        "INSERT INTO code_inventory (project_id, path_key, path, kind, excluded_reason)
+         VALUES ('p', 'src/made.rs', 'src/made.rs', 'file', NULL)",
+    )
+    .execute(storage.reader())
+    .await
+    .unwrap();
+    let PlanOp::TaskAdd { task } = working(1, &[("create", "src/made.rs"), ("read", "src/lib.rs")])
+    else {
+        unreachable!()
+    };
+    AppCore::plans_for_tests(storage.clone())
+        .edit_plan_for_test(
+            &command("files-again"),
+            &Writer::Person,
+            None,
+            &WorkflowId::from_literal(SOURCE),
+            1,
+            &[PlanOp::TaskUpdate { task }],
+        )
+        .await
+        .unwrap();
+    storage.close().await.unwrap();
+}

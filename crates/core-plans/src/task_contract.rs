@@ -288,15 +288,18 @@ pub struct ResolvedContract {
 pub(super) struct ContractRules;
 
 impl ContractRules {
-    /// Every path a contract in `tasks` would `modify` or `delete`: what the
-    /// project's file list is asked about before an edit is saved.
+    /// Every path a contract in `tasks` would create, modify or delete: what
+    /// the project's file list is asked about before an edit is saved.
     pub(super) fn worked_paths<'a>(
         tasks: impl IntoIterator<Item = &'a crate::TaskContent>,
     ) -> Vec<String> {
         let mut paths = BTreeSet::new();
         for task in tasks {
             for f in task.contract.iter().flat_map(|c| &c.files) {
-                if matches!(f.action, FileAction::Modify | FileAction::Delete) {
+                if matches!(
+                    f.action,
+                    FileAction::Create | FileAction::Modify | FileAction::Delete
+                ) {
                     paths.insert(f.path.clone());
                 }
             }
@@ -304,11 +307,16 @@ impl ContractRules {
         paths.into_iter().collect()
     }
 
-    /// A file a task in `checked` modifies or deletes must be in `present`,
-    /// unless a task it depends on, directly or through others, creates it.
-    /// A path such a task deletes is refused the same way. One problem per
-    /// file, tasks ascending.
-    pub(super) fn missing_file_problems(
+    /// The files a task in `checked` works on must agree with the project's
+    /// file list (`present`) and with the tasks it depends on, directly or
+    /// through others. A file it modifies or deletes must be present or
+    /// created by such a task, and never deleted by one. A file it creates
+    /// must not be present, unless such a task deletes it first, nor created
+    /// by such a task; a create the task already had before this edit
+    /// (`before`) is not checked again, since the task may have run and made
+    /// it. One problem per file, tasks ascending.
+    pub(super) fn file_problems(
+        before: &PlanContent,
         content: &PlanContent,
         checked: &[u32],
         present: &std::collections::HashSet<String>,
@@ -329,25 +337,48 @@ impl ContractRules {
                         .any(|f| f.action == action && f.path == path)
                 })
             };
+            let had_create = |path: &str| {
+                before
+                    .tasks
+                    .get(&n)
+                    .and_then(|t| t.contract.as_ref())
+                    .is_some_and(|c| {
+                        c.files
+                            .iter()
+                            .any(|f| f.action == FileAction::Create && f.path == path)
+                    })
+            };
             for f in &contract.files {
-                if !matches!(f.action, FileAction::Modify | FileAction::Delete) {
-                    continue;
-                }
-                let verb = if f.action == FileAction::Modify {
-                    "modifies"
-                } else {
-                    "deletes"
-                };
-                if along(FileAction::Delete, &f.path) {
-                    out.push(Problem::new(format!(
-                        "T{n} {verb} `{}`, which a task it depends on deletes",
-                        f.path
-                    )));
-                } else if !present.contains(&f.path) && !along(FileAction::Create, &f.path) {
-                    out.push(Problem::new(format!(
-                        "T{n} {verb} `{}`, which the project does not have and no task it depends on creates",
-                        f.path
-                    )));
+                let path = &f.path;
+                match f.action {
+                    FileAction::Modify | FileAction::Delete => {
+                        let verb = if f.action == FileAction::Modify {
+                            "modifies"
+                        } else {
+                            "deletes"
+                        };
+                        if along(FileAction::Delete, path) {
+                            out.push(Problem::new(format!(
+                                "T{n} {verb} `{path}`, which a task it depends on deletes"
+                            )));
+                        } else if !present.contains(path) && !along(FileAction::Create, path) {
+                            out.push(Problem::new(format!(
+                                "T{n} {verb} `{path}`, which the project does not have and no task it depends on creates"
+                            )));
+                        }
+                    }
+                    FileAction::Create if !had_create(path) => {
+                        if along(FileAction::Create, path) {
+                            out.push(Problem::new(format!(
+                                "T{n} creates `{path}`, which a task it depends on already creates: modify it instead"
+                            )));
+                        } else if present.contains(path) && !along(FileAction::Delete, path) {
+                            out.push(Problem::new(format!(
+                                "T{n} creates `{path}`, which the project already has: modify it instead, and ask Shadows (code_lsp) what it holds"
+                            )));
+                        }
+                    }
+                    _ => {}
                 }
             }
         }

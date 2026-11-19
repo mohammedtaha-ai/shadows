@@ -76,7 +76,8 @@ impl PlansStore {
                         .map_err(crate::PlansError::PlanInvalid)?;
                     pins(conn, &project, &applied.content, &applied.changed_tasks).await?;
                     if let Some(present) = &present {
-                        let missing = crate::task_contract::ContractRules::missing_file_problems(
+                        let missing = crate::task_contract::ContractRules::file_problems(
+                            &plan.content(),
                             &applied.content,
                             &applied.changed_tasks,
                             present,

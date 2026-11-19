@@ -483,15 +483,18 @@ functions:
       # "PlanEdit", params { workflow, expected_revision, ops }. A Planner's
       # edit passes its running turn, when there is one, to the event.
       # Before the write it asks Code which worked files the project has
-      # (`present_files`); inside it, each changed task's `modify`/`delete`
-      # path must be one of them or created by a task it depends on through
-      # the links, and never deleted by one (`ContractRules::missing_file_problems`),
-      # else PlanInvalid naming the task and the path. Skipped when Code's
-      # file list cannot answer (no folder, first listing unfinished).
+      # (`present_files`); inside it, each changed task's files must agree
+      # with that list and with the tasks it depends on through the links
+      # (`ContractRules::file_problems`): a `modify`/`delete` path present or
+      # created by such a task and never deleted by one; a `create` path the
+      # edit introduces not present (unless such a task deletes it) and not
+      # created by such a task. Else PlanInvalid naming the task and the path.
+      # Skipped when Code's file list cannot answer (no folder, first listing
+      # unfinished).
     present_files:
       signature: "(&self, workflow: &WorkflowId, ops: &[PlanOp]) -> Result<Option<HashSet<String>>, PlansError>"
       private: true
-      # Every modify/delete path of the version's tasks and of the ops'
+      # Every create/modify/delete path of the version's tasks and of the ops'
       # TaskAdd/TaskUpdate, through Codebase::files_present; `edit` and
       # `edit_plan_for_test` call it, the bindings edit passes None.
     show:
@@ -665,14 +668,20 @@ shared_in_transaction:
 
 obligations:
   - rule: >
-      A file a task's contract will modify or delete must exist (§17, 2026-11-18):
-      an edit is refused PlanInvalid, one problem per file naming the task and
-      the path, when a changed task's modify/delete path is not a file in
-      Code's list and no task it depends on through the links creates it, or
-      when such a task deletes it. Skipped when the list cannot answer.
+      A file a task's contract will modify or delete must exist, and one it
+      creates must not (§17, 2026-11-18 and 2026-11-19): an edit is refused
+      PlanInvalid, one problem per file naming the task and the path, when a
+      changed task's modify/delete path is not a file in Code's list and no
+      task it depends on through the links creates it, or such a task deletes
+      it; or when a create the edit introduces names a file in the list (and
+      no such task deletes it first) or one such a task already creates. A
+      create the task already had is not checked again: it may have run.
+      Skipped when the list cannot answer.
     tested_by:
       - a_task_may_not_modify_a_file_the_project_does_not_have
       - a_dependency_that_creates_a_file_lets_a_task_modify_it_and_one_that_deletes_it_does_not
+      - a_task_may_not_create_a_file_the_project_already_has
+      - a_create_the_task_already_had_is_not_checked_again
       - the_check_is_skipped_when_the_file_list_cannot_answer
     note: >
       In crates/shadows-core/tests/task_contract.rs; they seed the stored
