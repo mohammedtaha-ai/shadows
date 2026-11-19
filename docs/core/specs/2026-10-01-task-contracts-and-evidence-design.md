@@ -162,11 +162,21 @@ to ask Shadows what it holds, never to write a second one beside it. A create th
 before the edit is not checked again, since the task may have run and made the file. Existing shared agreements retain
 their exact operation/version authority.
 
-A contract also names the database tables and the screens the task builds (Mohammed,
-2026-11-19): a table with its action, purpose, defining file, optional modelling symbol and its
-columns after the task; a screen with its purpose, route, file, optional symbol and the screens it
-leads to. The project's ER diagram and screen flow are built from them. Their shape, rules and
-states are owned by the [code record design §5.1, §5.2](../../backend/specs/2026-11-19-project-code-record-design.md#51-tables-and-screens-in-the-task-contract).
+A contract pins the tables and screens the task builds, changes or deletes (Mohammed,
+2026-11-19). The tables and screens themselves are design elements, owned by Design
+([§18.13](2026-10-03-project-planning-workspace-design.md#1813-tables-and-screens-design-elements-mohammed-2026-11-19));
+a contract never copies their columns or links. Each pin is `{ id, revision, action, file,
+symbol_id? }`: the element and its exact revision; `create`, `modify` or `delete`; the file that
+holds it, one of the task's `create`, `modify` or `delete` files; and, when the element has a class
+or a component, the id of the task's symbol in that file. A `delete` pin names a revision that
+deletes the element and no symbol; any other pin a revision that does not. An element is pinned
+once per task. When a task is added or changed, Plans refuses, inside the edit's write, a pin whose
+element or revision the project's design does not have, a revision that is not the element's
+latest, and a file the element's part does not own (Design's path ownership). A frozen task keeps
+its pins when the element changes later. The executor receives each pinned revision in its task
+context. A contract without pins serializes and fingerprints as before. How the pins become the
+project's state and its diagrams is the
+[code record design §5](../../backend/specs/2026-11-19-project-code-record-design.md#5-the-projects-state-shadows-answers-first-the-code-confirms-mohammed-2026-11-19).
 
 reads/writes remain permission scopes and may contain reviewed globs. Named work
 must fit those scopes. A contract is not permission to expand them. Tasks whose

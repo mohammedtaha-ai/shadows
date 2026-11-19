@@ -22,11 +22,12 @@ The contract check and the code record's first slice are on `main` (PR #73, `7b7
 (B-167, a task may not modify or delete a file the project does not have; B-169, nor create one it
 has), a big project's file listing no longer stalls Shadows (B-168), the `contract` check and the
 record written with the done mark (B-170 to B-173), its acceptance on a real provider (B-174), and the
-Report tab's contract row (F-129). Next: slice 2 of the code record, amended by Mohammed on 2026-11-19
-as one plan: tables and screens in the task contract, the project's state (`project_state`) and its
-ER and screen-flow diagrams built from the plans, and `code_where` confirming Shadows' answer
-against the code (design §5 and §9 of `docs/backend/specs/2026-11-19-project-code-record-design.md`).
-Its plan comes first, in `docs/backend/plans/`.
+Report tab's contract row (F-129). Now, on `ccr-9e1b02d8-b0ylm1`: slice 2 of the code record as two
+plans on this one branch (Mohammed, 2026-11-19; design §5, §8, §9 of
+`docs/backend/specs/2026-11-19-project-code-record-design.md`). Plan 2a,
+`docs/backend/plans/2026-11-19-code-record-2a.md`: tables and screens as Design's elements (§18.13),
+pinned by task contracts, their states from the record, and `project_state`. Its tasks are below. Plan
+2b (`code_where`) is written after 2a.
 
 ### Shipped
 
@@ -88,4 +89,80 @@ this file at `db760593`.
 
 ## Open
 
-Nothing is open on `main`. The next task is slice 2 of the code record (`code_where`); its plan is written first.
+Slice 2a of the code record. Plan: `docs/backend/plans/2026-11-19-code-record-2a.md`. Shared request:
+`docs/shared/requests/2026-11-19-project-state-and-diagrams.md` (answered, waiting for Masada).
+The plan's "Rulings for every task" and "Gate files every task here touches" bind every task below.
+
+### B-175 · Design owns tables and screens
+
+- Status: todo
+- Plan: [plans/2026-11-19-code-record-2a.md#task-b-175--design-owns-tables-and-screens](plans/2026-11-19-code-record-2a.md#task-b-175--design-owns-tables-and-screens)
+- Read: the plan's rulings and reuse table; `crates/shadows-core/src/app.rs`;
+  `crates/core-design/contract.yaml`; `crates/core-design/src/decisions.rs` and
+  `src/store/decisions.rs` (the pattern copied); §18.13 of
+  `docs/core/specs/2026-10-03-project-planning-workspace-design.md`.
+- Touch: the plan task's Files.
+- Needs: nothing.
+- Done when: the plan task's "Done when".
+
+### B-176 · The Planner writes tables and screens
+
+- Status: todo
+- Plan: [plans/2026-11-19-code-record-2a.md#task-b-176--the-planner-writes-tables-and-screens](plans/2026-11-19-code-record-2a.md#task-b-176--the-planner-writes-tables-and-screens)
+- Read: the plan's rulings; `crates/shadows-mcp/src/contract.yaml`;
+  `crates/shadows-mcp/src/decision_tools.rs`; `crates/core-grants/contract.yaml` (`tools_for`);
+  `crates/core-harness/contract.yaml`.
+- Touch: the plan task's Files.
+- Needs: B-175.
+- Done when: the plan task's "Done when".
+
+### B-177 · A task pins the elements it builds; the executor receives them
+
+- Status: blocked (the shared request is not accepted: `TaskContract` and `TaskContext` change in
+  `api/openapi.json`)
+- Plan: [plans/2026-11-19-code-record-2a.md#task-b-177--a-task-pins-the-elements-it-builds-the-executor-receives-them](plans/2026-11-19-code-record-2a.md#task-b-177--a-task-pins-the-elements-it-builds-the-executor-receives-them)
+- Read: the plan's rulings; `crates/core-plans/contract.yaml` (`TaskContract`, `decision_pins`,
+  `task_context_in`); `crates/core-plans/src/store/edit.rs` (`pins`);
+  `crates/core-plans/src/store/task_context.rs`; §17 "The task contract".
+- Touch: the plan task's Files.
+- Needs: B-175; the shared request accepted.
+- Done when: the plan task's "Done when".
+
+### B-178 · The record keeps the pinned elements, and CodeRecord judges their state
+
+- Status: blocked (on B-177)
+- Plan: [plans/2026-11-19-code-record-2a.md#task-b-178--the-record-keeps-the-pinned-elements-and-coderecord-judges-their-state](plans/2026-11-19-code-record-2a.md#task-b-178--the-record-keeps-the-pinned-elements-and-coderecord-judges-their-state)
+- Read: the plan's rulings; `crates/code-record/contract.yaml`;
+  `crates/code-record/src/store/mod.rs`; design §5.2.
+- Touch: the plan task's Files.
+- Needs: B-177.
+- Done when: the plan task's "Done when".
+
+### B-179 · `ProjectState`: the project's state, and the `project_state` tool
+
+- Status: blocked (Mohammed confirms the new owner `ProjectState`, plan Ruling 7; then on B-178)
+- Plan: [plans/2026-11-19-code-record-2a.md#task-b-179--projectstate-the-projects-state-and-the-project_state-tool](plans/2026-11-19-code-record-2a.md#task-b-179--projectstate-the-projects-state-and-the-project_state-tool)
+- Read: the plan's rulings; `crates/shadows-core/src/app.rs` (`assemble_services`);
+  `crates/core-runs/contract.yaml` (`progress`); `crates/core-plans/contract.yaml` (`list`,
+  `plan_parts_in`); `docs/codebase/contracts/TEMPLATE.yaml`; design §5.3, §8.
+- Touch: the plan task's Files.
+- Needs: B-178; Mohammed's confirmation.
+- Done when: the plan task's "Done when".
+
+### B-180 · Routes and events for the web
+
+- Status: blocked (the shared request is not accepted; then on B-179)
+- Plan: [plans/2026-11-19-code-record-2a.md#task-b-180--routes-and-events-for-the-web](plans/2026-11-19-code-record-2a.md#task-b-180--routes-and-events-for-the-web)
+- Read: the plan's rulings; `crates/shadows-http/src/contract.yaml` (decisions);
+  `crates/core-events/contract.yaml`; the shared request.
+- Touch: the plan task's Files.
+- Needs: B-179; the shared request accepted.
+- Done when: the plan task's "Done when".
+
+### B-181 · Acceptance on a real provider (2a)
+
+- Status: blocked (on B-176 to B-180 and Masada's diagrams)
+- Plan: [plans/2026-11-19-code-record-2a.md#task-b-181--acceptance-on-a-real-provider-2a](plans/2026-11-19-code-record-2a.md#task-b-181--acceptance-on-a-real-provider-2a)
+- Touch: `docs/evidence/` (one new file); this entry's status.
+- Needs: B-176 to B-180; the frontend's tasks under the shared request.
+- Done when: the evidence file records the three steps as they happened.

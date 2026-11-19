@@ -311,4 +311,56 @@ from the tests. Neither the presence of this spec nor a plan claims a pass.
 After Mohammed reviews this written spec, prepare the Stage 1 implementation
 plan and select its execution method. The written spec review and plan review
 precede product implementation. Specialized diagrams, context compilation
-and manager/executor designs remain in their later stages.
+and manager/executor designs remain in their later stages; the first diagrams,
+an ER diagram and a screen flow built from §18.13's elements, are the
+[code record design §5.2](../../backend/specs/2026-11-19-project-code-record-design.md#52-the-diagrams-are-built-from-the-design-and-the-plans).
+
+## 18.13 Tables and screens: design elements (Mohammed, 2026-11-19)
+
+A table of the project's database and a screen of its interface are **design elements**, owned
+by Design beside parts, outcomes and decisions. A task does not describe them; it pins the
+revision it builds (§17 "The task contract"). This section owns their identity, content, rules
+and writer; what the code holds of them and their diagrams are the
+[code record design §5](../../backend/specs/2026-11-19-project-code-record-design.md#5-the-projects-state-shadows-answers-first-the-code-confirms-mohammed-2026-11-19).
+
+**Identity and revisions.** An element's id is `E{n}`, the next number in its project, never
+reused. Its kind (`table` or `screen`) is fixed when it is created. Each write is a new revision
+(1, 2, ...) and nothing is overwritten. A write names the revision it follows
+(`expected_revision`); any other is refused stale. Deleting an element writes a last revision
+marked deleted; a deleted element takes no further revision. Rename keeps the id: references
+name ids, never names.
+
+**Tied to the project.** Every element belongs to one part of the approved map and serves at
+least one roadmap outcome, so it is written only at the Plans stage (a roadmap is approved).
+Its part's kind follows the standards' kinds (§23.2): a table belongs to a part whose kind is
+`database`, a screen to a part whose kind is `frontend`. The part's `serves` ties it to the
+vision's goals; the element adds no second goal link.
+
+**Content.**
+- A table: name, purpose, and its columns, each with a name, a type as the project writes it,
+  a meaning, whether it is part of the primary key, and, for a foreign key, the table (an element
+  id) and column it refers to.
+- A screen: name, purpose, its route when it has one (`/login`), and where it leads: each target
+  screen (an element id) with when ("after a successful login"). Not its look.
+
+**Rules**, each a refusal that writes nothing:
+- names, purposes, column fields, routes and link conditions are trimmed and bounded; a table has
+  1 to 200 columns with names unique ignoring case; a screen leads to at most 50 screens, each
+  (screen, when) once; a route starts with `/`;
+- a table name is unique among the project's live tables, a screen name among its live screens,
+  ignoring case; a route among its live screens;
+- a foreign key names a live table of the project and a column that table has (a table may refer
+  to itself); a screen leads to live screens of the project;
+- a write may not drop or rename a column another live table's latest revision refers to, and an
+  element another live element refers to may not be deleted: the refusal names the referrer;
+- a project holds at most 500 live elements.
+
+**Writer.** The Planner writes elements directly, in its running turn, through MCP; there is no
+card and no person approval. They are seen where a task pins them, in the plan the person reviews
+and approves. No route writes them in this release. Editing a diagram later edits this same
+record ([vision §12](../vision.md#12-clear-navigation-and-focused-work)): a hand edit is a new
+revision of the element, by the same rules.
+
+**Events.** Each write journals `DesignElementChanged { project_id, element_id, revision }` in its
+own transaction; a replay journals nothing. Project removal leaves the rows, as it leaves
+decisions; reads of a removed project refuse.

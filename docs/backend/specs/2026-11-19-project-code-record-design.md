@@ -3,9 +3,12 @@
 Status: approved by Mohammed, 2026-11-19: the direction (who writes which part), the owner, a new
 service (§8), and that a task is verified against its contract before it is marked done (§4).
 A missing symbol is returned to the executor as a failed check (§4). Amended by Mohammed on
-2026-11-19 for slice 2: Shadows answers from its own knowledge and the code confirms (§5), tables
-and screens join the contract and the ER and screen-flow diagrams are built from the plans
-(§5.1, §5.2), and code no plan wrote moves to importing a project (§6). Slice 1 is on `main` in PR #73
+2026-11-19 for slice 2: Shadows answers from its own knowledge and the code confirms (§5), and
+code no plan wrote moves to importing a project (§6). Ruled again by Mohammed on 2026-11-19, after
+the backend lead's review: tables and screens are Design's elements that a task pins, not contract
+text (§5.1); the diagrams are read only in this slice and a later edit changes the same Design
+record (§5.2); slice 2 is two plans, 2a and 2b, on one branch (§9); elements are tied to the map,
+the roadmap and the standards, and the Planner writes them directly (§5.1). Slice 1 is on `main` in PR #73
 (`7b7abec`); its plan was `docs/backend/plans/2026-11-19-code-record.md` at `7b7abec`, deleted once its tasks were done.
 
 Builds on the [task contract](../../core/specs/2026-10-01-task-contracts-and-evidence-design.md#the-task-contract)
@@ -53,9 +56,10 @@ contract names:
   language server answers for the file).
 - **Gaps:** a promised symbol missing from its file; a symbol the language server finds in a file
   the task created that no contract names. Each gap names the task, the file and the symbol.
-- **Table and screen** (slice 2, §5.1): each one the done task's contract names, with its shape
-  from the contract (columns and keys; route and where it leads), its file and symbol, and its
-  state from the verdict (§5.2).
+- **Element pins** (slice 2, §5.1): each table or screen the done task's contract pins, with the
+  pinned revision, the action, the file and the symbol id. The element's shape is Design's; its
+  state is worked out when it is asked for (§5.2), from these rows, the symbol states above and the
+  folder.
 
 Lines are not stored: they move with every edit. A question answers them live (§5).
 
@@ -132,69 +136,87 @@ the answer shows the gap; it never picks one silently.
    or: ⚠ refresh_token promised by T3, not in the file
 ```
 
-### 5.1 Tables and screens in the task contract
+### 5.1 Tables and screens: Design's elements, pinned by tasks
 
-So that Shadows knows the project's shape and not only its files, a task contract names the
-database tables and the screens a task builds, beside its files and symbols (§17 "The task
-contract", amended 2026-11-19). The Planner writes them as it writes symbols today; nobody else
-does.
+So that Shadows knows the project's shape and not only its files, the project's database tables
+and its screens are **design elements**, owned by Design
+([§18.13](../../core/specs/2026-10-03-project-planning-workspace-design.md#1813-tables-and-screens-design-elements-mohammed-2026-11-19)):
+a stable id (`E3`), revisions, a part of the approved map (a table in a `database` part, a screen
+in a `frontend` part, the standards' kinds), the roadmap outcomes it serves, and its content (a
+table's columns with types, keys and the column each foreign key refers to; a screen's route and
+the screens it leads to, and when). The Planner writes them directly in its running turn; the
+person sees them in the plan's tasks that pin them.
 
-- **A table:** id, name, action (`create`, `modify`, `delete`), purpose, the contract file that
-  defines it (a migration or a model), optionally the id of the contract symbol that models it
-  (a class), and its columns as they are after the task: name, type as the project writes it,
-  meaning, primary key, and the `table.column` a foreign key refers to.
-- **A screen:** id, name, purpose, its route when it has one (`/login`), the contract file that
-  holds it, optionally the id of the contract symbol that is it (a component), and where it leads:
-  the screens it goes to and when ("after a successful login").
+A task contract **pins** the elements the task builds, changes or deletes
+([§17 "The task contract"](../../core/specs/2026-10-01-task-contracts-and-evidence-design.md#the-task-contract)):
+`{ id, revision, action, file, symbol_id? }`. It never copies columns or links. So two tasks
+never disagree about a table's shape, a rename keeps the id, and a deletion is an element revision
+that a task with action `delete` builds.
 
-A table's or screen's file must be one of the task's `create` or `modify` files; its symbol, when
-given, one of the task's symbols. Ids are unique within the task. Names are the project's: one
-table or screen name means one thing across the project's plans.
-
-### 5.2 The diagrams are built from the plans
+### 5.2 The diagrams are built from the design and the plans
 
 The project's ER diagram (tables, columns, keys and relations) and its screen flow (screens and
-where each leads; not their look) are **built from the roadmap, the plans and their tasks**,
-never drawn or edited by hand. To change a diagram, the plan changes; the diagram follows.
+where each leads; not their look) are **built from Design's elements and the tasks that pin
+them**. They are read only in this slice. Editing a diagram later edits the same Design record
+([vision §12](../../core/vision.md#12-clear-navigation-and-focused-work)): a new revision of the
+element, by §18.13's rules.
 
-Each element has one state, from its tasks:
+An element's state comes from the pins of done tasks (the record, §3), the pins of tasks still to
+do, and the folder. Revisions order them; no time or insertion order does.
 
 | State | When |
 |---|---|
-| ⏳ planned | a task of a live plan names it and is not done |
-| ✅ built | its latest done task's file exists and its symbol, when named, is `found` |
-| ⚠ gap | its latest done task's file is absent, or its symbol is `missing` |
-| ? unchecked | done, and no language server could confirm it |
+| ⏳ `planned` | no done task pins it (whether or not a task of a live plan does yet) |
+| ✅ `built` | the done pins at its **built revision** (the highest revision a done task pinned) all have their file in the folder, and each named symbol was `found` when its task was marked done |
+| ⚠ `gap` | one of those pins' file is absent from the folder now, or its symbol was `missing` |
+| ? `unchecked` | no gap, and a named symbol was `unchecked`, or the folder could not be read (the reason is given) |
+| `removed` | its latest revision deletes it, and a done task pinned that revision with `delete`, or no done task ever built it |
 
-When several tasks name one table or screen, the latest done task gives its shape now, and the
-not-done tasks that name it show as planned changes on it. A task of an older plan whose
-contract has no tables or screens adds nothing: it is not rewritten.
+`gap` outranks `unchecked`, which outranks `built`. Beside the state:
+- **behind**: the built revision is older than the latest; the newer revision is shown as a planned
+  change on the element;
+- **confirmed**: `file_and_symbol` when every pin at the built revision names a symbol, else
+  `file_only` (a table defined only in a SQL migration, which no language server reads);
+- **done** and **planned**: the pins behind the state, each with its plan version, task, file and
+  symbol. A planned pin is one of a task not done in the **live version** of an Active plan: its
+  highest Frozen version. A Draft adds nothing until it is approved; an archived plan adds no
+  planned pin, and its done pins stay in the record.
 
-What is confirmed in this plan is the file and the symbol only. A table's columns and a screen's
-arrows are shown as the plan says, marked "as planned", never as confirmed.
+What is confirmed in this slice is the file and the symbol only. Columns and links are shown as
+their revision says, marked "as planned", never as confirmed.
 
 **OPEN (deeper confirmation):** confirming a table's columns against the migrations or the
-database, and a screen's routes and links against the code. Closes when a task shows a
-"✅ built" table or screen that the code does not match. The states above stay; a check is added
-under them.
+database, and a screen's routes and links against the code. Closes when a task shows a `built`
+table or screen that the code does not match. The states above stay; a check is added under them.
 
 ### 5.3 Asking
 
-Two questions, one owner (§8), each an MCP tool for the Planner and a route for the web, calling
-the same method:
+Each question is an MCP tool for the Planner and a route for the web, calling the same method.
 
-- **`project_state`** (no argument): the overview from Shadows' own knowledge. The project's
-  stage on the roadmap; each map part with its plans and their tasks by status; its tables and
-  screens with their states; the gaps. Bounded: a large project is summarised per part, and a
-  part is asked for in full by its id.
-- **`code_where`** (one argument: a topic `login`, a path `backend/auth`, a symbol, a table or a
-  screen): Shadows' answer first, then the code's confirmation:
-  1. The record's entries, and the planned tables and screens, whose path, part, purpose, name or
-     behavior match the topic, best first.
+- **`project_state`** (slice 2a; argument `part_id`, optional): the overview from Shadows' own
+  knowledge, read in one call, no language server asked. The project's stage and map revision;
+  each part of the approved map in map order (at most 200, then a count of the rest) with its
+  plans (at most 20 per part, then a count; a plan with no part is listed apart) and their tasks
+  counted as done, started and not started from the plan's live version, and the counts of its
+  elements by state; the elements in `gap` or `unchecked` with why (at most 100, then a count).
+  With `part_id`, that part in full besides: its plans with each task (number, title, done, its
+  latest attempt's state; at most 50 plans, then a count) and every element of the part with its
+  content and state. A second route gives every element of the project with its state, for the
+  diagrams (at most 500, Design's bound).
+- **`code_where`** (slice 2b; one argument: a topic `login`, a path `backend/auth`, a symbol, an
+  element id or name): Shadows' answer first, then the code's confirmation:
+  1. The record's entries and the project's elements that match, ranked by a fixed order: an exact
+     element id, element name or symbol name; then a path the topic is a prefix of; then a part
+     whose title is the topic; then the words of the topic in a purpose or behavior. Ties by path,
+     then element number. No fuzzy matching. At most 20 entries, then a count.
   2. For each matched symbol, its line now (`workspaceSymbol` or `documentSymbol`) and who uses it
      (`findReferences`, `incomingCalls`), grouped by the map part and layer of the using file
-     (Design's `owners`), so "the database query" and "the screen" show as such.
+     (Design's `owners`), so "the database query" and "the screen" show as such. A question asks
+     the language servers at most 30 times and waits at most 20 s in all; uses beyond 10 per
+     symbol are counted, not listed.
   3. The gaps on those entries.
+  4. Files that match the topic in the project's file list and that no done task's contract
+     names: their live facts (symbols, part and layer), marked "not in the record", never hidden.
 
 Example answer:
 
@@ -205,70 +227,86 @@ Login logic: backend/auth/service.py  (Backend · application; plan "Auth" v1, T
     used by LoginForm.submit web/src/login.tsx:18           (Frontend · screens)
   verify_token(token) -> User          line 41
   ⚠ refresh_token promised by T3, not found in the file
-Table users ✅  migrations/0003_users.sql, model User (plan "Auth" v1, T2)
-Screen Login ✅  /login, web/src/login.tsx → Dashboard after a successful login
+Table E3 users ✅  db/migrations/0003_users.sql, model User (plan "Auth" v1, T2), r2 (behind: r3 planned)
+Screen E7 Login ✅  /login, web/src/login.tsx → E8 Dashboard after a successful login
 ```
 
 When a language server cannot answer, Shadows' part of the answer still comes, with its lines
-marked unchecked and the reason; it never waits on the server or drops the record's answer.
+marked unchecked and the reason; it never waits on the server beyond the budget or drops the
+record's answer.
 
-The Planner's instructions say: before a contract names a file, a table or a screen, ask
-`project_state` or `code_where`; write the tables and screens a task builds into its contract.
-B-167 and B-169 remain the guard when it does not ask.
+The Planner's instructions (slice 2a) say: read `project_state` before planning; write each table
+and screen a task builds with `design_element_put` and pin it in the task's contract. Slice 2b
+adds: before a contract names a file, ask `code_where`. B-167 and B-169 remain the guard when it
+does not ask.
 
 ### 5.4 Seeing it
 
 The web shows the project's state and its two diagrams, read only: the ER diagram for the
 project's tables and the screen flow for its screens, each element with its state and, when
-opened, its plan, task, file and symbol. A part's page shows the elements of that part.
+opened, its revisions, part, outcomes and the tasks that pin it, with file and symbol. A part's
+page shows the elements of that part. The project event stream refreshes them on
+`DesignElementChanged`, `CodeRecordChanged`, and the plan events it carries today
+(`docs/shared/requests/2026-11-19-project-state-and-diagrams.md`).
 
 ## 6. Code no plan wrote: moved to importing a project (Mohammed, 2026-11-19)
 
 Shadows relies on its plans, contracts and standards. A project that existed before Shadows
 enters it through **importing an existing codebase** (guided planning §23.1): agents analyse it,
 map it into Shadows, and the import is accepted only once the code meets the standards. After an
-import every file has a contract, so the earlier "facts only, no plan says why" answer is not
-built.
+import every file has a contract.
+
+A project born in Shadows still holds files no contract names (scaffolding, generated files,
+configuration, edits made without a contract). `code_where` gives their live facts marked "not in
+the record" (§5.3 step 4); it records nothing for them.
 
 **OPEN (import):** what the import writes for existing code (a contract per file, marked
-described rather than decided, accepted by the person) and how `code_where` serves the analysis.
-Closes when the import gets its design.
+described rather than decided, accepted by the person), its elements, and how `code_where` serves
+the analysis. Closes when the import gets its design.
 
 ## 7. Not in scope
 
 - Reading every file into a stored symbol table: the language servers stay the source of facts.
-- Drawing or editing a diagram by hand, and the screens' look (mockups).
-- Confirming columns and arrows against the code (§5.2 OPEN).
+- Editing an element or a diagram by hand in this slice, and the screens' look (mockups).
+- Confirming columns and links against the code (§5.2 OPEN).
 - Changing what an executor reports.
 
 ## 8. Owner
 
-A new service, `CodeRecord` (crate `code-record`), owns the record's tables and the rule "what a
-done task left in the code" (Mohammed, 2026-11-19, over making it part of Plans). It also owns
-the project's state, the diagrams built from it and `code_where` (Mohammed, 2026-11-19): one
-owner for "what Shadows knows of the project's code, and whether the code agrees". It depends
-on Plans (the contracts, and the tasks of live plans), Codebase (the language servers) and Design
-(the map and the roadmap stage). Runs depends on it and calls it when a mark is stored,
-supplying the commit; so dependencies stay one way (Runs → CodeRecord → Plans, Codebase, Design).
+| Owner | Owns | Why there |
+|---|---|---|
+| `Design` | the elements: identity, revisions, content, rules, writer (§18.13) | it holds the map, the roadmap and the decisions they are tied to |
+| `Plans` | the contract's pins and their rules; which version of a plan is live | it owns the task contract and plan versions |
+| `CodeRecord` (crate `code-record`) | the record, the pins of done tasks, each element's state (§5.2) and, in 2b, `code_where` | its one job is "whether the code holds what was promised" (Mohammed, 2026-11-19, over making it part of Plans) |
+| `ProjectState` (crate `project-state`, new; pending Mohammed's confirmation) | `project_state`: composing the stage, the parts, the live plans with their task progress, and the element states | see below |
+| `Harness` | the Planner's prompt (`prompt.txt`) and the executor's (`executor.md`) | it owns both texts; `Instructions` holds the person's own instructions, which this slice does not change |
 
-Plans owns the contract's tables and screens and their rules (§5.1); the Planner's instructions
-are Instructions'.
+Runs depends on CodeRecord and calls it when a mark is stored (Runs → CodeRecord → Codebase, and
+Design and Plans for their types). Task progress is Runs' (`Runs::progress`), so a service that
+answers "each part's plans and their tasks by status" sits above Runs. CodeRecord cannot: that
+would be a cycle. Hence `ProjectState`, which holds no table and no rule of its own beyond the
+composition and its bounds: it reads Design's stage, layout and elements, Plans' live versions,
+Runs' progress, and asks CodeRecord for the element states, supplying the planned pins as facts.
+(Changed on 2026-11-19 while planning 2a from "CodeRecord owns `project_state`", which assumed
+CodeRecord could read task progress; it needs Mohammed's confirmation.)
 
 ## 9. Slices
 
 1. **Verification and the record:** the `contract` check after a report (§4), and the record's
    entries written on done and removed on not done. On `main` in PR #73 (`7b7abec`).
-2. **The project's state, its diagrams and `code_where`** (one plan, Mohammed, 2026-11-19), in
-   this order:
-   1. tables and screens in the contract (§5.1), and the Planner told to write them;
-   2. the record keeps a done task's tables and screens with their states, and `project_state`
-      answers (§5.2, §5.3);
-   3. `code_where`: Shadows' answer confirmed by the language servers, and the Planner told to ask
-      first (§5.3);
-   4. the web's state view, ER diagram and screen flow (§5.4);
-   5. acceptance on a real provider: a second plan on a project names the first plan's files,
-      tables and screens from `project_state` and `code_where` without reading the folder, and the
-      diagrams show them with their states in the browser.
+2. **The project's state, its diagrams and `code_where`** (Mohammed, 2026-11-19): two plans, both
+   built and delivered on one branch (`ccr-9e1b02d8-b0ylm1`).
+   - **2a** ([plan](../plans/2026-11-19-code-record-2a.md)): Design's elements; pins in the
+     contract and the executor's task context; the record of pinned elements and their states;
+     `project_state` (MCP tool and route); the routes and events the web's state view, ER diagram
+     and screen flow need, after the shared request
+     `docs/shared/requests/2026-11-19-project-state-and-diagrams.md` is accepted; the Planner told
+     to read the state and write elements; acceptance on a real provider: a second plan pins the
+     first plan's tables and screens by id from `project_state`, writes no duplicate, and the
+     diagrams show them with their states in the browser.
+   - **2b** (its plan follows 2a): `code_where` (§5.3), the Planner told to ask it before naming a
+     file, and its acceptance: a second plan names the first plan's files without reading the
+     folder.
 3. **Code no plan wrote:** moved to importing a project (§6).
 
-Each slice gets its plan in `docs/backend/plans/` before any task is dispatched.
+Each plan is in `docs/backend/plans/` before any of its tasks is dispatched.
