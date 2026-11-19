@@ -98,7 +98,7 @@ this file at `db760593`.
 
 ### B-172 · The project recheck runs the `contract` check of done tasks
 
-- Status: todo (needs B-171)
+- Status: done (tests a_later_task_removing_a_done_tasks_function_is_told_once, a_not_run_recheck_never_hides_a_later_failure; live_a_later_task_removing_a_done_tasks_function_is_told passed with real pyright via --include-ignored; the second shown to fail without the failed_before guard)
 - Plan: [plans/2026-11-19-code-record.md#task-b-172--the-project-recheck-runs-the-contract-check-of-done-tasks](plans/2026-11-19-code-record.md#task-b-172--the-project-recheck-runs-the-contract-check-of-done-tasks)
 - Read: the plan's "Rulings for every task"; `crates/core-runs/src/recheck.rs`; `crates/core-runs/src/store/rechecks.rs`.
 - Touch: the plan task's Files.

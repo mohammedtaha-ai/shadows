@@ -1,5 +1,6 @@
 //! Durable recheck batches and their per-check results.
 use super::{RunsStore, checks::Finished};
+use crate::checks::CONTRACT_CHECK;
 use crate::{AttemptId, RunsError};
 use core_db::{Storage, Tx};
 use core_plans::{Plan, TaskCheck, TaskContext, WorkflowId};
@@ -84,6 +85,7 @@ impl RunsStore {
             };
             let context: TaskContext = serde_json::from_str(&json)?;
             if let Some(contract) = context.task.contract {
+                let own = contract.checks.len();
                 for (ordinal, check) in contract.checks.into_iter().enumerate() {
                     pending.push((
                         attempt.clone(),
@@ -93,6 +95,27 @@ impl RunsStore {
                         ordinal,
                         check,
                     ));
+                }
+                // The contract check is rechecked when the judged attempt had one, after the
+                // task's own checks.
+                let contract_row: bool = sqlx::query_scalar(
+                    "SELECT EXISTS(SELECT 1 FROM run_checks
+                     WHERE attempt_id=? AND for_task=? AND check_id=?)",
+                )
+                .bind(&attempt)
+                .bind(i64::from(task))
+                .bind(CONTRACT_CHECK)
+                .fetch_one(&mut *conn)
+                .await?;
+                if contract_row {
+                    let check = TaskCheck {
+                        id: CONTRACT_CHECK.into(),
+                        run: vec![],
+                        folder: None,
+                        timeout_secs: None,
+                        proves: vec![],
+                    };
+                    pending.push((attempt.clone(), workflow.clone(), version, task, own, check));
                 }
             }
         }
@@ -157,12 +180,14 @@ impl RunsStore {
 
     /// Whether the same check of the same task did not pass either in the latest earlier batch
     /// that ran it: such a failure was told already, and is told again only after a pass.
+    /// A `contract` row that could not run is skipped, so a server down once hides nothing.
     pub async fn failed_before(&self, batch: &str, row: &ResultRow) -> Result<bool, RunsError> {
         let previous: Option<Option<String>> = sqlx::query_scalar(
             "SELECT r.outcome FROM run_recheck_results r
              JOIN run_rechecks b ON b.id=r.recheck_id
              JOIN run_rechecks cur ON cur.id=?
              WHERE r.workflow_id=? AND r.task=? AND r.check_id=? AND r.finished_at IS NOT NULL
+               AND NOT (r.check_id='contract' AND r.outcome='not_run')
                AND (b.created_at<cur.created_at OR (b.created_at=cur.created_at AND b.id<cur.id))
              ORDER BY b.created_at DESC,b.id DESC LIMIT 1",
         )

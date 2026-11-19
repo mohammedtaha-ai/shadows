@@ -333,3 +333,161 @@ async fn live_an_attempt_missing_a_promised_function_is_returned() {
     f.core.codebase().shut_down_for_test().await;
     f.finish().await;
 }
+
+/// Task 3 promising `login`, checked with a recorded answer that has it, and
+/// marked done once the Planner was told; returns the Planner's thread.
+async fn done_with_contract() -> (Fixture, shadows_core::ThreadId) {
+    let (f, id) = candidate(vec![], &["login"], "def login():\n    pass\n").await;
+    let planner = prepare_planner(&f).await;
+    f.core
+        .code_record()
+        .record_answer_for_tests(FILE, functions(&["login"]));
+    f.core.runs().recover().await.unwrap();
+    assert_eq!(
+        results(&f, &id, 1).await[0].outcome,
+        Some(CheckOutcome::Passed)
+    );
+    notice(&f, &planner, &id).await;
+    f.core
+        .runs()
+        .mark_done("done-three".into(), &f.workflow, 1, 3, true, None)
+        .await
+        .unwrap();
+    (f, planner)
+}
+
+/// Marks task 1 done under `command`, which rechecks the project's other done
+/// tasks, and waits for that recheck to finish and deliver its notice.
+async fn recheck(f: &Fixture, command: &str) {
+    f.core
+        .runs()
+        .mark_done(command.into(), &f.workflow, 1, 1, true, None)
+        .await
+        .unwrap();
+    for _ in 0..2400 {
+        let pending: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM run_rechecks WHERE finished_at IS NULL
+                 OR (notice_json IS NOT NULL AND notice_sent_at IS NULL)",
+        )
+        .fetch_one(f.storage.reader())
+        .await
+        .unwrap();
+        if pending == 0 {
+            return;
+        }
+        tokio::time::sleep(Duration::from_millis(25)).await;
+    }
+    panic!("recheck did not finish");
+}
+
+/// The `contract` recheck outcomes of task 3, oldest batch first.
+async fn contract_rechecks(f: &Fixture) -> Vec<String> {
+    sqlx::query_scalar(
+        "SELECT r.outcome FROM run_recheck_results r JOIN run_rechecks b ON b.id=r.recheck_id
+         WHERE r.task=3 AND r.check_id='contract' ORDER BY b.created_at,b.id",
+    )
+    .fetch_all(f.storage.reader())
+    .await
+    .unwrap()
+}
+
+/// The recheck notices queued for the Planner.
+async fn recheck_prompts(f: &Fixture, planner: &shadows_core::ThreadId) -> Vec<String> {
+    f.core
+        .turns()
+        .queued(planner)
+        .await
+        .unwrap()
+        .into_iter()
+        .filter(|m| {
+            m.notice
+                .as_ref()
+                .is_some_and(|n| n.card.get("recheck_id").is_some())
+        })
+        .map(|m| m.prompt)
+        .collect()
+}
+
+#[tokio::test]
+async fn a_later_task_removing_a_done_tasks_function_is_told_once() {
+    let (f, planner) = done_with_contract().await;
+    f.core
+        .code_record()
+        .record_answer_for_tests(FILE, functions(&[]));
+    recheck(&f, "cause").await;
+    recheck(&f, "cause-again").await;
+    assert_eq!(contract_rechecks(&f).await, vec!["failed", "failed"]);
+    let prompts = recheck_prompts(&f, &planner).await;
+    assert_eq!(prompts.len(), 1, "a failure already told is not told again");
+    assert!(prompts[0].contains("T3 contract failed"), "{}", prompts[0]);
+    assert!(
+        prompts[0].contains(&format!(
+            "T3 promises login in {FILE}; the code does not have it."
+        )),
+        "{}",
+        prompts[0]
+    );
+    assert!(f.core.runs().task(&f.workflow, 1, 3).await.unwrap().done);
+    f.finish().await;
+}
+
+#[tokio::test]
+async fn a_not_run_recheck_never_hides_a_later_failure() {
+    let (f, planner) = done_with_contract().await;
+    f.core
+        .code_record()
+        .record_answer_for_tests(FILE, RecordedAnswer::NoServer);
+    recheck(&f, "cause").await;
+    assert!(
+        recheck_prompts(&f, &planner).await.is_empty(),
+        "a contract recheck that could not run is recorded, never told"
+    );
+    f.core
+        .code_record()
+        .record_answer_for_tests(FILE, functions(&[]));
+    recheck(&f, "cause-again").await;
+    assert_eq!(contract_rechecks(&f).await, vec!["not_run", "failed"]);
+    let prompts = recheck_prompts(&f, &planner).await;
+    assert_eq!(prompts.len(), 1);
+    assert!(prompts[0].contains("T3 contract failed"), "{}", prompts[0]);
+    f.finish().await;
+}
+
+#[tokio::test]
+#[ignore = "needs pyright-langserver on PATH"]
+async fn live_a_later_task_removing_a_done_tasks_function_is_told() {
+    let (f, id) = candidate(vec![], &["login"], "def login() -> None:\n    pass\n").await;
+    let planner = prepare_planner(&f).await;
+    f.core
+        .codebase()
+        .start(CodebaseConfig {
+            name_index: false,
+            ..CodebaseConfig::default()
+        })
+        .await
+        .unwrap();
+    f.core.runs().recover().await.unwrap();
+    let rows = results(&f, &id, 1).await;
+    assert_eq!(rows[0].outcome, Some(CheckOutcome::Passed), "{rows:?}");
+    notice(&f, &planner, &id).await;
+    f.core
+        .runs()
+        .mark_done("done-three".into(), &f.workflow, 1, 3, true, None)
+        .await
+        .unwrap();
+    f.put(FILE, "def logout() -> None:\n    pass\n");
+    f.commit(&[FILE], "a later task removes login");
+    recheck(&f, "cause").await;
+    assert_eq!(contract_rechecks(&f).await, vec!["failed"]);
+    let prompts = recheck_prompts(&f, &planner).await;
+    assert_eq!(prompts.len(), 1);
+    assert!(
+        prompts[0].contains(&format!(
+            "T3 promises login in {FILE}; the code does not have it."
+        )),
+        "{}",
+        prompts[0]
+    );
+    f.core.codebase().shut_down_for_test().await;
+    f.finish().await;
+}

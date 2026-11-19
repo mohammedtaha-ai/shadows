@@ -1,7 +1,13 @@
 //! Rechecking the recorded checks of other done tasks after a done mark.
+use crate::checks::CONTRACT_CHECK;
+use crate::git::Git;
 use crate::notify::NoticeIntent;
+use crate::store::checks::Finished;
 use crate::store::rechecks::{Batch, ResultRow};
-use crate::{AttemptId, CheckOutcome, CheckResult, RecheckFailure, RecheckNotice, Runs, RunsError};
+use crate::{
+    Attempt, AttemptId, CheckOutcome, CheckResult, RecheckFailure, RecheckNotice, Runs, RunsError,
+};
+use code_record::VerdictOutcome;
 use core_plans::{TaskCheck, WorkflowId};
 use std::collections::BTreeMap;
 
@@ -40,9 +46,13 @@ impl Runs {
                         .get(&AttemptId::from_recorded(row.attempt_id.clone()))
                         .await?;
                     let check: TaskCheck = serde_json::from_str(&row.run_json)?;
-                    let result = self
-                        .run_check(&attempt, row.task, 0, &check, Some(id))
-                        .await?;
+                    let result = if check.id == CONTRACT_CHECK {
+                        self.recheck_contract(id, &attempt, row.task, &check)
+                            .await?
+                    } else {
+                        self.run_check(&attempt, row.task, 0, &check, Some(id))
+                            .await?
+                    };
                     self.inner
                         .store
                         .finish_recheck(id, &attempt.id, &check.id, result)
@@ -55,16 +65,65 @@ impl Runs {
         self.deliver_recheck(id).await
     }
 
+    /// The judged attempt's contract, verified again as the folder stands now, under the
+    /// recheck's own verdict key.
+    async fn recheck_contract(
+        &self,
+        id: &str,
+        attempt: &Attempt,
+        task: u32,
+        check: &TaskCheck,
+    ) -> Result<Finished, RunsError> {
+        self.inner
+            .store
+            .start_recheck(id, &attempt.id, check)
+            .await?;
+        let contract = self
+            .inner
+            .store
+            .context(&attempt.id)
+            .await?
+            .and_then(|(context, _)| context.task.contract)
+            .ok_or_else(|| RunsError::Unavailable("the attempt has no contract".into()))?;
+        let verdict = self
+            .inner
+            .code_record
+            .verify(
+                &format!("recheck:{id}:{}", attempt.id.as_str()),
+                &attempt.project_id,
+                task,
+                &contract,
+            )
+            .await
+            .map_err(|e| RunsError::Unavailable(e.to_string()))?;
+        let outcome = match verdict.outcome() {
+            VerdictOutcome::Passed => CheckOutcome::Passed,
+            VerdictOutcome::Failed => CheckOutcome::Failed,
+            VerdictOutcome::NotRun => CheckOutcome::NotRun,
+        };
+        Ok(Finished {
+            outcome,
+            exit_code: None,
+            head: Git::at(&self.folder(&attempt.project_id).await?)
+                .head()
+                .await,
+            output: verdict.lines(),
+            truncated: false,
+            foreign_leftovers: false,
+        })
+    }
+
     async fn end_recheck(&self, batch: &Batch) -> Result<(), RunsError> {
         let rows = self.inner.store.recheck_rows(&batch.id).await?;
         // Rows come in plan version, task and check order; each attempt's failures stay together.
         let mut failed = Vec::<RecheckFailure>::new();
         let mut plans = BTreeMap::<String, core_plans::Plan>::new();
         let mut lines = Vec::new();
-        for row in rows
-            .iter()
-            .filter(|row| row.outcome.as_deref() != Some("passed"))
-        {
+        // A `contract` row that could not run is recorded and never told.
+        for row in rows.iter().filter(|row| {
+            row.outcome.as_deref() != Some("passed")
+                && !(row.check_id == CONTRACT_CHECK && row.outcome.as_deref() == Some("not_run"))
+        }) {
             // Every check runs and is recorded; a failure already told stays untold until
             // the check has passed in between.
             if self.inner.store.failed_before(&batch.id, row).await? {

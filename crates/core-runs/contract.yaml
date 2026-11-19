@@ -87,7 +87,7 @@ dependencies:
   threads: Threads creates the executor thread inside the Start write, and reads the executor's entries for a lessons record and a failed notice's last message.
   grants: Grants revokes an interrupted attempt's grant at startup; an executor grant names the attempt's task. Grants::check_live_in rechecks a task question's grant inside a read RunsStore opens on the shared storage, and a conflict's grant inside the conflict's own write; no Grants SQL is in Runs.
   projects: Projects names the folder git runs in.
-  code_record: CodeRecord::verify compares the attempt's own contract with the code for the `contract` check, its verdict stored under the attempt id; CodeRecord never calls Runs.
+  code_record: CodeRecord::verify compares the attempt's own contract with the code for the `contract` check, its verdict stored under the attempt id, and a recheck's under recheck:{recheck_id}:{attempt_id}; CodeRecord never calls Runs.
   code: Codebase answers a task question's language-server question (Codebase::lsp, Asker::Grant). Codebase lists the project's files, to leave secret and dependency files out of the first commit (Codebase::refresh_inventory and Codebase::inventory, asked with Asker::Grant), and answers which of a task's required files are absent (Codebase::missing_inputs, Asker::Grant); the same check refuses a conflict's evidence path outside the project or holding a secret, an absent path being evidence too.
   # A running attempt holds `Codebase::hold` of its project until its turn ends, so the project stays active.
 
@@ -328,6 +328,8 @@ obligations:
     note: live_an_attempt_missing_a_promised_function_is_returned is ignored in CI (needs pyright-langserver on PATH).
   - rule: A fresh done command rechecks the project's other done tasks across plans and versions, using their judged attempt or newest committed fallback; a failure already told is rerun but not told again; replay starts no second batch and recovery preserves notice delivery.
     tested_by: [a_done_mark_reruns_the_checks_of_the_plans_done_tasks, a_done_mark_reruns_another_plans_done_tasks, a_failure_still_failing_is_rerun_but_not_told_again,a_failing_recheck_tells_the_planner_once, a_passing_recheck_sends_no_notice, a_replayed_mark_starts_no_second_recheck, a_restart_finishes_an_unfinished_recheck, a_finished_batch_never_loses_its_notice, an_older_versions_done_task_is_rechecked, a_task_marked_done_again_stays_in_the_recheck, a_done_task_with_no_commit_is_left_out]
+  - rule: A done task's `contract` check is rechecked; a later task removing a promised function is told once; a not_run contract recheck is never told and never hides a later failure.
+    tested_by: [a_later_task_removing_a_done_tasks_function_is_told_once, a_not_run_recheck_never_hides_a_later_failure, live_a_later_task_removing_a_done_tasks_function_is_told]
   - rule: A person's Stop and an interruption notify the Planner once; enqueue failure leaves the notice owed for recovery, while a Planner Stop and a conflict produce no second generic notice.
     tested_by: [a_restart_tells_the_planner_of_each_interrupted_attempt, a_second_restart_sends_no_second_interrupted_notice, an_owed_notice_is_sent_on_the_next_start, a_persons_stop_notice_survives_a_failed_enqueue, the_persons_stop_tells_the_planner, the_planners_stop_sends_no_notice, a_stopped_conflict_keeps_its_one_notice]
   - rule: Readiness agrees with Start over leftovers, while personal dirty files without an ended attempt or after a committed attempt still refuse Start.
@@ -560,6 +562,13 @@ rechecks:
     run_task_marks and run_attempts (a task with an attempt in the project), ordered by
     workflow, version, task; the marked task is left out.
   attempt: The mark's judged attempt, else its version's newest attempt with a commit; absent context contributes no checks.
+  contract: >
+    When that attempt has a `contract` row in run_checks, the batch gets a `contract` row too
+    (run_json {"id":"contract","run":[]}, ordinal the task's own check count). run_recheck
+    runs it through CodeRecord::verify, key recheck:{recheck_id}:{attempt_id}, with the contract
+    of that attempt's stored context, the folder as it stands; the row takes the verdict's
+    outcome and lines. A not_run `contract` row is recorded and never told, and failed_before
+    skips earlier not_run `contract` rows, so a server down once never hides a later failure.
   execution: Shared run_check under the project check mutex, quiet-project and overlap rules retained.
   persistence: Results are durable; finished_at and the resolved notice payload are one write.
   notice: >
