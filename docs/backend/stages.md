@@ -75,6 +75,8 @@ this file at `db760593`.
 - B-150 keeps its own per-thread message queue beside Turns' queue; reusing Turns' queue needs the executor session restored by thread.
 - The web derives "stopped on the additions cap" itself; a Core field on `TaskRun` should own it.
 - When B-167's file check is skipped (no project folder, first listing running), the Planner is not told; it saw a like edit refused before and could not tell why.
+- TypeScript's language server is `tsc --lsp` (TypeScript 7); on a machine with TypeScript 6 a TypeScript task's `contract` check is `not_run` with the server's error line (`docs/evidence/2026-11-19-code-record-live.md`).
+- The contract check's Go shapes (`(*X).m`) are tested on recorded gopls answers only; no live gopls run yet.
 - A Planner's `Read` (Claude) and read-only sandbox (Codex) can read any file the account can, outside the project too; only its instructions keep it in the project. Accepted as is by Mohammed on 2026-11-18.
 
 ## Open
