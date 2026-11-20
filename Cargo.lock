@@ -580,6 +580,7 @@ version = "0.1.0"
 dependencies = [
  "codebase",
  "core-db",
+ "core-design",
  "core-plans",
  "core-projects",
  "serde",
@@ -589,6 +590,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "tracing",
+ "utoipa",
 ]
 
 [[package]]

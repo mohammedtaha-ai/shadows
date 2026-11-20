@@ -3,7 +3,7 @@
 # Project identities are imported from core-projects; the task contract's types
 # from core-plans, whose service it never calls. Runs owns the check rows and
 # their flow and calls `verify`; CodeRecord never calls Runs.
-# Database infrastructure: core-db; its four tables are private to its store.
+# Database infrastructure: core-db; its five tables are private to its store.
 #
 # What is compared is the folder as it stands when `verify` runs. The language
 # servers are asked through Codebase (`missing_inputs`, then `lsp`'s
@@ -19,10 +19,13 @@ modules:
   error.rs: code record refusals
   model.rs: the code record's values
   verify.rs: comparing a contract's symbols with the code
+  elements.rs: judging a design element's build state
   store/mod.rs: code record persistence
+  store/elements.rs: the record's element pins
 
 dependencies:
   code: crates/codebase/contract.yaml
+  design: crates/core-design/contract.yaml # DesignElement type
   projects: crates/core-projects/contract.yaml
   # Types only: TaskContract, SymbolWork, FileAction.
   plans: crates/core-plans/contract.yaml
@@ -40,7 +43,7 @@ shapes:
     # NoServer: unchecked, "no language server reads it"; Absent: the file is absent.
     values: [Symbols(Value), NoServer, Absent]
   CodeRecordStore:
-    storage: Arc<Storage>   # private; tables code_record_verdict, code_record_file, code_record_symbol, code_record_unpromised
+    storage: Arc<Storage>   # private; tables code_record_verdict, code_record_file, code_record_symbol, code_record_unpromised, code_record_element
   DoneRecord:
     # What a done mark records: attempt and commit none for a task done with
     # no attempt; verdict none then, or when another attempt committed since.
@@ -54,6 +57,16 @@ shapes:
     verdict: Option<Verdict>
   SymbolState:
     values: [found, missing, unchecked]
+  BuildState:
+    values: [planned, built, gap, unchecked, removed]
+  Confirmation:
+    values: [file_and_symbol, file_only]
+  PlannedPin:
+    note: Workflow id, version, task number and ElementPin of a task still to build.
+  ElementTask:
+    note: Workflow, version, task, revision, action, file, optional symbol and its done-time state.
+  ElementState:
+    note: State of the highest done revision, whether a newer revision is planned, done and planned pins, confirmation and reason.
   PromisedSymbol:
     id: String
     path: String
@@ -178,12 +191,21 @@ functions:
       # none or does not name it; unpromised rows from the verdict only. No read
       # method yet: its first user is code_where.
     forget_done_in:
-      signature: "(tx: &mut Tx, workflow: &WorkflowId, version: i64, task: u32) -> Result<(), StorageError>"
-      # Inside Runs' marking write: deletes the task's rows.
+      signature: "(tx: &mut Tx, project: &ProjectId, workflow: &WorkflowId, version: i64, task: u32) -> Result<(), StorageError>"
+      # Inside Runs' marking write: deletes the task's rows and journals CodeRecordChanged.
+
+element_states:
+  signature: "(project: &ProjectId, elements: &[DesignElement], planned: &[PlannedPin]) -> Result<Vec<ElementState>, CodeRecordError>"
+  rule: >
+    For each requested element in input order, consider done pins at their highest revision.
+    Deleting revisions give removed when built, or planned changes behind an older built revision.
+    Missing files or promised symbols give gap, unknown folder or symbol checks give unchecked.
+    There is one folder check for the non-delete pins. Reads do not write the record.
+  tested_by: [element_states_read_the_record_and_the_folder]
 
 shared_in_transaction:
   delete_project_in: "ProjectLifecycle's removal transaction: a removed project's verdicts and record go in the removal's own write"
-  record_done_in: "Runs' put_mark write: a done mark records its task's contract and verdict"
+  record_done_in: "Runs' put_mark write: records the task's contract, verdict and element pins; journals CodeRecordChanged"
   forget_done_in: "Runs' put_mark write: a not-done mark, or a done one with no contract, removes the task's record"
 
 obligations:

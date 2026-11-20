@@ -9,6 +9,8 @@ use core_projects::ProjectId;
 
 use crate::{CodeRecord, CodeRecordError, DoneRecord, SymbolState, Unpromised, Verdict};
 
+mod elements;
+
 #[derive(Clone)]
 pub(crate) struct CodeRecordStore {
     storage: Arc<Storage>,
@@ -17,6 +19,13 @@ pub(crate) struct CodeRecordStore {
 impl CodeRecordStore {
     pub(super) fn new(storage: Arc<Storage>) -> Self {
         Self { storage }
+    }
+
+    pub(super) async fn element_pins(
+        &self,
+        project: &ProjectId,
+    ) -> Result<std::collections::BTreeMap<String, Vec<crate::ElementTask>>, CodeRecordError> {
+        self.read_elements(project).await
     }
 
     /// Stores the verdict under `key`, replacing one stored before.
@@ -71,6 +80,7 @@ impl CodeRecord {
     /// Every verdict and record row of a removed project, inside the
     /// removal's own write.
     pub async fn delete_project_in(conn: &mut Tx, project: &ProjectId) -> Result<(), StorageError> {
+        CodeRecordStore::delete_element_project_in(conn, project).await?;
         let project = project.as_str();
         sqlx::query("DELETE FROM code_record_verdict WHERE project_id = ?")
             .bind(project)
@@ -177,7 +187,7 @@ impl CodeRecord {
     /// and the verdict's unpromised symbols.
     pub async fn record_done_in(tx: &mut Tx, done: &DoneRecord) -> Result<(), StorageError> {
         let (files, symbols) = (done.files()?, done.symbols()?);
-        Self::forget_done_in(tx, &done.workflow, done.version, done.task).await?;
+        Self::clear_done_in(tx, &done.workflow, done.version, done.task).await?;
         let (project, workflow, version, task) = (
             done.project.as_str(),
             done.workflow.as_str(),
@@ -237,16 +247,30 @@ impl CodeRecord {
             .execute(&mut *tx)
             .await?;
         }
-        Ok(())
+        CodeRecordStore::write_elements_in(tx, done).await?;
+        CodeRecordStore::element_change(tx, &done.project, &done.workflow, done.version, done.task)
+            .await
     }
 
     /// Deletes the task's record, inside the write that marks it not done.
     pub async fn forget_done_in(
         tx: &mut Tx,
+        project: &ProjectId,
         workflow: &WorkflowId,
         version: i64,
         task: u32,
     ) -> Result<(), StorageError> {
+        Self::clear_done_in(tx, workflow, version, task).await?;
+        CodeRecordStore::element_change(tx, project, workflow, version, task).await
+    }
+
+    async fn clear_done_in(
+        tx: &mut Tx,
+        workflow: &WorkflowId,
+        version: i64,
+        task: u32,
+    ) -> Result<(), StorageError> {
+        CodeRecordStore::clear_elements_in(tx, workflow, version, task).await?;
         let (workflow, task) = (workflow.as_str(), i64::from(task));
         sqlx::query(
             "DELETE FROM code_record_file WHERE workflow_id = ? AND version = ? AND task = ?",

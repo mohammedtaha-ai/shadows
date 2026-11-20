@@ -1,14 +1,70 @@
 //! One job: the code record's values, and the plain lines a verdict reads as.
 
+use core_plans::{ElementAction, ElementPin, WorkflowId};
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
 /// Whether the code holds one promised symbol.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum SymbolState {
     Found,
     Missing,
     Unchecked,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum BuildState {
+    Planned,
+    Built,
+    Gap,
+    Unchecked,
+    Removed,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum Confirmation {
+    FileAndSymbol,
+    FileOnly,
+}
+
+/// A pin of a task that has not been marked done.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
+pub struct PlannedPin {
+    pub workflow_id: WorkflowId,
+    pub version: i64,
+    pub task: u32,
+    pub pin: ElementPin,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, ToSchema)]
+pub struct ElementTask {
+    pub workflow_id: WorkflowId,
+    pub version: i64,
+    pub task: u32,
+    pub revision: i64,
+    pub action: ElementAction,
+    pub file: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub symbol_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub symbol_state: Option<SymbolState>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, ToSchema)]
+pub struct ElementState {
+    pub element_id: String,
+    pub state: BuildState,
+    pub built_revision: Option<i64>,
+    pub behind: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub confirmed: Option<Confirmation>,
+    pub done: Vec<ElementTask>,
+    pub planned: Vec<ElementTask>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub why: Option<String>,
 }
 
 /// One symbol a task's contract promises, and what the code holds of it.

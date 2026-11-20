@@ -50,6 +50,7 @@ async fn fresh_database_migrates_and_applies_the_connection_policy() {
             "code_file",
             "code_inventory",
             "code_inventory_scan",
+            "code_record_element",
             "code_record_file",
             "code_record_symbol",
             "code_record_unpromised",

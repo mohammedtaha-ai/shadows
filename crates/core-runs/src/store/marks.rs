@@ -210,7 +210,16 @@ impl RunsStore {
                         &ts,
                     )
                     .await?;
-                    Self::record_in(conn, &workflow, version, task, done, record).await?;
+                    Self::record_in(
+                        conn,
+                        &plan.project_id,
+                        &workflow,
+                        version,
+                        task,
+                        done,
+                        record,
+                    )
+                    .await?;
                     let recheck = if done {
                         Self::begin_recheck_in(conn, &plan, &plans, task, command_id).await?
                     } else {
@@ -229,6 +238,7 @@ impl RunsStore {
     /// after `record` was read; not done, or no contract, removes it.
     async fn record_in(
         tx: &mut Tx,
+        project: &core_projects::ProjectId,
         workflow: &WorkflowId,
         version: i64,
         task: u32,
@@ -236,7 +246,7 @@ impl RunsStore {
         record: Option<DoneRecord>,
     ) -> Result<(), RunsError> {
         let Some(mut record) = record.filter(|_| done) else {
-            CodeRecord::forget_done_in(tx, workflow, version, task).await?;
+            CodeRecord::forget_done_in(tx, project, workflow, version, task).await?;
             return Ok(());
         };
         let latest: Option<String> = sqlx::query_scalar(

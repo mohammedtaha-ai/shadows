@@ -133,7 +133,7 @@ Dispatch is the controller's (Mohammed, 2026-11-19): the controller runs `backen
 
 ### B-178 · The record keeps the pinned elements, and CodeRecord judges their state
 
-- Status: blocked (on B-177)
+- Status: done
 - Plan: [plans/2026-11-19-code-record-2a.md#task-b-178--the-record-keeps-the-pinned-elements-and-coderecord-judges-their-state](plans/2026-11-19-code-record-2a.md#task-b-178--the-record-keeps-the-pinned-elements-and-coderecord-judges-their-state)
 - Read: the plan's rulings; `crates/code-record/contract.yaml`;
   `crates/code-record/src/store/mod.rs`; design §5.2.

@@ -3,6 +3,7 @@
 //!
 //! Runs owns its check rows and calls `verify`; this service never calls Runs.
 
+mod elements;
 mod error;
 mod model;
 mod store;
@@ -16,7 +17,8 @@ use store::CodeRecordStore;
 
 pub use error::CodeRecordError;
 pub use model::{
-    DoneRecord, PromisedSymbol, SymbolState, UncheckedFile, Unpromised, Verdict, VerdictOutcome,
+    BuildState, Confirmation, DoneRecord, ElementState, ElementTask, PlannedPin, PromisedSymbol,
+    SymbolState, UncheckedFile, Unpromised, Verdict, VerdictOutcome,
 };
 
 /// What a test records as one file's answer, in place of a language server's.

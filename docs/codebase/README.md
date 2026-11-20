@@ -363,7 +363,9 @@ pattern to follow, not merely an example.
 | `crates/code-record/src/error.rs` | code record refusals | `crates/code-record/contract.yaml` |
 | `crates/code-record/src/model.rs` | the code record's values | `crates/code-record/contract.yaml` |
 | `crates/code-record/src/verify.rs` | comparing a contract's symbols with the code | `crates/code-record/contract.yaml` |
+| `crates/code-record/src/elements.rs` | judging a design element's build state | `crates/code-record/contract.yaml` |
 | `crates/code-record/src/store/` | the code record's persistence | `crates/code-record/contract.yaml` |
+| `crates/code-record/src/store/elements.rs` | the record's element pins | `crates/code-record/contract.yaml` |
 | `crates/core-events/src/` | what clients watch live | `crates/core-events/src/lib.rs` |
 | `crates/core-events/src/model.rs` | journal replay cursor | `crates/core-events/src/model.rs` |
 | `crates/core-events/src/subscription.rs` | one subscriber's replay-then-live stream | `crates/core-events/src/subscription.rs` |
