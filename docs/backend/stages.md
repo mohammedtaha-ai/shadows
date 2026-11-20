@@ -143,7 +143,7 @@ Dispatch is the controller's (Mohammed, 2026-11-19): the controller runs `backen
 
 ### B-179 · `ProjectState`: the project's state, and the `project_state` tool
 
-- Status: todo (B-178 is done; its owner `ProjectState` was approved by Mohammed on 2026-11-19)
+- Status: done (B-178 is done; its owner `ProjectState` was approved by Mohammed on 2026-11-19)
 - Plan: [plans/2026-11-19-code-record-2a.md#task-b-179--projectstate-the-projects-state-and-the-project_state-tool](plans/2026-11-19-code-record-2a.md#task-b-179--projectstate-the-projects-state-and-the-project_state-tool)
 - Read: the plan's rulings; `crates/shadows-core/src/app.rs` (`assemble_services`);
   `crates/core-runs/contract.yaml` (`progress`); `crates/core-plans/contract.yaml` (`list`,

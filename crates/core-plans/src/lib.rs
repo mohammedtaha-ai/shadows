@@ -23,6 +23,7 @@ mod design_ops;
 pub use design_ops::DesignOp;
 mod dependency_graph;
 mod execution;
+mod live_versions;
 pub use execution::{ExecutionPlan, ExecutionRefusal};
 mod map;
 mod model;
@@ -58,8 +59,8 @@ pub use dependencies::{LinkedTask, TaskParent, TaskPreview};
 pub use map::{MapLink, MapPlan, PlanMap};
 pub use model::{
     AcceptanceItem, Approved, DecisionPin, DraftStarted, EditOutcome, LastEdit, Link, LinkKind,
-    Plan, PlanContent, PlanId, PlanListing, PlanState, PlanTask, PlanVersions, TaskContent, TaskId,
-    VersionLine, WorkflowId, WorkflowState, WrittenBy,
+    LiveFrozen, LiveTask, LiveVersion, Plan, PlanContent, PlanId, PlanListing, PlanState, PlanTask,
+    PlanVersions, TaskContent, TaskId, VersionLine, WorkflowId, WorkflowState, WrittenBy,
 };
 pub use ops::PlanOp;
 pub use rules::Problem;

@@ -674,6 +674,32 @@ impl From<core_project_lifecycle::ProjectLifecycleError> for CoreError {
     }
 }
 
+/// The state's refusal is its inner owner's; an unknown part is the request's.
+impl From<project_state::ProjectStateError> for CoreError {
+    fn from(error: project_state::ProjectStateError) -> Self {
+        use core_runs::RunsError;
+        use project_state::ProjectStateError;
+        match error {
+            ProjectStateError::UnknownPart(message) => Self::Refused {
+                code: ErrorCode::InvalidCommand,
+                message,
+            },
+            ProjectStateError::Design(error) => error.into(),
+            ProjectStateError::Plans(error) => error.into(),
+            ProjectStateError::Runs(RunsError::Storage(error)) => error.into(),
+            ProjectStateError::Runs(RunsError::Grants(error)) => error.into(),
+            ProjectStateError::Runs(RunsError::Code(error)) => error.into(),
+            ProjectStateError::Runs(other) => Self::Refused {
+                code: ErrorCode::InvalidCommand,
+                message: other.to_string(),
+            },
+            ProjectStateError::CodeRecord(code_record::CodeRecordError::Storage(error)) => {
+                error.into()
+            }
+        }
+    }
+}
+
 impl From<core_events::EventsError> for CoreError {
     fn from(error: core_events::EventsError) -> Self {
         match error {

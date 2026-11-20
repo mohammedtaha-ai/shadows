@@ -155,6 +155,7 @@ async fn the_tool_list_depends_on_the_grant_kind() {
             "project_files",
             "project_git_init",
             "project_refresh",
+            "project_state",
             "roadmap_approve",
             "roadmap_propose",
             "task_amend",
@@ -287,6 +288,7 @@ async fn the_legacy_initialize_lifecycle_works_without_a_session() {
             "project_files",
             "project_git_init",
             "project_refresh",
+            "project_state",
             "roadmap_approve",
             "roadmap_propose",
             "task_amend",
@@ -361,7 +363,7 @@ async fn the_discover_lifecycle_works_without_a_session() {
     let tools = answer["result"]["tools"]
         .as_array()
         .unwrap_or_else(|| panic!("{answer}"));
-    assert_eq!(tools.len(), 44, "{answer}");
+    assert_eq!(tools.len(), 45, "{answer}");
     for tool in ["task_executor_set", "executor_catalog"] {
         assert!(tools.iter().any(|item| item["name"] == tool), "{answer}");
     }

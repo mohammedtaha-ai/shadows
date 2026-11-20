@@ -144,6 +144,13 @@ pub use core_project_lifecycle::ProjectLifecycleError;
 
 pub use core_events::EventsError;
 
+pub use project_state::{
+    ElementGap, ElementView, PartDetail, PartState, PlanProgress, PlanTasks, ProjectState,
+    ProjectStateError, ProjectStateView, StateCounts, TaskCounts, TaskLine,
+};
+
+pub use code_record::{BuildState, Confirmation, ElementState, ElementTask};
+
 pub use core_design::{LayoutLayer, LayoutPart, OwnedVia, PathOwner, ProjectLayout, RuleText};
 
 pub use core_plans::{ContextPlan, ContextStandards, TaskContext, TaskPart, TaskPath};

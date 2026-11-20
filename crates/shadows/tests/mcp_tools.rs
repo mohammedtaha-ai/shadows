@@ -993,6 +993,18 @@ fn the_planner_is_told_to_write_tables_and_screens() {
 }
 
 #[test]
+fn the_planner_is_told_to_read_the_project_state() {
+    let prompt = shadows_core::testing::PROMPT;
+    let expected = concat!(
+        "- project_state: read it before you plan a change to a project that has plans: ",
+        "what each part holds, which tasks are done, and which tables and screens exist, ",
+        "are planned, or have a gap. Pin an existing table or screen by its id; never ",
+        "write a second one with the same name."
+    );
+    assert!(prompt.lines().any(|line| line == expected));
+}
+
+#[test]
 fn the_planner_sets_the_project_up_first() {
     let prompt = shadows_core::testing::PROMPT;
     let texts: &[&str] = &[

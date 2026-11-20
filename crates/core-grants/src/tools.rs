@@ -1,7 +1,7 @@
 //! The tools each grant kind permits.
 use super::{GrantKind, Grants};
 /// Only the Planner may show a plan in a person's conversation.
-const THREAD_TOOLS: [&str; 44] = [
+const THREAD_TOOLS: [&str; 45] = [
     "vision_approve",
     "map_approve",
     "roadmap_approve",
@@ -26,6 +26,7 @@ const THREAD_TOOLS: [&str; 44] = [
     "design_element_put",
     "design_element_delete",
     "design_elements",
+    "project_state",
     "workspace_get",
     "project_files",
     "project_refresh",

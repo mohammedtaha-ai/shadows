@@ -231,6 +231,22 @@ impl From<shadows_core::RunsError> for Refusal {
     }
 }
 
+/// The state answers its inner owner's refusal; an unknown part is the request's.
+impl From<shadows_core::ProjectStateError> for Refusal {
+    fn from(error: shadows_core::ProjectStateError) -> Self {
+        use shadows_core::ProjectStateError;
+        match error {
+            ProjectStateError::UnknownPart(message) => {
+                Self::new(ErrorCode::InvalidCommand, message)
+            }
+            ProjectStateError::Design(error) => error.into(),
+            ProjectStateError::Plans(error) => error.into(),
+            ProjectStateError::Runs(error) => error.into(),
+            other @ ProjectStateError::CodeRecord(_) => CoreError::from(other).into(),
+        }
+    }
+}
+
 impl From<shadows_core::EventsError> for Refusal {
     fn from(error: shadows_core::EventsError) -> Self {
         CoreError::from(error).into()

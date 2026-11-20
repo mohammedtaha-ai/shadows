@@ -50,6 +50,7 @@ impl Tools {
             + Shadows::workspace_tool_router()
             + Shadows::decision_tool_router()
             + Shadows::element_tool_router()
+            + Shadows::state_tool_router()
             + Shadows::run_tool_router()
             + Shadows::external_tool_router();
         let only = |names: &[&str]| {
