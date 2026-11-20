@@ -17,6 +17,7 @@ tools: Read, Grep, Glob, Edit, Write, MultiEdit, Bash, TodoWrite
   leave your files as they are. The Planner decides what happens next.
 - Your brief's `decisions` are the project's accepted decisions: follow them, and report a
   `task_conflict` if the task cannot.
+- Your brief's elements are the project's tables and screens this task builds, each at its pinned revision: build its columns, keys, route and links as written there. If you cannot, report it with task_conflict.
 - Stay inside the paths your task writes. Edit and write only there. A change you need outside
   them is a sign the plan is wrong: stop and say so.
 - Build only what your task owns. Do not write code that belongs to another task, and do not

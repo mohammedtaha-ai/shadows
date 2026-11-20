@@ -39,8 +39,9 @@ pub use task_context::{
     ContextPlan, ContextStandards, PhaseDependency, TaskContext, TaskPart, TaskPath,
 };
 pub use task_contract::{
-    ContractSource, ContractTarget, ContractUse, ContractValue, FileAction, FileWork,
-    ProducedOutput, ResolvedContract, SymbolKind, SymbolWork, TaskCheck, TaskContract,
+    ContractSource, ContractTarget, ContractUse, ContractValue, ElementAction, ElementPin,
+    FileAction, FileWork, ProducedOutput, ResolvedContract, SymbolKind, SymbolWork, TaskCheck,
+    TaskContract,
 };
 mod scope;
 mod signal;

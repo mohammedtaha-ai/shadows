@@ -405,6 +405,7 @@ mod tests {
             forbidden: Vec::new(),
             checks: Vec::new(),
             decisions: Vec::new(),
+            elements: Vec::new(),
         }
     }
 

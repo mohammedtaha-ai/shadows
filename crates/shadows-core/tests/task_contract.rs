@@ -249,6 +249,242 @@ fn pinned(number: u32, id: &str, version: i64) -> PlanOp {
 }
 
 #[tokio::test]
+async fn a_missing_element_pin_is_refused_by_design_lookup() {
+    let (_tmp, storage) = fixture().await;
+    let plans = AppCore::plans_for_tests(storage);
+    let contract = serde_json::from_value(serde_json::json!({
+        "files": [{"path": "db/users.sql", "action": "create", "purpose": "Create users"}],
+        "elements": [{"id": "E1", "revision": 1, "action": "create", "file": "db/users.sql"}]
+    }))
+    .unwrap();
+    let refused = plans
+        .edit_plan_for_test(
+            &command("pin"),
+            &Writer::Person,
+            None,
+            &WorkflowId::from_literal(SOURCE),
+            0,
+            &[PlanOp::TaskAdd {
+                task: task_with(1, contract),
+            }],
+        )
+        .await;
+    let Err(PlansError::PlanInvalid(problems)) = refused else {
+        panic!("{refused:?}");
+    };
+    assert_eq!(
+        problems[0].message,
+        "T1 pins E1 r1, which this project's design does not have"
+    );
+}
+
+fn element_task(revision: i64, action: &str, file: &str, symbol: Option<&str>) -> PlanOp {
+    let contract = serde_json::from_value(serde_json::json!({
+        "files": [{"path": "db/users.sql", "action": "create", "purpose": "Create users"},
+            {"path": "web/users.sql", "action": "create", "purpose": "Show users"}],
+        "elements": [{"id": "E1", "revision": revision, "action": action,
+            "file": file, "symbol_id": symbol}]
+    }))
+    .unwrap();
+    let mut task = task_with(1, contract);
+    task.writes = vec!["db/users.sql".into(), "web/users.sql".into()];
+    PlanOp::TaskAdd { task }
+}
+
+#[tokio::test]
+async fn a_pin_names_a_file_the_task_works_and_a_symbol_in_it() {
+    let (_tmp, storage) = fixture().await;
+    let plans = AppCore::plans_for_tests(storage);
+    let refused = plans
+        .edit_plan_for_test(
+            &command("bad-element"),
+            &Writer::Person,
+            None,
+            &WorkflowId::from_literal(SOURCE),
+            0,
+            &[element_task(1, "delete", "db/other.sql", Some("s1"))],
+        )
+        .await;
+    let Err(PlansError::PlanInvalid(problems)) = refused else {
+        panic!("{refused:?}");
+    };
+    assert_eq!(
+        problems
+            .iter()
+            .map(|p| p.message.as_str())
+            .collect::<Vec<_>>(),
+        [
+            "T1 contract: the element `E1` names `db/other.sql`, which the task does not create, \
+             modify or delete",
+            "T1 contract: the element `E1` names the symbol `s1`, which the task does not describe \
+             in `db/other.sql`",
+            "T1 contract: the element `E1` is deleted by this task, so it names no symbol"
+        ]
+    );
+}
+
+#[tokio::test]
+async fn a_task_pins_the_latest_element_in_its_own_part_and_keeps_the_frozen_revision() {
+    let (_tmp, storage) = fixture().await;
+    let plans = AppCore::plans_for_tests(storage.clone());
+    let design = AppCore::design_for_tests(storage.clone());
+    let project = shadows_core::ProjectId::from_literal("p");
+    let workflow = WorkflowId::from_literal(SOURCE);
+    let seed = design.seed_elements_for_tests(&project).await.unwrap();
+    held_turn(&storage, &ThreadId::from_literal("writer")).await;
+    let planner = grant(&storage).await;
+    let input = |id, expected_revision, primary_key| shadows_core::ElementInput {
+        id,
+        expected_revision,
+        part_id: seed.database.clone(),
+        outcomes: vec![seed.outcome.clone()],
+        content: shadows_core::ElementContent::Table(shadows_core::TableContent {
+            name: "users".into(),
+            purpose: "Store users".into(),
+            columns: vec![shadows_core::TableColumn {
+                name: "id".into(),
+                type_name: "TEXT".into(),
+                meaning: String::new(),
+                primary_key,
+                references: None,
+            }],
+        }),
+    };
+    let first = design
+        .put_element_for(&planner, "table-1".into(), input(None, None, false))
+        .await
+        .unwrap();
+    let second = design
+        .put_element_for(
+            &planner,
+            "table-2".into(),
+            input(Some(first.id.clone()), Some(first.revision), true),
+        )
+        .await
+        .unwrap();
+    for (key, revision, action, file, expected) in [
+        (
+            "stale",
+            1,
+            "create",
+            "db/users.sql",
+            "T1 pins E1 r1, but its latest revision is r2; pin r2".to_owned(),
+        ),
+        (
+            "wrong-part",
+            2,
+            "create",
+            "web/users.sql",
+            format!(
+                "T1 pins E1 in `web/users.sql`, which its part {} does not own",
+                seed.database
+            ),
+        ),
+        (
+            "not-deleted",
+            2,
+            "delete",
+            "db/users.sql",
+            "T1 deletes E1, but r2 does not delete it; delete it with design_element_delete first"
+                .to_owned(),
+        ),
+    ] {
+        let result = plans
+            .edit_plan_for_test(
+                &command(key),
+                &Writer::Person,
+                None,
+                &workflow,
+                0,
+                &[element_task(revision, action, file, None)],
+            )
+            .await;
+        let Err(PlansError::PlanInvalid(problems)) = result else {
+            panic!("{result:?}")
+        };
+        assert_eq!(problems[0].message, expected);
+    }
+    plans
+        .edit_plan_for_test(
+            &command("latest"),
+            &Writer::Person,
+            None,
+            &workflow,
+            0,
+            &[element_task(2, "create", "db/users.sql", None)],
+        )
+        .await
+        .unwrap();
+    plans
+        .approve_plan_for_test(&command("freeze"), &workflow, 1)
+        .await
+        .unwrap();
+    design
+        .delete_element_for(
+            &planner,
+            "remove-table".into(),
+            shadows_core::ElementDelete {
+                id: second.id.clone(),
+                expected_revision: 2,
+            },
+        )
+        .await
+        .unwrap();
+    let context = plans
+        .task_context(&planner, Some(&workflow), 1, None)
+        .await
+        .unwrap();
+    assert_eq!(context.task.contract.unwrap().elements[0].revision, 2);
+    assert_eq!(context.elements, vec![second]);
+
+    let next = WorkflowId::from_literal(cross_plan::TARGET);
+    let build_deleted = plans
+        .edit_plan_for_test(
+            &command("build-deleted"),
+            &Writer::Person,
+            None,
+            &next,
+            0,
+            &[element_task(3, "create", "db/users.sql", None)],
+        )
+        .await;
+    let Err(PlansError::PlanInvalid(problems)) = build_deleted else {
+        panic!("{build_deleted:?}");
+    };
+    assert_eq!(
+        problems[0].message,
+        "T1 builds E1 r3, which deletes it; use action delete"
+    );
+    plans
+        .edit_plan_for_test(
+            &command("pin-deletion"),
+            &Writer::Person,
+            None,
+            &next,
+            0,
+            &[element_task(3, "delete", "db/users.sql", None)],
+        )
+        .await
+        .unwrap();
+}
+
+#[test]
+fn a_contract_without_elements_keeps_its_fingerprint() {
+    let legacy = serde_json::json!({
+        "files": [], "symbols": [], "produces": [], "uses": [], "steps": [],
+        "invariants": [], "forbidden": [], "checks": []
+    });
+    let contract: TaskContract = serde_json::from_value(legacy.clone()).unwrap();
+    assert!(contract.elements.is_empty());
+    let serialized = serde_json::to_value(contract).unwrap();
+    assert_eq!(serialized, legacy);
+    assert_eq!(
+        shadows_core::testing::CommandContext::fingerprint("TaskContract", &serialized),
+        "f49cacdf042a5b7c1a149dccdeef843541994f9de117a9c8f20f1380f4413e15"
+    );
+}
+
+#[tokio::test]
 async fn a_task_pins_only_accepted_decisions() {
     let (_tmp, storage) = fixture().await;
     let plans = AppCore::plans_for_tests(storage.clone());

@@ -46,6 +46,49 @@ pub struct TaskContract {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     #[schema(required = false)]
     pub decisions: Vec<crate::DecisionPin>,
+    /// The project's tables and screens this task builds, changes or deletes.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[schema(required = false)]
+    pub elements: Vec<ElementPin>,
+}
+
+/// One exact revision of a table or screen the task builds, changes or deletes.
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    serde::Serialize,
+    serde::Deserialize,
+    utoipa::ToSchema,
+    schemars::JsonSchema,
+)]
+#[serde(deny_unknown_fields)]
+pub struct ElementPin {
+    pub id: String,
+    pub revision: i64,
+    pub action: ElementAction,
+    /// One of the task's create, modify or delete files.
+    pub file: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub symbol_id: Option<String>,
+}
+
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    utoipa::ToSchema,
+    schemars::JsonSchema,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum ElementAction {
+    Create,
+    Modify,
+    Delete,
 }
 
 /// A program with arguments that proves acceptance items without a shell.
@@ -446,6 +489,40 @@ impl ContractRules {
         for f in &c.files {
             if f.purpose.trim().is_empty() {
                 say(format!("the file `{}` has no purpose", f.path));
+            }
+        }
+        let mut elements = BTreeSet::new();
+        for pin in &c.elements {
+            let id = &pin.id;
+            if !elements.insert(id) {
+                say(format!("the element `{id}` is pinned more than once"));
+            }
+            if pin.revision < 1 {
+                say(format!("the element `{id}` needs a revision of 1 or more"));
+            }
+            let file = &pin.file;
+            if !c
+                .files
+                .iter()
+                .any(|work| work.path == *file && work.action != FileAction::Read)
+            {
+                say(format!(
+                    "the element `{id}` names `{file}`, which the task does not create, \
+                     modify or delete"
+                ));
+            }
+            if let Some(symbol) = &pin.symbol_id {
+                if !c.symbols.iter().any(|s| s.id == *symbol && s.path == *file) {
+                    say(format!(
+                        "the element `{id}` names the symbol `{symbol}`, which the task does \
+                         not describe in `{file}`"
+                    ));
+                }
+                if pin.action == ElementAction::Delete {
+                    say(format!(
+                        "the element `{id}` is deleted by this task, so it names no symbol"
+                    ));
+                }
             }
         }
         let mut ids = BTreeSet::new();

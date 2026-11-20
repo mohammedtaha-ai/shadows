@@ -58,6 +58,7 @@ fn contract(files: Vec<FileWork>, existing: &[&str]) -> TaskContract {
         forbidden: vec![],
         checks: Vec::new(),
         decisions: vec![],
+        elements: Vec::new(),
     }
 }
 

@@ -22,6 +22,10 @@ pub struct TaskContext {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     #[schema(required = false)]
     pub decisions: Vec<core_design::DecisionRecord>,
+    /// The task contract's pinned table and screen revisions in contract order.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[schema(required = false)]
+    pub elements: Vec<core_design::DesignElement>,
     pub parts: Vec<TaskPart>,
     pub unowned_paths: Vec<String>,
     pub standards: ContextStandards,

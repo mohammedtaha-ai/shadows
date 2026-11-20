@@ -961,6 +961,21 @@ async fn the_planner_is_told_an_indexing_listing_is_not_complete() {
 }
 
 #[test]
+fn the_planner_is_told_how_a_contract_pins_elements() {
+    let prompt = shadows_core::testing::PROMPT;
+    assert!(prompt.contains("Pin the element's latest revision."));
+    assert!(prompt.contains("a delete pin names the revision design_element_delete wrote"));
+    assert!(prompt.contains("Shadows gives the executor the pinned revision"));
+}
+
+#[test]
+fn the_executor_is_told_to_build_its_elements_as_pinned() {
+    let prompt = include_str!("../../core-harness/src/executor.md");
+    assert!(prompt.contains("each at its pinned revision"));
+    assert!(prompt.contains("build its columns, keys, route and links as written there"));
+}
+
+#[test]
 fn the_planner_is_told_to_write_tables_and_screens() {
     let prompt = shadows_core::testing::PROMPT;
     let expected = concat!(

@@ -61,6 +61,7 @@ shapes:
     # contracts: Vec<ResolvedContract>, after task; omitted when empty.
     # decisions: Vec<DecisionRecord>, each pinned revision as Design holds it when the
     # context is built, state included (a frozen pin shows `superseded`); omitted when empty.
+    # elements: Vec<DesignElement>, exact pinned revisions in pin order; omitted when empty.
     note: Approved task, its resolved contracts, exact plan identity/version, selected layout parts with ownership reasons, unowned paths, effective standards numbers and map revision.
   TaskPart:
     part: LayoutPart
@@ -256,6 +257,17 @@ shapes:
     invariants: Vec<String>      # serde default; what must stay true
     forbidden: Vec<String>       # serde default; what must not be changed
     decisions: Vec<DecisionPin>  # serde default, skipped when empty: old fingerprints unchanged
+    elements: Vec<ElementPin>    # serde default, omitted when empty
+  ElementPin:
+    id: String
+    revision: i64
+    action: ElementAction
+    file: String
+    symbol_id: Option<String>
+  ElementAction:
+    Create: unit
+    Modify: unit
+    Delete: unit
   DecisionPin:
     # One exact revision of a Design decision; deny_unknown_fields.
     id: String
@@ -1274,6 +1286,19 @@ decision_pins:
     write, with the Problem "T{n} pins {id} v{version}, which is not an accepted decision".
     A frozen task's pins never change; TaskContext.decisions shows each pin's current state.
   tested_by: [a_task_pins_only_accepted_decisions, a_contract_without_decisions_keeps_its_fingerprint, a_frozen_pin_keeps_its_superseded_revision]
+
+element_pins:
+  rule: >
+    A task pins each element once with a positive revision, a file it creates, modifies or
+    deletes, and an optional symbol defined by that task in that file. Delete pins have no
+    symbol. Plan edits resolve the project's latest revision and map ownership through Design
+    in the same transaction. The element's part must own the file. Delete pins need a deleted
+    revision; create and modify pins need a live revision. Task context reads the exact pinned
+    revisions even after a newer Design revision.
+  tested_by: [a_missing_element_pin_is_refused_by_design_lookup,
+    a_pin_names_a_file_the_task_works_and_a_symbol_in_it,
+    a_task_pins_the_latest_element_in_its_own_part_and_keeps_the_frozen_revision,
+    a_contract_without_elements_keeps_its_fingerprint, a_saved_brief_without_elements_still_reads]
 
 checks_contract: >
   TaskContract.checks defaults to empty for stored contracts. Each TaskCheck names a unique

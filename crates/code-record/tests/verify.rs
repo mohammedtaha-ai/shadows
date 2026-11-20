@@ -100,6 +100,7 @@ fn contract(files: &[(&str, FileAction)], symbols: &[(&str, &str, &str)]) -> Tas
         forbidden: Vec::new(),
         checks: Vec::new(),
         decisions: Vec::new(),
+        elements: Vec::new(),
     }
 }
 

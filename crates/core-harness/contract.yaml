@@ -116,6 +116,8 @@ layer_catalog: 'Planner standards text lists every kind presence and its layers 
 # follow its brief's `decisions` and report a `task_conflict` when the task cannot.
 # prompt.txt tells the Planner to read existing tables and screens and write design revisions
 # before planning their tasks (mcp_tools::the_planner_is_told_to_write_tables_and_screens).
+# prompt.txt tells the Planner to pin the latest element revision and use a worked file.
+# executor.md tells the executor to build the saved element revisions and report a conflict.
 # executor.md has the executor report a contract it cannot build with `task_conflict` once, then
 # stop editing and end its turn without a commit or task_report, leaving its files. prompt.txt
 # tells the Planner a conflict notice may arrive while the executor still runs: assess the

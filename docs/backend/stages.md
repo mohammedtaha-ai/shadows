@@ -122,8 +122,7 @@ Dispatch is the controller's (Mohammed, 2026-11-19): the controller runs `backen
 
 ### B-177 · A task pins the elements it builds; the executor receives them
 
-- Status: blocked (the shared request is not accepted: `TaskContract` and `TaskContext` change in
-  `api/openapi.json`)
+- Status: done
 - Plan: [plans/2026-11-19-code-record-2a.md#task-b-177--a-task-pins-the-elements-it-builds-the-executor-receives-them](plans/2026-11-19-code-record-2a.md#task-b-177--a-task-pins-the-elements-it-builds-the-executor-receives-them)
 - Read: the plan's rulings; `crates/core-plans/contract.yaml` (`TaskContract`, `decision_pins`,
   `task_context_in`); `crates/core-plans/src/store/edit.rs` (`pins`);

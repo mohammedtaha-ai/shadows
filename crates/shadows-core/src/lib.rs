@@ -75,7 +75,7 @@ pub use core_plans::{
 };
 pub use core_plans::{
     ConsumerRef, ContractFacts, ContractSelector, ContractSource, ContractTarget, ContractUse,
-    ProducedOutput, ResolvedContract,
+    ElementAction, ElementPin, ProducedOutput, ResolvedContract,
 };
 pub use core_projects::{
     DirectoryEntry, DirectoryError, DirectoryListing, Project, ProjectId, Projects,

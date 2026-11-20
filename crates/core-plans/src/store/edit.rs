@@ -338,6 +338,7 @@ async fn pins(
     changed: &[u32],
 ) -> Result<(), crate::PlansError> {
     let mut problems = Vec::new();
+    let mut layout = None;
     for number in changed {
         let Some(contract) = content.tasks.get(number).and_then(|t| t.contract.as_ref()) else {
             continue;
@@ -352,12 +353,64 @@ async fn pins(
                 )));
             }
         }
+        for pin in &contract.elements {
+            let layout = match &layout {
+                Some(layout) => layout,
+                None => layout.insert(core_design::Design::layout_in(conn, project).await?),
+            };
+            if let Some(message) = element_pin_problem(conn, project, *number, pin, layout).await? {
+                problems.push(crate::Problem::new(message));
+            }
+        }
     }
     if problems.is_empty() {
         Ok(())
     } else {
         Err(crate::PlansError::PlanInvalid(problems))
     }
+}
+
+async fn element_pin_problem(
+    conn: &mut SqliteConnection,
+    project: &ProjectId,
+    number: u32,
+    pin: &crate::ElementPin,
+    layout: &core_design::ProjectLayout,
+) -> Result<Option<String>, crate::PlansError> {
+    let (id, revision, file) = (&pin.id, pin.revision, &pin.file);
+    let latest = core_design::Design::element_in(conn, project, id, None).await?;
+    let Some(latest) = latest.filter(|element| element.revision >= revision) else {
+        return Ok(Some(format!(
+            "T{number} pins {id} r{revision}, which this project's design does not have"
+        )));
+    };
+    if latest.revision != revision {
+        let latest_revision = latest.revision;
+        return Ok(Some(format!(
+            "T{number} pins {id} r{revision}, but its latest revision is r{latest_revision}; \
+             pin r{latest_revision}"
+        )));
+    }
+    match (pin.action == crate::ElementAction::Delete, latest.deleted) {
+        (true, false) => {
+            return Ok(Some(format!(
+                "T{number} deletes {id}, but r{revision} does not delete it; delete it with \
+             design_element_delete first"
+            )));
+        }
+        (false, true) => {
+            return Ok(Some(format!(
+                "T{number} builds {id} r{revision}, which deletes it; use action delete"
+            )));
+        }
+        _ => {}
+    }
+    let part = &latest.part_id;
+    Ok(
+        (!layout.owners(file).iter().any(|owner| &owner.part == part)).then(|| {
+            format!("T{number} pins {id} in `{file}`, which its part {part} does not own")
+        }),
+    )
 }
 
 /// A version's plan, and that plan's project.
