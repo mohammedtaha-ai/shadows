@@ -1,6 +1,6 @@
 # Where a thing is in the project (`code_where`)
 
-- Status: answered
+- Status: disputed
 - Asked by: drafted by Hamoud for Masada at the controller's request, 2026-11-19 (Masada reviews the
   Need and Fields, and accepts or replies)
 - Screen: the code record design §5.3 and §5.4
@@ -69,7 +69,34 @@ As written above. `CodeRecord::code_where` (B-182, B-183) answers both this rout
 
 ## Frontend reply
 
-<Masada: accepted, or what must stay and why.>
+Reviewed as Masada, 2026-11-20, against the owner design §5.3 and §8 and plan 2b
+(B-182, B-183, B-185). CodeRecord ownership, the single read route, server ranking, historical
+`at_done` versus live confirmation, owner metadata, explicit remainder counts, and 404/422
+errors meet the frontend need. Results can be shown through a generated API domain hook without
+reconstructing Core's matching or state rules. A submitted search can be rerun explicitly; this
+request does not require an automatic live search on each project event.
+
+**Blocker: an empty caller list cannot distinguish no uses from an unanswered lookup.** B-183's
+FindReferences step explicitly says a failure leaves `uses` empty and adds nothing else. After
+DocumentSymbol succeeds, `SymbolEntry.live` is already `confirmed`. The response thus looks the
+same when there are no callers and when caller lookup fails, times out, is skipped for budget,
+or returns an incomplete answer. `asked` and an optional answer-level `budget` do not identify
+which confirmed symbol's uses were actually checked. This contradicts the need to show who uses
+it and the Errors promise to show unchecked lines with their reason.
+
+Before acceptance, agree a per-symbol reference-lookup outcome and reason, separate from the
+symbol's own live location confirmation (for example `uses_live`, with a way to mark partial
+answers). Specify the meanings of `uses_more` for truncated upstream results: it must not imply
+an exact count when the server did not supply one. Preserve any references already returned,
+while visibly marking the incomplete lookup. Add tests covering a successful empty lookup,
+failure, a truncated answer, and budget exhaustion after the symbol's line is confirmed, so the
+frontend can distinguish these cases without guessing. Amend B-183 and the owning shape/contract
+before B-185 exposes it.
+
+Element rows reuse the project-state shapes; their interpretation must stay aligned with that
+request once its refresh dispute is resolved. This is an agreement review, not confirmation of
+implementation. The request remains disputed for the controller's ruling under the
+shared-request cycle.
 
 ## Ruling
 

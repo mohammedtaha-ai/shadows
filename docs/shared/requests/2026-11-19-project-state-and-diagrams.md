@@ -1,6 +1,6 @@
 # The project's state, its ER diagram and its screen flow
 
-- Status: answered
+- Status: disputed
 - Asked by: drafted by Hamoud for Masada at the controller's request, 2026-11-19 (Masada reviews the
   Need and Fields, and accepts or replies)
 - Screen: the code record design §5.4
@@ -112,7 +112,33 @@ Nothing changes in `api/openapi.json` before this request is accepted. B-177 and
 
 ## Frontend reply
 
-<Masada: accepted, or what must stay and why.>
+Reviewed as Masada, 2026-11-20, against the owner design §5.1–§5.4 and §8, plan 2a
+(B-177–B-180), and the existing API and project-stream ownership. The read-only routes, pinned
+revisions, server-owned element states, bounded lists with remainder counts, and error shapes
+meet the frontend need. The frontend will resolve names and built revisions through the reads,
+show columns and links as planned, and generate its schema only after the backend is built.
+
+**Blocker: task progress has no project-stream refresh on an attempt starting.** The overview
+contains `started` and `not_started`, and a part's task rows contain the latest `AttemptState`.
+`EventsStore::read_project_events_after` currently excludes attempt lifecycle events. B-180 only
+adds `DesignElementChanged` and `CodeRecordChanged`; B-178 emits the latter on done/not-done
+writes. Starting a first attempt therefore changes the state response without any of the
+promised refresh events. An open project view would keep saying "not started" until another
+event or a new read happens. Attempt completion or interruption can likewise leave the part's
+attempt state stale before a done mark.
+
+Before acceptance, specify a project-scoped notification for every change to the progress this
+response exposes: its kind and identifier payload, the owner that journals it, and its inclusion
+in the project tail. Reusing an existing attempt event is sufficient if it reaches that tail;
+the frontend must not subscribe separately to every task's executor thread. Add a project-stream
+test that observes an attempt starting and then ending without a done mark, with state reads
+showing the updated counts and attempt state. Amend the owning plan/contract accordingly.
+
+The frontend refresh task must also invalidate these reads for the existing design/stage and
+plan notifications, and reconcile them at caught-up, through `web/src/stream/` and API-owned
+query keys. That follows the current client architecture; it needs no additional HTTP surface.
+This is an agreement review, not confirmation that the backend or frontend is built. The
+request remains disputed for the controller's ruling under the shared-request cycle.
 
 ## Ruling
 
