@@ -149,7 +149,11 @@ pub use project_state::{
     ProjectStateError, ProjectStateView, StateCounts, TaskCounts, TaskLine,
 };
 
-pub use code_record::{BuildState, Confirmation, ElementState, ElementTask};
+pub use code_record::{
+    BuildState, CodeRecordError, Confirmation, ElementEntry, ElementState, ElementTask, FileEntry,
+    FileTask, Live, Owner, Rank, SymbolEntry, UnrecordedFile, UnrecordedSymbol, UseLine, UsesLive,
+    WhereAnswer, WhereEntry,
+};
 
 pub use core_design::{LayoutLayer, LayoutPart, OwnedVia, PathOwner, ProjectLayout, RuleText};
 

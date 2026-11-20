@@ -1,5 +1,6 @@
 # Owns the rule "does the code hold what the contract promised", its verdicts
 # and the record a done mark writes (code-record plan, Rulings for every task).
+# It reads Design's elements, layout and path owners to answer code_where.
 # Project identities are imported from core-projects; the task contract's types
 # from core-plans, whose service it never calls. Runs owns the check rows and
 # their flow and calls `verify`; CodeRecord never calls Runs.
@@ -22,10 +23,13 @@ modules:
   elements.rs: judging a design element's build state
   store/mod.rs: code record persistence
   store/elements.rs: the record's element pins
+  code_where.rs: answering where a topic is
+  ranking.rs: ranking a question's matches
+  store/lookup.rs: reading the record for a question
 
 dependencies:
   code: crates/codebase/contract.yaml
-  design: crates/core-design/contract.yaml # DesignElement type
+  design: crates/core-design/contract.yaml # elements, layout and owners
   projects: crates/core-projects/contract.yaml
   # Types only: TaskContract, SymbolWork, FileAction.
   plans: crates/core-plans/contract.yaml
@@ -35,6 +39,7 @@ shapes:
     # Cheap to clone: built once in AppCore's assemble_services with the Codebase it shares.
     store: CodeRecordStore
     code: Codebase
+    design: Design          # elements and layout, for code_where
     # Only under the `test-support` feature, never a default: answers recorded
     # by tests, by path, which `ask` answers from before any language server.
     recorded: Arc<Mutex<HashMap<String, RecordedAnswer>>>
@@ -93,6 +98,75 @@ shapes:
     name: String
     parent: Option<String>
     top: bool
+  Rank:
+    values: [exact, path, part, words]
+  WhereAnswer:
+    # The answer to one question, record first.
+    topic: String
+    entries: Vec<WhereEntry>          # ranked, at most 20
+    entries_more: u32
+    not_in_record: Vec<UnrecordedFile>
+    not_in_record_more: u32
+    asked: u32                        # language-server asks spent
+    budget: Option<String>            # why the live half stopped early; omitted when none
+  WhereEntry:
+    # Tagged by `kind`: file or element.
+    values: [File(FileEntry), Element(ElementEntry)]
+  Owner:
+    part_id: PartId
+    part_title: String
+    layer: Option<String>             # omitted when none
+  FileEntry:
+    rank: Rank
+    path: String
+    owner: Option<Owner>
+    tasks: Vec<FileTask>              # version DESC, task DESC, workflow_id
+    symbols: Vec<SymbolEntry>         # by name
+    live: Live
+    confirmed: Option<Confirmation>
+  FileTask:
+    workflow_id: WorkflowId
+    version: i64
+    task: u32
+    action: String
+    purpose: String
+    commit: Option<String>
+  SymbolEntry:
+    symbol_id: String
+    name: String
+    kind: String
+    workflow_id: WorkflowId
+    version: i64
+    task: u32
+    behavior: Vec<String>             # from contract_json
+    at_done: SymbolState              # the stored state
+    live: Live
+    line: Option<u32>
+    uses_live: UsesLive               # the reference lookup's outcome, apart from live
+    uses: Vec<UseLine>                # minus its own location, by path then line, at most 10
+    uses_more: u32                    # returned beyond the 10 listed
+    uses_total: Option<u32>           # only with uses_live answered
+  UsesLive:
+    # Tagged by `state`.
+    values: [not_asked, answered, "truncated { why }", "failed { why }", "skipped { why }"]
+  UseLine:
+    path: String
+    line: u32
+    owner: Option<Owner>
+  Live:
+    # Tagged by `state`.
+    values: [not_asked, confirmed, "gap { why }", "unchecked { why }"]
+  ElementEntry:
+    rank: Rank
+    element: DesignElement
+    state: ElementState
+  UnrecordedFile:
+    path: String
+    owner: Option<Owner>
+    symbols: Vec<UnrecordedSymbol>
+  UnrecordedSymbol:
+    name: String
+    line: u32
   FileAnswer:
     Absent: unit
     Symbols: "{ found: Vec<Found>, truncated: bool }"
@@ -101,7 +175,7 @@ shapes:
 functions:
   service:
     new:
-      signature: "(storage: Arc<Storage>, code: Codebase) -> CodeRecord"
+      signature: "(storage: Arc<Storage>, code: Codebase, design: Design) -> CodeRecord"
     verify:
       signature: "(&self, key: &str, project: &ProjectId, task: u32, contract: &TaskContract) -> Result<Verdict, CodeRecordError>"
       # Each distinct file of the contract's symbols and created files is asked
@@ -122,6 +196,66 @@ functions:
       # backend/auth/service.py; the code does not have it.", "<path> is
       # promised and does not exist." (once per file), then "unchecked: <path>
       # (<why>).", then "unpromised: <name> in <path>.".
+  question:
+    code_where:
+      signature: "(&self, project: &ProjectId, topic: &str) -> Result<WhereAnswer, CodeRecordError>"
+      # The record's half, with no language server:
+      # 1. The topic trimmed; fewer than 1 or more than 200 characters is
+      #    InvalidTopic("a topic needs 1 to 200 characters").
+      # 2. Design's layout, then its elements; a DesignError is Design(error).
+      # 3. The lookup reads (store/lookup.rs), completed per path by files_detail.
+      # 4. Ranking::entries: at most 20 entries, then entries_more.
+      # 5. Each file entry: its tasks newest first (version DESC, task DESC,
+      #    workflow_id); each symbol's newest row, by name; its owner from
+      #    layout.owners: the first Folder owner's part and the first Layer owner's id.
+      # 6. Element entries: element_states(project, &matched, &[]).
+      # 7. live and uses_live not_asked, uses empty, uses_more 0, no uses_total, asked 0.
+    path_owner:
+      signature: "(layout: &ProjectLayout, path: &str) -> Option<Owner>"
+      private: true
+      # None when no part's folder holds the path.
+  ranking:
+    entries:
+      signature: "Ranking::entries(topic: &str, layout: &ProjectLayout, elements: &[DesignElement], matches: &Matches) -> (Vec<Ranked>, u32)"
+      private: true
+      # Pure. Tiers in order:
+      #   exact: an element whose id or name equals the topic ignoring case; a
+      #     file holding a recorded symbol from symbols_named;
+      #   path: a file from files_by_path; an element with a done pin in one;
+      #   part: the topic equals a part title ignoring case: files under its
+      #     folder (files_under) and the part's elements;
+      #   words: a file from rows_with_words; an element whose name, or whose
+      #     purpose, holds every word.
+      # An entry keeps its best tier, once. Within a tier: files by path, then
+      # elements by id number. At most 20; the rest counted.
+    words:
+      signature: "Ranking::words(topic: &str) -> Vec<String>"
+      private: true
+      # Split on anything not a letter or digit, lowercased, 3 characters or more.
+  lookup:
+    files_by_path:
+      signature: "(&self, project: &ProjectId, path: &str) -> Result<Vec<String>, CodeRecordError>"
+      private: true
+      # files_under with the one path.
+    files_under:
+      signature: "(&self, project: &ProjectId, folders: &[String]) -> Result<Vec<String>, CodeRecordError>"
+      private: true
+      # Per folder, paths equal to it or LIKE folder || '/%' with %, _ and \ escaped; LIMIT 21.
+    symbols_named:
+      signature: "(&self, project: &ProjectId, name: &str) -> Result<Vec<String>, CodeRecordError>"
+      private: true
+      # Symbols named exactly, or ending in '.' || name; LIMIT 21.
+    rows_with_words:
+      signature: "(&self, project: &ProjectId, words: &[String]) -> Result<Vec<String>, CodeRecordError>"
+      private: true
+      # File purposes and symbol contract_json (lowercased) holding every word,
+      # one instr per word; four words in SQL, the rest on the rows it returns;
+      # LIMIT 21 each.
+    files_detail:
+      signature: "(&self, project: &ProjectId, paths: &[String]) -> Result<Detail, CodeRecordError>"
+      private: true
+      # Every file and symbol row of each path, version DESC, task DESC, workflow_id.
+      # Every read orders by explicit keys; static SQL, one query per item.
   comparison:
     ask:
       signature: "(&self, project: &ProjectId, path: &str) -> FileAnswer"
@@ -188,8 +322,8 @@ functions:
       # Inside Runs' marking write: replaces the task's rows. Every file the
       # contract creates or modifies (read and delete are left out); every promised symbol with its state found, missing or unchecked
       # from the verdict by symbol id and path, unchecked when the verdict is
-      # none or does not name it; unpromised rows from the verdict only. No read
-      # method yet: its first user is code_where.
+      # none or does not name it; unpromised rows from the verdict only.
+      # code_where reads them back.
     forget_done_in:
       signature: "(tx: &mut Tx, project: &ProjectId, workflow: &WorkflowId, version: i64, task: u32) -> Result<(), StorageError>"
       # Inside Runs' marking write: deletes the task's rows and journals CodeRecordChanged.
@@ -252,6 +386,27 @@ obligations:
       a_task_without_a_contract_records_nothing,
       removing_the_project_removes_its_record]
 
+  - rule: >
+      code_where ranks by fixed tiers (exact, path, part, words), each entry
+      once at its best tier, files by path then elements by number, at most 20
+      then a count; a word is 3 characters or more of letters and digits.
+    tested_by: [an_exact_name_ranks_before_a_path_and_a_path_before_words,
+      an_entry_appears_once_at_its_best_tier, ties_go_by_path_then_element_number,
+      short_words_and_punctuation_are_not_words, twenty_entries_then_a_count]
+  - rule: >
+      code_where's record half finds a file by a symbol name with its tasks
+      newest first, by a path or folder prefix with LIKE wildcards escaped, by a
+      part title, and an element by id or name with its state; the owner is the
+      folder part and the first layer; a blank or long topic is refused, and
+      nothing matching answers no entries.
+    tested_by: [a_symbol_name_finds_its_file_with_its_tasks_newest_first,
+      a_path_prefix_finds_the_files_under_it_and_escapes_like_wildcards,
+      a_part_title_finds_the_files_in_its_folder,
+      an_element_id_or_name_finds_the_element_with_its_state,
+      the_owner_is_the_folder_part_and_the_first_layer,
+      a_blank_or_long_topic_is_refused, nothing_matching_answers_no_entries]
+
 not_the_caller's:
   - Read or write code_record_verdict, code_record_file, code_record_symbol or code_record_unpromised directly.
   - Decide whether a symbol is found, missing or unchecked, or phrase the check's output.
+  - Rank or assemble a code_where answer.

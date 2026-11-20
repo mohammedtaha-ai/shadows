@@ -37,7 +37,14 @@ async fn element_states_read_the_record_and_the_folder() {
         .await
         .unwrap()
         .id;
-    let record = CodeRecord::new(storage.clone(), Codebase::new(storage.clone(), projects));
+    let record = CodeRecord::new(
+        storage.clone(),
+        Codebase::new(storage.clone(), projects),
+        core_design::Design::new(
+            storage.clone(),
+            core_operations::Operations::new(storage.clone()),
+        ),
+    );
     let workflow = WorkflowId::from_recorded("workflow".into());
     let done = DoneRecord {
         project: project.clone(),

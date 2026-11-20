@@ -292,10 +292,12 @@ fn code_record_depends_only_on_declared_lower_owners() {
         .split("[[package]]")
         .find(|entry| entry.lines().any(|line| line == r#"name = "code-record""#))
         .expect("code-record is a workspace package");
+    // core-operations is a dev-dependency only: the fixtures build the Design they pass in.
     let owners = [
         "codebase",
         "core-db",
         "core-design",
+        "core-operations",
         "core-plans",
         "core-projects",
     ];

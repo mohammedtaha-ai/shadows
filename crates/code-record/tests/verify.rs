@@ -45,7 +45,14 @@ impl Fixture {
         })
         .await
         .unwrap();
-        let record = CodeRecord::new(storage.clone(), code.clone());
+        let record = CodeRecord::new(
+            storage.clone(),
+            code.clone(),
+            core_design::Design::new(
+                storage.clone(),
+                core_operations::Operations::new(storage.clone()),
+            ),
+        );
         Fixture {
             _db: db,
             dir,

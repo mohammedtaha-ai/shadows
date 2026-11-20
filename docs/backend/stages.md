@@ -187,7 +187,7 @@ Shared request for its route: `docs/shared/requests/2026-11-19-code-where.md` (a
 
 ### B-182 · `code_where`, Shadows' half: the record read and ranked
 
-- Status: todo (B-178 is done)
+- Status: done
 - Plan: [plans/2026-11-19-code-record-2b.md#task-b-182--code_where-shadows-half-the-record-read-and-ranked](plans/2026-11-19-code-record-2b.md#task-b-182--code_where-shadows-half-the-record-read-and-ranked)
 - Read: the plan's rulings and reuse table; `crates/code-record/contract.yaml`;
   `crates/code-record/src/store/mod.rs`; `crates/core-design/src/layout.rs` (`owners`); design §5.3.

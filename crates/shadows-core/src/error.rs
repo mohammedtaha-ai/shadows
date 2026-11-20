@@ -693,9 +693,22 @@ impl From<project_state::ProjectStateError> for CoreError {
                 code: ErrorCode::InvalidCommand,
                 message: other.to_string(),
             },
-            ProjectStateError::CodeRecord(code_record::CodeRecordError::Storage(error)) => {
-                error.into()
-            }
+            ProjectStateError::CodeRecord(error) => error.into(),
+        }
+    }
+}
+
+/// A bad topic is the request's; Design's refusal and storage are their own.
+impl From<code_record::CodeRecordError> for CoreError {
+    fn from(error: code_record::CodeRecordError) -> Self {
+        use code_record::CodeRecordError;
+        match error {
+            CodeRecordError::InvalidTopic(message) => Self::Refused {
+                code: ErrorCode::InvalidCommand,
+                message,
+            },
+            CodeRecordError::Design(error) => error.into(),
+            CodeRecordError::Storage(error) => error.into(),
         }
     }
 }

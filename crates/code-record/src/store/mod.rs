@@ -10,6 +10,9 @@ use core_projects::ProjectId;
 use crate::{CodeRecord, CodeRecordError, DoneRecord, SymbolState, Unpromised, Verdict};
 
 mod elements;
+mod lookup;
+
+pub(crate) use lookup::{Detail, SymbolRow};
 
 #[derive(Clone)]
 pub(crate) struct CodeRecordStore {
@@ -26,6 +29,51 @@ impl CodeRecordStore {
         project: &ProjectId,
     ) -> Result<std::collections::BTreeMap<String, Vec<crate::ElementTask>>, CodeRecordError> {
         self.read_elements(project).await
+    }
+
+    /// Paths of recorded files at `path` or under it.
+    pub(super) async fn files_by_path(
+        &self,
+        project: &ProjectId,
+        path: &str,
+    ) -> Result<Vec<String>, CodeRecordError> {
+        self.read_files_by_path(project, path).await
+    }
+
+    /// Paths of recorded files at one of `folders` or under it.
+    pub(super) async fn files_under(
+        &self,
+        project: &ProjectId,
+        folders: &[String],
+    ) -> Result<Vec<String>, CodeRecordError> {
+        self.read_files_under(project, folders).await
+    }
+
+    /// Paths of recorded symbols named `name`, or a method `X.name`.
+    pub(super) async fn symbols_named(
+        &self,
+        project: &ProjectId,
+        name: &str,
+    ) -> Result<Vec<String>, CodeRecordError> {
+        self.read_symbols_named(project, name).await
+    }
+
+    /// Paths of rows holding every word.
+    pub(super) async fn rows_with_words(
+        &self,
+        project: &ProjectId,
+        words: &[String],
+    ) -> Result<Vec<String>, CodeRecordError> {
+        self.read_rows_with_words(project, words).await
+    }
+
+    /// Every file and symbol row of `paths`.
+    pub(super) async fn files_detail(
+        &self,
+        project: &ProjectId,
+        paths: &[String],
+    ) -> Result<Detail, CodeRecordError> {
+        self.read_files_detail(project, paths).await
     }
 
     /// Stores the verdict under `key`, replacing one stored before.

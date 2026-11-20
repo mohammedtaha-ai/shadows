@@ -179,3 +179,150 @@ pub struct DoneRecord {
     pub contract: core_plans::TaskContract,
     pub verdict: Option<Verdict>,
 }
+
+/// How a `code_where` entry matched its topic, best first.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum Rank {
+    Exact,
+    Path,
+    Part,
+    Words,
+}
+
+/// The answer to one question, record first.
+#[derive(Debug, Clone, Serialize, ToSchema)]
+pub struct WhereAnswer {
+    pub topic: String,
+    /// Ranked, at most 20.
+    pub entries: Vec<WhereEntry>,
+    pub entries_more: u32,
+    pub not_in_record: Vec<UnrecordedFile>,
+    pub not_in_record_more: u32,
+    /// Language-server asks spent.
+    pub asked: u32,
+    /// Why the live half stopped early, when it did.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub budget: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, ToSchema)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum WhereEntry {
+    File(FileEntry),
+    Element(ElementEntry),
+}
+
+/// The part whose folder holds a path, and the first layer whose place does.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, ToSchema)]
+pub struct Owner {
+    pub part_id: core_design::PartId,
+    pub part_title: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub layer: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, ToSchema)]
+pub struct FileEntry {
+    pub rank: Rank,
+    pub path: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub owner: Option<Owner>,
+    /// Newest first: version, then task, then workflow id.
+    pub tasks: Vec<FileTask>,
+    /// By name.
+    pub symbols: Vec<SymbolEntry>,
+    /// The file now.
+    pub live: Live,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub confirmed: Option<Confirmation>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, ToSchema)]
+pub struct FileTask {
+    pub workflow_id: WorkflowId,
+    pub version: i64,
+    pub task: u32,
+    pub action: String,
+    pub purpose: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub commit: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, ToSchema)]
+pub struct SymbolEntry {
+    pub symbol_id: String,
+    pub name: String,
+    pub kind: String,
+    pub workflow_id: WorkflowId,
+    pub version: i64,
+    pub task: u32,
+    /// From the recorded contract.
+    pub behavior: Vec<String>,
+    /// The state recorded when its task was marked done.
+    pub at_done: SymbolState,
+    pub live: Live,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub line: Option<u32>,
+    /// The reference lookup's outcome, apart from `live`.
+    pub uses_live: UsesLive,
+    /// Returned references, minus the symbol's own location, by path then line, at most 10.
+    pub uses: Vec<UseLine>,
+    /// Returned references beyond the 10 listed. A lower bound when `uses_live` is `truncated`;
+    /// 0 when nothing was returned.
+    pub uses_more: u32,
+    /// The exact number of uses, given only when `uses_live` is `answered`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub uses_total: Option<u32>,
+}
+
+/// What the reference lookup of one symbol did.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, ToSchema)]
+#[serde(tag = "state", rename_all = "snake_case")]
+pub enum UsesLive {
+    NotAsked,
+    Answered,
+    Truncated { why: String },
+    Failed { why: String },
+    Skipped { why: String },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, ToSchema)]
+pub struct UseLine {
+    pub path: String,
+    pub line: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub owner: Option<Owner>,
+}
+
+/// What the code says now, for a file or a symbol.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, ToSchema)]
+#[serde(tag = "state", rename_all = "snake_case")]
+pub enum Live {
+    NotAsked,
+    Confirmed,
+    Gap { why: String },
+    Unchecked { why: String },
+}
+
+#[derive(Debug, Clone, Serialize, ToSchema)]
+pub struct ElementEntry {
+    pub rank: Rank,
+    pub element: core_design::DesignElement,
+    pub state: ElementState,
+}
+
+/// A file that matches the topic and that no done task's contract names.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, ToSchema)]
+pub struct UnrecordedFile {
+    pub path: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub owner: Option<Owner>,
+    pub symbols: Vec<UnrecordedSymbol>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, ToSchema)]
+pub struct UnrecordedSymbol {
+    pub name: String,
+    pub line: u32,
+}

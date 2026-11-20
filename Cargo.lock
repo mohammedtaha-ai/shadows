@@ -581,6 +581,7 @@ dependencies = [
  "codebase",
  "core-db",
  "core-design",
+ "core-operations",
  "core-plans",
  "core-projects",
  "serde",

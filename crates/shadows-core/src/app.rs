@@ -488,7 +488,7 @@ impl AppCore {
             design.clone(),
             ui.clone(),
         );
-        let code_record = CodeRecord::new(storage.clone(), code.clone());
+        let code_record = CodeRecord::new(storage.clone(), code.clone(), design.clone());
         let runs = Runs::new(
             storage.clone(),
             plans.clone(),
