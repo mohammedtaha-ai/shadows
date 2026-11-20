@@ -42,6 +42,13 @@ export function WorkspacePage() {
               Contracts
             </Link>
             <Link
+              to="/projects/$projectId/state"
+              params={{ projectId }}
+              className={tab(false)}
+            >
+              State
+            </Link>
+            <Link
               to="/projects/$projectId/workspace"
               params={{ projectId }}
               search={{ view: 'vision' }}

@@ -1,0 +1,75 @@
+# Owns the screens that show a project's state, its tables and screens, and where a topic
+# is in the code, read only, over Core's answers. Nothing here writes.
+#
+# Trap: Core states, the web shows. Element states, task counts, attempt states and every
+# remainder count are shown as Core gives them. No component derives a state, sorts an
+# answer again, checks a length or counts what Core counted.
+
+name: web-project-state
+version: 1
+status: current
+source: web/src/app/project-state
+responsibility: >
+  Show the project's state, its tables and screens, and code_where, read only, over
+  Core's answers.
+loading: Every read shows a labelled SkeletonContent; cached content stays visible during background reads.
+
+rulings:
+  read_only: "Nothing on these screens writes. Tables and screens are the Planner's."
+  core_states: >
+    Presentation only: a label or icon per enum value, grouping, hiding removed elements behind
+    a toggle, drawing an edge only between two shown nodes.
+  one_door: >
+    Every read is a query in api/project-state.ts; the stream refresh is classified in
+    stream/refresh.ts. No fetch, no URL built by hand, no EventSource here.
+  refusals: "Every query uses retryLost; a 404 or 422 shows ErrorLine with Core's code and message."
+  text_direction: "Every name, purpose, why, when, path and title Core wrote is rendered with dir=auto."
+
+route:
+  path: "/projects/$projectId/state"
+  search: >
+    view ('state' | 'tables' | 'screens' | 'where'; an unknown view reads as 'state'), part,
+    element, topic (kept when strings), removed (true only for true or 'true').
+  stream: "The shell already holds the project stream; the page opens none."
+
+components:
+  ProjectStatePage:
+    signature: "() => JSX.Element"
+    # Route body: the header, the section nav, and the body the view selects.
+  StateView:
+    signature: "({ projectId: string, part?: string, removed: boolean }) => JSX.Element"
+    # Stage, parts with plans and counts, plans with no part, gaps, and one part in full.
+  StateBadge:
+    signature: "({ state: BuildState }) => JSX.Element"
+    # An icon and a label per build state, marked data-element-state.
+
+obligations:
+  - rule: >
+      The state view shows the stage, the parts with their plans and counts, the plans with no
+      part and the gaps, in Core's order.
+    tested_by: the_state_view_shows_stage_parts_plans_and_gaps
+
+  - rule: "A remainder (parts, plans, gaps) is shown as Core's count."
+    tested_by: remainders_are_shown_as_cores_counts
+
+  - rule: >
+      A part is read with part_id and shows its plans' tasks (Done, Core's attempt state, or Not
+      started) and its elements with their states.
+    tested_by: a_part_shows_its_plans_tasks_and_elements
+
+  - rule: "Removed elements are hidden behind a toggle."
+    tested_by: removed_elements_are_hidden_until_asked
+
+  - rule: "A refused read shows Core's code and message; a refused part keeps the All parts link."
+    tested_by: an_unknown_part_shows_cores_refusal, an_unknown_project_shows_cores_not_found
+
+  - rule: >
+      The state follows the project stream without a reload: one live TaskProgressChanged adds
+      one read, and replayed events add one read at caught-up.
+    tested_by: task_progress_on_the_project_stream_moves_a_task_to_started_without_reload, replayed_events_reconcile_the_state_once
+
+  - rule: "The design workspace links to this page."
+    tested_by: the_workspace_links_to_the_state
+
+tests:
+  state-view.test.tsx: "The state view, over the fake daemon and its project stream."

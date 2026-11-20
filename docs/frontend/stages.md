@@ -46,7 +46,7 @@ Every task's checks run from `web/`: the tests it names, then `npm run typecheck
 
 ### F-131 · The state page and the state view
 
-- Status: blocked (on F-130)
+- Status: done
 - Plan: [plans/2026-11-20-project-state-views.md#f-131--the-state-page-and-the-state-view](plans/2026-11-20-project-state-views.md#f-131--the-state-page-and-the-state-view)
 - Read:
   - the plan's "Where the screens live" and "What is reused";

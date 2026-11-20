@@ -27,6 +27,7 @@ const PlanPage = lazyRouteComponent(() => import('./app/workflows/plan-page'), '
 const PlanMapPage = lazyRouteComponent(() => import('./app/workflows/plan-map'), 'PlanMapPage')
 const TaskPage = lazyRouteComponent(() => import('./app/tasks/task-page'), 'TaskPage')
 const AgreementsPage = lazyRouteComponent(() => import('./app/agreements/agreements-page'), 'AgreementsPage')
+const ProjectStatePage = lazyRouteComponent(() => import('./app/project-state/state-page'), 'ProjectStatePage')
 
 const Activity = lazyRouteComponent(() => import('./app/desktop/activity'), 'Activity')
 const AylulHome = lazyRouteComponent(() => import('./app/agents/home'), 'AylulHome')
@@ -119,6 +120,21 @@ const agreementsRoute = createRoute({
   component: AgreementsPage,
 })
 
+const stateRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/projects/$projectId/state',
+  validateSearch: (search: Record<string, unknown>): {
+    view?: 'state' | 'tables' | 'screens' | 'where'; part?: string; element?: string; removed?: boolean; topic?: string
+  } => ({
+    view: search.view === 'tables' || search.view === 'screens' || search.view === 'where' ? search.view : 'state',
+    part: typeof search.part === 'string' ? search.part : undefined,
+    element: typeof search.element === 'string' ? search.element : undefined,
+    removed: search.removed === true || search.removed === 'true' ? true : undefined,
+    topic: typeof search.topic === 'string' ? search.topic : undefined,
+  }),
+  component: ProjectStatePage,
+})
+
 const appSettingsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/settings',
@@ -149,6 +165,7 @@ export const router = createRouter({
     settingsRoute,
     workspaceRoute,
     agreementsRoute,
+    stateRoute,
     appSettingsRoute,
   ]),
 })

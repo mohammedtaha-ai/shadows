@@ -65,7 +65,7 @@ boundaries do not exempt their sources from the other architecture rules.
 
 | Owner | Sources | Entry | Contract | Allowed dependencies |
 |---|---|---|---|---|
-| `composition` | `main.tsx, app-root.tsx, router.tsx, env.d.ts, app/shell.tsx, app/home.tsx, app/page-pending.tsx` | `main.tsx, app-root.tsx, router.tsx, app/shell.tsx, app/home.tsx, app/page-pending.tsx` | `-` | `api, stream, desktop, ui, shared, agents, agreements, conversation, design, desktop-ui, groups, new-project, project-settings, settings, sidebar, workflows, tasks, navigation` |
+| `composition` | `main.tsx, app-root.tsx, router.tsx, env.d.ts, app/shell.tsx, app/home.tsx, app/page-pending.tsx` | `main.tsx, app-root.tsx, router.tsx, app/shell.tsx, app/home.tsx, app/page-pending.tsx` | `-` | `api, stream, desktop, ui, shared, agents, agreements, conversation, design, project-state, desktop-ui, groups, new-project, project-settings, settings, sidebar, workflows, tasks, navigation` |
 | `navigation` | `app/navigation/**` | `app/navigation/index.ts` | `app/navigation/contract.yaml` | `-` |
 | `api` | `api/**` | `api/*` | `api/contract.yaml` | `-` |
 | `stream` | `stream/**` | `stream/index.ts` | `stream/contract.yaml` | `api` |
@@ -76,6 +76,7 @@ boundaries do not exempt their sources from the other architecture rules.
 | `agreements` | `app/agreements/**` | `app/agreements/index.ts, app/agreements/agreements-page.tsx` | `app/agreements/contract.yaml` | `api, ui, shared` |
 | `conversation` | `app/conversation/**` | `app/conversation/index.ts, app/conversation/conversation.tsx, app/conversation/draft.tsx` | `app/conversation/contract.yaml` | `api, ui, shared, desktop, stream, design, workflows, desktop-ui, navigation` |
 | `design` | `app/design/**` | `app/design/index.ts, app/design/workspace-page.tsx` | `app/design/contract.yaml` | `api, ui, shared, workflows` |
+| `project-state` | `app/project-state/**` | `app/project-state/index.ts, app/project-state/state-page.tsx` | `app/project-state/contract.yaml` | `api, ui, shared, workflows` |
 | `desktop-ui` | `app/desktop/**` | `app/desktop/index.ts, app/desktop/startup.ts, app/desktop/activity.tsx` | `app/desktop/contract.yaml` | `api, ui, shared, desktop, agents` |
 | `new-project` | `app/new-project/**` | `app/new-project/index.ts` | `app/new-project/contract.yaml` | `api, ui, shared` |
 | `project-settings` | `app/project-settings/**` | `app/project-settings/index.ts, app/project-settings/project-settings.tsx` | `app/project-settings/contract.yaml` | `api, ui, shared` |
@@ -117,6 +118,7 @@ above. `codemap.test.ts` checks that each one exists.
 - `web/src/app/agreements`
 - `web/src/app/conversation`
 - `web/src/app/design`
+- `web/src/app/project-state`
 - `web/src/app/new-project`
 - `web/src/app/project-settings`
 - `web/src/app/navigation`
@@ -306,6 +308,11 @@ it is that folder's `contract.yaml`.
 | `web/src/app/design/vision-fields.ts` | Display names of the vision fields | `web/src/app/design/contract.yaml` |
 | `web/src/app/design/workspace-page.tsx` | Design workspace page, opening on Vision | `web/src/app/design/contract.yaml` |
 | `web/src/app/design/workspace-plans.tsx` | Project plan list, with its archive filter | `web/src/app/design/contract.yaml` |
+| `web/src/app/project-state/state-page.tsx` | Project state page with its section tabs | `web/src/app/project-state/contract.yaml` |
+| `web/src/app/project-state/state-badge.tsx` | One build state drawn as icon plus label | `web/src/app/project-state/contract.yaml` |
+| `web/src/app/project-state/state-view.tsx` | Core's project state shown read only | `web/src/app/project-state/contract.yaml` |
+| `web/src/app/project-state/state-view.test.tsx` | State view checks over the fake daemon | `web/src/app/project-state/contract.yaml` |
+| `web/src/app/project-state/index.ts` | Expose app/project-state public capabilities | `web/src/app/project-state/contract.yaml` |
 | `web/src/app/design/index.ts` | Expose app/design public capabilities | `web/src/app/design/contract.yaml` |
 | `web/src/app/error-line.tsx` | Inline line saying why a daemon call failed | `web/src/app/copy-button.tsx` |
 | `web/src/app/check-row.tsx` | One check's result row | `web/src/app/tasks/contract.yaml` |
