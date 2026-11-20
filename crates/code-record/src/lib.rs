@@ -37,6 +37,16 @@ pub enum RecordedAnswer {
     NoServer,
     /// The file does not exist.
     Absent,
+    /// A `findReferences` result, under `"{path}#references@{line}"`; `truncated`
+    /// stands for Codebase's bound cutting it.
+    References {
+        result: serde_json::Value,
+        truncated: bool,
+    },
+    /// Under any key, the ask fails with this text, as a language server error would.
+    Failed(String),
+    /// A `workspaceSymbol` result, under `"#workspace:{query}"`.
+    Workspace(serde_json::Value),
 }
 
 /// Cheap to clone: its private store, the `Codebase` it asks and the `Design` it reads.
@@ -66,12 +76,13 @@ impl CodeRecord {
         self.store.verdict(key).await
     }
 
-    /// Answers `path` with `answer` from now on, in place of asking a server.
+    /// Answers `key` with `answer` from now on, in place of asking a server: a
+    /// path for `documentSymbol`, `"{path}#references@{line}"` or `"#workspace:{query}"`.
     #[cfg(feature = "test-support")]
-    pub fn record_answer_for_tests(&self, path: &str, answer: RecordedAnswer) {
+    pub fn record_answer_for_tests(&self, key: &str, answer: RecordedAnswer) {
         self.recorded
             .lock()
             .expect("recorded answers")
-            .insert(path.to_string(), answer);
+            .insert(key.to_string(), answer);
     }
 }

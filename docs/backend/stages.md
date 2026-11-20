@@ -197,7 +197,7 @@ Shared request for its route: `docs/shared/requests/2026-11-19-code-where.md` (a
 
 ### B-183 · `code_where`, the code's half: confirmed within a budget
 
-- Status: blocked (on B-182)
+- Status: done (pyright tests with --include-ignored pass, after the LSP client declares hierarchical document symbols)
 - Plan: [plans/2026-11-19-code-record-2b.md#task-b-183--code_where-the-codes-half-confirmed-within-a-budget](plans/2026-11-19-code-record-2b.md#task-b-183--code_where-the-codes-half-confirmed-within-a-budget)
 - Read: the plan's rulings; `crates/code-record/src/verify.rs` (`ask`, `document_symbols`,
   `matches`); `crates/codebase/contract.yaml` (`lsp`, `missing_inputs`, `inventory`).

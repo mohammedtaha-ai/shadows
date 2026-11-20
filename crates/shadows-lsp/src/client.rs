@@ -12,9 +12,9 @@ use lsp_types::notification::{
 use lsp_types::request::{Initialize, Shutdown};
 use lsp_types::{
     ClientCapabilities, DidChangeWatchedFilesClientCapabilities, DidChangeWatchedFilesParams,
-    DidCloseTextDocumentParams, DidOpenTextDocumentParams, FileChangeType, FileEvent,
-    InitializeParams, InitializedParams, TextDocumentIdentifier, TextDocumentItem, Url,
-    WorkspaceClientCapabilities, WorkspaceFolder,
+    DidCloseTextDocumentParams, DidOpenTextDocumentParams, DocumentSymbolClientCapabilities,
+    FileChangeType, FileEvent, InitializeParams, InitializedParams, TextDocumentClientCapabilities,
+    TextDocumentIdentifier, TextDocumentItem, Url, WorkspaceClientCapabilities, WorkspaceFolder,
 };
 use serde_json::Value;
 use shadows_process::{ProcessHandle, ProcessSpec};
@@ -162,6 +162,15 @@ impl Server {
                     workspace_folders: Some(true),
                     configuration: Some(true),
                     ..WorkspaceClientCapabilities::default()
+                }),
+                // A tree of symbols puts each one's selectionRange at its name; a
+                // flat answer starts at the declaration's keyword.
+                text_document: Some(TextDocumentClientCapabilities {
+                    document_symbol: Some(DocumentSymbolClientCapabilities {
+                        hierarchical_document_symbol_support: Some(true),
+                        ..DocumentSymbolClientCapabilities::default()
+                    }),
+                    ..TextDocumentClientCapabilities::default()
                 }),
                 ..ClientCapabilities::default()
             },

@@ -29,16 +29,19 @@ const IMPL: u64 = 19;
 
 /// One counted symbol of a `documentSymbol` answer.
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct Found {
-    name: String,
+pub(crate) struct Found {
+    pub(crate) name: String,
     /// The counted symbol it is inside, if any.
-    parent: Option<String>,
-    top: bool,
+    pub(crate) parent: Option<String>,
+    pub(crate) top: bool,
+    /// One-based, as Codebase's rewrite gives it; none in a raw answer without it.
+    pub(crate) line: Option<u32>,
+    pub(crate) character: Option<u32>,
 }
 
 /// What one file's question came back with.
 #[derive(Debug)]
-enum FileAnswer {
+pub(crate) enum FileAnswer {
     Absent,
     Symbols { found: Vec<Found>, truncated: bool },
     Unchecked(String),
@@ -82,24 +85,17 @@ impl CodeRecord {
     async fn ask(&self, project: &ProjectId, path: &str) -> FileAnswer {
         #[cfg(feature = "test-support")]
         {
-            let recorded = self
-                .recorded
-                .lock()
-                .expect("recorded answers")
-                .get(path)
-                .cloned();
-            match recorded {
-                Some(crate::RecordedAnswer::Symbols(result)) => {
-                    return FileAnswer::Symbols {
-                        found: CodeRecord::document_symbols(&result),
-                        truncated: false,
-                    };
+            use crate::RecordedAnswer;
+            match self.recorded(path) {
+                Some(RecordedAnswer::Symbols(result)) => {
+                    return CodeRecord::file_answer(&result, false);
                 }
-                Some(crate::RecordedAnswer::NoServer) => {
+                Some(RecordedAnswer::NoServer) => {
                     return FileAnswer::Unchecked("no language server reads it".into());
                 }
-                Some(crate::RecordedAnswer::Absent) => return FileAnswer::Absent,
-                None => {}
+                Some(RecordedAnswer::Absent) => return FileAnswer::Absent,
+                Some(RecordedAnswer::Failed(why)) => return FileAnswer::Unchecked(why),
+                Some(RecordedAnswer::References { .. } | RecordedAnswer::Workspace(_)) | None => {}
             }
         }
         match self
@@ -128,12 +124,7 @@ impl CodeRecord {
             match answer {
                 LspAnswer::Answered {
                     result, truncated, ..
-                } => {
-                    return FileAnswer::Symbols {
-                        found: CodeRecord::document_symbols(&result),
-                        truncated,
-                    };
-                }
+                } => return CodeRecord::file_answer(&result, truncated),
                 LspAnswer::NoServer {
                     server: Some(server),
                     state: None | Some(ServerState::Idle | ServerState::Starting),
@@ -166,6 +157,24 @@ impl CodeRecord {
         }
     }
 
+    /// The answer a test recorded under `key`, if any.
+    #[cfg(feature = "test-support")]
+    pub(crate) fn recorded(&self, key: &str) -> Option<crate::RecordedAnswer> {
+        self.recorded
+            .lock()
+            .expect("recorded answers")
+            .get(key)
+            .cloned()
+    }
+
+    /// A `documentSymbol` result as one file's answer.
+    pub(crate) fn file_answer(result: &Value, truncated: bool) -> FileAnswer {
+        FileAnswer::Symbols {
+            found: CodeRecord::document_symbols(result),
+            truncated,
+        }
+    }
+
     /// The counted symbols of a `documentSymbol` result, at any depth: a
     /// `DocumentSymbol` tree (`children`) or a flat `SymbolInformation` list
     /// (`containerName`). A variable, parameter, field or module is never
@@ -192,10 +201,17 @@ impl CodeRecord {
                     None => (name, parent, top),
                 };
                 if let (Some(name), true) = (name, counted) {
+                    let at = |key: &str| {
+                        item.get(key)
+                            .and_then(Value::as_u64)
+                            .and_then(|n| u32::try_from(n).ok())
+                    };
                     out.push(Found {
                         name: name.to_string(),
                         parent: parent.map(str::to_string),
                         top,
+                        line: at("line"),
+                        character: at("character"),
                     });
                 }
                 if let Some(children) = item.get("children") {
@@ -271,7 +287,7 @@ impl CodeRecord {
 
     /// Whether a contract name matches a counted symbol: exactly, at any
     /// depth, or `Class.method` as `method` inside `Class`.
-    fn matches(name: &str, found: &Found) -> bool {
+    pub(crate) fn matches(name: &str, found: &Found) -> bool {
         match name.rsplit_once('.') {
             Some((class, method)) => found.name == method && found.parent.as_deref() == Some(class),
             None => found.name == name,
