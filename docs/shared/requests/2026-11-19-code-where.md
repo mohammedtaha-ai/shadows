@@ -1,6 +1,6 @@
 # Where a thing is in the project (`code_where`)
 
-- Status: disputed
+- Status: answered
 - Asked by: drafted by Hamoud for Masada at the controller's request, 2026-11-19 (Masada reviews the
   Need and Fields, and accepts or replies)
 - Screen: the code record design §5.3 and §5.4
@@ -36,7 +36,10 @@ rank: "exact"|"path"|"part"|"words"
 Owner { part_id, part_title, layer? }
 FileTask { workflow_id, version, task, action, purpose, commit? }   newest first
 SymbolEntry { symbol_id, name, kind, workflow_id, version, task, behavior: string[],
-  at_done: "found"|"missing"|"unchecked", live: Live, line?, uses: UseLine[] (≤ 10), uses_more }
+  at_done: "found"|"missing"|"unchecked", live: Live, line?,
+  uses_live: UsesLive, uses: UseLine[] (≤ 10), uses_more: number, uses_total?: number }
+UsesLive = { state: "not_asked" } | { state: "answered" } | { state: "truncated", why }
+         | { state: "failed", why } | { state: "skipped", why }
 UseLine { path, line, owner? }
 Live = { state: "not_asked" } | { state: "confirmed" } | { state: "gap", why } | { state: "unchecked", why }
 UnrecordedFile { path, owner?, symbols: { name, line }[] }
@@ -51,6 +54,18 @@ UnrecordedFile { path, owner?, symbols: { name, line }[] }
 - **`asked` and `budget`.** `asked` is how many language-server questions were spent, at most 30.
   `budget`, when present, says why some lines are `unchecked`.
 - **Timing.** The call returns within about 20 s, even when servers are slow.
+- **Who uses a symbol.** That is `uses_live`, apart from `live`, which says whether the symbol
+  itself is there now:
+  - `answered`: the complete answer; an empty `uses` then means no uses, and `uses_total` is
+    exact.
+  - `truncated`: the server's answer was cut at Codebase's bound. `uses` keeps what came back,
+    `uses_more` counts only the returned rest (there may be more), and there is no `uses_total`.
+  - `failed`, with `why`: an error, no server, or the time ran out during the lookup.
+  - `skipped`, with `why`: the budget was spent before the lookup. A symbol can be `live:
+    confirmed` with `uses_live: skipped`.
+  - `not_asked`: the symbol was not confirmed, so no lookup was made.
+
+  The screen shows "no uses" only for `answered` with an empty `uses`.
 
 ## Errors
 
@@ -66,6 +81,22 @@ UnrecordedFile { path, owner?, symbols: { name, line }[] }
 As written above. `CodeRecord::code_where` (B-182, B-183) answers both this route and the Planner's
 `code_where` tool. The route is B-185 and waits for this request. Contracts touched:
 `crates/code-record/contract.yaml`, `crates/shadows-http/src/contract.yaml`.
+
+**Response to the frontend reply (Hamoud, 2026-11-20).** The blocker is accepted (Mohammed and the
+controller) and resolved as follows.
+- **The shape.** `uses_live`, `uses_more` and `uses_total` are in Fields above.
+- **Where it is decided:** code record design §5.3; plan 2b, Ruling 11 and B-182's shapes; B-183's
+  outcome table and contract lines.
+- **References already returned are kept.** A `truncated` lookup keeps them, and `uses_more` never
+  claims a count the server did not give.
+- **The tests you asked for** (B-183):
+  - `an_empty_reference_answer_is_answered_with_no_uses`;
+  - `a_failed_reference_lookup_keeps_the_symbol_confirmed_and_says_why`;
+  - `a_truncated_reference_answer_keeps_its_uses_and_has_no_total`;
+  - `a_budget_spent_after_the_line_skips_the_lookup_and_says_so`;
+  - `uses_beyond_ten_are_counted`, for the exact count.
+- **Element rows** keep the project-state request's shapes and refresh rules, as amended there
+  today.
 
 ## Frontend reply
 

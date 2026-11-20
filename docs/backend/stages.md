@@ -26,7 +26,7 @@ Report tab's contract row (F-129). Now, on `ccr-9e1b02d8-b0ylm1`: slice 2 of the
 plans on this one branch (Mohammed, 2026-11-19; design §5, §8, §9 of
 `docs/backend/specs/2026-11-19-project-code-record-design.md`). Plan 2a,
 `docs/backend/plans/2026-11-19-code-record-2a.md`: tables and screens as Design's elements (§18.13),
-pinned by task contracts, their states from the record, and `project_state` (B-175 to B-181). Plan 2b,
+pinned by task contracts, their states from the record, and `project_state` (B-175 to B-181, B-187). Plan 2b,
 `docs/backend/plans/2026-11-19-code-record-2b.md`: `code_where` (B-182 to B-186). The controller
 dispatches the builders and fixers (Mohammed, 2026-11-19); the backend lead prepares and checks.
 
@@ -91,7 +91,8 @@ this file at `db760593`.
 ## Open
 
 Slice 2a of the code record. Plan: `docs/backend/plans/2026-11-19-code-record-2a.md`. Shared request:
-`docs/shared/requests/2026-11-19-project-state-and-diagrams.md` (answered, waiting for Masada).
+`docs/shared/requests/2026-11-19-project-state-and-diagrams.md` (answered again on 2026-11-20 after
+Masada's dispute: progress events, B-187; waiting for her re-review).
 The plan's "Rulings for every task" and "Gate files every task here touches" bind every task below.
 Dispatch is the controller's (Mohammed, 2026-11-19): the controller runs `backend-builder` and
 `backend-fixer` on these tasks; the backend lead prepares them and checks each report.
@@ -152,6 +153,17 @@ Dispatch is the controller's (Mohammed, 2026-11-19): the controller runs `backen
 - Needs: B-178.
 - Done when: the plan task's "Done when".
 
+### B-187 · Runs journals each change of a task's progress
+
+- Status: todo
+- Plan: [plans/2026-11-19-code-record-2a.md#task-b-187--runs-journals-each-change-of-a-tasks-progress](plans/2026-11-19-code-record-2a.md#task-b-187--runs-journals-each-change-of-a-tasks-progress)
+- Read: the plan's Ruling 11; `crates/core-runs/contract.yaml` (`transitions`, `mark_done`);
+  `crates/core-runs/src/store/executor_choice.rs` (how Runs journals `TaskExecutorChosen`);
+  executors design, "The plan page".
+- Touch: the plan task's Files.
+- Needs: nothing (its rows reach no client before B-180).
+- Done when: the plan task's "Done when".
+
 ### B-180 · Routes and events for the web
 
 - Status: blocked (the shared request is not accepted; then on B-179)
@@ -159,20 +171,20 @@ Dispatch is the controller's (Mohammed, 2026-11-19): the controller runs `backen
 - Read: the plan's rulings; `crates/shadows-http/src/contract.yaml` (decisions);
   `crates/core-events/contract.yaml`; the shared request.
 - Touch: the plan task's Files.
-- Needs: B-179; the shared request accepted.
+- Needs: B-179, B-187; the shared request accepted.
 - Done when: the plan task's "Done when".
 
 ### B-181 · Acceptance on a real provider (2a)
 
-- Status: blocked (on B-176 to B-180 and Masada's diagrams)
+- Status: blocked (on B-176 to B-180, B-187 and Masada's diagrams)
 - Plan: [plans/2026-11-19-code-record-2a.md#task-b-181--acceptance-on-a-real-provider-2a](plans/2026-11-19-code-record-2a.md#task-b-181--acceptance-on-a-real-provider-2a)
 - Touch: `docs/evidence/` (one new file); this entry's status.
-- Needs: B-176 to B-180; the frontend's tasks under the shared request.
+- Needs: B-176 to B-180, B-187; the frontend's tasks under the shared request.
 - Done when: the evidence file records the three steps as they happened.
 
 Slice 2b of the code record: `code_where`. Plan: `docs/backend/plans/2026-11-19-code-record-2b.md`.
-Shared request for its route: `docs/shared/requests/2026-11-19-code-where.md` (answered, waiting for
-Masada). The plan's rulings and gate list bind every task below; dispatch is the controller's.
+Shared request for its route: `docs/shared/requests/2026-11-19-code-where.md` (answered again on
+2026-11-20 after Masada's dispute: `uses_live`; waiting for her re-review). The plan's rulings and gate list bind every task below; dispatch is the controller's.
 
 ### B-182 · `code_where`, Shadows' half: the record read and ranked
 

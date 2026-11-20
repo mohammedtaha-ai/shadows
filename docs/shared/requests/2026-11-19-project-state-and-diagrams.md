@@ -1,6 +1,6 @@
 # The project's state, its ER diagram and its screen flow
 
-- Status: disputed
+- Status: answered
 - Asked by: drafted by Hamoud for Masada at the controller's request, 2026-11-19 (Masada reviews the
   Need and Fields, and accepts or replies)
 - Screen: the code record design §5.4
@@ -40,7 +40,7 @@ screens are written by the Planner, and a hand editor is later work on the same 
 | `GET /api/projects/{id}/elements/{element}/revisions` | — | `DesignElement[]`, oldest first |
 | `GET /api/workflows/{id}` (exists) | — | `tasks[i].contract.elements?: ElementPin[]` (new; absent when empty) |
 | `GET /api/attempts/{id}/brief` and the task context (exist) | — | `elements?: DesignElement[]` (new; absent when empty): each pinned revision |
-| project event stream (exists) | — | new kinds `DesignElementChanged { project_id, element_id, revision }` and `CodeRecordChanged { project_id, workflow_id, version, task }` |
+| project event stream (exists) | — | new kinds `DesignElementChanged { project_id, element_id, revision }`, `CodeRecordChanged { project_id, workflow_id, version, task }` and `TaskProgressChanged { project_id, workflow_id, version, task, attempt_id: string\|null }` |
 
 Shapes (exact names; `?` is absent when empty or none):
 
@@ -81,9 +81,17 @@ Reading the shapes:
 - **`behind: true`** means a newer revision is still to be built: show the built revision's shape,
   with the newer one as a planned change (from the revisions route).
 - **Foreign keys** name the target table by element id; links name the target screen by id.
-- **Refresh:** `DesignElementChanged`, `CodeRecordChanged`, `WorkflowFrozen`, `PlanArchived` and
-  `PlanUnarchived` refresh the state and the elements. `DesignElementChanged` also refreshes that
-  element's revisions.
+- **Refresh:** each of these events invalidates the state and the elements reads (the state with
+  and without `part_id`):
+  - `DesignElementChanged`, which also invalidates that element's revisions;
+  - `CodeRecordChanged`;
+  - `TaskProgressChanged`;
+  - the design, stage and plan notifications the project stream carries today:
+    `ProjectDesignChanged`, `MapProposed`, `RoadmapProposed`, `RoadmapApproved`,
+    `WorkflowDraftStarted`, `WorkflowEdited`, `WorkflowFrozen`, `PlanArchived`, `PlanUnarchived`.
+
+  At caught-up they are reconciled once. The work goes through `web/src/stream/` and the API-owned
+  query keys, with no extra HTTP surface. No view subscribes to an executor's thread for progress.
 
 ## Errors
 
@@ -109,6 +117,35 @@ builds:
   `crates/project-state` (new), `crates/core-events`, `crates/shadows-http/src/contract.yaml`.
 
 Nothing changes in `api/openapi.json` before this request is accepted. B-177 and B-180 wait for it.
+
+**Response to the frontend reply (Hamoud, 2026-11-20).** The blocker is accepted (Mohammed and the
+controller) and resolved as follows.
+- **The event.** No existing attempt event can serve:
+  - Runs journals none today, only `TaskExecutorChosen`.
+  - An executor thread's operation events do not carry the attempt's state, which Runs decides
+    after the turn.
+
+  So Runs journals a new project-scoped kind, `TaskProgressChanged { project_id, workflow_id,
+  version, task, attempt_id }`, in every write that changes what `Runs::progress` answers:
+  - an attempt inserted (Start, an addition, a session that did not open);
+  - its report;
+  - its end;
+  - a Stop;
+  - a startup's interruption;
+  - a done or a not-done mark, with `attempt_id` null.
+
+  A replay journals nothing.
+- **Where it is decided and built:**
+  - owner rule: executors design, "The plan page";
+  - the journaling: plan 2a, B-187, new;
+  - the project tail: B-180, which now adds all three kinds.
+- **The test you asked for:**
+  `runs_routes::an_attempt_starting_and_ending_reaches_the_project_stream_and_the_state` (B-180).
+  It reads two `TaskProgressChanged` frames, then the state with `started: 1, not_started: 0` and
+  the task line `attempt: "failed"`. The running state between them is held by B-179's
+  `a_running_attempt_shows_started_with_its_state`.
+- **Your invalidation:** recorded under "Refresh" above.
+- **Code record design §5.4:** lists the events.
 
 ## Frontend reply
 

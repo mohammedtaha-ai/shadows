@@ -40,6 +40,19 @@ From Mohammed, 2026-11-19, unless marked otherwise.
     `#[serde(default, skip_serializing_if = "Vec::is_empty")]`, so a contract or a saved brief
     without them reads, serializes and fingerprints exactly as before. Commands keep
     `command_schema_ver: 1`.
+11. **Every change a state read shows reaches the project stream** (2026-11-20, from Masada's
+    review; Mohammed and the controller accepted it). The changes and their events:
+
+    | Change | Event | Journaled by |
+    |---|---|---|
+    | an element | `DesignElementChanged` | Design (B-175) |
+    | a done task's record | `CodeRecordChanged` | CodeRecord (B-178) |
+    | a task's progress: an attempt inserted or its state changed, a done or not-done mark | `TaskProgressChanged` | Runs (B-187) |
+
+    Each is journaled in the write that makes the change. B-180 puts all three on the project tail.
+    No existing attempt event fits: Runs journals none today (only `TaskExecutorChosen`), and an
+    executor thread's operation events neither carry the attempt's state (Runs decides it after the
+    turn) nor belong to the project tail.
 
 ## What is reused
 
@@ -631,7 +644,7 @@ Table owner line: `code_record_element :: code_record`.
 - `record_done_in` writes one row per `done.contract.elements` pin, after its symbol rows.
 - `forget_done_in` and `delete_project_in` delete the task's (the project's) rows.
 - Both `record_done_in` and `forget_done_in` journal
-  `JournalEntry::new("CodeRecordChanged", "system:code_record")`, with
+  `JournalEntry::new("CodeRecordChanged", Actor::system())`, with
   `.with_project(project)` and payload `{ "project_id", "workflow_id", "version", "task" }`.
   `forget_done_in` gains a `project: &ProjectId` first parameter after `tx` for this. Its one
   caller, `crates/core-runs/src/store/marks.rs`, passes the mark's project (in Touch for that one
@@ -910,6 +923,9 @@ project folder and `seed_elements_for_tests`:
 - `the_state_is_bounded`: 21 plans tied to one part give 20 and `plans_more: 1`.
 - `an_unknown_part_is_refused`.
 - `a_parts_plans_in_the_state_are_its_design_part_plans`.
+- `a_running_attempt_shows_started_with_its_state`: Start with `wait-for-release`. The part's
+  detail gives the task `attempt: "running"` and the counts `started: 1`. After the release and
+  the turn's end without a commit, it gives `attempt: "failed"`, still `started: 1`, `done: 0`.
 
 `crates/shadows/tests/element_mcp.rs`:
 - `project_state_tool_answers_the_method`: the tool's JSON equals `serde_json::to_value` of the
@@ -923,6 +939,86 @@ project folder and `seed_elements_for_tests`:
 - those tests;
 - `cargo test -p core-plans`;
 - `cargo test -p project-state`;
+- the gate list.
+
+---
+
+## Task B-187 · Runs journals each change of a task's progress
+
+**Files:**
+- **Create:** `crates/shadows-core/tests/runs_attempts/progress_events.rs` (registered in
+  `crates/shadows-core/tests/runs_attempts.rs`).
+- **Modify:**
+  - `crates/core-runs/src/store/mod.rs` (a private helper and its calls in `begin_attempt`,
+    `continue_attempt`, `finish_owed`, `finish`, `record_report`);
+  - `crates/core-runs/src/store/conflict.rs` (`settle_ended`);
+  - `crates/core-runs/src/store/recover.rs` (`settle_running`);
+  - `crates/core-runs/src/store/marks.rs` (`put_mark`);
+  - `crates/core-runs/contract.yaml`.
+- **Not:** Events (B-180 adds the kind to the tail); `ProjectState`; any route.
+- **Needs:** nothing. It is independent of the elements, and the journal rows are not
+  frontend-visible until B-180.
+
+**The event:**
+- **Kind:** `TaskProgressChanged`.
+- **Actor:** the write's own actor where it has one (the mark's command actor, the person's Stop),
+  else `Actor::system()`.
+- **Built with:** `JournalEntry::new(kind, actor).with_project(project_id)`.
+- **Payload, exactly:** `{ "project_id", "workflow_id", "version", "task", "attempt_id" }`.
+  `attempt_id` is a string for an attempt's change and `null` for a mark. Never any state, reason
+  or content: a reader asks `Runs::progress` or `ProjectState`.
+
+**Helpers** (private, in `store/mod.rs`):
+
+```rust
+/// Journals TaskProgressChanged for `attempt`, its identities read from its run_attempts row.
+async fn attempt_progress_in(conn: &mut SqliteConnection, attempt: &AttemptId, actor: Actor,
+    at: &str) -> Result<(), RunsError>;
+/// Journals TaskProgressChanged for a mark: attempt_id null.
+async fn mark_progress_in(conn: &mut SqliteConnection, project: &ProjectId,
+    workflow: &WorkflowId, version: i64, task: u32, actor: Actor, at: &str)
+    -> Result<(), RunsError>;
+```
+
+**Where, each inside the existing write, only when the row changed, and never on a replay:**
+
+| Write | When |
+|---|---|
+| `begin_attempt` | after its `INSERT INTO run_attempts` (also an attempt recorded `failed` because its session did not open) |
+| `continue_attempt` | after its insert of the new Running attempt |
+| `finish_owed` | when its `UPDATE ... state='stopped'` moved a row |
+| `finish` | when `moved.rows_affected() == 1` |
+| `record_report` | when the update to `committed` moved a row |
+| `settle_ended` | when it settled the attempt (`failed` or `stopped`) |
+| `settle_running` | once per attempt it makes `interrupted`, from the ids it reads before the update |
+| `put_mark` | after the mark row, done or not done; a replay returns before it |
+
+Writes that do not change the state or the mark add nothing: a release, a notice or a conflict's
+delivery.
+
+**Contract** (`crates/core-runs/contract.yaml`):
+- a top comment line: "Every write that changes what `progress` answers journals
+  TaskProgressChanged { project_id, workflow_id, version, task, attempt_id } in that write (an
+  attempt's insert or state change; a done or not-done mark, attempt_id null); a replay journals
+  nothing.";
+- an obligation with the tests below.
+
+**Tests** (`progress_events.rs`). They use the `runs_attempts` fixture: `fake_acp` with
+`wait-for-release`, and a git folder. They read `kind, payload_json FROM durable_event WHERE
+kind = 'TaskProgressChanged' ORDER BY seq` through the fixture's storage.
+- `starting_an_attempt_journals_progress_once`: one event, with the attempt's id and the project,
+  workflow, version and task. A replayed Start adds none.
+- `an_attempt_ending_without_done_journals_progress`: after the release, the turn ends with no
+  commit (`failed`) and a second event names the same attempt.
+- `a_report_journals_progress`: an accepted `task_report` adds one.
+- `a_stop_and_a_startup_interruption_journal_progress`: a person's Stop adds one; `recover` over a
+  Running attempt adds one per attempt.
+- `a_done_and_a_not_done_mark_journal_progress_with_no_attempt`: each adds one with `attempt_id`
+  null; a replayed mark adds none.
+
+**Done when:**
+- `cargo test -p shadows-core --features test-support --test runs_attempts progress_events`;
+- `cargo test -p core-runs --features test-support`;
 - the gate list.
 
 ---
@@ -941,12 +1037,15 @@ project folder and `seed_elements_for_tests`:
   - `crates/shadows-http/src/failure/cases.rs` (`INVALID_ELEMENT` 422, `ELEMENT_STALE` 409);
   - `crates/shadows-http/src/contract.yaml`;
   - `crates/core-events/src/store.rs` (`read_project_events_after`'s kind list gains
-    `'DesignElementChanged'` and `'CodeRecordChanged'`);
+    `'DesignElementChanged'`, `'CodeRecordChanged'` and `'TaskProgressChanged'`);
   - `crates/core-events/contract.yaml`;
-  - `crates/shadows/tests/design_routes.rs`, `crates/shadows/tests/project_events.rs`;
+  - `crates/shadows/tests/design_routes.rs`, `crates/shadows/tests/project_events.rs` (its
+    `next_frame` moves to a new `crates/shadows/tests/fixtures/stream.rs`, used through
+    `#[path = "fixtures/stream.rs"] mod stream;`);
+  - `crates/shadows/tests/runs_routes.rs` (one test, using that fixture);
   - `api/openapi.json` (regenerated);
   - `docs/codebase/README.md` (`project_state.rs: ProjectState service HTTP translation`).
-- **Needs:** B-179; the shared request accepted.
+- **Needs:** B-179, B-187; the shared request accepted.
 
 **Routes** (person, like the decisions routes; no grant):
 
@@ -958,8 +1057,11 @@ project folder and `seed_elements_for_tests`:
 
 An unknown or removed project is 404, as the decisions routes answer.
 
-**Events:** the two kinds reach the project tail with their identifier-only payloads, which
-`Plans::project_event_payload_in` keeps verbatim.
+**Events:** the three kinds of Ruling 11 reach the project tail with their identifier-only
+payloads. `Plans::project_event_payload_in` keeps them verbatim (it changes only plan events).
+`crates/core-events/contract.yaml` gains the obligation: "DesignElementChanged, CodeRecordChanged
+and TaskProgressChanged reach the project event tail with identifier-only payloads, in sequence
+order", tested by the two stream tests below.
 
 **Tests:**
 - `design_routes::element_routes_list_states_and_revisions`
@@ -968,6 +1070,21 @@ An unknown or removed project is 404, as the decisions routes answer.
 - `project_events::element_and_record_changes_reach_the_project_stream`: one
   `DesignElementChanged` after a put, one `CodeRecordChanged` after a done mark, in sequence order
   after a cursor.
+- `runs_routes::an_attempt_starting_and_ending_reaches_the_project_stream_and_the_state` (the test
+  Masada asked for):
+  - **Setup:** this file's git project and approved plan, whose adapter is missing, so an
+    attempt that passes every check is inserted and then ends `failed`. Subscribe to the project's
+    stream, then `POST` the task's Start.
+  - **Stream:** two `TaskProgressChanged` frames, in order, each naming the attempt, the
+    workflow, version and task, and no done mark.
+  - **Then** `GET /api/projects/{id}/state` gives the plan's task counts `started: 1,
+    not_started: 0, done: 0`.
+  - **And** `GET /api/projects/{id}/state?part_id=<the plan's part>` gives the task line `done:
+    false, attempt: "failed"`.
+  - **Before the Start,** the same reads give `not_started: 1` and `attempt: null`.
+
+  The state between start and end (`running`) is held by B-179's
+  `a_running_attempt_shows_started_with_its_state`.
 
 Then `UPDATE_OPENAPI=1 cargo test -p shadows --test openapi`.
 
@@ -983,7 +1100,7 @@ The frontend regenerates `web/src/api/schema.d.ts` on its side.
 
 ## Task B-181 · Acceptance on a real provider (2a)
 
-**Needs:** B-176 to B-180, and Masada's diagrams (her tasks under the shared request).
+**Needs:** B-176 to B-180, B-187, and Masada's diagrams (her tasks under the shared request).
 
 The controller runs it with `shadows serve` and a real provider. The keys are `OPENROUTER` or
 `API_KEY_MINIMAX`, read with a loop and never printed. Use a fresh project with a git folder, an
@@ -1000,7 +1117,9 @@ approved map with a `database` and a `frontend` part, and an approved roadmap.
    - **Record:** the tool calls, and that no element was duplicated.
 3. **In the browser:**
    - **Expected:** the state view, the ER diagram and the screen flow show the elements with their
-     states. `users` shows `behind` until the second plan's task is done.
+     states. `users` shows `behind` until the second plan's task is done. With the state view open,
+     starting a task moves it from not started to started, and its end shows its attempt state,
+     with no reload.
    - **Record:** screenshots, and the server log lines.
 
 **Evidence:** `docs/evidence/2026-11-2x-code-record-2a-live.md` (the date of the run), with the

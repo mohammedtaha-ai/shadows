@@ -215,8 +215,21 @@ Each question is an MCP tool for the Planner and a route for the web, calling th
      `owners`), so "the database query" and "the screen" show as such. A topic that is not a path
      also asks `workspaceSymbol` once. A question asks the language servers at most 30 times and
      waits at most 20 s in all; what the budget does not reach is marked unchecked with that
-     reason. Uses beyond 10 per symbol are counted, not listed. A recorded file with no symbols
-     is confirmed `file_only` when it exists.
+     reason. A recorded file with no symbols is confirmed `file_only` when it exists.
+
+     **Who uses a symbol is its own outcome** (2026-11-20, from the frontend's review), apart from
+     the symbol's live confirmation (`live`). It is `uses_live`, one of:
+     - `not_asked`: the symbol has no confirmed line;
+     - `answered`: the server's complete answer, which may be empty;
+     - `truncated`: the server's answer was cut at Codebase's bound;
+     - `failed`, with why: an error, no server, or the time ran out during the lookup;
+     - `skipped`, with why: the budget was spent before the lookup.
+
+     `uses` keeps every reference the server returned, up to 10, also in a `truncated` answer.
+     `uses_more` counts only the returned references beyond those 10, so it is a lower bound in a
+     `truncated` answer and 0 when nothing was returned. `uses_total` is the exact count, given
+     only when `answered`. An empty `uses` never stands for "no callers" unless `uses_live` is
+     `answered`.
   3. The gaps on those entries.
   4. Files that match the topic in the project's file list and that no done task's contract
      names: their live facts (symbols, part and layer), marked "not in the record", never hidden.
@@ -248,9 +261,16 @@ does not ask.
 The web shows the project's state and its two diagrams, read only: the ER diagram for the
 project's tables and the screen flow for its screens, each element with its state and, when
 opened, its revisions, part, outcomes and the tasks that pin it, with file and symbol. A part's
-page shows the elements of that part. The project event stream refreshes them on
-`DesignElementChanged`, `CodeRecordChanged`, and the plan events it carries today
-(`docs/shared/requests/2026-11-19-project-state-and-diagrams.md`).
+page shows the elements of that part. The project event stream refreshes them on these events:
+- `DesignElementChanged` (Design);
+- `CodeRecordChanged` (CodeRecord, on every done or not-done mark's record write);
+- `TaskProgressChanged` (Runs: an attempt starting, ending, stopped or interrupted, and every done
+  or not-done mark; [executors design, the plan page](2026-11-08-executors-design.md#the-plan-page));
+- the design, stage and plan events it carries today.
+
+At caught-up, the client reads the state again. No view follows an executor's thread to learn a
+task's progress (`docs/shared/requests/2026-11-19-project-state-and-diagrams.md`, amended
+2026-11-20).
 
 ## 6. Code no plan wrote: moved to importing a project (Mohammed, 2026-11-19)
 

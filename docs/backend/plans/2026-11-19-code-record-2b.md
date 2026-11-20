@@ -28,7 +28,8 @@ From Mohammed and the design, 2026-11-19, unless marked otherwise.
    - at most 30 language-server asks per question (`documentSymbol`, `findReferences`,
      `workspaceSymbol` each count one; `missing_inputs` and `inventory` do not);
    - at most 20 s for the live half in all;
-   - at most 10 uses listed per symbol, then a count;
+   - at most 10 uses listed per symbol; the rest counted only as far as the server returned them
+     (Ruling 11);
    - what the budget does not reach is `unchecked` with the reason;
    - no retry waits for a starting server: a `NoServer` is `unchecked` at once, unlike the
      `contract` check's 2-minute wait.
@@ -41,6 +42,17 @@ From Mohammed and the design, 2026-11-19, unless marked otherwise.
 9. **No migration.** 2b reads the tables 0076 and 0078 made.
 10. **The frontend sees nothing before its request is accepted.** The route (B-185) waits for
     `docs/shared/requests/2026-11-19-code-where.md`. The MCP tool (B-184) is not frontend-visible.
+11. **Who uses a symbol is its own outcome** (2026-11-20, from Masada's review; Mohammed and the
+    controller accepted it). `uses_live` is apart from the symbol's own `live`:
+    - `not_asked`: no confirmed line, so no lookup;
+    - `answered`: the complete answer, possibly empty;
+    - `truncated`: cut at Codebase's bound; what came back is kept;
+    - `failed`, with why;
+    - `skipped`, with why: the budget was spent.
+
+    `uses_more` counts only returned references beyond the 10 listed. `uses_total` is an exact
+    count and is given only with `answered`. An empty `uses` means "no callers" only with
+    `answered`.
 
 ## What is reused
 
@@ -70,8 +82,8 @@ From Mohammed and the design, 2026-11-19, unless marked otherwise.
 - **`store/lookup.rs`:** the record has no read method yet (slice 1 left it for `code_where`).
 - **`ranking.rs`:** a pure rule with one job, the tiers.
 - **`code_where.rs`:** the question.
-- **Two `RecordedAnswer` variants:** tests need recorded `findReferences` and `workspaceSymbol`
-  answers, as they have recorded `documentSymbol` ones.
+- **Three `RecordedAnswer` variants:** tests need recorded `findReferences` (complete or cut) and
+  `workspaceSymbol` answers, as they have recorded `documentSymbol` ones, and a failed ask.
 
 ## Gate files every task here touches
 
@@ -163,7 +175,25 @@ pub struct SymbolEntry {
     pub at_done: SymbolState,              // the stored state
     pub live: Live,
     #[serde(skip_serializing_if = "Option::is_none")] pub line: Option<u32>,
-    pub uses: Vec<UseLine>, pub uses_more: u32,
+    /// The reference lookup's outcome, apart from `live` (Ruling 11).
+    pub uses_live: UsesLive,
+    /// Returned references, minus the symbol's own location, by path then line, at most 10.
+    pub uses: Vec<UseLine>,
+    /// Returned references beyond the 10 listed. A lower bound when `uses_live` is `truncated`;
+    /// 0 when nothing was returned.
+    pub uses_more: u32,
+    /// The exact number of uses, given only when `uses_live` is `answered`.
+    #[serde(skip_serializing_if = "Option::is_none")] pub uses_total: Option<u32>,
+}
+
+/// What the reference lookup of one symbol did.
+#[serde(tag = "state", rename_all = "snake_case")]
+pub enum UsesLive {
+    NotAsked,
+    Answered,
+    Truncated { why: String },
+    Failed { why: String },
+    Skipped { why: String },
 }
 pub struct UseLine { pub path: String, pub line: u32,
     #[serde(skip_serializing_if = "Option::is_none")] pub owner: Option<Owner> }
@@ -224,7 +254,8 @@ pub async fn code_where(&self, project: &ProjectId, topic: &str)
    - `owner`: from `layout.owners(path)`. The part is the first owner whose `via` is `Folder`; the
      layer is the first owner whose `via` is `Layer(id)`; `part_title` comes from the layout.
 6. Element entries: `self.element_states(project, &matched_elements, &[])`.
-7. `live` is `not_asked` on every file and symbol, and `asked: 0`.
+7. `live` and `uses_live` are `not_asked` on every file and symbol, `uses` is empty, `uses_more` is
+   0, `uses_total` is none, and `asked` is 0.
 
 **Contract** (`crates/code-record/contract.yaml`):
 - dependencies: `design: crates/core-design/contract.yaml # elements, layout and owners`; drop
@@ -285,15 +316,18 @@ elements put by a Planner grant with a running turn. The record is written with
     - `Found` gains `line: Option<u32>` and `character: Option<u32>`, read from the symbol's
       one-based `line` and `character` keys (Codebase's rewrite); none in a raw recorded answer
       without them;
-  - `crates/code-record/src/lib.rs` (`RecordedAnswer` gains two variants);
+  - `crates/code-record/src/lib.rs` (`RecordedAnswer` gains three variants);
   - `crates/code-record/contract.yaml`;
   - `crates/shadows-core/tests/code_where.rs`.
 - **Not:** Codebase; Design; any other crate.
 - **Needs:** B-182.
 
 **Recorded answers** (test-support only):
-- `RecordedAnswer::References(serde_json::Value)`: a `findReferences` result, recorded under the
-  key `"{path}#references@{line}"`.
+- `RecordedAnswer::References { result: serde_json::Value, truncated: bool }`: a
+  `findReferences` result, recorded under the key `"{path}#references@{line}"`. `truncated: true`
+  stands for Codebase's bound cutting it.
+- `RecordedAnswer::Failed(String)`: under any key, the ask fails with that text, as a
+  `CodebaseError::LanguageServer` would.
 - `RecordedAnswer::Workspace(serde_json::Value)`: a `workspaceSymbol` result, recorded under
   `"#workspace:{query}"`.
 
@@ -332,11 +366,26 @@ deadline (`Instant::now() + LIVE_FOR`) bounds every ask through
        {extension}" }`; when `install` is known, `" (not installed)"` is appended.
      - An error → `unchecked { why: "{error}" }`.
    - **Then, for each confirmed symbol that has a line,** one `FindReferences` ask at its `line`
-     and `character`. The result is a list of locations. Drop the symbol's own location. Sort the
-     rest by path, then line. List up to `USES_MAX` with their `owner` (the same rule as files);
-     the rest is `uses_more`. A failure leaves `uses` empty and adds nothing else.
-5. **When asks or time run out,** everything not yet asked is `unchecked { why: "the question's
-   budget ran out (30 asks, 20 s)" }`, and `budget` says the same once.
+     and `character`, unless the asks or the deadline are spent first. The result is a list of
+     locations. Drop the symbol's own location, sort the rest by path then line, and list up to
+     `USES_MAX` with their `owner` (the same rule as files). The outcome sets `uses_live`, `uses`,
+     `uses_more` and `uses_total`:
+
+     | Outcome | `uses_live` | `uses` | `uses_more` | `uses_total` |
+     |---|---|---|---|---|
+     | `Answered`, `truncated: false` | `answered` | up to 10 | the rest | `Some(n)`, n the references after dropping its own (0 for an empty answer) |
+     | `Answered`, `truncated: true` | `truncated { why: "the server's answer was cut at 100 items or 32 KiB; there may be more" }` | up to 10 of those returned | the returned rest | none |
+     | `NoServer` | `failed { why: "no language server reads {extension}" }` | empty | 0 | none |
+     | an error | `failed { why: "{error}" }` | empty | 0 | none |
+     | the deadline passes during the ask | `failed { why: "the question's 20 s ran out during the lookup" }` | empty | 0 | none |
+     | asks or time spent before the ask | `skipped { why: "the question's budget ran out (30 asks, 20 s)" }` | empty | 0 | none |
+
+     The symbol's `live` stays `confirmed` in every row: it was confirmed by `DocumentSymbol`.
+   - A symbol whose `live` is not `confirmed`, or that has no line, has `uses_live: not_asked`,
+     `uses` empty, `uses_more: 0` and no `uses_total`.
+5. **When asks or time run out,** every file and symbol not yet asked is `unchecked { why: "the
+   question's budget ran out (30 asks, 20 s)" }`. Every confirmed symbol whose lookup was not made
+   is `uses_live: skipped` (step 4's table). `budget` says the same once.
 6. `asked` is the number of asks made.
 
 Element entries keep the state `element_states` gave them (B-182). They are not asked again.
@@ -358,7 +407,17 @@ The `contract` check's obligations are unchanged.
 - `no_server_makes_the_file_unchecked_and_the_record_still_answers`
 - `the_budget_stops_at_thirty_asks_and_says_so`: 25 recorded files of 2 symbols each; `asked ==
   30`, and the later entries are `unchecked` with the budget text.
-- `uses_beyond_ten_are_counted`
+- `uses_beyond_ten_are_counted`: 14 references, the own location among them; 10 listed,
+  `uses_more: 3`, `uses_total: Some(13)`, `uses_live: answered`.
+- `an_empty_reference_answer_is_answered_with_no_uses`: `[]` gives `uses_live: answered`, `uses`
+  empty, `uses_more: 0`, `uses_total: Some(0)`.
+- `a_failed_reference_lookup_keeps_the_symbol_confirmed_and_says_why`: `RecordedAnswer::Failed`
+  gives `live: confirmed`, `uses_live: failed` with the text, `uses` empty, no `uses_total`.
+- `a_truncated_reference_answer_keeps_its_uses_and_has_no_total`: 12 returned references with
+  `truncated: true` give 10 listed, `uses_more: 2`, `uses_live: truncated`, no `uses_total`.
+- `a_budget_spent_after_the_line_skips_the_lookup_and_says_so`: the files are arranged so the
+  30th ask is a `DocumentSymbol` that confirms a symbol. That symbol is `live: confirmed` with its
+  line, `uses_live: skipped` with the budget text, `uses` empty, and `asked == 30`.
 - `a_word_topic_lists_files_not_in_the_record_from_workspace_symbols`
 - `a_path_topic_lists_files_not_in_the_record_from_the_file_list`
 

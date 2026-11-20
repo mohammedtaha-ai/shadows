@@ -103,6 +103,15 @@ Core's task status. This answers the two shared requests waiting since 2026-11-0
 `plan-task-status.md` and `acceptance-ticks.md` (§9), both at `e78e07dc`. Not built yet: the plan
 page still shows its `Planned` block; both are rows of [Core future](../../core/future.md).
 
+**Progress reaches the project stream** (2026-11-20, from the frontend's review of the project
+state request). Every write that changes what a task's progress answers (`Runs::progress`: an
+attempt inserted, an attempt's state changed by its report, its end, a Stop, a startup's
+interruption, and a done or not-done mark) journals `TaskProgressChanged { project_id,
+workflow_id, version, task, attempt_id }` in that same write. `attempt_id` is null for a mark.
+Runs journals it, and a replay journals nothing. The project event tail carries it, so a project
+view refreshes progress without following each executor's thread. Plan:
+`docs/backend/plans/2026-11-19-code-record-2a.md`, B-187 and B-180.
+
 ## 5. One task's life
 
 ```text
