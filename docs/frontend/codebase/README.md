@@ -164,6 +164,8 @@ it is that folder's `contract.yaml`.
 | `web/src/api/command-id.ts` | Idempotency key reused on each retry of a send | `web/src/api/contract.yaml` |
 | `web/src/api/project-state.ts` | ProjectState server state | `web/src/api/contract.yaml` |
 | `web/src/api/project-state.test.ts` | ProjectState request checks | `web/src/api/contract.yaml` |
+| `web/src/api/code-record.ts` | Where a topic is, as CodeRecord answers it | `web/src/api/contract.yaml` |
+| `web/src/api/code-record.test.ts` | code_where request checks | `web/src/api/contract.yaml` |
 | `web/src/api/design.ts` | Project design server state | `web/src/api/contract.yaml` |
 | `web/src/api/planning-context.ts` | Planning context API | `web/src/api/contract.yaml` |
 | `web/src/api/planning-context.test.ts` | Planning context API checks | `web/src/api/contract.yaml` |
@@ -321,6 +323,8 @@ it is that folder's `contract.yaml`.
 | `web/src/app/project-state/elements-view.tsx` | Tables or screens drawn as diagram plus list | `web/src/app/project-state/contract.yaml` |
 | `web/src/app/project-state/screens-view.tsx` | Screens as flow, list or opened screen | `web/src/app/project-state/contract.yaml` |
 | `web/src/app/project-state/screens-view.test.tsx` | Screens view checks over the fake daemon | `web/src/app/project-state/contract.yaml` |
+| `web/src/app/project-state/where-view.tsx` | Core's answer for where a topic is | `web/src/app/project-state/contract.yaml` |
+| `web/src/app/project-state/where-view.test.tsx` | Where view checks over the fake daemon | `web/src/app/project-state/contract.yaml` |
 | `web/src/app/project-state/index.ts` | Expose app/project-state public capabilities | `web/src/app/project-state/contract.yaml` |
 | `web/src/app/design/index.ts` | Expose app/design public capabilities | `web/src/app/design/contract.yaml` |
 | `web/src/app/error-line.tsx` | Inline line saying why a daemon call failed | `web/src/app/copy-button.tsx` |

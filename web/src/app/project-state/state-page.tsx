@@ -6,6 +6,7 @@ import { Panel } from '@/components/ui/panel'
 import { ScreensView } from './screens-view'
 import { StateView } from './state-view'
 import { TablesView } from './tables-view'
+import { WhereView } from './where-view'
 
 const tab = (active: boolean) =>
   cn(
@@ -15,7 +16,7 @@ const tab = (active: boolean) =>
 
 export function ProjectStatePage() {
   const { projectId } = useParams({ from: '/projects/$projectId/state' })
-  const { view, part, element, removed } = useSearch({ from: '/projects/$projectId/state' })
+  const { view, part, element, removed, topic } = useSearch({ from: '/projects/$projectId/state' })
   const activeView = view ?? 'state'
   return (
     <main className="flex-1 overflow-y-auto bg-background p-6">
@@ -58,12 +59,22 @@ export function ProjectStatePage() {
             >
               Screens
             </Link>
+            <Link
+              to="/projects/$projectId/state"
+              params={{ projectId }}
+              search={{ view: 'where' }}
+              className={tab(activeView === 'where')}
+            >
+              Where
+            </Link>
           </nav>
         </Panel>
         {view === 'tables' ? (
           <TablesView key={projectId} projectId={projectId} element={element} removed={removed === true} />
         ) : view === 'screens' ? (
           <ScreensView key={projectId} projectId={projectId} element={element} removed={removed === true} />
+        ) : view === 'where' ? (
+          <WhereView key={projectId} projectId={projectId} topic={topic} />
         ) : (
           <StateView key={projectId} projectId={projectId} part={part} removed={removed === true} />
         )}

@@ -49,6 +49,9 @@ project_state:
   invalidateElementRevisions: Invalidates one element's revisions.
   retry: Every query retries with retryLost, which lives in error.ts and retries only a lost call, never Core's answer (the runs queries import it from there).
   aliases: PlanProgress is the generated name of a plan's progress line; PlanState is Active/Archived.
+code_record:
+  codeWhereQuery: GET /api/projects/{id}/code-where with query topic exactly as typed (never trimmed); key codeRecordKeys.where(projectId, topic); retry with retryLost; staleTime Infinity, so it is asked again only by the person's Ask again, never by the stream.
+  aliases: WhereAnswer, WhereEntry, FileEntry, ElementEntry, SymbolEntry, UsesLive, Live, UseLine, UnrecordedFile, Owner, FileTask and Rank come from the generated schemas.
 runs:
   stoppedOnAdditionCap: True when the latest attempt is committed, carries a non-null addition, the task is not done and Core allows Start; the only place the web reads the cap, without counting additions.
   awaitingJudgment: True when the task's latest attempt is committed, the task is not done and Core refuses Start with task_busy (a task stopped on the cap may be started, so it does not wait); the only place the web reads it.

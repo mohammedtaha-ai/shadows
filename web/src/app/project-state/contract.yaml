@@ -43,6 +43,10 @@ components:
     signature: "({ state: BuildState }) => JSX.Element"
     # An icon and a label per build state, marked data-element-state.
 
+  WhereView:
+    signature: "({ projectId: string, topic?: string }) => JSX.Element"
+    # The Where form and Core's answer for a topic, entries in Core's order; asked again only by Ask again.
+
   ElementPanel:
     signature: "({ projectId: string, view: ElementView, names: (id) => string | undefined, onClose: () => void }) => JSX.Element"
     # One table or screen in full: why, part, outcomes, confirmation, tasks, revisions.
@@ -127,7 +131,14 @@ obligations:
   - rule: "An opened screen shows its route and its links in the panel."
     tested_by: an_opened_screen_shows_its_route_and_links_in_the_panel
 
+  - rule: >
+      A symbol's uses follow uses_live: answered with no uses says No uses., truncated keeps its uses
+      and says at least, failed and skipped say why, not_asked shows nothing. Entries stay in Core's
+      order, a refusal shows Core's message, and no project event asks again.
+    tested_by: asking_reads_once_and_keeps_cores_order, an_answered_empty_lookup_says_no_uses, a_failed_lookup_says_why_and_never_no_uses, a_skipped_lookup_says_why_and_never_no_uses, a_truncated_lookup_keeps_its_uses_and_says_at_least, answered_uses_show_the_total_and_the_rest_grouped_by_part, a_not_asked_symbol_shows_no_uses_line, no_entry_says_shadows_has_no_record_with_files_not_in_the_record, a_blank_topic_shows_cores_refusal, the_budget_line_is_shown_when_core_gives_one, ask_again_reads_the_answer_again, project_events_do_not_ask_again
+
 tests:
+  where-view.test.tsx: "The where view over the fake daemon."
   diagram-layout.test.ts: "Layout determinism, sizes and edge rules."
   screens-view.test.tsx: "The screens view over the fake daemon."
   tables-view.test.tsx: "The tables view over the fake daemon."

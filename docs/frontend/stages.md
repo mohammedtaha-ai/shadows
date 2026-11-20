@@ -135,7 +135,7 @@ Every task's checks run from `web/`: the tests it names, then `npm run typecheck
 
 ### F-135 · `code_where` in the web
 
-- Status: blocked (on B-182, B-183, B-185, and F-132)
+- Status: done
 - Plan: [plans/2026-11-20-project-state-views.md#f-135--code_where-in-the-web](plans/2026-11-20-project-state-views.md#f-135--code_where-in-the-web)
 - Read:
   - `docs/shared/requests/2026-11-19-code-where.md` (Fields, "Who uses a symbol", Errors);

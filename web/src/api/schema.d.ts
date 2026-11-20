@@ -905,6 +905,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/projects/{id}/code-where": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["code_where"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/projects/{id}/code/files": {
         parameters: {
             query?: never;
@@ -2847,6 +2863,11 @@ export interface components {
             /** @enum {string} */
             kind: "screen";
         });
+        ElementEntry: {
+            element: components["schemas"]["DesignElement"];
+            rank: components["schemas"]["Rank"];
+            state: components["schemas"]["ElementState"];
+        };
         /** @description An element in gap or unchecked, with why. */
         ElementGap: {
             element_id: string;
@@ -2990,6 +3011,28 @@ export interface components {
             path: string;
             /** Format: int32 */
             removed: number;
+        };
+        FileEntry: {
+            confirmed?: null | components["schemas"]["Confirmation"];
+            /** @description The file now. */
+            live: components["schemas"]["Live"];
+            owner?: null | components["schemas"]["Owner"];
+            path: string;
+            rank: components["schemas"]["Rank"];
+            /** @description By name. */
+            symbols: components["schemas"]["SymbolEntry"][];
+            /** @description Newest first: version, then task, then workflow id. */
+            tasks: components["schemas"]["FileTask"][];
+        };
+        FileTask: {
+            action: string;
+            commit?: string | null;
+            purpose: string;
+            /** Format: int32 */
+            task: number;
+            /** Format: int64 */
+            version: number;
+            workflow_id: components["schemas"]["WorkflowId"];
         };
         /** @description One file the task works on, and why. */
         FileWork: {
@@ -3260,6 +3303,22 @@ export interface components {
             context_window?: number | null;
             id: string;
         };
+        /** @description What the code says now, for a file or a symbol. */
+        Live: {
+            /** @enum {string} */
+            state: "not_asked";
+        } | {
+            /** @enum {string} */
+            state: "confirmed";
+        } | {
+            /** @enum {string} */
+            state: "gap";
+            why: string;
+        } | {
+            /** @enum {string} */
+            state: "unchecked";
+            why: string;
+        };
         /** @enum {string} */
         MapAction: "first" | "add" | "change";
         MapLink: {
@@ -3463,6 +3522,12 @@ export interface components {
         };
         OwnedVia: "Folder" | {
             Layer: string;
+        };
+        /** @description The part whose folder holds a path, and the first layer whose place does. */
+        Owner: {
+            layer?: string | null;
+            part_id: components["schemas"]["PartId"];
+            part_title: string;
         };
         Part: {
             content: components["schemas"]["PartContent"];
@@ -4021,6 +4086,11 @@ export interface components {
         };
         /** Format: uuid */
         QueuedMessageId: string;
+        /**
+         * @description How a `code_where` entry matched its topic, best first.
+         * @enum {string}
+         */
+        Rank: "exact" | "path" | "part" | "words";
         /** @description A done task whose recorded checks did not all pass on a recheck. */
         RecheckFailure: {
             attempt_id: components["schemas"]["AttemptId"];
@@ -4302,6 +4372,38 @@ export interface components {
             planned: number;
             /** Format: int32 */
             unchecked: number;
+        };
+        SymbolEntry: {
+            /** @description The state recorded when its task was marked done. */
+            at_done: components["schemas"]["SymbolState"];
+            /** @description From the recorded contract. */
+            behavior: string[];
+            kind: string;
+            /** Format: int32 */
+            line?: number | null;
+            live: components["schemas"]["Live"];
+            name: string;
+            symbol_id: string;
+            /** Format: int32 */
+            task: number;
+            /** @description Returned references, minus the symbol's own location, by path then line, at most 10. */
+            uses: components["schemas"]["UseLine"][];
+            /** @description The reference lookup's outcome, apart from `live`. */
+            uses_live: components["schemas"]["UsesLive"];
+            /**
+             * Format: int32
+             * @description Returned references beyond the 10 listed. A lower bound when `uses_live` is `truncated`;
+             *     0 when nothing was returned.
+             */
+            uses_more: number;
+            /**
+             * Format: int32
+             * @description The exact number of uses, given only when `uses_live` is `answered`.
+             */
+            uses_total?: number | null;
+            /** Format: int64 */
+            version: number;
+            workflow_id: components["schemas"]["WorkflowId"];
         };
         /**
          * @description What kind of symbol a task builds.
@@ -4618,6 +4720,17 @@ export interface components {
         TurnStarted: {
             operation_id: components["schemas"]["OperationId"];
         };
+        /** @description A file that matches the topic and that no done task's contract names. */
+        UnrecordedFile: {
+            owner?: null | components["schemas"]["Owner"];
+            path: string;
+            symbols: components["schemas"]["UnrecordedSymbol"][];
+        };
+        UnrecordedSymbol: {
+            /** Format: int32 */
+            line: number;
+            name: string;
+        };
         /** @description Sets the modes this project allows, per harness. */
         UpdateProject: {
             /**
@@ -4648,6 +4761,32 @@ export interface components {
         UsageReport: {
             by_model: components["schemas"]["ModelUsage"][];
             by_provider: components["schemas"]["ProviderUsage"][];
+        };
+        UseLine: {
+            /** Format: int32 */
+            line: number;
+            owner?: null | components["schemas"]["Owner"];
+            path: string;
+        };
+        /** @description What the reference lookup of one symbol did. */
+        UsesLive: {
+            /** @enum {string} */
+            state: "not_asked";
+        } | {
+            /** @enum {string} */
+            state: "answered";
+        } | {
+            /** @enum {string} */
+            state: "truncated";
+            why: string;
+        } | {
+            /** @enum {string} */
+            state: "failed";
+            why: string;
+        } | {
+            /** @enum {string} */
+            state: "skipped";
+            why: string;
         };
         VersionLine: {
             change_reason?: string | null;
@@ -4708,6 +4847,31 @@ export interface components {
             thread_id: components["schemas"]["ThreadId"];
             title: string;
         };
+        /** @description The answer to one question, record first. */
+        WhereAnswer: {
+            /**
+             * Format: int32
+             * @description Language-server asks spent.
+             */
+            asked: number;
+            /** @description Why the live half stopped early, when it did. */
+            budget?: string | null;
+            /** @description Ranked, at most 20. */
+            entries: components["schemas"]["WhereEntry"][];
+            /** Format: int32 */
+            entries_more: number;
+            not_in_record: components["schemas"]["UnrecordedFile"][];
+            /** Format: int32 */
+            not_in_record_more: number;
+            topic: string;
+        };
+        WhereEntry: (components["schemas"]["FileEntry"] & {
+            /** @enum {string} */
+            kind: "file";
+        }) | (components["schemas"]["ElementEntry"] & {
+            /** @enum {string} */
+            kind: "element";
+        });
         /** Format: uuid */
         WorkflowId: string;
         /**
@@ -7850,6 +8014,55 @@ export interface operations {
                 };
             };
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    code_where: {
+        parameters: {
+            query: {
+                /** @description A topic, a path, a symbol, or an element id or name: 1 to 200 characters. */
+                topic: string;
+            };
+            header?: never;
+            path: {
+                /** @description The project */
+                id: components["schemas"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WhereAnswer"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
