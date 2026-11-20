@@ -154,7 +154,7 @@ Dispatch is the controller's (Mohammed, 2026-11-19): the controller runs `backen
 
 ### B-187 · Runs journals each change of a task's progress
 
-- Status: todo
+- Status: done
 - Plan: [plans/2026-11-19-code-record-2a.md#task-b-187--runs-journals-each-change-of-a-tasks-progress](plans/2026-11-19-code-record-2a.md#task-b-187--runs-journals-each-change-of-a-tasks-progress)
 - Read: the plan's Ruling 11; `crates/core-runs/contract.yaml` (`transitions`, `mark_done`);
   `crates/core-runs/src/store/executor_choice.rs` (how Runs journals `TaskExecutorChosen`);

@@ -3,7 +3,7 @@ use super::RunsStore;
 use crate::checks::CONTRACT_CHECK;
 use crate::{AttemptId, RunsError};
 use code_record::{CodeRecord, DoneRecord};
-use core_db::{CommandContext, Storage, StorageError, Tx};
+use core_db::{Actor, CommandContext, Storage, StorageError, Tx};
 use core_plans::WorkflowId;
 use core_threads::ThreadId;
 
@@ -210,6 +210,13 @@ impl RunsStore {
                         &ts,
                     )
                     .await?;
+                    let actor = Actor {
+                        kind: command.principal_kind.clone(),
+                        id: command.principal_id.clone(),
+                    };
+                    let (project, at) = (&plan.project_id, &ts);
+                    super::mark_progress_in(conn, project, &workflow, version, task, actor, at)
+                        .await?;
                     Self::record_in(
                         conn,
                         &plan.project_id,

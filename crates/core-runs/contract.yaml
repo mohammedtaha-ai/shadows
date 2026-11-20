@@ -36,6 +36,10 @@
 # once through notify, the existing watcher settles the attempt Stopped when the turn's end is
 # confirmed, and the Planner stops affected attempts with stop_for. A session that could not
 # be closed or terminated keeps its scope held. Runs stops no sibling and follows no link.
+#
+# Every write that changes what `progress` answers journals TaskProgressChanged { project_id,
+# workflow_id, version, task, attempt_id } in that write (an attempt's insert or state change; a
+# done or not-done mark, attempt_id null); a replay journals nothing.
 
 name: runs
 version: 1
@@ -326,6 +330,8 @@ agreements:
     tested_by: [live_an_addition_continues_the_executor_in_its_session]
 
 obligations:
+  - rule: Each change of a task's progress journals one identifier-only TaskProgressChanged in its own write - an attempt's insert (Start, an addition), its end (failed, stopped by a person, committed by a report, interrupted at startup, one per attempt) and a done or not-done mark (attempt_id null); a replayed Start or mark journals none.
+    tested_by: [starting_an_attempt_journals_progress_once, an_attempt_ending_without_done_journals_progress, a_report_journals_progress, a_stop_and_a_startup_interruption_journal_progress, a_done_and_a_not_done_mark_journal_progress_with_no_attempt]
   - rule: A done mark writes the task's code record in its own write, each promised symbol with its verdict's state, and a not-done mark removes it.
     tested_by: [marking_done_writes_the_code_record_and_undone_removes_it]
   - rule: A task whose contract promises symbols gets a `contract` check even with no checks of its own; a missing symbol returns to the executor by name, a found contract passes and the notice says so; a verdict past 4,000 chars still returns its first missing symbol, and its row is by_shadows; done before the row exists or while it is unfinished needs a reason; a not_run contract check (no language server) is shown, never returned, and asks no reason; Plans refuses a task check named `contract`.

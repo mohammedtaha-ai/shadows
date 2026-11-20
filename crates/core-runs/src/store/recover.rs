@@ -30,13 +30,13 @@ impl RunsStore {
         self.storage
             .write_txn_as(move |conn| {
                 Box::pin(async move {
-                    let running: Vec<String> = sqlx::query_scalar(
-                        "SELECT thread_id FROM run_attempts
+                    let running: Vec<(String, String)> = sqlx::query_as(
+                        "SELECT id, thread_id FROM run_attempts
                          WHERE state = 'running' ORDER BY started_at, id",
                     )
                     .fetch_all(&mut *conn)
                     .await?;
-                    for thread in &running {
+                    for (_, thread) in &running {
                         core_grants::Grants::revoke_thread_grants_in(
                             conn,
                             &ThreadId::from_recorded(thread.clone()),
@@ -53,6 +53,10 @@ impl RunsStore {
                     .bind(&ts)
                     .execute(&mut *conn)
                     .await?;
+                    for (id, _) in &running {
+                        let id = crate::AttemptId::from_recorded(id.clone());
+                        super::attempt_progress_in(conn, &id, Actor::system(), &ts).await?;
+                    }
                     sqlx::query(
                         "UPDATE run_attempts SET released_at = ?
                          WHERE released_at IS NULL AND state <> 'committed'",
