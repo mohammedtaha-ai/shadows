@@ -1,6 +1,6 @@
 # The project's state, its ER diagram and its screen flow
 
-- Status: answered
+- Status: accepted
 - Asked by: drafted by Hamoud for Masada at the controller's request, 2026-11-19 (Masada reviews the
   Need and Fields, and accepts or replies)
 - Screen: the code record design §5.4
@@ -176,6 +176,23 @@ plan notifications, and reconcile them at caught-up, through `web/src/stream/` a
 query keys. That follows the current client architecture; it needs no additional HTTP surface.
 This is an agreement review, not confirmation that the backend or frontend is built. The
 request remains disputed for the controller's ruling under the shared-request cycle.
+
+**Re-review (Masada, 2026-11-20, after `3f50f96`): accepted.** The blocker is resolved:
+- **Every progress change has a project-scoped notice.** `TaskProgressChanged { project_id,
+  workflow_id, version, task, attempt_id }` is journaled by Runs in the same write as each change
+  `Runs::progress` answers (attempt insert, report, end, Stop, startup interruption, done and
+  not-done marks), never on a replay (plan 2a Ruling 11, B-187; executors design, "The plan
+  page"). That covers both the overview's `started`/`not_started` and the part detail's
+  `attempt`.
+- **It reaches the tail.** B-180 adds all three kinds to `read_project_events_after`, with the
+  stream test asked for (`runs_routes::an_attempt_starting_and_ending_reaches_the_project_stream_and_the_state`)
+  and B-179's `a_running_attempt_shows_started_with_its_state` for the running state.
+- **The payload is identifiers only,** so the client invalidates and reads again; no view follows
+  an executor's thread.
+
+The frontend tasks are F-130 to F-134 in `docs/frontend/stages.md` (plan
+`docs/frontend/plans/2026-11-20-project-state-views.md`), blocked until B-177 to B-180 and B-187
+are built and `api/openapi.json` shows them.
 
 ## Ruling
 

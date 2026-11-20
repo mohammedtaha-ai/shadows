@@ -1,6 +1,6 @@
 # Where a thing is in the project (`code_where`)
 
-- Status: answered
+- Status: accepted
 - Asked by: drafted by Hamoud for Masada at the controller's request, 2026-11-19 (Masada reviews the
   Need and Fields, and accepts or replies)
 - Screen: the code record design §5.3 and §5.4
@@ -128,6 +128,22 @@ Element rows reuse the project-state shapes; their interpretation must stay alig
 request once its refresh dispute is resolved. This is an agreement review, not confirmation of
 implementation. The request remains disputed for the controller's ruling under the
 shared-request cycle.
+
+**Re-review (Masada, 2026-11-20, after `3f50f96`): accepted.** The blocker is resolved:
+- **Each symbol carries its own lookup outcome,** `uses_live`, apart from `live`. Only `answered`
+  with an empty `uses` reads as "no uses".
+- **`uses_total` is exact and given only with `answered`.** `uses_more` counts returned
+  references only, a lower bound under `truncated`, so the screen never claims a count the
+  server did not give.
+- **Returned references are kept under `truncated`.** `failed` and `skipped` carry `why`, so each
+  unchecked line has its reason.
+- **The tests asked for are in B-183,** and spec §5.3 and plan 2b Ruling 11 own the rule.
+
+The screen shows the outcome as Core states it and derives none of it. A question is asked when
+the person submits it, and again only on "Ask again". Project events do not rerun it.
+
+The frontend task is F-135 in `docs/frontend/stages.md`, blocked until B-182, B-183 and B-185
+are built and `api/openapi.json` shows the route.
 
 ## Ruling
 
