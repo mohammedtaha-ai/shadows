@@ -4,6 +4,7 @@ import { cn } from 'cn'
 import { Activity } from 'lucide-react'
 import { Panel } from '@/components/ui/panel'
 import { StateView } from './state-view'
+import { TablesView } from './tables-view'
 
 const tab = (active: boolean) =>
   cn(
@@ -13,7 +14,7 @@ const tab = (active: boolean) =>
 
 export function ProjectStatePage() {
   const { projectId } = useParams({ from: '/projects/$projectId/state' })
-  const { view, part, removed } = useSearch({ from: '/projects/$projectId/state' })
+  const { view, part, element, removed } = useSearch({ from: '/projects/$projectId/state' })
   const activeView = view ?? 'state'
   return (
     <main className="flex-1 overflow-y-auto bg-background p-6">
@@ -40,9 +41,21 @@ export function ProjectStatePage() {
             >
               State
             </Link>
+            <Link
+              to="/projects/$projectId/state"
+              params={{ projectId }}
+              search={{ view: 'tables' }}
+              className={tab(activeView === 'tables')}
+            >
+              Tables
+            </Link>
           </nav>
         </Panel>
-        <StateView key={projectId} projectId={projectId} part={part} removed={removed === true} />
+        {view === 'tables' ? (
+          <TablesView key={projectId} projectId={projectId} element={element} removed={removed === true} />
+        ) : (
+          <StateView key={projectId} projectId={projectId} part={part} removed={removed === true} />
+        )}
       </div>
     </main>
   )

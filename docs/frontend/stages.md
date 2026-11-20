@@ -70,7 +70,7 @@ Every task's checks run from `web/`: the tests it names, then `npm run typecheck
 
 ### F-132 · The element panel and the ER diagram
 
-- Status: blocked (on F-131)
+- Status: done
 - Plan: [plans/2026-11-20-project-state-views.md#f-132--the-element-panel-and-the-er-diagram](plans/2026-11-20-project-state-views.md#f-132--the-element-panel-and-the-er-diagram)
 - Read:
   - `web/src/app/design/map-canvas.tsx`;

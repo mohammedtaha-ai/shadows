@@ -43,6 +43,19 @@ components:
     signature: "({ state: BuildState }) => JSX.Element"
     # An icon and a label per build state, marked data-element-state.
 
+  ElementPanel:
+    signature: "({ projectId: string, view: ElementView, names: (id) => string | undefined, onClose: () => void }) => JSX.Element"
+    # One table or screen in full: why, part, outcomes, confirmation, tasks, revisions.
+  ElementCanvas:
+    signature: "({ label: string, nodes, edges, selected?: string, onOpen: (elementId) => void }) => JSX.Element"
+    # The React Flow canvas of laid-out elements; nodes carry data-element and data-element-kind.
+  TablesView:
+    signature: "({ projectId: string, element?: string, removed: boolean }) => JSX.Element"
+    # The ER diagram, the tables list and the opened table.
+  tableDiagram / screenDiagram:
+    signature: "(views: ElementView[]) => { nodes: ElementNode[]; edges: DiagramEdge[] }"
+    # Deterministic dagre placement; fixed sizes; an edge only between two shown, different nodes.
+
 obligations:
   - rule: >
       The state view shows the stage, the parts with their plans and counts, the plans with no
@@ -71,5 +84,35 @@ obligations:
   - rule: "The design workspace links to this page."
     tested_by: the_workspace_links_to_the_state
 
+  - rule: >
+      The ER diagram draws one node per shown table and one edge per foreign key between two
+      shown tables; the list holds the same tables.
+    tested_by: the_er_diagram_draws_one_node_per_table_and_one_edge_per_foreign_key, the_layout_is_deterministic_and_every_node_has_its_size
+
+  - rule: >
+      A reference to a table not shown, or to the table itself, draws no edge; the column row
+      still names it.
+    tested_by: a_reference_to_a_table_not_shown_draws_no_edge_but_keeps_its_row, a_self_reference_draws_no_edge
+
+  - rule: "Removed tables are hidden behind a toggle."
+    tested_by: a_removed_table_is_hidden_until_shown
+
+  - rule: >
+      An opened table reads its revisions once and shows its part, outcomes, tasks, why and
+      revisions; when behind, its built revision and the planned change come from the same read.
+    tested_by: an_opened_table_shows_its_part_outcomes_tasks_and_revisions, a_behind_table_shows_its_built_shape_and_the_planned_change
+
+  - rule: "A refused revisions read shows Core's code and message."
+    tested_by: an_element_without_revisions_shows_cores_error
+
+  - rule: "With no table the view says the Planner writes them."
+    tested_by: no_tables_says_the_planner_writes_them
+
+  - rule: >
+      A DesignElementChanged reads the elements and that element's revisions again, once each.
+    tested_by: a_design_element_change_reads_the_elements_and_its_revisions_again
+
 tests:
+  diagram-layout.test.ts: "Layout determinism, sizes and edge rules."
+  tables-view.test.tsx: "The tables view over the fake daemon."
   state-view.test.tsx: "The state view, over the fake daemon and its project stream."

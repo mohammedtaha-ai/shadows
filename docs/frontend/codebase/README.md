@@ -71,7 +71,7 @@ boundaries do not exempt their sources from the other architecture rules.
 | `stream` | `stream/**` | `stream/index.ts` | `stream/contract.yaml` | `api` |
 | `desktop` | `desktop/**` | `desktop/index.ts, desktop/startup.ts` | `desktop/contract.yaml` | `api` |
 | `ui` | `components/ui/**` | `components/ui/*` | `-` | `-` |
-| `shared` | `app/error-line.tsx, app/copy-button.tsx, app/daemon-status.tsx, app/confirm-panel.tsx, app/check-row.tsx` | `app/error-line.tsx, app/copy-button.tsx, app/daemon-status.tsx, app/confirm-panel.tsx, app/check-row.tsx` | `-` | `api, ui` |
+| `shared` | `app/error-line.tsx, app/copy-button.tsx, app/daemon-status.tsx, app/confirm-panel.tsx, app/check-row.tsx, app/element-content.tsx` | `app/error-line.tsx, app/copy-button.tsx, app/daemon-status.tsx, app/confirm-panel.tsx, app/check-row.tsx, app/element-content.tsx` | `-` | `api, ui` |
 | `agents` | `app/agents/**` | `app/agents/index.ts, app/agents/home.tsx` | `app/agents/contract.yaml` | `api, ui, shared, desktop, navigation` |
 | `agreements` | `app/agreements/**` | `app/agreements/index.ts, app/agreements/agreements-page.tsx` | `app/agreements/contract.yaml` | `api, ui, shared` |
 | `conversation` | `app/conversation/**` | `app/conversation/index.ts, app/conversation/conversation.tsx, app/conversation/draft.tsx` | `app/conversation/contract.yaml` | `api, ui, shared, desktop, stream, design, workflows, desktop-ui, navigation` |
@@ -312,10 +312,17 @@ it is that folder's `contract.yaml`.
 | `web/src/app/project-state/state-badge.tsx` | One build state drawn as icon plus label | `web/src/app/project-state/contract.yaml` |
 | `web/src/app/project-state/state-view.tsx` | Core's project state shown read only | `web/src/app/project-state/contract.yaml` |
 | `web/src/app/project-state/state-view.test.tsx` | State view checks over the fake daemon | `web/src/app/project-state/contract.yaml` |
+| `web/src/app/project-state/diagram-layout.ts` | Dagre placement of tables or screens | `web/src/app/project-state/contract.yaml` |
+| `web/src/app/project-state/diagram-layout.test.ts` | Layout checks | `web/src/app/project-state/contract.yaml` |
+| `web/src/app/project-state/element-canvas.tsx` | React Flow canvas of elements | `web/src/app/project-state/contract.yaml` |
+| `web/src/app/project-state/element-panel.tsx` | One opened table or screen | `web/src/app/project-state/contract.yaml` |
+| `web/src/app/project-state/tables-view.tsx` | Tables as diagram, list or opened table | `web/src/app/project-state/contract.yaml` |
+| `web/src/app/project-state/tables-view.test.tsx` | Tables view checks over the fake daemon | `web/src/app/project-state/contract.yaml` |
 | `web/src/app/project-state/index.ts` | Expose app/project-state public capabilities | `web/src/app/project-state/contract.yaml` |
 | `web/src/app/design/index.ts` | Expose app/design public capabilities | `web/src/app/design/contract.yaml` |
 | `web/src/app/error-line.tsx` | Inline line saying why a daemon call failed | `web/src/app/copy-button.tsx` |
 | `web/src/app/check-row.tsx` | One check's result row | `web/src/app/tasks/contract.yaml` |
+| `web/src/app/element-content.tsx` | One table or screen revision shown as text | `web/src/app/element-content.tsx` |
 | `web/src/app/confirm-panel.tsx` | Confirmation presentation with non-submitting action buttons | `web/src/app/error-line.tsx` |
 | `web/src/app/home.tsx` | Main pane shown when no project is open | `web/src/app/shell.tsx` |
 | `web/src/app/new-project/folder-browser.tsx` | Browses one daemon directory to pick a folder | `web/src/app/new-project/contract.yaml` |
