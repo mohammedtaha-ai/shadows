@@ -23,6 +23,7 @@ modules:
   planning_context.rs: Planning context HTTP translation
   harness.rs: Harness session HTTP translation
   design.rs: Design service HTTP translation
+  project_state.rs: ProjectState service HTTP translation
   plan_design.rs: Plans service design association HTTP translation
   standards.rs: Standards service HTTP translation
   aylul_providers.rs: Providers service HTTP translation
@@ -41,6 +42,16 @@ decisions: >
   /api/projects/{id}/decisions/{decision}/accept with { command_id, version } calls
   Design::accept_decision. DECISION_STALE is 409 and INVALID_DECISION is 422.
   Tested by design_routes::decisions_are_listed_and_accepted_over_http.
+elements: >
+  GET /api/projects/{id}/state?part_id= calls ProjectState::state and answers ProjectStateView;
+  a part not in the project's map is 422 INVALID_COMMAND. GET /api/projects/{id}/elements calls
+  ProjectState::elements and answers [ElementView]. GET
+  /api/projects/{id}/elements/{element}/revisions calls Design::element_revisions and answers
+  [DesignElement], oldest first; an element the project does not have is 404. An unknown or
+  removed project is 404 on all three. No route writes an element. ELEMENT_STALE is 409 and
+  INVALID_ELEMENT is 422. Tested by design_routes::element_routes_list_states_and_revisions,
+  project_state_routes::the_state_route_answers_the_method and
+  project_state_routes::an_unknown_part_is_422.
 agreements:
   - between: [aylul_extensions::tools, aylul_extensions::tool_rules]
     must: Delegate per-agent MCP discovery and rule replacement to AppCore.extensions; discovery failures preserve stored rules.

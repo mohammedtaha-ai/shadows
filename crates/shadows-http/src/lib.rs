@@ -43,6 +43,7 @@ mod openapi;
 mod plan_design;
 mod planning_context;
 mod project;
+mod project_state;
 mod queue;
 mod roadmap;
 mod runs;
@@ -232,6 +233,9 @@ fn design_routes(table: OpenApiRouter<AppState>) -> OpenApiRouter<AppState> {
         .routes(routes!(design::approve_vision_proposal))
         .routes(routes!(design::decisions))
         .routes(routes!(design::accept_decision))
+        .routes(routes!(project_state::state))
+        .routes(routes!(project_state::elements))
+        .routes(routes!(design::element_revisions))
 }
 
 #[inline(never)]

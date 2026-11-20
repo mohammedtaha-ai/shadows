@@ -17,6 +17,8 @@ mod listening;
 mod live;
 #[path = "fixtures/plan.rs"]
 mod plan;
+#[path = "fixtures/stream.rs"]
+mod stream;
 
 use app::{App, call, post};
 
@@ -379,4 +381,89 @@ async fn done_route_refuses_without_reason() {
         body["done_reason"],
         "Known environment failure; verified manually."
     );
+}
+
+/// The state's counts of the plan's tasks, and T1's line in its part's detail.
+async fn state_of(app: &App, part: &shadows_core::PartId) -> (Value, Value) {
+    let path = format!("/api/projects/{}/state", app.project);
+    let (status, whole) = call(app, "GET", &path, None).await;
+    assert_eq!(status, 200, "{whole}");
+    let counts = whole["unassigned"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .chain(
+            whole["parts"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .flat_map(|p| p["plans"].as_array().unwrap().iter()),
+        )
+        .next()
+        .unwrap()["tasks"]
+        .clone();
+    let (status, detail) = call(app, "GET", &format!("{path}?part_id={part}"), None).await;
+    assert_eq!(status, 200, "{detail}");
+    let line = detail["part"]["plans"][0]["tasks"][0].clone();
+    (counts, line)
+}
+
+#[tokio::test]
+async fn an_attempt_starting_and_ending_reaches_the_project_stream_and_the_state() {
+    use axum::body::Body;
+    use axum::http::Request;
+    use tower::ServiceExt;
+    let (app, v1) = runs_app().await;
+    let part = shadows_core::AppCore::design_for_tests(app.storage.clone())
+        .seed_roadmap_for_tests(&app.project)
+        .await
+        .unwrap();
+    let (counts, line) = state_of(&app, &part).await;
+    assert_eq!(
+        counts,
+        json!({"total": 2, "done": 0, "started": 0, "not_started": 2})
+    );
+    assert_eq!(
+        (&line["number"], &line["attempt"]),
+        (&json!(1), &Value::Null)
+    );
+
+    let cursor: i64 = sqlx::query_scalar("SELECT MAX(seq) FROM durable_event")
+        .fetch_one(app.storage.reader())
+        .await
+        .unwrap();
+    let path = format!("/api/projects/{}/events?after={cursor}", app.project);
+    let response = app
+        .router
+        .clone()
+        .oneshot(Request::get(&path).body(Body::empty()).unwrap())
+        .await
+        .unwrap();
+    let mut body = response.into_body().into_data_stream();
+    let mut pending = String::new();
+    assert_eq!(
+        stream::next_frame(&mut body, &mut pending).await.0,
+        "caught-up"
+    );
+    let (status, attempt) = start(&app, &v1, 1, "s1").await;
+    assert_eq!(status, 201, "{attempt}");
+    assert_eq!(attempt["state"], "failed");
+    let named = json!({
+        "project_id": app.project, "workflow_id": v1, "version": 1, "task": 1,
+        "attempt_id": attempt["id"],
+    });
+    for _ in 0..2 {
+        let (_, event) = stream::next_frame(&mut body, &mut pending).await;
+        assert_eq!(event["kind"], "TaskProgressChanged", "{event}");
+        assert_eq!(event["payload"], named);
+    }
+
+    let (counts, line) = state_of(&app, &part).await;
+    // T1 started; T2, which needs it, has not.
+    assert_eq!(
+        counts,
+        json!({"total": 2, "done": 0, "started": 1, "not_started": 1})
+    );
+    assert_eq!(line["done"], false);
+    assert_eq!(line["attempt"], "failed");
 }

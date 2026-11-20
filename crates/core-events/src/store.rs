@@ -97,7 +97,8 @@ impl EventsStore {
                                'VisionProposed', 'MapProposed', 'RoadmapProposed',
                                'RoadmapApproved', 'DecisionProposed', 'DecisionAccepted',
                                'PermissionsChanged',
-                               'MessageAdded')
+                               'MessageAdded', 'DesignElementChanged', 'CodeRecordChanged',
+                               'TaskProgressChanged')
               ORDER BY e.seq LIMIT ?",
         )
         .bind(project.as_str())

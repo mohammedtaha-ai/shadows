@@ -165,7 +165,7 @@ Dispatch is the controller's (Mohammed, 2026-11-19): the controller runs `backen
 
 ### B-180 · Routes and events for the web
 
-- Status: blocked (on B-179 and B-187; the shared request was accepted on 2026-11-20)
+- Status: done (B-179 and B-187 are done; the shared request was accepted on 2026-11-20)
 - Plan: [plans/2026-11-19-code-record-2a.md#task-b-180--routes-and-events-for-the-web](plans/2026-11-19-code-record-2a.md#task-b-180--routes-and-events-for-the-web)
 - Read: the plan's rulings; `crates/shadows-http/src/contract.yaml` (decisions);
   `crates/core-events/contract.yaml`; the shared request.

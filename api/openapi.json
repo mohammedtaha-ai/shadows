@@ -1358,6 +1358,16 @@
         ],
         "type": "object"
       },
+      "BuildState": {
+        "enum": [
+          "planned",
+          "built",
+          "gap",
+          "unchecked",
+          "removed"
+        ],
+        "type": "string"
+      },
       "CallKind": {
         "enum": [
           "read",
@@ -1674,6 +1684,13 @@
           "column"
         ],
         "type": "object"
+      },
+      "Confirmation": {
+        "enum": [
+          "file_and_symbol",
+          "file_only"
+        ],
+        "type": "string"
       },
       "ConflictDelivery": {
         "description": "Whether the Planner's notice of a conflict was enqueued on its\nconversation. `delivered` is a durable enqueue, not a reply.",
@@ -2914,6 +2931,45 @@
           }
         ]
       },
+      "ElementGap": {
+        "description": "An element in gap or unchecked, with why.",
+        "properties": {
+          "element_id": {
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/ElementKind"
+          },
+          "name": {
+            "type": "string"
+          },
+          "part_id": {
+            "$ref": "#/components/schemas/PartId"
+          },
+          "state": {
+            "$ref": "#/components/schemas/BuildState"
+          },
+          "why": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "element_id",
+          "kind",
+          "name",
+          "part_id",
+          "state",
+          "why"
+        ],
+        "type": "object"
+      },
+      "ElementKind": {
+        "enum": [
+          "table",
+          "screen"
+        ],
+        "type": "string"
+      },
       "ElementPin": {
         "additionalProperties": false,
         "description": "One exact revision of a table or screen the task builds, changes or deletes.",
@@ -2944,6 +3000,129 @@
           "revision",
           "action",
           "file"
+        ],
+        "type": "object"
+      },
+      "ElementState": {
+        "properties": {
+          "behind": {
+            "type": "boolean"
+          },
+          "built_revision": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "confirmed": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Confirmation"
+              }
+            ]
+          },
+          "done": {
+            "items": {
+              "$ref": "#/components/schemas/ElementTask"
+            },
+            "type": "array"
+          },
+          "element_id": {
+            "type": "string"
+          },
+          "planned": {
+            "items": {
+              "$ref": "#/components/schemas/ElementTask"
+            },
+            "type": "array"
+          },
+          "state": {
+            "$ref": "#/components/schemas/BuildState"
+          },
+          "why": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "element_id",
+          "state",
+          "behind",
+          "done",
+          "planned"
+        ],
+        "type": "object"
+      },
+      "ElementTask": {
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/ElementAction"
+          },
+          "file": {
+            "type": "string"
+          },
+          "revision": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "symbol_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "symbol_state": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/SymbolState"
+              }
+            ]
+          },
+          "task": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "version": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "workflow_id": {
+            "$ref": "#/components/schemas/WorkflowId"
+          }
+        },
+        "required": [
+          "workflow_id",
+          "version",
+          "task",
+          "revision",
+          "action",
+          "file"
+        ],
+        "type": "object"
+      },
+      "ElementView": {
+        "description": "An element at its latest revision with its state.",
+        "properties": {
+          "element": {
+            "$ref": "#/components/schemas/DesignElement"
+          },
+          "state": {
+            "$ref": "#/components/schemas/ElementState"
+          }
+        },
+        "required": [
+          "element",
+          "state"
         ],
         "type": "object"
       },
@@ -5193,6 +5372,39 @@
         ],
         "type": "object"
       },
+      "PartDetail": {
+        "description": "One part in full: its live plans' tasks and its elements.",
+        "properties": {
+          "elements": {
+            "items": {
+              "$ref": "#/components/schemas/ElementView"
+            },
+            "type": "array"
+          },
+          "part_id": {
+            "$ref": "#/components/schemas/PartId"
+          },
+          "plans": {
+            "description": "At most 50.",
+            "items": {
+              "$ref": "#/components/schemas/PlanTasks"
+            },
+            "type": "array"
+          },
+          "plans_more": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "part_id",
+          "plans",
+          "plans_more",
+          "elements"
+        ],
+        "type": "object"
+      },
       "PartId": {
         "format": "uuid",
         "type": "string"
@@ -5271,6 +5483,59 @@
         "required": [
           "revision",
           "items"
+        ],
+        "type": "object"
+      },
+      "PartState": {
+        "description": "One part of the map with its plans and its elements counted by state.",
+        "properties": {
+          "elements": {
+            "$ref": "#/components/schemas/StateCounts",
+            "description": "Removed elements are not counted."
+          },
+          "kind": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "parent": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PartId"
+              }
+            ]
+          },
+          "part_id": {
+            "$ref": "#/components/schemas/PartId"
+          },
+          "plans": {
+            "description": "At most 20.",
+            "items": {
+              "$ref": "#/components/schemas/PlanProgress"
+            },
+            "type": "array"
+          },
+          "plans_more": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "part_id",
+          "parent",
+          "title",
+          "kind",
+          "plans",
+          "plans_more",
+          "elements"
         ],
         "type": "object"
       },
@@ -6096,6 +6361,58 @@
           }
         ]
       },
+      "PlanProgress": {
+        "description": "An Active plan with its live version's task counts.",
+        "properties": {
+          "draft": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/WorkflowId",
+                "description": "The plan's Draft, named only: it adds nothing to the state."
+              }
+            ]
+          },
+          "plan_id": {
+            "$ref": "#/components/schemas/PlanId"
+          },
+          "tasks": {
+            "$ref": "#/components/schemas/TaskCounts"
+          },
+          "title": {
+            "type": "string"
+          },
+          "version": {
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "workflow_id": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/WorkflowId",
+                "description": "The live version: the plan's highest Frozen version; none with only a Draft."
+              }
+            ]
+          }
+        },
+        "required": [
+          "plan_id",
+          "title",
+          "workflow_id",
+          "version",
+          "draft",
+          "tasks"
+        ],
+        "type": "object"
+      },
       "PlanState": {
         "description": "An `Archived` plan is read, never written.",
         "enum": [
@@ -6122,6 +6439,38 @@
           }
         ],
         "description": "One task of a stored version: its storage id beside its content."
+      },
+      "PlanTasks": {
+        "description": "A plan's live version with each task's line.",
+        "properties": {
+          "plan_id": {
+            "$ref": "#/components/schemas/PlanId"
+          },
+          "tasks": {
+            "items": {
+              "$ref": "#/components/schemas/TaskLine"
+            },
+            "type": "array"
+          },
+          "title": {
+            "type": "string"
+          },
+          "version": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "workflow_id": {
+            "$ref": "#/components/schemas/WorkflowId"
+          }
+        },
+        "required": [
+          "plan_id",
+          "title",
+          "workflow_id",
+          "version",
+          "tasks"
+        ],
+        "type": "object"
       },
       "PlanVersions": {
         "description": "One plan with every version, oldest first.",
@@ -6374,6 +6723,88 @@
           "project",
           "linked",
           "created_at"
+        ],
+        "type": "object"
+      },
+      "ProjectStateView": {
+        "description": "The project's stage, its parts with their plans and elements, and its gaps.",
+        "properties": {
+          "gaps": {
+            "description": "Elements in gap or unchecked, by part order then element number, at most 100.",
+            "items": {
+              "$ref": "#/components/schemas/ElementGap"
+            },
+            "type": "array"
+          },
+          "gaps_more": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "map_revision": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "missing": {
+            "description": "What the stage still misses, as Design's stage view names it.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "part": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PartDetail",
+                "description": "One part in full, only when asked with its id."
+              }
+            ]
+          },
+          "parts": {
+            "description": "In map order, at most 200.",
+            "items": {
+              "$ref": "#/components/schemas/PartState"
+            },
+            "type": "array"
+          },
+          "parts_more": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "project_id": {
+            "$ref": "#/components/schemas/ProjectId"
+          },
+          "stage": {
+            "$ref": "#/components/schemas/Stage"
+          },
+          "unassigned": {
+            "description": "Active plans tied to no part, at most 20.",
+            "items": {
+              "$ref": "#/components/schemas/PlanProgress"
+            },
+            "type": "array"
+          },
+          "unassigned_more": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "project_id",
+          "stage",
+          "missing",
+          "map_revision",
+          "parts",
+          "parts_more",
+          "unassigned",
+          "unassigned_more",
+          "gaps",
+          "gaps_more"
         ],
         "type": "object"
       },
@@ -8005,12 +8436,53 @@
         ],
         "type": "object"
       },
+      "StateCounts": {
+        "description": "A part's elements by state; removed ones are left out.",
+        "properties": {
+          "built": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "gap": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "planned": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "unchecked": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "planned",
+          "built",
+          "gap",
+          "unchecked"
+        ],
+        "type": "object"
+      },
       "SymbolKind": {
         "description": "What kind of symbol a task builds.",
         "enum": [
           "function",
           "method",
           "class"
+        ],
+        "type": "string"
+      },
+      "SymbolState": {
+        "description": "Whether the code holds one promised symbol.",
+        "enum": [
+          "found",
+          "missing",
+          "unchecked"
         ],
         "type": "string"
       },
@@ -8449,9 +8921,74 @@
         },
         "type": "object"
       },
+      "TaskCounts": {
+        "description": "A live version's tasks: done, started (an attempt and not done), not started.",
+        "properties": {
+          "done": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "not_started": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "started": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "total": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total",
+          "done",
+          "started",
+          "not_started"
+        ],
+        "type": "object"
+      },
       "TaskId": {
         "format": "uuid",
         "type": "string"
+      },
+      "TaskLine": {
+        "description": "One task: whether it is marked done, and its latest attempt's state.",
+        "properties": {
+          "attempt": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AttemptState"
+              }
+            ]
+          },
+          "done": {
+            "type": "boolean"
+          },
+          "number": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "number",
+          "title",
+          "done",
+          "attempt"
+        ],
+        "type": "object"
       },
       "TaskParent": {
         "description": "A local task number, or a task in another plan's latest version.",
@@ -14700,6 +15237,123 @@
         ]
       }
     },
+    "/api/projects/{id}/elements": {
+      "get": {
+        "operationId": "elements",
+        "parameters": [
+          {
+            "description": "The project",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ProjectId"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ElementView"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "design"
+        ]
+      }
+    },
+    "/api/projects/{id}/elements/{element}/revisions": {
+      "get": {
+        "operationId": "element_revisions",
+        "parameters": [
+          {
+            "description": "The project",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ProjectId"
+            }
+          },
+          {
+            "description": "The element id, such as E3",
+            "in": "path",
+            "name": "element",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DesignElement"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "design"
+        ]
+      }
+    },
     "/api/projects/{id}/events": {
       "get": {
         "operationId": "subscribe_project",
@@ -15384,6 +16038,76 @@
         },
         "tags": [
           "projects"
+        ]
+      }
+    },
+    "/api/projects/{id}/state": {
+      "get": {
+        "operationId": "state",
+        "parameters": [
+          {
+            "description": "The project",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ProjectId"
+            }
+          },
+          {
+            "description": "One part of the map, answered in full under `part`.",
+            "in": "query",
+            "name": "part_id",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/PartId"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectStateView"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "design"
         ]
       }
     },

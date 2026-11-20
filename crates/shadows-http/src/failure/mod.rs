@@ -174,6 +174,7 @@ impl Failure {
                 | ErrorCode::ProjectHasThreads
                 | ErrorCode::StageBlocked
                 | ErrorCode::DecisionStale
+                | ErrorCode::ElementStale
                 | ErrorCode::InventoryStale
                 | ErrorCode::WorkflowFrozenImmutable => StatusCode::CONFLICT,
                 _ => StatusCode::UNPROCESSABLE_ENTITY,
