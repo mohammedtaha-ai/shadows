@@ -92,7 +92,7 @@ this file at `db760593`.
 
 Slice 2a of the code record. Plan: `docs/backend/plans/2026-11-19-code-record-2a.md`. Shared request:
 `docs/shared/requests/2026-11-19-project-state-and-diagrams.md` (answered again on 2026-11-20 after
-Masada's dispute: progress events, B-187; waiting for her re-review).
+Masada's dispute: progress events, B-187; accepted by Masada on 2026-11-20, `b6b158d`).
 The plan's "Rulings for every task" and "Gate files every task here touches" bind every task below.
 Dispatch is the controller's (Mohammed, 2026-11-19): the controller runs `backend-builder` and
 `backend-fixer` on these tasks; the backend lead prepares them and checks each report.
@@ -143,7 +143,7 @@ Dispatch is the controller's (Mohammed, 2026-11-19): the controller runs `backen
 
 ### B-179 · `ProjectState`: the project's state, and the `project_state` tool
 
-- Status: blocked (on B-178; its owner `ProjectState` was approved by Mohammed on 2026-11-19)
+- Status: todo (B-178 is done; its owner `ProjectState` was approved by Mohammed on 2026-11-19)
 - Plan: [plans/2026-11-19-code-record-2a.md#task-b-179--projectstate-the-projects-state-and-the-project_state-tool](plans/2026-11-19-code-record-2a.md#task-b-179--projectstate-the-projects-state-and-the-project_state-tool)
 - Read: the plan's rulings; `crates/shadows-core/src/app.rs` (`assemble_services`);
   `crates/core-runs/contract.yaml` (`progress`); `crates/core-plans/contract.yaml` (`list`,
@@ -165,7 +165,7 @@ Dispatch is the controller's (Mohammed, 2026-11-19): the controller runs `backen
 
 ### B-180 · Routes and events for the web
 
-- Status: blocked (the shared request is not accepted; then on B-179)
+- Status: blocked (on B-179 and B-187; the shared request was accepted on 2026-11-20)
 - Plan: [plans/2026-11-19-code-record-2a.md#task-b-180--routes-and-events-for-the-web](plans/2026-11-19-code-record-2a.md#task-b-180--routes-and-events-for-the-web)
 - Read: the plan's rulings; `crates/shadows-http/src/contract.yaml` (decisions);
   `crates/core-events/contract.yaml`; the shared request.
@@ -183,11 +183,11 @@ Dispatch is the controller's (Mohammed, 2026-11-19): the controller runs `backen
 
 Slice 2b of the code record: `code_where`. Plan: `docs/backend/plans/2026-11-19-code-record-2b.md`.
 Shared request for its route: `docs/shared/requests/2026-11-19-code-where.md` (answered again on
-2026-11-20 after Masada's dispute: `uses_live`; waiting for her re-review). The plan's rulings and gate list bind every task below; dispatch is the controller's.
+2026-11-20 after Masada's dispute: `uses_live`; accepted by Masada on 2026-11-20, `b6b158d`). The plan's rulings and gate list bind every task below; dispatch is the controller's.
 
 ### B-182 · `code_where`, Shadows' half: the record read and ranked
 
-- Status: blocked (on B-178)
+- Status: todo (B-178 is done)
 - Plan: [plans/2026-11-19-code-record-2b.md#task-b-182--code_where-shadows-half-the-record-read-and-ranked](plans/2026-11-19-code-record-2b.md#task-b-182--code_where-shadows-half-the-record-read-and-ranked)
 - Read: the plan's rulings and reuse table; `crates/code-record/contract.yaml`;
   `crates/code-record/src/store/mod.rs`; `crates/core-design/src/layout.rs` (`owners`); design §5.3.
@@ -217,7 +217,7 @@ Shared request for its route: `docs/shared/requests/2026-11-19-code-where.md` (a
 
 ### B-185 · The `code_where` route
 
-- Status: blocked (the shared request `2026-11-19-code-where.md` is not accepted; then on B-183)
+- Status: blocked (on B-183; the shared request `2026-11-19-code-where.md` was accepted on 2026-11-20)
 - Plan: [plans/2026-11-19-code-record-2b.md#task-b-185--the-code_where-route](plans/2026-11-19-code-record-2b.md#task-b-185--the-code_where-route)
 - Read: the plan's rulings; `crates/shadows-http/src/contract.yaml`; the shared request.
 - Touch: the plan task's Files.
