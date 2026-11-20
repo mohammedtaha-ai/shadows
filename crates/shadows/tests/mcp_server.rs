@@ -137,6 +137,7 @@ async fn the_tool_list_depends_on_the_grant_kind() {
             "agreement_review",
             "agreement_start",
             "code_lsp",
+            "code_where",
             "decision_list",
             "decision_propose",
             "design_element_delete",
@@ -270,6 +271,7 @@ async fn the_legacy_initialize_lifecycle_works_without_a_session() {
             "agreement_review",
             "agreement_start",
             "code_lsp",
+            "code_where",
             "decision_list",
             "decision_propose",
             "design_element_delete",
@@ -363,7 +365,7 @@ async fn the_discover_lifecycle_works_without_a_session() {
     let tools = answer["result"]["tools"]
         .as_array()
         .unwrap_or_else(|| panic!("{answer}"));
-    assert_eq!(tools.len(), 45, "{answer}");
+    assert_eq!(tools.len(), 46, "{answer}");
     for tool in ["task_executor_set", "executor_catalog"] {
         assert!(tools.iter().any(|item| item["name"] == tool), "{answer}");
     }

@@ -18,6 +18,7 @@ mod decision_tools;
 mod element_tools;
 mod external_tools;
 mod plan_tools;
+mod record_tools;
 mod refusal;
 mod run_tools;
 mod server;

@@ -247,6 +247,18 @@ impl From<shadows_core::ProjectStateError> for Refusal {
     }
 }
 
+/// A bad topic is the request's; Design's refusal is its own; storage is storage.
+impl From<shadows_core::CodeRecordError> for Refusal {
+    fn from(error: shadows_core::CodeRecordError) -> Self {
+        use shadows_core::CodeRecordError;
+        match error {
+            CodeRecordError::InvalidTopic(message) => Self::new(ErrorCode::InvalidCommand, message),
+            CodeRecordError::Design(error) => error.into(),
+            other @ CodeRecordError::Storage(_) => CoreError::from(other).into(),
+        }
+    }
+}
+
 impl From<shadows_core::EventsError> for Refusal {
     fn from(error: shadows_core::EventsError) -> Self {
         CoreError::from(error).into()

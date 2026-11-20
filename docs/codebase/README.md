@@ -184,6 +184,7 @@ pattern to follow, not merely an example.
 | `crates/shadows-mcp/src/decision_tools.rs` | project decision tool translation | `crates/shadows-mcp/src/contract.yaml` |
 | `crates/shadows-mcp/src/element_tools.rs` | Design elements MCP translation | `crates/shadows-mcp/src/contract.yaml` |
 | `crates/shadows-mcp/src/state_tools.rs` | ProjectState service MCP translation | `crates/shadows-mcp/src/contract.yaml` |
+| `crates/shadows-mcp/src/record_tools.rs` | CodeRecord service MCP translation | `crates/shadows-mcp/src/contract.yaml` |
 | `crates/shadows-mcp/src/refusal.rs` | what an MCP tool call answers | `crates/shadows-mcp/src/refusal.rs` |
 | `crates/shadows-core/src/lib.rs` | the application behind `AppCore` | `crates/shadows-core/src/app.rs` |
 | `crates/shadows-core/src/app.rs` | the application's composition root | `crates/shadows-core/src/app.rs` |

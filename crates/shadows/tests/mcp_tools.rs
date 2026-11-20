@@ -1005,6 +1005,32 @@ fn the_planner_is_told_to_read_the_project_state() {
 }
 
 #[test]
+fn the_planner_is_told_to_ask_code_where_first() {
+    let prompt = shadows_core::testing::PROMPT;
+    let tool = concat!(
+        "- code_where: before a contract names a file, a symbol, a table or a screen, ask ",
+        "code_where with a topic, a path or a name. It answers from Shadows' record first and ",
+        "the language servers confirm it. Use its paths, names and element ids as they are; a ",
+        "gap means the code no longer holds what a done task promised; a file not in the ",
+        "record has no contract behind it, so read it before you change it."
+    );
+    let first = concat!(
+        "- Ask code_where first. When it answers a file from the record with no gap, use that ",
+        "answer: you need not read the file. Read the files it does not answer for: a file not ",
+        "in the record, a file with a gap or an unchecked symbol, or a project whose record is ",
+        "empty."
+    );
+    assert!(prompt.lines().any(|line| line == tool));
+    let lines: Vec<&str> = prompt.lines().collect();
+    let look = lines
+        .iter()
+        .position(|line| *line == "Look before you write a path")
+        .unwrap();
+    assert_eq!(lines[look + 1], first);
+    assert!(lines[look + 2].starts_with("- Otherwise, before a task names a file, "));
+}
+
+#[test]
 fn the_planner_sets_the_project_up_first() {
     let prompt = shadows_core::testing::PROMPT;
     let texts: &[&str] = &[

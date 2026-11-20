@@ -207,7 +207,7 @@ Shared request for its route: `docs/shared/requests/2026-11-19-code-where.md` (a
 
 ### B-184 · The `code_where` tool, and the Planner asks first
 
-- Status: blocked (on B-183 and B-179)
+- Status: done
 - Plan: [plans/2026-11-19-code-record-2b.md#task-b-184--the-code_where-tool-and-the-planner-asks-first](plans/2026-11-19-code-record-2b.md#task-b-184--the-code_where-tool-and-the-planner-asks-first)
 - Read: the plan's rulings; `crates/shadows-mcp/src/contract.yaml`;
   `crates/core-grants/contract.yaml` (`tools_for`); `crates/core-harness/contract.yaml`.

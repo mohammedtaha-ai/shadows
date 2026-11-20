@@ -99,6 +99,42 @@ async fn a_refused_element_keeps_its_code() {
 }
 
 #[tokio::test]
+async fn code_where_tool_answers_the_method() {
+    let l = listening_app().await;
+    let (seed, turn, planner) = open_planner(&l).await;
+    ok(
+        &planner,
+        "design_element_put",
+        json!({
+            "command_id": "users",
+            "part_id": seed.database,
+            "outcomes": [seed.outcome],
+            "content": {
+                "kind": "table", "name": "users", "purpose": "Store users",
+                "columns": [{"name": "id", "type_name": "TEXT", "primary_key": true}]
+            }
+        }),
+    )
+    .await;
+    let tool = ok(&planner, "code_where", json!({"topic": "users"})).await;
+    let expected = l
+        .app
+        .core
+        .code_record()
+        .code_where(&l.app.project, "users")
+        .await
+        .unwrap();
+    assert_eq!(tool, serde_json::to_value(&expected).unwrap());
+    assert_eq!(tool["entries"][0]["element"]["id"], "E1");
+    let (error, text) = call(&planner, "code_where", json!({"topic": " "})).await;
+    assert!(error);
+    assert_eq!(text, "INVALID_COMMAND: a topic needs 1 to 200 characters");
+    l.app.core.turns().stop(&turn).await.unwrap();
+    planner.cancel().await.unwrap();
+    app::shut_down_app(l.app).await;
+}
+
+#[tokio::test]
 async fn project_state_tool_answers_the_method() {
     let l = listening_app().await;
     let (seed, turn, planner) = open_planner(&l).await;

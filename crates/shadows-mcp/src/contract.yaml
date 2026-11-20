@@ -23,6 +23,7 @@ modules:
   decision_tools.rs: Design decisions MCP translation
   element_tools.rs: Design elements MCP translation
   state_tools.rs: ProjectState service MCP translation
+  record_tools.rs: CodeRecord service MCP translation
   server.rs: composition of tool routers under Core grant policy (thread, project and executor)
   refusal.rs: stable MCP error envelope
 agreements:
@@ -47,6 +48,11 @@ state_tools: >-
   Planner only (thread grant policy). project_state { part_id? } calls ProjectState::state for
   the grant's project and answers its ProjectStateView as JSON. Tested by
   element_mcp::project_state_tool_answers_the_method and mcp_server::the_tool_list_depends_on_the_grant_kind.
+record_tools: >-
+  Planner only (thread grant policy). code_where { topic } calls CodeRecord::code_where for the
+  grant's project and answers its WhereAnswer as JSON; InvalidTopic is INVALID_COMMAND, Design's
+  refusal its own, storage as storage. Tested by element_mcp::code_where_tool_answers_the_method
+  and mcp_server::the_tool_list_depends_on_the_grant_kind.
 vision_propose_args:'vision_propose names which arguments each action takes: field for an add only, item_id (and text for an edit) for an edit or removal, never field; each argument carries its own description in the schema. Core refuses the wrong shape either way. Tested by mcp_server::the_discover_lifecycle_works_without_a_session.'
 
 layout_only: Map records contain no starter files; the stage has no Structure step or file count, and no HTTP structure-write route exists. Roadmap follows map approval.
