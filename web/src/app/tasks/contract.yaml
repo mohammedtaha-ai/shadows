@@ -5,6 +5,7 @@ source: web/src/app/tasks
 loading: Initial content reads use labelled SkeletonContent regions; placeholder shapes are decorative, motion respects reduced-motion preferences, and cached content stays visible during background reads. Errors and mutation progress keep their own presentation.
 responsibility: Show one task of a plan version to run and to read, over Core's answers.
 obligations:
+  - The attempt brief lists the elements its saved context pinned, in full, after the resolved contracts, with no extra read; a brief without elements has no such section (the_brief_lists_its_pinned_revisions_in_full, a_brief_without_elements_has_no_pinned_section).
   - Report attempt headers separate the attempt number, state and labelled model; a visible Show details or Hide details control with a chevron exposes its expanded state and controlled region. Only an expanded attempt reads its brief and conflict (report_opens_the_selected_attempt_brief).
   - A task marked done by Core shows a green Done badge with a check icon; the badge does not infer completion from a committed attempt.
   - Each Report attempt says "Began from Start" for a null addition or "Carried on with the Planner's addition" with the addition shown as plain preserved text under its heading, dir auto, never markup (the_report_shows_the_planners_addition_as_plain_text).

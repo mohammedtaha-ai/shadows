@@ -3,6 +3,7 @@ import { SkeletonContent } from '@/components/ui/skeleton'
 
 import { useQuery } from '@tanstack/react-query'
 import { attemptBriefQuery, contextNotRecorded, type AttemptBrief } from '@/api/runs'
+import { ElementContent } from '../element-content'
 import { ErrorLine } from '../error-line'
 
 type TaskContract = NonNullable<AttemptBrief['context']['task']['contract']>
@@ -136,6 +137,18 @@ function Brief({ brief }: { brief: AttemptBrief }) {
         </div>
       )}
       <List label="Resolved contracts" items={context.contracts?.map(resolved)} />
+      {context.elements != null && context.elements.length > 0 && (
+        <div aria-label="Pinned elements" className="space-y-2">
+          <p className="font-semibold">Tables and screens</p>
+          {context.elements.map((element) => (
+            <div key={`${element.id}:${element.revision}`} className="space-y-1">
+              <p dir="auto">{element.id} r{element.revision} · {element.content.kind} {element.content.name}</p>
+              <ElementContent element={element}
+                names={(id) => context.elements?.find((other) => other.id === id)?.content.name} />
+            </div>
+          ))}
+        </div>
+      )}
       {context.decisions != null && context.decisions.length > 0 && (
         <div aria-label="Decisions">
           <p className="font-semibold">Decisions</p>

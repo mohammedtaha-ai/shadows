@@ -1,7 +1,9 @@
+import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { Circle, FileCode2, FilePenLine, X } from 'lucide-react'
 import type { ReactNode } from 'react'
 import type { Plan, PlanTask } from '@/api/workflows'
+import { elementsQuery, type ElementPin } from '@/api/project-state'
 import { Button } from '@/components/ui/button'
 import { Planned } from '@/components/ui/planned'
 import { parentName } from './linked-layout'
@@ -17,6 +19,8 @@ export function InspectPanel({
   onClose: () => void
 }) {
   const waits = plan.links.filter((l) => l.task === task.number && l.kind === 'completes_after')
+  const pins = task.contract?.elements ?? []
+  const elements = useQuery({ ...elementsQuery(plan.project_id), enabled: pins.length > 0 })
   const waitingFor = (item: number) =>
     waits.filter((l) => l.waiting_items?.includes(item)).map((l) => parentName(l.after, plan.linked_tasks))
 
@@ -66,6 +70,17 @@ export function InspectPanel({
       <Section name="Writes" badge={task.writes.length}>
         <Paths paths={task.writes} kind="write" />
       </Section>
+      {pins.length > 0 && (
+        <Section name="Tables and screens" badge={pins.length}>
+          <ul className="space-y-1.5">
+            {pins.map((pin, index) => (
+              <li key={`${pin.id}:${index}`} dir="auto" className="text-xs text-secondary-foreground">
+                {pinLine(pin, elements.data?.find((view) => view.element.id === pin.id)?.element.content.name)}
+              </li>
+            ))}
+          </ul>
+        </Section>
+      )}
       <Section name="Acceptance" badge={task.acceptance.length}>
         {task.acceptance.length > 0 && (
           <Planned
@@ -108,6 +123,10 @@ export function InspectPanel({
       </Section>
     </aside>
   )
+}
+
+function pinLine(pin: ElementPin, name: string | undefined): string {
+  return `${pin.id} r${pin.revision}${name ? ` · ${name}` : ''} · ${pin.action} · ${pin.file}${pin.symbol_id ? ` · ${pin.symbol_id}` : ''}`
 }
 
 function Section({ name, badge, children }: { name: string; badge?: number; children: ReactNode }) {

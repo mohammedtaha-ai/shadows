@@ -175,6 +175,12 @@ enums:
 
 obligations:
   - rule: >
+      When a task's contract pins elements, the inspect panel lists each pin by id, revision,
+      name, action and file, reading the project's elements once; a pin whose element is not
+      in that read shows its id alone.
+    tested_by: the_inspect_panel_lists_pinned_elements_by_name, a_pin_whose_element_is_not_read_shows_its_id
+
+  - rule: >
       Each task is placed right of every task it needs or waits for, so no arrow
       runs backward.
     tested_by: lays out left to right with each task right of what it needs

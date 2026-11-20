@@ -112,7 +112,7 @@ Every task's checks run from `web/`: the tests it names, then `npm run typecheck
 
 ### F-134 · Pinned elements in plan review and in the attempt brief
 
-- Status: blocked (on F-132, and B-177)
+- Status: done
 - Plan: [plans/2026-11-20-project-state-views.md#f-134--pinned-elements-in-plan-review-and-in-the-brief](plans/2026-11-20-project-state-views.md#f-134--pinned-elements-in-plan-review-and-in-the-brief)
 - Read:
   - `web/src/app/workflows/contract.yaml`, `web/src/app/tasks/contract.yaml`;

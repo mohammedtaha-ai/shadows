@@ -3,6 +3,7 @@
 import type { FitViewOptions } from '@xyflow/react'
 import { act } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import type { ElementPin, ElementView } from '@/api/project-state'
 import type { Plan, PlanVersions } from '@/api/workflows'
 import { answers } from '@/test/fake-daemon'
 import { planFixture, planListing, planTask, taskProgress } from '@/test/contract-fixtures'
@@ -432,5 +433,44 @@ describe('the plan page', () => {
 
     await until(() => a.text().includes('Archived · read only'))
     expect(a.button('Approve')).toBeUndefined()
+  })
+
+  const pin = (id: string, extra: Partial<ElementPin> = {}): ElementPin => ({ id, revision: 2, action: 'create', file: 'src/db/sessions.rs', symbol_id: 'Session', ...extra })
+  const pinned = (pins: ElementPin[]) => planFixture({
+    tasks: [planTask(1, 'Schema', { contract: { elements: pins } }), planTask(2, 'Login screen')],
+  })
+  const sessions: ElementView = {
+    element: { id: 'E2', revision: 2, project_id: 'p1', part_id: 'web', outcomes: [], deleted: false, written_by: 't1', created_at: 'x',
+      content: { kind: 'table', name: 'sessions', purpose: 'p', columns: [] } },
+    state: { element_id: 'E2', state: 'planned', behind: false, built_revision: null, done: [], planned: [] },
+  }
+
+  it('the_inspect_panel_lists_pinned_elements_by_name', async () => {
+    const a = (app = await startApp(PAGE, { ...answers({ plan: pinned([pin('E2')]) }), 'GET /api/projects/p1/elements': [sessions] }))
+    await until(() => node(1) !== null)
+    await act(async () => node(1)?.click())
+    await until(() => a.container.querySelector('aside[aria-label="T1"]') !== null)
+    const section = () => [...a.container.querySelectorAll('aside[aria-label="T1"] section')].find((item) => item.querySelector('h3')?.textContent === 'Tables and screens')
+    await until(() => section()?.textContent?.includes('E2 r2 · sessions · create · src/db/sessions.rs · Session') === true)
+    expect(section()!.textContent).toContain('1')
+    expect(a.calls.filter((call) => call === 'GET /api/projects/p1/elements')).toHaveLength(1)
+  })
+
+  it('a_pin_whose_element_is_not_read_shows_its_id', async () => {
+    const a = (app = await startApp(PAGE, { ...answers({ plan: pinned([pin('E7', { symbol_id: null })]) }), 'GET /api/projects/p1/elements': [sessions] }))
+    await until(() => node(1) !== null)
+    await act(async () => node(1)?.click())
+    await until(() => a.calls.includes('GET /api/projects/p1/elements'))
+    await until(() => a.container.querySelector('aside[aria-label="T1"]')?.textContent?.includes('E7 r2 · create · src/db/sessions.rs') === true)
+    expect(a.container.querySelector('aside[aria-label="T1"]')!.textContent).not.toContain('sessions ·')
+  })
+
+  it('a task without pins reads no elements', async () => {
+    const a = (app = await startApp(PAGE, answers()))
+    await until(() => node(1) !== null)
+    await act(async () => node(1)?.click())
+    await until(() => a.container.querySelector('aside[aria-label="T1"]') !== null)
+    expect(a.calls).not.toContain('GET /api/projects/p1/elements')
+    expect(a.container.querySelector('aside[aria-label="T1"]')!.textContent).not.toContain('Tables and screens')
   })
 })
