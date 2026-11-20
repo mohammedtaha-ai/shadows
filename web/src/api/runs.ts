@@ -2,6 +2,7 @@ import { queryOptions, type QueryClient } from '@tanstack/react-query'
 import { writeSaved } from './saved-answer'
 import type { components } from './schema'
 import { client, unwrap, ApiError } from './transport'
+import { retryLost } from './error'
 
 export type TaskRun = components['schemas']['TaskRun']
 export type ExecutorChoice = components['schemas']['ExecutorChoice']
@@ -34,11 +35,6 @@ const runKeys = {
   brief: (attemptId: string) => ['runs', 'brief', attemptId],
   conflict: (attemptId: string) => ['runs', 'conflict', attemptId],
   checks: (attemptId: string) => ['runs', 'checks', attemptId],
-}
-
-/** Core's answer, even a refusal such as a task it cannot find, is final; only a lost call is tried again. */
-function retryLost(failures: number, error: Error): boolean {
-  return failures < 3 && error instanceof ApiError && error.problem.kind === 'unreachable'
 }
 
 /** A task's run state: its marks, latest attempt, needs and whether Start may run. */

@@ -18,7 +18,7 @@ Every task's checks run from `web/`: the tests it names, then `npm run typecheck
 
 ### F-130 · The API domain and the stream refresh for the project's state
 
-- Status: blocked (on B-177, B-178, B-179, B-180 and B-187)
+- Status: done
 - Plan: [plans/2026-11-20-project-state-views.md#f-130--the-api-domain-and-the-stream-refresh](plans/2026-11-20-project-state-views.md#f-130--the-api-domain-and-the-stream-refresh)
 - Read:
   - `web/src/api/contract.yaml`, `web/src/stream/contract.yaml` (`refresh_policy`);

@@ -1146,6 +1146,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/projects/{id}/elements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["elements"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{id}/elements/{element}/revisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["element_revisions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/projects/{id}/events": {
         parameters: {
             query?: never;
@@ -1319,6 +1351,22 @@ export interface paths {
         };
         get?: never;
         put: operations["save_standards_additions"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{id}/state": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["state"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -2362,6 +2410,8 @@ export interface components {
             workflow_state: components["schemas"]["WorkflowState"];
         };
         /** @enum {string} */
+        BuildState: "planned" | "built" | "gap" | "unchecked" | "removed";
+        /** @enum {string} */
         CallKind: "read" | "edit" | "delete" | "move" | "search" | "execute" | "think" | "fetch" | "switch_mode" | "other";
         /** @enum {string} */
         CallStatus: "pending" | "in_progress" | "completed" | "failed" | "stopped";
@@ -2438,6 +2488,13 @@ export interface components {
         };
         /** @enum {string} */
         Chooser: "person" | "planner";
+        ColumnRef: {
+            column: string;
+            /** @description The target table's element id. */
+            table: string;
+        };
+        /** @enum {string} */
+        Confirmation: "file_and_symbol" | "file_only";
         /**
          * @description Whether the Planner's notice of a conflict was enqueued on its
          *     conversation. `delivered` is a durable enqueue, not a reply.
@@ -2630,6 +2687,20 @@ export interface components {
             expected_revision: number;
             ops: components["schemas"]["DesignOp"][];
         };
+        /** @description One revision of a table or screen as Design holds it. */
+        DesignElement: {
+            content: components["schemas"]["ElementContent"];
+            created_at: string;
+            deleted: boolean;
+            id: string;
+            outcomes: components["schemas"]["OutcomeId"][];
+            part_id: components["schemas"]["PartId"];
+            project_id: components["schemas"]["ProjectId"];
+            /** Format: int64 */
+            revision: number;
+            /** @description The Planner's thread id. */
+            written_by: string;
+        };
         DesignOp: {
             before?: null | components["schemas"]["OutcomeId"];
             content: components["schemas"]["OutcomeContent"];
@@ -2766,6 +2837,68 @@ export interface components {
         EffectiveStandards: {
             additions?: null | components["schemas"]["StandardsAdditionsVersion"];
             base: components["schemas"]["BaseStandards"];
+        };
+        /** @enum {string} */
+        ElementAction: "create" | "modify" | "delete";
+        ElementContent: (components["schemas"]["TableContent"] & {
+            /** @enum {string} */
+            kind: "table";
+        }) | (components["schemas"]["ScreenContent"] & {
+            /** @enum {string} */
+            kind: "screen";
+        });
+        /** @description An element in gap or unchecked, with why. */
+        ElementGap: {
+            element_id: string;
+            kind: components["schemas"]["ElementKind"];
+            name: string;
+            part_id: components["schemas"]["PartId"];
+            state: components["schemas"]["BuildState"];
+            why: string;
+        };
+        /** @enum {string} */
+        ElementKind: "table" | "screen";
+        /** @description One exact revision of a table or screen the task builds, changes or deletes. */
+        ElementPin: {
+            action: components["schemas"]["ElementAction"];
+            /** @description One of the task's create, modify or delete files. */
+            file: string;
+            id: string;
+            /** Format: int64 */
+            revision: number;
+            symbol_id?: string | null;
+        };
+        ElementState: {
+            behind: boolean;
+            /**
+             * Format: int64
+             * @description Always sent: null while no done task built the element.
+             */
+            built_revision: number | null;
+            confirmed?: null | components["schemas"]["Confirmation"];
+            done: components["schemas"]["ElementTask"][];
+            element_id: string;
+            planned: components["schemas"]["ElementTask"][];
+            state: components["schemas"]["BuildState"];
+            why?: string | null;
+        };
+        ElementTask: {
+            action: components["schemas"]["ElementAction"];
+            file: string;
+            /** Format: int64 */
+            revision: number;
+            symbol_id?: string | null;
+            symbol_state?: null | components["schemas"]["SymbolState"];
+            /** Format: int32 */
+            task: number;
+            /** Format: int64 */
+            version: number;
+            workflow_id: components["schemas"]["WorkflowId"];
+        };
+        /** @description An element at its latest revision with its state. */
+        ElementView: {
+            element: components["schemas"]["DesignElement"];
+            state: components["schemas"]["ElementState"];
         };
         EntryRef: {
             /** @description References carry the identity interpreted by their owning entity. */
@@ -3352,6 +3485,15 @@ export interface components {
             serves?: string[];
             title: string;
         };
+        /** @description One part in full: its live plans' tasks and its elements. */
+        PartDetail: {
+            elements: components["schemas"]["ElementView"][];
+            part_id: components["schemas"]["PartId"];
+            /** @description At most 50. */
+            plans: components["schemas"]["PlanTasks"][];
+            /** Format: int32 */
+            plans_more: number;
+        };
         /** Format: uuid */
         PartId: string;
         /** @description One part kind, the layers it owns and how it may be absent. */
@@ -3374,6 +3516,19 @@ export interface components {
             items: components["schemas"]["Part"][];
             next?: null | components["schemas"]["PartId"];
             revision: components["schemas"]["i64"];
+        };
+        /** @description One part of the map with its plans and its elements counted by state. */
+        PartState: {
+            /** @description Removed elements are not counted. */
+            elements: components["schemas"]["StateCounts"];
+            kind: string | null;
+            parent: null | components["schemas"]["PartId"];
+            part_id: components["schemas"]["PartId"];
+            /** @description At most 20. */
+            plans: components["schemas"]["PlanProgress"][];
+            /** Format: int32 */
+            plans_more: number;
+            title: string;
         };
         PartView: {
             ancestors: components["schemas"]["Part"][];
@@ -3572,6 +3727,16 @@ export interface components {
             /** Format: int32 */
             task: number;
         };
+        /** @description An Active plan with its live version's task counts. */
+        PlanProgress: {
+            draft: null | components["schemas"]["WorkflowId"];
+            plan_id: components["schemas"]["PlanId"];
+            tasks: components["schemas"]["TaskCounts"];
+            title: string;
+            /** Format: int64 */
+            version: number | null;
+            workflow_id: null | components["schemas"]["WorkflowId"];
+        };
         /**
          * @description An `Archived` plan is read, never written.
          * @enum {string}
@@ -3580,6 +3745,15 @@ export interface components {
         /** @description One task of a stored version: its storage id beside its content. */
         PlanTask: components["schemas"]["TaskContent"] & {
             id: components["schemas"]["TaskId"];
+        };
+        /** @description A plan's live version with each task's line. */
+        PlanTasks: {
+            plan_id: components["schemas"]["PlanId"];
+            tasks: components["schemas"]["TaskLine"][];
+            title: string;
+            /** Format: int64 */
+            version: number;
+            workflow_id: components["schemas"]["WorkflowId"];
         };
         /** @description One plan with every version, oldest first. */
         PlanVersions: {
@@ -3674,6 +3848,28 @@ export interface components {
             linked: string;
             /** @description The slug of the project that reads. */
             project: string;
+        };
+        /** @description The project's stage, its parts with their plans and elements, and its gaps. */
+        ProjectStateView: {
+            /** @description Elements in gap or unchecked, by part order then element number, at most 100. */
+            gaps: components["schemas"]["ElementGap"][];
+            /** Format: int32 */
+            gaps_more: number;
+            /** Format: int64 */
+            map_revision: number;
+            /** @description What the stage still misses, as Design's stage view names it. */
+            missing: string[];
+            part?: null | components["schemas"]["PartDetail"];
+            /** @description In map order, at most 200. */
+            parts: components["schemas"]["PartState"][];
+            /** Format: int32 */
+            parts_more: number;
+            project_id: components["schemas"]["ProjectId"];
+            stage: components["schemas"]["Stage"];
+            /** @description Active plans tied to no part, at most 20. */
+            unassigned: components["schemas"]["PlanProgress"][];
+            /** Format: int32 */
+            unassigned_more: number;
         };
         /** @description A project's index: its state, its counts and its last update. */
         ProjectStatus: {
@@ -3914,6 +4110,17 @@ export interface components {
         SavedProviderTest: {
             api_key?: string | null;
         };
+        ScreenContent: {
+            leads_to?: components["schemas"]["ScreenLink"][];
+            name: string;
+            purpose: string;
+            route?: string | null;
+        };
+        ScreenLink: {
+            /** @description The target screen's element id. */
+            screen: string;
+            when: string;
+        };
         SendMessage: {
             command_id: string;
             text: string;
@@ -4085,11 +4292,27 @@ export interface components {
             plan?: null | components["schemas"]["PlanId"];
             prompt: string;
         };
+        /** @description A part's elements by state; removed ones are left out. */
+        StateCounts: {
+            /** Format: int32 */
+            built: number;
+            /** Format: int32 */
+            gap: number;
+            /** Format: int32 */
+            planned: number;
+            /** Format: int32 */
+            unchecked: number;
+        };
         /**
          * @description What kind of symbol a task builds.
          * @enum {string}
          */
         SymbolKind: "function" | "method" | "class";
+        /**
+         * @description Whether the code holds one promised symbol.
+         * @enum {string}
+         */
+        SymbolState: "found" | "missing" | "unchecked";
         /** @description One function, method or class the task builds, described by its behavior. */
         SymbolWork: {
             /** @description Short sentences saying what it does, never its code. */
@@ -4107,6 +4330,19 @@ export interface components {
             /** @description One of the task's files that it creates or modifies. */
             path: string;
             returns?: null | components["schemas"]["ContractValue"];
+        };
+        TableColumn: {
+            meaning?: string;
+            name: string;
+            primary_key?: boolean;
+            references?: null | components["schemas"]["ColumnRef"];
+            /** @description The type as the project's language or database writes it. */
+            type_name: string;
+        };
+        TableContent: {
+            columns: components["schemas"]["TableColumn"][];
+            name: string;
+            purpose: string;
         };
         /** @description A program with arguments that proves acceptance items without a shell. */
         TaskCheck: {
@@ -4168,6 +4404,8 @@ export interface components {
             contracts?: components["schemas"]["ResolvedContract"][];
             /** @description The task contract's pinned decision revisions as Design holds them now. */
             decisions?: components["schemas"]["DecisionRecord"][];
+            /** @description The task contract's pinned table and screen revisions in contract order. */
+            elements?: components["schemas"]["DesignElement"][];
             /** Format: int64 */
             map_revision: number;
             parts: components["schemas"]["TaskPart"][];
@@ -4184,6 +4422,8 @@ export interface components {
             checks?: components["schemas"]["TaskCheck"][];
             /** @description Accepted project decisions the task follows, each at one exact revision. */
             decisions?: components["schemas"]["DecisionPin"][];
+            /** @description The project's tables and screens this task builds, changes or deletes. */
+            elements?: components["schemas"]["ElementPin"][];
             files?: components["schemas"]["FileWork"][];
             /** @description What must not be changed. */
             forbidden?: string[];
@@ -4195,8 +4435,27 @@ export interface components {
             symbols?: components["schemas"]["SymbolWork"][];
             uses?: components["schemas"]["ContractUse"][];
         };
+        /** @description A live version's tasks: done, started (an attempt and not done), not started. */
+        TaskCounts: {
+            /** Format: int32 */
+            done: number;
+            /** Format: int32 */
+            not_started: number;
+            /** Format: int32 */
+            started: number;
+            /** Format: int32 */
+            total: number;
+        };
         /** Format: uuid */
         TaskId: string;
+        /** @description One task: whether it is marked done, and its latest attempt's state. */
+        TaskLine: {
+            attempt: null | components["schemas"]["AttemptState"];
+            done: boolean;
+            /** Format: int32 */
+            number: number;
+            title: string;
+        };
         /** @description A local task number, or a task in another plan's latest version. */
         TaskParent: number | {
             plan_id: components["schemas"]["PlanId"];
@@ -8324,6 +8583,84 @@ export interface operations {
             };
         };
     };
+    elements: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The project */
+                id: components["schemas"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ElementView"][];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    element_revisions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The project */
+                id: components["schemas"]["ProjectId"];
+                /** @description The element id, such as E3 */
+                element: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DesignElement"][];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     subscribe_project: {
         parameters: {
             query?: {
@@ -8782,6 +9119,55 @@ export interface operations {
                 };
             };
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    state: {
+        parameters: {
+            query?: {
+                /** @description One part of the map, answered in full under `part`. */
+                part_id?: components["schemas"]["PartId"];
+            };
+            header?: never;
+            path: {
+                /** @description The project */
+                id: components["schemas"]["ProjectId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectStateView"];
+                };
+            };
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

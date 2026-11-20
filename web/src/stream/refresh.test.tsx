@@ -13,6 +13,7 @@ import { waitingPermissionsQuery } from '@/api/permissions'
 import { threadKeys } from '@/api/threads'
 import { designKeys } from '@/api/design'
 import { attemptsQuery, taskRunQuery } from '@/api/runs'
+import { elementRevisionsQuery, elementsQuery, projectStateQuery } from '@/api/project-state'
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
 
@@ -117,6 +118,7 @@ it('PermissionsChanged on the project stream refetches the waiting list and reco
 it.each(['WorkflowDraftStarted', 'WorkflowEdited', 'WorkflowFrozen', 'PlanArchived', 'PlanUnarchived'])('classifies the full plan refresh union for %s', kind => {
   expect(classifyRefresh({ kind, seq: 1, threadId: 't1', operationId: null, payload: {}, projectId: 'p1' })).toEqual([
     { kind: 'workflows' }, { kind: 'design', projectId: 'p1' }, { kind: 'agreement-versions', projectId: 'p1' },
+    { kind: 'project-state', projectId: 'p1' },
   ])
 })
 
@@ -124,6 +126,7 @@ it('ignores unknown kinds and reads a supplied project identifier without cache 
   expect(classifyRefresh({ kind: 'unknown', seq: 1, threadId: null, operationId: null, payload: null })).toEqual([])
   expect(classifyRefresh({ kind: 'PlanArchived', seq: 1, threadId: 't1', operationId: null, payload: { project_id: 'p2' } })).toEqual([
     { kind: 'workflows' }, { kind: 'design', projectId: 'p2' }, { kind: 'agreement-versions', projectId: 'p2' },
+    { kind: 'project-state', projectId: 'p2' },
   ])
 })
 
@@ -201,7 +204,7 @@ it('refreshes once per event however many views share a stream, and a late view 
     expect(calls('workflows')).toBe(1)
     invalidate.mockClear()
     act(() => project.durable(1, 'ProjectDesignChanged'))
-    expect(calls('projects')).toBe(1)
+    expect(invalidate.mock.calls.filter(([filters]) => filters?.queryKey?.[2] === 'design').length).toBe(1)
     invalidate.mockClear()
     act(() => render(6))
     expect(invalidate).not.toHaveBeenCalled()
@@ -229,5 +232,70 @@ it('a conversation joining a live writer stream reads its entries and operations
     act(() => render(true))
     expect(sources).toHaveLength(1)
     expect(heads()).toEqual(['threads/t1/entries', 'threads/t1/operations'])
+  } finally { act(() => root.unmount()); client.clear(); vi.unstubAllGlobals() }
+})
+
+const STATE_KINDS = [
+  'WorkflowDraftStarted', 'WorkflowEdited', 'WorkflowFrozen', 'PlanArchived', 'PlanUnarchived',
+  'DesignElementChanged', 'CodeRecordChanged', 'TaskProgressChanged', 'ProjectDesignChanged',
+  'MapProposed', 'RoadmapProposed', 'RoadmapApproved',
+]
+
+it.each(STATE_KINDS)('project_state_events_refetch_the_state_and_the_elements: %s', kind => {
+  const client = new QueryClient()
+  const keys = [projectStateQuery('p1').queryKey, projectStateQuery('p1', 'web').queryKey, elementsQuery('p1').queryKey]
+  for (const queryKey of keys) client.getQueryCache().build(client, { queryKey })
+  dispatchRefresh(client, classifyRefresh({
+    kind, seq: 1, threadId: null, operationId: null, projectId: 'p1', payload: { project_id: 'p1' },
+  }))
+  expect(keys.map(key => client.getQueryState(key)?.isInvalidated)).toEqual([true, true, true])
+  client.clear()
+})
+
+it('a_design_element_change_refetches_only_that_elements_revisions', () => {
+  const client = new QueryClient()
+  const keys = [elementRevisionsQuery('p1', 'E3').queryKey, elementRevisionsQuery('p1', 'E4').queryKey]
+  for (const queryKey of keys) client.getQueryCache().build(client, { queryKey })
+  dispatchRefresh(client, classifyRefresh({
+    kind: 'DesignElementChanged', seq: 1, threadId: null, operationId: null,
+    payload: { project_id: 'p1', element_id: 'E3', revision: 2 },
+  }))
+  expect(keys.map(key => client.getQueryState(key)?.isInvalidated)).toEqual([true, false])
+  client.clear()
+})
+
+it('task_progress_and_record_changes_name_only_the_project_state', () => {
+  const only = [{ kind: 'project-state', projectId: 'p1' }]
+  expect(classifyRefresh({
+    kind: 'TaskProgressChanged', seq: 1, threadId: null, operationId: null,
+    payload: { project_id: 'p1', workflow_id: 'w1', version: 1, task: 1, attempt_id: null },
+  })).toEqual(only)
+  expect(classifyRefresh({
+    kind: 'CodeRecordChanged', seq: 2, threadId: null, operationId: null, payload: { project_id: 'p1' },
+  })).toEqual(only)
+})
+
+it('replayed_state_events_reconcile_the_state_once_at_caught_up', () => {
+  const client = new QueryClient()
+  const sources: FakeSource[] = []
+  vi.stubGlobal('EventSource', class extends FakeSource { constructor(url: string) { super(url); sources.push(this) } })
+  const root = createRoot(document.createElement('div'))
+  const invalidate = vi.spyOn(client, 'invalidateQueries')
+  const reads = () => invalidate.mock.calls.filter(([filters]) => filters?.queryKey?.[3] === 'reads').length
+  function View() { useProjectEvents('p1'); return null }
+  try {
+    client.getQueryCache().build(client, { queryKey: projectStateQuery('p1').queryKey })
+    act(() => root.render(<QueryClientProvider client={client}><View /></QueryClientProvider>))
+    const project = sources.find(s => s.url.includes('/projects/'))!
+    act(() => {
+      project.durable(1, 'TaskProgressChanged', null, { project_id: 'p1', workflow_id: 'w1', version: 1, task: 1, attempt_id: null })
+      project.durable(2, 'CodeRecordChanged', null, { project_id: 'p1' })
+      project.durable(3, 'DesignElementChanged', null, { project_id: 'p1', element_id: 'E1', revision: 1 })
+    })
+    expect(reads()).toBe(0)
+    act(() => project.caughtUp(3))
+    expect(reads()).toBe(1)
+    act(() => project.durable(4, 'TaskProgressChanged', null, { project_id: 'p1', workflow_id: 'w1', version: 1, task: 1, attempt_id: 'a1' }))
+    expect(reads()).toBe(2)
   } finally { act(() => root.unmount()); client.clear(); vi.unstubAllGlobals() }
 })

@@ -7,12 +7,15 @@ import { invalidateEntries, invalidateOperations, invalidateThreadLists } from '
 import { invalidatePermissions } from '@/api/permissions'
 import { groupKeys } from '@/api/groups'
 import { invalidateExecutorChoices } from '@/api/runs'
+import { invalidateElementRevisions, invalidateProjectState } from '@/api/project-state'
 import type { DurableEvent } from './frames'
 import { subscribeProjectStream, subscribeThreadStream, type StreamSubscriber } from './thread-registry'
 
 type RefreshTarget =
   | { kind: 'workflows' | 'projects' | 'thread-lists' | 'permissions' | 'groups' | 'executor-choices' }
   | { kind: 'design' | 'agreements' | 'agreement-versions' | 'project-workflows'; projectId: string }
+  | { kind: 'project-state'; projectId: string }
+  | { kind: 'element-revisions'; projectId: string; elementId: string }
   | { kind: 'entries' | 'operations'; threadId: string }
   | { kind: 'group'; groupId: string }
 
@@ -20,6 +23,7 @@ type RefreshEvent = DurableEvent & { projectId?: string }
 
 const PLAN_EVENTS = new Set(['WorkflowDraftStarted', 'WorkflowEdited', 'WorkflowFrozen', 'PlanArchived', 'PlanUnarchived'])
 const DESIGN_EVENTS = new Set(['ProjectDesignChanged', 'ProjectStandardsSaved', 'VisionProposed', 'MapProposed', 'RoadmapProposed', 'RoadmapApproved', 'DecisionProposed', 'DecisionAccepted'])
+const STATE_EVENTS = new Set([...PLAN_EVENTS, 'DesignElementChanged', 'CodeRecordChanged', 'TaskProgressChanged', 'ProjectDesignChanged', 'MapProposed', 'RoadmapProposed', 'RoadmapApproved'])
 const REACH_EVENTS = new Set(['PlanDependenciesChanged', 'ProjectLinked', 'ProjectUnlinked', 'ProjectRemoved'])
 
 /** Identifiers come from the delivery scope or event payload, never cache state. */
@@ -36,6 +40,11 @@ export function classifyRefresh(event: RefreshEvent): RefreshTarget[] {
     if (DESIGN_EVENTS.has(event.kind)) targets.push({ kind: 'design', projectId })
     if (event.kind === 'AgreementChanged') targets.push({ kind: 'agreements', projectId })
     if (REACH_EVENTS.has(event.kind)) targets.push({ kind: 'project-workflows', projectId })
+    if (STATE_EVENTS.has(event.kind)) targets.push({ kind: 'project-state', projectId })
+    if (event.kind === 'DesignElementChanged' && typeof payload === 'object' && payload !== null &&
+        'element_id' in payload && typeof payload.element_id === 'string') {
+      targets.push({ kind: 'element-revisions', projectId, elementId: payload.element_id })
+    }
   }
   if (event.kind === 'ProjectRemoved') targets.push({ kind: 'projects' })
   if (event.kind === 'TaskExecutorChosen' && projectId !== undefined) targets.push({ kind: 'executor-choices' })
@@ -73,6 +82,8 @@ export function dispatchRefresh(client: QueryClient, targets: readonly RefreshTa
         void client.invalidateQueries({ queryKey: groupKeys.detail(target.groupId) })
         void client.invalidateQueries({ queryKey: groupKeys.messages(target.groupId) })
         break
+      case 'project-state': invalidateProjectState(client, target.projectId); break
+      case 'element-revisions': invalidateElementRevisions(client, target.projectId, target.elementId); break
       case 'entries': invalidateEntries(client, target.threadId); break
       case 'operations': invalidateOperations(client, target.threadId); break
       case 'thread-lists': invalidateThreadLists(client); break
@@ -84,7 +95,7 @@ interface RefreshScope { projectId?: string; threadId?: string; plansOnly?: bool
 
 function baseline(scope: RefreshScope): RefreshTarget[] {
   return scope.threadId === undefined
-    ? [{ kind: 'agreements', projectId: scope.projectId! }, { kind: 'design', projectId: scope.projectId! }, { kind: 'project-workflows', projectId: scope.projectId! }, { kind: 'permissions' }, { kind: 'executor-choices' }]
+    ? [{ kind: 'agreements', projectId: scope.projectId! }, { kind: 'design', projectId: scope.projectId! }, { kind: 'project-workflows', projectId: scope.projectId! }, { kind: 'project-state', projectId: scope.projectId! }, { kind: 'permissions' }, { kind: 'executor-choices' }]
     : scope.plansOnly ? [{ kind: 'workflows' }]
     : [{ kind: 'workflows' }, { kind: 'entries', threadId: scope.threadId }, { kind: 'operations', threadId: scope.threadId }]
 }
@@ -106,6 +117,7 @@ function refreshSubscriber(client: QueryClient, current: () => RefreshScope): St
       else for (const target of targets) {
         // Project design and agreement notices must reach dirty editors during replay.
         if (scope.threadId === undefined && target.kind !== 'workflows' && target.kind !== 'project-workflows' &&
+            target.kind !== 'project-state' && target.kind !== 'element-revisions' &&
             target.kind !== 'group' && target.kind !== 'groups' && target.kind !== 'executor-choices' && !PLAN_EVENTS.has(event.kind)) {
           dispatchRefresh(client, [target])
         } else pending.set(JSON.stringify(target), target)
