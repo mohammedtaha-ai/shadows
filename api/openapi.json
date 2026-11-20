@@ -3009,6 +3009,7 @@
             "type": "boolean"
           },
           "built_revision": {
+            "description": "Always sent: null while no done task built the element.",
             "format": "int64",
             "type": [
               "integer",
@@ -3053,6 +3054,7 @@
         "required": [
           "element_id",
           "state",
+          "built_revision",
           "behind",
           "done",
           "planned"

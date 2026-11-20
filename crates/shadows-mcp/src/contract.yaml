@@ -103,7 +103,7 @@ layout_only: Map records contain no starter files; the stage has no Structure st
 # task_done named as next.
 # task_diff { workflow_id, task_number } calls Runs::diff_for; task_file
 # { workflow_id, task_number, path } calls Runs::file_for. Both use answer and Refusal::from;
-# only the Planner's 29-tool grant lists them. Descriptions direct reading the commit before
+# only the Planner's grant lists them. Descriptions direct reading the commit before
 # judging, never asking for file contents; after an addition diff shows only its change and
 # patches beyond 2,000 lines in all direct task_file. file reads any path in writes and names
 # null text for deleted/binary files and cut for shortened ones. Tested by

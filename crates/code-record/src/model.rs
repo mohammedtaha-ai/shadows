@@ -57,6 +57,8 @@ pub struct ElementTask {
 pub struct ElementState {
     pub element_id: String,
     pub state: BuildState,
+    /// Always sent: null while no done task built the element.
+    #[schema(required)]
     pub built_revision: Option<i64>,
     pub behind: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
