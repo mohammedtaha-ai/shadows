@@ -216,6 +216,7 @@ fn the_document_names_every_route() {
             "GET /api/projects/{id}/agreements",
             "GET /api/projects/{id}/agreements/{agreement}",
             "GET /api/projects/{id}/agreements/{agreement}/review",
+            "GET /api/projects/{id}/code-where",
             "GET /api/projects/{id}/code/files",
             "GET /api/projects/{id}/code/links",
             "GET /api/projects/{id}/code/servers",

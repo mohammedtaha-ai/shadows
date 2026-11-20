@@ -217,7 +217,7 @@ Shared request for its route: `docs/shared/requests/2026-11-19-code-where.md` (a
 
 ### B-185 · The `code_where` route
 
-- Status: blocked (on B-183; the shared request `2026-11-19-code-where.md` was accepted on 2026-11-20)
+- Status: done
 - Plan: [plans/2026-11-19-code-record-2b.md#task-b-185--the-code_where-route](plans/2026-11-19-code-record-2b.md#task-b-185--the-code_where-route)
 - Read: the plan's rulings; `crates/shadows-http/src/contract.yaml`; the shared request.
 - Touch: the plan task's Files.

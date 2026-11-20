@@ -2931,6 +2931,25 @@
           }
         ]
       },
+      "ElementEntry": {
+        "properties": {
+          "element": {
+            "$ref": "#/components/schemas/DesignElement"
+          },
+          "rank": {
+            "$ref": "#/components/schemas/Rank"
+          },
+          "state": {
+            "$ref": "#/components/schemas/ElementState"
+          }
+        },
+        "required": [
+          "rank",
+          "element",
+          "state"
+        ],
+        "type": "object"
+      },
       "ElementGap": {
         "description": "An element in gap or unchecked, with why.",
         "properties": {
@@ -3473,6 +3492,98 @@
           "removed",
           "patch",
           "hunks"
+        ],
+        "type": "object"
+      },
+      "FileEntry": {
+        "properties": {
+          "confirmed": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Confirmation"
+              }
+            ]
+          },
+          "live": {
+            "$ref": "#/components/schemas/Live",
+            "description": "The file now."
+          },
+          "owner": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Owner"
+              }
+            ]
+          },
+          "path": {
+            "type": "string"
+          },
+          "rank": {
+            "$ref": "#/components/schemas/Rank"
+          },
+          "symbols": {
+            "description": "By name.",
+            "items": {
+              "$ref": "#/components/schemas/SymbolEntry"
+            },
+            "type": "array"
+          },
+          "tasks": {
+            "description": "Newest first: version, then task, then workflow id.",
+            "items": {
+              "$ref": "#/components/schemas/FileTask"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "rank",
+          "path",
+          "tasks",
+          "symbols",
+          "live"
+        ],
+        "type": "object"
+      },
+      "FileTask": {
+        "properties": {
+          "action": {
+            "type": "string"
+          },
+          "commit": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "purpose": {
+            "type": "string"
+          },
+          "task": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "version": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "workflow_id": {
+            "$ref": "#/components/schemas/WorkflowId"
+          }
+        },
+        "required": [
+          "workflow_id",
+          "version",
+          "task",
+          "action",
+          "purpose"
         ],
         "type": "object"
       },
@@ -4437,6 +4548,75 @@
         ],
         "type": "object"
       },
+      "Live": {
+        "description": "What the code says now, for a file or a symbol.",
+        "oneOf": [
+          {
+            "properties": {
+              "state": {
+                "enum": [
+                  "not_asked"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "state": {
+                "enum": [
+                  "confirmed"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "state": {
+                "enum": [
+                  "gap"
+                ],
+                "type": "string"
+              },
+              "why": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "why",
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "state": {
+                "enum": [
+                  "unchecked"
+                ],
+                "type": "string"
+              },
+              "why": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "why",
+              "state"
+            ],
+            "type": "object"
+          }
+        ]
+      },
       "MapAction": {
         "enum": [
           "first",
@@ -5293,6 +5473,28 @@
             "type": "object"
           }
         ]
+      },
+      "Owner": {
+        "description": "The part whose folder holds a path, and the first layer whose place does.",
+        "properties": {
+          "layer": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "part_id": {
+            "$ref": "#/components/schemas/PartId"
+          },
+          "part_title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "part_id",
+          "part_title"
+        ],
+        "type": "object"
       },
       "Part": {
         "properties": {
@@ -7421,6 +7623,16 @@
         "format": "uuid",
         "type": "string"
       },
+      "Rank": {
+        "description": "How a `code_where` entry matched its topic, best first.",
+        "enum": [
+          "exact",
+          "path",
+          "part",
+          "words"
+        ],
+        "type": "string"
+      },
       "RecheckFailure": {
         "description": "A done task whose recorded checks did not all pass on a recheck.",
         "properties": {
@@ -8467,6 +8679,94 @@
           "built",
           "gap",
           "unchecked"
+        ],
+        "type": "object"
+      },
+      "SymbolEntry": {
+        "properties": {
+          "at_done": {
+            "$ref": "#/components/schemas/SymbolState",
+            "description": "The state recorded when its task was marked done."
+          },
+          "behavior": {
+            "description": "From the recorded contract.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "line": {
+            "format": "int32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "live": {
+            "$ref": "#/components/schemas/Live"
+          },
+          "name": {
+            "type": "string"
+          },
+          "symbol_id": {
+            "type": "string"
+          },
+          "task": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "uses": {
+            "description": "Returned references, minus the symbol's own location, by path then line, at most 10.",
+            "items": {
+              "$ref": "#/components/schemas/UseLine"
+            },
+            "type": "array"
+          },
+          "uses_live": {
+            "$ref": "#/components/schemas/UsesLive",
+            "description": "The reference lookup's outcome, apart from `live`."
+          },
+          "uses_more": {
+            "description": "Returned references beyond the 10 listed. A lower bound when `uses_live` is `truncated`;\n0 when nothing was returned.",
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "uses_total": {
+            "description": "The exact number of uses, given only when `uses_live` is `answered`.",
+            "format": "int32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "version": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "workflow_id": {
+            "$ref": "#/components/schemas/WorkflowId"
+          }
+        },
+        "required": [
+          "symbol_id",
+          "name",
+          "kind",
+          "workflow_id",
+          "version",
+          "task",
+          "behavior",
+          "at_done",
+          "live",
+          "uses_live",
+          "uses",
+          "uses_more"
         ],
         "type": "object"
       },
@@ -9613,6 +9913,52 @@
         ],
         "type": "object"
       },
+      "UnrecordedFile": {
+        "description": "A file that matches the topic and that no done task's contract names.",
+        "properties": {
+          "owner": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Owner"
+              }
+            ]
+          },
+          "path": {
+            "type": "string"
+          },
+          "symbols": {
+            "items": {
+              "$ref": "#/components/schemas/UnrecordedSymbol"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "path",
+          "symbols"
+        ],
+        "type": "object"
+      },
+      "UnrecordedSymbol": {
+        "properties": {
+          "line": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "line"
+        ],
+        "type": "object"
+      },
       "UpdateProject": {
         "description": "Sets the modes this project allows, per harness.",
         "properties": {
@@ -9694,6 +10040,120 @@
           "by_model"
         ],
         "type": "object"
+      },
+      "UseLine": {
+        "properties": {
+          "line": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "owner": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Owner"
+              }
+            ]
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "line"
+        ],
+        "type": "object"
+      },
+      "UsesLive": {
+        "description": "What the reference lookup of one symbol did.",
+        "oneOf": [
+          {
+            "properties": {
+              "state": {
+                "enum": [
+                  "not_asked"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "state": {
+                "enum": [
+                  "answered"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "state": {
+                "enum": [
+                  "truncated"
+                ],
+                "type": "string"
+              },
+              "why": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "why",
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "state": {
+                "enum": [
+                  "failed"
+                ],
+                "type": "string"
+              },
+              "why": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "why",
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "state": {
+                "enum": [
+                  "skipped"
+                ],
+                "type": "string"
+              },
+              "why": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "why",
+              "state"
+            ],
+            "type": "object"
+          }
+        ]
       },
       "VersionLine": {
         "properties": {
@@ -9954,6 +10414,105 @@
           "asked_at"
         ],
         "type": "object"
+      },
+      "WhereAnswer": {
+        "description": "The answer to one question, record first.",
+        "properties": {
+          "asked": {
+            "description": "Language-server asks spent.",
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "budget": {
+            "description": "Why the live half stopped early, when it did.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "entries": {
+            "description": "Ranked, at most 20.",
+            "items": {
+              "$ref": "#/components/schemas/WhereEntry"
+            },
+            "type": "array"
+          },
+          "entries_more": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "not_in_record": {
+            "items": {
+              "$ref": "#/components/schemas/UnrecordedFile"
+            },
+            "type": "array"
+          },
+          "not_in_record_more": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "topic": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "topic",
+          "entries",
+          "entries_more",
+          "not_in_record",
+          "not_in_record_more",
+          "asked"
+        ],
+        "type": "object"
+      },
+      "WhereEntry": {
+        "oneOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FileEntry"
+              },
+              {
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "file"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": "object"
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ElementEntry"
+              },
+              {
+                "properties": {
+                  "kind": {
+                    "enum": [
+                      "element"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "type": "object"
+              }
+            ]
+          }
+        ]
       },
       "WorkflowId": {
         "format": "uuid",
@@ -14209,6 +14768,76 @@
         },
         "tags": [
           "agreements"
+        ]
+      }
+    },
+    "/api/projects/{id}/code-where": {
+      "get": {
+        "operationId": "code_where",
+        "parameters": [
+          {
+            "description": "The project",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ProjectId"
+            }
+          },
+          {
+            "description": "A topic, a path, a symbol, or an element id or name: 1 to 200 characters.",
+            "in": "query",
+            "name": "topic",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WhereAnswer"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "design"
         ]
       }
     },

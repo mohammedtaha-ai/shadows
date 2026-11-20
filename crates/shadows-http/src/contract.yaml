@@ -24,6 +24,7 @@ modules:
   harness.rs: Harness session HTTP translation
   design.rs: Design service HTTP translation
   project_state.rs: ProjectState service HTTP translation
+  code_record.rs: CodeRecord service HTTP translation
   plan_design.rs: Plans service design association HTTP translation
   standards.rs: Standards service HTTP translation
   aylul_providers.rs: Providers service HTTP translation
@@ -52,6 +53,11 @@ elements: >
   INVALID_ELEMENT is 422. Tested by design_routes::element_routes_list_states_and_revisions,
   project_state_routes::the_state_route_answers_the_method and
   project_state_routes::an_unknown_part_is_422.
+code_where: >
+  GET /api/projects/{id}/code-where?topic= calls CodeRecord::code_where (asking as
+  Asker::Person of the project) and answers WhereAnswer. An unknown or removed project is 404;
+  a blank or long topic is 422 INVALID_COMMAND. Tested by
+  code_where_routes::the_route_answers_the_method and code_where_routes::a_blank_topic_is_422.
 agreements:
   - between: [aylul_extensions::tools, aylul_extensions::tool_rules]
     must: Delegate per-agent MCP discovery and rule replacement to AppCore.extensions; discovery failures preserve stored rules.
