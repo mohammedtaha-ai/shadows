@@ -94,7 +94,7 @@ Every task's checks run from `web/`: the tests it names, then `npm run typecheck
 
 ### F-133 · The screen flow
 
-- Status: blocked (on F-132)
+- Status: done
 - Plan: [plans/2026-11-20-project-state-views.md#f-133--the-screen-flow](plans/2026-11-20-project-state-views.md#f-133--the-screen-flow)
 - Read: `web/src/app/project-state/tables-view.tsx`, `web/src/app/project-state/contract.yaml`.
 - Touch:

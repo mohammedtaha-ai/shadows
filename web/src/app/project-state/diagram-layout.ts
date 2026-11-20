@@ -93,7 +93,10 @@ export function screenDiagram(views: ElementView[]): { nodes: ElementNode[]; edg
     const content = view.element.content
     if (content.kind !== 'screen') continue
     const source = view.element.id
-    nodes.push(node(view, [content.route ?? 'No route', content.purpose], SCREEN_WIDTH))
+    // A link to a screen that is not shown cannot be drawn, so its node lists it.
+    const hidden = (content.leads_to ?? []).filter(link => !shown.has(link.screen))
+      .map(link => `→ ${link.screen} when ${link.when}`)
+    nodes.push(node(view, [content.route ?? 'No route', content.purpose, ...hidden], SCREEN_WIDTH))
     ;(content.leads_to ?? []).forEach((link, index) => {
       if (link.screen === source || !shown.has(link.screen)) return
       edges.push({ id: `link:${source}:${index}`, source, target: link.screen, data: { label: link.when } })

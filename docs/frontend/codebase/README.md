@@ -318,6 +318,9 @@ it is that folder's `contract.yaml`.
 | `web/src/app/project-state/element-panel.tsx` | One opened table or screen | `web/src/app/project-state/contract.yaml` |
 | `web/src/app/project-state/tables-view.tsx` | Tables as diagram, list or opened table | `web/src/app/project-state/contract.yaml` |
 | `web/src/app/project-state/tables-view.test.tsx` | Tables view checks over the fake daemon | `web/src/app/project-state/contract.yaml` |
+| `web/src/app/project-state/elements-view.tsx` | Tables or screens drawn as diagram plus list | `web/src/app/project-state/contract.yaml` |
+| `web/src/app/project-state/screens-view.tsx` | Screens as flow, list or opened screen | `web/src/app/project-state/contract.yaml` |
+| `web/src/app/project-state/screens-view.test.tsx` | Screens view checks over the fake daemon | `web/src/app/project-state/contract.yaml` |
 | `web/src/app/project-state/index.ts` | Expose app/project-state public capabilities | `web/src/app/project-state/contract.yaml` |
 | `web/src/app/design/index.ts` | Expose app/design public capabilities | `web/src/app/design/contract.yaml` |
 | `web/src/app/error-line.tsx` | Inline line saying why a daemon call failed | `web/src/app/copy-button.tsx` |

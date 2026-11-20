@@ -3,6 +3,7 @@ import { Link, useParams, useSearch } from '@tanstack/react-router'
 import { cn } from 'cn'
 import { Activity } from 'lucide-react'
 import { Panel } from '@/components/ui/panel'
+import { ScreensView } from './screens-view'
 import { StateView } from './state-view'
 import { TablesView } from './tables-view'
 
@@ -49,10 +50,20 @@ export function ProjectStatePage() {
             >
               Tables
             </Link>
+            <Link
+              to="/projects/$projectId/state"
+              params={{ projectId }}
+              search={{ view: 'screens' }}
+              className={tab(activeView === 'screens')}
+            >
+              Screens
+            </Link>
           </nav>
         </Panel>
         {view === 'tables' ? (
           <TablesView key={projectId} projectId={projectId} element={element} removed={removed === true} />
+        ) : view === 'screens' ? (
+          <ScreensView key={projectId} projectId={projectId} element={element} removed={removed === true} />
         ) : (
           <StateView key={projectId} projectId={projectId} part={part} removed={removed === true} />
         )}

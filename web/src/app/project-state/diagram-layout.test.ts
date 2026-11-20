@@ -46,8 +46,8 @@ it('screen_links_become_edges_labelled_with_when', () => {
     screen('E1', 'Login', [['E2', 'signed in'], ['E9', 'lost'], ['E1', 'again']], '/login'),
     screen('E2', 'Home', []),
   ])
-  expect(out.nodes.map(node => [node.id, node.width, node.height])).toEqual([['E1', 240, 100], ['E2', 240, 100]])
-  expect(out.nodes[0].data.rows).toEqual(['/login', 'Login purpose'])
+  expect(out.nodes.map(node => [node.id, node.width, node.height])).toEqual([['E1', 240, 118], ['E2', 240, 100]])
+  expect(out.nodes[0].data.rows).toEqual(['/login', 'Login purpose', '→ E9 when lost'])
   expect(out.nodes[1].data.rows[0]).toBe('No route')
   expect(out.edges).toEqual([{ id: 'link:E1:0', source: 'E1', target: 'E2', data: { label: 'signed in' } }])
 })
