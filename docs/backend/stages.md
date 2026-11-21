@@ -318,3 +318,46 @@ Shared request for its route: `docs/shared/requests/2026-11-19-code-where.md` (a
 - Needs: nothing.
 - Done when: the new test fails before the fix and passes after; the touched crates' tests; then
   the live check: a Python symbol in a file made after pyright started shows its uses.
+
+### B-193 · Shadows sends the code record with the Planner's context
+
+- Status: doing
+- Plan: this entry. Ruling (Mohammed, 2026-11-21): the Planner does not wait on itself to ask;
+  Shadows feeds it. Spec: `docs/backend/specs/2026-11-04-planner-context-design.md` §4.2 ("Code
+  record" layer, its cut order and owner); `docs/backend/specs/2026-11-19-project-code-record-design.md`
+  §5.3 (first paragraph). Live reason: B-186 step 1 failed three runs out of three (evidence P1, P8).
+- Rule:
+  - `CodeRecord::digest(project) -> Result<RecordDigest, CodeRecordError>`: the record only, no
+    language server. Per part of the approved map in map order (Design's `owners` for part and
+    layer, as `code_where` uses), each recorded file (newest record per path) with its purpose,
+    and its symbols with kind, inputs and returns from their contracts; files no part owns apart;
+    the elements in `gap` or `unchecked` with why (as `project_state` reads them); `marks`: the
+    count of done marks recorded. One read snapshot. Deterministic order (map order, layer, path,
+    symbol name).
+  - `Turns::planning_context` adds a "Code record" block after the index, rendered and budgeted
+    in `planning/` (about 3 000 tokens, `budget.rs`), with the spec's cut order and `[cut: …]`
+    markers; its source is `("code_record", project, marks)`, so a new done mark re-sends it
+    through the existing digest rule. An empty record writes one line saying so (no code yet
+    recorded: read the files the plan touches).
+  - `Turns` receives `CodeRecord` in its constructor (`AppCore::start` wiring; `core-turns`'
+    `Cargo.toml` gains `code-record`).
+  - Prompt (`crates/core-harness/src/prompt.txt`): "Know the project before you plan" and "Look
+    before you write a path" say the code record arrives in the context: plan from it; ask
+    `code_where` for a symbol's line now, its uses, or what the block cut; read a file only for
+    what neither gives. Keep B-191's one-short-thing line for `code_where`.
+- Read: `crates/core-turns/contract.yaml` (`planning_context`), `crates/core-turns/src/planning/`,
+  `crates/code-record/contract.yaml` and `src/code_where.rs` (how it reads the record and owners),
+  `crates/project-state` (how it reads element states), `crates/shadows-core/src/app.rs`.
+- Touch: `crates/code-record/src/{lib.rs,model.rs}` and a new `src/digest.rs` (+ store read if
+  needed), `crates/code-record/contract.yaml`; `crates/core-turns/src/planning/{mod.rs,block.rs,budget.rs}`,
+  `crates/core-turns/src/lib.rs` (constructor), `crates/core-turns/Cargo.toml`,
+  `crates/core-turns/contract.yaml`; `crates/shadows-core/src/app.rs` (wiring only);
+  `crates/core-harness/src/prompt.txt`, `crates/core-harness/contract.yaml`; the test pinning the
+  prompt (`crates/shadows/tests/mcp_tools.rs`); tests through the public API: the digest's shape and
+  order, the cut order, the empty record, and a planning context that carries it and is re-sent
+  after a new done mark; the code map (`docs/codebase/README.md`) for the new module.
+- Needs: nothing.
+- Done when: the new tests and the touched crates' tests pass; `cargo test -p shadows --test
+  architecture --test codemap --test contracts`; clippy for the touched crates; then live: a new
+  Planner conversation plans "people can change their email" naming existing files and symbols
+  without reading them first (B-186 step 1).

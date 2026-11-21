@@ -94,7 +94,20 @@ Three layers, in this order:
 |---|---|---|
 | **Index** | the vision's purpose items; the part tree to depth 2 (names and ids); outcome names and ids; agreement names with their agreed version | about 1 500 tokens |
 | **Detail** (anchored only) | the anchor's full text; its parent chain (names); its children (names and one line each); the plans linked to it: each latest version's title, task list and the rationale of its last 3 versions (§17.3); the agreements those plans bind, at their pinned versions. The project standards in effect are not in this block: the existing "changes since the session last heard" block carries them | about 8 000 tokens |
+| **Code record** (Mohammed, 2026-11-21) | what the project's done tasks built, from `CodeRecord`'s record only (no language server asked): per part of the approved map, in map order, and per layer, each recorded file with its purpose, and each of its symbols as `name (kind): inputs -> returns`; then the elements in `gap` or `unchecked` with why. Files no part owns come last | about 3 000 tokens |
 | **On request** | everything else, through the existing workspace tools; a missing read is a tool the plan adds | none |
+
+- **Why the code record is sent, not asked for** (Mohammed, 2026-11-21): live, the Planner did
+  not call `code_where` before reading files, three runs out of three, whatever the prompt said
+  (`docs/evidence/2026-11-21-code-record-2-live.md`, P1, P8). Shadows gives it what it knows;
+  `code_where` stays for a symbol's line now and its uses.
+- **Code record cut order** when over its budget: first the symbols' inputs and returns (the names
+  stay), then the symbols (the file keeps a count), then files, counted per part
+  (`[cut: 12 files under Backend · ask code_where with a path]`). Its source is
+  `("code_record", project, n)`, where `n` is the count of done marks recorded, so a new done
+  mark changes the digest and the block is sent again.
+- **Owner of the facts:** `CodeRecord::digest(project) -> Result<RecordDigest, CodeRecordError>`.
+  `Turns` renders and budgets it, as it does for Design and Plans.
 
 - **Sources.** Every piece carries `(kind, id, version or revision)`. The context block ends with
   its source list. A budget cut removes a source only when none of its content remains;

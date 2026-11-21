@@ -191,6 +191,11 @@ table or screen that the code does not match. The states above stay; a check is 
 
 ### 5.3 Asking
 
+Shadows does not wait to be asked (Mohammed, 2026-11-21): every Planner turn's planning context
+carries the record (files, purposes, symbols and their signatures, by part and layer), through
+`CodeRecord::digest` (planner context spec §4.2, "Code record"). The questions below are for
+what that block does not hold: a symbol's line now, its uses, and the live gaps.
+
 Each question is an MCP tool for the Planner and a route for the web, calling the same method.
 
 - **`project_state`** (slice 2a; argument `part_id`, optional): the overview from Shadows' own
