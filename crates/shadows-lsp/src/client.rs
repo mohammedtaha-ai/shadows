@@ -19,9 +19,14 @@ use lsp_types::{
 use serde_json::Value;
 use shadows_process::{ProcessHandle, ProcessSpec};
 use tokio::io::AsyncBufReadExt;
+use tokio::time::Instant;
 use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
 
 use crate::{FileChange, LspError, ServerSpec};
+
+/// How long a server must send nothing of its own, after `initialized`, before it
+/// is taken as having read its workspace.
+const QUIET: Duration = Duration::from_secs(1);
 
 /// A request whose params and answer stay JSON. `async-lsp` names a request by a
 /// type with a constant method, so each method a caller may ask is one type here.
@@ -97,6 +102,8 @@ impl Server {
             .take_stdio()
             .ok_or_else(|| LspError::Spawn("the server's stdio was not piped".into()))?;
 
+        let deadline = Instant::now() + timeout;
+        let heard = Arc::new(Mutex::new(Instant::now()));
         let error_lines = Arc::new(Mutex::new(ErrorLines::default()));
         let keep = error_lines.clone();
         tokio::spawn(async move {
@@ -111,10 +118,13 @@ impl Server {
         // async-lsp's loop panics when every socket to it is dropped while it runs
         // ("Sender is alive"), so its router keeps one: the loop then ends only when
         // the server's stdout closes, which a refused start's kill makes happen.
-        let (main_loop, socket) = MainLoop::new_client(|own: ServerSocket| {
+        let on_request = heard.clone();
+        let on_notification = heard.clone();
+        let (main_loop, socket) = MainLoop::new_client(move |own: ServerSocket| {
             let mut router = Router::new(own);
             router
-                .unhandled_request(|_, request| {
+                .unhandled_request(move |_, request| {
+                    Server::heard(&on_request);
                     // `workspace/configuration` wants one answer per item; every
                     // other server request (registrations, progress) wants null.
                     let answer = match request.params.get("items").and_then(Value::as_array) {
@@ -125,10 +135,13 @@ impl Server {
                     };
                     async move { Ok(answer) }
                 })
-                .unhandled_notification(|_, _| ControlFlow::Continue(()));
+                .unhandled_notification(move |_, _| {
+                    Server::heard(&on_notification);
+                    ControlFlow::Continue(())
+                });
             router
         });
-        let running = tokio::spawn(async move {
+        let mut running = tokio::spawn(async move {
             let _ = main_loop
                 .run_buffered(stdout.compat(), stdin.compat_write())
                 .await;
@@ -203,7 +216,34 @@ impl Server {
             .socket
             .notify::<Initialized>(InitializedParams {})
             .map_err(|_| server.exited())?;
+        // A server answers before it has read its workspace: pyright, asked at once,
+        // answers references with nothing while it loads its settings and lists its
+        // files, in silence, then registers its watchers again. It is taken as ready
+        // once it has sent nothing of its own for `QUIET`, or when the start's time
+        // runs out, since one that keeps talking has still initialized.
+        Server::heard(&heard);
+        loop {
+            let last = heard.lock().map_or_else(|_| Instant::now(), |at| *at);
+            let until = (last + QUIET).min(deadline);
+            if Instant::now() >= until {
+                break;
+            }
+            tokio::select! {
+                _ = &mut running => {
+                    server.kill();
+                    return Err(server.exited());
+                }
+                () = tokio::time::sleep_until(until) => {}
+            }
+        }
         Ok(server)
+    }
+
+    /// The server sent something of its own: it is not yet quiet.
+    fn heard(at: &Mutex<Instant>) {
+        if let Ok(mut at) = at.lock() {
+            *at = Instant::now();
+        }
     }
 
     /// Opens `path` with `text`, sends one request, and closes the file, whatever the answer.
