@@ -176,7 +176,7 @@ Dispatch is the controller's (Mohammed, 2026-11-19): the controller runs `backen
 
 ### B-181 · Acceptance on a real provider (2a)
 
-- Status: doing (run on 2026-11-21 on Claude Code, Mohammed's account; first plan, elements, live refresh and diagrams recorded in `docs/evidence/2026-11-21-code-record-2-live.md`; the diagram defects it found are fixed in `01f98d9`; left: run the second plan)
+- Status: done (2026-11-21, `docs/evidence/2026-11-21-code-record-2-live.md`: first plan, elements, live refresh and diagrams; the diagram defects fixed in `01f98d9`; the second plan run, its elements built and Sign in no longer behind, sixth run)
 - Plan: [plans/2026-11-19-code-record-2a.md#task-b-181--acceptance-on-a-real-provider-2a](plans/2026-11-19-code-record-2a.md#task-b-181--acceptance-on-a-real-provider-2a)
 - Touch: `docs/evidence/` (one new file); this entry's status.
 - Needs: B-176 to B-180, B-187; the frontend's tasks under the shared request.

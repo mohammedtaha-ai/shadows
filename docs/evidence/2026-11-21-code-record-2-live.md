@@ -103,6 +103,15 @@ The pyright process (`node …/langserver.index.js`) killed by hand while `shado
 Killing only the `pyright-langserver` launcher did not stop the server: its node child kept
 answering over the same pipes.
 
+## Sixth run · B-181, the second plan run
+
+The "Password reset" plan (second run's conversation) approved and run by the Planner: T1 to T4
+committed `7301f70`, `0a89df5`, `be2a6a1`, `4cb954e`, each judged and marked done with no conflict.
+Elements after it: E4 `password_reset_tokens` built r1 (`file_only`), E5 Forgot password and E6
+Reset password built r1 (`file_and_symbol`), E3 Sign in built r3, **no longer behind**. E1, E2
+unchanged and built. **B-181 holds.** (E7, from the change-email plan, is planned: that plan was
+not run.)
+
 ## Logs
 
 `daemon.log` over the run: 0 WARN, 0 ERROR (INFO and DEBUG only). Browser console: no errors on the
