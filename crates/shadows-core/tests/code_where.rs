@@ -235,6 +235,42 @@ async fn a_symbol_name_finds_its_file_with_its_tasks_newest_first() {
 }
 
 #[tokio::test]
+async fn a_symbol_entry_carries_its_contract_inputs_and_returns() {
+    let f = Fixture::new().await;
+    let inputs = serde_json::json!([
+        {"name": "email", "type_name": "str", "meaning": "the address to sign in with"},
+        {"name": "password", "type_name": "str", "meaning": "the secret it is checked against"},
+    ]);
+    let returns = serde_json::json!({"name": "", "type_name": "Session", "meaning": "the session"});
+    f.done(
+        1,
+        1,
+        serde_json::json!({
+            "files": [{"path": "api/auth.py", "action": "create", "purpose": "signing in"}],
+            "symbols": [
+                {"id": "s1", "path": "api/auth.py", "kind": "function", "name": "sign_in",
+                 "inputs": inputs, "returns": returns, "behavior": ["signs a person in"]},
+                {"id": "s2", "path": "api/auth.py", "kind": "class", "name": "Session",
+                 "behavior": ["holds a signed-in person"]},
+            ],
+        }),
+    )
+    .await;
+    let answer = f.ask("api/auth.py").await;
+    let entry = file(&answer, "api/auth.py");
+    let json = serde_json::to_value(&entry.symbols).unwrap();
+    let sign_in = &json[1];
+    assert_eq!(sign_in["name"], "sign_in");
+    assert_eq!(sign_in["inputs"], inputs);
+    assert_eq!(sign_in["returns"], returns);
+    let class = &json[0];
+    assert_eq!(class["name"], "Session");
+    assert_eq!(class["inputs"], serde_json::json!([]));
+    assert!(class.get("returns").is_none(), "{class}");
+    f.close().await;
+}
+
+#[tokio::test]
 async fn a_path_prefix_finds_the_files_under_it_and_escapes_like_wildcards() {
     let f = Fixture::new().await;
     f.done(1, 1, contract("db_x/a.py", "create", "one", &[]))

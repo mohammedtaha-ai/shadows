@@ -170,6 +170,16 @@ fn symbol_entry(row: &SymbolRow) -> Result<SymbolEntry, CodeRecordError> {
                 .collect()
         })
         .unwrap_or_default();
+    // The contract was valid when its task was marked done; absent keys are
+    // the serde defaults the contract itself takes.
+    let inputs = match contract.get("inputs") {
+        Some(inputs) if !inputs.is_null() => serde_json::from_value(inputs.clone())?,
+        _ => Vec::new(),
+    };
+    let returns = match contract.get("returns") {
+        Some(returns) if !returns.is_null() => Some(serde_json::from_value(returns.clone())?),
+        _ => None,
+    };
     let at_done: SymbolState =
         serde_json::from_value(serde_json::Value::String(row.state.clone()))?;
     Ok(SymbolEntry {
@@ -180,6 +190,8 @@ fn symbol_entry(row: &SymbolRow) -> Result<SymbolEntry, CodeRecordError> {
         version: row.version,
         task: u32::try_from(row.task).unwrap_or_default(),
         behavior,
+        inputs,
+        returns,
         at_done,
         live: Live::NotAsked,
         line: None,

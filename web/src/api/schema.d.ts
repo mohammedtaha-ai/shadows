@@ -4378,11 +4378,14 @@ export interface components {
             at_done: components["schemas"]["SymbolState"];
             /** @description From the recorded contract. */
             behavior: string[];
+            /** @description The contract's inputs, as the task wrote them. */
+            inputs: components["schemas"]["ContractValue"][];
             kind: string;
             /** Format: int32 */
             line?: number | null;
             live: components["schemas"]["Live"];
             name: string;
+            returns?: null | components["schemas"]["ContractValue"];
             symbol_id: string;
             /** Format: int32 */
             task: number;

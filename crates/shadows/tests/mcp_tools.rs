@@ -1027,8 +1027,8 @@ fn the_planner_is_told_to_ask_code_where_first() {
         "code_where for each thing the work touches: the names the person used, the parts and ",
         "elements project_state shows, and the paths and symbols code_where already gave you. ",
         "Its answer is the record: each file with its purpose and the plans and tasks that ",
-        "made it, its symbols with their contracts' behavior, their line now and who uses ",
-        "them, by part and layer."
+        "made it, its symbols with their contracts' inputs, returns and behavior, their line ",
+        "now and who uses them, by part and layer."
     );
     let read = concat!(
         "- Read a file only when code_where does not answer it: a file not in the record, a ",

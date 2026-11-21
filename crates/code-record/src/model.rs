@@ -259,6 +259,11 @@ pub struct SymbolEntry {
     pub task: u32,
     /// From the recorded contract.
     pub behavior: Vec<String>,
+    /// The contract's inputs, as the task wrote them.
+    pub inputs: Vec<core_plans::ContractValue>,
+    /// The contract's return; none for a class or when the contract gives none.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub returns: Option<core_plans::ContractValue>,
     /// The state recorded when its task was marked done.
     pub at_done: SymbolState,
     pub live: Live,

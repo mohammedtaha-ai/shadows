@@ -8695,6 +8695,13 @@
             },
             "type": "array"
           },
+          "inputs": {
+            "description": "The contract's inputs, as the task wrote them.",
+            "items": {
+              "$ref": "#/components/schemas/ContractValue"
+            },
+            "type": "array"
+          },
           "kind": {
             "type": "string"
           },
@@ -8711,6 +8718,17 @@
           },
           "name": {
             "type": "string"
+          },
+          "returns": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ContractValue",
+                "description": "The contract's return; none for a class or when the contract gives none."
+              }
+            ]
           },
           "symbol_id": {
             "type": "string"
@@ -8762,6 +8780,7 @@
           "version",
           "task",
           "behavior",
+          "inputs",
           "at_done",
           "live",
           "uses_live",

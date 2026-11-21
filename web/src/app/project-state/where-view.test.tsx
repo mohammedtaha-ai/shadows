@@ -11,7 +11,7 @@ afterEach(() => { app?.unmount(); app = null })
 const WHERE = 'GET /api/projects/p1/code-where'
 const owner = { part_id: 'web', part_title: 'Web client', layer: 'ui' }
 const symbol = (over: Partial<SymbolEntry> = {}): SymbolEntry => ({
-  symbol_id: 'login', name: 'login', kind: 'fn', at_done: 'found', behavior: [], live: { state: 'not_asked' },
+  symbol_id: 'login', name: 'login', kind: 'fn', at_done: 'found', behavior: [], inputs: [], live: { state: 'not_asked' },
   task: 1, version: 1, workflow_id: 'w1', uses: [], uses_live: { state: 'not_asked' }, uses_more: 0, uses_total: null, ...over,
 })
 const file = (path: string, rank: FileEntry['rank'], symbols: SymbolEntry[] = []): FileEntry & { kind: 'file' } => ({
