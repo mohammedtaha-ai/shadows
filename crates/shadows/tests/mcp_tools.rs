@@ -1009,26 +1009,34 @@ fn the_planner_is_told_to_ask_code_where_first() {
     let prompt = shadows_core::testing::PROMPT;
     let tool = concat!(
         "- code_where: before a contract names a file, a symbol, a table or a screen, ask ",
-        "code_where with a topic, a path or a name. It answers from Shadows' record first and ",
+        "code_where one short thing at a time: a name, a path or a symbol. It answers from ",
+        "Shadows' record first and ",
         "the language servers confirm it. Use its paths, names and element ids as they are; a ",
         "gap means the code no longer holds what a done task promised; a file not in the ",
         "record has no contract behind it, so read it before you change it."
     );
     let job = concat!(
         "- Know the project before you plan. Ask Shadows first: project_state for its parts, ",
-        "plans and tasks, then code_where for each thing the work touches. Read the code ",
-        "yourself only for what they do not answer, as \"Look before you write a path\" says: ",
-        "on Claude Code with Read, Grep and Glob; on Codex with shell commands in the ",
-        "project's folder, such as git ls-files, git grep, git show HEAD:<path>, rg, and ",
-        "Get-Content or cat. Shadows' tools are your only way to write the plan."
+        "plans and tasks, then code_where for each thing the work touches, one short thing ",
+        "per call. Read the code yourself only for what they do not answer, as \"Look before ",
+        "you write a path\" says: on Claude Code with Read, Grep and Glob; on Codex with ",
+        "shell commands in the project's folder, such as git ls-files, git grep, git show ",
+        "HEAD:<path>, rg, and Get-Content or cat. Shadows' tools are your only way to write ",
+        "the plan."
     );
     let ask = concat!(
         "- Before a task names a file, a function, a class, a table or a screen, ask ",
-        "code_where for each thing the work touches: the names the person used, the parts and ",
-        "elements project_state shows, and the paths and symbols code_where already gave you. ",
+        "code_where for each thing the work touches, one short thing per call: a name the ",
+        "person used, a path, a symbol, or an element id or name, in one to three words. Make ",
+        "several calls rather than one with a sentence: each name the person used, each part ",
+        "and element project_state shows, each path and symbol code_where already gave you. ",
         "Its answer is the record: each file with its purpose and the plans and tasks that ",
         "made it, its symbols with their contracts' inputs, returns and behavior, their line ",
         "now and who uses them, by part and layer."
+    );
+    let empty = concat!(
+        "- An empty answer to a long topic is not \"nothing there\": every word of a topic must ",
+        "meet in one file or one symbol. Ask again with each thing alone before you read a file."
     );
     let read = concat!(
         "- Read a file only when code_where does not answer it: a file not in the record, a ",
@@ -1050,7 +1058,7 @@ fn the_planner_is_told_to_ask_code_where_first() {
         .iter()
         .position(|line| *line == "Look before you write a path")
         .unwrap();
-    assert_eq!(lines[look + 1..look + 4], [ask, read, name]);
+    assert_eq!(lines[look + 1..look + 5], [ask, empty, read, name]);
     assert!(!prompt.contains("Read the code, search, and think before you plan"));
     assert!(!prompt.contains("Otherwise, before a task names a file"));
 }
@@ -1064,6 +1072,11 @@ async fn code_where_says_to_ask_before_reading() {
     let description = tool.description.as_deref().unwrap();
     let first = "Ask it before you read a file yourself; read only what it does not answer.";
     assert!(description.ends_with(first), "{description}");
+    let short = "Ask one short thing per call, one to three words";
+    assert!(description.contains(short), "{description}");
+    let empty = "an empty answer to a long topic is not \"nothing there\"; ask again with each \
+                 thing alone.";
+    assert!(description.contains(empty), "{description}");
     l.app
         .core
         .shut_down(std::time::Duration::from_secs(5), std::future::pending())

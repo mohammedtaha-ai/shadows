@@ -13,7 +13,9 @@ use shadows_core::Grant;
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub(super) struct CodeWhereArgs {
-    /// A topic (login), a path (backend/auth), a symbol, or an element id or name.
+    /// One short thing, one to three words: a name the person used (login), a path
+    /// (backend/auth), a symbol, or an element id or name. Never a sentence: call again for
+    /// each thing.
     topic: String,
 }
 
@@ -21,13 +23,16 @@ pub(super) struct CodeWhereArgs {
 impl Shadows {
     #[tool(
         description = "Ask where something is in this project before you name a file, a table or \
-            a screen: a topic (login), a path (backend/auth), a symbol, or an element id or name. \
-            Shadows answers from its record first: each file with the plans and tasks that made \
-            it, its symbols and their contracts, the elements and their states. Then the \
-            language servers confirm: each symbol's line now and who uses it, by part and layer. \
-            Within 30 asks and 20 seconds; what they did not reach is marked unchecked. Files no \
-            contract names are listed as not in the record. Ask it before you read a file \
-            yourself; read only what it does not answer."
+            a screen. Ask one short thing per call, one to three words: a name the person used \
+            (login), a path (backend/auth), a symbol, or an element id or name. Make several \
+            calls rather than one with a sentence: every word of a topic must meet in one file \
+            or one symbol, so an empty answer to a long topic is not \"nothing there\"; ask \
+            again with each thing alone. Shadows answers from its record first: each file with \
+            the plans and tasks that made it, its symbols and their contracts, the elements and \
+            their states. Then the language servers confirm: each symbol's line now and who uses \
+            it, by part and layer. Within 30 asks and 20 seconds; what they did not reach is \
+            marked unchecked. Files no contract names are listed as not in the record. Ask it \
+            before you read a file yourself; read only what it does not answer."
     )]
     async fn code_where(
         &self,

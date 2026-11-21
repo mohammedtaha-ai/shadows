@@ -121,7 +121,10 @@ layer_catalog: 'Planner standards text lists every kind presence and its layers 
 # plans (mcp_tools::the_planner_is_told_to_read_the_project_state), and to ask code_where before
 # a contract names a file, a symbol, a table or a screen, reading only the files it does not
 # answer for. "Your job" sends it to project_state and code_where before any reading, and "Look
-# before you write a path" opens with code_where, then reads only what it did not answer
+# before you write a path" opens with code_where, one short thing per call (a name the person
+# used, a path, a symbol, or an element id or name; one to three words), several calls rather
+# than one sentence; an empty answer to a long topic is not "nothing there", so it asks again
+# with each thing alone, then reads only what it did not answer
 # (mcp_tools::the_planner_is_told_to_ask_code_where_first).
 # executor.md tells the executor to build the saved element revisions and report a conflict.
 # executor.md has the executor report a contract it cannot build with `task_conflict` once, then
@@ -690,7 +693,8 @@ obligations:
       the_executor_reports_commands_and_leaves_its_writes_clean]
   - rule: >
       The Planner asks project_state and code_where before naming files or symbols in a
-      task, and reads a file only when code_where does not answer it (not in the record, a
+      task, one short thing per code_where call and each thing alone again after an empty
+      answer to a long topic, and reads a file only when code_where does not answer it (not in the record, a
       gap or an unchecked symbol, an empty record); it reads the manifest or composition
       root only when the task changes it, and then whole. It reads on Claude Code with
       Read, Grep and Glob, and on Codex with read-only shell commands in the project folder.
