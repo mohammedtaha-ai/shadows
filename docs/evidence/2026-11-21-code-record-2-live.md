@@ -78,6 +78,19 @@ Same project and database, `shadows serve` restarted on `ecbfb76`.
 | 2 | A new file `backend/accounts/probe_use.py` importing `SignIn`, asked again | Within 5 s: `uses_total: 4`, the new file listed. Removed afterwards. **B-192 holds.** |
 | 3 | New conversation: "people can change their email" (B-186 step 1, the plan's example) | First turn: `roadmap_propose` only. Drafting turn: `project_state`, `workflow_list`, `workspace_get`, ToolSearch loading `code_where`, then `git ls-files` and `cat` of 7 files, `design_elements`, then a `person_ask` (how a change of email proves who the person is). **No `code_where` call: B-186 step 1 fails a third time** with B-191's prompt in place. |
 
+## Fourth run · B-193 (the record sent with the context)
+
+`shadows serve` restarted on `55941d8`. New conversation: "people can change their email; they
+re-enter their current password".
+
+| # | Step | Observed |
+|---|---|---|
+| 1 | The first turn's planning context (`/api/operations/{id}/context`) | `planning_context: heard`. It holds "## Code record": every recorded file by part and layer with its purpose, functions with their signatures (`make_handler (function): core: AppCore -> type[...]`, `open_database (function): path: str -> sqlite3.Connection`), classes by name only (`SignIn (class)`): the contracts record no methods. |
+| 2 | The Planner's calls before `plan_edit` | `workflow_list`, `workspace_get`, `project_state`, `design_elements`, then two shell reads: `cat` of 9 files it then plans to change (`openapi.yaml`, `http.py`, `accounts.py`, `app_core.py`, `app.py`, `person.py`, `sqlite_people.py`, the web data access and screens) with an `ls` of `web/src/*` and `backend/tests`. **No `git ls-files` listing and no search for where things are**; no `code_where` call. Then roadmap change, decision, E1 revision, `draft_start`, `plan_edit`: four tasks, no blockers. |
+
+Reading: the Planner now plans from the record which files and parts to touch; it opens the files
+it modifies, to see the methods inside the classes, which neither the record nor `code_where` holds.
+
 ## Logs
 
 `daemon.log` over the run: 0 WARN, 0 ERROR (INFO and DEBUG only). Browser console: no errors on the

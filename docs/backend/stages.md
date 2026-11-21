@@ -321,7 +321,9 @@ Shared request for its route: `docs/shared/requests/2026-11-19-code-where.md` (a
 
 ### B-193 · Shadows sends the code record with the Planner's context
 
-- Status: doing
+- Status: done in `55941d8`; live, the block is sent and heard, and the Planner no longer lists the
+  folder; it still opens the files it modifies (evidence, fourth run). B-186 step 1's "no read
+  before `plan_edit`" waits on Mohammed: amend it to "no search for where things are"
 - Plan: this entry. Ruling (Mohammed, 2026-11-21): the Planner does not wait on itself to ask;
   Shadows feeds it. Spec: `docs/backend/specs/2026-11-04-planner-context-design.md` §4.2 ("Code
   record" layer, its cut order and owner); `docs/backend/specs/2026-11-19-project-code-record-design.md`
