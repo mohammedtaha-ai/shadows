@@ -226,8 +226,30 @@ Shared request for its route: `docs/shared/requests/2026-11-19-code-where.md` (a
 
 ### B-186 · Acceptance on a real provider (2b)
 
-- Status: doing (run on 2026-11-21, same evidence file: `code_where` answers and a hand-deleted symbol shows as a live gap; **the Planner did not call `code_where`** (P1, open); left: the stopped-server step)
+- Status: doing (run on 2026-11-21, same evidence file: `code_where` answers and a hand-deleted symbol shows as a live gap; **the Planner did not call `code_where`** (P1; traced, fix in B-188 and B-189); left: step 1 again after B-188, and the stopped-server step)
 - Plan: [plans/2026-11-19-code-record-2b.md#task-b-186--acceptance-on-a-real-provider-2b](plans/2026-11-19-code-record-2b.md#task-b-186--acceptance-on-a-real-provider-2b)
 - Touch: `docs/evidence/` (one new file); this entry's status.
 - Needs: B-184; B-181 run on the same project.
 - Done when: the evidence file records the three steps as they happened.
+
+### B-188 · The Planner asks `code_where` before it reads (P1)
+
+- Status: todo
+- Plan: [plans/2026-11-19-code-record-2b.md#task-b-188--the-planner-asks-code_where-before-it-reads-p1](plans/2026-11-19-code-record-2b.md#task-b-188--the-planner-asks-code_where-before-it-reads-p1)
+- Read: the plan task's root cause; `crates/core-harness/src/prompt.txt`;
+  `crates/core-harness/contract.yaml`; `crates/shadows-mcp/src/record_tools.rs`.
+- Touch: the plan task's Files.
+- Needs: nothing.
+- Done when: the plan task's "Done when"; then the controller's live check (B-186 step 1 again),
+  recorded in the evidence file.
+
+### B-189 · `code_where` gives each symbol's contract signature
+
+- Status: blocked (the amendment to `docs/shared/requests/2026-11-19-code-where.md` is not
+  accepted; then on B-188)
+- Plan: [plans/2026-11-19-code-record-2b.md#task-b-189--code_where-gives-each-symbols-contract-signature](plans/2026-11-19-code-record-2b.md#task-b-189--code_where-gives-each-symbols-contract-signature)
+- Read: `crates/code-record/contract.yaml` (`code_where`); `crates/code-record/src/model.rs`
+  (`SymbolEntry`); `crates/core-plans/contract.yaml` (`SymbolWork`, `ContractValue`).
+- Touch: the plan task's Files.
+- Needs: B-188; the request amendment accepted.
+- Done when: the plan task's "Done when".

@@ -560,3 +560,156 @@ It uses the project B-181 left: its first plan done, its tables and screens buil
 commit.
 
 **Done when:** the evidence records the three steps as they happened, failures included.
+
+---
+
+## Task B-188 · The Planner asks `code_where` before it reads (P1)
+
+Found live on 2026-11-21 (`docs/evidence/2026-11-21-code-record-2-live.md`, P1). In the second
+plan's conversation (thread `ccef3c4b-a45f-4038-a6ef-da4edf8ee94c`):
+- **Turn 1 (entries 3 to 10):** ToolSearch loaded `code_where` with the others; then it called
+  `project_state`, `workspace_get`, `workflow_list`, `project_files`, `design_elements` and
+  `decision_list`.
+- **Turn 4 (entries 35 to 37):** when told "Draft the password reset plan now", it read 14 files
+  with `cat` in shell loops, then called `draft_start`.
+- **Entry 47:** one more read, before its `plan_edit`.
+
+It never called `code_where`.
+
+### Root cause
+
+The prompt tells the Planner to read the files in four places and to ask `code_where` in one, and
+`code_where`'s answer does not hold what the reading rules ask for. Line numbers are those of
+`crates/core-harness/src/prompt.txt` at `39783ef`.
+
+1. **Line 8, "Your job", tells it to read the code before planning**, with Read, Grep and Glob,
+   or with `cat` on Codex. It sits before the tool list and names no exception.
+2. **Line 97 is a full reading rule.** It starts "Otherwise," with no clear antecedent, and
+   lists the manifest, the composition root, the layers' folders "and every file the task
+   modifies, whole. List them with project_files, then read them." A new feature always changes
+   the composition root, so the rule always applies.
+3. **Line 98 needs signatures:** "name a function only after you read where it is ... and what is
+   beside it. A plan written from file names alone is not ready." `code_where` gives a symbol's
+   name, line, behavior text and uses, but not its inputs or returns. The recorded contract has
+   them (`code_record_symbol.contract_json`), yet `SymbolEntry` carries only `behavior`
+   (`crates/code-record/src/model.rs`; the live answer for `sign_in` shows the keys `at_done,
+   behavior, kind, line, live, name, symbol_id, task, uses, uses_live, uses_more, uses_total,
+   version, workflow_id`). A Planner that follows line 98 must read the file.
+4. **Line 99:** "Never write a framework's layout from memory when the folder is there to read."
+5. **Line 96 is the one exemption** ("Ask code_where first ... you need not read the file"), and
+   it covers only a file the record answers with no gap. Line 21 lists `code_where` in the
+   tool list, between `project_state` and `workspace_get`.
+6. **The tool description** (`crates/shadows-mcp/src/record_tools.rs`) says what `code_where`
+   answers, but not that it comes before reading.
+7. **Turn 1's `project_files`** gave every path. Lines 8 and 97 then make `cat` the shortest
+   compliant route.
+
+What Shadows sends with each turn (the stage line, the standards) does not mention reading
+(`invocation.txt`, `harness-info.txt`, `preferences.txt` checked), so the conflict is in
+`prompt.txt` alone.
+
+### The fix: prompt and description here; signatures in B-189
+
+**Files:**
+- **Modify:**
+  - `crates/core-harness/src/prompt.txt`;
+  - `crates/core-harness/contract.yaml` (the comment that names these lines and their tests);
+  - `crates/shadows-mcp/src/record_tools.rs` (the description);
+  - `crates/shadows-mcp/src/contract.yaml`;
+  - `crates/shadows/tests/mcp_tools.rs`.
+- **Not:** CodeRecord; any API shape; `crates/shadows/tests/code_scope.rs`, whose three assertions
+  stay true.
+- **Needs:** nothing.
+
+**Prompt, line 8**, replaced by exactly:
+
+```text
+- Know the project before you plan. Ask Shadows first: project_state for its parts, plans and tasks, then code_where for each thing the work touches. Read the code yourself only for what they do not answer, as "Look before you write a path" says: on Claude Code with Read, Grep and Glob; on Codex with shell commands in the project's folder, such as git ls-files, git grep, git show HEAD:<path>, rg, and Get-Content or cat. Shadows' tools are your only way to write the plan.
+```
+
+**Prompt, "Look before you write a path"**: lines 96 to 98 replaced by exactly these three lines;
+lines 99 and 100 stay:
+
+```text
+- Before a task names a file, a function, a class, a table or a screen, ask code_where for each thing the work touches: the names the person used, the parts and elements project_state shows, and the paths and symbols code_where already gave you. Its answer is the record: each file with its purpose and the plans and tasks that made it, its symbols with their contracts' behavior, their line now and who uses them, by part and layer.
+- Read a file only when code_where does not answer it: a file not in the record, a file with a gap or an unchecked symbol, or a project whose record is empty. Read the manifest (composer.json, package.json, go.mod, Cargo.toml) or the composition root (its AppCore, main, bootstrap or service container) only when the task changes it, and then whole. List what you read with project_files.
+- A task names what the executor will write and where each layer's part of it goes, as the project already does it; name a function only after code_where or your reading showed where it is or will be and what is beside it. A plan written from file names alone is not ready.
+```
+
+**Prompt, line 92 (Setup)**, "then read the files that appeared as" becomes "then look at the
+files that appeared as", with the rest of the line unchanged.
+
+**Description** (`record_tools.rs`): append one sentence to the end of the existing text:
+"Ask it before you read a file yourself; read only what it does not answer."
+
+**Tests** (`crates/shadows/tests/mcp_tools.rs`):
+- `the_planner_is_told_to_ask_code_where_first` asserts the three new lines and line 8's new
+  text. It also asserts the prompt no longer holds "Read the code, search, and think before you
+  plan" or "Otherwise, before a task names a file".
+- `code_where_says_to_ask_before_reading`: the Planner's tool list gives `code_where` a
+  description that ends with the new sentence. Read it as
+  `the_planner_is_told_an_indexing_listing_is_not_complete` reads `project_files`' description.
+
+**Done when:**
+- `cargo test -p shadows --test mcp_tools --test code_scope --test mcp_server`;
+- the gate list.
+
+**Live check** (the controller, after B-188; B-186 step 1 again):
+- **Setup:** on the `accounts` project, a new conversation, a change that touches existing code
+  ("people can change their email").
+- **Read:** the tool calls in order, from `GET /api/threads/{id}/entries`.
+- **Pass when:**
+  - the first `code_where` call comes before any `Read`, `Grep`, `Glob` or shell read of a project
+    file;
+  - every file read afterwards is one `code_where` did not answer with no gap, or a manifest or
+    composition root the plan's tasks modify;
+  - its `plan_edit` names the files and symbols as `code_where` gave them.
+- **Record:** the order in the evidence file. If it still reads files `code_where` answered,
+  note which and why it said it needed them: that is B-189's case.
+
+---
+
+## Task B-189 · `code_where` gives each symbol's contract signature
+
+**Status at writing:** blocked until the amendment to
+`docs/shared/requests/2026-11-19-code-where.md` is accepted (two fields added to `SymbolEntry`).
+
+Line 98 asks the Planner to know a function before it names one. The record holds each symbol's
+inputs and return in `code_record_symbol.contract_json` (a `SymbolWork`), and `code_where` drops
+them. With them the answer needs no read for a recorded file with no gap.
+
+**Files:**
+- **Modify:**
+  - `crates/code-record/src/model.rs` (`SymbolEntry`);
+  - `crates/code-record/src/code_where.rs` (filled from `contract_json`, beside `behavior`);
+  - `crates/code-record/contract.yaml`;
+  - `crates/shadows-core/tests/code_where.rs`;
+  - `crates/core-harness/src/prompt.txt` (one phrase) and `crates/shadows/tests/mcp_tools.rs`;
+  - `api/openapi.json` (regenerated);
+  - `docs/shared/requests/2026-11-19-code-where.md` (only if the shape changes from the amendment).
+- **Needs:** B-188; the request amendment accepted.
+
+**Shape** (`SymbolEntry`, after `behavior`):
+
+```rust
+/// The contract's inputs, as the task wrote them.
+pub inputs: Vec<core_plans::ContractValue>,
+/// The contract's return; none for a class or when the contract gives none.
+#[serde(skip_serializing_if = "Option::is_none")]
+pub returns: Option<core_plans::ContractValue>,
+```
+
+**Prompt:** in the first new line of B-188, "its symbols with their contracts' behavior" becomes
+"its symbols with their contracts' inputs, returns and behavior".
+
+**Tests:**
+- `a_symbol_entry_carries_its_contract_inputs_and_returns`: a recorded `SymbolWork` with two
+  inputs and a return gives them back unchanged.
+- `mcp_tools::the_planner_is_told_to_ask_code_where_first`: updated for the phrase.
+
+Then `UPDATE_OPENAPI=1 cargo test -p shadows --test openapi`.
+
+**Done when:**
+- `cargo test -p shadows-core --features test-support --test code_where`;
+- `cargo test -p shadows --test openapi --test mcp_tools`;
+- the gate list.

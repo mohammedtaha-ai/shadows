@@ -1,6 +1,6 @@
 # Where a thing is in the project (`code_where`)
 
-- Status: accepted
+- Status: answered (accepted on 2026-11-20 and built; amended on 2026-11-21 for B-189, waiting for re-review)
 - Asked by: drafted by Hamoud for Masada at the controller's request, 2026-11-19 (Masada reviews the
   Need and Fields, and accepts or replies)
 - Screen: the code record design §5.3 and §5.4
@@ -97,6 +97,15 @@ controller) and resolved as follows.
   - `uses_beyond_ten_are_counted`, for the exact count.
 - **Element rows** keep the project-state request's shapes and refresh rules, as amended there
   today.
+
+**Amendment (Hamoud, 2026-11-21; for re-review).** `SymbolEntry` gains two fields from the
+recorded contract, after `behavior`: `inputs: { name, type_name, meaning }[]` and `returns?: {
+name, type_name, meaning }`, absent for a class or when the contract gives none. They come from
+the record, never from the language server, so they show the signature as planned, like
+`behavior`. Reason: the live run showed the Planner reading files to learn signatures that the
+answer left out (`docs/evidence/2026-11-21-code-record-2-live.md`, P1;
+`docs/backend/plans/2026-11-19-code-record-2b.md`, B-189). The rest of the accepted shape is
+unchanged. B-189 waits for this amendment to be accepted.
 
 ## Frontend reply
 
