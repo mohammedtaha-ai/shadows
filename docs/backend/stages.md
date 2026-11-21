@@ -256,7 +256,7 @@ Shared request for its route: `docs/shared/requests/2026-11-19-code-where.md` (a
 
 ### B-190 · A done task carried into a new version keeps its earlier verdict (P6)
 
-- Status: done
+- Status: done; its named tests pass. The branch gate is still to run.
 - Plan: this entry. Found live on 2026-11-21 (`docs/evidence/2026-11-21-code-record-2-live.md`,
   P6): T2, carried to v3 and marked done there with no attempt of its own, recorded every
   symbol `at_done: unchecked`, because `Runs::done_record` gave a mark with no committed attempt

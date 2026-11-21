@@ -373,10 +373,7 @@ impl Runs {
 
     /// A committed attempt's commit, the contract its saved context gave it
     /// and its `contract` check's verdict.
-    async fn attempt_record(
-        &self,
-        id: &AttemptId,
-    ) -> Result<AttemptRecord, RunsError> {
+    async fn attempt_record(&self, id: &AttemptId) -> Result<AttemptRecord, RunsError> {
         let commit = self.attempt(id).await?.commit;
         let contract = self
             .inner
