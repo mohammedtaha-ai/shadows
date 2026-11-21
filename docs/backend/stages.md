@@ -175,7 +175,7 @@ Dispatch is the controller's (Mohammed, 2026-11-19): the controller runs `backen
 
 ### B-181 · Acceptance on a real provider (2a)
 
-- Status: blocked (on B-176 to B-180, B-187 and Masada's diagrams)
+- Status: doing (run on 2026-11-21 on Claude Code, Mohammed's account; first plan, elements, live refresh and diagrams recorded in `docs/evidence/2026-11-21-code-record-2-live.md`; the diagram defects it found are fixed in `01f98d9`; left: run the second plan)
 - Plan: [plans/2026-11-19-code-record-2a.md#task-b-181--acceptance-on-a-real-provider-2a](plans/2026-11-19-code-record-2a.md#task-b-181--acceptance-on-a-real-provider-2a)
 - Touch: `docs/evidence/` (one new file); this entry's status.
 - Needs: B-176 to B-180, B-187; the frontend's tasks under the shared request.
@@ -226,7 +226,7 @@ Shared request for its route: `docs/shared/requests/2026-11-19-code-where.md` (a
 
 ### B-186 · Acceptance on a real provider (2b)
 
-- Status: blocked (on B-184 and B-181)
+- Status: doing (run on 2026-11-21, same evidence file: `code_where` answers and a hand-deleted symbol shows as a live gap; **the Planner did not call `code_where`** (P1, open); left: the stopped-server step)
 - Plan: [plans/2026-11-19-code-record-2b.md#task-b-186--acceptance-on-a-real-provider-2b](plans/2026-11-19-code-record-2b.md#task-b-186--acceptance-on-a-real-provider-2b)
 - Touch: `docs/evidence/` (one new file); this entry's status.
 - Needs: B-184; B-181 run on the same project.
