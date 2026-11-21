@@ -393,7 +393,7 @@ export function screenDiagram(views: ElementView[]): { nodes: ElementNode[]; edg
 - **Screen rows:** `[route ?? 'No route', purpose]`.
   - A screen's edge is `{ id: `link:${source}:${index}`, source, target: link.screen, label:
     link.when }`, only when the target is shown and is not the source.
-- **Sizes:** tables are 260 wide, screens 240. The height is `64 + rows.length * 18`.
+- **Sizes:** tables are 260 wide, screens 240. The height is the sum of `NODE_LINES` in `diagram-layout.ts` (frame, name, id, badge, the behind line when shown, gap, and 18 per row), the same numbers the node draws with (fixed after the live run, `01f98d9`).
 - **Placement:** one private `place(nodes, edges)` runs dagre with `rankdir: 'LR'`,
   `nodesep: 48`, `ranksep: 120`. It sets:
   - `width`, `height` and `measured`;
