@@ -234,7 +234,7 @@ Shared request for its route: `docs/shared/requests/2026-11-19-code-where.md` (a
 
 ### B-188 · The Planner asks `code_where` before it reads (P1)
 
-- Status: todo
+- Status: done (the controller's live check is still to run)
 - Plan: [plans/2026-11-19-code-record-2b.md#task-b-188--the-planner-asks-code_where-before-it-reads-p1](plans/2026-11-19-code-record-2b.md#task-b-188--the-planner-asks-code_where-before-it-reads-p1)
 - Read: the plan task's root cause; `crates/core-harness/src/prompt.txt`;
   `crates/core-harness/contract.yaml`; `crates/shadows-mcp/src/record_tools.rs`.

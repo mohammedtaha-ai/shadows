@@ -26,7 +26,8 @@ impl Shadows {
             it, its symbols and their contracts, the elements and their states. Then the \
             language servers confirm: each symbol's line now and who uses it, by part and layer. \
             Within 30 asks and 20 seconds; what they did not reach is marked unchecked. Files no \
-            contract names are listed as not in the record."
+            contract names are listed as not in the record. Ask it before you read a file \
+            yourself; read only what it does not answer."
     )]
     async fn code_where(
         &self,

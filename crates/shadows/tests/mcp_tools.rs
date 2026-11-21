@@ -1014,20 +1014,61 @@ fn the_planner_is_told_to_ask_code_where_first() {
         "gap means the code no longer holds what a done task promised; a file not in the ",
         "record has no contract behind it, so read it before you change it."
     );
-    let first = concat!(
-        "- Ask code_where first. When it answers a file from the record with no gap, use that ",
-        "answer: you need not read the file. Read the files it does not answer for: a file not ",
-        "in the record, a file with a gap or an unchecked symbol, or a project whose record is ",
-        "empty."
+    let job = concat!(
+        "- Know the project before you plan. Ask Shadows first: project_state for its parts, ",
+        "plans and tasks, then code_where for each thing the work touches. Read the code ",
+        "yourself only for what they do not answer, as \"Look before you write a path\" says: ",
+        "on Claude Code with Read, Grep and Glob; on Codex with shell commands in the ",
+        "project's folder, such as git ls-files, git grep, git show HEAD:<path>, rg, and ",
+        "Get-Content or cat. Shadows' tools are your only way to write the plan."
+    );
+    let ask = concat!(
+        "- Before a task names a file, a function, a class, a table or a screen, ask ",
+        "code_where for each thing the work touches: the names the person used, the parts and ",
+        "elements project_state shows, and the paths and symbols code_where already gave you. ",
+        "Its answer is the record: each file with its purpose and the plans and tasks that ",
+        "made it, its symbols with their contracts' behavior, their line now and who uses ",
+        "them, by part and layer."
+    );
+    let read = concat!(
+        "- Read a file only when code_where does not answer it: a file not in the record, a ",
+        "file with a gap or an unchecked symbol, or a project whose record is empty. Read the ",
+        "manifest (composer.json, package.json, go.mod, Cargo.toml) or the composition root ",
+        "(its AppCore, main, bootstrap or service container) only when the task changes it, ",
+        "and then whole. List what you read with project_files."
+    );
+    let name = concat!(
+        "- A task names what the executor will write and where each layer's part of it goes, ",
+        "as the project already does it; name a function only after code_where or your ",
+        "reading showed where it is or will be and what is beside it. A plan written from ",
+        "file names alone is not ready."
     );
     assert!(prompt.lines().any(|line| line == tool));
+    assert!(prompt.lines().any(|line| line == job));
     let lines: Vec<&str> = prompt.lines().collect();
     let look = lines
         .iter()
         .position(|line| *line == "Look before you write a path")
         .unwrap();
-    assert_eq!(lines[look + 1], first);
-    assert!(lines[look + 2].starts_with("- Otherwise, before a task names a file, "));
+    assert_eq!(lines[look + 1..look + 4], [ask, read, name]);
+    assert!(!prompt.contains("Read the code, search, and think before you plan"));
+    assert!(!prompt.contains("Otherwise, before a task names a file"));
+}
+
+#[tokio::test]
+async fn code_where_says_to_ask_before_reading() {
+    let l = listening_app().await;
+    let planner = thread_client(&l, &l.app.thread).await;
+    let tools = planner.list_all_tools().await.unwrap();
+    let tool = tools.iter().find(|t| t.name == "code_where").unwrap();
+    let description = tool.description.as_deref().unwrap();
+    let first = "Ask it before you read a file yourself; read only what it does not answer.";
+    assert!(description.ends_with(first), "{description}");
+    l.app
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
 }
 
 #[test]
@@ -1037,7 +1078,7 @@ fn the_planner_sets_the_project_up_first() {
         "set the project up before you plan anything in detail",
         "Every setup task writes files.",
         "git status shows nothing left uncommitted",
-        "read the files that appeared as \"Look before you write a path\" says",
+        "look at the files that appeared as \"Look before you write a path\" says",
         "Only a task of the plan titled \"Setup\" (in any case) may commit binary files",
     ];
     for text in texts {
@@ -1107,8 +1148,8 @@ fn the_planner_reads_the_code_before_it_plans() {
         "on Codex with shell commands in the project's folder",
         "Your shell is for installing tools and preparing the environment",
         "call project_change_note with the paths and why",
-        "the composition root, where the application is wired",
-        "and every file the task modifies, whole",
+        "or the composition root (its AppCore, main, bootstrap or service container)",
+        "only when the task changes it, and then whole",
         "A plan written from file names alone is not ready.",
     ] {
         assert!(prompt.contains(text), "{text}");
