@@ -676,3 +676,119 @@ async fn marking_done_writes_the_code_record_and_undone_removes_it() {
     assert_eq!(rows().await, (vec![], vec![]));
     f.finish().await;
 }
+
+/// Task 3 checked (login found, logout missing) and marked done in v1, then
+/// carried into an approved v2, its contract's first behavior changed when
+/// `change`; v2's task 3 is marked done with no attempt of its own. Answers
+/// v2's recorded symbols.
+async fn carried_record(change: bool) -> Vec<(String, String, String)> {
+    let (f, id) = candidate(vec![], &["login", "logout"], "def login():\n    pass\n").await;
+    f.core
+        .code_record()
+        .record_answer_for_tests(FILE, functions(&["login"]));
+    f.core.runs().recover().await.unwrap();
+    assert_eq!(
+        results(&f, &id, 1).await[0].outcome,
+        Some(CheckOutcome::Failed)
+    );
+    f.core
+        .runs()
+        .mark_done("v1-done".into(), &f.workflow, 1, 3, true, Some("ok".into()))
+        .await
+        .unwrap();
+    let plan_id = f.core.plans().get(&f.workflow).await.unwrap().plan_id;
+    let grant = super::planner_grant(&f).await;
+    let writer = Writer::Planner {
+        thread: grant.thread_id.unwrap(),
+        grant: grant.id,
+    };
+    let next = f
+        .core
+        .plans()
+        .start_draft_for_test(
+            &command("v2"),
+            &writer,
+            &f.project,
+            Some(&plan_id),
+            Some(&f.workflow),
+            None,
+            Some("Correct the plan"),
+            None,
+            None,
+            &[],
+        )
+        .await
+        .unwrap()
+        .workflow_id;
+    if change {
+        let draft = f.core.plans().get(&next).await.unwrap();
+        let mut content = draft
+            .tasks
+            .iter()
+            .find(|t| t.content.number == 3)
+            .unwrap()
+            .content
+            .clone();
+        let contract = content.contract.as_mut().unwrap();
+        contract.symbols[0].behavior = vec!["Signs a person in".into()];
+        f.core
+            .plans()
+            .edit_plan_for_test(
+                &command("v2-change"),
+                &writer,
+                None,
+                &next,
+                draft.revision,
+                &[PlanOp::TaskUpdate { task: content }],
+            )
+            .await
+            .unwrap();
+    }
+    let revision = f.core.plans().get(&next).await.unwrap().revision;
+    f.core
+        .plans()
+        .approve_plan_for_test(&command("approve-v2"), &next, revision)
+        .await
+        .unwrap();
+    f.core
+        .runs()
+        .mark_done("v2-done".into(), &next, 2, 3, true, None)
+        .await
+        .unwrap();
+    let dbg: Vec<(String, Option<String>)> = sqlx::query_as("SELECT workflow_id, copied_from FROM task WHERE number = 3").fetch_all(f.storage.reader()).await.unwrap();
+    eprintln!("DBG tasks {dbg:?}");
+    let dbg: Vec<(String, i64, Option<String>)> = sqlx::query_as("SELECT workflow_id, version, judged_attempt_id FROM run_task_marks").fetch_all(f.storage.reader()).await.unwrap();
+    eprintln!("DBG marks {dbg:?} attempt {id:?}");
+    let rows = sqlx::query_as(
+        "SELECT symbol_id, name, state FROM code_record_symbol
+         WHERE workflow_id = ? AND task = 3 ORDER BY symbol_id",
+    )
+    .bind(next.as_str())
+    .fetch_all(f.storage.reader())
+    .await
+    .unwrap();
+    f.finish().await;
+    rows
+}
+
+#[tokio::test]
+async fn a_task_carried_with_its_contract_unchanged_keeps_its_verdict() {
+    assert_eq!(
+        carried_record(false).await,
+        vec![
+            ("s1".into(), "login".into(), "found".into()),
+            ("s2".into(), "logout".into(), "missing".into()),
+        ]
+    );
+}
+
+#[tokio::test]
+async fn a_task_carried_with_a_changed_contract_stays_unchecked() {
+    assert_eq!(
+        carried_record(true).await,
+        vec![
+            ("s1".into(), "login".into(), "unchecked".into()),
+            ("s2".into(), "logout".into(), "unchecked".into()),
+        ]
+    );
+}
