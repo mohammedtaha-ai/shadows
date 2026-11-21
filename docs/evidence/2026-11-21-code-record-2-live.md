@@ -26,7 +26,9 @@ sign in"); each was approved.
 | P4 | **The Planner wrote check commands that cannot pass.** T1 to T3's checks ran `python3 -I -m unittest …`; `-I` drops the project folder from `sys.path`, so `backend` cannot be imported. T3's contract also left an existing test (`test_accounts.py`, asserting `routes() == {}`) outside T3's writes. Each was caught by the executor (a contract conflict) and corrected by the Planner in a new plan version (v2, v3). | Planner behaviour, not this slice | recorded; no change |
 | P5 | **The Planner misread the plan's state once.** After v2 was approved (entry 68, "Plan v2 approved"), it told the person "Version 2 is still a draft, and nothing is approved yet" and asked for an approval already given. | Planner behaviour, not this slice | recorded; no change |
 | P6 | **A done task carried into a new version keeps `at_done: unchecked`.** T2's symbols, carried to v3 as done with v2's commit, answer `at_done: "unchecked"` in `code_where`, while `live` confirms them. Expected by the design (a done mark with no attempt in that version has no verdict), but it reads as if they were never checked. | `CodeRecord` record rows | recorded; open whether to carry the earlier verdict |
-| P7 | **`code_where`'s answer-level `gaps` stayed empty** when a promised symbol was live `gap` (the hand-deleted `SignIn`); the gap shows only on the symbol. To check against the 2b plan's shape. | `crates/code-record/src/code_where.rs` | open: to check |
+| P7 | **`code_where`'s answer-level `gaps` stayed empty** when a promised symbol was live `gap` (the hand-deleted `SignIn`); the gap shows only on the symbol. To check against the 2b plan's shape. | `crates/code-record/src/code_where.rs` | closed, not a defect: the agreed `WhereAnswer` (shared request, `api/openapi.json`, `model.rs`) has no answer-level `gaps`; the design puts the gaps on the entries |
+| P8 | **A long topic finds nothing, and the Planner then reads every file.** In the second run its one `code_where` call asked `"sign-in and sign-up logic, composition, repository, API handlers, web data access"`. The words tier needs every word in one file's purpose or one symbol's contract, so the answer was `entries: []`; the prompt then sends it to read what `code_where` did not answer, and it read 12 files with `cat` before `plan_edit`. One short topic (`sign_in`) gives 11 entries. Neither the tool description nor the prompt says to ask one short thing per call. | `crates/code-record/src/ranking.rs` (`words`), `crates/shadows-mcp/src/record_tools.rs`, `crates/core-harness/src/prompt.txt` | open: owner decision (the prompt and tool description, or the words tier) |
+| P9 | **`uses_live: answered` with no uses for Python symbols that have callers.** pyright started before the executors wrote `backend/accounts/`; `SignIn` (used twice in `app_core.py`) and `AppCore` (six uses) answered `uses: []`. pyright run by hand on the same folder returns them, and after a restart of `shadows serve` the same question returns them (its first ask right after the restart also answered `[]`, while pyright was still reading). An empty `uses` under `answered` claims no callers, so this answer is wrong, not unchecked. TypeScript uses were right throughout. | `crates/codebase` (a running pyright's view of files made after it started), `crates/code-record/src/code_where.rs` | open: root cause to trace |
 
 ## B-181 · the first plan, the elements and the browser
 
@@ -51,6 +53,20 @@ behind.
 | 2 | `GET /api/projects/{id}/code-where?topic=sign_in` | 200 in 0.2 s. `backend/app/application/accounts.py` (Backend · application) with its tasks and commits; `PasswordHasher` line 39, `PersonRepository` line 31, `SignIn` line 56, each `live: confirmed` by pyright, `uses_live: answered`, `uses_total: 3`, uses grouped by part and layer (Backend · application, Backend · composition). |
 | 3 | Deleted `class SignIn` from `accounts.py` by hand, asked `topic=SignIn`, then restored the file | `SignIn`: `live: {state: gap, why: "SignIn is not in backend/app/application/accounts.py now"}`, `uses_live: not_asked`. Answer-level `gaps` was empty (P7). |
 | 4 | A stopped language server gives the record's half marked unchecked | Not yet run. |
+
+## Second run · B-190, B-188 and B-186 step 1 again
+
+Branch `ccr-9e1b02d8-b0ylm1` at `d3a5431` (B-190), `shadows serve --debug` in a new cloud session on
+a fresh database, web dev server (Vite). Claude Code on Mohammed's account, Planner and executors
+on `sonnet` (observed `claude-sonnet-5-5`), mode Auto. A new `Accounts` project of the same shape.
+
+| # | Step | Observed |
+|---|---|---|
+| 1 | First plan: vision, map (TypeScript frontend in `web/`), roadmap, plan with E1 `people`, E2 Sign up, E3 Sign in | v1's T1 committed `8acedf8`; Shadows' rerun of its check found `__pycache__` written outside its writes and the executor reported a contract conflict. The Planner made v2 (a `.gitignore`, `python3 -B` in the checks), approved it on the person's word and ran T1 to T4: commits `69bff5e`, `3a23f67`, `a1c56df`, `2f7946c`, each judged and marked done. |
+| 2 | `code_where` after v2 | Every symbol `at_done: found`, `live: confirmed` (pyright and `tsc --lsp`). |
+| 3 | v3: T1 to T4 unchanged, T5 added (`signOut`) | Shadows did not carry the done marks; the Planner marked T1 to T4 done in v3 naming their earlier commits, with no attempt in v3. **B-190 holds:** their symbols answer `at_done: found` in v3 (P6 showed `unchecked`). |
+| 4 | Second plan in a new conversation: password reset through a local file mailer | First turn: `project_state`, `workspace_get`, `workflow_list`, `design_elements`, `decision_list`, `roadmap_propose`, then one `code_where`. Drafting turn: `git ls-files`, then `cat` of 12 files before `plan_edit`. **B-186 step 1 fails again, for a new reason (P8).** It wrote E4 `password_reset_tokens`, E5, E6 and E3 revision 3, duplicating nothing. |
+| 5 | Browser (Playwright) | State, Tables (`person_id → people.id`), Screens (labelled arrows both ways), Where (`sign_in`, 16 asks): no console errors. A Where answer for the Planner's long topic shows "Shadows has no record of this." |
 
 ## Logs
 
