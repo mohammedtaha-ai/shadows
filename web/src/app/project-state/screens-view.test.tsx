@@ -33,9 +33,24 @@ it('the_screen_flow_draws_screens_and_arrows_labelled_when', async () => {
   await until(() => a.container.querySelectorAll('[data-element]').length === 2)
   expect(a.container.querySelector('section[aria-label="Screen flow"]')).not.toBeNull()
   expect(a.container.querySelectorAll('.react-flow__edge')).toHaveLength(1)
-  await until(() => a.container.querySelector('.react-flow__edge')?.textContent?.includes('signed in') === true)
+  await until(() => a.container.querySelector('[data-link="link:E1:0"]')?.textContent === 'signed in')
+  expect(a.container.querySelector('[data-link="link:E1:0"]')!.getAttribute('dir')).toBe('auto')
   expect(a.container.querySelector('nav[aria-label="Screens list"]')!.textContent).toContain('Login')
   expect(a.container.querySelector('[data-element="E1"]')!.textContent).toContain('/login')
+})
+
+it('links_both_ways_draw_two_arrows_on_two_paths', async () => {
+  const a = app = await route('/projects/p1/state?view=screens', [
+    screen('E2', 'Sign in', 'planned', [['E3', 'chooses to create an account']], '/sign-in'),
+    screen('E3', 'Sign up', 'planned', [['E2', 'chooses to sign in']], '/sign-up'),
+  ])
+  await until(() => a.container.querySelectorAll('[data-link]').length === 2)
+  const paths = [...a.container.querySelectorAll('.react-flow__edge path.react-flow__edge-path')]
+  expect(paths).toHaveLength(2)
+  expect(paths.every(path => path.getAttribute('marker-end')?.includes('arrowclosed') === true)).toBe(true)
+  expect(new Set(paths.map(path => path.getAttribute('d'))).size).toBe(2)
+  expect([...a.container.querySelectorAll('[data-link]')].map(label => label.textContent))
+    .toEqual(['chooses to create an account', 'chooses to sign in'])
 })
 
 it('a_link_to_a_screen_not_shown_is_not_drawn', async () => {

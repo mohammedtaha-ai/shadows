@@ -62,7 +62,8 @@ components:
     # wrappers over one private ElementsView in elements-view.tsx, because the two differ only in values.
   tableDiagram / screenDiagram:
     signature: "(views: ElementView[]) => { nodes: ElementNode[]; edges: DiagramEdge[] }"
-    # Deterministic dagre placement; fixed sizes; an edge only between two shown, different nodes.
+    # Deterministic dagre placement; an edge only between two shown, different nodes. A node's height
+    # is the sum of the lines it draws (NODE_LINES); each edge carries its dagre label slot and path.
 
 obligations:
   - rule: >
@@ -124,6 +125,17 @@ obligations:
       The screen flow draws one node per shown screen and one edge per link between two shown
       screens, labelled with its when; a link to a screen not shown is listed in the node, not drawn.
     tested_by: the_screen_flow_draws_screens_and_arrows_labelled_when, a_link_to_a_screen_not_shown_is_not_drawn, screen_links_become_edges_labelled_with_when
+
+  - rule: >
+      A node is laid out exactly as tall as the lines it draws (frame, name, id, state, the behind
+      line when shown, and every row), so no row is clipped, for any number of rows.
+    tested_by: a_node_is_as_tall_as_every_line_it_draws_for_any_number_of_rows, a_drawn_node_is_exactly_as_tall_as_its_lines
+
+  - rule: >
+      Every edge gets its own dagre label slot and its own path between the two nodes' facing
+      sides, so links both ways between two screens, or two keys to one table, draw as separate
+      arrows between the nodes, each with its label (dir=auto).
+    tested_by: links_both_ways_draw_two_arrows_between_the_two_nodes_apart, two_foreign_keys_to_one_table_get_two_label_slots, links_both_ways_draw_two_arrows_on_two_paths
 
   - rule: "With no screen the view says the Planner writes them."
     tested_by: no_screens_says_the_planner_writes_them

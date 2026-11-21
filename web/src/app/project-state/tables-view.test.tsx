@@ -40,6 +40,24 @@ it('the_er_diagram_draws_one_node_per_table_and_one_edge_per_foreign_key', async
   expect([...list.querySelectorAll('li')].map(li => li.textContent)).toEqual(['BuiltE1 users', 'PlannedE2 sessions'])
 })
 
+it('a_drawn_node_is_exactly_as_tall_as_its_lines', async () => {
+  const people = table('E1', 'people', 'built', { content: { kind: 'table', name: 'people', purpose: 'p', columns: [
+    { name: 'id', type_name: 'INTEGER', primary_key: true }, { name: 'email', type_name: 'TEXT' },
+    { name: 'password_hash', type_name: 'TEXT' }, { name: 'created_at', type_name: 'TEXT NOT NULL' },
+  ] } })
+  const a = app = await route('/projects/p1/state?view=tables', [people])
+  await until(() => a.container.querySelectorAll('[data-element]').length === 1)
+  const article = a.container.querySelector<HTMLElement>('[data-element="E1"]')!
+  const wrapper = article.closest<HTMLElement>('.react-flow__node')!
+  expect(article.querySelectorAll('li')).toHaveLength(4)
+  // The frame (1px border and 8px padding, twice) plus every line at its drawn height.
+  const px = (value: string) => Number.parseFloat(value || '0')
+  const lines = [...article.children].filter(child => !child.classList.contains('react-flow__handle')) as HTMLElement[]
+  const drawn = lines.reduce((sum, child) => sum + px(child.style.height) + px(child.style.marginTop), 0)
+    + [...article.querySelectorAll<HTMLElement>('li')].reduce((sum, li) => sum + px(li.style.height), 0)
+  expect(px(wrapper.style.height)).toBe(18 + drawn)
+})
+
 it('a_removed_table_is_hidden_until_shown', async () => {
   const a = app = await route('/projects/p1/state?view=tables', [table('E1', 'users', 'built'), table('E2', 'old_sessions', 'removed')])
   await until(() => a.container.querySelectorAll('[data-element]').length === 1)
