@@ -278,3 +278,40 @@ Shared request for its route: `docs/shared/requests/2026-11-19-code-where.md` (a
 - Done when: `cargo test -p shadows-core --features test-support --test runs_attempts`
   (`a_task_carried_with_its_contract_unchanged_keeps_its_verdict`,
   `a_task_carried_with_a_changed_contract_stays_unchecked`); the gate list.
+
+### B-191 · The Planner asks `code_where` one short thing at a time (P8)
+
+- Status: doing
+- Plan: this entry. Found live on 2026-11-21 (`docs/evidence/2026-11-21-code-record-2-live.md`, P8):
+  the Planner's one `code_where` call asked a 12-word sentence; the words tier needs every word in
+  one file's purpose or one symbol's contract, so it answered `entries: []`, and the Planner read
+  12 files with `cat`. Ruling (Mohammed, 2026-11-21, "take the best"): the words tier stays as
+  it is (any-word matching would rank nearly every file on "and" or "logic"); the Planner is told
+  how to ask instead.
+- Rule: the `code_where` tool description, its `topic` argument's doc, and the prompt's "Look
+  before you write a path" say: one short thing per call (a name the person used, a path, a symbol,
+  an element id or name; one to three words), several calls rather than one sentence; an empty
+  answer to a sentence is not "nothing there": ask again with each thing alone before reading.
+- Touch: `crates/shadows-mcp/src/record_tools.rs`, `crates/core-harness/src/prompt.txt`, their
+  contracts (`crates/shadows-mcp/contract.yaml`, `crates/core-harness/contract.yaml`) where they
+  quote these lines, and any test that pins the prompt or the tool description.
+- Needs: nothing.
+- Done when: the tests of `core-harness` and `shadows-mcp` pass; then B-186 step 1 again, live.
+
+### B-192 · `code_where` never answers "no uses" from a language server that has not seen the file (P9)
+
+- Status: doing
+- Plan: this entry. Found live on 2026-11-21 (same evidence file, P9): pyright, started before the
+  executors created `backend/accounts/`, answered `textDocument/references` for `SignIn` and
+  `AppCore` with `[]`; `code_where` reported `uses_live: answered`, `uses: []`. pyright run by
+  hand, and the same question after a restart of `shadows serve`, return the uses. The first ask
+  right after a start also answered `[]` while pyright was still reading.
+- Rule: an empty `uses` under `answered` means no callers. The fixer traces why the running
+  server did not see the new files (watched-file notifications, the files it opens, or the
+  readiness of a server just started) and fixes it in its owner; a server not yet ready gives
+  `uses_live` `failed` or `skipped` with why, never `answered`.
+- Touch: the owner the root cause names (`crates/codebase`, `crates/shadows-lsp` or
+  `crates/code-record`), its contract, and a test through its public API.
+- Needs: nothing.
+- Done when: the new test fails before the fix and passes after; the touched crates' tests; then
+  the live check: a Python symbol in a file made after pyright started shows its uses.
