@@ -76,6 +76,14 @@ impl CodeRecordStore {
         self.read_files_detail(project, paths).await
     }
 
+    /// The whole record of a project and its count of done marks, in one snapshot.
+    pub(super) async fn whole(
+        &self,
+        project: &ProjectId,
+    ) -> Result<(Detail, u32), CodeRecordError> {
+        self.read_whole(project).await
+    }
+
     /// Stores the verdict under `key`, replacing one stored before.
     pub(super) async fn put(
         &self,

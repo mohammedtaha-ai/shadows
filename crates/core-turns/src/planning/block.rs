@@ -23,6 +23,138 @@ pub(super) struct Block {
     pub agreement_bodies: Vec<String>,
     sources: Vec<(SourceScope, ContextSource)>,
     pub cuts: Vec<String>,
+    /// The code record layer; none where no record was read.
+    pub record: Option<Record>,
+}
+
+/// The code record's lines, kept in groups so its cuts shorten them in order.
+#[derive(Default)]
+pub(super) struct Record {
+    /// Parts in map order, then the files no part owns.
+    pub groups: Vec<RecordGroup>,
+    pub gaps: Vec<String>,
+    signatures_cut: bool,
+    symbols_cut: bool,
+}
+
+pub(super) struct RecordGroup {
+    pub heading: String,
+    /// How a files cut names the group: `Backend`.
+    pub label: String,
+    pub files: Vec<RecordFile>,
+    files_cut: bool,
+}
+
+pub(super) struct RecordFile {
+    pub line: String,
+    pub symbols: Vec<RecordSymbol>,
+}
+
+pub(super) struct RecordSymbol {
+    /// `name (kind)`, what survives the signatures cut.
+    pub named: String,
+    /// `: inputs -> returns`.
+    pub signature: String,
+}
+
+impl RecordGroup {
+    pub(super) fn new(heading: String, label: String, files: Vec<RecordFile>) -> Self {
+        Self {
+            heading,
+            label,
+            files,
+            files_cut: false,
+        }
+    }
+}
+
+impl Record {
+    const HEADING: &str =
+        "## Code record (what done tasks built, from the record; no language server asked)";
+    const USE: &str = "Plan from it. Ask code_where for a symbol's line now, its uses, or what this \
+        block cut; read a file only for what neither gives.";
+    const EMPTY: &str = "No code recorded yet: no done task has recorded a file. Read the files \
+        the plan touches.";
+
+    fn is_empty(&self) -> bool {
+        self.groups.is_empty() && self.gaps.is_empty()
+    }
+
+    fn text(&self) -> String {
+        let mut lines = vec![Self::HEADING.to_string()];
+        if self.is_empty() {
+            lines.push(Self::EMPTY.into());
+            return format!("\n\n{}", lines.join("\n"));
+        }
+        lines.push(Self::USE.into());
+        for group in &self.groups {
+            lines.push(group.heading.clone());
+            if group.files_cut {
+                lines.push(format!("  [{} files cut]", group.files.len()));
+                continue;
+            }
+            for file in &group.files {
+                if self.symbols_cut && !file.symbols.is_empty() {
+                    lines.push(format!("{} [{} symbols]", file.line, file.symbols.len()));
+                    continue;
+                }
+                lines.push(file.line.clone());
+                for symbol in &file.symbols {
+                    if self.signatures_cut {
+                        lines.push(format!("    {}", symbol.named));
+                    } else {
+                        lines.push(format!("    {}{}", symbol.named, symbol.signature));
+                    }
+                }
+            }
+        }
+        if !self.gaps.is_empty() {
+            lines.push("Elements in gap or unchecked:".into());
+            lines.extend(self.gaps.iter().map(|gap| format!("  {gap}")));
+        }
+        format!("\n\n{}", lines.join("\n"))
+    }
+
+    /// Cuts in order until the text fits: the symbols' inputs and returns, then
+    /// the symbols (each file keeps a count), then files, a whole group at a
+    /// time from the last. Answers the cut markers.
+    fn cut(&mut self, budget: i64) -> Vec<String> {
+        let fits = |record: &Self| super::budget::Budget::estimate(&record.text()) <= budget;
+        let mut cuts = Vec::new();
+        if fits(self) {
+            return cuts;
+        }
+        let symbols = self
+            .groups
+            .iter()
+            .flat_map(|g| &g.files)
+            .any(|f| !f.symbols.is_empty());
+        if symbols {
+            self.signatures_cut = true;
+            cuts.push("code record inputs and returns".into());
+            if fits(self) {
+                return cuts;
+            }
+            self.symbols_cut = true;
+            cuts.push("code record symbols".into());
+        }
+        for index in (0..self.groups.len()).rev() {
+            if fits(self) {
+                break;
+            }
+            let group = &mut self.groups[index];
+            if group.files.is_empty() {
+                continue;
+            }
+            group.files_cut = true;
+            cuts.push(format!(
+                "{} files under {} · ask code_where with a path",
+                group.files.len(),
+                group.label
+            ));
+        }
+        cuts
+    }
 }
 
 impl Block {
@@ -100,7 +232,16 @@ impl Block {
         text
     }
 
-    pub(super) fn finish(mut self, index_budget: i64, detail_budget: i64) -> CarriedContext {
+    fn record_text(&self) -> String {
+        self.record.as_ref().map(Record::text).unwrap_or_default()
+    }
+
+    pub(super) fn finish(
+        mut self,
+        index_budget: i64,
+        detail_budget: i64,
+        record_budget: i64,
+    ) -> CarriedContext {
         for (slot, label) in [
             (0, "part children"),
             (1, "outcome children"),
@@ -161,20 +302,28 @@ impl Block {
                 }
             }
         }
+        if let Some(record) = &mut self.record {
+            let cuts = record.cut(record_budget);
+            self.cuts.extend(cuts);
+        }
         let index = self.index_text();
         let detail = self.detail_text();
+        let record = self.record_text();
         let metadata = self.metadata_text();
-        let index_tokens = super::budget::Budget::estimate(&format!("{index}{metadata}"));
+        // The code record counts with the index: both go with every context, anchored or not.
+        let index_tokens = super::budget::Budget::estimate(&format!("{index}{record}{metadata}"));
         let detail_tokens = super::budget::Budget::estimate(&detail);
-        let text = format!("{index}{detail}{metadata}");
+        let index_over =
+            (super::budget::Budget::estimate(&format!("{index}{metadata}")) - index_budget).max(0);
+        let record_over = (super::budget::Budget::estimate(&record) - record_budget).max(0);
+        let text = format!("{index}{detail}{record}{metadata}");
         CarriedContext {
             digest: format!("{:x}", Sha256::digest(text.as_bytes())),
             text,
             sources: self.included_sources(),
             index_tokens,
             detail_tokens,
-            over_tokens: (index_tokens - index_budget).max(0)
-                + (detail_tokens - detail_budget).max(0),
+            over_tokens: index_over + (detail_tokens - detail_budget).max(0) + record_over,
             cuts: self.cuts,
         }
     }
@@ -192,7 +341,7 @@ mod tests {
             ..Default::default()
         };
         block.source("part", "12345678-1234-1234-1234-123456789012", 3);
-        let context = block.finish(1_500, 20);
+        let context = block.finish(1_500, 20, 3_000);
         let total = super::super::budget::Budget::estimate(&context.text);
         assert!(context.index_tokens + context.detail_tokens >= total);
         assert!(context.index_tokens + context.detail_tokens <= total + 1);
@@ -207,7 +356,7 @@ mod tests {
             agreement_bodies: vec!["agreement body".repeat(100)],
             ..Default::default()
         };
-        let context = block.finish(1_500, 20);
+        let context = block.finish(1_500, 20, 3_000);
         assert_eq!(
             context.cuts,
             ["older rationales", "children's lines", "agreement bodies"]
@@ -224,7 +373,7 @@ mod tests {
             outcome_children: vec!["Outcome child".into()],
             ..Default::default()
         };
-        let context = block.finish(100, 8_000);
+        let context = block.finish(100, 8_000, 3_000);
         assert_eq!(context.cuts, ["index part children"]);
         assert!(context.text.contains("Outcome child"));
     }
@@ -240,7 +389,7 @@ mod pagination_tests {
             part_children: vec!["A known child".into(), "[more parts available]".into()],
             ..Default::default()
         };
-        let context = block.finish(1, 8_000);
+        let context = block.finish(1, 8_000, 3_000);
         assert!(context.text.contains("[1 part children omitted]"));
         assert!(context.text.contains("[more parts available]"));
     }

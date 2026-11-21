@@ -1016,34 +1016,39 @@ fn the_planner_is_told_to_ask_code_where_first() {
         "record has no contract behind it, so read it before you change it."
     );
     let job = concat!(
-        "- Know the project before you plan. Ask Shadows first: project_state for its parts, ",
-        "plans and tasks, then code_where for each thing the work touches, one short thing ",
-        "per call. Read the code yourself only for what they do not answer, as \"Look before ",
-        "you write a path\" says: on Claude Code with Read, Grep and Glob; on Codex with ",
-        "shell commands in the project's folder, such as git ls-files, git grep, git show ",
-        "HEAD:<path>, rg, and Get-Content or cat. Shadows' tools are your only way to write ",
-        "the plan."
+        "- Know the project before you plan. Shadows sends its code record with your ",
+        "planning context: what done tasks built, by part and layer, each file with its ",
+        "purpose and each symbol with its inputs and returns. Plan from it and from ",
+        "project_state for its parts, plans and tasks. Ask code_where for a symbol's ",
+        "line now, its uses, or what the block cut, one short thing per call. Read the ",
+        "code yourself only for what neither gives, as \"Look before you write a path\" ",
+        "says: on Claude Code with Read, Grep and Glob; on Codex with shell commands in ",
+        "the project's folder, such as git ls-files, git grep, git show HEAD:<path>, ",
+        "rg, and Get-Content or cat. Shadows' tools are your only way to write the ",
+        "plan.",
     );
     let ask = concat!(
-        "- Before a task names a file, a function, a class, a table or a screen, ask ",
-        "code_where for each thing the work touches, one short thing per call: a name the ",
-        "person used, a path, a symbol, or an element id or name, in one to three words. Make ",
-        "several calls rather than one with a sentence: each name the person used, each part ",
-        "and element project_state shows, each path and symbol code_where already gave you. ",
-        "Its answer is the record: each file with its purpose and the plans and tasks that ",
-        "made it, its symbols with their contracts' inputs, returns and behavior, their line ",
-        "now and who uses them, by part and layer."
+        "- The code record in your planning context is what Shadows knows of the code: ",
+        "each file done tasks built, by part and layer, with its purpose, each symbol ",
+        "with its inputs and returns, and the elements with a gap. Plan from it. Before ",
+        "a task names a file, a function, a class, a table or a screen, ask code_where ",
+        "for its line now and who uses it, or for what the block cut (\"[cut: ...]\"), ",
+        "one short thing per call: a name the person used, a path, a symbol, or an ",
+        "element id or name, in one to three words. Make several calls rather than one ",
+        "with a sentence. Its answer adds the plans and tasks that made each file and ",
+        "its symbols' behavior.",
     );
     let empty = concat!(
         "- An empty answer to a long topic is not \"nothing there\": every word of a topic must ",
         "meet in one file or one symbol. Ask again with each thing alone before you read a file."
     );
     let read = concat!(
-        "- Read a file only when code_where does not answer it: a file not in the record, a ",
-        "file with a gap or an unchecked symbol, or a project whose record is empty. Read the ",
-        "manifest (composer.json, package.json, go.mod, Cargo.toml) or the composition root ",
-        "(its AppCore, main, bootstrap or service container) only when the task changes it, ",
-        "and then whole. List what you read with project_files."
+        "- Read a file only for what neither the code record nor code_where gives: a ",
+        "file not in the record, a file with a gap or an unchecked symbol, or a project ",
+        "whose record is empty. Read the manifest (composer.json, package.json, go.mod, ",
+        "Cargo.toml) or the composition root (its AppCore, main, bootstrap or service ",
+        "container) only when the task changes it, and then whole. List what you read ",
+        "with project_files.",
     );
     let name = concat!(
         "- A task names what the executor will write and where each layer's part of it goes, ",

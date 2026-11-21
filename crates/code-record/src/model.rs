@@ -332,3 +332,63 @@ pub struct UnrecordedSymbol {
     pub name: String,
     pub line: u32,
 }
+
+/// What the project's done tasks built, read from the record alone (no
+/// language server), for a Planner's context.
+#[derive(Debug, Clone, PartialEq)]
+pub struct RecordDigest {
+    /// The parts of the approved map that hold recorded files, in map order.
+    pub parts: Vec<DigestPart>,
+    /// Recorded files no part's folder holds, by path.
+    pub unowned: Vec<DigestFile>,
+    /// The elements in gap or unchecked, by their part's map order, then element number.
+    pub gaps: Vec<DigestGap>,
+    /// The count of done marks recorded: tasks with at least one record row.
+    pub marks: u32,
+}
+
+impl RecordDigest {
+    /// True when no done task recorded a file and no element is in gap or unchecked.
+    pub fn is_empty(&self) -> bool {
+        self.parts.is_empty() && self.unowned.is_empty() && self.gaps.is_empty()
+    }
+}
+
+/// One part's recorded files, by layer in the part's order (no layer last), then path.
+#[derive(Debug, Clone, PartialEq)]
+pub struct DigestPart {
+    pub part_id: core_design::PartId,
+    pub title: String,
+    pub files: Vec<DigestFile>,
+}
+
+/// A recorded file: the purpose of its newest record, and the newest record of
+/// each of its symbols, by name.
+#[derive(Debug, Clone, PartialEq)]
+pub struct DigestFile {
+    pub path: String,
+    /// The first layer of its part whose place holds it.
+    pub layer: Option<String>,
+    pub purpose: String,
+    pub symbols: Vec<DigestSymbol>,
+}
+
+/// A recorded symbol and its signature, as its contract wrote it.
+#[derive(Debug, Clone, PartialEq)]
+pub struct DigestSymbol {
+    pub name: String,
+    pub kind: core_plans::SymbolKind,
+    pub inputs: Vec<core_plans::ContractValue>,
+    pub returns: Option<core_plans::ContractValue>,
+}
+
+/// An element in gap or unchecked, with why.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DigestGap {
+    pub element_id: String,
+    pub kind: core_design::ElementKind,
+    pub name: String,
+    pub part_id: core_design::PartId,
+    pub state: BuildState,
+    pub why: String,
+}

@@ -1101,6 +1101,7 @@ dependencies = [
 name = "core-turns"
 version = "0.1.0"
 dependencies = [
+ "code-record",
  "codebase",
  "core-db",
  "core-design",

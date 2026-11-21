@@ -91,7 +91,8 @@ pub mod for_tests {
 
 /// Turns: what storage holds, the runtime that owns their operations, the
 /// sessions they prompt on, the registry of live turns, the bus their live
-/// events go out on, and the code index a turn's project is touched in.
+/// events go out on, the code index a turn's project is touched in, and the
+/// code record a Planner's context carries.
 #[derive(Clone)]
 pub struct Turns {
     storage: Arc<Storage>,
@@ -107,6 +108,8 @@ pub struct Turns {
     projects: Projects,
     plans: core_plans::Plans,
     design: core_design::Design,
+    /// Read for the code record layer of a Planner's context.
+    code_record: code_record::CodeRecord,
     ui: tokio::sync::broadcast::Sender<core_plans::UiSignal>,
 }
 
@@ -201,6 +204,7 @@ impl Turns {
         projects: Projects,
         plans: core_plans::Plans,
         design: core_design::Design,
+        code_record: code_record::CodeRecord,
         ui: tokio::sync::broadcast::Sender<core_plans::UiSignal>,
     ) -> Self {
         Self {
@@ -217,6 +221,7 @@ impl Turns {
             projects,
             plans,
             design,
+            code_record,
             ui,
         }
     }

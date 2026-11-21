@@ -105,6 +105,7 @@ dependencies:
   runtime: crates/core-runtime/contract.yaml
   code: crates/codebase/contract.yaml
   projects: crates/core-projects/contract.yaml
+  code_record: crates/code-record/contract.yaml # digest, for the planning context's code record
 
 shapes:
   LiveActivity:
@@ -116,6 +117,8 @@ shapes:
     withholds: bool
   Turns:
     design: Design
+    # Read only for the code record layer of a Planner's context (digest).
+    code_record: CodeRecord
     storage: Arc<Storage>
     store: TurnsStore
     operations: Operations
@@ -313,7 +316,7 @@ functions:
   service:
     planning_context:
       signature: "(&self, thread: &ThreadId, project: &ProjectId) -> Result<Option<CarriedContext>, TurnsError>"
-      rule: Compile the index and optional anchor detail through Design and Plans; AYLUL and executor threads answer None.
+      rule: Compile the index, optional anchor detail and the code record through Design, Plans and CodeRecord::digest; AYLUL and executor threads answer None.
     live_activity:
       signature: "(&self, thread: &ThreadId) -> Option<LiveActivity>"
       # Latest open calls and list for a registered turn on this thread.
@@ -1218,14 +1221,28 @@ attachments:
 
 planning_context:
   modules: [planning/mod.rs, planning/block.rs, planning/budget.rs]
-  dependency: Design is passed once by AppCore.
-  method: planning_context reads Design and Plans APIs; AYLUL and executor threads receive none.
+  dependency: Design and CodeRecord are passed once by AppCore.
+  method: planning_context reads Design, Plans and CodeRecord APIs; AYLUL and executor threads receive none.
+  code_record: >
+    After the detail, a "## Code record" block renders CodeRecord::digest: a group per part
+    ("Part <title> (<id>):"), each file "  <path> [<layer>]: <purpose>" and each symbol
+    "    <name> (<kind>): <input: type, ...> -> <return type>"; then "Files no part owns:";
+    then "Elements in gap or unchecked:". An empty record is one line: "No code recorded yet:
+    no done task has recorded a file. Read the files the plan touches." Budget 3000 estimated
+    tokens (RECORD_TOKENS), counted with the index; cut order: inputs and returns ("code record
+    inputs and returns"), then symbols ("code record symbols"; each file keeps "[n symbols]"),
+    then files a whole group at a time from the last ("<n> files under <part> · ask code_where
+    with a path"); gaps are never cut. Its source is ("code_record", project, marks), so a new
+    done mark changes the digest and the block is sent again. Tested by
+    an_empty_record_says_so_in_one_line,
+    the_record_block_is_sent_and_a_new_done_mark_sends_it_again and
+    an_over_budget_record_cuts_signatures_then_symbols_then_files.
   executor: >
     An executor's prompts carry no planning context and no stage line, so it reads only its
     task. Tested by an_executors_first_turn_hears_no_planner_instructions and
     live_an_executors_first_turn_hears_no_planner_instructions.
   sources: Only surviving content contributes source tuples to hashed text; pinned bindings read exact versions.
-  budgets: Index 1500 and detail 8000 estimated tokens, explicit ordered cuts, soft overflow recorded.
+  budgets: Index 1500, detail 8000 and code record 3000 estimated tokens, explicit ordered cuts, soft overflow recorded.
   detail: Child identities survive descriptive cuts; every older rationale names its logical plan and version.
   pagination: One 50-item page per parent through depth two; remaining pages announced without a total.
 

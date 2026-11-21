@@ -24,8 +24,9 @@ modules:
   store/mod.rs: code record persistence
   store/elements.rs: the record's element pins
   code_where.rs: answering where a topic is
+  digest.rs: the record's digest for a Planner's context
   ranking.rs: ranking a question's matches
-  store/lookup.rs: reading the record for a question
+  store/lookup.rs: reading the record for a question or whole
 
 dependencies:
   code: crates/codebase/contract.yaml
@@ -157,6 +158,33 @@ shapes:
   UsesLive:
     # Tagged by `state`.
     values: [not_asked, answered, "truncated { why }", "failed { why }", "skipped { why }"]
+  RecordDigest:
+    parts: Vec<DigestPart>    # map order, parts with files only
+    unowned: Vec<DigestFile>  # by path
+    gaps: Vec<DigestGap>
+    marks: u32                # done marks recorded; versions the Planner's code record source
+    # is_empty(): no file and no gap.
+  DigestPart:
+    part_id: PartId
+    title: String
+    files: Vec<DigestFile>
+  DigestFile:
+    path: String
+    layer: Option<String>
+    purpose: String
+    symbols: Vec<DigestSymbol>
+  DigestSymbol:
+    name: String
+    kind: SymbolKind
+    inputs: Vec<ContractValue>
+    returns: Option<ContractValue>
+  DigestGap:
+    element_id: String
+    kind: ElementKind
+    name: String
+    part_id: PartId
+    state: BuildState
+    why: String
   UseLine:
     path: String
     line: u32
@@ -246,8 +274,24 @@ functions:
       # Element entries keep element_states' state.
     path_owner:
       signature: "(layout: &ProjectLayout, path: &str) -> Option<Owner>"
-      private: true
+      private: true # pub(crate): digest reads the same owner
       # None when no part's folder holds the path.
+  digest:
+    digest:
+      signature: "(&self, project: &ProjectId) -> Result<RecordDigest, CodeRecordError>"
+      # The record only, no language server (planner context spec §4.2, "Code
+      # record"; code record spec §5.3). One read snapshot (store `whole`): every
+      # file and symbol row and `marks`, the count of distinct (workflow, version,
+      # task) across code_record_file, code_record_symbol and code_record_element.
+      # Each path once with its newest record's purpose (version DESC, task DESC,
+      # workflow_id); each symbol's newest row by (path, name), its kind, inputs and
+      # returns parsed from contract_json as SymbolWork; symbols by name.
+      # Owner by path_owner (as code_where): parts of the layout in map order, only
+      # those with files; inside a part by the layer's place in the part's layers
+      # (no layer last), then path; files no part owns apart, by path. Gaps:
+      # element_states(project, &elements, &[]) filtered to gap and unchecked, by
+      # their part's map order, then element number, with why (as project_state).
+      # Turns renders and budgets it; CodeRecord never renders it.
   ranking:
     entries:
       signature: "Ranking::entries(topic: &str, layout: &ProjectLayout, elements: &[DesignElement], matches: &Matches) -> (Vec<Ranked>, u32)"

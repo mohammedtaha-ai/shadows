@@ -1,4 +1,5 @@
-//! `code_where` through `AppCore`: the record's half, ranked, then the code's.
+//! The record through `AppCore`: `code_where` (the record's half, ranked, then
+//! the code's) and the record's `digest`.
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -869,5 +870,115 @@ async fn live_a_file_outside_the_record_is_listed_as_not_in_the_record() {
     assert_eq!(paths, vec!["web/extra.py"], "{answer:?}");
     assert_eq!(answer.not_in_record[0].symbols[0].name, "login_helper");
     f.core.codebase().shut_down_for_test().await;
+    f.close().await;
+}
+
+#[tokio::test]
+async fn the_digest_lists_files_by_part_and_layer_with_signatures_then_unowned_and_gaps() {
+    let f = Fixture::new().await;
+    sqlx::query(
+        "UPDATE design_part SET content_json = json_set(content_json, '$.layers', json(?))
+         WHERE project_id = ? AND id = ?",
+    )
+    .bind(
+        serde_json::json!([
+            {"layer": "schema", "place": "db/schema", "not_used": null},
+            {"layer": "migrations", "place": "db", "not_used": null},
+        ])
+        .to_string(),
+    )
+    .bind(f.project.as_str())
+    .bind(f.seed.database.as_str())
+    .execute(f.storage.reader())
+    .await
+    .unwrap();
+    let empty = f.core.code_record().digest(&f.project).await.unwrap();
+    assert!(empty.is_empty());
+    assert_eq!(empty.marks, 0);
+    f.done(
+        1,
+        1,
+        contract("web/app.ts", "create", "the screen", &["render"]),
+    )
+    .await;
+    f.done(
+        1,
+        2,
+        contract("db/0001.sql", "create", "first migration", &[]),
+    )
+    .await;
+    f.done(
+        1,
+        3,
+        serde_json::json!({
+            "files": [{"path": "db/schema/users.sql", "action": "create", "purpose": "users"}],
+            "symbols": [{"id": "s1", "path": "db/schema/users.sql", "kind": "function",
+                "name": "make_user",
+                "inputs": [{"name": "email", "type_name": "str", "meaning": "m"}],
+                "returns": {"name": "", "type_name": "User", "meaning": "m"},
+                "behavior": ["b"]}],
+        }),
+    )
+    .await;
+    f.done(
+        2,
+        1,
+        contract(
+            "db/schema/users.sql",
+            "modify",
+            "users, newer",
+            &["add_index"],
+        ),
+    )
+    .await;
+    f.done(2, 2, contract("tools/run.py", "create", "runs it", &[]))
+        .await;
+    let id = f.table("accounts", "Hold every account").await;
+    let mut value = contract("db/accounts.sql", "create", "accounts table", &[]);
+    value["elements"] = serde_json::json!([{
+        "id": id, "revision": 1, "action": "create", "file": "db/accounts.sql"
+    }]);
+    f.done(2, 3, value).await;
+    let digest = f.core.code_record().digest(&f.project).await.unwrap();
+    assert_eq!(digest.marks, 6);
+    let parts: Vec<_> = digest.parts.iter().map(|p| p.title.as_str()).collect();
+    assert_eq!(parts, ["Seeded database", "Seeded frontend"]);
+    let database = &digest.parts[0];
+    let files: Vec<_> = database
+        .files
+        .iter()
+        .map(|file| {
+            (
+                file.layer.as_deref(),
+                file.path.as_str(),
+                file.purpose.as_str(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        files,
+        [
+            (Some("schema"), "db/schema/users.sql", "users, newer"),
+            (Some("migrations"), "db/0001.sql", "first migration"),
+            (Some("migrations"), "db/accounts.sql", "accounts table"),
+        ]
+    );
+    let symbols: Vec<_> = database.files[0]
+        .symbols
+        .iter()
+        .map(|s| s.name.as_str())
+        .collect();
+    assert_eq!(symbols, ["add_index", "make_user"]);
+    let make_user = &database.files[0].symbols[1];
+    assert_eq!(make_user.inputs[0].type_name, "str");
+    assert_eq!(make_user.returns.as_ref().unwrap().type_name, "User");
+    assert_eq!(digest.parts[1].files[0].path, "web/app.ts");
+    assert_eq!(digest.parts[1].files[0].layer, None);
+    let unowned: Vec<_> = digest.unowned.iter().map(|f| f.path.as_str()).collect();
+    assert_eq!(unowned, ["tools/run.py"]);
+    assert_eq!(digest.gaps.len(), 1);
+    assert_eq!(digest.gaps[0].element_id, id);
+    assert_eq!(digest.gaps[0].state, BuildState::Gap);
+    assert!(!digest.gaps[0].why.is_empty());
     f.close().await;
 }

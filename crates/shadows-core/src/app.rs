@@ -473,6 +473,7 @@ impl AppCore {
             design.clone(),
             code.clone(),
         );
+        let code_record = CodeRecord::new(storage.clone(), code.clone(), design.clone());
         let turns = Turns::new(
             storage.clone(),
             operations.clone(),
@@ -486,9 +487,9 @@ impl AppCore {
             projects.clone(),
             plans.clone(),
             design.clone(),
+            code_record.clone(),
             ui.clone(),
         );
-        let code_record = CodeRecord::new(storage.clone(), code.clone(), design.clone());
         let runs = Runs::new(
             storage.clone(),
             plans.clone(),

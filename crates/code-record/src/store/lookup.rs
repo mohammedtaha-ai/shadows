@@ -1,5 +1,5 @@
-//! One job: reading the record for a question. Every read is on one project,
-//! ordered by explicit keys, and each matching query stops at 21 rows.
+//! One job: reading the record, for a question or whole. Every read is on one
+//! project, ordered by explicit keys, and each matching query stops at 21 rows.
 
 use core_projects::ProjectId;
 
@@ -234,6 +234,82 @@ impl CodeRecordStore {
             ));
         }
         Ok(detail)
+    }
+}
+
+impl CodeRecordStore {
+    /// Every file and symbol row of the project, and its count of done marks,
+    /// in one read snapshot: by path, then version and task newest first, then
+    /// workflow id (and a symbol by name, then id).
+    pub(super) async fn read_whole(
+        &self,
+        project: &ProjectId,
+    ) -> Result<(Detail, u32), CodeRecordError> {
+        let mut tx = self.storage.reader().begin().await?;
+        let files = sqlx::query_as::<_, FileTuple>(
+            "SELECT path, workflow_id, version, task, action, purpose, commit_sha
+               FROM code_record_file WHERE project_id = ?
+             ORDER BY path, version DESC, task DESC, workflow_id",
+        )
+        .bind(project.as_str())
+        .fetch_all(&mut *tx)
+        .await?;
+        let symbols = sqlx::query_as::<_, SymbolTuple>(
+            "SELECT path, workflow_id, version, task, symbol_id, name, kind, contract_json, state
+               FROM code_record_symbol WHERE project_id = ?
+             ORDER BY path, version DESC, task DESC, workflow_id, name, symbol_id",
+        )
+        .bind(project.as_str())
+        .fetch_all(&mut *tx)
+        .await?;
+        // A done mark writes its rows into these three tables, and only it does.
+        let marks: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM (
+               SELECT workflow_id, version, task FROM code_record_file WHERE project_id = ?1
+               UNION SELECT workflow_id, version, task FROM code_record_symbol WHERE project_id = ?1
+               UNION SELECT workflow_id, version, task FROM code_record_element WHERE project_id = ?1)",
+        )
+        .bind(project.as_str())
+        .fetch_one(&mut *tx)
+        .await?;
+        tx.commit().await?;
+        let detail = Detail {
+            files: files.into_iter().map(FileRow::from).collect(),
+            symbols: symbols.into_iter().map(SymbolRow::from).collect(),
+        };
+        Ok((detail, u32::try_from(marks).unwrap_or(u32::MAX)))
+    }
+}
+
+impl From<FileTuple> for FileRow {
+    fn from((path, workflow_id, version, task, action, purpose, commit): FileTuple) -> Self {
+        FileRow {
+            path,
+            workflow_id,
+            version,
+            task,
+            action,
+            purpose,
+            commit,
+        }
+    }
+}
+
+impl From<SymbolTuple> for SymbolRow {
+    fn from(
+        (path, workflow_id, version, task, symbol_id, name, kind, contract_json, state): SymbolTuple,
+    ) -> Self {
+        SymbolRow {
+            path,
+            workflow_id,
+            version,
+            task,
+            symbol_id,
+            name,
+            kind,
+            contract_json,
+            state,
+        }
     }
 }
 

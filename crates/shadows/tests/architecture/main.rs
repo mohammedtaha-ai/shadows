@@ -617,6 +617,7 @@ fn extracted_turns_depends_only_on_declared_lower_owners() {
                     || [
                         "core-db",
                         "codebase",
+                        "code-record",
                         "core-design",
                         "core-grants",
                         "core-harness",

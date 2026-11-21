@@ -2,9 +2,11 @@
 //! promised, and the verdicts that say so.
 //!
 //! Runs owns its check rows and calls `verify`; this service never calls Runs.
-//! It asks Design for elements and the layout when answering `code_where`.
+//! It asks Design for elements and the layout when answering `code_where`
+//! and when writing the record's `digest`.
 
 mod code_where;
+mod digest;
 mod elements;
 mod error;
 mod model;
@@ -21,10 +23,11 @@ use store::CodeRecordStore;
 
 pub use error::CodeRecordError;
 pub use model::{
-    BuildState, Confirmation, DoneRecord, ElementEntry, ElementState, ElementTask, FileEntry,
-    FileTask, Live, Owner, PlannedPin, PromisedSymbol, Rank, SymbolEntry, SymbolState,
-    UncheckedFile, Unpromised, UnrecordedFile, UnrecordedSymbol, UseLine, UsesLive, Verdict,
-    VerdictOutcome, WhereAnswer, WhereEntry,
+    BuildState, Confirmation, DigestFile, DigestGap, DigestPart, DigestSymbol, DoneRecord,
+    ElementEntry, ElementState, ElementTask, FileEntry, FileTask, Live, Owner, PlannedPin,
+    PromisedSymbol, Rank, RecordDigest, SymbolEntry, SymbolState, UncheckedFile, Unpromised,
+    UnrecordedFile, UnrecordedSymbol, UseLine, UsesLive, Verdict, VerdictOutcome, WhereAnswer,
+    WhereEntry,
 };
 
 /// What a test records as one file's answer, in place of a language server's.

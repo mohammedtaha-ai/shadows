@@ -369,10 +369,11 @@ pattern to follow, not merely an example.
 | `crates/code-record/src/verify.rs` | comparing a contract's symbols with the code | `crates/code-record/contract.yaml` |
 | `crates/code-record/src/elements.rs` | judging a design element's build state | `crates/code-record/contract.yaml` |
 | `crates/code-record/src/code_where.rs` | answering where a topic is | `crates/code-record/contract.yaml` |
+| `crates/code-record/src/digest.rs` | the record's digest for a Planner's context | `crates/code-record/contract.yaml` |
 | `crates/code-record/src/ranking.rs` | ranking a question's matches | `crates/code-record/contract.yaml` |
 | `crates/code-record/src/store/` | the code record's persistence | `crates/code-record/contract.yaml` |
 | `crates/code-record/src/store/elements.rs` | the record's element pins | `crates/code-record/contract.yaml` |
-| `crates/code-record/src/store/lookup.rs` | reading the record for a question | `crates/code-record/contract.yaml` |
+| `crates/code-record/src/store/lookup.rs` | reading the record for a question or whole | `crates/code-record/contract.yaml` |
 | `crates/project-state/src/` | the project's state as Shadows knows it | `crates/project-state/contract.yaml` |
 | `crates/project-state/src/error.rs` | project state refusals | `crates/project-state/contract.yaml` |
 | `crates/project-state/src/model.rs` | the project's state as its readers receive it | `crates/project-state/contract.yaml` |

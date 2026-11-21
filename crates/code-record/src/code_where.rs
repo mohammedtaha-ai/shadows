@@ -204,7 +204,7 @@ fn symbol_entry(row: &SymbolRow) -> Result<SymbolEntry, CodeRecordError> {
 
 impl CodeRecord {
     /// The part whose folder holds `path`, and the first layer whose place does.
-    fn path_owner(layout: &ProjectLayout, path: &str) -> Option<Owner> {
+    pub(crate) fn path_owner(layout: &ProjectLayout, path: &str) -> Option<Owner> {
         let owners = layout.owners(path);
         let part = owners
             .iter()

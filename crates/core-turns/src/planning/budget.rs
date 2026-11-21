@@ -1,6 +1,7 @@
 //! Character-based planning context budgets.
 pub(super) const INDEX_TOKENS: i64 = 1_500;
 pub(super) const DETAIL_TOKENS: i64 = 8_000;
+pub(super) const RECORD_TOKENS: i64 = 3_000;
 
 pub(super) struct Budget;
 

@@ -1,9 +1,10 @@
-//! Planning context compiled through its design and plan owners.
+//! Planning context compiled through its design, plan and code record owners.
 mod block;
 mod budget;
 
 use crate::{Turns, TurnsError};
-use block::SourceScope;
+use block::{Record, RecordFile, RecordGroup, RecordSymbol, SourceScope};
+use code_record::{CodeRecord, CodeRecordError, DigestFile, RecordDigest};
 use core_design::{Design, DesignAnchor};
 use core_harness::CarriedContext;
 use core_plans::{PlanId, Plans};
@@ -30,10 +31,14 @@ impl Turns {
             Planning::compile(
                 &self.design,
                 &self.plans,
+                &self.code_record,
                 thread,
                 project,
-                budget::INDEX_TOKENS,
-                budget::DETAIL_TOKENS,
+                [
+                    budget::INDEX_TOKENS,
+                    budget::DETAIL_TOKENS,
+                    budget::RECORD_TOKENS,
+                ],
             )
             .await?,
         ))
@@ -43,14 +48,16 @@ impl Turns {
 pub struct Planning;
 
 impl Planning {
+    /// `budgets`: the index's, the detail's and the code record's, in estimated tokens.
     pub async fn compile(
         design: &Design,
         plans: &Plans,
+        code_record: &CodeRecord,
         thread: &ThreadId,
         project: &ProjectId,
-        index_budget: i64,
-        detail_budget: i64,
+        budgets: [i64; 3],
     ) -> Result<CarriedContext, TurnsError> {
+        let [index_budget, detail_budget, record_budget] = budgets;
         let mut block = block::Block::default();
         let vision = design.vision(project).await?;
         block.source("vision", project.as_str(), vision.revision);
@@ -145,7 +152,99 @@ impl Planning {
             };
             block.index.push(format!("[anchor removed: {kind} {id}]"));
         }
-        Ok(block.finish(index_budget, detail_budget))
+        let digest = code_record
+            .digest(project)
+            .await
+            .map_err(Self::record_error)?;
+        // The count of done marks versions the record, so a new mark re-sends it.
+        block.source("code_record", project.as_str(), i64::from(digest.marks));
+        block.record = Some(Self::record(&digest));
+        Ok(block.finish(index_budget, detail_budget, record_budget))
+    }
+
+    fn record_error(error: CodeRecordError) -> TurnsError {
+        match error {
+            CodeRecordError::Storage(error) => error.into(),
+            CodeRecordError::Design(error) => error.into(),
+            CodeRecordError::InvalidTopic(why) => TurnsError::InvalidCommand(why),
+        }
+    }
+
+    /// The digest as the block's lines: a group per part, then the files no part owns.
+    fn record(digest: &RecordDigest) -> Record {
+        let mut record = Record::default();
+        for part in &digest.parts {
+            record.groups.push(RecordGroup::new(
+                format!("Part {} ({}):", part.title, part.part_id),
+                part.title.clone(),
+                part.files.iter().map(Self::record_file).collect(),
+            ));
+        }
+        if !digest.unowned.is_empty() {
+            record.groups.push(RecordGroup::new(
+                "Files no part owns:".into(),
+                "no part".into(),
+                digest.unowned.iter().map(Self::record_file).collect(),
+            ));
+        }
+        record.gaps = digest
+            .gaps
+            .iter()
+            .map(|gap| {
+                format!(
+                    "{} {} {} ({}): {}",
+                    gap.element_id,
+                    Self::word(&gap.kind),
+                    gap.name,
+                    Self::word(&gap.state),
+                    gap.why
+                )
+            })
+            .collect();
+        record
+    }
+
+    fn record_file(file: &DigestFile) -> RecordFile {
+        let layer = file
+            .layer
+            .as_ref()
+            .map(|layer| format!(" [{layer}]"))
+            .unwrap_or_default();
+        RecordFile {
+            line: format!("  {}{layer}: {}", file.path, file.purpose),
+            symbols: file
+                .symbols
+                .iter()
+                .map(|symbol| {
+                    let inputs: Vec<String> = symbol
+                        .inputs
+                        .iter()
+                        .map(|input| format!("{}: {}", input.name, input.type_name))
+                        .collect();
+                    let signature = match (&symbol.returns, inputs.is_empty()) {
+                        (None, true) => String::new(),
+                        (None, false) => format!(": {}", inputs.join(", ")),
+                        (Some(returns), true) => format!(": () -> {}", returns.type_name),
+                        (Some(returns), false) => {
+                            format!(": {} -> {}", inputs.join(", "), returns.type_name)
+                        }
+                    };
+                    RecordSymbol {
+                        named: format!("{} ({})", symbol.name, Self::word(&symbol.kind)),
+                        signature,
+                    }
+                })
+                .collect(),
+        }
+    }
+
+    /// A snake_case enum value as it reads: `function`, `gap`.
+    fn word(value: &impl serde::Serialize) -> String {
+        match serde_json::to_value(value) {
+            Ok(serde_json::Value::String(word)) => word,
+            Ok(other) => other.to_string(),
+            Err(_) => String::new(),
+        }
     }
 
     async fn detail(
