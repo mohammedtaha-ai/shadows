@@ -155,6 +155,34 @@ Every task's checks run from `web/`: the tests it names, then `npm run typecheck
   - every earlier test in the folder still passes;
   - the four standard checks pass.
 
+### F-136 · The where view shows each symbol's contract inputs and return
+
+- Status: blocked (on B-189 and `api/openapi.json` showing `SymbolEntry.inputs` and `returns`)
+- Plan: this entry (an addition to F-135's symbol block; the plan's F-135 section is the rest).
+- Read:
+  - `docs/shared/requests/2026-11-19-code-where.md` (the 2026-11-21 amendment and its
+    re-review);
+  - `web/src/app/project-state/where-view.tsx` (the symbol block);
+  - `web/src/app/project-state/where-view.test.tsx` (the `symbol` fixture).
+- Touch:
+  - `web/src/api/schema.d.ts` (only by `npm run gen:api`, run first);
+  - `web/src/app/project-state/where-view.tsx`, `where-view.test.tsx`;
+  - `web/src/app/project-state/contract.yaml` (the two tests under the where view's obligations).
+- Not: `web/src/api/code-record.ts` (`SymbolEntry` already comes from the schema); any other
+  view; `web/src/stream/`.
+- Needs: B-189 built; F-135.
+- The symbol block, after `Line {line}` and before `behavior`, shows Core's values as given:
+  - when `inputs` is not empty: a list (`aria-label="Inputs"`), one item per input in Core's
+    order, reading `{name}: {type_name} · {meaning}`;
+  - when `returns` is present: `Returns {type_name} · {meaning}`;
+  - nothing for an empty `inputs` or an absent `returns`; no text is parsed or inferred.
+- The `symbol` fixture gains `inputs: []`; no other earlier test changes.
+- Done when, run with `npx vitest run src/app/project-state`:
+  - `a_symbol_shows_its_contract_inputs_and_return` (two inputs in order, and the return line);
+  - `a_symbol_with_no_inputs_or_return_shows_neither` (no `Inputs` list, no `Returns`);
+  - every earlier test in the folder still passes;
+  - the four standard checks pass.
+
 ### Shipped
 
 A shipped task's entry, and its plan once deleted, are in this file in Git at the commit named.

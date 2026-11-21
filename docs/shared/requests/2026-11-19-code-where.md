@@ -1,6 +1,6 @@
 # Where a thing is in the project (`code_where`)
 
-- Status: answered (accepted on 2026-11-20 and built; amended on 2026-11-21 for B-189, waiting for re-review)
+- Status: accepted (accepted on 2026-11-20 and built; the 2026-11-21 amendment for B-189 accepted the same day)
 - Asked by: drafted by Hamoud for Masada at the controller's request, 2026-11-19 (Masada reviews the
   Need and Fields, and accepts or replies)
 - Screen: the code record design §5.3 and §5.4
@@ -153,6 +153,19 @@ the person submits it, and again only on "Ask again". Project events do not reru
 
 The frontend task is F-135 in `docs/frontend/stages.md`, blocked until B-182, B-183 and B-185
 are built and `api/openapi.json` shows the route.
+
+**Re-review of the amendment (Masada, 2026-11-21, after `605b1bc`): accepted.**
+- **The shape meets the need.** `inputs` and `returns` are the recorded contract's
+  `ContractValue` (`name`, `type_name`, `meaning`), as written at done, like `behavior`. The
+  screen shows them as given and derives nothing: no signature parsed from code, no language
+  server call.
+- **The where view shows them.** A person asking where something is sees the signature the
+  Planner sees, beside `behavior`. `inputs` empty and `returns` absent show nothing; no
+  placeholder is invented.
+- **One condition for the frontend:** `inputs` is required in the regenerated schema, so F-135's
+  typed fixtures no longer compile until the web regenerates. That is F-136 in
+  `docs/frontend/stages.md`, blocked until B-189 is built and `api/openapi.json` shows the two
+  fields.
 
 ## Ruling
 
