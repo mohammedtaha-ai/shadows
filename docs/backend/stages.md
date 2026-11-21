@@ -245,8 +245,8 @@ Shared request for its route: `docs/shared/requests/2026-11-19-code-where.md` (a
 
 ### B-189 · `code_where` gives each symbol's contract signature
 
-- Status: blocked (the amendment to `docs/shared/requests/2026-11-19-code-where.md` is not
-  accepted; then on B-188)
+- Status: done (the web's `symbol` fixture gained `inputs: []` so the regenerated schema
+  typechecks; the rest of F-136 is the frontend's)
 - Plan: [plans/2026-11-19-code-record-2b.md#task-b-189--code_where-gives-each-symbols-contract-signature](plans/2026-11-19-code-record-2b.md#task-b-189--code_where-gives-each-symbols-contract-signature)
 - Read: `crates/code-record/contract.yaml` (`code_where`); `crates/code-record/src/model.rs`
   (`SymbolEntry`); `crates/core-plans/contract.yaml` (`SymbolWork`, `ContractValue`).
