@@ -86,6 +86,7 @@ this file at `db760593`.
 - When the file check of B-167 (`docs/backend/stages.md` at `7b7abec`) is skipped (no project folder, first listing running), the Planner is not told; it saw a like edit refused before and could not tell why.
 - TypeScript's language server is `tsc --lsp` (TypeScript 7); on a machine with TypeScript 6 a TypeScript task's `contract` check is `not_run` with the server's error line (`docs/evidence/2026-11-19-code-record-live.md`).
 - The contract check's Go shapes (`(*X).m`) are tested on recorded gopls answers only; no live gopls run yet.
+- A language server that exits is not started again until `shadows serve` restarts; until then `code_where` gives the record's half with `unchecked` and why (evidence, fifth run).
 - A Planner's `Read` (Claude) and read-only sandbox (Codex) can read any file the account can, outside the project too; only its instructions keep it in the project. Accepted as is by Mohammed on 2026-11-18.
 
 ## Open
@@ -226,7 +227,7 @@ Shared request for its route: `docs/shared/requests/2026-11-19-code-where.md` (a
 
 ### B-186 · Acceptance on a real provider (2b)
 
-- Status: doing (run on 2026-11-21, same evidence file: `code_where` answers and a hand-deleted symbol shows as a live gap; **the Planner did not call `code_where`** (P1; traced, fix in B-188 and B-189); left: step 1 again after B-188, and the stopped-server step)
+- Status: done (2026-11-21, `docs/evidence/2026-11-21-code-record-2-live.md`): step 1 passes as amended by Mohammed (fourth run, after B-193: no search for where things are; it opens only the files it modifies); step 2, a hand-deleted symbol is a live gap; step 3, a stopped pyright gives the record's half with `unchecked` and why (fifth run)
 - Plan: [plans/2026-11-19-code-record-2b.md#task-b-186--acceptance-on-a-real-provider-2b](plans/2026-11-19-code-record-2b.md#task-b-186--acceptance-on-a-real-provider-2b)
 - Touch: `docs/evidence/` (one new file); this entry's status.
 - Needs: B-184; B-181 run on the same project.
@@ -234,7 +235,7 @@ Shared request for its route: `docs/shared/requests/2026-11-19-code-where.md` (a
 
 ### B-188 · The Planner asks `code_where` before it reads (P1)
 
-- Status: done (the controller's live check is still to run)
+- Status: done; its live check was overtaken by B-193 (the record is sent, not asked for)
 - Plan: [plans/2026-11-19-code-record-2b.md#task-b-188--the-planner-asks-code_where-before-it-reads-p1](plans/2026-11-19-code-record-2b.md#task-b-188--the-planner-asks-code_where-before-it-reads-p1)
 - Read: the plan task's root cause; `crates/core-harness/src/prompt.txt`;
   `crates/core-harness/contract.yaml`; `crates/shadows-mcp/src/record_tools.rs`.
@@ -322,8 +323,8 @@ Shared request for its route: `docs/shared/requests/2026-11-19-code-where.md` (a
 ### B-193 · Shadows sends the code record with the Planner's context
 
 - Status: done in `55941d8`; live, the block is sent and heard, and the Planner no longer lists the
-  folder; it still opens the files it modifies (evidence, fourth run). B-186 step 1's "no read
-  before `plan_edit`" waits on Mohammed: amend it to "no search for where things are"
+  folder; it opens only the files it modifies (evidence, fourth run). B-186 step 1 amended to
+  "no search for where things are" (Mohammed, 2026-11-21)
 - Plan: this entry. Ruling (Mohammed, 2026-11-21): the Planner does not wait on itself to ask;
   Shadows feeds it. Spec: `docs/backend/specs/2026-11-04-planner-context-design.md` §4.2 ("Code
   record" layer, its cut order and owner); `docs/backend/specs/2026-11-19-project-code-record-design.md`

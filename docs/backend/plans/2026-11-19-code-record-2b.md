@@ -543,10 +543,11 @@ The controller runs it with `shadows serve` and a real provider, with the keys a
 It uses the project B-181 left: its first plan done, its tables and screens built.
 
 1. **New conversation.** Ask the Planner for "users can change their email".
-   - **Expected:** before writing a task, it asks `project_state` and `code_where` (for example
-     `code_where("users")` and `code_where("Sign in")`). Its contract names the existing files,
-     symbols and element ids those answers gave. It modifies, never re-creates, and makes no `Read`,
-     `Grep`, `Glob` or shell read of the project's files before its first `plan_edit`.
+   - **Expected** (amended by Mohammed, 2026-11-21, after B-193 sends the record with the
+     context): its contract names the existing files, symbols and element ids the record gave. It
+     modifies, never re-creates. Before its first `plan_edit` it makes no search for where things
+     are (no listing of the folder, `Grep`, `Glob` or `git ls-files`); it may open a file its
+     tasks modify, to see what is inside it, which the record does not hold.
    - **Record:** the tool calls in order, from the server log and the conversation.
 2. **Delete one function** the first plan built, in the folder by hand, and ask
    `code_where(<its name>)` over MCP.

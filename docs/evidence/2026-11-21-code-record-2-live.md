@@ -91,6 +91,18 @@ re-enter their current password".
 Reading: the Planner now plans from the record which files and parts to touch; it opens the files
 it modifies, to see the methods inside the classes, which neither the record nor `code_where` holds.
 
+## Fifth run · B-186 step 3 (a stopped language server)
+
+The pyright process (`node …/langserver.index.js`) killed by hand while `shadows serve` ran.
+
+| # | Step | Observed |
+|---|---|---|
+| 1 | `code_where` `SignIn`, right after | 0.1 s. The file entry and `SignIn` keep the record's half (`at_done: found`, tasks, commit); `live: {state: unchecked, why: "the language server pyright failed: it exited with no error line"}`, `uses_live: not_asked`. **Step 3 holds.** |
+| 2 | The same question every 10 s for 60 s | Unchanged: the exited server is not started again until `shadows serve` restarts (no restart rule in `crates/codebase/contract.yaml`; recorded under "Known and left"). |
+
+Killing only the `pyright-langserver` launcher did not stop the server: its node child kept
+answering over the same pipes.
+
 ## Logs
 
 `daemon.log` over the run: 0 WARN, 0 ERROR (INFO and DEBUG only). Browser console: no errors on the
