@@ -281,7 +281,10 @@ Shared request for its route: `docs/shared/requests/2026-11-19-code-where.md` (a
 
 ### B-191 · The Planner asks `code_where` one short thing at a time (P8)
 
-- Status: doing
+- Status: done in `8673b50` (tests pass). Its live check failed: in a new conversation ("people can
+  change their email") the Planner loaded `code_where` and never called it; it ran `git ls-files`
+  and read 7 files with `cat` before drafting (evidence, third run). The prompt alone does not
+  move it; B-186 step 1 stays open on an owner decision.
 - Plan: this entry. Found live on 2026-11-21 (`docs/evidence/2026-11-21-code-record-2-live.md`, P8):
   the Planner's one `code_where` call asked a 12-word sentence; the words tier needs every word in
   one file's purpose or one symbol's contract, so it answered `entries: []`, and the Planner read
@@ -300,7 +303,7 @@ Shared request for its route: `docs/shared/requests/2026-11-19-code-where.md` (a
 
 ### B-192 · `code_where` never answers "no uses" from a language server that has not seen the file (P9)
 
-- Status: doing
+- Status: done in `ecbfb76`; live check passed (evidence, third run)
 - Plan: this entry. Found live on 2026-11-21 (same evidence file, P9): pyright, started before the
   executors created `backend/accounts/`, answered `textDocument/references` for `SignIn` and
   `AppCore` with `[]`; `code_where` reported `uses_live: answered`, `uses: []`. pyright run by
