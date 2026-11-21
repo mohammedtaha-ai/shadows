@@ -253,3 +253,28 @@ Shared request for its route: `docs/shared/requests/2026-11-19-code-where.md` (a
 - Touch: the plan task's Files.
 - Needs: B-188; the request amendment accepted.
 - Done when: the plan task's "Done when".
+
+### B-190 · A done task carried into a new version keeps its earlier verdict (P6)
+
+- Status: done
+- Plan: this entry. Found live on 2026-11-21 (`docs/evidence/2026-11-21-code-record-2-live.md`,
+  P6): T2, carried to v3 and marked done there with no attempt of its own, recorded every
+  symbol `at_done: unchecked`, because `Runs::done_record` gave a mark with no committed attempt
+  in its version no attempt, commit or verdict.
+- Rule (Runs supplies the facts, CodeRecord records them with `record_done_in`): with no committed
+  attempt in this version, Runs follows the task's copy ancestry (`Plans::task_lineage_in`, then
+  `previous` versions through `Plans::version_in`) to the newest earlier version with a committed
+  attempt at it. That attempt's commit, contract and verdict are carried only when the earlier
+  task is marked done no earlier than the attempt committed (the mark is for that commit) and the
+  carried task's frozen contract equals the attempt's saved one. Otherwise the record stays
+  `unchecked`. `record_in` drops the verdict only when this version has a committed attempt that
+  is not the record's.
+- Read: `crates/core-runs/contract.yaml` (`mark_done`); `crates/code-record/contract.yaml`
+  (`DoneRecord`, `record_done_in`); `crates/core-plans/contract.yaml` (`task_lineage_in`).
+- Touch: `crates/core-runs/src/lib.rs`, `crates/core-runs/src/store/marks.rs`,
+  `crates/core-runs/contract.yaml`, `crates/code-record/src/model.rs` (the `DoneRecord` doc),
+  `crates/code-record/contract.yaml`, `crates/shadows-core/tests/runs_attempts/contract_check.rs`.
+- Needs: nothing.
+- Done when: `cargo test -p shadows-core --features test-support --test runs_attempts`
+  (`a_task_carried_with_its_contract_unchanged_keeps_its_verdict`,
+  `a_task_carried_with_a_changed_contract_stays_unchecked`); the gate list.
