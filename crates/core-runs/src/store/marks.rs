@@ -241,10 +241,11 @@ impl RunsStore {
     }
 
     /// The attempt a task carried into `plan` without one of its own was
-    /// judged done on. Along the task's copy ancestry (Plans' lineage), the
+    /// marked done on. Along the task's copy ancestry (Plans' lineage), the
     /// newest earlier version with a committed attempt at it gives its latest
-    /// one, but only when that version's done mark judged that very attempt,
-    /// so the verdict is for the commit the mark accepted. None otherwise.
+    /// one, but only when that version's task is marked done and the mark
+    /// came after that attempt committed: the mark, and the record it wrote,
+    /// are then for that attempt's commit. None otherwise.
     pub async fn carried_attempt(
         &self,
         plan: &core_plans::Plan,
@@ -274,29 +275,26 @@ impl RunsStore {
             else {
                 continue;
             };
-            let latest: Option<String> = sqlx::query_scalar(
-                "SELECT id FROM run_attempts WHERE workflow_id=? AND version=?
-                 AND task=? AND state='committed' ORDER BY number DESC LIMIT 1",
+            // RFC 3339 texts of varying fractional length: compared as
+            // instants, never as text.
+            let latest: Option<(String, bool)> = sqlx::query_as(
+                "SELECT a.id, COALESCE(m.done = 1
+                        AND julianday(m.done_at) >= julianday(a.ended_at), 0)
+                 FROM run_attempts a
+                 LEFT JOIN run_task_marks m ON m.workflow_id = a.workflow_id
+                   AND m.version = a.version AND m.task = a.task
+                 WHERE a.workflow_id=? AND a.version=? AND a.task=? AND a.state='committed'
+                 ORDER BY a.number DESC LIMIT 1",
             )
             .bind(workflow.as_str())
             .bind(earlier.version)
             .bind(i64::from(number))
             .fetch_optional(&mut *read)
             .await?;
-            let Some(latest) = latest else { continue };
-            let judged: Option<Option<String>> = sqlx::query_scalar(
-                "SELECT judged_attempt_id FROM run_task_marks
-                 WHERE workflow_id=? AND version=? AND task=? AND done=1",
-            )
-            .bind(workflow.as_str())
-            .bind(earlier.version)
-            .bind(i64::from(number))
-            .fetch_optional(&mut *read)
-            .await?;
-            return Ok(judged
-                .flatten()
-                .filter(|judged| *judged == latest)
-                .map(AttemptId::from_recorded));
+            let Some((latest, marked_after)) = latest else {
+                continue;
+            };
+            return Ok(marked_after.then(|| AttemptId::from_recorded(latest)));
         }
         Ok(None)
     }

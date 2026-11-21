@@ -755,10 +755,6 @@ async fn carried_record(change: bool) -> Vec<(String, String, String)> {
         .mark_done("v2-done".into(), &next, 2, 3, true, None)
         .await
         .unwrap();
-    let dbg: Vec<(String, Option<String>)> = sqlx::query_as("SELECT workflow_id, copied_from FROM task WHERE number = 3").fetch_all(f.storage.reader()).await.unwrap();
-    eprintln!("DBG tasks {dbg:?}");
-    let dbg: Vec<(String, i64, Option<String>)> = sqlx::query_as("SELECT workflow_id, version, judged_attempt_id FROM run_task_marks").fetch_all(f.storage.reader()).await.unwrap();
-    eprintln!("DBG marks {dbg:?} attempt {id:?}");
     let rows = sqlx::query_as(
         "SELECT symbol_id, name, state FROM code_record_symbol
          WHERE workflow_id = ? AND task = 3 ORDER BY symbol_id",

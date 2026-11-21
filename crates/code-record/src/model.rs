@@ -167,7 +167,8 @@ impl Verdict {
 /// What a done mark records of its task: the contract, and what the code held
 /// of it. `attempt` and `commit` are none for a task done with no attempt;
 /// `verdict` is none then, or when no verdict matches the recorded attempt,
-/// and every promised symbol is recorded unchecked.
+/// and every promised symbol is recorded unchecked. A task carried unchanged
+/// from an earlier version names the attempt it was marked done on there.
 #[derive(Debug, Clone, PartialEq)]
 pub struct DoneRecord {
     pub project: core_projects::ProjectId,
