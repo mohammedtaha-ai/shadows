@@ -422,7 +422,11 @@ index, its commit queue and its trailer.
   on the checked-out branch. Include both rename ends and deleted paths, not a broad
   writes glob or `.`. Other staged/worktree changes, the person's included, stay intact.
   Native Git lock contention retries only the same command, at most three times after
-  1/2/4 seconds; never delete another operation's lock. Remaining failure is reported.
+  1/2/4 seconds; never delete another operation's lock. A permission denial when creating
+  a lock or writing Git metadata uses the harness's configured approval for the exact Git
+  command if offered. If the executor cannot commit, its final message names the failed
+  Git step, the obstruction, and the approval outcome if known. Runs' existing failure
+  notice carries that message to the Planner.
   The instruction change and real-Git procedure tests belong to slice 4's B-148 (`docs/backend/stages.md` at `d73bb646`).
 - **It reports.** It calls `task_report { commit, report }`: the commit's SHA and an honest
   account of what it did, what it ran or tested, and what passed or failed. The executor's

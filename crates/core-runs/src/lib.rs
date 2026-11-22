@@ -94,11 +94,15 @@ const COMMIT: &str = "Other executors may work in the same folder at once. Run o
     file by its exact path with `git --literal-pathspecs add -- <path>`, then run \
     `git --literal-pathspecs commit --only -m \"<message>\" -- <path>...` naming every path you \
     changed exactly, both names of a rename and the name of a deleted file; never a pattern, a \
-    folder or `.`. Leave what others staged alone. If git refuses because an index or ref lock \
-    exists, run the same command again after 1, 2 and 4 seconds; never delete the lock or reset \
-    the index. If it is still refused, report that the commit failed. Leave nothing uncommitted \
-    inside the task's writes; then call task_report with the commit's sha and an honest report \
-    of what you did, ran and found.";
+    folder or `.`. Leave what others staged alone. If Git says an index or ref lock already \
+    exists, retry the same command after 1, 2 and 4 seconds; never delete the lock or reset the \
+    index. If permission to create a lock is denied, or Git otherwise denies a write, request \
+    the harness's configured approval for the exact failed Git command and paths if available. \
+    Proceed only if the approved command succeeds. If you cannot commit, leave your changes in \
+    place and end with a final message: give the failed Git step, the obstruction and the \
+    approval outcome if known. Say when the cause is unclear. After a successful commit, leave \
+    nothing uncommitted inside the task's writes; then call task_report with the commit's sha \
+    and an honest report of what you did, ran and found.";
 
 struct Inner {
     /// One lock per executor thread: a question's send, a release and a
@@ -470,11 +474,16 @@ mod tests {
     fn the_first_prompt_says_how_an_attempt_ends() {
         let prompt = FIRST_PROMPT.replace("{commit}", COMMIT);
         for text in [
-            "Leave nothing uncommitted inside the task's writes",
+            "leave nothing uncommitted inside the task's writes",
             "If nothing needs to change, commit nothing",
             "git --literal-pathspecs commit --only -m",
             "both names of a rename and the name of a deleted file",
+            "after 1, 2 and 4 seconds",
             "never delete the lock",
+            "permission to create a lock is denied",
+            "request the harness's configured approval for the exact failed Git command",
+            "give the failed Git step, the obstruction and the approval outcome if known",
+            "call task_report with the commit's sha",
             "reported as not run, never as passed",
             "call task_brief",
             "Shadows checks by name that each one exists in its file after your commit",

@@ -22,13 +22,17 @@ The contract check and the code record's first slice are on `main` (PR #73, `7b7
 (B-167, a task may not modify or delete a file the project does not have; B-169, nor create one it
 has), a big project's file listing no longer stalls Shadows (B-168), the `contract` check and the
 record written with the done mark (B-170 to B-173), its acceptance on a real provider (B-174), and the
-Report tab's contract row (F-129). Now, on `ccr-9e1b02d8-b0ylm1`: slice 2 of the code record as two
+Report tab's contract row (F-129). Now, on `codex/code-record-live-fixes`: slice 2 of the code record as two
 plans on this one branch (Mohammed, 2026-11-19; design §5, §8, §9 of
 `docs/backend/specs/2026-11-19-project-code-record-design.md`). Plan 2a,
 `docs/backend/plans/2026-11-19-code-record-2a.md`: tables and screens as Design's elements (§18.13),
 pinned by task contracts, their states from the record, and `project_state` (B-175 to B-181, B-187). Plan 2b,
 `docs/backend/plans/2026-11-19-code-record-2b.md`: `code_where` (B-182 to B-186). The controller
 dispatches the builders and fixers (Mohammed, 2026-11-19); the backend lead prepares and checks.
+
+The Windows `testing7` run is recorded in `docs/evidence/2026-11-22-testing7-go-notes-live.md`
+at `627a0e94`. B-194 to B-196 are a recovery plan for review. The Claude catalog issue waits
+for Claude quota to return.
 
 ### Shipped
 
@@ -364,3 +368,44 @@ Shared request for its route: `docs/shared/requests/2026-11-19-code-where.md` (a
   architecture --test codemap --test contracts`; clippy for the touched crates; then live: a new
   Planner conversation plans "people can change their email" naming existing files and symbols
   without reading them first (B-186 step 1).
+
+### B-194 · Distinguish Git contention from denied writes
+
+- Status: done (the focused `core-runs` unit test failed on the old prompt and passed with the new instructions)
+- Plan: [Codex commit recovery, B-194](plans/2026-11-22-codex-commit-recovery.md#b-194--distinguish-git-locks-from-denied-writes-in-the-executor-procedure).
+- Read: `crates/core-runs/contract.yaml` (commit procedure and `notify`), `crates/core-runs/src/lib.rs`
+  (`COMMIT` and its unit test), `crates/shadows-agent/contract.yaml` (executor mode),
+  `docs/backend/specs/2026-11-08-executors-design.md` §7.
+- Touch: `crates/core-runs/src/lib.rs`, `crates/core-runs/contract.yaml`,
+  `docs/backend/specs/2026-11-08-executors-design.md`.
+- Needs: nothing.
+- Done when: `cargo test -p core-runs --lib the_first_prompt_says_how_an_attempt_ends`
+  executes one test and passes. B-196 checks actual Git and approval outcomes.
+
+### B-195 · Give the Planner Start's readiness for an attempted task
+
+- Status: todo
+- Plan: [Codex commit recovery, B-195](plans/2026-11-22-codex-commit-recovery.md#b-195--let-the-planner-read-starts-answer-for-an-attempted-task).
+- Read: `crates/core-runs/contract.yaml` (`task`, `start_answer`, `start_for`, `ready_for`, `live_for`),
+  `crates/core-runs/src/{planner,ready}.rs`, `crates/core-grants/contract.yaml`,
+  `crates/shadows-mcp/src/contract.yaml` (task tools), and
+  `crates/core-harness/contract.yaml` (Planner prompt).
+- Touch: `crates/core-runs/src/planner.rs`, `crates/shadows-mcp/src/run_tools.rs`,
+  `crates/core-grants/src/tools.rs`, `crates/core-harness/src/prompt.txt`,
+  `crates/{core-runs,core-grants,core-harness}/contract.yaml`, `crates/shadows-mcp/src/contract.yaml`,
+  `crates/shadows/tests/{mcp_tools,mcp_server}.rs`, `docs/backend/specs/2026-11-08-executors-design.md`.
+- Needs: nothing. B-194 and B-195 are both needed for the live run.
+- Done when: `cargo test -p shadows --test mcp_tools task_start_status_matches_the_task_read`
+  and `cargo test -p shadows --test mcp_server the_tool_list_depends_on_the_grant_kind` pass,
+  with `git diff --exit-code -- api/openapi.json` clean.
+
+### B-196 · Verify Codex commit recovery on Windows
+
+- Status: todo
+- Plan: [Codex commit recovery, B-196](plans/2026-11-22-codex-commit-recovery.md#b-196--verify-the-recovery-with-native-codex-on-windows).
+- Read: B-196's acceptance steps and `docs/evidence/2026-11-22-testing7-go-notes-live.md` at `627a0e94`.
+- Touch: one `docs/evidence/<run-date>-codex-commit-recovery-live.md` and this entry's status.
+- Needs: B-194, B-195. Controller and person run the live acceptance.
+- Done when: the evidence records the native approval path, the one-shot fixture lock,
+  retry over a released attempt's leftovers, refusal of personal dirty files, scoped commit,
+  and Planner judgment. An unobserved permission refusal leaves that acceptance case open.
