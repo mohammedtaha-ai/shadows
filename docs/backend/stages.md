@@ -401,7 +401,8 @@ Shared request for its route: `docs/shared/requests/2026-11-19-code-where.md` (a
 
 ### B-196 · Verify Codex commit recovery on Windows
 
-- Status: todo
+- Status: done (2026-11-22, [live evidence](../evidence/2026-11-22-codex-commit-recovery-live.md)).
+  The native approved retry, existing lock, released leftovers and personal-edit refusal were observed.
 - Plan: [Codex commit recovery, B-196](plans/2026-11-22-codex-commit-recovery.md#b-196--verify-the-recovery-with-native-codex-on-windows).
 - Read: B-196's acceptance steps and `docs/evidence/2026-11-22-testing7-go-notes-live.md` at `627a0e94`.
 - Touch: one `docs/evidence/<run-date>-codex-commit-recovery-live.md` and this entry's status.

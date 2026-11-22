@@ -153,7 +153,7 @@ disposable Git project. Use the normal Windows debug build and the configured Co
 model, attempt IDs, tool answers, commit and check verdicts in a dated `docs/evidence/`
 record.
 
-- [ ] **Permission refusal.** Start a small task whose contract creates one text file
+- [x] **Permission refusal.** Start a small task whose contract creates one text file
   and checks its contents. Observe native Codex's Git call and the configured approval
   outcome. If creating `index.lock` is denied, capture whether the executor requests
   approval for the exact path command and what happens next. A refusal leaves an honest
@@ -161,27 +161,27 @@ record.
   must result in a scoped commit and a verified report. Record the permission branch as
   unobserved if this environment lets the Git operation through on the first call. That
   run verifies the paths it exercised and leaves permission recovery open.
-- [ ] **Contention and retry over leftovers.** Before Start, stage a fixture file outside
+- [x] **Contention and retry over leftovers.** Before Start, stage a fixture file outside
   the task's `writes`. Add `/.fixture-continue` to the fixture's Git excludes and leave
   that marker absent. In the task steps, have the executor write the expected text file,
   then wait up to 60 seconds for `.fixture-continue` before its first `git add`. Keep the
   saved contract check limited to the target file's contents. If the marker wait times
   out, end without attempting Git and record this fixture run as inconclusive.
-- [ ] Once the target file appears, the tester creates `.git/index.lock` with exclusive
+- [x] Once the target file appears, the tester creates `.git/index.lock` with exclusive
   create, closes the handle, and creates `.fixture-continue`. Keep the lock in place until
   the first attempt has exhausted its bounded retries, ended `Failed` and released its
   scope. Remove only the fixture lock the tester created. Leave the ignored marker present
   so the retry proceeds without a second pause.
-- [ ] Ask the Planner whether that task can be retried in the same conversation. Capture
+- [x] Ask the Planner whether that task can be retried in the same conversation. Capture
   `task_start_status` with `allowed: true` and the Planner's explanation. Ask it to retry.
   The next attempt receives the leftover file, commits it, reports the SHA and passes
   the checks before the Planner marks it done.
-- [ ] **Personal edits still block.** In a separate task that has never run, put a
+- [x] **Personal edits still block.** In a separate task that has never run, put a
   personal untracked file inside its `writes`. Observe `allowed: false` with `dirty_scope`,
   confirm the Planner tells the person which path blocks it, and confirm the file remains.
   Compare the task's attempt count before and after. A request to Start while the file is
   there must refuse with the same reason.
-- [ ] **Scope and judgment.** For the successful commit, inspect `git show --name-only`
+- [x] **Scope and judgment.** For the successful commit, inspect `git show --name-only`
   and the Shadows checks. A foreign path staged by the tester outside the task's `writes`
   remains staged and absent from the task commit. Capture the task's transition from
   attempt `Committed` to `Done` after review. Write observed, failed and unobserved cases
