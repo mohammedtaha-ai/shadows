@@ -38,6 +38,16 @@ run. An approval rejection was not observed.
 - `cargo test -p shadows --test mcp_server the_tool_list_depends_on_the_grant_kind`
   passed once. The OpenAPI artifact had no diff.
 
+## Latest runtime and branch check
+
+On 2026-11-22, local `codex/code-record-live-fixes` and its GitHub branch both pointed
+to `15f5c2b9ded479373e924efc272b4999e53865b1` before recording this check. The
+stage ledger listed B-194, B-195 and B-196 as done. The original Claude Launch daemon's
+`GET /api/projects` at `127.0.0.1:4318` returned HTTP 200 and still included `testing7`.
+The web client at `http://localhost:5173/` also returned HTTP 200. The owner elected to
+monitor the new pull request's checks on GitHub. The implementation verification for
+this head is the focused checks and native Windows run recorded above.
+
 ## Local evidence anchors
 
 | Record | Identifier |
