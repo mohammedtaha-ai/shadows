@@ -71,8 +71,8 @@ impl RecordGroup {
 impl Record {
     const HEADING: &str =
         "## Code record (what done tasks built, from the record; no language server asked)";
-    const USE: &str = "Plan from it. Ask code_where for a symbol's line now, its uses, or what this \
-        block cut; read a file only for what neither gives.";
+    const USE: &str = "Plan from it. Ask code_where for a symbol's line now, its uses, \
+        or what this block cut; read a file only for what neither gives.";
     const EMPTY: &str = "No code recorded yet: no done task has recorded a file. Read the files \
         the plan touches.";
 

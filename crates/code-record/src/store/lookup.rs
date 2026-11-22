@@ -267,7 +267,8 @@ impl CodeRecordStore {
             "SELECT COUNT(*) FROM (
                SELECT workflow_id, version, task FROM code_record_file WHERE project_id = ?1
                UNION SELECT workflow_id, version, task FROM code_record_symbol WHERE project_id = ?1
-               UNION SELECT workflow_id, version, task FROM code_record_element WHERE project_id = ?1)",
+               UNION SELECT workflow_id, version, task FROM code_record_element \
+                 WHERE project_id = ?1)",
         )
         .bind(project.as_str())
         .fetch_one(&mut *tx)
@@ -296,9 +297,8 @@ impl From<FileTuple> for FileRow {
 }
 
 impl From<SymbolTuple> for SymbolRow {
-    fn from(
-        (path, workflow_id, version, task, symbol_id, name, kind, contract_json, state): SymbolTuple,
-    ) -> Self {
+    fn from(row: SymbolTuple) -> Self {
+        let (path, workflow_id, version, task, symbol_id, name, kind, contract_json, state) = row;
         SymbolRow {
             path,
             workflow_id,
