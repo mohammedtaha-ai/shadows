@@ -44,6 +44,17 @@ async fn raw_post(
     request.send().await.unwrap()
 }
 
+fn assert_planner_tool_list(tools: &[Value]) {
+    let mut actual: Vec<&str> = tools
+        .iter()
+        .map(|tool| tool["name"].as_str().unwrap())
+        .collect();
+    let mut expected = shadows_core::Grants::tools_for(shadows_core::GrantKind::Thread).to_vec();
+    actual.sort_unstable();
+    expected.sort_unstable();
+    assert_eq!(actual, expected);
+}
+
 #[tokio::test]
 async fn a_request_without_a_token_is_401() {
     let l = listening_app().await;
@@ -256,64 +267,10 @@ async fn the_legacy_initialize_lifecycle_works_without_a_session() {
     assert_eq!(response.status(), 200);
     assert!(response.headers().get("mcp-session-id").is_none());
     let answer: Value = response.json().await.unwrap();
-    let mut names: Vec<&str> = answer["result"]["tools"]
+    let tools = answer["result"]["tools"]
         .as_array()
-        .unwrap_or_else(|| panic!("{answer}"))
-        .iter()
-        .map(|t| t["name"].as_str().unwrap())
-        .collect();
-    names.sort();
-    assert_eq!(
-        names,
-        [
-            "agreement_edit",
-            "agreement_get",
-            "agreement_list",
-            "agreement_review",
-            "agreement_start",
-            "code_lsp",
-            "code_where",
-            "decision_list",
-            "decision_propose",
-            "design_element_delete",
-            "design_element_put",
-            "design_elements",
-            "draft_start",
-            "executor_catalog",
-            "map_approve",
-            "map_propose",
-            "message_agent",
-            "person_ask",
-            "plan_approve",
-            "plan_edit",
-            "plan_show",
-            "project_change_note",
-            "project_files",
-            "project_git_init",
-            "project_refresh",
-            "project_state",
-            "roadmap_approve",
-            "roadmap_propose",
-            "task_amend",
-            "task_checks",
-            "task_context",
-            "task_diff",
-            "task_done",
-            "task_executor_set",
-            "task_file",
-            "task_get",
-            "task_lessons",
-            "task_ready",
-            "task_runs",
-            "task_start",
-            "task_stop",
-            "vision_approve",
-            "vision_propose",
-            "workflow_get",
-            "workflow_list",
-            "workspace_get"
-        ]
-    );
+        .unwrap_or_else(|| panic!("{answer}"));
+    assert_planner_tool_list(tools);
 
     l.app
         .core
@@ -366,10 +323,7 @@ async fn the_discover_lifecycle_works_without_a_session() {
     let tools = answer["result"]["tools"]
         .as_array()
         .unwrap_or_else(|| panic!("{answer}"));
-    assert_eq!(tools.len(), 46, "{answer}");
-    for tool in ["task_executor_set", "executor_catalog"] {
-        assert!(tools.iter().any(|item| item["name"] == tool), "{answer}");
-    }
+    assert_planner_tool_list(tools);
     // The Planner proposes and lists decisions; an executor does neither.
     for name in ["decision_propose", "decision_list"] {
         assert!(tools.iter().any(|t| t["name"] == name), "{name}: {answer}");
