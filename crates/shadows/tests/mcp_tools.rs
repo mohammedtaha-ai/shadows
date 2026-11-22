@@ -1158,6 +1158,75 @@ async fn the_planner_reads_a_commit_with_its_own_tools() {
         .unwrap();
 }
 
+#[tokio::test]
+async fn task_start_status_matches_the_task_read() {
+    let l = listening_app().await;
+    let core = &l.app.core;
+    let planner = thread_client(&l, &l.app.thread).await;
+    let workflow = approved_v1(&l.app).await;
+    let project = core.projects().get(&l.app.project).await.unwrap();
+    let root = std::path::PathBuf::from(project.directory.unwrap());
+    let init = std::process::Command::new("git")
+        .args(["init", "--quiet"])
+        .current_dir(&root)
+        .output()
+        .unwrap();
+    assert!(init.status.success(), "git init: {:?}", init.stderr);
+
+    let runs = core.runs();
+    runs.choose_executor_for_test(&workflow, 1, "claude-code", "fake-small", Some("high"))
+        .await
+        .unwrap();
+    std::fs::create_dir_all(root.join("src")).unwrap();
+    let edited = root.join("src/t1.rs");
+    std::fs::write(&edited, "personal change\n").unwrap();
+    let args = json!({ "workflow_id": &workflow, "task_number": 1 });
+    let blocked = ok(&planner, "task_start_status", args.clone()).await;
+    let task = runs.task(&workflow, 1, 1).await.unwrap();
+    assert_eq!(blocked, serde_json::to_value(task.start).unwrap());
+    assert_eq!(blocked["allowed"], false);
+    assert_eq!(blocked["code"], "dirty_scope");
+
+    std::fs::remove_file(&edited).unwrap();
+    runs.set_first_prompt_for_tests("wait-for-release");
+    let first = runs
+        .start("fixture-start".into(), &workflow, 1, 1)
+        .await
+        .unwrap();
+    std::fs::write(edited, "unfinished attempt\n").unwrap();
+    std::fs::write(root.join("release"), "").unwrap();
+    tokio::time::timeout(std::time::Duration::from_secs(10), async {
+        loop {
+            let attempt = runs.attempt(&first.id).await.unwrap();
+            let task = runs.task(&workflow, 1, 1).await.unwrap();
+            if attempt.state == shadows_core::AttemptState::Failed && task.start.allowed {
+                assert!(attempt.commit.is_none());
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        }
+    })
+    .await
+    .expect("the failed attempt releases its scope");
+
+    let task = runs.task(&workflow, 1, 1).await.unwrap();
+    let expected = serde_json::to_value(task.start).unwrap();
+    assert_eq!(
+        expected,
+        json!({"allowed": true, "code": null, "reason": null})
+    );
+    for _ in 0..2 {
+        assert_eq!(
+            ok(&planner, "task_start_status", args.clone()).await,
+            expected
+        );
+    }
+    assert_eq!(runs.attempts(&workflow, 1, 1).await.unwrap().len(), 1);
+    core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+}
+
 #[test]
 fn the_planner_reads_the_code_before_it_plans() {
     let prompt = shadows_core::testing::PROMPT;

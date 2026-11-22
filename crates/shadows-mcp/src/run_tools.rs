@@ -180,6 +180,26 @@ impl Shadows {
     }
 
     #[tool(
+        description = "Read whether one task may start now, including an attempted task. \
+                       Use this before explaining a failed attempt or a requested retry. \
+                       The answer gives allowed, code and reason. It reserves nothing; \
+                       task_start checks again."
+    )]
+    async fn task_start_status(
+        &self,
+        Extension(grant): Extension<Grant>,
+        Parameters(args): Parameters<TaskStartArgs>,
+    ) -> CallToolResult {
+        answer(
+            self.core
+                .runs()
+                .start_status_for(&grant, &args.workflow_id, args.task_number)
+                .await
+                .map_err(Refusal::from),
+        )
+    }
+
+    #[tool(
         description = "Read what a task's latest committed attempt changed: each file with its \
                        added and removed line counts and its patch. Read it before you judge \
                        an attempt; \

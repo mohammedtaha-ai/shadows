@@ -384,7 +384,7 @@ Shared request for its route: `docs/shared/requests/2026-11-19-code-where.md` (a
 
 ### B-195 · Give the Planner Start's readiness for an attempted task
 
-- Status: todo
+- Status: done (MCP readiness matched the task read before and after release, and the tool-list test passed)
 - Plan: [Codex commit recovery, B-195](plans/2026-11-22-codex-commit-recovery.md#b-195--let-the-planner-read-starts-answer-for-an-attempted-task).
 - Read: `crates/core-runs/contract.yaml` (`task`, `start_answer`, `start_for`, `ready_for`, `live_for`),
   `crates/core-runs/src/{planner,ready}.rs`, `crates/core-grants/contract.yaml`,

@@ -1334,3 +1334,5 @@ judge_checks: >
 
 message_agent: The Planner asks executor questions through message_agent; task_amend requests file changes.
 # Planner prompt: task_runs lists scopes still held across plan versions before task_stop.
+# The Planner uses task_start_status after a failure or for a requested retry, tells the person
+# the refusal reason and retries only on their request. Start rechecks readiness when it acts.

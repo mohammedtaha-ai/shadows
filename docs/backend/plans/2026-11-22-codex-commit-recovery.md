@@ -112,7 +112,7 @@ pub async fn start_status_for(
 ) -> Result<crate::StartAnswer, RunsError>
 ```
 
-- [ ] Add one behavioral test `task_start_status_matches_the_task_read` in `mcp_tools`.
+- [x] Add one behavioral test `task_start_status_matches_the_task_read` in `mcp_tools`.
   Use the existing listener/plan fixtures and a disposable Git project. Approve the
   plan and save an offered executor choice before testing readiness. With an untracked
   file inside the write scope and no eligible predecessor, assert `allowed: false` and
@@ -124,19 +124,19 @@ pub async fn start_status_for(
   for the same path. Compare the MCP answer with `Runs::task(...).start` in both cases.
   Repeat the read while checking the
   attempt count stays the same. Check that this test fails before registration.
-- [ ] Implement `Runs::start_status_for` in `planner.rs`. Use the same `planner_plan`
+- [x] Implement `Runs::start_status_for` in `planner.rs`. Use the same `planner_plan`
   check as `start_for`, check that the task exists in that plan, and call the existing
   `start_answer(&plan, task)`. Leave the existing `ready_group` and Start checks in place.
-- [ ] Translate the call in `run_tools.rs` with the existing Start argument shape and
+- [x] Translate the call in `run_tools.rs` with the existing Start argument shape and
   refusal mapper. Add `task_start_status` to the Planner list in `Grants`. Amend the
   existing `the_tool_list_depends_on_the_grant_kind` expectation for that list. The
   external Project and Executor lists keep their current permissions.
-- [ ] Update `Running tasks` in the Planner prompt. On a failure or a requested retry,
+- [x] Update `Running tasks` in the Planner prompt. On a failure or a requested retry,
   read `task_start_status` for that exact task. Report its reason when blocked. An allowed
   preflight means a person-requested retry may proceed through `task_start`. If the actual
   Start then refuses, report its current response. Describe `task_ready` as the
   never-started batch selector and `task_runs` as the held-scope list.
-- [ ] Update the Runs, Grants, Harness and MCP contracts and the Start section of the
+- [x] Update the Runs, Grants, Harness and MCP contracts and the Start section of the
   executors design. Verify the two targeted commands. `api/openapi.json` stays byte-identical.
 
 ```powershell

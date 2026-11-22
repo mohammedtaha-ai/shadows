@@ -171,6 +171,7 @@ async fn the_tool_list_depends_on_the_grant_kind() {
             "task_ready",
             "task_runs",
             "task_start",
+            "task_start_status",
             "task_stop",
             "vision_approve",
             "vision_propose",

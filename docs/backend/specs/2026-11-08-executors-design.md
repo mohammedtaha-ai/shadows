@@ -354,6 +354,10 @@ were done 50 seconds after Start, so waiting for a quiet project costs little.
   conservatively: when Shadows cannot prove two patterns disjoint, they intersect.
 - Ready tasks may run together. Mohammed starts each one; nothing starts on its own in the
   first release, except the retries in §5.
+- `task_ready` selects a compatible group of never-started tasks. For a failed or stopped
+  attempt, the Planner reads `task_start_status` for the named task before explaining whether
+  a person-requested retry can start. The tool gives the same readiness and refusal as the
+  task page. It reserves no scope. Start checks again when the Planner acts.
 - **Each executor commits its own files** with `git commit`, on the folder's current branch, and
   reports that commit to Shadows, which checks it and records it (§7, amended 2026-11-09).
   Disjoint writes separate file ownership, but the Git index is shared. The 2026-11-14
