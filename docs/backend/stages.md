@@ -202,8 +202,15 @@ The `testing8` live run is finished. Open: its findings (B-199), and B-200 to B-
 
 ### B-204 · Shadows' Codex model list offers what Codex offers
 
-- Status: todo. Found in `testing8`: `gpt-6.2-sol` was in Codex's own cache but not in
-  Shadows' list, so executors could not use it.
+- Status: done (2026-11-24) in code and the live Codex catalog test (it lists `gpt-6.2-sol`);
+  the executor menu in a browser is not yet seen. Found in `testing8`: `gpt-6.2-sol` was in
+  Codex's own cache but not in Shadows' list, so executors could not use it. Cause: the catalog
+  was probed once per daemon and kept for its life. The probe at 16:12 UTC ran while Codex
+  0.169.0's cache was stale and its refresh timed out (Codex's log), and Codex answered its
+  built-in list (`gpt-6.1-sol` first, `gpt-5.5`, no 6.2; the Planner quoted it at 16:26);
+  Codex itself listed `gpt-6.2-sol` later, Shadows never asked again. Now a read catalog stands
+  for 300 s (Codex's own cache age), then is read again; a failed re-read keeps the last list.
+  Tests: `an_aged_catalog_is_read_again`, `a_failed_reread_keeps_the_last_catalog`.
 - Change: find where the Codex catalog drops it (`crates/core-harness/src/catalog.rs` and the
   Codex probe) and fix the cause. Root cause first.
 - Done when: the live Codex catalog test lists `gpt-6.2-sol` and the task executor menu offers it.

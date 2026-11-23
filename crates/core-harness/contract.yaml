@@ -397,11 +397,17 @@ functions:
     catalog:
       signature: "(&self, kind: &str) -> Result<HarnessCatalog, HarnessError>"
       rule: Reads each model's own efforts through an isolated probe with no Shadows thread or
-        grant, caches only success for the daemon lifetime, and coalesces concurrent successes
-        per harness. Claude Code switches models in one ACP session and excludes models the
-        account cannot select without more usage credits. Codex reads model/list.
+        grant, keeps a success for CATALOG_TTL (300 s, Codex's own model-list cache age) and
+        reads again after it, and coalesces concurrent reads per harness. A failed first read
+        is an error and tried again on the next call; a failed later read answers the last
+        list for another CATALOG_TTL (logged harness.catalog_reread_failed). B-204 (testing8):
+        a Codex probe while Codex's refresh failed answered its built-in list, without
+        gpt-6.2-sol, and the daemon kept it for its life. Claude Code switches models in one
+        ACP session and excludes models the account cannot select without more usage
+        credits. Codex reads model/list.
       tested_by: [the_catalog_is_read_once, concurrent_catalog_reads_open_one_probe,
-        a_failed_probe_is_tried_again, codex_not_configured_is_unavailable,
+        a_failed_probe_is_tried_again, an_aged_catalog_is_read_again,
+        a_failed_reread_keeps_the_last_catalog, codex_not_configured_is_unavailable,
         aylul_has_no_executor_catalog, live_the_claude_code_catalog_lists_each_models_efforts,
         live_the_codex_catalog_lists_each_models_efforts]
     executor_catalogs:
