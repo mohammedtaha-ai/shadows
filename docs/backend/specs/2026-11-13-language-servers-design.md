@@ -197,6 +197,13 @@ its own only when it needs it.
   (`shadows-agent/src/codex/session.rs`). In Read only the Planner cannot install a
   missing server, so its `person_ask` offers only "you install it" (with the install
   line) or "leave it"; the prompt states this against the Planner's own sandbox.
+- **A Codex conversation in `ask` can commit** (Mohammed, 2026-11-24). Codex keeps `.git` read-only
+  under a writable root, so every executor's first `git add` was denied on `index.lock` and
+  retried after `auto_review` approved it. The sandbox grants the project's `.git` write, and
+  keeps `.git/hooks` and `.git/config` read-only and `.git/config.lock` denied: a hook or a
+  config change (`core.hooksPath`) would run outside the sandbox on the person's next git
+  command. Probe, 2026-11-23, `mxc` on Windows: add and commit passed; writing a hook, `git
+  config`, replacing `config` with `Move-Item` and deleting it were refused.
 - **Permission cards:** `Harness::waiting_permissions` holds and lists requests from Planner
   sessions as well as AYLUL's; Codex's `requestApproval` is held with its options instead
   of declined. The person's answer goes back through the route that exists

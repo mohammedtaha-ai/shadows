@@ -84,7 +84,7 @@ this file at `db760593`.
 
 ## Open
 
-The `testing8` live run is finished; its findings (B-199) and the recheck change (B-200) are open. B-196, B-197 and B-198 are done on
+The `testing8` live run is finished. Open: its findings (B-199), and B-200 to B-205 on `feature/after-75`. B-196, B-197 and B-198 are done on
 `feature/after-75` and stay here until the next docs sync.
 
 ### B-196 · Verify Codex commit recovery on Windows
@@ -153,3 +153,50 @@ The `testing8` live run is finished; its findings (B-199) and the recheck change
 - Done when: in a live run, marking a task that is not its plan's last starts no recheck and the
   next notice arrives without waiting; marking the last task starts one; the person and the
   Planner can each start one.
+
+### B-201 · A Codex conversation in `ask` can commit
+
+- Status: todo. Decided by Mohammed on 2026-11-24.
+- Owner: [language servers design, "A Codex conversation in `ask` can commit"](specs/2026-11-13-language-servers-design.md#the-planners-shell-and-its-changes).
+- Change: in `crates/shadows-agent/src/codex.rs` and `codex/session.rs`, the `ask` mode's
+  filesystem permissions write the project root and its `.git`, read `.git/hooks` and
+  `.git/config`, deny `.git/config.lock`, write the temp folder and read the rest. The probe used
+  a `[permissions.<name>.filesystem]` profile with `default_permissions`; first confirm that the
+  per-turn `sandboxPolicy` does not replace it, and keep the opening's echo check true.
+  `read-only` is unchanged. Update the `shadows-agent` contract.
+- Done when: a live Codex executor in `testing8` commits with no `index.lock` denial, and a
+  signed-in live test shows a hook write and `git config` refused.
+
+### B-202 · A recheck interrupted by a restart runs again
+
+- Status: todo. Found in `testing8` (2026-11-23): a restart mid-recheck left its unfinished
+  checks `not_run`, and nothing ran them again.
+- Owner: [executors design, "A restart loses nothing"](specs/2026-11-08-executors-design.md).
+- Change: `Runs::recover_rechecks` (`crates/core-runs/src/recheck.rs`) runs a batch's unfinished
+  rows at startup instead of marking them interrupted, then ends and delivers it as usual.
+- Done when: a test interrupts a recheck, restarts Runs, and sees the rows run and the batch end.
+
+### B-203 · A slow Codex start says why it failed
+
+- Status: todo. Found in `testing8`: two Setup attempts failed to open because Codex's
+  model-list refresh timed out past the 20 s `setup_wait`; the reason was only in Codex's log.
+- Owner: [harness controls, `setup_wait`](../core/specs/2026-09-24-harness-controls-design.md).
+- Change: find why Codex's opening waits on the model-list refresh, and either keep it off the
+  opening's path or give the opening's failure Codex's reason. Root cause first.
+- Done when: an opening with no network fails or succeeds within `setup_wait` and, on failure,
+  the attempt's reason names the cause.
+
+### B-204 · Shadows' Codex model list offers what Codex offers
+
+- Status: todo. Found in `testing8`: `gpt-6.2-sol` was in Codex's own cache but not in
+  Shadows' list, so executors could not use it.
+- Change: find where the Codex catalog drops it (`crates/core-harness/src/catalog.rs` and the
+  Codex probe) and fix the cause. Root cause first.
+- Done when: the live Codex catalog test lists `gpt-6.2-sol` and the task executor menu offers it.
+
+### B-205 · The Claude Code catalog live test passes
+
+- Status: todo. `live_the_claude_code_catalog_lists_each_models_efforts`
+  (`harness_catalog.rs:160`) failed during B-198's run and was not examined.
+- Change: run it, find whether the test or the catalog is wrong, fix that. Root cause first.
+- Done when: the test passes signed in.
