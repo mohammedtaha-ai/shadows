@@ -329,6 +329,29 @@ async fn codex_failed_setup_revokes_the_grant() {
 }
 
 #[tokio::test]
+async fn a_codex_start_past_setup_wait_names_what_codex_logged() {
+    let root = tempfile::tempdir().unwrap();
+    let home = root.path().join("codex-home");
+    std::fs::create_dir(&home).unwrap();
+    std::fs::write(home.join("slow-codex-start"), "").unwrap();
+    let w = World::start_with(root, fixture_executable(), home).await;
+    let error = w
+        .core
+        .harness()
+        .open(&w.thread)
+        .await
+        .err()
+        .expect("a start that never answers fails at setup_wait");
+    assert_eq!(
+        error.to_string(),
+        "harness start failed: harness setup timed out; the harness logged: \
+         failed to refresh available models: request timed out"
+    );
+    assert_eq!(w.core.harness().live_count().await, 0);
+    w.close().await;
+}
+
+#[tokio::test]
 async fn codex_approval_waits_for_the_person() {
     let w = World::start(false).await;
     let operation = w.send_in(CODEX_ASK, "refusal", "approval").await;

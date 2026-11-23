@@ -253,6 +253,9 @@ impl Sessions {
                         .for_opening(thread, &context.project_id, context.kind, &context.harness)
                         .await?
                 };
+                // A request still waiting at the deadline answers nothing; what the
+                // harness last logged is then the only reason there is.
+                let said = connection.clone();
                 // Grant issuance must finish before a timeout can revoke its held grant.
                 tokio::time::timeout_at(deadline, async {
                     let session = connection
@@ -305,7 +308,14 @@ impl Sessions {
                     Ok::<_, String>(opened)
                 })
                 .await
-                .unwrap_or_else(|_| Err("harness setup timed out".into()))
+                .unwrap_or_else(|_| {
+                    Err(match said.last_error() {
+                        Some(reason) => {
+                            format!("harness setup timed out; the harness logged: {reason}")
+                        }
+                        None => "harness setup timed out".into(),
+                    })
+                })
             }
             .await;
             let opened = match setup {

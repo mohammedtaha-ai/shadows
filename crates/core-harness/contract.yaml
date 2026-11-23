@@ -312,7 +312,9 @@ shapes:
     Provider: core_providers::ProvidersError
     Env: HarnessError
     Storage: StorageError
-    # Includes "harness setup timed out" after `setup_wait`.
+    # Includes "harness setup timed out" after `setup_wait`; when the session opening
+    # timed out and the harness logged an error (ManagedConnection::last_error), it ends
+    # "; the harness logged: <that error>".
     Start: String
     # The project directory cannot be run in; words a client may show.
     Workspace: String
@@ -955,11 +957,14 @@ obligations:
   - rule: >
       An opening that cannot finish leaves no adapter: a missing project
       directory starts none, and a harness slower than `setup_wait` (20 s by
-      default) is HarnessStartFailed with nothing live.
+      default) is HarnessStartFailed with nothing live. A Codex start that waits
+      on something of its own past `setup_wait` (its model-list refresh) answers
+      nothing; the failure carries the last error Codex logged on stderr.
     tested_by:
       - a_project_without_its_directory_does_not_start_an_adapter
       - a_harness_slower_than_setup_wait_fails_and_leaves_no_adapter
       - the_default_setup_wait_outlasts_a_slow_harness
+      - a_codex_start_past_setup_wait_names_what_codex_logged
     note: >
       The last asserts the default is at least 15 s, not exactly 20 s, and
       that a slow resume opens under it.
@@ -1251,6 +1256,12 @@ tests:
     checks: A 300 ms setup_wait against a slow resume is OpenError::Start "timed out", none live.
   - name: the_default_setup_wait_outlasts_a_slow_harness
     checks: The default setup_wait is at least 15 s and a slow harness opens under it.
+  - name: a_codex_start_past_setup_wait_names_what_codex_logged
+    checks: >
+      fake-codex logs an ERROR line (colours, span prefix) and never answers
+      thread/start; the opening fails at the default setup_wait with
+      "harness setup timed out; the harness logged: failed to refresh available
+      models: request timed out", none live (shadows-core/tests/codex_session.rs).
   - name: one_thread_opening_does_not_hold_another
     checks: >
       While one thread's slow resume opens, `terminate` on a second thread

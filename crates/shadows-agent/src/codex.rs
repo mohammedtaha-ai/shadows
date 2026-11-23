@@ -333,6 +333,11 @@ impl Connection {
         self.rpc.is_closed()
     }
 
+    /// The last error Codex logged on its stderr, as a person may read it.
+    pub fn last_error(&self) -> Option<String> {
+        self.rpc.last_error()
+    }
+
     pub fn held_permissions(&self) -> Vec<crate::acp::WaitingPermission> {
         self.permissions.held()
     }

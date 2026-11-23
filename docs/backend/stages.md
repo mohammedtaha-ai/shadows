@@ -186,8 +186,14 @@ The `testing8` live run is finished. Open: its findings (B-199), and B-200 to B-
 
 ### B-203 · A slow Codex start says why it failed
 
-- Status: todo. Found in `testing8`: two Setup attempts failed to open because Codex's
+- Status: done (2026-11-24). Found in `testing8`: two Setup attempts failed to open because Codex's
   model-list refresh timed out past the 20 s `setup_wait`; the reason was only in Codex's log.
+  Cause: Codex's own `thread/start` waits on its model-list refresh (Codex's log, 16:19 UTC: the
+  stale cache, two 5 s tries reading the 850 KB list, then `get_default_model` a third), which
+  Shadows cannot skip; Shadows threw away Codex's stderr, so a timeout said only "harness setup
+  timed out". The second attempt's own reason (`workspace routing discovery timed out`) was
+  carried already. Now the opening's timeout ends with the last error Codex logged on stderr.
+  Test: `a_codex_start_past_setup_wait_names_what_codex_logged`.
 - Owner: [harness controls, `setup_wait`](../core/specs/2026-09-24-harness-controls-design.md).
 - Change: find why Codex's opening waits on the model-list refresh, and either keep it off the
   opening's path or give the opening's failure Codex's reason. Root cause first.

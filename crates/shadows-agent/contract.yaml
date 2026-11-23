@@ -106,6 +106,12 @@ functions:
     Refuses a home without a ChatGPT sign-in, then answers Codex's native model
     list in its order, each model with its own efforts.
   codex::Connection::cancel: Interrupts the acknowledged turn; the matching terminal event settles it.
+  codex::Connection::last_error: >
+    The last ERROR line app-server wrote on stderr, its colours and span prefix
+    removed and cut as a provider's words are (first line, 300 chars, before any
+    bearer value); none before one. A request Codex is still waiting on (thread/start
+    behind its model-list refresh) answers nothing, so this is the only reason there
+    is. ManagedConnection::last_error answers it, and none for ACP.
   codex_fork: SessionStart::Fork opens thread/fork from the source thread, which is never resumed or written.
   codex_usage: >
     thread/tokenUsage/updated for the active turn becomes Usage with
@@ -162,6 +168,9 @@ obligations:
     tested_by: [codex_choices_follow_the_model_catalog, codex_efforts_belong_to_the_selected_model]
   - rule: A provider's refusal reaches the person in its own words, without credential text.
     tested_by: [codex_unavailable_model_reports_its_error]
+  - rule: >
+      A Codex opening that times out names the last error Codex logged on stderr.
+    tested_by: [a_codex_start_past_setup_wait_names_what_codex_logged]
   - rule: >
       The context figure is the last request, never the running total, and a
       resumed thread's replayed history and usage are not new output.

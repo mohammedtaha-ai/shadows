@@ -347,6 +347,16 @@ impl Peer {
                 };
                 self.result(id, page)?
             }
+            // As Codex does when its model-list refresh times out: an error on stderr, in its
+            // log format, and a thread start that does not answer.
+            Some("thread/start") if setting("slow-codex-start").is_some() => {
+                eprintln!(
+                    "\u{1b}[2m2026-11-23T16:19:47.055Z\u{1b}[0m \u{1b}[31mERROR\u{1b}[0m \
+                     \u{1b}[2mcodex_models_manager::manager\u{1b}[0m\u{1b}[2m:\u{1b}[0m \
+                     thread_spawn{{otel.name=\"thread_spawn\"}}: \
+                     failed to refresh available models: request timed out"
+                );
+            }
             Some(method @ ("thread/start" | "thread/resume" | "thread/fork")) => {
                 self.open(id, method, params)?
             }
