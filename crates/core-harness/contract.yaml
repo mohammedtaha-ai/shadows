@@ -97,7 +97,8 @@ layer_catalog: 'Planner standards text lists every kind presence and its layers 
 # one named task starts alone; after a done mark the next group; after a failure or stop a review,
 # then task_ready again, never a retry of a task that ran or a stale list; a new draft blocks only
 # new starts; shared checks get an owner and order in task instructions, and an unrun check is
-# neither a pass nor a reason to ask the executor. Held by
+# neither a pass nor a reason to ask the executor; project_recheck when the person asks for a
+# recheck of the project, never after a done mark that completed a plan (it began one). Held by
 # mcp_tools::the_planner_is_told_how_to_run_and_judge_tasks.
 # executor.md commits with `git --literal-pathspecs commit --only` and the exact own paths, new
 # files staged by exact name first, both ends of a rename, lock refusals retried after 1/2/4 s

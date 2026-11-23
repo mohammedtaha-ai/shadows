@@ -1135,6 +1135,9 @@ fn the_planner_is_told_how_to_run_and_judge_tasks() {
         "call task_lessons once",
         "An addition asks for a change to the task's files",
         "or why it failed and the executor's last message",
+        "project_recheck: rerun the checks of every done task of the project when the person \
+         asks for it",
+        "A done mark that completes a plan already starts one",
     ];
     for text in texts {
         assert!(prompt.contains(text), "{text}");

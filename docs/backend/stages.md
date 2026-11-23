@@ -144,6 +144,9 @@ The `testing8` live run is finished. Open: its findings (B-199), and B-200 to B-
 - Status: done (2026-11-24) in code and tests: only the mark that completes its plan version
   rechecks; `Runs::recheck_project` serves `POST /api/workflows/{workflow}/recheck` and the
   Planner's `project_recheck`. The live run in "Done when" is not yet done.
+  Follow-up (2026-11-24): the Planner prompt names `project_recheck` (when the person asks; a
+  completing done mark already starts one), held by
+  `mcp_tools::the_planner_is_told_how_to_run_and_judge_tasks`.
 - Owner: [executors design, "A project recheck runs when a plan is complete, or when
   asked"](specs/2026-11-08-executors-design.md).
 - Change: a done mark runs no project recheck unless it completes its plan. Add one Runs method
