@@ -134,6 +134,8 @@ The `testing8` live run is finished; its findings (B-199) and the recheck change
   - pyright is not installed on this machine (each Python contract is `unchecked`).
   - Codex's sandbox could not copy a fixture into its temporary folder (`PermissionError`), so an
     executor's subprocess test did not run there.
+  - The sandbox findings are Codex's only: a Claude Code executor on the same project ran pytest,
+    copied into a temp folder and committed with no denial (`6a662f5`).
   - The Planner counted 15 tasks; the plans hold 14.
 - Done when: each finding is fixed, accepted or moved to future.
 

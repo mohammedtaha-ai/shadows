@@ -31,6 +31,14 @@ tasks judged done (the Planner said 15; the plans hold 14). The Planner ran both
 end: Go wrote the file, Python read it, the file's checksum was unchanged; Go passes in 8
 packages, pytest 39 passed.
 
+## Claude Code executor, for comparison
+
+One more plan, one task (`--days N` for the report), executor Claude Code (Sonnet 5.5, medium):
+attempt `a0812824`, started 19:43:47, committed `6a662f5` at 19:44:36, notice sent 19:45:46 UTC.
+The executor ran pytest itself (66 passed), its new test copied a fixture into pytest's
+temporary folder, and `git add` and `git commit` were not denied (its report names only LF→CRLF
+warnings). The sandbox findings below are Codex's only.
+
 ## Shadows defects found and fixed on the branch
 
 - **Unnoted changes asked about files the Planner never wrote** (B-197, `ac7d1e3d`). Before:
