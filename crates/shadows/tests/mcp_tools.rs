@@ -961,13 +961,148 @@ async fn the_planner_is_told_an_indexing_listing_is_not_complete() {
 }
 
 #[test]
+fn the_planner_is_told_how_a_contract_pins_elements() {
+    let prompt = shadows_core::testing::PROMPT;
+    assert!(prompt.contains("Pin the element's latest revision."));
+    assert!(prompt.contains("a delete pin names the revision design_element_delete wrote"));
+    assert!(prompt.contains("Shadows gives the executor the pinned revision"));
+}
+
+#[test]
+fn the_executor_is_told_to_build_its_elements_as_pinned() {
+    let prompt = include_str!("../../core-harness/src/executor.md");
+    assert!(prompt.contains("each at its pinned revision"));
+    assert!(prompt.contains("build its columns, keys, route and links as written there"));
+}
+
+#[test]
+fn the_planner_is_told_to_write_tables_and_screens() {
+    let prompt = shadows_core::testing::PROMPT;
+    let expected = concat!(
+        "- design_element_put, design_element_delete, design_elements: the project's ",
+        "tables and screens live in Shadows' design, not in a task. Before a task ",
+        "builds a table or a screen, write it with design_element_put: a table in a ",
+        "database part, a screen in a frontend part, each serving the roadmap ",
+        "outcomes it is for. A table has its columns with their types, primary key ",
+        "and the column each foreign key refers to; a screen has its route and the ",
+        "screens it leads to, and when. A change is a new revision of the same id, ",
+        "never a second element with the same name. Read them with design_elements ",
+        "before you write one."
+    );
+    assert!(prompt.lines().any(|line| line == expected));
+}
+
+#[test]
+fn the_planner_is_told_to_read_the_project_state() {
+    let prompt = shadows_core::testing::PROMPT;
+    let expected = concat!(
+        "- project_state: read it before you plan a change to a project that has plans: ",
+        "what each part holds, which tasks are done, and which tables and screens exist, ",
+        "are planned, or have a gap. Pin an existing table or screen by its id; never ",
+        "write a second one with the same name."
+    );
+    assert!(prompt.lines().any(|line| line == expected));
+}
+
+#[test]
+fn the_planner_is_told_to_ask_code_where_first() {
+    let prompt = shadows_core::testing::PROMPT;
+    let tool = concat!(
+        "- code_where: before a contract names a file, a symbol, a table or a screen, ask ",
+        "code_where one short thing at a time: a name, a path or a symbol. It answers from ",
+        "Shadows' record first and ",
+        "the language servers confirm it. Use its paths, names and element ids as they are; a ",
+        "gap means the code no longer holds what a done task promised; a file not in the ",
+        "record has no contract behind it, so read it before you change it."
+    );
+    let job = concat!(
+        "- Know the project before you plan. Shadows sends its code record with your ",
+        "planning context: what done tasks built, by part and layer, each file with its ",
+        "purpose and each symbol with its inputs and returns. Plan from it and from ",
+        "project_state for its parts, plans and tasks. Ask code_where for a symbol's ",
+        "line now, its uses, or what the block cut, one short thing per call. Read the ",
+        "code yourself only for what neither gives, as \"Look before you write a path\" ",
+        "says: on Claude Code with Read, Grep and Glob; on Codex with shell commands in ",
+        "the project's folder, such as git ls-files, git grep, git show HEAD:<path>, ",
+        "rg, and Get-Content or cat. Shadows' tools are your only way to write the ",
+        "plan.",
+    );
+    let ask = concat!(
+        "- The code record in your planning context is what Shadows knows of the code: ",
+        "each file done tasks built, by part and layer, with its purpose, each symbol ",
+        "with its inputs and returns, and the elements with a gap. Plan from it. Before ",
+        "a task names a file, a function, a class, a table or a screen, ask code_where ",
+        "for its line now and who uses it, or for what the block cut (\"[cut: ...]\"), ",
+        "one short thing per call: a name the person used, a path, a symbol, or an ",
+        "element id or name, in one to three words. Make several calls rather than one ",
+        "with a sentence. Its answer adds the plans and tasks that made each file and ",
+        "its symbols' behavior.",
+    );
+    let empty = concat!(
+        "- An empty answer to a long topic is not \"nothing there\": every word of a topic must ",
+        "meet in one file or one symbol. Ask again with each thing alone before you read a file."
+    );
+    let read = concat!(
+        "- Read a file only for what neither the code record nor code_where gives: a ",
+        "file not in the record, a file with a gap or an unchecked symbol, or a project ",
+        "whose record is empty. Read the manifest (composer.json, package.json, go.mod, ",
+        "Cargo.toml) or the composition root (its AppCore, main, bootstrap or service ",
+        "container) only when the task changes it, and then whole. List what you read ",
+        "with project_files.",
+    );
+    let name = concat!(
+        "- A task names what the executor will write and where each layer's part of it goes, ",
+        "as the project already does it; name a function only after code_where or your ",
+        "reading showed where it is or will be and what is beside it. A plan written from ",
+        "file names alone is not ready."
+    );
+    assert!(prompt.lines().any(|line| line == tool));
+    assert!(prompt.lines().any(|line| line == job));
+    let lines: Vec<&str> = prompt.lines().collect();
+    let look = lines
+        .iter()
+        .position(|line| *line == "Look before you write a path")
+        .unwrap();
+    assert_eq!(lines[look + 1..look + 5], [ask, empty, read, name]);
+    assert!(!prompt.contains("Read the code, search, and think before you plan"));
+    assert!(!prompt.contains("Otherwise, before a task names a file"));
+}
+
+#[tokio::test]
+async fn code_where_says_to_ask_before_reading() {
+    let l = listening_app().await;
+    let planner = thread_client(&l, &l.app.thread).await;
+    let tools = planner.list_all_tools().await.unwrap();
+    let tool = tools.iter().find(|t| t.name == "code_where").unwrap();
+    let description = tool.description.as_deref().unwrap();
+    let first = "Ask it before you read a file yourself; read only what it does not answer.";
+    assert!(description.ends_with(first), "{description}");
+    let short = "Ask one short thing per call, one to three words";
+    assert!(description.contains(short), "{description}");
+    let empty = "an empty answer to a long topic is not \"nothing there\"; ask again with each \
+                 thing alone.";
+    assert!(description.contains(empty), "{description}");
+    let budget = format!(
+        "Within {} asks and {} seconds;",
+        shadows_core::CodeRecord::WHERE_MAX_ASKS,
+        shadows_core::CodeRecord::WHERE_LIVE_SECS
+    );
+    assert!(description.contains(&budget), "{description}");
+    l.app
+        .core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+}
+
+#[test]
 fn the_planner_sets_the_project_up_first() {
     let prompt = shadows_core::testing::PROMPT;
     let texts: &[&str] = &[
         "set the project up before you plan anything in detail",
         "Every setup task writes files.",
         "git status shows nothing left uncommitted",
-        "read the files that appeared as \"Look before you write a path\" says",
+        "look at the files that appeared as \"Look before you write a path\" says",
         "Only a task of the plan titled \"Setup\" (in any case) may commit binary files",
     ];
     for text in texts {
@@ -1029,6 +1164,75 @@ async fn the_planner_reads_a_commit_with_its_own_tools() {
         .unwrap();
 }
 
+#[tokio::test]
+async fn task_start_status_matches_the_task_read() {
+    let l = listening_app().await;
+    let core = &l.app.core;
+    let planner = thread_client(&l, &l.app.thread).await;
+    let workflow = approved_v1(&l.app).await;
+    let project = core.projects().get(&l.app.project).await.unwrap();
+    let root = std::path::PathBuf::from(project.directory.unwrap());
+    let init = std::process::Command::new("git")
+        .args(["init", "--quiet"])
+        .current_dir(&root)
+        .output()
+        .unwrap();
+    assert!(init.status.success(), "git init: {:?}", init.stderr);
+
+    let runs = core.runs();
+    runs.choose_executor_for_test(&workflow, 1, "claude-code", "fake-small", Some("high"))
+        .await
+        .unwrap();
+    std::fs::create_dir_all(root.join("src")).unwrap();
+    let edited = root.join("src/t1.rs");
+    std::fs::write(&edited, "personal change\n").unwrap();
+    let args = json!({ "workflow_id": &workflow, "task_number": 1 });
+    let blocked = ok(&planner, "task_start_status", args.clone()).await;
+    let task = runs.task(&workflow, 1, 1).await.unwrap();
+    assert_eq!(blocked, serde_json::to_value(task.start).unwrap());
+    assert_eq!(blocked["allowed"], false);
+    assert_eq!(blocked["code"], "dirty_scope");
+
+    std::fs::remove_file(&edited).unwrap();
+    runs.set_first_prompt_for_tests("wait-for-release");
+    let first = runs
+        .start("fixture-start".into(), &workflow, 1, 1)
+        .await
+        .unwrap();
+    std::fs::write(edited, "unfinished attempt\n").unwrap();
+    std::fs::write(root.join("release"), "").unwrap();
+    tokio::time::timeout(std::time::Duration::from_secs(10), async {
+        loop {
+            let attempt = runs.attempt(&first.id).await.unwrap();
+            let task = runs.task(&workflow, 1, 1).await.unwrap();
+            if attempt.state == shadows_core::AttemptState::Failed && task.start.allowed {
+                assert!(attempt.commit.is_none());
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        }
+    })
+    .await
+    .expect("the failed attempt releases its scope");
+
+    let task = runs.task(&workflow, 1, 1).await.unwrap();
+    let expected = serde_json::to_value(task.start).unwrap();
+    assert_eq!(
+        expected,
+        json!({"allowed": true, "code": null, "reason": null})
+    );
+    for _ in 0..2 {
+        assert_eq!(
+            ok(&planner, "task_start_status", args.clone()).await,
+            expected
+        );
+    }
+    assert_eq!(runs.attempts(&workflow, 1, 1).await.unwrap().len(), 1);
+    core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+}
+
 #[test]
 fn the_planner_reads_the_code_before_it_plans() {
     let prompt = shadows_core::testing::PROMPT;
@@ -1037,8 +1241,8 @@ fn the_planner_reads_the_code_before_it_plans() {
         "on Codex with shell commands in the project's folder",
         "Your shell is for installing tools and preparing the environment",
         "call project_change_note with the paths and why",
-        "the composition root, where the application is wired",
-        "and every file the task modifies, whole",
+        "or the composition root (its AppCore, main, bootstrap or service container)",
+        "only when the task changes it, and then whole",
         "A plan written from file names alone is not ready.",
     ] {
         assert!(prompt.contains(text), "{text}");

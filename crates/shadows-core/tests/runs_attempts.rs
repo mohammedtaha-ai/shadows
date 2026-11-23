@@ -24,6 +24,10 @@ mod live;
 mod messages;
 #[path = "runs_attempts/planner.rs"]
 mod planner;
+#[path = "runs_attempts/progress_events.rs"]
+mod progress_events;
+#[path = "runs_attempts/project_state.rs"]
+mod project_state;
 #[path = "runs_attempts/rechecks.rs"]
 mod rechecks;
 #[path = "runs_attempts/report.rs"]

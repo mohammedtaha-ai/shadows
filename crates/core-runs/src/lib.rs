@@ -68,6 +68,13 @@ use core_threads::{ThreadId, Threads};
 use core_turns::Turns;
 use store::RunsStore;
 
+/// A committed attempt's commit, its saved contract and its `contract` verdict.
+type AttemptRecord = (
+    Option<String>,
+    Option<core_plans::TaskContract>,
+    Option<code_record::Verdict>,
+);
+
 /// What every executor is first asked to do. It names only the task number:
 /// `task_brief` answers the context saved for the executor's own attempt. It
 /// says how the work ends, because the executor makes its own commit.
@@ -87,11 +94,15 @@ const COMMIT: &str = "Other executors may work in the same folder at once. Run o
     file by its exact path with `git --literal-pathspecs add -- <path>`, then run \
     `git --literal-pathspecs commit --only -m \"<message>\" -- <path>...` naming every path you \
     changed exactly, both names of a rename and the name of a deleted file; never a pattern, a \
-    folder or `.`. Leave what others staged alone. If git refuses because an index or ref lock \
-    exists, run the same command again after 1, 2 and 4 seconds; never delete the lock or reset \
-    the index. If it is still refused, report that the commit failed. Leave nothing uncommitted \
-    inside the task's writes; then call task_report with the commit's sha and an honest report \
-    of what you did, ran and found.";
+    folder or `.`. Leave what others staged alone. If Git says an index or ref lock already \
+    exists, retry the same command after 1, 2 and 4 seconds; never delete the lock or reset the \
+    index. If permission to create a lock is denied, or Git otherwise denies a write, request \
+    the harness's configured approval for the exact failed Git command and paths if available. \
+    Proceed only if the approved command succeeds. If you cannot commit, leave your changes in \
+    place and end with a final message: give the failed Git step, the obstruction and the \
+    approval outcome if known. Say when the cause is unclear. After a successful commit, leave \
+    nothing uncommitted inside the task's writes; then call task_report with the commit's sha \
+    and an honest report of what you did, ran and found.";
 
 struct Inner {
     /// One lock per executor thread: a question's send, a release and a
@@ -314,9 +325,11 @@ impl Runs {
     }
 
     /// What a done mark records of its task: the latest committed attempt's
-    /// contract (the one its check verified), commit and verdict; the frozen
-    /// version's contract, unchecked, when no attempt committed. None when
-    /// the task has no contract.
+    /// contract (the one its check verified), commit and verdict. With no
+    /// committed attempt in this version, the attempt the task was carried
+    /// from (`carried_attempt`) gives them when its contract is the frozen
+    /// one unchanged; otherwise the frozen version's contract, unchecked.
+    /// None when the task has no contract.
     async fn done_record(
         &self,
         plan: &core_plans::Plan,
@@ -327,31 +340,28 @@ impl Runs {
             .store
             .latest_committed(&plan.id, plan.version, task)
             .await?;
+        let frozen = plan
+            .tasks
+            .iter()
+            .find(|t| t.content.number == task)
+            .and_then(|t| t.content.contract.clone());
         let (attempt, commit, contract, verdict) = match latest {
             Some(id) => {
-                let commit = self.attempt(&id).await?.commit;
-                let contract = self
-                    .inner
-                    .store
-                    .context(&id)
-                    .await?
-                    .and_then(|(context, _)| context.task.contract);
-                let verdict = self
-                    .inner
-                    .code_record
-                    .verdict(id.as_str())
-                    .await
-                    .map_err(|e| RunsError::Unavailable(e.to_string()))?;
+                let (commit, contract, verdict) = self.attempt_record(&id).await?;
                 (Some(id.as_str().to_string()), commit, contract, verdict)
             }
-            None => {
-                let contract = plan
-                    .tasks
-                    .iter()
-                    .find(|t| t.content.number == task)
-                    .and_then(|t| t.content.contract.clone());
-                (None, None, contract, None)
-            }
+            None => match self.inner.store.carried_attempt(plan, task).await? {
+                Some(id) => {
+                    let (commit, contract, verdict) = self.attempt_record(&id).await?;
+                    // A verdict holds only for the contract it checked.
+                    if contract.is_some() && contract == frozen {
+                        (Some(id.as_str().to_string()), commit, contract, verdict)
+                    } else {
+                        (None, None, frozen, None)
+                    }
+                }
+                None => (None, None, frozen, None),
+            },
         };
         Ok(contract.map(|contract| code_record::DoneRecord {
             project: plan.project_id.clone(),
@@ -363,6 +373,25 @@ impl Runs {
             contract,
             verdict,
         }))
+    }
+
+    /// A committed attempt's commit, the contract its saved context gave it
+    /// and its `contract` check's verdict.
+    async fn attempt_record(&self, id: &AttemptId) -> Result<AttemptRecord, RunsError> {
+        let commit = self.attempt(id).await?.commit;
+        let contract = self
+            .inner
+            .store
+            .context(id)
+            .await?
+            .and_then(|(context, _)| context.task.contract);
+        let verdict = self
+            .inner
+            .code_record
+            .verdict(id.as_str())
+            .await
+            .map_err(|e| RunsError::Unavailable(e.to_string()))?;
+        Ok((commit, contract, verdict))
     }
 
     /// The plan version `workflow`.
@@ -445,11 +474,16 @@ mod tests {
     fn the_first_prompt_says_how_an_attempt_ends() {
         let prompt = FIRST_PROMPT.replace("{commit}", COMMIT);
         for text in [
-            "Leave nothing uncommitted inside the task's writes",
+            "leave nothing uncommitted inside the task's writes",
             "If nothing needs to change, commit nothing",
             "git --literal-pathspecs commit --only -m",
             "both names of a rename and the name of a deleted file",
+            "after 1, 2 and 4 seconds",
             "never delete the lock",
+            "permission to create a lock is denied",
+            "request the harness's configured approval for the exact failed Git command",
+            "give the failed Git step, the obstruction and the approval outcome if known",
+            "call task_report with the commit's sha",
             "reported as not run, never as passed",
             "call task_brief",
             "Shadows checks by name that each one exists in its file after your commit",

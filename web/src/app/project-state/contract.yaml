@@ -1,0 +1,165 @@
+# Owns the screens that show a project's state, its tables and screens, and where a topic
+# is in the code, read only, over Core's answers. Nothing here writes.
+#
+# Trap: Core states, the web shows. Element states, task counts, attempt states and every
+# remainder count are shown as Core gives them. No component derives a state, sorts an
+# answer again, checks a length or counts what Core counted.
+
+name: web-project-state
+version: 1
+status: current
+source: web/src/app/project-state
+responsibility: >
+  Show the project's state, its tables and screens, and code_where, read only, over
+  Core's answers.
+loading: Every read shows a labelled SkeletonContent; cached content stays visible during background reads.
+
+rulings:
+  read_only: "Nothing on these screens writes. Tables and screens are the Planner's."
+  core_states: >
+    Presentation only: a label or icon per enum value, grouping, hiding removed elements behind
+    a toggle, drawing an edge only between two shown nodes.
+  one_door: >
+    Every read is a query in api/project-state.ts; the stream refresh is classified in
+    stream/refresh.ts. No fetch, no URL built by hand, no EventSource here.
+  refusals: "Every query uses retryLost; a 404 or 422 shows ErrorLine with Core's code and message."
+  text_direction: "Every name, purpose, why, when, path and title Core wrote is rendered with dir=auto."
+
+route:
+  path: "/projects/$projectId/state"
+  search: >
+    view ('state' | 'tables' | 'screens' | 'where'; an unknown view reads as 'state'), part,
+    element, topic (kept when strings), removed (true only for true or 'true').
+  stream: "The shell already holds the project stream; the page opens none."
+
+components:
+  ProjectStatePage:
+    signature: "() => JSX.Element"
+    # Route body: the header, the section nav, and the body the view selects.
+  StateView:
+    signature: "({ projectId: string, part?: string, removed: boolean }) => JSX.Element"
+    # Stage, parts with plans and counts, plans with no part, gaps, and one part in full.
+  StateBadge:
+    signature: "({ state: BuildState }) => JSX.Element"
+    # An icon and a label per build state, marked data-element-state.
+
+  WhereView:
+    signature: "({ projectId: string, topic?: string }) => JSX.Element"
+    # The Where form and Core's answer for a topic, entries in Core's order; asked again only by Ask again.
+
+  ElementPanel:
+    signature: "({ projectId: string, view: ElementView, names: (id) => string | undefined, onClose: () => void }) => JSX.Element"
+    # One table or screen in full: why, part, outcomes, confirmation, tasks, revisions.
+  ElementCanvas:
+    signature: "({ label: string, nodes, edges, selected?: string, onOpen: (elementId) => void }) => JSX.Element"
+    # The React Flow canvas of laid-out elements; nodes carry data-element and data-element-kind.
+  TablesView:
+    signature: "({ projectId: string, element?: string, removed: boolean }) => JSX.Element"
+    # The ER diagram, the tables list and the opened table.
+  ScreensView:
+    signature: "({ projectId: string, element?: string, removed: boolean }) => JSX.Element"
+    # The screen flow, the screens list and the opened screen. TablesView and ScreensView are thin
+    # wrappers over one private ElementsView in elements-view.tsx, because the two differ only in values.
+  tableDiagram / screenDiagram:
+    signature: "(views: ElementView[]) => { nodes: ElementNode[]; edges: DiagramEdge[] }"
+    # Deterministic dagre placement; an edge only between two shown, different nodes. A node's height
+    # is the sum of the lines it draws (NODE_LINES); each edge carries its dagre label slot and path.
+
+obligations:
+  - rule: >
+      The state view shows the stage, the parts with their plans and counts, the plans with no
+      part and the gaps, in Core's order.
+    tested_by: the_state_view_shows_stage_parts_plans_and_gaps
+
+  - rule: "A remainder (parts, plans, gaps) is shown as Core's count."
+    tested_by: remainders_are_shown_as_cores_counts
+
+  - rule: >
+      A part is read with part_id and shows its plans' tasks (Done, Core's attempt state, or Not
+      started) and its elements with their states.
+    tested_by: a_part_shows_its_plans_tasks_and_elements
+
+  - rule: "Removed elements are hidden behind a toggle."
+    tested_by: removed_elements_are_hidden_until_asked
+
+  - rule: "A refused read shows Core's code and message; a refused part keeps the All parts link."
+    tested_by: an_unknown_part_shows_cores_refusal, an_unknown_project_shows_cores_not_found
+
+  - rule: >
+      The state follows the project stream without a reload: one live TaskProgressChanged adds
+      one read, and replayed events add one read at caught-up.
+    tested_by: task_progress_on_the_project_stream_moves_a_task_to_started_without_reload, replayed_events_reconcile_the_state_once
+
+  - rule: "The design workspace links to this page."
+    tested_by: the_workspace_links_to_the_state
+
+  - rule: >
+      The ER diagram draws one node per shown table and one edge per foreign key between two
+      shown tables; the list holds the same tables.
+    tested_by: the_er_diagram_draws_one_node_per_table_and_one_edge_per_foreign_key, the_layout_is_deterministic_and_every_node_has_its_size
+
+  - rule: >
+      A reference to a table not shown, or to the table itself, draws no edge; the column row
+      still names it.
+    tested_by: a_reference_to_a_table_not_shown_draws_no_edge_but_keeps_its_row, a_self_reference_draws_no_edge
+
+  - rule: "Removed tables are hidden behind a toggle."
+    tested_by: a_removed_table_is_hidden_until_shown
+
+  - rule: >
+      An opened table reads its revisions once and shows its part, outcomes, tasks, why and
+      revisions; when behind, its built revision and the planned change come from the same read.
+    tested_by: an_opened_table_shows_its_part_outcomes_tasks_and_revisions, a_behind_table_shows_its_built_shape_and_the_planned_change
+
+  - rule: >
+      A refused revisions read (an unknown or removed project) shows Core's code and message;
+      Core answers [] for an element the project does not have.
+    tested_by: a_refused_revisions_read_shows_cores_error
+
+  - rule: "With no table the view says the Planner writes them."
+    tested_by: no_tables_says_the_planner_writes_them
+
+  - rule: >
+      A DesignElementChanged reads the elements and that element's revisions again, once each.
+    tested_by: a_design_element_change_reads_the_elements_and_its_revisions_again
+
+  - rule: >
+      The screen flow draws one node per shown screen and one edge per link between two shown
+      screens, labelled with its when; a link to a screen not shown is listed in the node, not drawn.
+    tested_by: the_screen_flow_draws_screens_and_arrows_labelled_when, a_link_to_a_screen_not_shown_is_not_drawn, screen_links_become_edges_labelled_with_when
+
+  - rule: >
+      A node is laid out exactly as tall as the lines it draws (frame, name, id, state, the behind
+      line when shown, and every row), so no row is clipped, for any number of rows.
+    tested_by: a_node_is_as_tall_as_every_line_it_draws_for_any_number_of_rows, a_drawn_node_is_exactly_as_tall_as_its_lines
+
+  - rule: >
+      Every edge gets its own dagre label slot and its own path between the two nodes' facing
+      sides, so links both ways between two screens, or two keys to one table, draw as separate
+      arrows between the nodes, each with its label (dir=auto).
+    tested_by: links_both_ways_draw_two_arrows_between_the_two_nodes_apart, two_foreign_keys_to_one_table_get_two_label_slots, links_both_ways_draw_two_arrows_on_two_paths
+
+  - rule: "With no screen the view says the Planner writes them."
+    tested_by: no_screens_says_the_planner_writes_them
+
+  - rule: "An opened screen shows its route and its links in the panel."
+    tested_by: an_opened_screen_shows_its_route_and_links_in_the_panel
+
+  - rule: >
+      A symbol's uses follow uses_live: answered with no uses says No uses., truncated keeps its uses
+      and says at least, failed and skipped say why, not_asked shows nothing. Entries stay in Core's
+      order, a refusal shows Core's message, and no project event asks again.
+    tested_by: asking_reads_once_and_keeps_cores_order, an_answered_empty_lookup_says_no_uses, a_failed_lookup_says_why_and_never_no_uses, a_skipped_lookup_says_why_and_never_no_uses, a_truncated_lookup_keeps_its_uses_and_says_at_least, answered_uses_show_the_total_and_the_rest_grouped_by_part, a_not_asked_symbol_shows_no_uses_line, no_entry_says_shadows_has_no_record_with_files_not_in_the_record, a_blank_topic_shows_cores_refusal, the_budget_line_is_shown_when_core_gives_one, ask_again_reads_the_answer_again, project_events_do_not_ask_again
+
+  - rule: >
+      A symbol shows its contract's inputs (a list labelled Inputs, "name: type · meaning" in
+      Core's order) and its return ("Returns type · meaning") after its line, as Core gives them;
+      an empty inputs or an absent return shows nothing.
+    tested_by: a_symbol_shows_its_contract_inputs_and_return, a_symbol_with_no_inputs_or_return_shows_neither
+
+tests:
+  where-view.test.tsx: "The where view over the fake daemon."
+  diagram-layout.test.ts: "Layout determinism, sizes and edge rules."
+  screens-view.test.tsx: "The screens view over the fake daemon."
+  tables-view.test.tsx: "The tables view over the fake daemon."
+  state-view.test.tsx: "The state view, over the fake daemon and its project stream."

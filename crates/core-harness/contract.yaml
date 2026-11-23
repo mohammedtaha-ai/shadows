@@ -114,6 +114,21 @@ layer_catalog: 'Planner standards text lists every kind presence and its layers 
 # prompt.txt has the Planner propose project decisions with decision_propose and pin accepted
 # revisions in a contract's `decisions`; only the person accepts. executor.md has the executor
 # follow its brief's `decisions` and report a `task_conflict` when the task cannot.
+# prompt.txt tells the Planner to read existing tables and screens and write design revisions
+# before planning their tasks (mcp_tools::the_planner_is_told_to_write_tables_and_screens).
+# prompt.txt tells the Planner to pin the latest element revision and use a worked file.
+# prompt.txt tells the Planner to read project_state before it plans a change to a project with
+# plans (mcp_tools::the_planner_is_told_to_read_the_project_state), and to ask code_where before
+# a contract names a file, a symbol, a table or a screen, reading only the files it does not
+# answer for. "Your job" says Shadows sends the code record with the planning context: plan from
+# it and project_state; ask code_where for a symbol's line now, its uses, or what the block cut;
+# read only what neither gives. "Look before you write a path" opens with the code record, then
+# code_where, one short thing per call (a name the person
+# used, a path, a symbol, or an element id or name; one to three words), several calls rather
+# than one sentence; an empty answer to a long topic is not "nothing there", so it asks again
+# with each thing alone, then reads only what it did not answer
+# (mcp_tools::the_planner_is_told_to_ask_code_where_first).
+# executor.md tells the executor to build the saved element revisions and report a conflict.
 # executor.md has the executor report a contract it cannot build with `task_conflict` once, then
 # stop editing and end its turn without a commit or task_report, leaving its files. prompt.txt
 # tells the Planner a conflict notice may arrive while the executor still runs: assess the
@@ -679,8 +694,12 @@ obligations:
     tested_by: [the_planner_is_told_how_to_run_and_judge_tasks,
       the_executor_reports_commands_and_leaves_its_writes_clean]
   - rule: >
-      The Planner reads the manifest, composition root, relevant layers and every modified
-      file whole before naming files or symbols in a task. It reads on Claude Code with
+      The Planner plans from the code record its planning context carries and from
+      project_state, asks code_where for a symbol's line now, its uses or what the block cut,
+      one short thing per code_where call and each thing alone again after an empty
+      answer to a long topic, and reads a file only for what neither gives (not in the record, a
+      gap or an unchecked symbol, an empty record); it reads the manifest or composition
+      root only when the task changes it, and then whole. It reads on Claude Code with
       Read, Grep and Glob, and on Codex with read-only shell commands in the project folder.
       Commands that write, install, build, start servers or reach the network are forbidden;
       Shadows tools are its only writes. File names alone do not make a plan ready.
@@ -778,7 +797,7 @@ obligations:
   - rule: >
       The prompt's Setup section, after The roadmap, has the Planner set the project up
       first through a plan titled "Setup" whose every task writes files and leaves nothing
-      uncommitted, then read the new files as "Look before you write a path" says; only a
+      uncommitted, then look at the new files as "Look before you write a path" says; only a
       Setup task may commit binary files. The prompt names no Agent Mode.
     tested_by: the_planner_sets_the_project_up_first
   - rule: >
@@ -1315,3 +1334,5 @@ judge_checks: >
 
 message_agent: The Planner asks executor questions through message_agent; task_amend requests file changes.
 # Planner prompt: task_runs lists scopes still held across plan versions before task_stop.
+# The Planner uses task_start_status after a failure or for a requested retry, tells the person
+# the refusal reason and retries only on their request. Start rechecks readiness when it acts.

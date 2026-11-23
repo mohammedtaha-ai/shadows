@@ -4,7 +4,7 @@
 use super::RunsStore;
 use crate::RunsError;
 use crate::model::{Attempt, AttemptId, ConflictDelivery};
-use core_db::{CommandContext, Storage, StorageError, Tx};
+use core_db::{Actor, CommandContext, Storage, StorageError, Tx};
 use core_grants::{Grant, Grants};
 
 /// The command record's scope of a conflict and of the Planner's Stop: the
@@ -244,6 +244,9 @@ impl RunsStore {
                     .bind(attempt.as_str())
                     .fetch_optional(&mut *conn)
                     .await?;
+                    if conflicted.is_some() {
+                        super::attempt_progress_in(conn, &attempt, Actor::system(), &ts).await?;
+                    }
                     Ok(conflicted)
                 })
             })

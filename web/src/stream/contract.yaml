@@ -485,7 +485,7 @@ not_the_caller's:
     Retry a `failed` stream by constructing another ThreadStream. Call retry(), which keeps
     the cursor.
   - >
-    Add a plan or design event kind to these hooks without updating PLAN_EVENTS, REACH_EVENTS or
+    Add a plan or design event kind to these hooks without updating PLAN_EVENTS, STATE_EVENTS, REACH_EVENTS or
     the design branch in use-project-events.ts. An unlisted kind is ignored silently.
 
 
@@ -728,8 +728,17 @@ refresh_policy:
   scope: "Project subscriptions supply their project id; writer subscriptions use the plan's project_id and conversations supply the route project id. Payload project_id is a fallback."
   replay: "Plan targets are deduplicated until caught-up. Project design/agreement notices still refresh during replay. Thread caught-up refreshes entries, operations and workflows; writer caught-up refreshes workflows."
   sharing: "Holders of one thread or project share one refresh per QueryClient (holdThreadRefresh, holdProjectRefresh): each event and caught-up dispatches once however many views hold it. Thread scope is the union of holders: writer-only while every holder is a writer, the first supplied project id. A holder joining a live stream dispatches only the baseline targets it adds."
+  project_state:
+    kinds: "STATE_EVENTS: the five plan kinds, DesignElementChanged, CodeRecordChanged, TaskProgressChanged, ProjectDesignChanged, MapProposed, RoadmapProposed and RoadmapApproved refresh the project's state and elements reads."
+    revisions: "DesignElementChanged with a string element_id also refreshes that element's revisions only; TaskProgressChanged and CodeRecordChanged give no other target."
+    replay: "Both targets are parked until caught-up and reconcile once."
+    baseline: "Every project caught-up reconciles the state and the elements; the revisions are not in the baseline."
   tested_by:
     - pins project refresh for %s
+    - 'project_state_events_refetch_the_state_and_the_elements: %s'
+    - a_design_element_change_refetches_only_that_elements_revisions
+    - task_progress_and_record_changes_name_only_the_project_state
+    - replayed_state_events_reconcile_the_state_once_at_caught_up
     - pins writer-thread refresh for %s
     - pins conversation refresh for %s
     - classifies the full plan refresh union for %s

@@ -20,6 +20,13 @@ impl Fixture {
                 .await
                 .unwrap(),
         );
+        sqlx::query(
+            "INSERT INTO project (id, slug, name, directory, created_at)
+             VALUES ('p', 'p', 'P', '/p', 'now'), ('q', 'q', 'Q', '/q', 'now')",
+        )
+        .execute(storage.reader())
+        .await
+        .unwrap();
         Fixture { _db: db, storage }
     }
 
@@ -35,7 +42,10 @@ impl Fixture {
     async fn forget(&self, task: u32) {
         self.storage
             .write_txn(move |tx| {
-                Box::pin(async move { CodeRecord::forget_done_in(tx, &workflow(), 1, task).await })
+                Box::pin(async move {
+                    let project = ProjectId::from_recorded("p".into());
+                    CodeRecord::forget_done_in(tx, &project, &workflow(), 1, task).await
+                })
             })
             .await
             .unwrap();
@@ -116,6 +126,73 @@ fn done(project: &str, contract: TaskContract, verdict: Option<Verdict>) -> Done
         contract,
         verdict,
     }
+}
+
+#[tokio::test]
+async fn done_records_the_contracts_element_pins_and_not_done_forgets_them() {
+    let f = Fixture::new().await;
+    let mut value = serde_json::to_value(contract(&[])).unwrap();
+    value["elements"] = serde_json::json!([{
+        "id": "E1", "revision": 2, "action": "modify", "file": "auth/service.py"
+    }]);
+    f.record(done("p", serde_json::from_value(value).unwrap(), None))
+        .await;
+    let pin: (String, i64, String, String) = sqlx::query_as(
+        "SELECT element_id, revision, action, path FROM code_record_element WHERE project_id = ?",
+    )
+    .bind("p")
+    .fetch_one(f.storage.reader())
+    .await
+    .unwrap();
+    assert_eq!(
+        pin,
+        ("E1".into(), 2, "modify".into(), "auth/service.py".into())
+    );
+    f.forget(1).await;
+    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM code_record_element")
+        .fetch_one(f.storage.reader())
+        .await
+        .unwrap();
+    assert_eq!(count, 0);
+    let events: Vec<String> = sqlx::query_scalar(
+        "SELECT payload_json FROM durable_event WHERE kind = 'CodeRecordChanged' ORDER BY seq",
+    )
+    .fetch_all(f.storage.reader())
+    .await
+    .unwrap();
+    let expected = serde_json::json!({
+        "project_id": "p", "workflow_id": "wf-1", "version": 1, "task": 1
+    });
+    assert_eq!(events.len(), 2);
+    for payload in events {
+        assert_eq!(
+            serde_json::from_str::<serde_json::Value>(&payload).unwrap(),
+            expected
+        );
+    }
+}
+
+#[tokio::test]
+async fn removing_the_project_removes_its_element_rows() {
+    let f = Fixture::new().await;
+    let pins = serde_json::from_value(serde_json::json!({
+        "elements": [{"id": "E1", "revision": 1, "action": "create", "file": "users.sql"}]
+    }))
+    .unwrap();
+    f.record(done("p", pins, None)).await;
+    f.storage
+        .write_txn(|tx| {
+            Box::pin(async move {
+                CodeRecord::delete_project_in(tx, &ProjectId::from_recorded("p".into())).await
+            })
+        })
+        .await
+        .unwrap();
+    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM code_record_element")
+        .fetch_one(f.storage.reader())
+        .await
+        .unwrap();
+    assert_eq!(count, 0);
 }
 
 #[tokio::test]

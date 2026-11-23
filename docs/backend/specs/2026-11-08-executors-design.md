@@ -103,6 +103,15 @@ Core's task status. This answers the two shared requests waiting since 2026-11-0
 `plan-task-status.md` and `acceptance-ticks.md` (§9), both at `e78e07dc`. Not built yet: the plan
 page still shows its `Planned` block; both are rows of [Core future](../../core/future.md).
 
+**Progress reaches the project stream** (2026-11-20, from the frontend's review of the project
+state request). Every write that changes what a task's progress answers (`Runs::progress`: an
+attempt inserted, an attempt's state changed by its report, its end, a Stop, a startup's
+interruption, and a done or not-done mark) journals `TaskProgressChanged { project_id,
+workflow_id, version, task, attempt_id }` in that same write. `attempt_id` is null for a mark.
+Runs journals it, and a replay journals nothing. The project event tail carries it, so a project
+view refreshes progress without following each executor's thread. Plan:
+`docs/backend/plans/2026-11-19-code-record-2a.md`, B-187 and B-180.
+
 ## 5. One task's life
 
 ```text
@@ -345,6 +354,10 @@ were done 50 seconds after Start, so waiting for a quiet project costs little.
   conservatively: when Shadows cannot prove two patterns disjoint, they intersect.
 - Ready tasks may run together. Mohammed starts each one; nothing starts on its own in the
   first release, except the retries in §5.
+- `task_ready` selects a compatible group of never-started tasks. For a failed or stopped
+  attempt, the Planner reads `task_start_status` for the named task before explaining whether
+  a person-requested retry can start. The tool gives the same readiness and refusal as the
+  task page. It reserves no scope. Start checks again when the Planner acts.
 - **Each executor commits its own files** with `git commit`, on the folder's current branch, and
   reports that commit to Shadows, which checks it and records it (§7, amended 2026-11-09).
   Disjoint writes separate file ownership, but the Git index is shared. The 2026-11-14
@@ -413,7 +426,11 @@ index, its commit queue and its trailer.
   on the checked-out branch. Include both rename ends and deleted paths, not a broad
   writes glob or `.`. Other staged/worktree changes, the person's included, stay intact.
   Native Git lock contention retries only the same command, at most three times after
-  1/2/4 seconds; never delete another operation's lock. Remaining failure is reported.
+  1/2/4 seconds; never delete another operation's lock. A permission denial when creating
+  a lock or writing Git metadata uses the harness's configured approval for the exact Git
+  command if offered. If the executor cannot commit, its final message names the failed
+  Git step, the obstruction, and the approval outcome if known. Runs' existing failure
+  notice carries that message to the Planner.
   The instruction change and real-Git procedure tests belong to slice 4's B-148 (`docs/backend/stages.md` at `d73bb646`).
 - **It reports.** It calls `task_report { commit, report }`: the commit's SHA and an honest
   account of what it did, what it ran or tested, and what passed or failed. The executor's

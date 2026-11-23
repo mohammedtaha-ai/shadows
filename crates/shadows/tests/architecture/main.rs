@@ -285,6 +285,68 @@ fn extracted_code_depends_only_on_declared_lower_owners() {
 }
 
 #[test]
+fn code_record_depends_only_on_declared_lower_owners() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let lock = std::fs::read_to_string(root.join("Cargo.lock")).unwrap();
+    let package = lock
+        .split("[[package]]")
+        .find(|entry| entry.lines().any(|line| line == r#"name = "code-record""#))
+        .expect("code-record is a workspace package");
+    // core-operations is a dev-dependency only: the fixtures build the Design they pass in.
+    let owners = [
+        "codebase",
+        "core-db",
+        "core-design",
+        "core-operations",
+        "core-plans",
+        "core-projects",
+    ];
+    for line in package
+        .lines()
+        .filter(|line| line.trim_start().starts_with('"'))
+    {
+        let name = line.trim().trim_matches(',').trim_matches('"');
+        assert!(
+            !name.starts_with("shadows")
+                && (!scanner::service_crate(name) || owners.contains(&name)),
+            "code record must depend only on lower owners and infrastructure: {name}"
+        );
+    }
+}
+
+#[test]
+fn project_state_depends_only_on_declared_lower_owners() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let lock = std::fs::read_to_string(root.join("Cargo.lock")).unwrap();
+    let package = lock
+        .split("[[package]]")
+        .find(|entry| {
+            entry
+                .lines()
+                .any(|line| line == r#"name = "project-state""#)
+        })
+        .expect("project-state is a workspace package");
+    let owners = [
+        "code-record",
+        "core-design",
+        "core-plans",
+        "core-projects",
+        "core-runs",
+    ];
+    for line in package
+        .lines()
+        .filter(|line| line.trim_start().starts_with('"'))
+    {
+        let name = line.trim().trim_matches(',').trim_matches('"');
+        assert!(
+            !name.starts_with("shadows")
+                && (!scanner::service_crate(name) || owners.contains(&name)),
+            "project state must depend only on the owners it composes: {name}"
+        );
+    }
+}
+
+#[test]
 fn extracted_agents_depends_only_on_declared_lower_owners() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     let lock = std::fs::read_to_string(root.join("Cargo.lock")).unwrap();
@@ -555,6 +617,7 @@ fn extracted_turns_depends_only_on_declared_lower_owners() {
                     || [
                         "core-db",
                         "codebase",
+                        "code-record",
                         "core-design",
                         "core-grants",
                         "core-harness",

@@ -41,6 +41,7 @@ use core_standards::Standards;
 use core_threads::Threads;
 use core_turns::{Bus, LiveHandles, Turns};
 use core_usage::Usage;
+use project_state::ProjectState;
 
 /// What `AppCore` is assembled from. Tests build it so the fixture keeps its
 /// own handles on the same `Arc`s; production builds it in `start`. Its fields
@@ -163,6 +164,10 @@ pub struct CoreParts {
          executor attempts at plan tasks | \
          `crates/core-runs/src` | \
          `crates/core-runs/contract.yaml` |"]
+#[doc = " | `ProjectState` | \
+         the project's state as Shadows knows it | \
+         `crates/project-state/src` | \
+         `crates/project-state/contract.yaml` |"]
 #[doc = " | `Runtime` | \
          runtime instance lifecycle | \
          `crates/core-runtime/src` | \
@@ -203,6 +208,7 @@ pub struct AppCore {
     messages_worker: std::sync::OnceLock<MessagesWorker>,
     code: Codebase,
     code_record: CodeRecord,
+    project_state: ProjectState,
 }
 
 impl AppCore {
@@ -467,6 +473,7 @@ impl AppCore {
             design.clone(),
             code.clone(),
         );
+        let code_record = CodeRecord::new(storage.clone(), code.clone(), design.clone());
         let turns = Turns::new(
             storage.clone(),
             operations.clone(),
@@ -480,9 +487,9 @@ impl AppCore {
             projects.clone(),
             plans.clone(),
             design.clone(),
+            code_record.clone(),
             ui.clone(),
         );
-        let code_record = CodeRecord::new(storage.clone(), code.clone());
         let runs = Runs::new(
             storage.clone(),
             plans.clone(),
@@ -491,6 +498,12 @@ impl AppCore {
             projects.clone(),
             threads.clone(),
             code.clone(),
+            code_record.clone(),
+        );
+        let project_state = ProjectState::new(
+            design.clone(),
+            plans.clone(),
+            runs.clone(),
             code_record.clone(),
         );
         let events = Arc::new(Events::new(
@@ -528,6 +541,7 @@ impl AppCore {
             messages_worker: std::sync::OnceLock::new(),
             code,
             code_record,
+            project_state,
         })
     }
 
@@ -637,6 +651,10 @@ impl AppCore {
 
     pub fn code_record(&self) -> &CodeRecord {
         &self.code_record
+    }
+
+    pub fn project_state(&self) -> &ProjectState {
+        &self.project_state
     }
 
     /// Stops Codebase's watchers and workers after their current file, then asks

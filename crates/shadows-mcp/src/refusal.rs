@@ -231,6 +231,34 @@ impl From<shadows_core::RunsError> for Refusal {
     }
 }
 
+/// The state answers its inner owner's refusal; an unknown part is the request's.
+impl From<shadows_core::ProjectStateError> for Refusal {
+    fn from(error: shadows_core::ProjectStateError) -> Self {
+        use shadows_core::ProjectStateError;
+        match error {
+            ProjectStateError::UnknownPart(message) => {
+                Self::new(ErrorCode::InvalidCommand, message)
+            }
+            ProjectStateError::Design(error) => error.into(),
+            ProjectStateError::Plans(error) => error.into(),
+            ProjectStateError::Runs(error) => error.into(),
+            other @ ProjectStateError::CodeRecord(_) => CoreError::from(other).into(),
+        }
+    }
+}
+
+/// A bad topic is the request's; Design's refusal is its own; storage is storage.
+impl From<shadows_core::CodeRecordError> for Refusal {
+    fn from(error: shadows_core::CodeRecordError) -> Self {
+        use shadows_core::CodeRecordError;
+        match error {
+            CodeRecordError::InvalidTopic(message) => Self::new(ErrorCode::InvalidCommand, message),
+            CodeRecordError::Design(error) => error.into(),
+            other @ CodeRecordError::Storage(_) => CoreError::from(other).into(),
+        }
+    }
+}
+
 impl From<shadows_core::EventsError> for Refusal {
     fn from(error: shadows_core::EventsError) -> Self {
         CoreError::from(error).into()
@@ -245,8 +273,30 @@ mod mapping_tests {
     ));
 
     #[test]
+    fn element_refusals_keep_their_code_and_message() {
+        use shadows_core::DesignError;
+
+        for (error, code, message) in [
+            (
+                DesignError::InvalidElement("a table needs a database part".into()),
+                "INVALID_ELEMENT",
+                "a table needs a database part",
+            ),
+            (
+                DesignError::ElementStale("E1 is at revision 2, not 1".into()),
+                "ELEMENT_STALE",
+                "E1 is at revision 2, not 1",
+            ),
+        ] {
+            let result = serde_json::to_value(super::refused(error.into())).unwrap();
+            assert_eq!(result["isError"], true);
+            assert_eq!(result["content"][0]["text"], format!("{code}: {message}"));
+        }
+    }
+
+    #[test]
     fn every_core_error_keeps_its_mcp_mapping() {
-        assert_eq!(Case::all().len(), 66);
+        assert_eq!(Case::all().len(), 68);
         for case in Case::all() {
             let name = format!("{:?}", case.error);
             assert_eq!(case.error.code(), case.code, "{name}");

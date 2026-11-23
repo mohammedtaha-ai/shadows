@@ -125,6 +125,8 @@ pattern to follow, not merely an example.
 | `crates/core-db/src/write_observer.rs` | test-only committed-write observation | `crates/shadows/tests/openapi/read_only.rs` |
 | `crates/core-design/src/decisions.rs` | project decision entry points | `crates/core-design/contract.yaml` |
 | `crates/core-design/src/store/decisions.rs` | persisting project decision revisions | `crates/core-design/contract.yaml` |
+| `crates/core-design/src/elements.rs` | project element entry points | `crates/core-design/contract.yaml` |
+| `crates/core-design/src/store/elements.rs` | persisting project element revisions | `crates/core-design/contract.yaml` |
 | `crates/core-design/src/map_proposals.rs` | map proposal service entry points | `crates/core-design/contract.yaml` |
 | `crates/core-design/src/store/map_proposals.rs` | recording map proposals | `crates/core-design/contract.yaml` |
 | `crates/core-design/src/store/map_proposal_shape.rs` | assembling proposed map shapes | `crates/core-design/contract.yaml` |
@@ -158,6 +160,8 @@ pattern to follow, not merely an example.
 | `crates/shadows-http/src/grants.rs` | the routes over external agents' MCP grants | `crates/shadows-http/src/grants.rs` |
 | `crates/shadows-http/src/instructions.rs` | the routes over a project's Planner instructions | `crates/shadows-http/src/instructions.rs` |
 | `crates/shadows-http/src/design.rs` | the routes over a project's design workspace | `crates/shadows-http/src/design.rs` |
+| `crates/shadows-http/src/project_state.rs` | ProjectState service HTTP translation | `crates/shadows-http/src/contract.yaml` |
+| `crates/shadows-http/src/code_record.rs` | CodeRecord service HTTP translation | `crates/shadows-http/src/contract.yaml` |
 | `crates/shadows-http/src/roadmap.rs` | the routes over roadmap proposals | `crates/shadows-http/src/roadmap.rs` |
 | `crates/shadows-http/src/agreements.rs` | the routes over shared API agreements | `crates/shadows-http/src/agreements.rs` |
 | `crates/shadows-http/src/code.rs` | the routes over the code index | `crates/shadows-http/src/code.rs` |
@@ -179,6 +183,9 @@ pattern to follow, not merely an example.
 | `crates/shadows-mcp/src/workspace_tools.rs` | workspace read tool translation | `crates/shadows-mcp/src/workspace_tools.rs` |
 | `crates/shadows-mcp/src/run_tools.rs` | task run tool translation | `crates/shadows-mcp/src/contract.yaml` |
 | `crates/shadows-mcp/src/decision_tools.rs` | project decision tool translation | `crates/shadows-mcp/src/contract.yaml` |
+| `crates/shadows-mcp/src/element_tools.rs` | Design elements MCP translation | `crates/shadows-mcp/src/contract.yaml` |
+| `crates/shadows-mcp/src/state_tools.rs` | ProjectState service MCP translation | `crates/shadows-mcp/src/contract.yaml` |
+| `crates/shadows-mcp/src/record_tools.rs` | CodeRecord service MCP translation | `crates/shadows-mcp/src/contract.yaml` |
 | `crates/shadows-mcp/src/refusal.rs` | what an MCP tool call answers | `crates/shadows-mcp/src/refusal.rs` |
 | `crates/shadows-core/src/lib.rs` | the application behind `AppCore` | `crates/shadows-core/src/app.rs` |
 | `crates/shadows-core/src/app.rs` | the application's composition root | `crates/shadows-core/src/app.rs` |
@@ -360,7 +367,17 @@ pattern to follow, not merely an example.
 | `crates/code-record/src/error.rs` | code record refusals | `crates/code-record/contract.yaml` |
 | `crates/code-record/src/model.rs` | the code record's values | `crates/code-record/contract.yaml` |
 | `crates/code-record/src/verify.rs` | comparing a contract's symbols with the code | `crates/code-record/contract.yaml` |
+| `crates/code-record/src/elements.rs` | judging a design element's build state | `crates/code-record/contract.yaml` |
+| `crates/code-record/src/code_where.rs` | answering where a topic is | `crates/code-record/contract.yaml` |
+| `crates/code-record/src/digest.rs` | the record's digest for a Planner's context | `crates/code-record/contract.yaml` |
+| `crates/code-record/src/ranking.rs` | ranking a question's matches | `crates/code-record/contract.yaml` |
 | `crates/code-record/src/store/` | the code record's persistence | `crates/code-record/contract.yaml` |
+| `crates/code-record/src/store/elements.rs` | the record's element pins | `crates/code-record/contract.yaml` |
+| `crates/code-record/src/store/lookup.rs` | reading the record for a question or whole | `crates/code-record/contract.yaml` |
+| `crates/project-state/src/` | the project's state as Shadows knows it | `crates/project-state/contract.yaml` |
+| `crates/project-state/src/error.rs` | project state refusals | `crates/project-state/contract.yaml` |
+| `crates/project-state/src/model.rs` | the project's state as its readers receive it | `crates/project-state/contract.yaml` |
+| `crates/project-state/src/state.rs` | composing the project's state from its owners' reads | `crates/project-state/contract.yaml` |
 | `crates/core-events/src/` | what clients watch live | `crates/core-events/src/lib.rs` |
 | `crates/core-events/src/model.rs` | journal replay cursor | `crates/core-events/src/model.rs` |
 | `crates/core-events/src/subscription.rs` | one subscriber's replay-then-live stream | `crates/core-events/src/subscription.rs` |
@@ -601,10 +618,12 @@ file disagrees with either, they are right and this file is the defect.
 | `crates/core-design/src/store/layout.rs` | snapshot layout projection | `crates/core-design/contract.yaml` |
 | `crates/core-plans/src/task_context.rs` | approved task context boundary | `crates/core-plans/contract.yaml` |
 | `crates/core-plans/src/execution.rs` | whether a plan version may start work now | `crates/core-plans/contract.yaml` |
+| `crates/core-plans/src/live_versions.rs` | the Active plans' live versions | `crates/core-plans/contract.yaml` |
 | `crates/core-plans/src/task_contract.rs` | task contract types with their one-task rules | `crates/core-plans/contract.yaml` |
 | `crates/core-plans/src/contract_uses.rs` | resolving the uses of one plan version, from either end | `crates/core-plans/contract.yaml` |
 | `crates/core-plans/src/contract_questions.rs` | what one task's contract promises within its Frozen version | `crates/core-plans/contract.yaml` |
 | `crates/core-plans/src/store/task_context.rs` | snapshot task context assembly | `crates/core-plans/contract.yaml` |
+| `crates/core-plans/src/store/live_versions.rs` | reading live versions in one snapshot | `crates/core-plans/contract.yaml` |
 | `crates/core-plans/src/phases.rs` | ordered phase contracts | `crates/core-plans/contract.yaml` |
 | `crates/core-plans/src/store/phase_refs.rs` | exact phase target resolution | `crates/core-plans/contract.yaml` |
 | `crates/core-plans/src/store/phase_projection.rs` | pinned foreign-phase previews | `crates/core-plans/contract.yaml` |

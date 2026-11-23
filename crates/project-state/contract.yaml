@@ -1,0 +1,105 @@
+# Owns the project's state as Shadows knows it: its stage, each map part with its plans and
+# their tasks (done, started, not started), its tables and screens counted by build state, and
+# the gaps (Mohammed, 2026-11-19, code record plan 2a, Ruling 7).
+#
+# It composes and holds no table. Task progress is Runs'; Runs depends on CodeRecord, so
+# CodeRecord cannot answer it, and nothing above Runs composed reads before this service.
+# Every fact comes from its owner's public method; ProjectState decides only the counts, the
+# order and the bounds. A Draft adds nothing: a plan's live version is its highest Frozen
+# version, and only while the plan is Active (Plans::live_versions decides that).
+# No language server is asked: an element's state reads the record and the folder's file list.
+name: project_state
+version: 1
+status: current
+source: crates/project-state/src
+
+modules:
+  lib.rs: the ProjectState service
+  error.rs: project state refusals
+  model.rs: the project's state as its readers receive it
+  state.rs: composing the project's state from its owners' reads
+
+dependencies:
+  design: "crates/core-design/contract.yaml # stage, layout, elements"
+  plans: "crates/core-plans/contract.yaml # live_versions"
+  runs: "crates/core-runs/contract.yaml # progress"
+  code_record: "crates/code-record/contract.yaml # element_states"
+  projects: "crates/core-projects/contract.yaml # ProjectId only"
+
+shapes:
+  ProjectState:
+    # Cheap to clone; built once in AppCore's assemble_services after Runs.
+    design: Design
+    plans: Plans
+    runs: Runs
+    code_record: CodeRecord
+  ProjectStateView: "{ project_id, stage, missing, map_revision, parts: [PartState] (map order, at most 200), parts_more, unassigned: [PlanProgress] (at most 20), unassigned_more, gaps: [ElementGap] (at most 100), gaps_more, part?: PartDetail (only when asked) }"
+  PartState: "{ part_id, parent: PartId|null, title, kind: string|null, plans: [PlanProgress] (at most 20), plans_more, elements: StateCounts }"
+  PlanProgress: "{ plan_id, title, workflow_id: WorkflowId|null, version: i64|null, draft: WorkflowId|null, tasks: TaskCounts }; named PlanProgress, not PlanState, because Plans' PlanState (Active, Archived) already has that schema name"
+  TaskCounts: "{ total, done, started, not_started }: done is marked done; started is not done with an attempt; not_started the rest"
+  StateCounts: "{ planned, built, gap, unchecked }: removed elements are not counted"
+  ElementGap: "{ element_id, kind, name, part_id, state: gap|unchecked, why }"
+  PartDetail: "{ part_id, plans: [PlanTasks] (live versions only, at most 50), plans_more, elements: [ElementView] (the part's elements, removed included) }"
+  PlanTasks: "{ plan_id, title, workflow_id, version, tasks: [TaskLine] }"
+  TaskLine: "{ number, title, done, attempt: AttemptState|null }: attempt is the latest attempt's state"
+  ElementView: "{ element: DesignElement, state: ElementState }"
+  ProjectStateError:
+    UnknownPart: "part {id} is not a part of this project; INVALID_COMMAND"
+    Design: DesignError
+    Plans: PlansError
+    Runs: RunsError
+    CodeRecord: CodeRecordError
+
+functions:
+  service:
+    new:
+      signature: "(design: Design, plans: Plans, runs: Runs, code_record: CodeRecord) -> ProjectState"
+  reads:
+    state:
+      signature: "(&self, project: &ProjectId, part: Option<&PartId>) -> Result<ProjectStateView, ProjectStateError>"
+      rule: >
+        facts, then: each layout part in map order (at most PARTS_MAX = 200, the rest counted in
+        parts_more) lists every live plan tied to it (a plan under each of its parts, at most
+        PLANS_PER_PART = 20) and counts its elements by state, removed left out; unassigned lists
+        the Active plans tied to no part (at most 20); gaps lists the elements in gap or
+        unchecked by their part's map order, then element number (at most GAPS_MAX = 100). With
+        part, that part's live plans with each task's line (at most DETAIL_PLANS_MAX = 50) and
+        its elements; a part not in the layout is UnknownPart.
+    elements:
+      signature: "(&self, project: &ProjectId) -> Result<Vec<ElementView>, ProjectStateError>"
+      rule: facts, then every element at its latest revision with its state, by element number (Design bounds them at 500).
+    facts:
+      signature: "(&self, project: &ProjectId) -> Result<Facts, ProjectStateError>"
+      private: true
+      rule: >
+        In this order and no other: Design::stage, Design::layout, Design::elements,
+        Plans::live_versions, Runs::progress of each live version, then
+        CodeRecord::element_states over the elements and the planned pins (the element pins of
+        every live task not marked done).
+
+agreements:
+  - between: [state, plans::design_part]
+    must: a part's plans in the state are design_part's plans of that part that are Active
+    holds: true
+    why: Both read the plan-to-part rows (design_part_plan); live_versions keeps Active plans only.
+    tested_by: a_parts_plans_in_the_state_are_its_design_part_plans
+
+obligations:
+  - rule: A part counts its built and planned elements, with confirmed file_only for a pin with no symbol, and its plans count done and not started tasks.
+    tested_by: project_state_counts_each_parts_plans_tasks_and_elements
+  - rule: A Draft adds nothing; a Draft-only plan is listed with workflow_id none and its draft, and its pins plan no element.
+    tested_by: a_draft_adds_nothing_to_the_state
+  - rule: A done pin's absent file is a gap with why; a newer revision after done keeps built with behind.
+    tested_by: [an_absent_file_is_a_gap_in_the_state, a_newer_revision_is_behind]
+  - rule: A part asked in full lists its plans' tasks and its elements; an unknown part is refused.
+    tested_by: [a_part_asked_in_full_lists_its_plans_tasks_and_elements, an_unknown_part_is_refused]
+  - rule: The state is bounded; past a bound the rest is counted.
+    tested_by: the_state_is_bounded
+  - rule: A running attempt shows its task started with attempt running; after it ends without a commit, attempt failed, still started.
+    tested_by: a_running_attempt_shows_started_with_its_state
+  - rule: The project_state MCP tool answers the method's JSON.
+    tested_by: [project_state_tool_answers_the_method]
+    note: The tests live in crates/shadows-core/tests/runs_attempts/project_state.rs and crates/shadows/tests/element_mcp.rs.
+
+not_the_caller's:
+  - Count a part's tasks or elements, or judge an element's state, outside this service.

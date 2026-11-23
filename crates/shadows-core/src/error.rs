@@ -41,6 +41,11 @@ pub enum ErrorCode {
     DecisionStale,
     /// A decision text is empty or too long; 422.
     InvalidDecision,
+    // These codes are only carried by MCP until the elements HTTP surface ships.
+    #[serde(skip_deserializing)]
+    InvalidElement,
+    #[serde(skip_deserializing)]
+    ElementStale,
     HarnessStartFailed,
     ProcessSpawnFailed,
     ProcessTerminated,
@@ -556,6 +561,14 @@ impl From<core_design::DesignError> for CoreError {
                 code: ErrorCode::DecisionStale,
                 message,
             },
+            DesignError::InvalidElement(message) => Self::Refused {
+                code: ErrorCode::InvalidElement,
+                message,
+            },
+            DesignError::ElementStale(message) => Self::Refused {
+                code: ErrorCode::ElementStale,
+                message,
+            },
             DesignError::ReasonMissing => Self::ReasonMissing,
             DesignError::Grants(error) => error.into(),
             DesignError::Storage(error) => error.into(),
@@ -657,6 +670,45 @@ impl From<core_project_lifecycle::ProjectLifecycleError> for CoreError {
             },
             core_project_lifecycle::ProjectLifecycleError::Projects(error) => error.into(),
             core_project_lifecycle::ProjectLifecycleError::Storage(error) => error.into(),
+        }
+    }
+}
+
+/// The state's refusal is its inner owner's; an unknown part is the request's.
+impl From<project_state::ProjectStateError> for CoreError {
+    fn from(error: project_state::ProjectStateError) -> Self {
+        use core_runs::RunsError;
+        use project_state::ProjectStateError;
+        match error {
+            ProjectStateError::UnknownPart(message) => Self::Refused {
+                code: ErrorCode::InvalidCommand,
+                message,
+            },
+            ProjectStateError::Design(error) => error.into(),
+            ProjectStateError::Plans(error) => error.into(),
+            ProjectStateError::Runs(RunsError::Storage(error)) => error.into(),
+            ProjectStateError::Runs(RunsError::Grants(error)) => error.into(),
+            ProjectStateError::Runs(RunsError::Code(error)) => error.into(),
+            ProjectStateError::Runs(other) => Self::Refused {
+                code: ErrorCode::InvalidCommand,
+                message: other.to_string(),
+            },
+            ProjectStateError::CodeRecord(error) => error.into(),
+        }
+    }
+}
+
+/// A bad topic is the request's; Design's refusal and storage are their own.
+impl From<code_record::CodeRecordError> for CoreError {
+    fn from(error: code_record::CodeRecordError) -> Self {
+        use code_record::CodeRecordError;
+        match error {
+            CodeRecordError::InvalidTopic(message) => Self::Refused {
+                code: ErrorCode::InvalidCommand,
+                message,
+            },
+            CodeRecordError::Design(error) => error.into(),
+            CodeRecordError::Storage(error) => error.into(),
         }
     }
 }

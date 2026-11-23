@@ -23,6 +23,7 @@ mod design_ops;
 pub use design_ops::DesignOp;
 mod dependency_graph;
 mod execution;
+mod live_versions;
 pub use execution::{ExecutionPlan, ExecutionRefusal};
 mod map;
 mod model;
@@ -39,8 +40,9 @@ pub use task_context::{
     ContextPlan, ContextStandards, PhaseDependency, TaskContext, TaskPart, TaskPath,
 };
 pub use task_contract::{
-    ContractSource, ContractTarget, ContractUse, ContractValue, FileAction, FileWork,
-    ProducedOutput, ResolvedContract, SymbolKind, SymbolWork, TaskCheck, TaskContract,
+    ContractSource, ContractTarget, ContractUse, ContractValue, ElementAction, ElementPin,
+    FileAction, FileWork, ProducedOutput, ResolvedContract, SymbolKind, SymbolWork, TaskCheck,
+    TaskContract,
 };
 mod scope;
 mod signal;
@@ -57,8 +59,8 @@ pub use dependencies::{LinkedTask, TaskParent, TaskPreview};
 pub use map::{MapLink, MapPlan, PlanMap};
 pub use model::{
     AcceptanceItem, Approved, DecisionPin, DraftStarted, EditOutcome, LastEdit, Link, LinkKind,
-    Plan, PlanContent, PlanId, PlanListing, PlanState, PlanTask, PlanVersions, TaskContent, TaskId,
-    VersionLine, WorkflowId, WorkflowState, WrittenBy,
+    LiveFrozen, LiveTask, LiveVersion, Plan, PlanContent, PlanId, PlanListing, PlanState, PlanTask,
+    PlanVersions, TaskContent, TaskId, VersionLine, WorkflowId, WorkflowState, WrittenBy,
 };
 pub use ops::PlanOp;
 pub use rules::Problem;

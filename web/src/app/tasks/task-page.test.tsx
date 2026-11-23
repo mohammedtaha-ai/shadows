@@ -3,7 +3,8 @@
 import { act } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { ApiError } from '@/api/error'
-import { type Attempt, type TaskRun, taskRunQuery } from '@/api/runs'
+import type { DesignElement } from '@/api/project-state'
+import { type Attempt, type AttemptBrief, type TaskRun, taskRunQuery } from '@/api/runs'
 import { agentEntry, runningOperation, userEntry } from '@/test/contract-fixtures'
 import { answers } from '@/test/fake-daemon'
 import { type TestApp, startApp, typeInto, until } from '@/test/test-app'
@@ -638,5 +639,47 @@ describe('the task page', () => {
     await until(() => a.text().includes('Do task T1.'))
     ended = true
     await until(() => a.text().includes('the T2 test waits for T2.'))
+  })
+
+  const element = (id: string, name: string, extra: Partial<DesignElement> = {}): DesignElement => ({
+    id, revision: 2, project_id: 'p1', part_id: 'web', outcomes: [], deleted: false, written_by: 't1', created_at: 'x',
+    content: { kind: 'table', name, purpose: `${name} purpose`, columns: id === 'E2'
+      ? [{ name: 'user_id', type_name: 'uuid', references: { table: 'E1', column: 'id' } }] : [{ name: 'id', type_name: 'uuid', primary_key: true }] },
+    ...extra,
+  })
+  async function openBrief(elements: DesignElement[] | undefined) {
+    const saved: AttemptBrief = {
+      attempt: attempt({ state: 'committed' }), captured_at: '2026-11-08T10:00:01Z', consumers: [], consumers_more: false,
+      context: {
+        map_revision: 1, parts: [], plan: { plan_id: 'plan1', title: 'Plan', version: 1, workflow_id: 'w1' },
+        standards: { base: 1, additions: null },
+        task: { acceptance: [], goal: 'g', number: 1, reads: [], title: 'Login', writes: [] },
+        unowned_paths: [], ...(elements === undefined ? {} : { elements }),
+      } as unknown as AttemptBrief['context'],
+    }
+    const a = (app = await startApp(PAGE, { ...answers({ attempts: [attempt({ state: 'committed' })] }), 'GET /api/attempts/a1/brief': saved }))
+    const tab = () => [...document.querySelectorAll<HTMLElement>('[role="tab"]')].find((t) => t.textContent === 'Report')
+    await until(() => tab() !== undefined)
+    await act(async () => { tab()?.click() })
+    const heading = () => [...document.querySelectorAll<HTMLButtonElement>('button[aria-expanded]')].find((b) => b.textContent.includes('Attempt 1'))
+    await until(() => heading() !== undefined)
+    await click(heading())
+    await until(() => document.querySelector('[aria-label="Attempt brief"]') !== null)
+    return a
+  }
+
+  it('the_brief_lists_its_pinned_revisions_in_full', async () => {
+    await openBrief([element('E1', 'users'), element('E2', 'sessions')])
+    const pinned = document.querySelector('[aria-label="Pinned elements"]')!
+    expect(pinned.textContent).toContain('Tables and screens')
+    expect(pinned.textContent).toContain('E1 r2 · table users')
+    expect(pinned.textContent).toContain('E2 r2 · table sessions')
+    expect(pinned.querySelector('table[aria-label="sessions columns"]')?.textContent).toContain('→ users.id')
+  })
+
+  it('a_brief_without_elements_has_no_pinned_section', async () => {
+    await openBrief(undefined)
+    expect(document.querySelector('[aria-label="Pinned elements"]')).toBeNull()
+    expect(document.querySelector('[aria-label="Attempt brief"]')!.textContent).not.toContain('Tables and screens')
   })
 })

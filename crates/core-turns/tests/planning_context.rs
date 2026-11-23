@@ -13,6 +13,7 @@ struct Fixture {
     storage: Arc<Storage>,
     design: Design,
     plans: Plans,
+    code_record: code_record::CodeRecord,
     thread: ThreadId,
     project: ProjectId,
 }
@@ -80,27 +81,58 @@ impl Fixture {
             design.clone(),
             codebase::Codebase::new(storage.clone(), Projects::new(storage.clone())),
         );
+        let code_record = code_record::CodeRecord::new(
+            storage.clone(),
+            codebase::Codebase::new(storage.clone(), Projects::new(storage.clone())),
+            design.clone(),
+        );
         Self {
             _dir: dir,
             storage,
             design,
             plans,
+            code_record,
             thread: thread.id,
             project: project.id,
         }
     }
 
     async fn compile(&self) -> core_harness::CarriedContext {
+        self.compile_with([1_500, 8_000, 3_000]).await
+    }
+
+    /// Compiles with the index's, the detail's and the code record's budgets.
+    async fn compile_with(&self, budgets: [i64; 3]) -> core_harness::CarriedContext {
         TestPlanning::compile(
             &self.design,
             &self.plans,
+            &self.code_record,
             &self.thread,
             &self.project,
-            1_500,
-            8_000,
+            budgets,
         )
         .await
         .unwrap()
+    }
+
+    /// Records task `task` as done with `contract`, as a done mark does.
+    async fn done(&self, task: u32, contract: serde_json::Value) {
+        let done = code_record::DoneRecord {
+            project: self.project.clone(),
+            workflow: core_plans::WorkflowId::from_recorded("wf-1".into()),
+            version: 1,
+            task,
+            attempt: None,
+            commit: None,
+            contract: serde_json::from_value(contract).unwrap(),
+            verdict: None,
+        };
+        self.storage
+            .write_txn(move |tx| {
+                Box::pin(async move { code_record::CodeRecord::record_done_in(tx, &done).await })
+            })
+            .await
+            .unwrap();
     }
 
     async fn anchor(&self) {
@@ -307,9 +339,7 @@ async fn the_index_keeps_each_childs_parent() {
 async fn a_detail_still_over_after_every_cut_is_sent_and_says_by_how_much() {
     let f = Fixture::new().await;
     f.anchor().await;
-    let context = TestPlanning::compile(&f.design, &f.plans, &f.thread, &f.project, 1_500, 1)
-        .await
-        .unwrap();
+    let context = f.compile_with([1_500, 1, 3_000]).await;
     assert!(context.text.contains("Seeded for tests"));
     assert!(context.over_tokens > 0);
     f.storage.close().await.unwrap();
@@ -384,9 +414,7 @@ async fn a_detail_cut_keeps_child_identities_for_both_anchor_kinds() {
             .set_thread_anchor("anchor".into(), &f.thread, Some(anchor))
             .await
             .unwrap();
-        let context = TestPlanning::compile(&f.design, &f.plans, &f.thread, &f.project, 1, 1)
-            .await
-            .unwrap();
+        let context = f.compile_with([1, 1, 3_000]).await;
         let detail = context
             .text
             .split("## Planning anchor detail")
@@ -424,8 +452,7 @@ async fn sources_follow_surviving_content_and_keep_shared_sources() {
         content: content.clone(),
     }])
     .await;
-    let compile = || TestPlanning::compile(&f.design, &f.plans, &f.thread, &f.project, 1, 8_000);
-    let before = compile().await.unwrap();
+    let before = f.compile_with([1, 8_000, 3_000]).await;
     assert!(
         !before
             .sources
@@ -440,7 +467,7 @@ async fn sources_follow_surviving_content_and_keep_shared_sources() {
         },
     }])
     .await;
-    let revised = compile().await.unwrap();
+    let revised = f.compile_with([1, 8_000, 3_000]).await;
     assert!(
         !revised
             .sources
@@ -467,12 +494,126 @@ async fn sources_follow_surviving_content_and_keep_shared_sources() {
         )
         .await
         .unwrap();
-    let anchored = compile().await.unwrap();
+    let anchored = f.compile_with([1, 8_000, 3_000]).await;
     assert!(
         anchored
             .sources
             .iter()
             .any(|source| source.id == child.as_str())
     );
+    f.storage.close().await.unwrap();
+}
+
+/// A contract creating `path` with one function per name, each with an input and a return.
+fn contract(path: &str, purpose: &str, names: &[&str]) -> serde_json::Value {
+    serde_json::json!({
+        "files": [{"path": path, "action": "create", "purpose": purpose}],
+        "symbols": names.iter().enumerate().map(|(n, name)| serde_json::json!({
+            "id": format!("s{}", n + 1), "path": path, "kind": "function", "name": name,
+            "inputs": [{"name": "email", "type_name": "str", "meaning": "m"}],
+            "returns": {"name": "", "type_name": "User", "meaning": "m"},
+            "behavior": ["b"],
+        })).collect::<Vec<_>>(),
+    })
+}
+
+fn record_source(context: &core_harness::CarriedContext) -> i64 {
+    context
+        .sources
+        .iter()
+        .find(|s| s.kind == "code_record")
+        .expect("a code record source")
+        .version
+}
+
+#[tokio::test]
+async fn an_empty_record_says_so_in_one_line() {
+    let f = Fixture::new().await;
+    let context = f.compile().await;
+    let record = context.text.split("## Code record").nth(1).unwrap();
+    assert!(record.contains(
+        "No code recorded yet: no done task has recorded a file. Read the files the plan touches."
+    ));
+    assert_eq!(record_source(&context), 0);
+    f.storage.close().await.unwrap();
+}
+
+#[tokio::test]
+async fn the_record_block_is_sent_and_a_new_done_mark_sends_it_again() {
+    let f = Fixture::new().await;
+    f.done(
+        1,
+        contract("seeded/users.py", "the users", &["create_user"]),
+    )
+    .await;
+    let first = f.compile().await;
+    assert!(first.text.contains("Part Seeded part (",));
+    assert!(
+        first.text.contains(
+            "  seeded/users.py: the users\n    create_user (function): email: str -> User"
+        )
+    );
+    assert_eq!(record_source(&first), 1);
+    assert_eq!(f.compile().await.digest, first.digest);
+    f.done(2, contract("tools/run.py", "runs it", &[])).await;
+    let second = f.compile().await;
+    assert_ne!(second.digest, first.digest);
+    assert_eq!(record_source(&second), 2);
+    assert!(
+        second
+            .text
+            .contains("Files no part owns:\n  tools/run.py: runs it")
+    );
+    f.storage.close().await.unwrap();
+}
+
+#[tokio::test]
+async fn an_over_budget_record_cuts_signatures_then_symbols_then_files() {
+    let f = Fixture::new().await;
+    for task in 1..=6 {
+        let path = format!("seeded/module_{task}.py");
+        f.done(
+            task,
+            contract(&path, "a module", &["alpha", "beta", "gamma"]),
+        )
+        .await;
+    }
+    let full = f.compile().await;
+    assert!(full.cuts.is_empty());
+    let record = |c: &core_harness::CarriedContext| {
+        let text = c.text.split("## Code record").nth(1).unwrap();
+        text.split("\nSources").next().unwrap().len().div_ceil(4) as i64
+    };
+    let signed = f.compile_with([1_500, 8_000, record(&full) - 10]).await;
+    assert_eq!(signed.cuts, ["code record inputs and returns"]);
+    assert!(signed.text.contains("    alpha (function)\n"));
+    assert!(!signed.text.contains("-> User"));
+    let named = f.compile_with([1_500, 8_000, record(&signed) - 20]).await;
+    assert_eq!(
+        named.cuts,
+        ["code record inputs and returns", "code record symbols"]
+    );
+    assert!(
+        named
+            .text
+            .contains("  seeded/module_1.py: a module [3 symbols]")
+    );
+    let files = f.compile_with([1_500, 8_000, 1]).await;
+    assert_eq!(
+        files.cuts,
+        [
+            "code record inputs and returns",
+            "code record symbols",
+            "6 files under Seeded part · ask code_where with a path",
+        ]
+    );
+    assert!(
+        files
+            .text
+            .contains("[cut: 6 files under Seeded part · ask code_where with a path]")
+    );
+    assert!(files.text.contains("  [6 files cut]"));
+    assert!(!files.text.contains("module_1"));
+    assert_eq!(record_source(&files), 6);
     f.storage.close().await.unwrap();
 }

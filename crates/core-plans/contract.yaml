@@ -38,6 +38,9 @@ source: crates/core-plans/src
 
 
 shapes:
+  LiveVersion: "{ plan_id, title, parts: [PartId], live: Option<LiveFrozen>, draft: Option<WorkflowId> }: an Active plan as live_versions reads it; not served"
+  LiveFrozen: "{ workflow_id, version, tasks: [LiveTask] }: the plan's highest Frozen version"
+  LiveTask: "{ number, title, elements: [ElementPin] }: a live task and its contract's element pins"
   Phase:
     id: PhaseId
     number: u32
@@ -61,6 +64,7 @@ shapes:
     # contracts: Vec<ResolvedContract>, after task; omitted when empty.
     # decisions: Vec<DecisionRecord>, each pinned revision as Design holds it when the
     # context is built, state included (a frozen pin shows `superseded`); omitted when empty.
+    # elements: Vec<DesignElement>, exact pinned revisions in pin order; omitted when empty.
     note: Approved task, its resolved contracts, exact plan identity/version, selected layout parts with ownership reasons, unowned paths, effective standards numbers and map revision.
   TaskPart:
     part: LayoutPart
@@ -256,6 +260,17 @@ shapes:
     invariants: Vec<String>      # serde default; what must stay true
     forbidden: Vec<String>       # serde default; what must not be changed
     decisions: Vec<DecisionPin>  # serde default, skipped when empty: old fingerprints unchanged
+    elements: Vec<ElementPin>    # serde default, omitted when empty
+  ElementPin:
+    id: String
+    revision: i64
+    action: ElementAction
+    file: String
+    symbol_id: Option<String>
+  ElementAction:
+    Create: unit
+    Modify: unit
+    Delete: unit
   DecisionPin:
     # One exact revision of a Design decision; deny_unknown_fields.
     id: String
@@ -442,6 +457,13 @@ functions:
     list:
       signature: "(&self, project: &ProjectId, archived: bool) -> Result<Vec<PlanListing>, PlansError>"
       # Active plans only, or archived ones too when requested.
+    live_versions:
+      signature: "(&self, project: &ProjectId) -> Result<Vec<LiveVersion>, PlansError>"
+      rule: >
+        One reader transaction: every Active plan of the project in list's order (created_at,
+        then id), with its parts (plan_parts_in), its live version (the highest Frozen version,
+        with each task's number, title and contract element pins) and its Draft named, never
+        read. title is the live version's, else the Draft's. ProjectState composes it.
     get: "(&self, workflow: &WorkflowId) -> Result<Plan, PlansError>"
     plan: "(&self, plan: &PlanId) -> Result<PlanVersions, PlansError>"
     list_for:
@@ -670,6 +692,8 @@ shared_in_transaction:
 
 
 obligations:
+  - rule: live_versions answers each Active plan's highest Frozen version with its tasks' element pins and its parts; a Draft is named and adds no task; an archived plan is left out.
+    tested_by: [live_versions_name_the_highest_frozen_version_and_skip_drafts]
   - rule: >
       A file a task's contract will modify or delete must exist, and one it
       creates must not (§17, 2026-11-18 and 2026-11-19): an edit is refused
@@ -1176,6 +1200,8 @@ tests:
 # WrittenBy Planner provenance reads Harness::invocation_model_in in the caller snapshot.
 
 modules:
+  live_versions.rs: the Active plans' live versions
+  store/live_versions.rs: reading live versions in one snapshot
   store/phase_refs.rs: Exact phase target resolution
   store/phase_projection.rs: Pinned foreign-phase previews
   phases.rs: Ordered phase contracts
@@ -1274,6 +1300,19 @@ decision_pins:
     write, with the Problem "T{n} pins {id} v{version}, which is not an accepted decision".
     A frozen task's pins never change; TaskContext.decisions shows each pin's current state.
   tested_by: [a_task_pins_only_accepted_decisions, a_contract_without_decisions_keeps_its_fingerprint, a_frozen_pin_keeps_its_superseded_revision]
+
+element_pins:
+  rule: >
+    A task pins each element once with a positive revision, a file it creates, modifies or
+    deletes, and an optional symbol defined by that task in that file. Delete pins have no
+    symbol. Plan edits resolve the project's latest revision and map ownership through Design
+    in the same transaction. The element's part must own the file. Delete pins need a deleted
+    revision; create and modify pins need a live revision. Task context reads the exact pinned
+    revisions even after a newer Design revision.
+  tested_by: [a_missing_element_pin_is_refused_by_design_lookup,
+    a_pin_names_a_file_the_task_works_and_a_symbol_in_it,
+    a_task_pins_the_latest_element_in_its_own_part_and_keeps_the_frozen_revision,
+    a_contract_without_elements_keeps_its_fingerprint, a_saved_brief_without_elements_still_reads]
 
 checks_contract: >
   TaskContract.checks defaults to empty for stored contracts. Each TaskCheck names a unique

@@ -65,17 +65,18 @@ boundaries do not exempt their sources from the other architecture rules.
 
 | Owner | Sources | Entry | Contract | Allowed dependencies |
 |---|---|---|---|---|
-| `composition` | `main.tsx, app-root.tsx, router.tsx, env.d.ts, app/shell.tsx, app/home.tsx, app/page-pending.tsx` | `main.tsx, app-root.tsx, router.tsx, app/shell.tsx, app/home.tsx, app/page-pending.tsx` | `-` | `api, stream, desktop, ui, shared, agents, agreements, conversation, design, desktop-ui, groups, new-project, project-settings, settings, sidebar, workflows, tasks, navigation` |
+| `composition` | `main.tsx, app-root.tsx, router.tsx, env.d.ts, app/shell.tsx, app/home.tsx, app/page-pending.tsx` | `main.tsx, app-root.tsx, router.tsx, app/shell.tsx, app/home.tsx, app/page-pending.tsx` | `-` | `api, stream, desktop, ui, shared, agents, agreements, conversation, design, project-state, desktop-ui, groups, new-project, project-settings, settings, sidebar, workflows, tasks, navigation` |
 | `navigation` | `app/navigation/**` | `app/navigation/index.ts` | `app/navigation/contract.yaml` | `-` |
 | `api` | `api/**` | `api/*` | `api/contract.yaml` | `-` |
 | `stream` | `stream/**` | `stream/index.ts` | `stream/contract.yaml` | `api` |
 | `desktop` | `desktop/**` | `desktop/index.ts, desktop/startup.ts` | `desktop/contract.yaml` | `api` |
 | `ui` | `components/ui/**` | `components/ui/*` | `-` | `-` |
-| `shared` | `app/error-line.tsx, app/copy-button.tsx, app/daemon-status.tsx, app/confirm-panel.tsx, app/check-row.tsx` | `app/error-line.tsx, app/copy-button.tsx, app/daemon-status.tsx, app/confirm-panel.tsx, app/check-row.tsx` | `-` | `api, ui` |
+| `shared` | `app/error-line.tsx, app/copy-button.tsx, app/daemon-status.tsx, app/confirm-panel.tsx, app/check-row.tsx, app/element-content.tsx` | `app/error-line.tsx, app/copy-button.tsx, app/daemon-status.tsx, app/confirm-panel.tsx, app/check-row.tsx, app/element-content.tsx` | `-` | `api, ui` |
 | `agents` | `app/agents/**` | `app/agents/index.ts, app/agents/home.tsx` | `app/agents/contract.yaml` | `api, ui, shared, desktop, navigation` |
 | `agreements` | `app/agreements/**` | `app/agreements/index.ts, app/agreements/agreements-page.tsx` | `app/agreements/contract.yaml` | `api, ui, shared` |
 | `conversation` | `app/conversation/**` | `app/conversation/index.ts, app/conversation/conversation.tsx, app/conversation/draft.tsx` | `app/conversation/contract.yaml` | `api, ui, shared, desktop, stream, design, workflows, desktop-ui, navigation` |
 | `design` | `app/design/**` | `app/design/index.ts, app/design/workspace-page.tsx` | `app/design/contract.yaml` | `api, ui, shared, workflows` |
+| `project-state` | `app/project-state/**` | `app/project-state/index.ts, app/project-state/state-page.tsx` | `app/project-state/contract.yaml` | `api, ui, shared, workflows` |
 | `desktop-ui` | `app/desktop/**` | `app/desktop/index.ts, app/desktop/startup.ts, app/desktop/activity.tsx` | `app/desktop/contract.yaml` | `api, ui, shared, desktop, agents` |
 | `new-project` | `app/new-project/**` | `app/new-project/index.ts` | `app/new-project/contract.yaml` | `api, ui, shared` |
 | `project-settings` | `app/project-settings/**` | `app/project-settings/index.ts, app/project-settings/project-settings.tsx` | `app/project-settings/contract.yaml` | `api, ui, shared` |
@@ -117,6 +118,7 @@ above. `codemap.test.ts` checks that each one exists.
 - `web/src/app/agreements`
 - `web/src/app/conversation`
 - `web/src/app/design`
+- `web/src/app/project-state`
 - `web/src/app/new-project`
 - `web/src/app/project-settings`
 - `web/src/app/navigation`
@@ -160,6 +162,10 @@ it is that folder's `contract.yaml`.
 | `web/src/api/groups.ts` | AYLUL group server state | `web/src/api/contract.yaml` |
 | `web/src/api/groups.test.ts` | Group HTTP request checks | `web/src/api/contract.yaml` |
 | `web/src/api/command-id.ts` | Idempotency key reused on each retry of a send | `web/src/api/contract.yaml` |
+| `web/src/api/project-state.ts` | ProjectState server state | `web/src/api/contract.yaml` |
+| `web/src/api/project-state.test.ts` | ProjectState request checks | `web/src/api/contract.yaml` |
+| `web/src/api/code-record.ts` | Where a topic is, as CodeRecord answers it | `web/src/api/contract.yaml` |
+| `web/src/api/code-record.test.ts` | code_where request checks | `web/src/api/contract.yaml` |
 | `web/src/api/design.ts` | Project design server state | `web/src/api/contract.yaml` |
 | `web/src/api/planning-context.ts` | Planning context API | `web/src/api/contract.yaml` |
 | `web/src/api/planning-context.test.ts` | Planning context API checks | `web/src/api/contract.yaml` |
@@ -304,9 +310,26 @@ it is that folder's `contract.yaml`.
 | `web/src/app/design/vision-fields.ts` | Display names of the vision fields | `web/src/app/design/contract.yaml` |
 | `web/src/app/design/workspace-page.tsx` | Design workspace page, opening on Vision | `web/src/app/design/contract.yaml` |
 | `web/src/app/design/workspace-plans.tsx` | Project plan list, with its archive filter | `web/src/app/design/contract.yaml` |
+| `web/src/app/project-state/state-page.tsx` | Project state page with its section tabs | `web/src/app/project-state/contract.yaml` |
+| `web/src/app/project-state/state-badge.tsx` | One build state drawn as icon plus label | `web/src/app/project-state/contract.yaml` |
+| `web/src/app/project-state/state-view.tsx` | Core's project state shown read only | `web/src/app/project-state/contract.yaml` |
+| `web/src/app/project-state/state-view.test.tsx` | State view checks over the fake daemon | `web/src/app/project-state/contract.yaml` |
+| `web/src/app/project-state/diagram-layout.ts` | Dagre placement of tables or screens | `web/src/app/project-state/contract.yaml` |
+| `web/src/app/project-state/diagram-layout.test.ts` | Layout checks | `web/src/app/project-state/contract.yaml` |
+| `web/src/app/project-state/element-canvas.tsx` | React Flow canvas of elements | `web/src/app/project-state/contract.yaml` |
+| `web/src/app/project-state/element-panel.tsx` | One opened table or screen | `web/src/app/project-state/contract.yaml` |
+| `web/src/app/project-state/tables-view.tsx` | Tables as diagram, list or opened table | `web/src/app/project-state/contract.yaml` |
+| `web/src/app/project-state/tables-view.test.tsx` | Tables view checks over the fake daemon | `web/src/app/project-state/contract.yaml` |
+| `web/src/app/project-state/elements-view.tsx` | Tables or screens drawn as diagram plus list | `web/src/app/project-state/contract.yaml` |
+| `web/src/app/project-state/screens-view.tsx` | Screens as flow, list or opened screen | `web/src/app/project-state/contract.yaml` |
+| `web/src/app/project-state/screens-view.test.tsx` | Screens view checks over the fake daemon | `web/src/app/project-state/contract.yaml` |
+| `web/src/app/project-state/where-view.tsx` | Core's answer for where a topic is | `web/src/app/project-state/contract.yaml` |
+| `web/src/app/project-state/where-view.test.tsx` | Where view checks over the fake daemon | `web/src/app/project-state/contract.yaml` |
+| `web/src/app/project-state/index.ts` | Expose app/project-state public capabilities | `web/src/app/project-state/contract.yaml` |
 | `web/src/app/design/index.ts` | Expose app/design public capabilities | `web/src/app/design/contract.yaml` |
 | `web/src/app/error-line.tsx` | Inline line saying why a daemon call failed | `web/src/app/copy-button.tsx` |
 | `web/src/app/check-row.tsx` | One check's result row | `web/src/app/tasks/contract.yaml` |
+| `web/src/app/element-content.tsx` | One table or screen revision shown as text | `web/src/app/element-content.tsx` |
 | `web/src/app/confirm-panel.tsx` | Confirmation presentation with non-submitting action buttons | `web/src/app/error-line.tsx` |
 | `web/src/app/home.tsx` | Main pane shown when no project is open | `web/src/app/shell.tsx` |
 | `web/src/app/new-project/folder-browser.tsx` | Browses one daemon directory to pick a folder | `web/src/app/new-project/contract.yaml` |

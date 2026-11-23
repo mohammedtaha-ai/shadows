@@ -2,9 +2,9 @@
 
 use std::time::Duration;
 
-use axum::body::{Body, BodyDataStream};
+use axum::body::Body;
 use axum::http::Request;
-use serde_json::{Value, json};
+use serde_json::json;
 use tokio_stream::StreamExt;
 use tower::ServiceExt;
 
@@ -13,26 +13,10 @@ use shadows_core::testing::acp;
 mod app;
 #[path = "fixtures/plan.rs"]
 mod plan;
+#[path = "fixtures/stream.rs"]
+mod stream;
 
-async fn next_frame(body: &mut BodyDataStream, pending: &mut String) -> (String, Value) {
-    tokio::time::timeout(Duration::from_secs(10), async {
-        loop {
-            if let Some(end) = pending.find("\n\n") {
-                let frame: String = pending.drain(..end + 2).collect();
-                let event = frame.lines().find_map(|l| l.strip_prefix("event: "));
-                let data = frame.lines().find_map(|l| l.strip_prefix("data: "));
-                if let (Some(event), Some(data)) = (event, data) {
-                    return (event.to_owned(), serde_json::from_str(data).unwrap());
-                }
-            } else {
-                let chunk = body.next().await.expect("stream stays open").unwrap();
-                pending.push_str(std::str::from_utf8(&chunk).unwrap());
-            }
-        }
-    })
-    .await
-    .expect("the committed event reaches the stream")
-}
+use stream::next_frame;
 
 #[tokio::test]
 async fn a_new_foreign_dependency_invalidates_the_targets_project_once() {
@@ -355,6 +339,98 @@ async fn a_project_stream_sends_another_conversations_plan_edit() {
         404
     );
 
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+async fn element_and_record_changes_reach_the_project_stream() {
+    let app = app::test_app().await;
+    let v1 = plan::approved_v1(&app).await;
+    let seed = app
+        .core
+        .design()
+        .seed_elements_for_tests(&app.project)
+        .await
+        .unwrap();
+    let turn = app::start_settled(&app, "hang").await;
+    let (grant, _) = shadows_core::Grants::issue_thread_grant_for_test(&app.storage, &app.thread)
+        .await
+        .unwrap();
+    let cursor: i64 = sqlx::query_scalar("SELECT MAX(seq) FROM durable_event")
+        .fetch_one(app.storage.reader())
+        .await
+        .unwrap();
+    let path = format!("/api/projects/{}/events?after={cursor}", app.project);
+    let response = app
+        .router
+        .clone()
+        .oneshot(Request::get(&path).body(Body::empty()).unwrap())
+        .await
+        .unwrap();
+    let mut body = response.into_body().into_data_stream();
+    let mut pending = String::new();
+    assert_eq!(next_frame(&mut body, &mut pending).await.0, "caught-up");
+
+    let table = shadows_core::ElementInput {
+        id: None,
+        expected_revision: None,
+        part_id: seed.database.clone(),
+        outcomes: vec![seed.outcome.clone()],
+        content: shadows_core::ElementContent::Table(shadows_core::TableContent {
+            name: "users".into(),
+            purpose: "Store users".into(),
+            columns: vec![shadows_core::TableColumn {
+                name: "id".into(),
+                type_name: "TEXT".into(),
+                meaning: String::new(),
+                primary_key: true,
+                references: None,
+            }],
+        }),
+    };
+    app.core
+        .design()
+        .put_element_for(&grant, "users".into(), table)
+        .await
+        .unwrap();
+    let (_, element) = next_frame(&mut body, &mut pending).await;
+    assert_eq!(element["kind"], "DesignElementChanged");
+    assert_eq!(
+        element["payload"],
+        json!({"project_id": app.project, "element_id": "E1", "revision": 1})
+    );
+
+    app.core
+        .runs()
+        .mark_done("done-1".into(), &v1, 1, 1, true, None)
+        .await
+        .unwrap();
+    let (_, progress) = next_frame(&mut body, &mut pending).await;
+    assert_eq!(progress["kind"], "TaskProgressChanged");
+    let (_, record) = next_frame(&mut body, &mut pending).await;
+    assert_eq!(record["kind"], "CodeRecordChanged");
+    assert_eq!(
+        record["payload"],
+        json!({"project_id": app.project, "workflow_id": v1, "version": 1, "task": 1})
+    );
+    let seqs: Vec<i64> = [&element, &progress, &record]
+        .iter()
+        .map(|e| e["seq"].as_i64().unwrap())
+        .collect();
+    assert!(
+        seqs[0] > cursor && seqs[0] < seqs[1] && seqs[1] < seqs[2],
+        "{seqs:?}"
+    );
+    assert!(
+        tokio::time::timeout(Duration::from_millis(150), body.next())
+            .await
+            .is_err()
+    );
+
+    app.core.turns().stop(&turn).await.unwrap();
     app.core
         .shut_down(std::time::Duration::from_secs(5), std::future::pending())
         .await

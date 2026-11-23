@@ -122,6 +122,7 @@ impl Worker {
             servers: HashMap::new(),
             extra: HashSet::new(),
             files: HashMap::new(),
+            known: HashSet::new(),
             started,
         };
         let task = tokio::spawn(async move {
@@ -197,6 +198,11 @@ struct Run {
     /// Each file the last scan listed, with its size and modified time: what the
     /// next scan compares against to tell the servers what changed.
     files: HashMap<String, (i64, i64)>,
+    /// The files the servers know are on disk: what a server read when it started,
+    /// and each file told since. A file outside it is told as created, since a
+    /// server such as pyright adds a file to its workspace only for a creation and
+    /// takes a change to a file it does not know as nothing.
+    known: HashSet<String>,
     /// Where a server's start task reports.
     started: mpsc::UnboundedSender<Started>,
 }
@@ -344,7 +350,10 @@ impl Run {
         if let Some(files) = scanned.files {
             told.extend(files.follow(&mut self.files));
         }
-        if !self.servers.is_empty() {
+        if self.servers.is_empty() {
+            // A server starting now reads the folder as this listing found it.
+            self.known = self.files.keys().cloned().collect();
+        } else {
             let told: Vec<String> = told.into_iter().collect();
             self.tell_servers(&told).await;
         }
@@ -455,9 +464,9 @@ impl Run {
         }
     }
 
-    /// The watcher's paths go to every running server that reads them, as changed
-    /// or deleted by what is on disk now; an extension not listed yet is kept so the
-    /// next `sync_servers` sees it.
+    /// The watcher's paths go to every running server that reads them, by what is on
+    /// disk now: created when outside `known`, else changed, or deleted when gone; an
+    /// extension not listed yet is kept so the next `sync_servers` sees it.
     async fn tell_servers(&mut self, paths: &[String]) {
         let mut on_disk = Vec::with_capacity(paths.len());
         for path in paths {
@@ -468,20 +477,21 @@ impl Run {
             if exists && let Some(ext) = Codebase::extension(path) {
                 self.extra.insert(ext.to_string());
             }
-            on_disk.push((path, full, exists));
+            let change = if !exists {
+                self.known.remove(path.as_str());
+                shadows_lsp::FileChange::Deleted
+            } else if self.known.insert(path.clone()) {
+                shadows_lsp::FileChange::Created
+            } else {
+                shadows_lsp::FileChange::Changed
+            };
+            on_disk.push((path, full, change));
         }
         for (server, running) in self.servers.values() {
             let changes: Vec<_> = on_disk
                 .iter()
                 .filter(|(path, _, _)| server.reads(path))
-                .map(|(_, full, exists)| {
-                    let change = if *exists {
-                        shadows_lsp::FileChange::Changed
-                    } else {
-                        shadows_lsp::FileChange::Deleted
-                    };
-                    (full.clone(), change)
-                })
+                .map(|(_, full, change)| (full.clone(), *change))
                 .collect();
             if !changes.is_empty()
                 && let Err(error) = running.files_changed(&changes).await

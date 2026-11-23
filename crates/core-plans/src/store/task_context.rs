@@ -108,6 +108,14 @@ impl PlansStore {
             }
         }
         let tied = Plans::plan_parts_in(tx, &plan.project_id, &plan.plan_id).await?;
+        let mut elements = Vec::new();
+        for pin in task.contract.iter().flat_map(|contract| &contract.elements) {
+            if let Some(element) =
+                Design::element_in(tx, &plan.project_id, &pin.id, Some(pin.revision)).await?
+            {
+                elements.push(element);
+            }
+        }
         let layout = Design::layout_in(tx, &plan.project_id).await?;
         let mut paths = Vec::new();
         for path in task.reads.iter().chain(&task.writes) {
@@ -155,6 +163,7 @@ impl PlansStore {
             task,
             contracts,
             decisions,
+            elements,
             parts,
             unowned_paths,
             standards: ContextStandards {

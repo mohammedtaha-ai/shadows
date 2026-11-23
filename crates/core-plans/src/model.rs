@@ -363,3 +363,32 @@ pub struct DecisionPin {
     pub id: String,
     pub version: i64,
 }
+
+/// An Active plan with its parts and its live version: what `live_versions` answers.
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+pub struct LiveVersion {
+    pub plan_id: PlanId,
+    /// The live version's title, else the Draft's.
+    pub title: String,
+    pub parts: Vec<core_design::PartId>,
+    /// The highest Frozen version; none while the plan has only a Draft.
+    pub live: Option<LiveFrozen>,
+    /// The plan's Draft, when it has one: named, never read.
+    pub draft: Option<WorkflowId>,
+}
+
+/// A plan's highest Frozen version and its tasks.
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+pub struct LiveFrozen {
+    pub workflow_id: WorkflowId,
+    pub version: i64,
+    pub tasks: Vec<LiveTask>,
+}
+
+/// One task of a live version, with the element pins its contract holds.
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+pub struct LiveTask {
+    pub number: u32,
+    pub title: String,
+    pub elements: Vec<crate::ElementPin>,
+}

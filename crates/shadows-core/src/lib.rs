@@ -25,6 +25,8 @@ pub use codebase::{
 pub use core_agents::{Agent, AgentInput, AgentWorkspace, Agents, AgentsError};
 pub use core_db::Actor;
 pub use core_db::StorageError;
+#[cfg(feature = "test-support")]
+pub use core_design::ElementSeed;
 pub use core_design::MapRefusal;
 pub use core_design::{
     AgreementContent, AgreementId, AgreementIssue, AgreementParty, AgreementRole, AgreementState,
@@ -33,6 +35,10 @@ pub use core_design::{
     OutcomePage, Part, PartContent, PartId, PartLayer, PartPage, PartWaiver, ProposedPart,
     ProposedWaiver, Stage, StageView, VisionContent, VisionField, VisionItem, VisionView,
     WorkspaceView,
+};
+pub use core_design::{
+    ColumnRef, DesignElement, ElementContent, ElementDelete, ElementInput, ElementKind,
+    ScreenContent, ScreenLink, TableColumn, TableContent,
 };
 pub use core_design::{DecisionInput, DecisionRecord, DecisionState};
 pub use core_design::{ProposalStatus, VisionAction, VisionProposal, VisionPropose};
@@ -69,7 +75,7 @@ pub use core_plans::{
 };
 pub use core_plans::{
     ConsumerRef, ContractFacts, ContractSelector, ContractSource, ContractTarget, ContractUse,
-    ProducedOutput, ResolvedContract,
+    ElementAction, ElementPin, ProducedOutput, ResolvedContract,
 };
 pub use core_projects::{
     DirectoryEntry, DirectoryError, DirectoryListing, Project, ProjectId, Projects,
@@ -137,6 +143,17 @@ pub use core_turns::TurnsError;
 pub use core_project_lifecycle::ProjectLifecycleError;
 
 pub use core_events::EventsError;
+
+pub use project_state::{
+    ElementGap, ElementView, PartDetail, PartState, PlanProgress, PlanTasks, ProjectState,
+    ProjectStateError, ProjectStateView, StateCounts, TaskCounts, TaskLine,
+};
+
+pub use code_record::{
+    BuildState, CodeRecord, CodeRecordError, Confirmation, ElementEntry, ElementState, ElementTask,
+    FileEntry, FileTask, Live, Owner, Rank, SymbolEntry, UnrecordedFile, UnrecordedSymbol, UseLine,
+    UsesLive, WhereAnswer, WhereEntry,
+};
 
 pub use core_design::{LayoutLayer, LayoutPart, OwnedVia, PathOwner, ProjectLayout, RuleText};
 

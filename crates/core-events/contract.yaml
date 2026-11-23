@@ -167,7 +167,8 @@ functions:
       # ORDER BY seq; WorkflowDraftStarted, WorkflowEdited, WorkflowFrozen,
       # PlanArchived, PlanUnarchived, ProjectDesignChanged, PlanDependenciesChanged,
       # ProjectLinked, ProjectUnlinked, ProjectRemoved, AgreementChanged,
-      # ProjectStandardsSaved, TaskExecutorChosen. An executor choice event carries
+      # ProjectStandardsSaved, TaskExecutorChosen, DesignElementChanged, CodeRecordChanged,
+      # TaskProgressChanged. An executor choice event carries
       # project_id, plan_id, and task. Standards payload is the saved number only.
       # Design payload is project_id/revision/changed_parts/changed_outcomes/vision_changed;
       # no content. Dependency/reach payloads retain the journal notification;
@@ -220,6 +221,8 @@ enums:
 
 
 obligations:
+  - rule: DesignElementChanged, CodeRecordChanged and TaskProgressChanged reach the project event tail with identifier-only payloads, in sequence order.
+    tested_by: [element_and_record_changes_reach_the_project_stream, an_attempt_starting_and_ending_reaches_the_project_stream_and_the_state]
   - rule: Completed, failed, cancelled and interrupted turns can be replayed after a durable cursor.
     tested_by: [ended_turns_come_back_in_seq_order_after_the_cursor, an_interrupted_turn_is_an_ended_turn]
   - rule: Project subscribers replay MessageAdded using the journal cursor and preserve the writer's group id, local sequence and call flag.

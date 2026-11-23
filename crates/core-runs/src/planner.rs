@@ -120,6 +120,20 @@ impl Runs {
         Ok(plan)
     }
 
+    /// Reads Start's answer for one task of a plan in the Planner's project.
+    pub async fn start_status_for(
+        &self,
+        grant: &Grant,
+        workflow: &WorkflowId,
+        task: u32,
+    ) -> Result<crate::StartAnswer, RunsError> {
+        let plan = self.planner_plan(grant, workflow).await?;
+        if !plan.tasks.iter().any(|item| item.content.number == task) {
+            return Err(RunsError::NotFound);
+        }
+        self.start_answer(&plan, task).await
+    }
+
     /// Starts the task on its saved choice, using Start's admission checks.
     pub async fn start_for(
         &self,

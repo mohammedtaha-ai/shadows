@@ -338,3 +338,230 @@ pub struct DecisionRecord {
     pub approved_by: Option<core_grants::ApprovedBy>,
     pub created_at: String,
 }
+
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    utoipa::ToSchema,
+    schemars::JsonSchema,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum ElementKind {
+    Table,
+    Screen,
+}
+
+impl ElementKind {
+    pub(crate) fn as_str(&self) -> &'static str {
+        match self {
+            Self::Table => "table",
+            Self::Screen => "screen",
+        }
+    }
+}
+
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    utoipa::ToSchema,
+    schemars::JsonSchema,
+)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum ElementContent {
+    Table(TableContent),
+    Screen(ScreenContent),
+}
+
+impl ElementContent {
+    pub fn kind(&self) -> ElementKind {
+        match self {
+            Self::Table(_) => ElementKind::Table,
+            Self::Screen(_) => ElementKind::Screen,
+        }
+    }
+
+    pub fn name(&self) -> &str {
+        match self {
+            Self::Table(table) => &table.name,
+            Self::Screen(screen) => &screen.name,
+        }
+    }
+}
+
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    utoipa::ToSchema,
+    schemars::JsonSchema,
+)]
+#[serde(deny_unknown_fields)]
+pub struct TableContent {
+    pub name: String,
+    pub purpose: String,
+    pub columns: Vec<TableColumn>,
+}
+
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    utoipa::ToSchema,
+    schemars::JsonSchema,
+)]
+#[serde(deny_unknown_fields)]
+pub struct TableColumn {
+    pub name: String,
+    /// The type as the project's language or database writes it.
+    pub type_name: String,
+    #[serde(default)]
+    pub meaning: String,
+    #[serde(default)]
+    pub primary_key: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub references: Option<ColumnRef>,
+}
+
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    utoipa::ToSchema,
+    schemars::JsonSchema,
+)]
+#[serde(deny_unknown_fields)]
+pub struct ColumnRef {
+    /// The target table's element id.
+    pub table: String,
+    pub column: String,
+}
+
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    utoipa::ToSchema,
+    schemars::JsonSchema,
+)]
+#[serde(deny_unknown_fields)]
+pub struct ScreenContent {
+    pub name: String,
+    pub purpose: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub route: Option<String>,
+    #[serde(default)]
+    pub leads_to: Vec<ScreenLink>,
+}
+
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    utoipa::ToSchema,
+    schemars::JsonSchema,
+)]
+#[serde(deny_unknown_fields)]
+pub struct ScreenLink {
+    /// The target screen's element id.
+    pub screen: String,
+    pub when: String,
+}
+
+/// One revision of a table or screen as Design holds it.
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    utoipa::ToSchema,
+    schemars::JsonSchema,
+)]
+pub struct DesignElement {
+    pub id: String,
+    pub revision: i64,
+    #[schemars(with = "String")]
+    pub project_id: core_projects::ProjectId,
+    #[schemars(with = "String")]
+    pub part_id: PartId,
+    #[schemars(with = "Vec<String>")]
+    pub outcomes: Vec<OutcomeId>,
+    pub content: ElementContent,
+    pub deleted: bool,
+    /// The Planner's thread id.
+    pub written_by: String,
+    pub created_at: String,
+}
+
+/// A new element, or a revision of an existing id with its expected revision.
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    utoipa::ToSchema,
+    schemars::JsonSchema,
+)]
+#[serde(deny_unknown_fields)]
+pub struct ElementInput {
+    #[serde(default)]
+    pub id: Option<String>,
+    #[serde(default)]
+    pub expected_revision: Option<i64>,
+    #[schemars(with = "String")]
+    pub part_id: PartId,
+    #[schemars(with = "Vec<String>")]
+    pub outcomes: Vec<OutcomeId>,
+    pub content: ElementContent,
+}
+
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    utoipa::ToSchema,
+    schemars::JsonSchema,
+)]
+#[serde(deny_unknown_fields)]
+pub struct ElementDelete {
+    pub id: String,
+    pub expected_revision: i64,
+}
+
+/// The parts and outcome created by the test seed.
+#[cfg(feature = "test-support")]
+#[derive(Debug, Clone)]
+pub struct ElementSeed {
+    pub database: PartId,
+    pub frontend: PartId,
+    pub outcome: OutcomeId,
+}

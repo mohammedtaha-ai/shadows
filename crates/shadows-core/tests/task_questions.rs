@@ -102,6 +102,7 @@ fn producer(behavior: Vec<String>) -> TaskContract {
         forbidden: vec![],
         checks: Vec::new(),
         decisions: vec![],
+        elements: Vec::new(),
     }
 }
 
@@ -137,6 +138,7 @@ fn consumer(dir: &str, uses: Vec<ContractUse>) -> TaskContract {
         forbidden: vec![],
         checks: Vec::new(),
         decisions: vec![],
+        elements: Vec::new(),
     }
 }
 

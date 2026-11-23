@@ -580,6 +580,8 @@ version = "0.1.0"
 dependencies = [
  "codebase",
  "core-db",
+ "core-design",
+ "core-operations",
  "core-plans",
  "core-projects",
  "serde",
@@ -589,6 +591,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "tracing",
+ "utoipa",
 ]
 
 [[package]]
@@ -1098,6 +1101,7 @@ dependencies = [
 name = "core-turns"
 version = "0.1.0"
 dependencies = [
+ "code-record",
  "codebase",
  "core-db",
  "core-design",
@@ -3066,6 +3070,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "project-state"
+version = "0.1.0"
+dependencies = [
+ "code-record",
+ "core-design",
+ "core-plans",
+ "core-projects",
+ "core-runs",
+ "serde",
+ "thiserror",
+ "utoipa",
+]
+
+[[package]]
 name = "pxfm"
 version = "0.1.30"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3838,6 +3856,7 @@ dependencies = [
  "ignore",
  "image",
  "notify",
+ "project-state",
  "serde",
  "serde_json",
  "sha2 0.10.9",

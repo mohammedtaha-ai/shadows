@@ -323,6 +323,8 @@ impl Case {
             E::StageBlocked,
             E::DecisionStale,
             E::InvalidDecision,
+            E::ElementStale,
+            E::InvalidElement,
             E::WorkflowFrozenImmutable,
             E::InvalidCommand,
             E::GrantInvalid,
@@ -335,6 +337,7 @@ impl Case {
                 | E::HarnessLocked
                 | E::StageBlocked
                 | E::DecisionStale
+                | E::ElementStale
                 | E::WorkflowFrozenImmutable => 409,
                 _ => 422,
             };

@@ -3,8 +3,8 @@ use super::RunsStore;
 use crate::checks::CONTRACT_CHECK;
 use crate::{AttemptId, RunsError};
 use code_record::{CodeRecord, DoneRecord};
-use core_db::{CommandContext, Storage, StorageError, Tx};
-use core_plans::WorkflowId;
+use core_db::{Actor, CommandContext, Storage, StorageError, Tx};
+use core_plans::{Plans, WorkflowId};
 use core_threads::ThreadId;
 
 /// One row of `progress`: `(task, done, done_at, state)`.
@@ -210,7 +210,23 @@ impl RunsStore {
                         &ts,
                     )
                     .await?;
-                    Self::record_in(conn, &workflow, version, task, done, record).await?;
+                    let actor = Actor {
+                        kind: command.principal_kind.clone(),
+                        id: command.principal_id.clone(),
+                    };
+                    let (project, at) = (&plan.project_id, &ts);
+                    super::mark_progress_in(conn, project, &workflow, version, task, actor, at)
+                        .await?;
+                    Self::record_in(
+                        conn,
+                        &plan.project_id,
+                        &workflow,
+                        version,
+                        task,
+                        done,
+                        record,
+                    )
+                    .await?;
                     let recheck = if done {
                         Self::begin_recheck_in(conn, &plan, &plans, task, command_id).await?
                     } else {
@@ -224,11 +240,72 @@ impl RunsStore {
             .await
     }
 
+    /// The attempt a task carried into `plan` without one of its own was
+    /// marked done on. Along the task's copy ancestry (Plans' lineage), the
+    /// newest earlier version with a committed attempt at it gives its latest
+    /// one, but only when that version's task is marked done and the mark
+    /// came after that attempt committed: the mark, and the record it wrote,
+    /// are then for that attempt's commit. None otherwise.
+    pub async fn carried_attempt(
+        &self,
+        plan: &core_plans::Plan,
+        task: u32,
+    ) -> Result<Option<AttemptId>, RunsError> {
+        let mut read = self
+            .storage
+            .reader()
+            .begin()
+            .await
+            .map_err(StorageError::from)?;
+        let lineage = Plans::task_lineage_in(&mut read, &plan.id, task)
+            .await
+            .map_err(RunsError::from_plans)?;
+        let ancestors = lineage.get(1..).unwrap_or_default();
+        let mut previous = plan.previous.clone();
+        while let Some(workflow) = previous {
+            let earlier = Plans::version_in(&mut read, &workflow)
+                .await
+                .map_err(RunsError::from_plans)?;
+            previous = earlier.previous.clone();
+            let Some(number) = earlier
+                .tasks
+                .iter()
+                .find(|t| ancestors.contains(&t.id))
+                .map(|t| t.content.number)
+            else {
+                continue;
+            };
+            // RFC 3339 texts of varying fractional length: compared as
+            // instants, never as text.
+            let latest: Option<(String, bool)> = sqlx::query_as(
+                "SELECT a.id, COALESCE(m.done = 1
+                        AND julianday(m.done_at) >= julianday(a.ended_at), 0)
+                 FROM run_attempts a
+                 LEFT JOIN run_task_marks m ON m.workflow_id = a.workflow_id
+                   AND m.version = a.version AND m.task = a.task
+                 WHERE a.workflow_id=? AND a.version=? AND a.task=? AND a.state='committed'
+                 ORDER BY a.number DESC LIMIT 1",
+            )
+            .bind(workflow.as_str())
+            .bind(earlier.version)
+            .bind(i64::from(number))
+            .fetch_optional(&mut *read)
+            .await?;
+            let Some((latest, marked_after)) = latest else {
+                continue;
+            };
+            return Ok(marked_after.then(|| AttemptId::from_recorded(latest)));
+        }
+        Ok(None)
+    }
+
     /// The code record follows the mark in its own write: done records the
-    /// task's contract, without the verdict when another attempt committed
-    /// after `record` was read; not done, or no contract, removes it.
+    /// task's contract, without the verdict when an attempt of this version
+    /// committed after `record` was read and is not the record's; not done,
+    /// or no contract, removes it.
     async fn record_in(
         tx: &mut Tx,
+        project: &core_projects::ProjectId,
         workflow: &WorkflowId,
         version: i64,
         task: u32,
@@ -236,7 +313,7 @@ impl RunsStore {
         record: Option<DoneRecord>,
     ) -> Result<(), RunsError> {
         let Some(mut record) = record.filter(|_| done) else {
-            CodeRecord::forget_done_in(tx, workflow, version, task).await?;
+            CodeRecord::forget_done_in(tx, project, workflow, version, task).await?;
             return Ok(());
         };
         let latest: Option<String> = sqlx::query_scalar(
@@ -248,7 +325,10 @@ impl RunsStore {
         .bind(i64::from(task))
         .fetch_optional(&mut *tx)
         .await?;
-        if latest != record.attempt {
+        // A committed attempt stays committed, so none here means the record
+        // was read with none of this version's own: its attempt, if any, is
+        // the one the task was carried from.
+        if latest.is_some() && latest != record.attempt {
             record.verdict = None;
         }
         CodeRecord::record_done_in(tx, &record).await?;

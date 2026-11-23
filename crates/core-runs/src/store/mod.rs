@@ -21,7 +21,7 @@ use sqlx::SqliteConnection;
 use crate::model::{Attempt, AttemptId, AttemptState, Need};
 use crate::scope::Scope;
 use crate::{Runs, RunsError};
-use core_db::{Storage, StorageError};
+use core_db::{Actor, JournalEntry, Storage, StorageError};
 use core_grants::{Grant, Grants};
 use core_operations::OperationId;
 use core_plans::{Plan, Plans, TaskContent, WorkflowId};
@@ -100,17 +100,92 @@ pub(crate) struct Marked {
     pub(crate) recheck: Option<String>,
 }
 
+/// Journals TaskProgressChanged for `attempt`, its identities read from its run_attempts row.
+async fn attempt_progress_in(
+    conn: &mut SqliteConnection,
+    attempt: &AttemptId,
+    actor: Actor,
+    at: &str,
+) -> Result<(), RunsError> {
+    let (project, workflow, version, task): (String, String, i64, i64) = sqlx::query_as(
+        "SELECT project_id, workflow_id, version, task FROM run_attempts WHERE id = ?",
+    )
+    .bind(attempt.as_str())
+    .fetch_one(&mut *conn)
+    .await?;
+    progress_event_in(
+        conn,
+        &project,
+        &workflow,
+        version,
+        task,
+        Some(attempt),
+        actor,
+        at,
+    )
+    .await
+}
+
+/// Journals TaskProgressChanged for a mark: attempt_id null.
+async fn mark_progress_in(
+    conn: &mut SqliteConnection,
+    project: &ProjectId,
+    workflow: &WorkflowId,
+    version: i64,
+    task: u32,
+    actor: Actor,
+    at: &str,
+) -> Result<(), RunsError> {
+    let (project, workflow) = (project.as_str(), workflow.as_str());
+    progress_event_in(
+        conn,
+        project,
+        workflow,
+        version,
+        i64::from(task),
+        None,
+        actor,
+        at,
+    )
+    .await
+}
+
+/// The event's identifier-only payload: a reader asks `progress` for the state.
+#[allow(clippy::too_many_arguments)]
+async fn progress_event_in(
+    conn: &mut SqliteConnection,
+    project: &str,
+    workflow: &str,
+    version: i64,
+    task: i64,
+    attempt: Option<&AttemptId>,
+    actor: Actor,
+    at: &str,
+) -> Result<(), RunsError> {
+    let event = JournalEntry::new("TaskProgressChanged", actor)
+        .with_project(project)
+        .with_payload(serde_json::json!({
+            "project_id": project, "workflow_id": workflow, "version": version,
+            "task": task, "attempt_id": attempt.map(AttemptId::as_str),
+        }));
+    JournalEntry::append_event(conn, event, at).await?;
+    Ok(())
+}
+
 impl RunsStore {
     /// Settles a person's Stop and records its notice obligation atomically.
     pub async fn finish_owed(&self, id: &AttemptId) -> Result<bool, RunsError> {
-        let id = id.clone();
+        let (id, ts) = (id.clone(), Storage::now());
         self.storage
             .write_txn_as(move |conn| {
                 Box::pin(async move {
                     let moved = sqlx::query(
                 "UPDATE run_attempts SET state='stopped', reason=NULL, ended_at=?, notice_due=1
                  WHERE id=? AND state='running' AND conflict_json IS NULL",
-            ).bind(Storage::now()).bind(id.as_str()).execute(&mut *conn).await?;
+            ).bind(&ts).bind(id.as_str()).execute(&mut *conn).await?;
+                    if moved.rows_affected() == 1 {
+                        attempt_progress_in(conn, &id, Actor::user("local"), &ts).await?;
+                    }
                     Ok(moved.rows_affected() == 1)
                 })
             })
@@ -326,6 +401,7 @@ impl RunsStore {
                     .bind(&choice.effort)
                     .execute(&mut *conn)
                     .await?;
+                    attempt_progress_in(conn, &id, Actor::system(), &ts).await?;
                     let task = (&new.project, &new.workflow, new.task);
                     Self::capture_in(conn, &id, task, &ts).await?;
                     let attempt = Self::load(conn, &id).await?;
@@ -542,6 +618,9 @@ impl RunsStore {
                     .bind(id.as_str())
                     .execute(&mut *conn)
                     .await?;
+                    if moved.rows_affected() == 1 {
+                        attempt_progress_in(conn, &id, Actor::system(), &ts).await?;
+                    }
                     Ok(moved.rows_affected() == 1)
                 })
             })
@@ -620,6 +699,7 @@ impl RunsStore {
                     .await?;
                     let accepted = moved.rows_affected() == 1;
                     if accepted {
+                        attempt_progress_in(conn, &id, Actor::system(), &ts).await?;
                         for (task, ordinal, check, reported) in checks {
                             sqlx::query(
                                 "INSERT INTO run_checks
@@ -791,6 +871,7 @@ impl RunsStore {
                     .await?;
                     let project = ProjectId::from_recorded(project);
                     let task = u32::try_from(task).unwrap_or(0);
+                    attempt_progress_in(conn, &id, Actor::system(), &ts).await?;
                     Self::capture_in(conn, &id, (&project, &workflow, task), &ts).await?;
                     Self::load(conn, &id).await
                 })

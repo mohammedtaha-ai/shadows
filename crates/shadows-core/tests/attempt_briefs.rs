@@ -487,6 +487,17 @@ async fn context_failure_rolls_back_admission() {
 }
 
 #[tokio::test]
+async fn a_saved_brief_without_elements_still_reads() {
+    let f = fixture().await;
+    let attempt = f.start("legacy-brief", 1).await.unwrap();
+    let saved: Value = serde_json::from_str(&f.saved_json(&attempt).await).unwrap();
+    assert!(saved.get("elements").is_none(), "{saved}");
+    let brief = f.core.runs().brief(&attempt.id).await.unwrap();
+    assert!(brief.context.elements.is_empty());
+    f.finish().await;
+}
+
+#[tokio::test]
 async fn historical_context_is_not_invented() {
     let f = fixture().await;
     let attempt = f.start("s1", 1).await.unwrap();

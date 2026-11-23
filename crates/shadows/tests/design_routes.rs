@@ -956,3 +956,97 @@ async fn a_stale_map_approval_writes_nothing() {
     app.core.turns().stop(&op).await.unwrap();
     app::shut_down_app(app).await;
 }
+
+#[tokio::test]
+async fn element_routes_list_states_and_revisions() {
+    let app = app::test_app().await;
+    let seed = app
+        .core
+        .design()
+        .seed_elements_for_tests(&app.project)
+        .await
+        .unwrap();
+    let op = app::start_settled(&app, "hang").await;
+    for _ in 0..200 {
+        if app.handles.running_for(&app.thread).await.as_ref() == Some(&op) {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(25)).await;
+    }
+    let (grant, _) = shadows_core::Grants::issue_thread_grant_for_test(&app.storage, &app.thread)
+        .await
+        .unwrap();
+    let table = |id: Option<&str>, expected: Option<i64>| shadows_core::ElementInput {
+        id: id.map(str::to_string),
+        expected_revision: expected,
+        part_id: seed.database.clone(),
+        outcomes: vec![seed.outcome.clone()],
+        content: shadows_core::ElementContent::Table(shadows_core::TableContent {
+            name: "users".into(),
+            purpose: "Store users".into(),
+            columns: vec![shadows_core::TableColumn {
+                name: "id".into(),
+                type_name: "TEXT".into(),
+                meaning: String::new(),
+                primary_key: expected.is_some(),
+                references: None,
+            }],
+        }),
+    };
+    let design = app.core.design();
+    design
+        .put_element_for(&grant, "users".into(), table(None, None))
+        .await
+        .unwrap();
+    design
+        .put_element_for(&grant, "users-2".into(), table(Some("E1"), Some(1)))
+        .await
+        .unwrap();
+
+    let elements = format!("/api/projects/{}/elements", app.project);
+    let (status, listed) = app::call(&app, "GET", &elements, None).await;
+    assert_eq!(status, 200, "{listed}");
+    let expected = app
+        .core
+        .project_state()
+        .elements(&app.project)
+        .await
+        .unwrap();
+    assert_eq!(listed, serde_json::to_value(&expected).unwrap());
+    assert_eq!(listed[0]["element"]["id"], "E1");
+    assert_eq!(listed[0]["element"]["revision"], 2);
+    assert_eq!(listed[0]["state"]["state"], "planned");
+    assert_eq!(listed[0]["state"]["behind"], false);
+
+    let (status, revisions) =
+        app::call(&app, "GET", &format!("{elements}/E1/revisions"), None).await;
+    assert_eq!(status, 200, "{revisions}");
+    let numbers: Vec<_> = revisions
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|r| r["revision"].as_i64().unwrap())
+        .collect();
+    assert_eq!(numbers, [1, 2]);
+    let (status, missing) = app::call(&app, "GET", &format!("{elements}/E9/revisions"), None).await;
+    assert_eq!((status, missing), (200, json!([])));
+    let unknown = uuid::Uuid::new_v4();
+    let (status, _) = app::call(
+        &app,
+        "GET",
+        &format!("/api/projects/{unknown}/elements"),
+        None,
+    )
+    .await;
+    assert_eq!(status, 404);
+    let (status, _) = app::call(
+        &app,
+        "GET",
+        &format!("/api/projects/{unknown}/elements/E1/revisions"),
+        None,
+    )
+    .await;
+    assert_eq!(status, 404);
+    app.core.turns().stop(&op).await.unwrap();
+    app::shut_down_app(app).await;
+}

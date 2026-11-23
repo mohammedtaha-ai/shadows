@@ -204,6 +204,7 @@ shapes:
     servers: HashMap<String, (Wanted, Arc<Server>)>
     extra: HashSet<String>         # extensions the watcher saw since the last listing
     files: HashMap<String, (i64, i64)>  # every file the last scan listed, its stamp
+    known: HashSet<String>         # the files the servers know are on disk (`tell_servers`)
     started: mpsc::UnboundedSender<Started>
   Scanned:
     # What `scan_project` answers.
@@ -802,8 +803,13 @@ functions:
       private: true
       # Every watcher batch's paths, a scan's (see `scan`), and those gathered
       # when a `Job::Lsp` arrives, go to each running server that reads them as
-      # `files_changed` (Changed, or Deleted when gone); a new file's extension
-      # joins `extra`.
+      # `files_changed`: Deleted when gone (it leaves `known`), Created when on
+      # disk and not in `known` (it joins), else Changed; a new file's extension
+      # joins `extra`. `known` is the files the servers know are on disk: a scan
+      # with no server running sets it to its listing (a server starting reads
+      # the folder itself), and each file told since. pyright adds a file to its
+      # workspace only for Created and takes Changed for a file it does not know
+      # as nothing, so a file made after it started was never searched for uses.
     stop_servers:
       signature: "(&mut self)"
       private: true
@@ -1002,6 +1008,31 @@ obligations:
       watcher sees goes to the running servers that read it before the next
       question reaches them.
     tested_by: a_watched_change_reaches_the_server
+  - rule: >
+      A file made after a server started reaches it as created, whether the
+      watcher or a scan finds it, so a server that adds a file to its workspace
+      only when told it was created (pyright) searches it for uses; a file it
+      already knows is told changed.
+    tested_by: a_file_made_after_the_server_started_reaches_it_as_created
+    note: >
+      Live: pyright_finds_uses_in_files_made_after_it_started (ignored, needs
+      pyright-langserver), the P9 case of docs/evidence/2026-11-21-code-record-2-live.md.
+  - rule: >
+      A server is Running only once it has read its workspace: shadows-lsp's
+      `Server::start` answers after `initialized` only when the server has sent
+      nothing of its own (a request or a notification) for 1 s, or when the
+      start's time runs out; until then the worker reads it Starting and `lsp`
+      waits for it (20 s), so an empty answer is never one from a server still
+      reading. A server that exits meanwhile is Exited.
+    tested_by: pyright_finds_uses_in_files_made_after_it_started
+    note: >
+      pyright, asked at once, answers references with [] while it loads its
+      settings and lists its files, in silence, then registers its watchers
+      again (0.3 s for 5 files, 0.5 s for 4,000, run by hand). shadows-lsp holds
+      the start's side: crates/shadows-lsp/tests/ready.rs
+      (a_started_server_has_read_its_workspace). Trap: a server silent for more
+      than 1 s while it reads, or one still talking when the start's 120 s run
+      out, is taken as ready.
   - rule: >
       A change the watcher never reported reaches the servers through the scan:
       each scan's listing is compared with the last one, and the paths added,
@@ -1363,6 +1394,18 @@ tests:
     checks: >
       Ignored, needs gopls. With the watcher's reports dropped, Hello moved in
       a.go still answers line 3; after `refresh_inventory`'s scan, line 5.
+  - name: a_file_made_after_the_server_started_reaches_it_as_created
+    checks: >
+      An added server `pz` (node) that reads the .pz files on disk at start and
+      adds one only for Created. With a.pz and b.pz, references at a.pz answer
+      b.pz; a new accounts/c.pz (the watcher) joins them; with the watcher's
+      reports dropped, a new d.pz joins after `refresh_inventory` (the scan).
+  - name: pyright_finds_uses_in_files_made_after_it_started
+    checks: >
+      Ignored, needs pyright-langserver. The first question while pyright starts
+      answers App's uses in backend/main.py (lines 1, 3); SignIn in
+      backend/accounts/application/accounts.py, made after pyright started, is
+      answered used in backend/accounts/app_core.py at lines 1, 3 and 4.
   - name: a_missing_command_reads_not_installed
     checks: An added server (`add_server`) `no-such-server-xyz` for `.zz`, with x.zz, reads NotInstalled.
   - name: a_server_that_exits_reads_failed

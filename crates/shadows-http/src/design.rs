@@ -201,3 +201,20 @@ pub(super) async fn accept_decision(
             .await?,
     ))
 }
+
+#[utoipa::path(get, path = "/api/projects/{id}/elements/{element}/revisions", tag = "design",
+    params(("id" = ProjectId, Path, description = "The project"),
+        ("element" = String, Path, description = "The element id, such as E3")),
+    responses((status = 200, body = Vec<shadows_core::DesignElement>),
+        (status = 404, body = ErrorBody), (status = 500, body = ErrorBody)))]
+pub(super) async fn element_revisions(
+    State(s): State<AppState>,
+    Path((project, element)): Path<(ProjectId, String)>,
+) -> Result<Json<Vec<shadows_core::DesignElement>>, Failure> {
+    Ok(Json(
+        s.core
+            .design()
+            .element_revisions(&project, &element)
+            .await?,
+    ))
+}

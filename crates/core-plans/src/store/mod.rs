@@ -15,6 +15,7 @@ mod draft;
 mod edit;
 mod graph;
 mod linked;
+mod live_versions;
 mod map;
 pub(super) mod notifications;
 mod phase_projection;

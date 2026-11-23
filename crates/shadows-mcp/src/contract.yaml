@@ -1,4 +1,5 @@
 # Events errors translate through CoreError with unchanged responses.
+# ProjectState errors translate by their inner owner's error; an unknown part is INVALID_COMMAND.
 # ProjectLifecycle errors translate through CoreError with unchanged responses.
 # Turns errors translate through CoreError with unchanged responses.
 # Plans errors translate through CoreError with unchanged responses.
@@ -20,6 +21,9 @@ modules:
   workspace_tools.rs: workspace read translation
   run_tools.rs: Runs service MCP translation
   decision_tools.rs: Design decisions MCP translation
+  element_tools.rs: Design elements MCP translation
+  state_tools.rs: ProjectState service MCP translation
+  record_tools.rs: CodeRecord service MCP translation
   server.rs: composition of tool routers under Core grant policy (thread, project and executor)
   refusal.rs: stable MCP error envelope
 agreements:
@@ -35,6 +39,27 @@ map_refusals: 'The generic refusal mapping preserves MAP_REFUSED and its rule-pr
 map_layers: 'map_propose describes the single folder and layer places; the typed schema comes from Core. Tested by planner_mcp::the_map_tool_names_layers.'
 map_change_parent: 'A map_propose change carries parent: the current one keeps the part, another moves it, none moves it to the top. Tested by design_parts::map::proposals::a_map_change_moves_a_part_under_another.'
 decision_tools: 'Planner only (thread grant policy): decision_propose (DecisionInput plus command_id) calls Design::propose_decision; decision_list (the grant''s project) calls Design::decisions. No tool accepts a decision. Tested by mcp_server::the_discover_lifecycle_works_without_a_session and design_decisions::only_a_planner_proposes.'
+element_tools: >-
+  Planner only (thread grant policy). design_element_put calls Design::put_element_for,
+  design_element_delete calls Design::delete_element_for, and design_elements calls
+  Design::elements or Design::element_revisions for the grant's project.
+  Tested by element_mcp and mcp_server::the_tool_list_depends_on_the_grant_kind.
+state_tools: >-
+  Planner only (thread grant policy). project_state { part_id? } calls ProjectState::state for
+  the grant's project and answers its ProjectStateView as JSON. Tested by
+  element_mcp::project_state_tool_answers_the_method and mcp_server::the_tool_list_depends_on_the_grant_kind.
+record_tools: >-
+  Planner only (thread grant policy). code_where { topic } calls CodeRecord::code_where for the
+  grant's project and answers its WhereAnswer as JSON; InvalidTopic is INVALID_COMMAND, Design's
+  refusal its own, storage as storage. Its description and the topic's doc ask one short thing
+  per call (a name the person used, a path, a symbol, or an element id or name; one to three
+  words), several calls rather than one sentence, and say an empty answer to a long topic is not
+  "nothing there": ask again with each thing alone. Its budget is built from
+  CodeRecord::WHERE_MAX_ASKS and WHERE_LIVE_SECS, never copied. The description ends by telling the Planner
+  to ask it before reading a file and to read only what it does not answer
+  (mcp_tools::code_where_says_to_ask_before_reading). Tested by
+  element_mcp::code_where_tool_answers_the_method and
+  mcp_server::the_tool_list_depends_on_the_grant_kind.
 vision_propose_args:'vision_propose names which arguments each action takes: field for an add only, item_id (and text for an edit) for an edit or removal, never field; each argument carries its own description in the schema. Core refuses the wrong shape either way. Tested by mcp_server::the_discover_lifecycle_works_without_a_session.'
 
 layout_only: Map records contain no starter files; the stage has no Structure step or file count, and no HTTP structure-write route exists. Roadmap follows map approval.
@@ -79,6 +104,9 @@ layout_only: Map records contain no starter files; the stage has no Structure st
 # (already_git, no_folder, not_listed) leads its text. Tested by mcp_server::the_tool_list_depends_on_the_grant_kind
 # and, in Runs, runs_attempts::init.
 # task_start { workflow_id, task_number } calls Runs::start_for on the saved choice.
+# task_start_status with the same arguments calls Runs::start_status_for and returns
+# StartAnswer. A Planner uses it for an individual task, including a retry. The read reserves
+# nothing. Tested by mcp_tools::task_start_status_matches_the_task_read.
 # task_executor_set { workflow_id, task_number, harness, model, effort? } saves through Runs.
 # executor_catalog reads the available CLI catalogs through Harness. Both tools are Planner-only.
 # task_done { workflow_id, task_number, done } calls Runs::mark_done_for and answers the
@@ -91,7 +119,7 @@ layout_only: Map records contain no starter files; the stage has no Structure st
 # task_done named as next.
 # task_diff { workflow_id, task_number } calls Runs::diff_for; task_file
 # { workflow_id, task_number, path } calls Runs::file_for. Both use answer and Refusal::from;
-# only the Planner's 29-tool grant lists them. Descriptions direct reading the commit before
+# only the Planner's grant lists them. Descriptions direct reading the commit before
 # judging, never asking for file contents; after an addition diff shows only its change and
 # patches beyond 2,000 lines in all direct task_file. file reads any path in writes and names
 # null text for deleted/binary files and cut for shortened ones. Tested by

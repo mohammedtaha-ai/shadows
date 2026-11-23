@@ -10,6 +10,9 @@ crates/core-events/src/store_tests.rs :: fixture SQL table runtime_instance belo
 crates/core-events/src/store_tests.rs :: fixture construct core_projects::Projects outside composition root [242d2bbca7cfdd81] #1
 # The waiting query uses SQLite json_each over the message owner's own row.
 crates/core-messages/src/store/mod.rs :: Store::group SQL review: qualified table or table function [4749e3fa57d1068b] #1
+# The word lookup tests every bound word with SQLite json_each over code-record's own tables.
+crates/code-record/src/store/lookup.rs :: CodeRecordStore::read_rows_with_words SQL review: qualified table or table function [4855b1abb1b3baa5] #1
+crates/code-record/src/store/lookup.rs :: CodeRecordStore::read_rows_with_words SQL review: qualified table or table function [a4bb8497f979e4d0] #1
 # The OpenAPI create_group operation identifier is scanned as a SQL keyword.
 crates/shadows-http/src/groups.rs :: module SQL review: unsupported statement [b610c6ad582c5341] #1
 crates/shadows/src/cli/args.rs :: tests name resolution review: glob import [19dbf88307d136ac] #1

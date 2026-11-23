@@ -45,7 +45,14 @@ impl Fixture {
         })
         .await
         .unwrap();
-        let record = CodeRecord::new(storage.clone(), code.clone());
+        let record = CodeRecord::new(
+            storage.clone(),
+            code.clone(),
+            core_design::Design::new(
+                storage.clone(),
+                core_operations::Operations::new(storage.clone()),
+            ),
+        );
         Fixture {
             _db: db,
             dir,
@@ -100,6 +107,7 @@ fn contract(files: &[(&str, FileAction)], symbols: &[(&str, &str, &str)]) -> Tas
         forbidden: Vec::new(),
         checks: Vec::new(),
         decisions: Vec::new(),
+        elements: Vec::new(),
     }
 }
 

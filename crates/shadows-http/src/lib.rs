@@ -30,6 +30,7 @@ mod aylul_providers;
 mod aylul_threads;
 mod aylul_usage;
 mod code;
+mod code_record;
 mod conversation;
 mod design;
 mod failure;
@@ -43,6 +44,7 @@ mod openapi;
 mod plan_design;
 mod planning_context;
 mod project;
+mod project_state;
 mod queue;
 mod roadmap;
 mod runs;
@@ -232,6 +234,10 @@ fn design_routes(table: OpenApiRouter<AppState>) -> OpenApiRouter<AppState> {
         .routes(routes!(design::approve_vision_proposal))
         .routes(routes!(design::decisions))
         .routes(routes!(design::accept_decision))
+        .routes(routes!(project_state::state))
+        .routes(routes!(project_state::elements))
+        .routes(routes!(code_record::code_where))
+        .routes(routes!(design::element_revisions))
 }
 
 #[inline(never)]
