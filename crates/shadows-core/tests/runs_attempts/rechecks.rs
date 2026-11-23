@@ -254,12 +254,35 @@ async fn a_failing_recheck_tells_the_planner_once() {
 }
 
 #[tokio::test]
-async fn a_passing_recheck_sends_no_notice() {
+async fn a_passing_recheck_a_mark_began_sends_no_notice() {
+    let f = done_task(false).await;
+    let planner = super::checks::prepare_planner(&f).await;
+    for task in [1, 4, 5, 6, 7] {
+        f.core
+            .runs()
+            .mark_done(format!("done-{task}"), &f.workflow, 1, task, true, None)
+            .await
+            .unwrap();
+    }
+    finished(&f).await;
+    assert_eq!(batches(&f).await, 1);
+    assert!(f.core.turns().queued(&planner).await.unwrap().is_empty());
+    f.finish().await;
+}
+
+#[tokio::test]
+async fn an_asked_recheck_that_passes_says_every_check_passed() {
     let f = done_task(false).await;
     let planner = super::checks::prepare_planner(&f).await;
     cause(&f).await;
-    finished(&f).await;
-    assert!(f.core.turns().queued(&planner).await.unwrap().is_empty());
+    let message = notified(&f, &planner).await;
+    let said = "As the person asked, Shadows reran the checks of the project's done tasks. \
+                Every check passed.";
+    assert!(message.prompt.contains(said), "{}", message.prompt);
+    assert_eq!(
+        message.notice.unwrap().card["failed"],
+        serde_json::json!([])
+    );
     f.finish().await;
 }
 

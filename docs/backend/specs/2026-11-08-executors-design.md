@@ -345,7 +345,10 @@ the agent's word. This replaces the critic's evidence role (§5.1 already replac
   asks for one. Why: in `testing8` each recheck held the project's check lock for 6 to 8 minutes
   over 14 done tasks, and the next ended attempt's own checks and notice waited behind it: the
   last task's notice reached the Planner 5 minutes after its commit
-  ([evidence](../../evidence/2026-11-23-testing8-go-python-live.md)).
+  ([evidence](../../evidence/2026-11-23-testing8-go-python-live.md)). A failure is told as
+  above. A recheck that was asked for and in which every check passed tells its asker so in one
+  short notice, since nothing else would answer it; the one a completing mark began says nothing
+  when nothing new fails (2026-11-24).
 - **The lock orders Shadows' own runs only.** What executors run is ordered by their instructions
   and by waiting on a lock error, as above.
 - **An addition is a new attempt,** with its own commit and its own checks.

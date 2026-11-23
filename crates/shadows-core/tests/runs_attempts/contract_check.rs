@@ -572,9 +572,16 @@ async fn a_not_run_recheck_never_hides_a_later_failure() {
         .code_record()
         .record_answer_for_tests(FILE, RecordedAnswer::NoServer);
     recheck(&f, "cause").await;
+    // A contract recheck that could not run is recorded, never told as a failure; the
+    // asked batch answers that what ran passed.
+    let prompts = recheck_prompts(&f, &planner).await;
+    assert_eq!(prompts.len(), 1);
     assert!(
-        recheck_prompts(&f, &planner).await.is_empty(),
-        "a contract recheck that could not run is recorded, never told"
+        prompts[0].contains(
+            "Every check that ran passed; the contract check of 1 task(s) could not run."
+        ),
+        "{}",
+        prompts[0]
     );
     f.core
         .code_record()
@@ -582,8 +589,8 @@ async fn a_not_run_recheck_never_hides_a_later_failure() {
     recheck(&f, "cause-again").await;
     assert_eq!(contract_rechecks(&f).await, vec!["not_run", "failed"]);
     let prompts = recheck_prompts(&f, &planner).await;
-    assert_eq!(prompts.len(), 1);
-    assert!(prompts[0].contains("T3 contract failed"), "{}", prompts[0]);
+    assert_eq!(prompts.len(), 2);
+    assert!(prompts[1].contains("T3 contract failed"), "{}", prompts[1]);
     f.finish().await;
 }
 

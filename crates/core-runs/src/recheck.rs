@@ -151,10 +151,15 @@ impl Runs {
         let mut plans = BTreeMap::<String, core_plans::Plan>::new();
         let mut lines = Vec::new();
         // A `contract` row that could not run is recorded and never told.
-        for row in rows.iter().filter(|row| {
-            row.outcome.as_deref() != Some("passed")
-                && !(row.check_id == CONTRACT_CHECK && row.outcome.as_deref() == Some("not_run"))
-        }) {
+        let failing: Vec<_> = rows
+            .iter()
+            .filter(|row| {
+                row.outcome.as_deref() != Some("passed")
+                    && !(row.check_id == CONTRACT_CHECK
+                        && row.outcome.as_deref() == Some("not_run"))
+            })
+            .collect();
+        for row in failing.iter().copied() {
             // Every check runs and is recorded; a failure already told stays untold until
             // the check has passed in between.
             if self.inner.store.failed_before(&batch.id, row).await? {
@@ -198,9 +203,24 @@ impl Runs {
             }
             failed.last_mut().unwrap().checks.push(check);
         }
-        let notice = if failed.is_empty() {
+        // A batch tells a new failure; an asked one also tells its asker that every check
+        // passed, since nothing else would answer it.
+        let all_passed = batch.asked && failing.is_empty();
+        let recipient = if failed.is_empty() && !all_passed {
             None
-        } else if let Some(recipient) = self.recheck_recipient(batch).await? {
+        } else if all_passed {
+            // A pass owes no correction: a Planner that cannot be told yet does not hold the
+            // batch open, as a failure would.
+            self.recheck_recipient(batch).await.unwrap_or_else(|error| {
+                tracing::warn!(id=%batch.id, %error, "runs.recheck_pass_untold");
+                None
+            })
+        } else {
+            self.recheck_recipient(batch).await?
+        };
+        let notice = if failed.is_empty() && !all_passed {
+            None
+        } else if let Some(recipient) = recipient {
             let why = match (batch.asked, &batch.asker_thread_id) {
                 (false, _) => format!(
                     "After T{} of version {} was marked done and completed its plan",
@@ -208,6 +228,31 @@ impl Runs {
                 ),
                 (true, Some(_)) => "As you asked".to_string(),
                 (true, None) => "As the person asked".to_string(),
+            };
+            let body = if all_passed {
+                // A `contract` row that could not run is not a pass; say it was not run.
+                let unchecked = rows
+                    .iter()
+                    .filter(|row| row.outcome.as_deref() != Some("passed"))
+                    .count();
+                let passed = match unchecked {
+                    0 => "Every check passed.".to_string(),
+                    n => format!(
+                        "Every check that ran passed; the contract check of {n} task(s) \
+                        could not run."
+                    ),
+                };
+                format!(
+                    "[Shadows] {why}, Shadows reran the checks of the project's done tasks. \
+                    {passed}"
+                )
+            } else {
+                format!(
+                    "[Shadows] {why}, Shadows reran the checks of the project's done tasks. \
+                    These no longer pass:\n{}\nTheir done marks stand. Read the change with \
+                    task_diff, then amend or plan a correction.",
+                    lines.join("\n")
+                )
             };
             let card = RecheckNotice {
                 plan_id: recipient.plan.plan_id,
@@ -219,12 +264,7 @@ impl Runs {
             };
             let intent = NoticeIntent {
                 planner: recipient.thread,
-                body: format!(
-                    "[Shadows] {why}, Shadows reran the checks of the project's done tasks. \
-                    These no longer pass:\n{}\nTheir done marks stand. Read the change with \
-                    task_diff, then amend or plan a correction.",
-                    lines.join("\n")
-                ),
+                body,
                 model: recipient.invocation.requested_model,
                 mode: recipient.invocation.requested_mode,
                 effort: recipient.invocation.requested_effort,

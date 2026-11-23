@@ -146,7 +146,9 @@ The `testing8` live run is finished. Open: its findings (B-199), and B-200 to B-
   Planner's `project_recheck`. The live run in "Done when" is not yet done.
   Follow-up (2026-11-24): the Planner prompt names `project_recheck` (when the person asks; a
   completing done mark already starts one), held by
-  `mcp_tools::the_planner_is_told_how_to_run_and_judge_tasks`.
+  `mcp_tools::the_planner_is_told_how_to_run_and_judge_tasks`. An asked recheck in which every
+  check passed tells its asker so (`an_asked_recheck_that_passes_says_every_check_passed`); a
+  mark's batch keeps its rule, notice only on a new failure.
 - Owner: [executors design, "A project recheck runs when a plan is complete, or when
   asked"](specs/2026-11-08-executors-design.md).
 - Change: a done mark runs no project recheck unless it completes its plan. Add one Runs method
