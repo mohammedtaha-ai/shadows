@@ -206,6 +206,9 @@ its own only when it needs it.
   config change (`core.hooksPath`) would run outside the sandbox on the person's next git
   command. Probe, 2026-11-23, `mxc` on Windows: add and commit passed; writing a hook, `git
   config`, replacing `config` with `Move-Item` and deleting it were refused.
+  Only Codex's experimental API selects a profile per turn (`permissions`), so the connection
+  opens with `experimentalApi` and the protocol snapshot is the experimental schema; accepted
+  by Mohammed on 2026-11-24. A Codex update that changes it is refused until adopted.
 - **Permission cards:** `Harness::waiting_permissions` holds and lists requests from Planner
   sessions as well as AYLUL's; Codex's `requestApproval` is held with its options instead
   of declined. The person's answer goes back through the route that exists
