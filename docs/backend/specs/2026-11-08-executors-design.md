@@ -110,7 +110,7 @@ interruption, and a done or not-done mark) journals `TaskProgressChanged { proje
 workflow_id, version, task, attempt_id }` in that same write. `attempt_id` is null for a mark.
 Runs journals it, and a replay journals nothing. The project event tail carries it, so a project
 view refreshes progress without following each executor's thread. Plan:
-`docs/backend/plans/2026-11-19-code-record-2a.md`, B-187 and B-180.
+`docs/backend/plans/2026-11-19-code-record-2a.md` at `4d69977d`, B-187 and B-180.
 
 ## 5. One task's life
 

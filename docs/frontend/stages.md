@@ -5,183 +5,11 @@ here and set its status. Task shape: [`AGENTS.md`](./AGENTS.md#a-task-in-stagesm
 
 ## Now
 
-Branch `codex/code-record-live-fixes`: the project's state, its ER diagram and screen flow, and `code_where`
-in the web. Plan: [plans/2026-11-20-project-state-views.md](plans/2026-11-20-project-state-views.md).
-Shared requests, accepted 2026-11-20: `docs/shared/requests/2026-11-19-project-state-and-diagrams.md`
-(F-130 to F-134) and `docs/shared/requests/2026-11-19-code-where.md` (F-135). The controller
-dispatches the builders (Mohammed, 2026-11-19); Masada prepares and checks. Every task is blocked
-until its backend tasks are built and `api/openapi.json` shows them. The plan's "Rulings for every
-task" bind each one.
+Nothing is open on the web. The project's state view, its ER diagram and screen flow, and
+`code_where` in the web (F-130 to F-136) are on `main` in PR #75 (`4d69977d`).
 
 Every task's checks run from `web/`: the tests it names, then `npm run typecheck`, `npm run lint`,
 `npm run build` and `npx vitest run src/codemap.test.ts src/architecture`.
-
-### F-130 · The API domain and the stream refresh for the project's state
-
-- Status: done
-- Plan: [plans/2026-11-20-project-state-views.md#f-130--the-api-domain-and-the-stream-refresh](plans/2026-11-20-project-state-views.md#f-130--the-api-domain-and-the-stream-refresh)
-- Read:
-  - `web/src/api/contract.yaml`, `web/src/stream/contract.yaml` (`refresh_policy`);
-  - the shared request's Fields and "Refresh";
-  - `web/src/stream/refresh.ts`.
-- Touch:
-  - `web/src/api/schema.d.ts` (only by `npm run gen:api`);
-  - `web/src/api/error.ts`, `web/src/api/runs.ts` (`retryLost` moves, nothing else);
-  - `web/src/api/project-state.ts` (new), `web/src/api/project-state.test.ts` (new);
-  - `web/src/api/contract.yaml`;
-  - `web/src/stream/refresh.ts`, `web/src/stream/refresh.test.tsx`, `web/src/stream/contract.yaml`;
-  - `docs/frontend/codebase/README.md` (two rows).
-- Not: any file under `web/src/app/`; `web/src/stream/use-project-events.ts`;
-  `web/src/stream/thread-registry.ts`.
-- Needs: the shared request (accepted); B-177 to B-180 and B-187 built.
-- Done when, run with `npx vitest run src/api/project-state.test.ts src/stream/refresh.test.tsx src/api/groups.test.ts src/stream/use-project-events.test.tsx`:
-  - `project_state_events_refetch_the_state_and_the_elements` (all 12 kinds);
-  - `a_design_element_change_refetches_only_that_elements_revisions`;
-  - `task_progress_and_record_changes_name_only_the_project_state`;
-  - `replayed_state_events_reconcile_the_state_once_at_caught_up`;
-  - `the_state_read_sends_part_id_only_when_asked`;
-  - `the_reads_retry_only_a_lost_call`;
-  - every earlier test in those files still passes;
-  - the four standard checks pass.
-
-### F-131 · The state page and the state view
-
-- Status: done
-- Plan: [plans/2026-11-20-project-state-views.md#f-131--the-state-page-and-the-state-view](plans/2026-11-20-project-state-views.md#f-131--the-state-page-and-the-state-view)
-- Read:
-  - the plan's "Where the screens live" and "What is reused";
-  - `web/src/app/design/workspace-page.tsx`;
-  - `web/src/router.tsx` (`workspaceRoute`, `agreementsRoute`);
-  - `web/src/stream/use-project-events.test.tsx` (the integration pattern);
-  - `docs/frontend/codebase/README.md` ("Architecture modules").
-- Touch:
-  - `web/src/router.tsx`;
-  - `web/src/app/design/workspace-page.tsx` (one `Link`);
-  - `web/src/app/project-state/index.ts`, `state-page.tsx`, `state-badge.tsx`, `state-view.tsx`,
-    `state-view.test.tsx`, `contract.yaml` (all new);
-  - `docs/frontend/codebase/README.md` (rows, the `project-state` module row, `composition`'s
-    dependencies, the Contracts list).
-- Not: `web/src/api/`, `web/src/stream/`, any other file in `web/src/app/design/`.
-- Needs: F-130.
-- Done when, run with `npx vitest run src/app/project-state/state-view.test.tsx src/app/design`:
-  - the nine tests the plan names for F-131 pass;
-  - the design folder's tests still pass;
-  - the four standard checks pass.
-
-### F-132 · The element panel and the ER diagram
-
-- Status: done
-- Plan: [plans/2026-11-20-project-state-views.md#f-132--the-element-panel-and-the-er-diagram](plans/2026-11-20-project-state-views.md#f-132--the-element-panel-and-the-er-diagram)
-- Read:
-  - `web/src/app/design/map-canvas.tsx`;
-  - `web/src/app/workflows/layout.ts` (`placeGraph`, `handles`);
-  - `web/src/app/workflows/flow-theme.ts`;
-  - `web/src/app/project-state/contract.yaml`;
-  - the shared request's "Reading the shapes".
-- Touch:
-  - `web/src/app/element-content.tsx` (new, shared);
-  - `web/src/app/project-state/diagram-layout.ts`, `diagram-layout.test.ts`, `element-canvas.tsx`,
-    `element-panel.tsx`, `tables-view.tsx`, `tables-view.test.tsx` (all new);
-  - `web/src/app/project-state/state-page.tsx`, `web/src/app/project-state/contract.yaml`;
-  - `docs/frontend/codebase/README.md` (rows; `app/element-content.tsx` in the `shared` row).
-- Not: `web/src/app/design/`, `web/src/app/workflows/`, `web/src/api/`, `web/src/stream/`,
-  `web/src/router.tsx`.
-- Needs: F-131.
-- Done when, run with `npx vitest run src/app/project-state`:
-  - the four layout tests and the seven tables-view tests the plan names pass;
-  - F-131's tests still pass;
-  - the four standard checks pass.
-
-### F-133 · The screen flow
-
-- Status: done
-- Plan: [plans/2026-11-20-project-state-views.md#f-133--the-screen-flow](plans/2026-11-20-project-state-views.md#f-133--the-screen-flow)
-- Read: `web/src/app/project-state/tables-view.tsx`, `web/src/app/project-state/contract.yaml`.
-- Touch:
-  - `web/src/app/project-state/screens-view.tsx`, `screens-view.test.tsx` (new);
-  - `web/src/app/project-state/state-page.tsx`, `web/src/app/project-state/contract.yaml`;
-  - `docs/frontend/codebase/README.md` (rows);
-  - only as the plan allows: `web/src/app/project-state/elements-view.tsx` (new) and
-    `tables-view.tsx`.
-- Not: anything outside `web/src/app/project-state/` but the code map.
-- Needs: F-132.
-- Done when, run with `npx vitest run src/app/project-state`:
-  - the four screens-view tests pass;
-  - every earlier test in the folder still passes;
-  - the four standard checks pass.
-
-### F-134 · Pinned elements in plan review and in the attempt brief
-
-- Status: done
-- Plan: [plans/2026-11-20-project-state-views.md#f-134--pinned-elements-in-plan-review-and-in-the-brief](plans/2026-11-20-project-state-views.md#f-134--pinned-elements-in-plan-review-and-in-the-brief)
-- Read:
-  - `web/src/app/workflows/contract.yaml`, `web/src/app/tasks/contract.yaml`;
-  - `web/src/app/workflows/inspect-panel.tsx`, `web/src/app/tasks/brief-panel.tsx`;
-  - the shared request's "Plan review and the task brief".
-- Touch:
-  - `web/src/app/workflows/inspect-panel.tsx`, `web/src/app/workflows/plan-page.test.tsx`,
-    `web/src/app/workflows/contract.yaml`;
-  - `web/src/app/tasks/brief-panel.tsx`, `web/src/app/tasks/task-page.test.tsx`,
-    `web/src/app/tasks/contract.yaml`.
-- Not: `web/src/api/`, `web/src/app/element-content.tsx` (used as F-132 left it), any other file.
-- Needs: F-132; B-177 built (its fields are in the schema F-130 generated).
-- Done when, run with `npx vitest run src/app/workflows/plan-page.test.tsx src/app/tasks/task-page.test.tsx`:
-  - `the_inspect_panel_lists_pinned_elements_by_name`;
-  - `a_pin_whose_element_is_not_read_shows_its_id`;
-  - `the_brief_lists_its_pinned_revisions_in_full`;
-  - `a_brief_without_elements_has_no_pinned_section`;
-  - every earlier test in both files still passes;
-  - the four standard checks pass.
-
-### F-135 · `code_where` in the web
-
-- Status: done
-- Plan: [plans/2026-11-20-project-state-views.md#f-135--code_where-in-the-web](plans/2026-11-20-project-state-views.md#f-135--code_where-in-the-web)
-- Read:
-  - `docs/shared/requests/2026-11-19-code-where.md` (Fields, "Who uses a symbol", Errors);
-  - `web/src/api/contract.yaml`, `web/src/app/project-state/contract.yaml`.
-- Touch:
-  - `web/src/api/schema.d.ts` (only by `npm run gen:api`);
-  - `web/src/api/code-record.ts`, `web/src/api/code-record.test.ts` (new);
-  - `web/src/api/contract.yaml`;
-  - `web/src/app/project-state/where-view.tsx`, `where-view.test.tsx` (new);
-  - `web/src/app/project-state/state-page.tsx`, `web/src/app/project-state/contract.yaml`;
-  - `docs/frontend/codebase/README.md` (rows).
-- Not: `web/src/stream/` (a question is never asked again by an event); `web/src/router.tsx`
-  (F-131 defined `topic`); `web/src/api/code.ts`.
-- Needs: the shared request (accepted); B-182, B-183 and B-185 built; F-132.
-- Done when, run with `npx vitest run src/api/code-record.test.ts src/app/project-state`:
-  - the two API tests and the eleven where-view tests the plan names pass;
-  - every earlier test in the folder still passes;
-  - the four standard checks pass.
-
-### F-136 · The where view shows each symbol's contract inputs and return
-
-- Status: done (built in the whole-branch review)
-- Plan: this entry (an addition to F-135's symbol block; the plan's F-135 section is the rest).
-- Read:
-  - `docs/shared/requests/2026-11-19-code-where.md` (the 2026-11-21 amendment and its
-    re-review);
-  - `web/src/app/project-state/where-view.tsx` (the symbol block);
-  - `web/src/app/project-state/where-view.test.tsx` (the `symbol` fixture).
-- Touch:
-  - `web/src/api/schema.d.ts` (only by `npm run gen:api`, run first);
-  - `web/src/app/project-state/where-view.tsx`, `where-view.test.tsx`;
-  - `web/src/app/project-state/contract.yaml` (the two tests under the where view's obligations).
-- Not: `web/src/api/code-record.ts` (`SymbolEntry` already comes from the schema); any other
-  view; `web/src/stream/`.
-- Needs: B-189 built; F-135.
-- The symbol block, after `Line {line}` and before `behavior`, shows Core's values as given:
-  - when `inputs` is not empty: a list (`aria-label="Inputs"`), one item per input in Core's
-    order, reading `{name}: {type_name} · {meaning}`;
-  - when `returns` is present: `Returns {type_name} · {meaning}`;
-  - nothing for an empty `inputs` or an absent `returns`; no text is parsed or inferred.
-- The `symbol` fixture gains `inputs: []`; no other earlier test changes.
-- Done when, run with `npx vitest run src/app/project-state`:
-  - `a_symbol_shows_its_contract_inputs_and_return` (two inputs in order, and the return line);
-  - `a_symbol_with_no_inputs_or_return_shows_neither` (no `Inputs` list, no `Returns`);
-  - every earlier test in the folder still passes;
-  - the four standard checks pass.
 
 ### Shipped
 
@@ -212,6 +40,7 @@ A shipped task's entry, and its plan once deleted, are in this file in Git at th
 | #71 | Executor choice on a task and in a new conversation | F-125 | `0e281585` |
 | #72 | Settings › Code as one collapsible row, the plan page's real progress (its read is in `docs/backend/stages.md` at `753b26a4`), the visual acceptances recorded | F-126 to F-128 | `753b26a4` |
 | #73 | The Report tab shows the `contract` check as Shadows' own (F-129; plan `docs/backend/plans/2026-11-19-code-record.md` at `7b7abec`) | F-129 | `7b7abec` |
+| #75 | The project's state view, its ER diagram and screen flow, pinned elements in plan review and in the attempt brief, `code_where` and its contract inputs and return (the shared requests `docs/shared/requests/2026-11-19-project-state-and-diagrams.md` and `docs/shared/requests/2026-11-19-code-where.md`) | F-130 to F-136 | `4d69977d` |
 
 Dropped without being built: F-99 and F-101 (covered by F-102's brief panel and F-116's server list; the rest is in [future](../core/future.md)), F-100 (with B-102), F-104 and F-105 (with the repair plan; slice 6 replanned them as F-121 to F-124). Their entries and plan are at `d997393a`.
 
@@ -222,6 +51,7 @@ PRs #59 and #66 have no `F-` task. Two composer fixes in PR #61 have none either
 
 - The light palette and F-114's composer tiles are recorded in `docs/evidence/2026-11-18-visual-acceptance.md`.
   Left to Mohammed: the tiles inside a sent message and the desktop login item (start with Windows).
+- The plan page's progress and the task page are not refreshed by `TaskProgressChanged`; the state read asks only for the state and the elements. Using the event there is a later choice (`docs/frontend/plans/2026-11-20-project-state-views.md` at `4d69977d`, "Not in these tasks").
 
 ### Before a new task
 

@@ -5,7 +5,7 @@
   Need and Fields, and accepts or replies)
 - Screen: the code record design §5.3 and §5.4
   (`docs/backend/specs/2026-11-19-project-code-record-design.md`); backend plan
-  `docs/backend/plans/2026-11-19-code-record-2b.md` (B-185)
+  `docs/backend/plans/2026-11-19-code-record-2b.md` at `4d69977d` (B-185)
 
 ## Need
 
@@ -104,7 +104,7 @@ name, type_name, meaning }`, absent for a class or when the contract gives none.
 the record, never from the language server, so they show the signature as planned, like
 `behavior`. Reason: the live run showed the Planner reading files to learn signatures that the
 answer left out (`docs/evidence/2026-11-21-code-record-2-live.md`, P1;
-`docs/backend/plans/2026-11-19-code-record-2b.md`, B-189). The rest of the accepted shape is
+`docs/backend/plans/2026-11-19-code-record-2b.md` at `4d69977d`, B-189). The rest of the accepted shape is
 unchanged. B-189 waits for this amendment to be accepted.
 
 ## Frontend reply
