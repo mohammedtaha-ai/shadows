@@ -158,7 +158,11 @@ The `testing8` live run is finished. Open: its findings (B-199), and B-200 to B-
 
 ### B-201 · A Codex conversation in `ask` can commit
 
-- Status: todo. Decided by Mohammed on 2026-11-24.
+- Status: done (2026-11-24) in code and a signed-in live test
+  (`live_a_codex_conversation_in_ask_commits_but_keeps_hooks_and_config`). A per-turn
+  `sandboxPolicy` replaces a profile, so `ask` sends the experimental `permissions` field; the
+  connection opens with `experimentalApi` and the snapshot was re-adopted from the experimental
+  schema. The `testing8` executor run in "Done when" is not yet done.
 - Owner: [language servers design, "A Codex conversation in `ask` can commit"](specs/2026-11-13-language-servers-design.md#the-planners-shell-and-its-changes).
 - Change: in `crates/shadows-agent/src/codex.rs` and `codex/session.rs`, the `ask` mode's
   filesystem permissions write the project root and its `.git`, read `.git/hooks` and

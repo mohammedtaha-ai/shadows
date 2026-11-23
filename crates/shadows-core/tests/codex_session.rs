@@ -566,11 +566,14 @@ async fn codex_each_mode_sends_its_sandbox_and_approval() {
     for (mode, words) in [
         (
             CODEX_READ_ONLY,
-            r#"sandbox="readOnly" approval="never" reviewer="user""#,
+            r#"sandbox="readOnly" permissions=null approval="never" reviewer="user""#,
         ),
         (
             CODEX_ASK,
-            r#"sandbox="workspaceWrite" approval="on-request" reviewer="auto_review""#,
+            concat!(
+                r#"sandbox=null permissions="shadows_ask" "#,
+                r#"approval="on-request" reviewer="auto_review""#
+            ),
         ),
     ] {
         let op = w.send_in(mode, mode, "settings").await;
@@ -975,6 +978,72 @@ async fn live_a_codex_planner_reads_a_file_and_writes_none() {
     println!(
         "live codex write: {} tool entries, {failed} failed, made.txt absent",
         tried.len()
+    );
+    w.close().await;
+}
+
+/// In `ask`, Codex commits in the project with no approval round, while a hook write and
+/// `git config` stay refused: a hook or `core.hooksPath` would run outside the sandbox.
+#[ignore = "live: needs codex (SHADOWS_CODEX_PATH) signed in to a dedicated home \
+            (SHADOWS_CODEX_HOME)"]
+#[tokio::test]
+async fn live_a_codex_conversation_in_ask_commits_but_keeps_hooks_and_config() {
+    let root = tempfile::tempdir().unwrap();
+    let directory = root.path().join("project");
+    std::fs::create_dir_all(&directory).unwrap();
+    let git = |args: &[&str]| {
+        std::process::Command::new("git")
+            .current_dir(&directory)
+            .args(args)
+            .output()
+            .unwrap()
+    };
+    for args in [
+        &["init", "-q"][..],
+        &["config", "user.name", "Probe"],
+        &["config", "user.email", "probe@example.invalid"],
+        &["commit", "-q", "--allow-empty", "-m", "start"],
+    ] {
+        assert!(git(args).status.success(), "git {args:?}");
+    }
+    let w = World::start_live(root).await;
+    let choices = w.core.harness().open_session(&w.thread).await.unwrap();
+    assert_eq!(choices.current.mode, CODEX_ASK);
+    let current = choices.current;
+    let send = SendTurn {
+        mode: CODEX_ASK.into(),
+        ..turn(
+            "probe",
+            "The person asks you to check this conversation's sandbox. Run each step below as \
+             its own shell command, once, and never request approval or escalation; when a \
+             step is refused, go on to the next. 1. Create the file probe.txt containing \
+             probe. 2. git add probe.txt 3. git commit -m \"sandbox probe\" 4. Create the \
+             file .git/hooks/probe-hook containing x. 5. git config core.hooksPath probe \
+             Then report each step's outcome in one line.",
+            &current.model,
+            current.effort.as_deref(),
+        )
+    };
+    let operation = w.core.turns().send(w.thread.clone(), send).await.unwrap();
+    let done = w
+        .settled_within(&w.thread, &operation, Duration::from_secs(300))
+        .await;
+    assert_eq!(done.status_kind, "Completed", "{done:?}");
+    let written = w.written(&w.thread, &operation).await;
+    let log = String::from_utf8(git(&["log", "--format=%s"]).stdout).unwrap();
+    assert!(
+        log.lines().any(|line| line == "sandbox probe"),
+        "{log}\n{written:#?}"
+    );
+    assert!(
+        !directory.join(".git/hooks/probe-hook").exists(),
+        "a hook write must be refused"
+    );
+    let hooks = git(&["config", "--get", "core.hooksPath"]);
+    assert!(
+        hooks.stdout.is_empty(),
+        "git config must be refused: {}",
+        String::from_utf8_lossy(&hooks.stdout)
     );
     w.close().await;
 }

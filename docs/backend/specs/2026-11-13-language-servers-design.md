@@ -192,7 +192,9 @@ its own only when it needs it.
   otherwise in the project's first allowed mode: a project made before B-146 (`docs/backend/stages.md` at `db760593`) allows
   `read-only` only (migration 0050) and keeps it until the person adds `ask`. The picked
   mode is sent
-  with every `turn/start` as `sandboxPolicy`, `approvalPolicy` and `approvalsReviewer`,
+  with every `turn/start` as its sandbox (`sandboxPolicy` for Read only, the
+  `shadows_ask` permission profile through `permissions` for `ask`, since a legacy sandbox
+  replaces a profile), `approvalPolicy` and `approvalsReviewer`,
   and the opening refuses a thread whose answer does not echo the default mode's three
   (`shadows-agent/src/codex/session.rs`). In Read only the Planner cannot install a
   missing server, so its `person_ask` offers only "you install it" (with the install

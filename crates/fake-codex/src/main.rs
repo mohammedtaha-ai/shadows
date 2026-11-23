@@ -146,10 +146,11 @@ impl Peer {
             "interrupt" => self.chunk("waiting")?,
             "settings" => {
                 let words = format!(
-                    "model={} effort={} sandbox={} approval={} reviewer={}",
+                    "model={} effort={} sandbox={} permissions={} approval={} reviewer={}",
                     params["model"],
                     params["effort"],
                     params["sandboxPolicy"]["type"],
+                    params["permissions"],
                     params["approvalPolicy"],
                     params["approvalsReviewer"]
                 );
@@ -298,15 +299,21 @@ impl Peer {
         }
         let thread = self.thread.clone();
         self.approval = params["approvalPolicy"].clone();
-        // What it was asked for, as Codex answers it.
-        let sandbox = match params["sandbox"].as_str() {
-            Some("workspace-write") => "workspaceWrite",
+        // What it was asked for, as Codex answers it: a named profile is reported as the
+        // active one, with its legacy projection.
+        let sandbox = match (params["sandbox"].as_str(), params["permissions"].as_str()) {
+            (Some("workspace-write"), _) | (None, Some(_)) => "workspaceWrite",
             _ => "readOnly",
+        };
+        let active = match params["permissions"].as_str() {
+            Some(profile) => json!({"id": profile, "extends": null}),
+            None => Value::Null,
         };
         self.result(
             id,
             json!({
                 "thread": {"id": thread}, "sandbox": {"type": sandbox},
+                "activePermissionProfile": active,
                 "approvalPolicy": params["approvalPolicy"],
                 "approvalsReviewer": params["approvalsReviewer"].as_str().unwrap_or("user"),
                 "model": "fixture-model",
