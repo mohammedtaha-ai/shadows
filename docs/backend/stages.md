@@ -84,7 +84,8 @@ this file at `db760593`.
 
 ## Open
 
-No task is open. B-196 closed on 2026-11-23 and stays here until the next docs sync.
+One run is paused: the `testing8` live run (B-199), below. B-196, B-197 and B-198 are done on
+`feature/after-75` and stay here until the next docs sync.
 
 ### B-196 · Verify Codex commit recovery on Windows
 
@@ -100,3 +101,35 @@ No task is open. B-196 closed on 2026-11-23 and stays here until the next docs s
 - Needs: nothing. B-194 and B-195 are done. Controller and person run the live acceptance.
 - Done when: the evidence records a rejected approval request for a denied Git write, and what the
   executor and the Planner did after it.
+
+### B-197 · A hold reports only project files, and an attempt's writes are its own
+
+- Status: done (2026-11-23, `ac7d1e3d`). Found live in `testing8`: the Planner's end-of-turn check
+  asked about an executor's files, git-ignored caches and build output, folders and vanished temp
+  files, and `project_change_note` refused most of them. `ActiveHold::changed()` now keeps only
+  paths the project's listing holds as files (or a known file deleted), and `hold_claiming` gives
+  a running attempt the paths inside its `writes`. Tests: `crates/codebase/tests/hold.rs`.
+  Live: zero such notices with two Codex attempts and pytest running
+  ([evidence](../evidence/2026-11-23-testing8-go-python-live.md)).
+
+### B-198 · Adopt the Codex CLI 0.171.0 protocol
+
+- Status: done (2026-11-23, `d5d7baba`). 0.171.0 changed `AgentMessageDisplay`, which Shadows does
+  not read. The snapshot was adopted with `adopt_the_installed_codex_protocol` after the signed-in
+  live Codex tests passed; the fixtures follow the new floor.
+
+### B-199 · Finish the testing8 live run, and the findings it left
+
+- Status: paused (2026-11-23). 9 of 15 tasks done; the Planner was told to start nothing new.
+  Resume by telling the Planner in thread `22862fa7-5da6-41dd-8161-89f9fe5c180a` to continue.
+- Findings, not fixed ([evidence](../evidence/2026-11-23-testing8-go-python-live.md)):
+  - Codex's sandbox cannot run the WindowsApps `python` alias, so executors report Python checks
+    `not_run` (Shadows' own checks pass them).
+  - Every Codex executor's first `git add` is denied on `index.lock`, then approved: one extra
+    round per task.
+  - A Codex start slower than `setup_wait` (20 s) because its model-list refresh timed out fails
+    to open, and the reason is only in Codex's own log.
+  - Shadows' Codex model list did not offer `gpt-6.2-sol`.
+  - `live_the_claude_code_catalog_lists_each_models_efforts` failed; not examined.
+  - pyright is not installed on this machine (each Python contract is `unchecked`).
+- Done when: the 15 tasks are judged and each finding is fixed, accepted or moved to future.
