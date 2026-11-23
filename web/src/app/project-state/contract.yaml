@@ -111,8 +111,10 @@ obligations:
       revisions; when behind, its built revision and the planned change come from the same read.
     tested_by: an_opened_table_shows_its_part_outcomes_tasks_and_revisions, a_behind_table_shows_its_built_shape_and_the_planned_change
 
-  - rule: "A refused revisions read shows Core's code and message."
-    tested_by: an_element_without_revisions_shows_cores_error
+  - rule: >
+      A refused revisions read (an unknown or removed project) shows Core's code and message;
+      Core answers [] for an element the project does not have.
+    tested_by: a_refused_revisions_read_shows_cores_error
 
   - rule: "With no table the view says the Planner writes them."
     tested_by: no_tables_says_the_planner_writes_them

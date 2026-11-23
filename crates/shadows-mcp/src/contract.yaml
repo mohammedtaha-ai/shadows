@@ -54,7 +54,8 @@ record_tools: >-
   refusal its own, storage as storage. Its description and the topic's doc ask one short thing
   per call (a name the person used, a path, a symbol, or an element id or name; one to three
   words), several calls rather than one sentence, and say an empty answer to a long topic is not
-  "nothing there": ask again with each thing alone. The description ends by telling the Planner
+  "nothing there": ask again with each thing alone. Its budget is built from
+  CodeRecord::WHERE_MAX_ASKS and WHERE_LIVE_SECS, never copied. The description ends by telling the Planner
   to ask it before reading a file and to read only what it does not answer
   (mcp_tools::code_where_says_to_ask_before_reading). Tested by
   element_mcp::code_where_tool_answers_the_method and

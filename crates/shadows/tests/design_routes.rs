@@ -1029,7 +1029,7 @@ async fn element_routes_list_states_and_revisions() {
         .collect();
     assert_eq!(numbers, [1, 2]);
     let (status, missing) = app::call(&app, "GET", &format!("{elements}/E9/revisions"), None).await;
-    assert_eq!(status, 404, "{missing}");
+    assert_eq!((status, missing), (200, json!([])));
     let unknown = uuid::Uuid::new_v4();
     let (status, _) = app::call(
         &app,

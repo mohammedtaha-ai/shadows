@@ -181,7 +181,7 @@ impl CodeRecord {
     /// counted. A method's parent is its type, which `owner` reads from an
     /// `impl` block and `receiver` from a gopls `(*X).m`; either makes it not
     /// top-level, and an `impl` block is no symbol of its own.
-    fn document_symbols(result: &Value) -> Vec<Found> {
+    pub(crate) fn document_symbols(result: &Value) -> Vec<Found> {
         fn walk(items: &Value, parent: Option<&str>, top: bool, out: &mut Vec<Found>) {
             for item in items.as_array().into_iter().flatten() {
                 let name = item.get("name").and_then(Value::as_str);

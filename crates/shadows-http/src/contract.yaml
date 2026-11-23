@@ -48,8 +48,8 @@ elements: >
   a part not in the project's map is 422 INVALID_COMMAND. GET /api/projects/{id}/elements calls
   ProjectState::elements and answers [ElementView]. GET
   /api/projects/{id}/elements/{element}/revisions calls Design::element_revisions and answers
-  [DesignElement], oldest first; an element the project does not have is 404. An unknown or
-  removed project is 404 on all three. No route writes an element. ELEMENT_STALE is 409 and
+  [DesignElement], oldest first, as Design gives it: [] for an element the project does not
+  have, as the MCP design_elements tool answers. An unknown or removed project is 404 on all three. No route writes an element. ELEMENT_STALE is 409 and
   INVALID_ELEMENT is 422. Tested by design_routes::element_routes_list_states_and_revisions,
   project_state_routes::the_state_route_answers_the_method and
   project_state_routes::an_unknown_part_is_422.

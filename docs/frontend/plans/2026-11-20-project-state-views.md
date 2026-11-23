@@ -121,11 +121,10 @@ tables and screens, as ProjectState and Design answer them."
 
 ```ts
 export type ProjectStateView = components['schemas']['ProjectStateView']
-// …and one alias each for PartState, PlanState, TaskCounts, StateCounts, ElementGap, PartDetail,
-// PlanTasks, TaskLine, ElementView, DesignElement, ElementState, ElementTask, ElementPin, BuildState.
+// …and one alias each for PartState, PlanProgress, ElementGap, PartDetail, PlanTasks, TaskLine,
+// ElementView, DesignElement, ElementTask, ElementPin and BuildState, each one a view reads.
 
 export const projectStateKeys = {
-  all: (projectId: string) => ['projects', projectId, 'project-state'],
   reads: (projectId: string) => ['projects', projectId, 'project-state', 'reads'],
   state: (projectId: string, partId?: string) => ['projects', projectId, 'project-state', 'reads', 'state', partId ?? null],
   elements: (projectId: string) => ['projects', projectId, 'project-state', 'reads', 'elements'],
@@ -494,7 +493,7 @@ string; removed: boolean })`.
     `GET /api/projects/p1/elements/E2/revisions`, the part title, an outcome link, the done task
     line with file and symbol, `why`);
   - `a_behind_table_shows_its_built_shape_and_the_planned_change`;
-  - `an_element_without_revisions_shows_cores_error` (404);
+  - `a_refused_revisions_read_shows_cores_error` (404 for an unknown or removed project);
   - `no_tables_says_the_planner_writes_them`;
   - `a_design_element_change_reads_the_elements_and_its_revisions_again`: a live
     `DesignElementChanged` for E2 adds one elements read and one E2 revisions read.

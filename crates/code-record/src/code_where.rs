@@ -15,7 +15,6 @@ use core_projects::ProjectId;
 
 use crate::ranking::{Matches, Ranked, Ranking};
 use crate::store::{Detail, SymbolRow};
-use crate::verify::FileAnswer;
 use crate::{
     CodeRecord, CodeRecordError, Confirmation, ElementEntry, FileEntry, FileTask, Live, Owner,
     SymbolEntry, SymbolState, UnrecordedFile, UnrecordedSymbol, UseLine, UsesLive, WhereAnswer,
@@ -240,6 +239,14 @@ const UNRECORDED_MAX: usize = 10;
 /// The page of the file list read for a path topic.
 const LIST_PAGE: u16 = 200;
 
+impl CodeRecord {
+    /// The most language-server asks one `code_where` question spends, for a
+    /// caller that describes the budget.
+    pub const WHERE_MAX_ASKS: u32 = MAX_ASKS;
+    /// The seconds the live half of one `code_where` question takes at most.
+    pub const WHERE_LIVE_SECS: u64 = LIVE_FOR.as_secs();
+}
+
 const BUDGET: &str = "the question's budget ran out (30 asks, 20 s)";
 const CUT: &str = "the server's answer was cut at 100 items or 32 KiB; there may be more";
 const LATE: &str = "the question's 20 s ran out during the lookup";
@@ -371,10 +378,7 @@ impl CodeRecord {
         let mut columns = BTreeMap::new();
         match self.ask_now(project, question, &file.path, budget).await {
             Asked::Answered { result, truncated } => {
-                let FileAnswer::Symbols { found, .. } = CodeRecord::file_answer(&result, truncated)
-                else {
-                    return;
-                };
+                let found = CodeRecord::document_symbols(&result);
                 for symbol in &mut file.symbols {
                     match found.iter().find(|f| CodeRecord::matches(&symbol.name, f)) {
                         Some(f) => {

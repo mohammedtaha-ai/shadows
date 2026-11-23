@@ -246,7 +246,9 @@ functions:
       #    layout.owners: the first Folder owner's part and the first Layer owner's id.
       # 6. Element entries: element_states(project, &matched, &[]).
       # 7. live and uses_live start not_asked, uses empty, uses_more 0, no uses_total.
-      # The code's half (confirm), constants MAX_ASKS 30, LIVE_FOR 20 s,
+      # The code's half (confirm), constants MAX_ASKS 30, LIVE_FOR 20 s (public as
+      # CodeRecord::WHERE_MAX_ASKS and WHERE_LIVE_SECS, which the code_where tool
+      # description reads),
       # USES_MAX 10, UNRECORDED_MAX 10; one deadline bounds every ask
       # (timeout_at); documentSymbol, findReferences and workspaceSymbol count
       # one each, missing_inputs and inventory none; no wait for a starting server:

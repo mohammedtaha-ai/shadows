@@ -211,13 +211,10 @@ pub(super) async fn element_revisions(
     State(s): State<AppState>,
     Path((project, element)): Path<(ProjectId, String)>,
 ) -> Result<Json<Vec<shadows_core::DesignElement>>, Failure> {
-    let revisions = s
-        .core
-        .design()
-        .element_revisions(&project, &element)
-        .await?;
-    if revisions.is_empty() {
-        return Err(shadows_core::StorageError::NotFound("element").into());
-    }
-    Ok(Json(revisions))
+    Ok(Json(
+        s.core
+            .design()
+            .element_revisions(&project, &element)
+            .await?,
+    ))
 }

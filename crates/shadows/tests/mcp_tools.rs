@@ -1082,6 +1082,12 @@ async fn code_where_says_to_ask_before_reading() {
     let empty = "an empty answer to a long topic is not \"nothing there\"; ask again with each \
                  thing alone.";
     assert!(description.contains(empty), "{description}");
+    let budget = format!(
+        "Within {} asks and {} seconds;",
+        shadows_core::CodeRecord::WHERE_MAX_ASKS,
+        shadows_core::CodeRecord::WHERE_LIVE_SECS
+    );
+    assert!(description.contains(&budget), "{description}");
     l.app
         .core
         .shut_down(std::time::Duration::from_secs(5), std::future::pending())

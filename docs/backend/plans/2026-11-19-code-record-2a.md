@@ -1053,7 +1053,7 @@ kind = 'TaskProgressChanged' ORDER BY seq` through the fixture's storage.
 |---|---|---|
 | `GET /api/projects/{id}/state?part_id=` | `ProjectState::state` | `ProjectStateView`; an unknown part is 422 `INVALID_COMMAND` |
 | `GET /api/projects/{id}/elements` | `ProjectState::elements` | `[ElementView]` |
-| `GET /api/projects/{id}/elements/{element}/revisions` | `Design::element_revisions` | `[DesignElement]`; none is 404 `NOT_FOUND` |
+| `GET /api/projects/{id}/elements/{element}/revisions` | `Design::element_revisions` | `[DesignElement]`; `[]` for an element the project does not have, as the MCP tool answers |
 
 An unknown or removed project is 404, as the decisions routes answer.
 

@@ -103,12 +103,12 @@ it('a_behind_table_shows_its_built_shape_and_the_planned_change', async () => {
   expect(a.container.querySelectorAll('aside details')).toHaveLength(2)
 })
 
-it('an_element_without_revisions_shows_cores_error', async () => {
+it('a_refused_revisions_read_shows_cores_error', async () => {
   const a = app = await route('/projects/p1/state?view=tables&element=E1', [table('E1', 'users', 'built')], {
-    'GET /api/projects/p1/elements/E1/revisions': () => Response.json({ code: 'INVALID_COMMAND', message: 'not found: element' }, { status: 404 }),
+    'GET /api/projects/p1/elements/E1/revisions': () => Response.json({ code: 'NOT_FOUND', message: 'not found: project' }, { status: 404 }),
   })
-  await until(() => a.text().includes('not found: element'))
-  expect(a.container.querySelector('aside[aria-label="Element E1"]')!.textContent).toContain('INVALID_COMMAND')
+  await until(() => a.text().includes('not found: project'))
+  expect(a.container.querySelector('aside[aria-label="Element E1"]')!.textContent).toContain('NOT_FOUND')
 })
 
 it('an_element_that_is_not_a_table_says_so', async () => {

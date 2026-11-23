@@ -99,7 +99,7 @@ Reading the shapes:
 |---|---|
 | unknown or removed project (404) | the project's not-found state, as the decisions route does |
 | `part_id` is not a part of the project (422 `INVALID_COMMAND`) | the part view's error line with the message |
-| an element id with no revisions (404 `NOT_FOUND`) | the element panel's error line |
+| an element id with no revisions (200 with `[]`) | the element panel with no revision listed |
 | a project with no elements | the diagrams' empty state: "No tables yet" / "No screens yet", and that the Planner writes them when a plan needs them |
 
 ## Backend answer

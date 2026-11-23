@@ -150,9 +150,9 @@ pub use project_state::{
 };
 
 pub use code_record::{
-    BuildState, CodeRecordError, Confirmation, ElementEntry, ElementState, ElementTask, FileEntry,
-    FileTask, Live, Owner, Rank, SymbolEntry, UnrecordedFile, UnrecordedSymbol, UseLine, UsesLive,
-    WhereAnswer, WhereEntry,
+    BuildState, CodeRecord, CodeRecordError, Confirmation, ElementEntry, ElementState, ElementTask,
+    FileEntry, FileTask, Live, Owner, Rank, SymbolEntry, UnrecordedFile, UnrecordedSymbol, UseLine,
+    UsesLive, WhereAnswer, WhereEntry,
 };
 
 pub use core_design::{LayoutLayer, LayoutPart, OwnedVia, PathOwner, ProjectLayout, RuleText};
