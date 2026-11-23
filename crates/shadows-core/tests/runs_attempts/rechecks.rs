@@ -294,7 +294,7 @@ async fn a_finished_batch_never_loses_its_notice() {
 }
 
 #[tokio::test]
-async fn a_restart_finishes_an_unfinished_recheck() {
+async fn a_restart_runs_an_interrupted_recheck_again() {
     let f = done_task(false).await;
     cause(&f).await;
     finished(&f).await;
@@ -303,20 +303,23 @@ async fn a_restart_finishes_an_unfinished_recheck() {
         .execute(f.storage.reader())
         .await
         .unwrap();
-    sqlx::query("UPDATE run_recheck_results SET finished_at=NULL,outcome=NULL")
-        .execute(f.storage.reader())
-        .await
-        .unwrap();
-    let planner = super::checks::prepare_planner(&f).await;
+    sqlx::query(
+        "UPDATE run_recheck_results SET finished_at=NULL,outcome=NULL,output=NULL,
+         started_at='2026-11-23T00:00:00Z'",
+    )
+    .execute(f.storage.reader())
+    .await
+    .unwrap();
     f.core.runs().recover().await.unwrap();
-    notified(&f, &planner).await;
-    let (outcome, output): (String, String) =
-        sqlx::query_as("SELECT outcome,output FROM run_recheck_results")
+    finished(&f).await;
+    let (outcome, output, finished_at): (String, String, Option<String>) =
+        sqlx::query_as("SELECT outcome,output,finished_at FROM run_recheck_results")
             .fetch_one(f.storage.reader())
             .await
             .unwrap();
-    assert_eq!(outcome, "not_run");
-    assert_eq!(output, "Shadows restarted during the recheck");
+    assert_eq!(outcome, "passed");
+    assert!(output.contains("git version"), "{output}");
+    assert!(finished_at.is_some());
     f.finish().await;
 }
 

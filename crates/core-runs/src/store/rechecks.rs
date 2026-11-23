@@ -439,24 +439,4 @@ impl RunsStore {
         .fetch_all(self.storage.reader())
         .await?)
     }
-
-    pub async fn interrupt_recheck(&self, id: &str) -> Result<(), RunsError> {
-        let id = id.to_string();
-        self.storage
-            .write_txn_as(move |conn| {
-                Box::pin(async move {
-                    sqlx::query(
-                        "UPDATE run_recheck_results SET outcome='not_run',
-                output='Shadows restarted during the recheck',finished_at=?
-                WHERE recheck_id=? AND finished_at IS NULL",
-                    )
-                    .bind(Storage::now())
-                    .bind(id)
-                    .execute(&mut *conn)
-                    .await?;
-                    Ok(())
-                })
-            })
-            .await
-    }
 }

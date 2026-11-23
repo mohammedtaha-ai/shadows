@@ -175,8 +175,10 @@ The `testing8` live run is finished. Open: its findings (B-199), and B-200 to B-
 
 ### B-202 · A recheck interrupted by a restart runs again
 
-- Status: todo. Found in `testing8` (2026-11-23): a restart mid-recheck left its unfinished
-  checks `not_run`, and nothing ran them again.
+- Status: done (2026-11-24). Found in `testing8` (2026-11-23): a restart mid-recheck left its
+  unfinished checks `not_run`, and nothing ran them again. Cause: `recover_rechecks` marked them
+  `not_run` by design. It now runs the batch through `run_recheck`, as a fresh one runs. Test:
+  `a_restart_runs_an_interrupted_recheck_again`.
 - Owner: [executors design, "A restart loses nothing"](specs/2026-11-08-executors-design.md).
 - Change: `Runs::recover_rechecks` (`crates/core-runs/src/recheck.rs`) runs a batch's unfinished
   rows at startup instead of marking them interrupted, then ends and delivers it as usual.

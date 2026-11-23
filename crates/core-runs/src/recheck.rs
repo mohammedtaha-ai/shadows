@@ -304,18 +304,11 @@ impl Runs {
         Ok(())
     }
 
+    /// A batch a restart cut short runs its unfinished rows now, keeping the finished ones,
+    /// then ends and delivers as it would have; a finished batch only delivers its notice.
     pub(crate) async fn recover_rechecks(&self, ids: Vec<String>) {
         for id in ids {
-            let recovered = async {
-                let batch = self.inner.store.recheck_batch(&id).await?;
-                if batch.finished_at.is_none() {
-                    self.inner.store.interrupt_recheck(&id).await?;
-                    self.end_recheck(&batch).await?;
-                }
-                self.deliver_recheck(&id).await
-            }
-            .await;
-            if let Err(error) = recovered {
+            if let Err(error) = self.run_recheck(&id).await {
                 tracing::warn!(%id, %error, "runs.recheck_recovery_failed");
             }
         }
