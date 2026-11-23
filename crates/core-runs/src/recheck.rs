@@ -1,16 +1,59 @@
-//! Rechecking the recorded checks of other done tasks after a done mark.
+//! Rechecking the recorded checks of the project's done tasks: after the done mark that
+//! completes a plan, or when the person or a Planner asks.
 use crate::checks::CONTRACT_CHECK;
 use crate::git::Git;
 use crate::notify::NoticeIntent;
 use crate::store::checks::Finished;
 use crate::store::rechecks::{Batch, ResultRow};
 use crate::{
-    Attempt, AttemptId, CheckOutcome, CheckResult, RecheckFailure, RecheckNotice, Runs, RunsError,
+    Attempt, AttemptId, CheckOutcome, CheckResult, ProjectRecheck, RecheckFailure, RecheckNotice,
+    Runs, RunsError,
 };
+use core_db::CommandContext;
 use core_plans::{TaskCheck, WorkflowId};
+use core_threads::ThreadId;
 use std::collections::BTreeMap;
 
 impl Runs {
+    /// Starts a recheck of the project of plan version `workflow`, asked for by the person
+    /// (`asker` none: its notice goes to that plan's Planner) or by a Planner (its thread hears
+    /// the notice). The batch runs in the background as a done mark's does; the same command
+    /// answers the same batch.
+    pub async fn recheck_project(
+        &self,
+        command: String,
+        workflow: &WorkflowId,
+        asker: Option<ThreadId>,
+    ) -> Result<ProjectRecheck, RunsError> {
+        let plan = self.read_plan(workflow).await?;
+        let plans = self
+            .inner
+            .plans
+            .list(&plan.project_id, true)
+            .await
+            .map_err(|e| RunsError::Unavailable(e.to_string()))?
+            .into_iter()
+            .map(|listing| listing.plan_id)
+            .collect();
+        let input = serde_json::json!({
+            "workflow": workflow,
+            "asker": asker.as_ref().map(|thread| thread.as_str().to_string()),
+        });
+        let command = CommandContext::user(command, "run.recheck", input);
+        let (id, fresh) = self
+            .inner
+            .store
+            .ask_recheck(command, plan, plans, asker)
+            .await?;
+        if let Some(batch) = id.clone().filter(|_| fresh) {
+            let runs = self.clone();
+            tokio::spawn(async move {
+                runs.recheck_done(batch).await;
+            });
+        }
+        Ok(ProjectRecheck { recheck_id: id })
+    }
+
     pub(crate) async fn recheck_done(&self, id: String) {
         if let Err(error) = self.run_recheck(&id).await {
             tracing::warn!(%id, %error, "runs.recheck_failed");
@@ -157,10 +200,15 @@ impl Runs {
         }
         let notice = if failed.is_empty() {
             None
-        } else if let Some(recipient) = self
-            .recipient_for(&WorkflowId::from_recorded(batch.cause_workflow_id.clone()))
-            .await?
-        {
+        } else if let Some(recipient) = self.recheck_recipient(batch).await? {
+            let why = match (batch.asked, &batch.asker_thread_id) {
+                (false, _) => format!(
+                    "After T{} of version {} was marked done and completed its plan",
+                    batch.cause_task, batch.cause_version
+                ),
+                (true, Some(_)) => "As you asked".to_string(),
+                (true, None) => "As the person asked".to_string(),
+            };
             let card = RecheckNotice {
                 plan_id: recipient.plan.plan_id,
                 cause_workflow_id: WorkflowId::from_recorded(batch.cause_workflow_id.clone()),
@@ -172,11 +220,9 @@ impl Runs {
             let intent = NoticeIntent {
                 planner: recipient.thread,
                 body: format!(
-                    "[Shadows] After T{} of version {} was marked done, Shadows reran \
-                    the checks of the project's done tasks. These no longer pass:\n{}\nTheir done \
-                    marks stand. Read the change with task_diff, then amend or plan a correction.",
-                    batch.cause_task,
-                    batch.cause_version,
+                    "[Shadows] {why}, Shadows reran the checks of the project's done tasks. \
+                    These no longer pass:\n{}\nTheir done marks stand. Read the change with \
+                    task_diff, then amend or plan a correction.",
                     lines.join("\n")
                 ),
                 model: recipient.invocation.requested_model,
@@ -190,6 +236,27 @@ impl Runs {
             None
         };
         self.inner.store.finish_batch(&batch.id, notice).await
+    }
+
+    /// Who hears a batch: the asking Planner's thread, else the cause plan's Planner.
+    async fn recheck_recipient(
+        &self,
+        batch: &Batch,
+    ) -> Result<Option<crate::notify::Recipient>, RunsError> {
+        let workflow = WorkflowId::from_recorded(batch.cause_workflow_id.clone());
+        let Some(thread) = &batch.asker_thread_id else {
+            return self.recipient_for(&workflow).await;
+        };
+        let thread = ThreadId::from_recorded(thread.clone());
+        let plan = self.read_plan(&workflow).await?;
+        let invocation = self.last_invocation(&thread).await.ok_or_else(|| {
+            RunsError::Unavailable("the Planner has no turn whose settings a notice takes".into())
+        })?;
+        Ok(Some(crate::notify::Recipient {
+            plan,
+            thread,
+            invocation,
+        }))
     }
 
     fn recheck_result(row: &ResultRow) -> Result<CheckResult, RunsError> {

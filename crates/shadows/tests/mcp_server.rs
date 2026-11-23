@@ -166,6 +166,7 @@ async fn the_tool_list_depends_on_the_grant_kind() {
             "project_change_note",
             "project_files",
             "project_git_init",
+            "project_recheck",
             "project_refresh",
             "project_state",
             "roadmap_approve",

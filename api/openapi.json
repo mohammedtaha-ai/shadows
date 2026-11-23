@@ -918,6 +918,19 @@
         ],
         "type": "object"
       },
+      "AskRecheck": {
+        "description": "What a project recheck takes.",
+        "properties": {
+          "command_id": {
+            "description": "The idempotency key: the same key and plan answer the first batch.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "command_id"
+        ],
+        "type": "object"
+      },
       "Attachment": {
         "properties": {
           "byte_len": {
@@ -6930,6 +6943,22 @@
         ],
         "type": "object"
       },
+      "ProjectRecheck": {
+        "description": "A project recheck asked for. It runs in the background; only checks that now fail are told,\nto the asking Planner or the named plan's Planner.",
+        "properties": {
+          "recheck_id": {
+            "description": "The batch begun; none when no done task of the project has checks to run.",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "recheck_id"
+        ],
+        "type": "object"
+      },
       "ProjectStateView": {
         "description": "The project's stage, its parts with their plans and elements, and its gaps.",
         "properties": {
@@ -7672,9 +7701,10 @@
         "type": "object"
       },
       "RecheckNotice": {
-        "description": "The outcome of rechecking other done tasks after a new done mark.",
+        "description": "The outcome of rechecking the project's done tasks, after the done mark that completed a\nplan or on request.",
         "properties": {
           "cause_task": {
+            "description": "The task whose done mark completed the plan; 0 for a recheck asked for.",
             "format": "int32",
             "minimum": 0,
             "type": "integer"
@@ -19040,6 +19070,78 @@
         },
         "tags": [
           "agreements"
+        ]
+      }
+    },
+    "/api/workflows/{workflow}/recheck": {
+      "post": {
+        "operationId": "recheck",
+        "parameters": [
+          {
+            "description": "A plan version of the project",
+            "in": "path",
+            "name": "workflow",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/WorkflowId"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AskRecheck"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectRecheck"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "no such plan version"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunRefusal"
+                }
+              }
+            },
+            "description": "command_conflict"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          }
+        },
+        "summary": "Reruns the checks of the project's done tasks, in the background. The plan's Planner is\ntold of the checks that now fail.",
+        "tags": [
+          "runs"
         ]
       }
     },

@@ -177,6 +177,19 @@ impl Runs {
         self.check_results(&id).await
     }
 
+    /// Starts a recheck of the project of a plan in the Planner's project; its notice goes to
+    /// the asking Planner's thread.
+    pub async fn recheck_project_for(
+        &self,
+        grant: &Grant,
+        workflow: &WorkflowId,
+    ) -> Result<crate::ProjectRecheck, RunsError> {
+        self.planner_plan(grant, workflow).await?;
+        let command = format!("planner-recheck-{}", AttemptId::generate());
+        self.recheck_project(command, workflow, grant.thread_id.clone())
+            .await
+    }
+
     /// Marks a task for the Planner and answers the group that may start next.
     pub async fn mark_done_for(
         &self,

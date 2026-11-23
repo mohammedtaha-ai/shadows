@@ -292,6 +292,7 @@ fn the_document_names_every_route() {
             "POST /api/threads/{id}/turns",
             "POST /api/workflows/{id}/approve",
             "POST /api/workflows/{id}/bindings",
+            "POST /api/workflows/{workflow}/recheck",
             "POST /api/workflows/{workflow}/versions/{version}/tasks/{task}/attempts",
             "PUT /api/aylul/agents/{slug}",
             "PUT /api/aylul/agents/{slug}/env/{name}",
@@ -347,6 +348,7 @@ fn ids_errors_and_the_stream_are_described_as_clients_rely_on() {
                     // reading a file outside the task's writes is one, and so is the
                     // brief of an attempt whose context was not recorded.
                     let runs = path.contains("/tasks/{task}/")
+                        || path == "/api/workflows/{workflow}/recheck"
                         || path == "/api/attempts/{id}/files"
                         || path == "/api/attempts/{id}/brief";
                     let expected = if status == "409" && runs {

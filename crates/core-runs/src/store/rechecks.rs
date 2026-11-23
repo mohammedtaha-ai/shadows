@@ -12,6 +12,10 @@ pub(crate) struct Batch {
     pub cause_workflow_id: String,
     pub cause_version: i64,
     pub cause_task: u32,
+    /// Asked for by the person or a Planner, not begun by a done mark.
+    pub asked: bool,
+    /// The asking Planner's thread; none when the person asked or a mark began it.
+    pub asker_thread_id: Option<String>,
     pub finished_at: Option<String>,
     pub notice_json: Option<String>,
     pub notice_sent_at: Option<String>,
@@ -34,14 +38,96 @@ pub(crate) struct ResultRow {
     pub finished_at: Option<String>,
 }
 
+/// What began a recheck batch.
+pub(crate) enum RecheckCause {
+    /// The done mark of this task, which completed its plan version.
+    Mark(u32),
+    /// The person (none) or a Planner's thread asked for it.
+    Asked(Option<core_threads::ThreadId>),
+}
+
 impl RunsStore {
+    /// Whether every task of `plan` is marked done, as `conn` sees it.
+    pub(super) async fn plan_complete_in(conn: &mut Tx, plan: &Plan) -> Result<bool, RunsError> {
+        let done: Vec<u32> = sqlx::query_scalar(
+            "SELECT task FROM run_task_marks WHERE workflow_id=? AND version=? AND done=1
+             ORDER BY task",
+        )
+        .bind(plan.id.as_str())
+        .bind(plan.version)
+        .fetch_all(&mut *conn)
+        .await?;
+        Ok(plan
+            .tasks
+            .iter()
+            .all(|task| done.contains(&task.content.number)))
+    }
+
+    /// A requested recheck of `plan`'s project under `command`: a replay answers the batch the
+    /// first call began (none when there was nothing to recheck) and false, other input is a
+    /// conflict.
+    pub async fn ask_recheck(
+        &self,
+        command: core_db::CommandContext,
+        plan: Plan,
+        plans: Vec<PlanId>,
+        asker: Option<core_threads::ThreadId>,
+    ) -> Result<(Option<String>, bool), RunsError> {
+        const SCOPE: &str = "run.recheck";
+        self.storage
+            .write_txn_as(move |conn| {
+                Box::pin(async move {
+                    let seen = core_db::CommandContext::classify(conn, &command, SCOPE, "")
+                        .await
+                        .map_err(|error| match error {
+                            core_db::StorageError::CommandConflict => RunsError::CommandConflict,
+                            other => other.into(),
+                        })?;
+                    if seen.is_some() {
+                        let id =
+                            sqlx::query_scalar("SELECT id FROM run_rechecks WHERE cause_command=?")
+                                .bind(&command.command_id)
+                                .fetch_optional(&mut *conn)
+                                .await?;
+                        return Ok((id, false));
+                    }
+                    let id = Self::begin_recheck_in(
+                        conn,
+                        &plan,
+                        &plans,
+                        RecheckCause::Asked(asker),
+                        &command.command_id,
+                    )
+                    .await?;
+                    let target = id.clone().unwrap_or_default();
+                    let ts = Storage::now();
+                    core_db::CommandContext::record_command(
+                        conn,
+                        &command,
+                        SCOPE,
+                        "",
+                        "run_recheck",
+                        &target,
+                        &ts,
+                    )
+                    .await?;
+                    Ok((id, true))
+                })
+            })
+            .await
+    }
+
     pub(super) async fn begin_recheck_in(
         conn: &mut Tx,
         plan: &Plan,
         plans: &[PlanId],
-        cause_task: u32,
+        cause: RecheckCause,
         command: &str,
     ) -> Result<Option<String>, RunsError> {
+        let (cause_task, asked, asker) = match cause {
+            RecheckCause::Mark(task) => (Some(task), false, None),
+            RecheckCause::Asked(asker) => (None, true, asker),
+        };
         let superseded = Self::superseded_in(conn, plans).await?;
         // Every done task of the project, in any plan and version: a done task is in the
         // project when one of its attempts ran there, and one with no attempt has no checks.
@@ -58,7 +144,7 @@ impl RunsStore {
         let mut pending = Vec::new();
         for (workflow, version, task, judged) in marks {
             let workflow = WorkflowId::from_recorded(workflow);
-            if (workflow == plan.id && task == cause_task)
+            if (workflow == plan.id && Some(task) == cause_task)
                 || superseded.contains(&(workflow.as_str().to_string(), task))
             {
                 continue;
@@ -130,16 +216,19 @@ impl RunsStore {
         let id = uuid::Uuid::new_v4().to_string();
         sqlx::query(
             "INSERT INTO run_rechecks (id,project_id,plan_id,cause_workflow_id,cause_version,
-             cause_task,cause_command,created_at) VALUES (?,?,?,?,?,?,?,?)",
+             cause_task,cause_command,created_at,asked,asker_thread_id)
+             VALUES (?,?,?,?,?,?,?,?,?,?)",
         )
         .bind(&id)
         .bind(plan.project_id.as_str())
         .bind(plan.plan_id.as_str())
         .bind(plan.id.as_str())
         .bind(plan.version)
-        .bind(i64::from(cause_task))
+        .bind(i64::from(cause_task.unwrap_or(0)))
         .bind(command)
         .bind(Storage::now())
+        .bind(asked)
+        .bind(asker.as_ref().map(|thread| thread.as_str().to_string()))
         .execute(&mut *conn)
         .await?;
         for (attempt, workflow, version, task, ordinal, check) in pending {
@@ -164,8 +253,8 @@ impl RunsStore {
 
     pub async fn recheck_batch(&self, id: &str) -> Result<Batch, RunsError> {
         Ok(sqlx::query_as(
-            "SELECT id,cause_workflow_id,cause_version,cause_task,finished_at,notice_json,
-             notice_sent_at FROM run_rechecks WHERE id=?",
+            "SELECT id,cause_workflow_id,cause_version,cause_task,asked,asker_thread_id,
+             finished_at,notice_json,notice_sent_at FROM run_rechecks WHERE id=?",
         )
         .bind(id)
         .fetch_one(self.storage.reader())

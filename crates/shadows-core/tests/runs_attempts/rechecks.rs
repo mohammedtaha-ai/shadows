@@ -29,12 +29,108 @@ async fn done_task(failing: bool) -> Fixture {
     f
 }
 
-async fn cause(f: &Fixture) {
+/// The person asks for a recheck of the fixture plan's project under `command`.
+async fn asked(f: &Fixture, workflow: &WorkflowId, command: &str) -> Option<String> {
     f.core
         .runs()
-        .mark_done("cause".into(), &f.workflow, 1, 1, true, None)
+        .recheck_project(command.into(), workflow, None)
+        .await
+        .unwrap()
+        .recheck_id
+}
+
+async fn cause(f: &Fixture) {
+    asked(f, &f.workflow, "cause").await;
+}
+
+async fn batches(f: &Fixture) -> i64 {
+    sqlx::query_scalar("SELECT COUNT(*) FROM run_rechecks")
+        .fetch_one(f.storage.reader())
+        .await
+        .unwrap()
+}
+
+#[tokio::test]
+async fn a_mark_that_does_not_complete_its_plan_starts_no_recheck() {
+    let f = done_task(false).await;
+    f.core
+        .runs()
+        .mark_done("one".into(), &f.workflow, 1, 1, true, None)
         .await
         .unwrap();
+    assert_eq!(batches(&f).await, 0);
+    f.finish().await;
+}
+
+#[tokio::test]
+async fn the_mark_that_completes_its_plan_starts_one_recheck() {
+    let f = done_task(false).await;
+    for task in [1, 4, 5, 6] {
+        f.core
+            .runs()
+            .mark_done(format!("done-{task}"), &f.workflow, 1, task, true, None)
+            .await
+            .unwrap();
+        assert_eq!(batches(&f).await, 0, "T{task} is not the plan's last");
+    }
+    f.core
+        .runs()
+        .mark_done("done-7".into(), &f.workflow, 1, 7, true, None)
+        .await
+        .unwrap();
+    finished(&f).await;
+    assert_eq!(batches(&f).await, 1);
+    let (task, cause, asked): (i64, i64, bool) = sqlx::query_as(
+        "SELECT r.task,b.cause_task,b.asked FROM run_recheck_results r
+         JOIN run_rechecks b ON b.id=r.recheck_id",
+    )
+    .fetch_one(f.storage.reader())
+    .await
+    .unwrap();
+    assert_eq!((task, cause, asked), (3, 7, false));
+    f.finish().await;
+}
+
+#[tokio::test]
+async fn a_planner_asks_for_a_recheck_and_hears_it() {
+    let f = done_task(true).await;
+    let planner = super::checks::prepare_planner(&f).await;
+    let grant = planner_grant(&f).await;
+    let started = f
+        .core
+        .runs()
+        .recheck_project_for(&grant, &f.workflow)
+        .await
+        .unwrap();
+    assert!(started.recheck_id.is_some());
+    assert_eq!(grant.thread_id.as_ref(), Some(&planner));
+    let message = notified(&f, &planner).await;
+    assert!(
+        message.prompt.contains("As you asked"),
+        "{}",
+        message.prompt
+    );
+    assert!(
+        message.prompt.contains("T3 c1 failed"),
+        "{}",
+        message.prompt
+    );
+    f.finish().await;
+}
+
+#[tokio::test]
+async fn the_person_asks_for_a_recheck_and_the_plans_planner_hears_it() {
+    let f = done_task(true).await;
+    let planner = super::checks::prepare_planner(&f).await;
+    cause(&f).await;
+    let message = notified(&f, &planner).await;
+    assert!(
+        message.prompt.contains("As the person asked"),
+        "{}",
+        message.prompt
+    );
+    assert_eq!(message.notice.unwrap().card["cause_task"], 0);
+    f.finish().await;
 }
 
 async fn finished(f: &Fixture) {
@@ -69,7 +165,7 @@ async fn a_done_mark_reruns_the_checks_of_the_plans_done_tasks() {
 }
 
 #[tokio::test]
-async fn a_replayed_mark_starts_no_second_recheck() {
+async fn a_replayed_ask_starts_no_second_recheck() {
     let f = done_task(false).await;
     cause(&f).await;
     cause(&f).await;
@@ -154,7 +250,6 @@ async fn a_failing_recheck_tells_the_planner_once() {
     assert!(notice.card["failed"][0]["checks"][0]["output"].is_null());
     assert!(message.prompt.contains("T3 c1 failed"));
     assert!(f.core.runs().task(&f.workflow, 1, 3).await.unwrap().done);
-    assert!(f.core.runs().task(&f.workflow, 1, 1).await.unwrap().done);
     f.finish().await;
 }
 
@@ -225,7 +320,8 @@ async fn a_restart_finishes_an_unfinished_recheck() {
     f.finish().await;
 }
 
-/// Plan A's T3, done while its check passed, then broken by plan B's T2 marked done.
+/// Plan A's T3, done while its check passed, then broken by plan B's T2 marked done, which
+/// completes plan B.
 async fn broken_by_another_plan() -> (Fixture, ThreadId) {
     let run = ["git", "config", "--get", "check.health"].map(String::from);
     let (f, id, _, _) = super::checks::candidate(vec![run.to_vec()]).await;
@@ -326,7 +422,7 @@ async fn a_failure_still_failing_is_rerun_but_not_told_again() {
     .unwrap();
     assert_eq!(outcomes, vec!["failed", "failed"]);
     let notice: Option<String> =
-        sqlx::query_scalar("SELECT notice_json FROM run_rechecks WHERE cause_task=1")
+        sqlx::query_scalar("SELECT notice_json FROM run_rechecks WHERE cause_command='cause'")
             .fetch_one(f.storage.reader())
             .await
             .unwrap();
@@ -369,6 +465,7 @@ async fn an_older_versions_done_task_is_rechecked() {
         .mark_done("done-next".into(), &next.workflow_id, 2, 1, true, None)
         .await
         .unwrap();
+    asked(&f, &next.workflow_id, "ask-next").await;
     finished(&f).await;
     let (workflow, version): (String, i64) =
         sqlx::query_as("SELECT workflow_id,version FROM run_recheck_results")
@@ -417,6 +514,7 @@ async fn a_done_task_a_newer_version_marks_done_is_not_rechecked() {
             .mark_done(command.into(), &next.workflow_id, 2, task, true, None)
             .await
             .unwrap();
+        asked(&f, &next.workflow_id, &format!("ask-{command}")).await;
         finished(&f).await;
     }
     let rows: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM run_recheck_results")

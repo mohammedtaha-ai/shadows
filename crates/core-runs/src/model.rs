@@ -263,15 +263,26 @@ pub struct RecheckFailure {
     pub checks: Vec<CheckResult>,
 }
 
-/// The outcome of rechecking other done tasks after a new done mark.
+/// The outcome of rechecking the project's done tasks, after the done mark that completed a
+/// plan or on request.
 #[derive(Debug, Clone, serde::Serialize, utoipa::ToSchema)]
 pub struct RecheckNotice {
     pub plan_id: core_plans::PlanId,
     pub cause_workflow_id: WorkflowId,
     pub cause_version: i64,
+    /// The task whose done mark completed the plan; 0 for a recheck asked for.
     pub cause_task: u32,
     pub recheck_id: String,
     pub failed: Vec<RecheckFailure>,
+}
+
+/// A project recheck asked for. It runs in the background; only checks that now fail are told,
+/// to the asking Planner or the named plan's Planner.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, utoipa::ToSchema)]
+pub struct ProjectRecheck {
+    /// The batch begun; none when no done task of the project has checks to run.
+    #[schema(required)]
+    pub recheck_id: Option<String>,
 }
 
 /// A task as the runs see it: marked done or not, its latest attempt, the

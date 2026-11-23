@@ -1,6 +1,6 @@
 //! One job: the routes over a task's attempts — the task's run state,
 //! Start, Stop, an attempt's brief, its contract conflict, its diff, a file at
-//! its commit, and the person's done mark.
+//! its commit, the person's done mark and the project recheck the person asks for.
 //!
 //! Each handler reads the request, calls one `Runs` method and shapes the
 //! answer. A refused Start is 409 with Runs' own `code` and `reason`.
@@ -243,6 +243,41 @@ pub(super) async fn mark_done(
             )
             .await?,
     ))
+}
+
+/// What a project recheck takes.
+#[derive(serde::Deserialize, utoipa::ToSchema)]
+pub(super) struct AskRecheck {
+    /// The idempotency key: the same key and plan answer the first batch.
+    command_id: String,
+}
+
+/// Reruns the checks of the project's done tasks, in the background. The plan's Planner is
+/// told of the checks that now fail.
+#[utoipa::path(
+    post,
+    path = "/api/workflows/{workflow}/recheck",
+    tag = "runs",
+    params(("workflow" = WorkflowId, Path, description = "A plan version of the project")),
+    request_body = AskRecheck,
+    responses(
+        (status = 202, body = shadows_core::ProjectRecheck),
+        (status = 404, description = "no such plan version", body = ErrorBody),
+        (status = 409, description = "command_conflict", body = RunRefusal),
+        (status = 500, description = "STORAGE_UNAVAILABLE", body = ErrorBody),
+    )
+)]
+pub(super) async fn recheck(
+    State(s): State<AppState>,
+    Path(workflow): Path<WorkflowId>,
+    Json(body): Json<AskRecheck>,
+) -> Result<(StatusCode, Json<shadows_core::ProjectRecheck>), RunFailure> {
+    let started = s
+        .core
+        .runs()
+        .recheck_project(body.command_id, &workflow, None)
+        .await?;
+    Ok((StatusCode::ACCEPTED, Json(started)))
 }
 
 /// Stops the attempt and answers once its turn's end is confirmed. An

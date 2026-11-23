@@ -115,8 +115,8 @@ functions:
   reads:
     tools_for:
       signature: "(kind: GrantKind) -> &'static [&'static str]"
-      # The Planner's (Thread) list holds 47 tools, including task_executor_set and
-      # executor_catalog; only it holds task_runs, project_files,
+      # The Planner's (Thread) list holds 48 tools, including task_executor_set and
+      # executor_catalog; only it holds task_runs, project_files, project_recheck,
       # decision_propose, decision_list (no list holds a decision accept: the person accepts),
       # design_element_put, design_element_delete, design_elements, project_state, code_where,
       # project_refresh, project_git_init, task_ready, task_start, task_start_status, task_stop,

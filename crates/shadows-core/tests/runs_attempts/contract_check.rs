@@ -427,12 +427,12 @@ async fn done_with_contract() -> (Fixture, shadows_core::ThreadId) {
     (f, planner)
 }
 
-/// Marks task 1 done under `command`, which rechecks the project's other done
-/// tasks, and waits for that recheck to finish and deliver its notice.
+/// The person asks under `command` for a recheck of the project's done tasks;
+/// waits for that recheck to finish and deliver its notice.
 async fn recheck(f: &Fixture, command: &str) {
     f.core
         .runs()
-        .mark_done(command.into(), &f.workflow, 1, 1, true, None)
+        .recheck_project(command.into(), &f.workflow, None)
         .await
         .unwrap();
     for _ in 0..2400 {

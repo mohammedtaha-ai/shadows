@@ -451,6 +451,28 @@ impl Shadows {
     }
 
     #[tool(
+        description = "Rerun the checks of every done task of this plan's project, in the \
+                       background. Shadows already does this once when a plan's last task is \
+                       marked done; ask for it when you suspect later work broke earlier tasks. \
+                       It answers recheck_id (null when no done task has checks). Shadows tells \
+                       you in this conversation only of checks that no longer pass; silence \
+                       means they all still pass or were already told."
+    )]
+    async fn project_recheck(
+        &self,
+        Extension(grant): Extension<Grant>,
+        Parameters(args): Parameters<TaskReadyArgs>,
+    ) -> CallToolResult {
+        answer(
+            self.core
+                .runs()
+                .recheck_project_for(&grant, &args.workflow_id)
+                .await
+                .map_err(Refusal::from),
+        )
+    }
+
+    #[tool(
         description = "Read the latest committed attempt's checks: executor report, Shadows' \
         confirmation, outcome, exit code, HEAD and output. Read these before judging the commit."
     )]
