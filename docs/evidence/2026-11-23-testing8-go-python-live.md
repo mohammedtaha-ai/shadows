@@ -50,5 +50,9 @@ CLI T3 and report T3 were running. The Planner was told to finish those and star
   one extra round per task.
 - pyright is not installed, so each Python file's contract is `unchecked`.
 - Shadows' Codex model list did not offer `gpt-6.2-sol`, which Codex's cache lists.
+- The recheck after each done mark slowed every later notice (B-200). After resuming, the recheck
+  caused by CLI T5's mark ran 19:29:12 to 19:35:15 UTC, and Python T4's 19:30:05 to 19:37:57, each
+  holding the project's check lock. Python T5 committed at 19:33:37; its notice was sent at
+  19:38:44, against 18 s for CLI T5 before the rechecks began.
 - `live_the_claude_code_catalog_lists_each_models_efforts` failed during B-198's run
   (`harness_catalog.rs:160`); not examined.

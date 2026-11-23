@@ -133,3 +133,18 @@ One run is paused: the `testing8` live run (B-199), below. B-196, B-197 and B-19
   - `live_the_claude_code_catalog_lists_each_models_efforts` failed; not examined.
   - pyright is not installed on this machine (each Python contract is `unchecked`).
 - Done when: the 15 tasks are judged and each finding is fixed, accepted or moved to future.
+
+### B-200 · A project recheck runs when a plan is complete, or when asked
+
+- Status: todo. Decided by Mohammed on 2026-11-23 from the `testing8` run.
+- Owner: [executors design, "A project recheck runs when a plan is complete, or when
+  asked"](specs/2026-11-08-executors-design.md).
+- Change: a done mark runs no project recheck unless it completes its plan. Add one Runs method
+  that starts a project recheck on request, called by an HTTP route (the person) and an MCP tool
+  (the Planner); its notice goes to the asking Planner, or to the plan's Planner when the person
+  asks. Update the `core-runs` contract and the MCP tool list.
+- Needs: a frontend task for the person's "Recheck the project" control (shared request to the
+  frontend side).
+- Done when: in a live run, marking a task that is not its plan's last starts no recheck and the
+  next notice arrives without waiting; marking the last task starts one; the person and the
+  Planner can each start one.

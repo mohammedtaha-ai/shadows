@@ -332,11 +332,18 @@ the agent's word. This replaces the critic's evidence role (§5.1 already replac
   twice, even when the Planner's settings changed in between.
 - **A done mark frees only the attempt it judged.** The mark records the attempt it judged; the
   same mark sent again finishes freeing that attempt and never frees a later one.
-- **A done mark reruns the checks of the project's other done tasks** (Mohammed, 2026-11-16:
+- **A project recheck reruns the checks of the project's done tasks** (Mohammed, 2026-11-16:
   project-wide, each failure reported once). Every done task of every plan and version in the
-  project brings its judged attempt's checks; the marked task does not. A failing check is told
-  to the marking plan's Planner once, with its plan's title and version; it is told again only
-  after it has passed in a later recheck. Every check still runs and is recorded. Done marks stand.
+  project brings its judged attempt's checks. A failing check is told to the Planner of the plan
+  that caused the recheck once, with its plan's title and version; it is told again only after it
+  has passed in a later recheck. Every check still runs and is recorded. Done marks stand.
+- **A project recheck runs when a plan is complete, or when asked** (Mohammed, 2026-11-23,
+  replacing "after every done mark"). A done mark runs only its own task's checks. The recheck runs
+  once when the mark completes its plan (every task done), and whenever the person or the Planner
+  asks for one. Why: in `testing8` each recheck held the project's check lock for 6 to 8 minutes
+  over 14 done tasks, and the next ended attempt's own checks and notice waited behind it: the
+  last task's notice reached the Planner 5 minutes after its commit
+  ([evidence](../../evidence/2026-11-23-testing8-go-python-live.md)).
 - **The lock orders Shadows' own runs only.** What executors run is ordered by their instructions
   and by waiting on a lock error, as above.
 - **An addition is a new attempt,** with its own commit and its own checks.
