@@ -288,6 +288,35 @@ async fn a_path_prefix_finds_the_files_under_it_and_escapes_like_wildcards() {
 }
 
 #[tokio::test]
+async fn a_file_recorded_by_many_tasks_leaves_room_for_the_others() {
+    let f = Fixture::new().await;
+    for task in 1..=25 {
+        let purpose = "account handling";
+        f.done(1, task, contract("api/a.py", "modify", purpose, &["login"]))
+            .await;
+    }
+    f.done(
+        1,
+        26,
+        contract("api/b.py", "create", "account handling", &["login"]),
+    )
+    .await;
+    for (topic, rank) in [
+        ("login", Rank::Exact),
+        ("api", Rank::Path),
+        ("account handling", Rank::Words),
+    ] {
+        let answer = f.ask(topic).await;
+        assert_eq!(
+            files(&answer),
+            vec![(rank, "api/a.py"), (rank, "api/b.py")],
+            "{topic}"
+        );
+    }
+    f.close().await;
+}
+
+#[tokio::test]
 async fn a_part_title_finds_the_files_in_its_folder() {
     let f = Fixture::new().await;
     f.done(1, 1, contract("db/one.sql", "create", "one", &[]))

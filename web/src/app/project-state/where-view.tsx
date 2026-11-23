@@ -80,6 +80,14 @@ function SymbolCard({ symbol }: { symbol: SymbolEntry }) {
       <p>At done: {symbol.at_done}</p>
       <LiveLine live={symbol.live} />
       {symbol.line != null && <p>Line {symbol.line}</p>}
+      {symbol.inputs.length > 0 && (
+        <ul aria-label="Inputs">
+          {symbol.inputs.map((input, index) => (
+            <li key={index} dir="auto">{input.name ?? ''}: {input.type_name} · {input.meaning}</li>
+          ))}
+        </ul>
+      )}
+      {symbol.returns != null && <p dir="auto">Returns {symbol.returns.type_name} · {symbol.returns.meaning}</p>}
       {symbol.behavior.length > 0 && (
         <ul className="list-disc pl-4">
           {symbol.behavior.map((line, index) => <li key={index} dir="auto">{line}</li>)}

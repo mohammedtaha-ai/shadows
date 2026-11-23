@@ -79,6 +79,30 @@ it('a_not_asked_symbol_shows_no_uses_line', async () => {
   expect(text).not.toContain(' uses')
 })
 
+it('a_symbol_shows_its_contract_inputs_and_return', async () => {
+  const a = app = await open(() => withSymbol({
+    line: 7,
+    inputs: [
+      { name: 'user', type_name: 'User', meaning: 'who signs in' },
+      { name: 'code', type_name: 'str', meaning: 'the one-time code' },
+    ],
+    returns: { name: '', type_name: 'Session', meaning: 'the new session' },
+  }))
+  await until(() => a.container.querySelector('ul[aria-label="Inputs"]') !== null)
+  const items = [...a.container.querySelectorAll('ul[aria-label="Inputs"] li')].map(li => li.textContent)
+  expect(items).toEqual(['user: User · who signs in', 'code: str · the one-time code'])
+  const text = a.container.querySelector('[data-where-symbol="login"]')!.textContent!
+  expect(text).toContain('Returns Session · the new session')
+  expect(text.indexOf('Line 7')).toBeLessThan(text.indexOf('user: User'))
+})
+
+it('a_symbol_with_no_inputs_or_return_shows_neither', async () => {
+  const a = app = await open(() => withSymbol({ behavior: ['signs a person in'] }))
+  await until(() => a.text().includes('signs a person in'))
+  expect(a.container.querySelector('ul[aria-label="Inputs"]')).toBeNull()
+  expect(a.container.querySelector('[data-where-symbol="login"]')!.textContent).not.toContain('Returns')
+})
+
 it('no_entry_says_shadows_has_no_record_with_files_not_in_the_record', async () => {
   const a = app = await open(() => answer({
     not_in_record: [{ path: 'src/new.rs', owner, symbols: [{ name: 'make', line: 9 }] }], not_in_record_more: 4,

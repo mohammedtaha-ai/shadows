@@ -318,17 +318,20 @@ functions:
     files_under:
       signature: "(&self, project: &ProjectId, folders: &[String]) -> Result<Vec<String>, CodeRecordError>"
       private: true
-      # Per folder, paths equal to it or LIKE folder || '/%' with %, _ and \ escaped; LIMIT 21.
+      # Per folder, distinct paths equal to it or LIKE folder || '/%' with %, _ and \
+      # escaped, by path; LIMIT 21 paths.
     symbols_named:
       signature: "(&self, project: &ProjectId, name: &str) -> Result<Vec<String>, CodeRecordError>"
       private: true
-      # Symbols named exactly, or ending in '.' || name; LIMIT 21.
+      # Distinct paths of symbols named exactly, or ending in '.' || name, by path; LIMIT 21 paths.
     rows_with_words:
       signature: "(&self, project: &ProjectId, words: &[String]) -> Result<Vec<String>, CodeRecordError>"
       private: true
-      # File purposes and symbol contract_json (lowercased) holding every word,
-      # one instr per word; four words in SQL, the rest on the rows it returns;
-      # LIMIT 21 each.
+      # Distinct paths of a file purpose, and of a symbol contract_json (lowercased),
+      # one row holding every word: the words bound as one JSON array, each tested
+      # with instr through json_each; by path, LIMIT 21 paths each. The limit counts
+      # paths, never rows, so a file many tasks recorded does not crowd out the rest
+      # (code_where::a_file_recorded_by_many_tasks_leaves_room_for_the_others).
     files_detail:
       signature: "(&self, project: &ProjectId, paths: &[String]) -> Result<Detail, CodeRecordError>"
       private: true

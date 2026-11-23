@@ -5,7 +5,7 @@ here and set its status. Task shape: [`AGENTS.md`](./AGENTS.md#a-task-in-stagesm
 
 ## Now
 
-Branch `ccr-9e1b02d8-b0ylm1`: the project's state, its ER diagram and screen flow, and `code_where`
+Branch `codex/code-record-live-fixes`: the project's state, its ER diagram and screen flow, and `code_where`
 in the web. Plan: [plans/2026-11-20-project-state-views.md](plans/2026-11-20-project-state-views.md).
 Shared requests, accepted 2026-11-20: `docs/shared/requests/2026-11-19-project-state-and-diagrams.md`
 (F-130 to F-134) and `docs/shared/requests/2026-11-19-code-where.md` (F-135). The controller
@@ -157,7 +157,7 @@ Every task's checks run from `web/`: the tests it names, then `npm run typecheck
 
 ### F-136 · The where view shows each symbol's contract inputs and return
 
-- Status: blocked (on B-189 and `api/openapi.json` showing `SymbolEntry.inputs` and `returns`)
+- Status: done (built in the whole-branch review)
 - Plan: this entry (an addition to F-135's symbol block; the plan's F-135 section is the rest).
 - Read:
   - `docs/shared/requests/2026-11-19-code-where.md` (the 2026-11-21 amendment and its

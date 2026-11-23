@@ -149,6 +149,12 @@ obligations:
       order, a refusal shows Core's message, and no project event asks again.
     tested_by: asking_reads_once_and_keeps_cores_order, an_answered_empty_lookup_says_no_uses, a_failed_lookup_says_why_and_never_no_uses, a_skipped_lookup_says_why_and_never_no_uses, a_truncated_lookup_keeps_its_uses_and_says_at_least, answered_uses_show_the_total_and_the_rest_grouped_by_part, a_not_asked_symbol_shows_no_uses_line, no_entry_says_shadows_has_no_record_with_files_not_in_the_record, a_blank_topic_shows_cores_refusal, the_budget_line_is_shown_when_core_gives_one, ask_again_reads_the_answer_again, project_events_do_not_ask_again
 
+  - rule: >
+      A symbol shows its contract's inputs (a list labelled Inputs, "name: type · meaning" in
+      Core's order) and its return ("Returns type · meaning") after its line, as Core gives them;
+      an empty inputs or an absent return shows nothing.
+    tested_by: a_symbol_shows_its_contract_inputs_and_return, a_symbol_with_no_inputs_or_return_shows_neither
+
 tests:
   where-view.test.tsx: "The where view over the fake daemon."
   diagram-layout.test.ts: "Layout determinism, sizes and edge rules."

@@ -31,7 +31,8 @@ pinned by task contracts, their states from the record, and `project_state` (B-1
 dispatches the builders and fixers (Mohammed, 2026-11-19); the backend lead prepares and checks.
 
 The Windows `testing7` run is recorded in `docs/evidence/2026-11-22-testing7-go-notes-live.md`
-at `627a0e94`. B-194 to B-196 are a recovery plan for review. The Claude catalog issue waits
+at `627a0e94`. Its recovery plan, B-194 to B-196, is done
+(`docs/evidence/2026-11-22-codex-commit-recovery-live.md`). The Claude catalog issue waits
 for Claude quota to return.
 
 ### Shipped
@@ -289,7 +290,7 @@ Shared request for its route: `docs/shared/requests/2026-11-19-code-where.md` (a
 - Status: done in `8673b50` (tests pass). Its live check failed: in a new conversation ("people can
   change their email") the Planner loaded `code_where` and never called it; it ran `git ls-files`
   and read 7 files with `cat` before drafting (evidence, third run). The prompt alone does not
-  move it; B-186 step 1 stays open on an owner decision.
+  move it; B-193 sends the record instead, and B-186 step 1 passes as amended.
 - Plan: this entry. Found live on 2026-11-21 (`docs/evidence/2026-11-21-code-record-2-live.md`, P8):
   the Planner's one `code_where` call asked a 12-word sentence; the words tier needs every word in
   one file's purpose or one symbol's contract, so it answered `entries: []`, and the Planner read
