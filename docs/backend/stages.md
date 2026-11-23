@@ -217,7 +217,14 @@ The `testing8` live run is finished. Open: its findings (B-199), and B-200 to B-
 
 ### B-205 · The Claude Code catalog live test passes
 
-- Status: todo. `live_the_claude_code_catalog_lists_each_models_efforts`
-  (`harness_catalog.rs:160`) failed during B-198's run and was not examined.
+- Status: done (2026-11-24), no code change: the test passes signed in (11 models, `fable`
+  among them). `harness_catalog.rs:160` is the catalog probe's own `unwrap`, so the probe
+  failed then; its error was not kept. The probe's one recorded failure of this kind
+  (`docs/evidence/2026-11-22-testing7-go-notes-live.md`) is Claude Code refusing a model switch
+  (`claude-fable-5-1`: `API error: 403 Request not allowed · model not changed`) while the
+  account's Claude quota was out, which ends the whole probe (only "Usage credits are required"
+  skips one model). Cause outside Shadows; whether a 403 should skip that one model is left open.
+  `live_the_claude_code_catalog_lists_each_models_efforts` (`harness_catalog.rs:160`) failed
+  during B-198's run and was not examined then.
 - Change: run it, find whether the test or the catalog is wrong, fix that. Root cause first.
 - Done when: the test passes signed in.
