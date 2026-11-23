@@ -393,8 +393,10 @@ functions:
       private: true
       # The end-of-turn check, called by the turn's watcher before it claims
       # its ending (so a Stop's ending is checked too, and the notice waits
-      # before on_completed sends the next message). ActiveHold::changed less
-      # the noted paths; none is nothing. Else, in one write (record_unnoted),
+      # before on_completed sends the next message). ActiveHold::changed (the
+      # project's own files only, without paths a running attempt's hold
+      # claims; each one note_change accepts) less the noted paths; none is
+      # nothing. Else, in one write (record_unnoted),
       # a ProjectChange entry on the turn authored Shadows/shadows, card
       # { paths, reason: null, noted: false }, and a waiting notice
       # (insert_queued_in) with executor null, card { kind: "project_change",

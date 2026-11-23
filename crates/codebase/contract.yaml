@@ -407,20 +407,31 @@ functions:
       signature: "(&self, project: &ProjectId) -> ActiveHold"
       # `Uses::hold` and `activate`: the project stays active while the
       # answer lives, whatever the idle time; its drop is a use. Uses keeps the
-      # hold's seen set weakly, by project.
+      # hold's seen set weakly, by project. The hold keeps the keys of the
+      # files the stored listing held when it began (`file_paths`; a failed
+      # read keeps none), so a deletion is told from a file made and removed.
+    hold_claiming:
+      signature: "(&self, project: &ProjectId, claim: impl Fn(&str) -> bool + Send + Sync + 'static) -> ActiveHold"
+      # `hold` whose claim (a project-relative path with '/') takes the paths
+      # it admits: while it lives, a path it claims goes to the holds that
+      # claim it only, never to the project's other holds. Runs builds the
+      # claim from the attempt's `writes`; codebase holds no pattern rule.
     changed:
-      signature: "ActiveHold::changed(&self) -> Vec<String>"
-      # The paths the project's watcher reported while the hold lived (`forward`
-      # tells `saw` every path it keeps, before the pause flag), sorted, `.git`
-      # and `.git/` left out, and nothing under target/ or node_modules/, and no
-      # existing folder modified in place (Windows reports a folder whose file
-      # was only read; its files report their own changes). A change
-      # before the watcher started, or one it lost, is not among them. Turns
-      # reads it when a Planner turn settles.
+      signature: "async ActiveHold::changed(&self) -> Vec<String>"
+      # The project's files among the paths the watcher reported to this hold
+      # (`forward` tells `saw` every path it keeps, before the pause flag),
+      # sorted: those `listed_now` holds as files, and those gone now whose key
+      # the hold kept when it began. So a folder, an ignored, secret or linked
+      # path, `.git/`, target/ and node_modules/, and a file made and removed
+      # meanwhile are left out; so is no existing folder modified in place
+      # (`forward` skips it). A path another living hold claimed never reached
+      # it. A change before the watcher started, or one it lost, is not among
+      # them. No folder: empty. Turns reads it when a Planner turn settles.
     saw:
       signature: "(&self, project: &ProjectId, path: &str)"
       private: true
-      # On notify's thread: every living hold of the project keeps the path.
+      # On notify's thread, a claim's match and nothing on disk: the living
+      # holds that claim the path keep it; when none does, every living hold.
     project_file:
       signature: "(&self, project: &ProjectId, path: &str) -> Result<String, CodebaseError>"
       # The path relative to the project's folder, checked as `lsp`'s file is:
@@ -567,17 +578,32 @@ functions:
     listed:
       signature: "(dir: &Path) -> Listed"
       private: true
-      # Blocking. `seen` is every key `walker(dir, false)` yields, its
-      # filter refusing a folder named .git or one `never_walked` names (a
-      # walk error sets incomplete). From `dir`, each listed folder's
-      # children by read_dir (an error sets incomplete); the first rule
-      # decides: .git is not listed; a never-walked folder is excluded
-      # dependencies; a secret name (`secret_name`) excluded secret; a link
-      # or junction excluded link; a key not in `seen` excluded ignored;
-      # none of them entered. Else a folder is a directory, entered; a
-      # regular file a file, its stamp read by `symlink_metadata` on the file
-      # (Windows' directory entry can lag a write); anything else, or a name
-      # not UTF-8, not listed.
+      # Blocking. `seen` is `walked(dir, None)`. From `dir`, each listed
+      # folder's children by read_dir (an error sets incomplete), each
+      # decided by `entry_kind`; an excluded one is never entered, a
+      # directory is; a file's stamp is read by `symlink_metadata` on the
+      # file (Windows' directory entry can lag a write); a name not UTF-8 is
+      # not listed.
+    walked:
+      signature: "(dir: &Path, only: Option<Arc<Only>>) -> (HashSet<String>, bool)"
+      private: true
+      # Blocking. Every key `walker(dir, false)` yields, its filter refusing
+      # a folder named .git or one `never_walked` names and, with `only`, any
+      # entry outside it; and whether a walk error made it incomplete.
+    entry_kind:
+      signature: "(name: &str, kind: FileType, walked: bool) -> Option<(&str, Option<&str>)>"
+      private: true
+      # The listing's one rule, the first that decides: .git is not listed;
+      # a never-walked folder is excluded dependencies; a secret name
+      # (`secret_name`) excluded secret; a link or junction excluded link; a
+      # key the walk did not yield excluded ignored. Else a folder is a
+      # directory, a regular file a file; anything else is not listed.
+    listed_now:
+      signature: "(dir: &Path, paths: &[String]) -> HashSet<String>"
+      # Blocking. Of `paths`, the keys a listing made now would hold as
+      # files: `walked` limited to them (`Only::over`), then `entry_kind` of
+      # each component by `symlink_metadata`, every folder on the way a
+      # directory and the path a file. `ActiveHold::changed` asks it.
     secret_name:
       signature: "(name: &str) -> bool"
       private: true
@@ -646,9 +672,13 @@ functions:
       # with '.', and a language `language_for` knows.
     kept_now:
       signature: "(dir: &Path, paths: &[String]) -> HashSet<String>"
-      # Blocking. `walk` limited (`Only`) to those files and the folders
+      # Blocking. `walk` limited (`Only::over`) to those files and the folders
       # above them: the keys the walk keeps now, the ignore files on the way
       # included.
+    Only::over:
+      signature: "(paths: &[String]) -> Arc<Only>"
+      # Those paths' keys and every folder above them (the root included):
+      # the one limit `walk` and the listing's `walked` share (`Only::holds`).
     names_itself:
       signature: "(real: &Path, canonical_dir: &Path, path: &str) -> bool"
       private: true
@@ -945,7 +975,8 @@ shared_in_transaction:
 
 called_by_other_services:
   touch: "Turns send records a use of the thread's project without waiting for indexing."
-  hold: "Turns holds one per running turn, Runs one per running attempt, until it settles."
+  hold: "Turns holds one per running turn until it settles."
+  hold_claiming: "Runs holds one per running attempt, claiming its writes, until it settles."
   changed: "Turns compares a settled Planner turn's changes with its notes."
   project_file: "Turns checks project_change_note's paths."
   missing_inputs: "Runs checks a task's required files before Start."
@@ -973,6 +1004,16 @@ obligations:
       own bookkeeping and a folder modified in place left out.
     tested_by: [an_unnoted_shell_change_is_recorded_and_asked_about, a_turn_with_no_change_sends_nothing,
       a_folder_modified_in_place_is_not_a_hold_change, live_a_codex_planner_reads_a_file_and_writes_none]
+  - rule: >
+      A hold reports only project files: by the listing's own rule a file now,
+      or a file the listing held when the hold began and gone now. A folder, an
+      ignored or otherwise excluded path, and a file made and removed meanwhile
+      are not changes.
+    tested_by: a_hold_reports_only_project_files
+  - rule: >
+      While a claiming hold lives, a path it claims reaches it alone; a path no
+      hold claims reaches every hold of the project.
+    tested_by: a_claimed_path_goes_to_its_claiming_hold_only
   - rule: >
       The person's server settings change only by command (CodeServerSwitch,
       CodeServerAdd, CodeServerRemove), each one write with its replay, event
@@ -1286,6 +1327,17 @@ agreements:
     note: >
       The test holds the walk's side; the watcher's `.gitignore` handling
       was run once by hand.
+  - between: [changed, project_file]
+    must: >
+      every path a hold reports is one `project_file` accepts, so the Planner
+      can always note a change it is asked about
+    holds: true
+    why: >
+      `changed` reports a regular file the listing holds (not a link, inside
+      the folder by every component) or a gone file under an existing folder
+      inside it; `project_file`'s `checked_path` with allow_missing accepts
+      both.
+    tested_by: every_reported_path_is_one_a_note_accepts
 
 
 not_the_caller's:
@@ -1355,6 +1407,22 @@ tests:
     checks: >
       With a 1 s idle time, a hold kept 3 s keeps the project active; just after
       its drop it is still active (the drop is a use); 3 s later it is Inactive.
+  - name: a_hold_reports_only_project_files
+    checks: >
+      tests/hold.rs, a real git repository whose .gitignore names __pycache__/,
+      .pytest_cache/ and /out/*.exe, listed once. During a hold: tracked.txt
+      modified, gone.txt deleted, an ignored .pyc, .pytest_cache file and
+      out/water.exe written, a folder made, temp.txt made and removed.
+      `changed` is exactly [gone.txt, tracked.txt].
+  - name: every_reported_path_is_one_a_note_accepts
+    checks: >
+      The same changes and a new new/fresh.txt: every path `changed` reports
+      (the three) is accepted by `project_file`.
+  - name: a_claimed_path_goes_to_its_claiming_hold_only
+    checks: >
+      A plain hold and a hold claiming report/: report/kept.txt and
+      outside.txt are written. The claiming hold reports both; the plain one
+      outside.txt only.
   - name: the_scope_is_the_project_and_its_links_only
     checks: >
       demo linked to backend through PUT …/code/links/{linked}; secret not
