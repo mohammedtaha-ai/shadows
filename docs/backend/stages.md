@@ -16,8 +16,8 @@ The local delivery program is complete: its slices 1, 1b, 3, 2, 4, 5 and 6 are o
 at `449d4f95` (PR #70). Its plan is `docs/backend/plans/2026-11-09-local-delivery-program.md` at
 `449d4f95`. The code record's slices 1 and 2 are on `main`: the contract check (PR #73, `7b7abec`), and
 the project's state, its diagrams' data and `code_where` with the code record sent to the Planner
-(PR #75, `4d69977d`). Codex commit recovery is on `main` in PR #75; its live acceptance is open for one
-case (B-196). The Claude catalog issue waits for Claude quota to return.
+(PR #75, `4d69977d`). Codex commit recovery is on `main` in PR #75, and its live acceptance is closed
+(B-196, 2026-11-23). The Claude catalog issue waits for Claude quota to return.
 
 The Windows `testing7` run is recorded in `docs/evidence/2026-11-22-testing7-go-notes-live.md`
 at `627a0e94`.
@@ -54,7 +54,7 @@ A shipped task's entry, and its plan once deleted, are in this file in Git at th
 | #72 | Plan progress for a plan version (B-163, F-127), one delivery's start failure refused without stalling the others (B-162), slice 4's live tests and the planned-consumer fix (B-164, B-166; evidence `docs/evidence/2026-11-18-slice-4-live.md`), structure and depth on a real provider (B-165; evidence `docs/evidence/2026-11-18-structure-and-depth-live.md`), Settings › Code as one row (F-126), visual acceptances (F-128; evidence `docs/evidence/2026-11-18-visual-acceptance.md`) | B-162 to B-166; F-126 to F-128 | `753b26a4` |
 | #73 | Task contracts checked against the code: file refusals (B-167, B-169), a big listing no longer stalls Shadows (B-168), the code record's first slice (plan `docs/backend/plans/2026-11-19-code-record.md` at `7b7abec`; the `contract` check and the record written with done, B-170 to B-173; acceptance on Sonnet with pyright, B-174; evidence `docs/evidence/2026-11-19-code-record-live.md`), the Report tab's contract row (F-129) | B-167 to B-174; F-129 | `7b7abec` |
 | — | Executor choices accepted by Mohammed in the browser (2026-11-18); the signed-in live tests were not recorded. Its plan is deleted (`docs/backend/plans/2026-11-18-executor-choices.md` at `7029198`) | B-159 | `7029198` |
-| #75 | Project state and the code record: Design's tables and screens pinned by tasks, element states, `project_state` (B-175 to B-181, B-187; evidence `docs/evidence/2026-11-21-code-record-2-live.md` at `4d69977d`); `code_where` and the Planner asking it, and the code record sent with the Planner's context (B-182 to B-186, B-188 to B-193); Codex commit recovery: the Git-write procedure and Start's readiness for an attempted task (B-194, B-195; B-196 open, see Open; evidence `docs/evidence/2026-11-22-codex-commit-recovery-live.md` at `4d69977d`); the web's state, diagrams and `code_where` (F-130 to F-136) | B-175 to B-195; F-130 to F-136 | `4d69977d` |
+| #75 | Project state and the code record: Design's tables and screens pinned by tasks, element states, `project_state` (B-175 to B-181, B-187; evidence `docs/evidence/2026-11-21-code-record-2-live.md` at `4d69977d`); `code_where` and the Planner asking it, and the code record sent with the Planner's context (B-182 to B-186, B-188 to B-193); Codex commit recovery: the Git-write procedure and Start's readiness for an attempted task (B-194, B-195; B-196 closed 2026-11-23; evidence `docs/evidence/2026-11-22-codex-commit-recovery-live.md` at `4d69977d`); the web's state, diagrams and `code_where` (F-130 to F-136) | B-175 to B-195; F-130 to F-136 | `4d69977d` |
 
 Replaced or dropped without being built: B-97, B-98, B-119 (by slice 2), B-102, B-110 (with the
 critic), B-112 (by the Planner's judgment), B-115, B-116 (by B-125 and B-126). Their entries are in
@@ -84,13 +84,16 @@ this file at `db760593`.
 
 ## Open
 
-One task is open: B-196, below. Dispatch is the controller's and the person runs its acceptance.
+No task is open. B-196 closed on 2026-11-23 and stays here until the next docs sync.
 
 ### B-196 · Verify Codex commit recovery on Windows
 
-- Status: todo. One case is open: an approval the person rejects for a denied Git write was not
-  observed. The rest is done (2026-11-22, [live evidence](../evidence/2026-11-22-codex-commit-recovery-live.md)):
-  the native approved retry, the existing lock, released leftovers, the personal-edit refusal and the Planner's judgment.
+- Status: done (2026-11-23). The native approved retry, the existing lock, released leftovers,
+  the personal-edit refusal and the Planner's judgment were observed
+  (2026-11-22, [live evidence](../evidence/2026-11-22-codex-commit-recovery-live.md)).
+  A person cannot reject a Codex Git approval: `ask` routes every request to Codex's
+  `auto_review`, never to the person; a reviewer denial stays unobserved
+  ([finding](../evidence/2026-11-23-codex-commit-recovery-live.md)).
 - Plan: [Codex commit recovery, B-196](plans/2026-11-22-codex-commit-recovery.md#b-196--verify-the-recovery-with-native-codex-on-windows).
 - Read: B-196's acceptance steps and `docs/evidence/2026-11-22-testing7-go-notes-live.md` at `627a0e94`.
 - Touch: one `docs/evidence/<run-date>-codex-commit-recovery-live.md` and this entry's status.
