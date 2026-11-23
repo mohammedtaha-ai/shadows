@@ -1069,7 +1069,7 @@ impl World {
 #[tokio::test]
 async fn a_matching_newer_codex_opens() {
     let w = World::start_codex(&[
-        ("fake-codex-version", "0.170.0"),
+        ("fake-codex-version", "0.172.0"),
         ("fake-codex-protocol", "added"),
     ])
     .await;
@@ -1104,7 +1104,7 @@ async fn an_older_codex_is_refused_without_a_check() {
     let w = World::start_codex(&[("fake-codex-version", "0.168.0")]).await;
     let codex = w.codex_listed().await;
     assert_eq!(codex["available"], false);
-    assert_eq!(codex["reason"], "Codex CLI 0.169.0 or later is required");
+    assert_eq!(codex["reason"], "Codex CLI 0.171.0 or later is required");
     w.close().await;
 }
 
@@ -1148,7 +1148,7 @@ async fn a_codex_upgraded_while_running_is_checked_again() {
     let w = World::start_codex(&[]).await;
     w.core.harness().open_session(&w.thread).await.unwrap();
     w.core.harness().terminate(&w.thread).await.unwrap();
-    std::fs::write(w.codex_home().join("fake-codex-version"), "0.170.0").unwrap();
+    std::fs::write(w.codex_home().join("fake-codex-version"), "0.172.0").unwrap();
     let refused = w
         .core
         .harness()
@@ -1156,7 +1156,7 @@ async fn a_codex_upgraded_while_running_is_checked_again() {
         .await
         .unwrap_err()
         .to_string();
-    assert!(refused.contains("changed to 0.170.0"), "{refused}");
+    assert!(refused.contains("changed to 0.172.0"), "{refused}");
     w.core.harness().open_session(&w.thread).await.unwrap();
     assert_eq!(w.core.harness().codex_checks_for_test(), 2);
     w.close().await;

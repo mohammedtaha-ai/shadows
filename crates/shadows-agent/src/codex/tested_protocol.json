@@ -1293,35 +1293,100 @@
       "type": "object"
     },
     "v2/AgentMessageDisplay": {
-      "description": "A presentation instruction for Chat to apply to this answer when recovering history.",
-      "properties": {
-        "action": {
-          "description": "Unknown actions must be left for the producing client to handle.",
-          "type": "string"
+      "description": "How Chat should present a recovered answer.",
+      "oneOf": [
+        {
+          "properties": {
+            "annotation": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/v2/AnswerAnnotation"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "mode": {
+              "enum": [
+                "show"
+              ],
+              "type": "string"
+            },
+            "trustedContacts": {
+              "$ref": "#/definitions/v2/TrustedContacts"
+            },
+            "version": {
+              "enum": [
+                1
+              ],
+              "format": "uint8",
+              "minimum": 0.0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "mode",
+            "trustedContacts",
+            "version"
+          ],
+          "type": "object"
         },
-        "blockType": {
-          "type": [
-            "string",
-            "null"
-          ]
+        {
+          "properties": {
+            "mode": {
+              "enum": [
+                "hide"
+              ],
+              "type": "string"
+            },
+            "replacement": {
+              "$ref": "#/definitions/v2/AnswerReplacement"
+            },
+            "version": {
+              "enum": [
+                1
+              ],
+              "format": "uint8",
+              "minimum": 0.0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "mode",
+            "replacement",
+            "version"
+          ],
+          "type": "object"
         },
-        "checkTrustedContacts": {
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "cyberTrustedAccess": {
-          "type": [
-            "boolean",
-            "null"
-          ]
+        {
+          "properties": {
+            "mode": {
+              "enum": [
+                "block"
+              ],
+              "type": "string"
+            },
+            "reason": {
+              "$ref": "#/definitions/v2/BlockReason"
+            },
+            "version": {
+              "enum": [
+                1
+              ],
+              "format": "uint8",
+              "minimum": 0.0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "mode",
+            "reason",
+            "version"
+          ],
+          "type": "object"
         }
-      },
-      "required": [
-        "action"
-      ],
-      "type": "object"
+      ]
     },
     "v2/AgentMessageModeration": {
       "properties": {
@@ -1365,6 +1430,47 @@
         }
       },
       "type": "object"
+    },
+    "v2/AnswerAnnotation": {
+      "oneOf": [
+        {
+          "properties": {
+            "kind": {
+              "enum": [
+                "wellbeingHelpline"
+              ],
+              "type": "string"
+            },
+            "subject": {
+              "$ref": "#/definitions/v2/HelplineSubject"
+            }
+          },
+          "required": [
+            "kind",
+            "subject"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "v2/AnswerReplacement": {
+      "oneOf": [
+        {
+          "properties": {
+            "kind": {
+              "enum": [
+                "wellbeingPromptHelpline"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "title": "WellbeingPromptHelplineAnswerReplacement",
+          "type": "object"
+        }
+      ]
     },
     "v2/ApprovalsReviewer": {
       "description": "Configures who approval requests are routed to for review. Examples include sandbox escapes, blocked network access, MCP approval prompts, and ARC escalations. Defaults to `user`. `auto_review` uses a carefully prompted subagent to gather relevant context and apply a risk-based decision framework before approving or denying the request. The legacy value `guardian_subagent` is accepted for compatibility.",
@@ -1461,6 +1567,50 @@
             "body_after_prefix"
           ],
           "type": "string"
+        }
+      ]
+    },
+    "v2/BlockReason": {
+      "oneOf": [
+        {
+          "properties": {
+            "kind": {
+              "enum": [
+                "protection"
+              ],
+              "type": "string"
+            },
+            "protectionType": {
+              "description": "Identifies the same moderation row that Chat writes on the live path.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "protectionType"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "kind": {
+              "enum": [
+                "cyber"
+              ],
+              "type": "string"
+            },
+            "trustedAccess": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "title": "KindBlockReason",
+          "type": "object"
         }
       ]
     },
@@ -1571,6 +1721,7 @@
             "modelNotFound",
             "policyCapacityUnavailable",
             "cyberPolicy",
+            "bioPolicy",
             "misalignmentPolicyViolation",
             "tooManyDenials",
             "internalServerError",
@@ -3172,6 +3323,13 @@
       },
       "type": "object"
     },
+    "v2/HelplineSubject": {
+      "enum": [
+        "answer",
+        "prompt"
+      ],
+      "type": "string"
+    },
     "v2/HookPromptFragment": {
       "properties": {
         "hookRunId": {
@@ -3358,6 +3516,13 @@
           ],
           "description": "Controls how much MCP inventory data to fetch for each server. Defaults to `Full` when omitted."
         },
+        "environmentId": {
+          "description": "Select this environment's registration. Requires `serverName` and `threadId`. When omitted, a named request uses the same server as older clients.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "limit": {
           "description": "Optional page size; defaults to a server-defined value.",
           "format": "uint32",
@@ -3497,6 +3662,13 @@
       "properties": {
         "authStatus": {
           "$ref": "#/definitions/v2/McpAuthStatus"
+        },
+        "environmentId": {
+          "description": "Environment that contributed this registration; null for a thread-wide server. Older servers omit this field.",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "httpOrigin": {
           "description": "HTTP origin of the effective configured endpoint, including plugin servers. Excludes credentials, path, query, and fragment; null for non-HTTP transports.",
@@ -5715,6 +5887,13 @@
                 "null"
               ]
             },
+            "environmentId": {
+              "description": "Registration scope, not necessarily the server's execution environment.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
             "error": {
               "anyOf": [
                 {
@@ -6953,6 +7132,13 @@
       },
       "type": "object"
     },
+    "v2/TrustedContacts": {
+      "enum": [
+        "check",
+        "skip"
+      ],
+      "type": "string"
+    },
     "v2/Turn": {
       "properties": {
         "completedAt": {
@@ -7796,5 +7982,5 @@
       "type": "object"
     }
   },
-  "version": "0.169.0"
+  "version": "0.171.0"
 }

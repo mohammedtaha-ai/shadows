@@ -474,7 +474,7 @@ fn generate_schema(args: &[String]) -> io::Result<()> {
 }
 
 fn main() -> io::Result<()> {
-    let version = setting("fake-codex-version").unwrap_or_else(|| "0.169.0".into());
+    let version = setting("fake-codex-version").unwrap_or_else(|| "0.171.0".into());
     let args: Vec<String> = std::env::args().skip(1).collect();
     if args.first().is_some_and(|arg| arg == "--version") {
         println!("codex-cli {version}");

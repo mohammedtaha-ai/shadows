@@ -52,7 +52,7 @@ impl Peer {
             move |e| {
                 let _ = send.send(e);
             },
-            "0.169.0",
+            "0.171.0",
         )
         .await
         .unwrap();

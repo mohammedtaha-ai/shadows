@@ -1,7 +1,7 @@
 //! What Shadows uses of the Codex app-server protocol, and comparing a CLI's against it.
 //!
 //! The roots are the methods Shadows calls, the server requests it answers, the notifications it
-//! reads, and the answers it parses. In the 0.169.0 bundle the answers are
+//! reads, and the answers it parses. In the 0.171.0 bundle the answers are
 //! `InitializeResponse`, `CommandExecutionRequestApprovalResponse`,
 //! `FileChangeRequestApprovalResponse` and `PermissionsRequestApprovalResponse` under
 //! `definitions`, and `ThreadStartResponse`, `ThreadResumeResponse`, `ThreadForkResponse`,
