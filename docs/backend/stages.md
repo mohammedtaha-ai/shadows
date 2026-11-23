@@ -84,7 +84,7 @@ this file at `db760593`.
 
 ## Open
 
-One run is paused: the `testing8` live run (B-199), below. B-196, B-197 and B-198 are done on
+The `testing8` live run is finished; its findings (B-199) and the recheck change (B-200) are open. B-196, B-197 and B-198 are done on
 `feature/after-75` and stay here until the next docs sync.
 
 ### B-196 · Verify Codex commit recovery on Windows
@@ -120,8 +120,8 @@ One run is paused: the `testing8` live run (B-199), below. B-196, B-197 and B-19
 
 ### B-199 · Finish the testing8 live run, and the findings it left
 
-- Status: paused (2026-11-23). 9 of 15 tasks done; the Planner was told to start nothing new.
-  Resume by telling the Planner in thread `22862fa7-5da6-41dd-8161-89f9fe5c180a` to continue.
+- Status: the run is finished (2026-11-23): all 14 tasks judged done, both programs run end to
+  end on one data file (Go 8 packages pass, pytest 39 passed). The findings below remain.
 - Findings, not fixed ([evidence](../evidence/2026-11-23-testing8-go-python-live.md)):
   - Codex's sandbox cannot run the WindowsApps `python` alias, so executors report Python checks
     `not_run` (Shadows' own checks pass them).
@@ -132,7 +132,10 @@ One run is paused: the `testing8` live run (B-199), below. B-196, B-197 and B-19
   - Shadows' Codex model list did not offer `gpt-6.2-sol`.
   - `live_the_claude_code_catalog_lists_each_models_efforts` failed; not examined.
   - pyright is not installed on this machine (each Python contract is `unchecked`).
-- Done when: the 15 tasks are judged and each finding is fixed, accepted or moved to future.
+  - Codex's sandbox could not copy a fixture into its temporary folder (`PermissionError`), so an
+    executor's subprocess test did not run there.
+  - The Planner counted 15 tasks; the plans hold 14.
+- Done when: each finding is fixed, accepted or moved to future.
 
 ### B-200 · A project recheck runs when a plan is complete, or when asked
 

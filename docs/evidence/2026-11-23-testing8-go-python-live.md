@@ -26,6 +26,11 @@ Commits: `d4d5023` initial, `f644227` and `a092e9d` (Setup), `23ba233` and `9016
 `4f96d9b`, `f278e9b`, `1923b81`, `36dbd33`, `02a2f3c`, `e14e02f`. 9 of 15 tasks judged done;
 CLI T3 and report T3 were running. The Planner was told to finish those and start nothing new.
 
+Resumed the same day: `0863e02` (report T4), `11a5d85` (CLI T5), `00569c8` (report T5). All 14
+tasks judged done (the Planner said 15; the plans hold 14). The Planner ran both programs end to
+end: Go wrote the file, Python read it, the file's checksum was unchanged; Go passes in 8
+packages, pytest 39 passed.
+
 ## Shadows defects found and fixed on the branch
 
 - **Unnoted changes asked about files the Planner never wrote** (B-197, `ac7d1e3d`). Before:
