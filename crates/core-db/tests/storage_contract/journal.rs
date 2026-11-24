@@ -105,3 +105,42 @@ async fn the_committed_signal_moves_on_commit_and_never_on_rollback() {
 
     storage.close().await.unwrap();
 }
+
+/// A write whose caller is dropped between its commit and its announcement is still
+/// announced: a caught-up subscriber hears it with no later write to wake it.
+#[tokio::test]
+async fn a_commit_whose_caller_is_dropped_is_still_announced() {
+    let tmp = tempfile::tempdir().unwrap();
+    let storage = std::sync::Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
+    let mut committed = storage.watch_committed();
+    let before = *committed.borrow_and_update();
+    let pause = storage.pause_after_commit();
+    let writer = storage.clone();
+    let write = tokio::spawn(async move {
+        writer
+            .write_txn(|conn| {
+                Box::pin(async move {
+                    core_db::JournalEntry::append_event_for_test(
+                        conn,
+                        &Event::new("SettingsChanged", Actor::system())
+                            .with_payload(serde_json::json!({})),
+                        "2026-11-25T00:00:00.000000000Z",
+                    )
+                    .await?;
+                    Ok(())
+                })
+            })
+            .await
+    });
+    pause.committed().await;
+    write.abort();
+    let _ = write.await;
+    let heard = tokio::time::timeout(std::time::Duration::from_secs(5), committed.changed()).await;
+    assert!(heard.is_ok(), "the committed event was never announced");
+    assert!(*committed.borrow() > before);
+    let durable: i64 = sqlx::query_scalar("SELECT MAX(seq) FROM durable_event")
+        .fetch_one(storage.reader())
+        .await
+        .unwrap();
+    assert_eq!(*committed.borrow(), durable);
+}

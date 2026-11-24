@@ -131,6 +131,9 @@ functions:
       signature: "(&self, f: F) -> Result<T, StorageError>"
       # Serializes BEGIN IMMEDIATE writes; commits on success, rolls back on error,
       # uses SQLx drop rollback for abandoned transactions and publishes only after commit.
+      # A commit not yet announced when its caller is dropped (or whose sequence read
+      # failed) is announced by a spawned task that takes the writer next and reads the
+      # durable sequence on it (`Unannounced`).
       # A thin call to write_txn_as with E = StorageError.
     write_txn_as:
       signature: "(&self, f: F) -> Result<T, E> where E: From<StorageError>"
@@ -153,6 +156,8 @@ enums:
 
 
 obligations:
+  - rule: A commit whose caller is dropped before it is announced is still announced, with no later write.
+    tested_by: [a_commit_whose_caller_is_dropped_is_still_announced]
   - rule: Storage::open creates the database at the path as written, even a folder name that reads as percent-encoding.
     tested_by: [fresh_database_migrates_and_applies_the_connection_policy]
   - rule: Storage::now writes a fixed-width time, and Storage::instant reads any stored width in time order.

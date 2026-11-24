@@ -1,6 +1,7 @@
 //! Shared SQLite lifetime and serialized persistence.
 
 use std::path::Path;
+use std::sync::Arc;
 use std::time::Duration;
 
 use futures_core::future::BoxFuture;
@@ -19,7 +20,7 @@ mod write_observer;
 
 pub use error::StorageError;
 #[cfg(feature = "test-support")]
-pub use write_observer::DatabaseWrites;
+pub use write_observer::{CommitPause, DatabaseWrites};
 
 /// The SQLx connection borrowed by one serialized write.
 pub type Tx = SqliteConnection;
@@ -33,8 +34,10 @@ const MAX_SEQ: &str = "SELECT MAX(seq) FROM durable_event";
 /// One serialized BEGIN IMMEDIATE writer plus a WAL reader pool.
 pub struct Storage {
     read: SqlitePool,
-    write: Mutex<Option<SqliteConnection>>,
-    committed: watch::Sender<i64>,
+    write: Arc<Mutex<Option<SqliteConnection>>>,
+    committed: Arc<watch::Sender<i64>>,
+    #[cfg(feature = "test-support")]
+    pause: std::sync::Mutex<Option<std::sync::Arc<tokio::sync::Notify>>>,
 }
 
 impl Storage {
@@ -86,8 +89,10 @@ impl Storage {
 
         Ok(Self {
             read,
-            write: Mutex::new(Some(write)),
-            committed: watch::channel(highest.unwrap_or(0)).0,
+            write: Arc::new(Mutex::new(Some(write))),
+            committed: Arc::new(watch::channel(highest.unwrap_or(0)).0),
+            #[cfg(feature = "test-support")]
+            pause: std::sync::Mutex::new(None),
         })
     }
 
@@ -116,25 +121,33 @@ impl Storage {
 
     // Publish while retaining the write lock: the announced sequence belongs to
     // a completed commit, and concurrent writers cannot overtake its notification.
-    async fn publish_committed(&self, conn: &mut SqliteConnection) {
+    // False when the sequence could not be read.
+    async fn publish_committed(
+        committed: &watch::Sender<i64>,
+        conn: &mut SqliteConnection,
+    ) -> bool {
         match sqlx::query_scalar::<_, Option<i64>>(MAX_SEQ)
             .fetch_one(&mut *conn)
             .await
         {
             Ok(Some(seq)) => {
-                self.committed.send_if_modified(|current| {
+                committed.send_if_modified(|current| {
                     let raised = seq > *current;
                     if raised {
                         *current = seq;
                     }
                     raised
                 });
+                true
             }
-            Ok(None) => {}
-            Err(error) => tracing::warn!(
-                %error,
-                "storage.publish_committed_failed: a committed write was not signalled live"
-            ),
+            Ok(None) => true,
+            Err(error) => {
+                tracing::warn!(
+                    %error,
+                    "storage.publish_committed_failed: a committed write was not signalled live"
+                );
+                false
+            }
         }
     }
 
@@ -164,8 +177,18 @@ impl Storage {
 
         match f(&mut transaction).await {
             Ok(v) => {
+                // Armed until the commit is announced: a caller dropped in between, or a
+                // failed read of the sequence, leaves the announcement to `Unannounced`.
+                let mut unannounced = Unannounced {
+                    write: Some(self.write.clone()),
+                    committed: self.committed.clone(),
+                };
                 transaction.commit().await.map_err(StorageError::from)?;
-                self.publish_committed(guard).await;
+                #[cfg(feature = "test-support")]
+                self.hold_if_paused().await;
+                if Self::publish_committed(&self.committed, guard).await {
+                    unannounced.write = None;
+                }
                 Ok(v)
             }
             Err(e) => {
@@ -179,5 +202,31 @@ impl Storage {
                 Err(e)
             }
         }
+    }
+}
+
+/// A write that committed but was not yet announced. Dropped while armed, it announces the
+/// durable sequence from a spawned task: that task takes the writer after the dropped write
+/// released it, so SQLx has settled the commit, and reads the sequence on that connection.
+struct Unannounced {
+    write: Option<Arc<Mutex<Option<SqliteConnection>>>>,
+    committed: Arc<watch::Sender<i64>>,
+}
+
+impl Drop for Unannounced {
+    fn drop(&mut self) {
+        let Some(write) = self.write.take() else {
+            return;
+        };
+        let Ok(runtime) = tokio::runtime::Handle::try_current() else {
+            return;
+        };
+        let committed = self.committed.clone();
+        runtime.spawn(async move {
+            let mut writer = write.lock().await;
+            if let Some(conn) = writer.as_mut() {
+                Storage::publish_committed(&committed, conn).await;
+            }
+        });
     }
 }

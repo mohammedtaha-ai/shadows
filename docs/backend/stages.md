@@ -347,7 +347,7 @@ Plan: [backend review fixes](plans/2026-11-25-backend-review-fixes.md); each ent
 
 ### B-215 · A committed write is announced even if its caller is dropped
 
-- Status: todo. Plan task 7.
+- Status: done (2026-11-25). Plan task 7. A drop guard armed from commit to announcement spawns one announcement on the writer when the caller is dropped or the sequence read fails. Test-only `Storage::pause_after_commit` (feature `test-support`).
 
 ### B-216 · A replayed recheck ask returns its own stored outcome
 
