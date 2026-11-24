@@ -9,7 +9,7 @@ F-137 is open on `feature/after-75`. The project's state view, its ER diagram an
 and `code_where` in the web (F-130 to F-136) are on `main` in PR #75 (`4d69977d`).
 
 ### F-137 · The person rechecks the project from the plan page
-- Status: todo
+- Status: done (`41926e85`; `notice-item.tsx` passes the card's body, added to Touch after the build)
 - Plan: none. Mockup agreed with Mohammed on 2026-11-24: in the plan page header, the button
   row reads "Show phases · Versions · Continue this plan · Recheck project · Archive"; a line
   between the progress bar and the button row reads "Last project recheck HH:MM" with passed,
@@ -24,7 +24,8 @@ and `code_where` in the web (F-130 to F-136) are on `main` in PR #75 (`4d69977d`
 - Touch: `web/src/api/schema.d.ts` (generated), `web/src/api/runs.ts`, `web/src/api/contract.yaml`,
   `web/src/app/workflows/plan-page.tsx`, a new `web/src/app/workflows/recheck-control.tsx` and its
   test, `web/src/app/workflows/contract.yaml`, `web/src/app/conversation/recheck-notice.tsx`,
-  `recheck-notice.test.tsx`, `web/src/app/conversation/contract.yaml`, the code map row.
+  `recheck-notice.test.tsx`, `web/src/app/conversation/notice-item.tsx`,
+  `web/src/app/conversation/contract.yaml`, the code map row.
 - Needs: B-206.
 - Done when: `npx vitest run src/app/workflows/recheck-control.test.tsx
   src/app/conversation/recheck-notice.test.tsx` passes (idle with last result, no result,
