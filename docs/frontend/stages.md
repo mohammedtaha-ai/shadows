@@ -157,7 +157,7 @@ changes) and B-210 (RecheckStarted and RecheckFinished on the project tail). The
   AYLUL project's stream.
 
 ### F-143 · Checks and a conflict's delivery follow the stream
-- Status: todo (after F-140, which owns the same `TaskProgressChanged` mapping)
+- Status: todo
 - Plan: none (the section above). After B-209, `TaskProgressChanged` also refreshes `runKeys.checks`
   and `runKeys.conflict` of its `attempt_id`, and `attemptChecksQuery` and `attemptConflictQuery` lose their 2 s intervals.
 - Read: B-209 in `docs/backend/stages.md`, `web/src/stream/refresh.ts`, `web/src/api/runs.ts`.
@@ -170,13 +170,18 @@ changes) and B-210 (RecheckStarted and RecheckFinished on the project tail). The
   neither query has an interval.
 
 ### F-144 · The last recheck follows the stream
-- Status: blocked (B-210)
+- Status: todo
 - Plan: none (the section above). After B-210, `lastRecheckQuery` has no interval at all;
   RecheckStarted and RecheckFinished refresh it.
 - Read: B-210 in `docs/backend/stages.md`, `web/src/stream/refresh.ts`, `lastRecheckQuery` in `web/src/api/runs.ts`.
-- Touch: to be named when B-210 is built.
-- Needs: B-210.
-- Done when: to be named when B-210 is built.
+- Touch: `web/src/stream/refresh.ts`, `web/src/stream/refresh.test.tsx`, `web/src/api/runs.ts`,
+  `web/src/api/runs.test.ts`, `web/src/stream/recheck-output.ts` and its test (the stream hold from F-139 goes),
+  `web/src/api/contract.yaml`, `web/src/stream/contract.yaml`.
+- Needs: B-210 (`37b1c186`): `RecheckStarted` and `RecheckFinished {project_id, workflow_id, recheck_id}` on the
+  project tail; `workflow_id` is the plan whose done mark or request began the batch.
+- Done when: `npx vitest run src/stream/refresh.test.tsx src/api/runs.test.ts src/stream/recheck-output.test.tsx`
+  passes, with cases: `RecheckStarted` and `RecheckFinished` refresh that workflow's recheck read and that batch's
+  rows; `lastRecheckQuery` has no interval.
 
 Every task's checks run from `web/`: the tests it names, then `npm run typecheck`, `npm run lint`,
 `npm run build` and `npx vitest run src/codemap.test.ts src/architecture`.
