@@ -72,7 +72,7 @@ changes) and B-210 (RecheckStarted and RecheckFinished on the project tail). The
   invalidates the list.
 
 ### F-139 · The recheck panel and external connections stop polling
-- Status: todo
+- Status: done
 - Plan: none (the section above). While the recheck panel holds a batch's output stream,
   `lastRecheckQuery` is not read on an interval; with the panel closed it keeps today's 5 s read
   while rows are unfinished (until F-144). A `finished` or `end` frame invalidates only that

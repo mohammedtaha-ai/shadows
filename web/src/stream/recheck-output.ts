@@ -3,7 +3,7 @@
 
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
-import { invalidateRuns, recheckOutputUrl } from '@/api/runs'
+import { holdRecheckStream, invalidateRecheck, recheckOutputUrl } from '@/api/runs'
 
 export interface RecheckOutput {
   /** Text printed so far, by `rowKey`; only rows this connection saw start. */
@@ -56,10 +56,11 @@ export interface OutputSource {
 
 const open = (url: string): OutputSource => new EventSource(url)
 
-/** Follows a batch's output while mounted. Each finished row and the end refetch what Core stores,
- * so the page's counts and rows follow the stream. */
+/** Follows a batch's output while mounted. Each finished row and the end refetch what Core stores
+ * for that workflow and batch only; while it follows, the page does not poll the batch. */
 export function useRecheckOutput(
   recheckId: string | undefined,
+  workflowId: string,
   connect: (url: string) => OutputSource = open,
 ): RecheckOutput {
   const queryClient = useQueryClient()
@@ -67,6 +68,7 @@ export function useRecheckOutput(
   const [held, setHeld] = useState<{ id: string | undefined; state: RecheckOutput }>({ id: recheckId, state: START })
   useEffect(() => {
     if (recheckId === undefined) return
+    const release = holdRecheckStream(recheckId)
     const source = connect(recheckOutputUrl(recheckId))
     for (const type of ['started', 'chunk', 'finished', 'lagged', 'end']) {
       source.addEventListener(type, (event) => {
@@ -75,12 +77,12 @@ export function useRecheckOutput(
         setHeld((previous) => ({
           id: recheckId, state: foldFrame(previous.id === recheckId ? previous.state : START, type, data),
         }))
-        if (type === 'finished' || type === 'end') invalidateRuns(queryClient)
+        if (type === 'finished' || type === 'end') invalidateRecheck(queryClient, workflowId, recheckId)
         // An ended batch answers `end` once; closing keeps EventSource from reconnecting to it.
         if (type === 'end') source.close()
       })
     }
-    return () => { source.close() }
-  }, [recheckId, queryClient, connect])
+    return () => { source.close(); release() }
+  }, [recheckId, workflowId, queryClient, connect])
   return held.id === recheckId ? held.state : START
 }

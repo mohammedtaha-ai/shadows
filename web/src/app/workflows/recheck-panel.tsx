@@ -43,7 +43,7 @@ export function RecheckPanel({ workflowId, onClose }: { workflowId: string; onCl
   const { data: last } = useQuery(lastRecheckQuery(workflowId))
   const recheckId = last?.recheck_id
   const rows = useQuery({ ...recheckRowsQuery(recheckId ?? ''), enabled: recheckId !== undefined })
-  const output = useRecheckOutput(recheckId)
+  const output = useRecheckOutput(recheckId, workflowId)
   const [picked, setPicked] = useState<{ recheck: string; key: string } | null>(null)
   const scroller = useRef<HTMLPreElement>(null)
 

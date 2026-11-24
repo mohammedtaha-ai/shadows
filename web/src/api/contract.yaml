@@ -246,8 +246,10 @@ design:
   approveRoadmapProposal: "(projectId: string, proposalId: string, commandId: string) ->
       Promise<DesignChange>"
   RecheckNotice: "type; generated RecheckNotice, and RecheckFailure beside it, exported from runs.ts"
-  lastRecheckQuery: "(workflowId: string) -> queryOptions<LastRecheck | null>; GET /workflows/{workflow}/recheck, read again every 5 s while counts.unfinished > 0"
+  lastRecheckQuery: "(workflowId: string) -> queryOptions<LastRecheck | null>; GET /workflows/{workflow}/recheck, read again every 5 s while counts.unfinished > 0 and no output stream holds the batch (holdRecheckStream)"
   recheckProject: "(workflowId: string, commandId: string) -> Promise<ProjectRecheck>; POST /workflows/{workflow}/recheck with { command_id }"
+  holdRecheckStream: "(recheckId: string) -> () => void; marks the batch's output stream held so lastRecheckQuery stops its interval; the returned function releases it"
+  invalidateRecheck: "(queryClient, workflowId, recheckId) -> void; invalidates only that workflow's recheck key and that batch's rows key"
   recheckRowsQuery: "(recheckId: string) -> queryOptions<RecheckRow[]>; GET /rechecks/{recheck}, the batch rows in Core order with stored output; refetched when the stream reports a finished row"
   recheckOutputUrl: "(recheckId: string) -> string; the address of GET /rechecks/{recheck}/output, opened only by stream/recheck-output.ts"
   acceptDecision: "(projectId: string, decisionId: string, version: number, commandId: string) ->
@@ -314,7 +316,7 @@ query_keys:
       'outcome', outcomeId]"
   outcomesQuery: "(projectId: string, parent?: string, after?: string) -> queryOptions"
   partsQuery: "(projectId: string, parent?: string, after?: string) -> queryOptions"
-  connectionsQuery: "global connection metadata; polled while mounted"
+  connectionsQuery: "global connection metadata; read on mount; an issue or revoke invalidates it"
   codeLinksQuery: "(projectId: string) -> queryOptions; ['projects', id, 'code', 'links']"
   codeServersQuery: "(projectId) -> options; ['projects', id, 'code', 'servers']"
   dirsQuery: "(path: string | null) -> queryOptions; ['fs', 'dirs', path]; retry false"

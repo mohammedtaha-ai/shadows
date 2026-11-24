@@ -388,7 +388,7 @@ obligations:
       the project with one command id per click. The line Last project recheck HH:MM with Core's passed, failed
       and not-run counts (failed in the danger colour only above 0) sits beside the progress block, and is absent
       when the project had no recheck. While the newest batch counts rows unfinished the button reads Rechecking…
-      in its place, as Rechecking… N of M rows finished, and the page reads again every 5 s.
+      in its place, as Rechecking… N of M rows finished, and the page reads again every 5 s unless the open panel streams the batch.
     tested_by: the_terminal_icon_toggles_the_panel_beside_the_last_result, a_started_recheck_tells_the_page_to_open_the_panel, idle_with_a_last_result_shows_the_counts_and_the_button, no_failures_leaves_the_failed_count_out, no_result_shows_the_button_and_no_line, running_replaces_the_button_and_reads_again_every_5_seconds, a_click_posts_once_with_a_command_id (recheck-control.test.tsx)
 
   - rule: >

@@ -36,7 +36,7 @@ it('the_hook_reads_frames_and_closes_on_end', async () => {
   let closed = 0
   const source: OutputSource = { addEventListener: (type, fn) => { listeners.set(type, fn) }, close: () => { closed += 1 } }
   const connect = () => source
-  function Probe() { return <p>{JSON.stringify(useRecheckOutput('r1', connect))}</p> }
+  function Probe() { return <p>{JSON.stringify(useRecheckOutput('r1', 'w1', connect))}</p> }
   const host = document.createElement('div')
   await act(async () => createRoot(host).render(
     <QueryClientProvider client={new QueryClient()}><Probe /></QueryClientProvider>))
@@ -49,4 +49,20 @@ it('the_hook_reads_frames_and_closes_on_end', async () => {
   await send('end', {})
   expect(host.textContent).toContain('"ended":true')
   expect(closed).toBeGreaterThan(0)
+})
+
+it('a_finished_frame_refreshes_only_that_batch_and_workflow', async () => {
+  const listeners = new Map<string, (event: Event) => void>()
+  const source: OutputSource = { addEventListener: (type, fn) => { listeners.set(type, fn) }, close: () => {} }
+  const client = new QueryClient()
+  const seed = (queryKey: string[]) => client.fetchQuery({ queryKey, queryFn: () => 1 })
+  await Promise.all([seed(['runs', 'recheck', 'w1']), seed(['runs', 'recheck-rows', 'r1']), seed(['runs', 'task', 'w1', '1', '1'])])
+  function Probe() { useRecheckOutput('r1', 'w1', () => source); return null }
+  await act(async () => createRoot(document.createElement('div')).render(
+    <QueryClientProvider client={client}><Probe /></QueryClientProvider>))
+  await act(async () => { listeners.get('finished')?.(new MessageEvent('finished', { data: JSON.stringify(row) })) })
+  const stale = (queryKey: string[]) => client.getQueryState(queryKey)?.isInvalidated
+  expect(stale(['runs', 'recheck', 'w1'])).toBe(true)
+  expect(stale(['runs', 'recheck-rows', 'r1'])).toBe(true)
+  expect(stale(['runs', 'task', 'w1', '1', '1'])).toBe(false)
 })
