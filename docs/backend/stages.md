@@ -238,3 +238,17 @@ The `testing8` live run is finished. Open: its findings (B-199), and B-200 to B-
   during B-198's run and was not examined then.
 - Change: run it, find whether the test or the catalog is wrong, fix that. Root cause first.
 - Done when: the test passes signed in.
+
+### B-206 · The plan page can read the project's last recheck
+
+- Status: todo. For F-137 (the person's "Recheck project" button). Decided by Mohammed on
+  2026-11-24.
+- Owner: [executors design, "A project recheck runs when a plan is complete, or when
+  asked"](specs/2026-11-08-executors-design.md).
+- Change: one Runs read and one route, `GET /api/workflows/{workflow}/recheck`: the project's
+  newest recheck batch (the workflow names the project), or none. It answers the batch id, what
+  began it (a completing mark with plan title and task, the person, or a Planner), created and
+  finished times, and counts of its rows by outcome (passed, failed, timed out, inconclusive,
+  not run, not finished yet). Regenerate `api/openapi.json`; update the core-runs contract.
+- Done when: a test reads none, then a running batch with unfinished rows, then the finished
+  batch's counts; `cargo test -p shadows --test openapi` passes.

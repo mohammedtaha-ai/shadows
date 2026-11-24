@@ -5,8 +5,31 @@ here and set its status. Task shape: [`AGENTS.md`](./AGENTS.md#a-task-in-stagesm
 
 ## Now
 
-Nothing is open on the web. The project's state view, its ER diagram and screen flow, and
-`code_where` in the web (F-130 to F-136) are on `main` in PR #75 (`4d69977d`).
+F-137 is open on `feature/after-75`. The project's state view, its ER diagram and screen flow,
+and `code_where` in the web (F-130 to F-136) are on `main` in PR #75 (`4d69977d`).
+
+### F-137 · The person rechecks the project from the plan page
+- Status: todo
+- Plan: none. Mockup agreed with Mohammed on 2026-11-24: in the plan page header, the button
+  row reads "Show phases · Versions · Continue this plan · Recheck project · Archive"; a line
+  between the progress bar and the button row reads "Last project recheck HH:MM" with passed,
+  failed and not-run counts (failed in danger color, shown only when above 0), or nothing when
+  there was none; while a batch has unfinished rows the button's place reads "Rechecking…"
+  with no button, and the page reads again every 5 s until it finishes. In the Planner's
+  conversation the recheck card shows an all-passed notice (empty failed list) as a success
+  card titled "Project recheck passed" with its body text.
+- Read: `docs/backend/stages.md` B-200 and B-206; `POST /api/workflows/{workflow}/recheck` and
+  `GET /api/workflows/{workflow}/recheck` in `api/openapi.json`; `web/src/app/workflows/plan-page.tsx`;
+  `web/src/app/conversation/recheck-notice.tsx`; `web/src/api/runs.ts`.
+- Touch: `web/src/api/schema.d.ts` (generated), `web/src/api/runs.ts`, `web/src/api/contract.yaml`,
+  `web/src/app/workflows/plan-page.tsx`, a new `web/src/app/workflows/recheck-control.tsx` and its
+  test, `web/src/app/workflows/contract.yaml`, `web/src/app/conversation/recheck-notice.tsx`,
+  `recheck-notice.test.tsx`, `web/src/app/conversation/contract.yaml`, the code map row.
+- Needs: B-206.
+- Done when: `npx vitest run src/app/workflows/recheck-control.test.tsx
+  src/app/conversation/recheck-notice.test.tsx` passes (idle with last result, no result,
+  running state, a click posts once with a command id, the all-passed card), then the task
+  checks in "Now".
 
 Every task's checks run from `web/`: the tests it names, then `npm run typecheck`, `npm run lint`,
 `npm run build` and `npx vitest run src/codemap.test.ts src/architecture`.
