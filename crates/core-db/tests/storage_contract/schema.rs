@@ -4,8 +4,13 @@ use core_db::Storage;
 
 #[tokio::test]
 async fn fresh_database_migrates_and_applies_the_connection_policy() {
+    // A folder name that reads as percent-encoding is opened as written: beside it, the
+    // decoded name must stay empty.
     let tmp = tempfile::tempdir().unwrap();
-    let db = tmp.path().join("shadows.sqlite3");
+    let (literal, decoded) = (tmp.path().join("team%20A"), tmp.path().join("team A"));
+    std::fs::create_dir(&literal).unwrap();
+    std::fs::create_dir(&decoded).unwrap();
+    let db = literal.join("shadows.sqlite3");
     let storage = Storage::open(&db).await.expect("open should succeed");
 
     let journal: String = sqlx::query_scalar("PRAGMA journal_mode")
@@ -143,6 +148,12 @@ async fn fresh_database_migrates_and_applies_the_connection_policy() {
     );
 
     storage.close().await.unwrap();
+    assert!(db.is_file(), "the database is at the path asked for");
+    assert_eq!(
+        std::fs::read_dir(&decoded).unwrap().count(),
+        0,
+        "nothing in the decoded path"
+    );
 }
 
 #[test]

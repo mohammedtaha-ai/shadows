@@ -339,7 +339,7 @@ Plan: [backend review fixes](plans/2026-11-25-backend-review-fixes.md); each ent
 
 ### B-213 · The database opens its literal filename
 
-- Status: todo. Plan task 3.
+- Status: done (2026-11-25). Plan task 3. `Storage::open` uses `SqliteConnectOptions::filename`. The plan's Unix non-UTF-8 case is not added: the product runs on Windows and the check would only run on CI's Linux.
 
 ### B-214 · A failed recheck worker ends its batch
 

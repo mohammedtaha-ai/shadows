@@ -1,7 +1,6 @@
 //! Shared SQLite lifetime and serialized persistence.
 
 use std::path::Path;
-use std::str::FromStr;
 use std::time::Duration;
 
 use futures_core::future::BoxFuture;
@@ -64,9 +63,9 @@ impl Storage {
     }
 
     pub async fn open(db_path: &Path) -> Result<Self, StorageError> {
-        let url = format!("sqlite://{}", db_path.to_string_lossy().replace('\\', "/"));
-        let opts = SqliteConnectOptions::from_str(&url)
-            .map_err(|e| StorageError::Unavailable(e.to_string()))?
+        // The path as given: a URL would percent-decode it and stop at a `?`.
+        let opts = SqliteConnectOptions::new()
+            .filename(db_path)
             .create_if_missing(true)
             .foreign_keys(true)
             .journal_mode(SqliteJournalMode::Wal)
