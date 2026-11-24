@@ -729,6 +729,7 @@ dependencies = [
  "core-operations",
  "core-plans",
  "core-projects",
+ "core-runtime",
  "core-threads",
  "core-turns",
  "serde",

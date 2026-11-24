@@ -277,7 +277,7 @@ The `testing8` live run is finished. Open: its findings (B-199), B-200 to B-205,
 
 ### B-208 · The project stream says when a planning thread's list changes
 
-- Status: open. Decided by Mohammed on 2026-11-24 (polling to SSE; Hamoud's proposal, agreed with
+- Status: done (2026-11-24). Decided by Mohammed on 2026-11-24 (polling to SSE; Hamoud's proposal, agreed with
   Masada). For F-d, which drops the 10 s polls of `threadsQuery` and `agentThreadsQuery`.
 - Owner: [project plans design, "How the pages stay current"](../core/specs/2026-10-01-project-plans-design.md);
   amend it in place: the project tail also carries what changes a project's thread list.

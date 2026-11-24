@@ -3,7 +3,7 @@ use sqlx::SqliteConnection;
 use crate::OperationId;
 use core_db::StorageError;
 use core_db::{Actor, JournalEntry};
-use core_threads::ThreadId;
+use core_threads::{ThreadId, Threads};
 
 pub(crate) struct Before {
     status: String,
@@ -76,6 +76,13 @@ impl Transition {
 }
 
 impl Transition {
+    const ENDS: [&'static str; 4] = [
+        "OperationCompleted",
+        "OperationFailed",
+        "OperationCancelled",
+        "OperationInterrupted",
+    ];
+
     pub(crate) async fn record(
         conn: &mut SqliteConnection,
         op_id: &OperationId,
@@ -87,6 +94,14 @@ impl Transition {
         event.operation_id = Some(op_id.as_str().to_owned());
         if let Some(thread) = &before.thread {
             event.thread_id = Some(thread.as_str().to_owned());
+            // A turn's end changes its thread's row in the project's thread list.
+            if Self::ENDS.contains(&event.kind.as_str()) {
+                match Threads::project_in(conn, thread).await {
+                    Ok(project) => event.project_id = Some(project.as_str().to_owned()),
+                    Err(StorageError::NotFound(_)) => {}
+                    Err(error) => return Err(error),
+                }
+            }
         }
         // The row is already written in this transaction, so the flag reflects this event.
         let cancel_requested: bool = sqlx::query_scalar(

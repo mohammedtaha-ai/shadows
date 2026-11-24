@@ -168,7 +168,9 @@ functions:
       # PlanArchived, PlanUnarchived, ProjectDesignChanged, PlanDependenciesChanged,
       # ProjectLinked, ProjectUnlinked, ProjectRemoved, AgreementChanged,
       # ProjectStandardsSaved, TaskExecutorChosen, DesignElementChanged, CodeRecordChanged,
-      # TaskProgressChanged. An executor choice event carries
+      # TaskProgressChanged, ThreadRetitled, ThreadRemoved, OperationCompleted,
+      # OperationFailed, OperationCancelled, OperationInterrupted (the thread list's
+      # changes; payloads unchanged). An executor choice event carries
       # project_id, plan_id, and task. Standards payload is the saved number only.
       # Design payload is project_id/revision/changed_parts/changed_outcomes/vision_changed;
       # no content. Dependency/reach payloads retain the journal notification;

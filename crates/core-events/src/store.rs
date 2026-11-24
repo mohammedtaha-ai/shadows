@@ -75,7 +75,7 @@ impl EventsStore {
             .collect()
     }
 
-    /// A project's plan/design event tail. Only identifiers are projected for client
+    /// A project's plan/design event tail, and what changes its thread list. Only identifiers are projected for client
     /// invalidation; plan content and edit details never enter this stream.
     /// Archive events name a plan, so they name its latest version to refetch.
     pub async fn read_project_events_after(
@@ -98,7 +98,9 @@ impl EventsStore {
                                'RoadmapApproved', 'DecisionProposed', 'DecisionAccepted',
                                'PermissionsChanged',
                                'MessageAdded', 'DesignElementChanged', 'CodeRecordChanged',
-                               'TaskProgressChanged')
+                               'TaskProgressChanged', 'ThreadRetitled', 'ThreadRemoved',
+                               'OperationCompleted', 'OperationFailed',
+                               'OperationCancelled', 'OperationInterrupted')
               ORDER BY e.seq LIMIT ?",
         )
         .bind(project.as_str())
