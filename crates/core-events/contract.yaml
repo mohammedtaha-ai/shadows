@@ -2,6 +2,8 @@
 # Thread identities and transaction methods are imported from core-threads.
 # Project identities and registration methods are imported from core-projects.
 # Database infrastructure: core-db; domain rules and private stores remain here.
+# core-runtime is a dev-dependency only: the tests register a runtime instance
+# so an operation can end; the service itself never calls it.
 # Owns what clients watch live (spec §2.10, §14.4): one subscriber's stream
 # over one thread — the durable journal after the client's `after`, then
 # `CaughtUp`, then live — and reading the journal back (`store.rs`).

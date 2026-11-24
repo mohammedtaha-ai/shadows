@@ -699,7 +699,10 @@ fn extracted_events_depends_only_on_declared_lower_owners() {
                         "core-projects",
                         "core-threads",
                         "core-turns",
-                        "core-events"
+                        "core-events",
+                        // Below operations; the tests register a runtime instance
+                        // to end a turn.
+                        "core-runtime"
                     ]
                     .contains(&name)),
             "events must depend only on lower owners and infrastructure: {name}"
