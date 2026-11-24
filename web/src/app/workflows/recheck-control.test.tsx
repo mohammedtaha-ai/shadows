@@ -61,14 +61,14 @@ it('no_result_shows_the_button_and_no_line', async () => {
   expect(host.querySelector('button')?.textContent).toBe('Recheck project')
 })
 
-it('running_replaces_the_button_and_reads_again_every_5_seconds', async () => {
+it('running_replaces_the_button_and_is_not_polled', async () => {
   vi.useFakeTimers({ shouldAdvanceTime: true })
   const { host, gets } = await draw(last({ unfinished: 2 }, { finished_at: null }))
   expect(host.textContent).toContain('Rechecking… 0 of 2')
   expect(host.querySelector('button')).toBeNull()
   const before = gets()
   await act(async () => { await vi.advanceTimersByTimeAsync(5100) })
-  expect(gets()).toBeGreaterThan(before)
+  expect(gets()).toBe(before)
 })
 
 it('a_click_posts_once_with_a_command_id', async () => {

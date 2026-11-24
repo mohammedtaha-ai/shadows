@@ -75,31 +75,13 @@ export function attemptDiffQuery(attemptId: string) {
   return queryOptions({ queryKey: runKeys.diff(attemptId), queryFn: () => getAttemptDiff(attemptId) })
 }
 
-const streamed = new Map<string, number>()
-
-/** Marks a batch's output stream as held, so its newest-batch read stops its 5 s interval: the stream
- * already tells the page when a row or the batch finishes. Returns the release. */
-export function holdRecheckStream(recheckId: string): () => void {
-  streamed.set(recheckId, (streamed.get(recheckId) ?? 0) + 1)
-  return () => {
-    const left = (streamed.get(recheckId) ?? 1) - 1
-    if (left > 0) streamed.set(recheckId, left)
-    else streamed.delete(recheckId)
-  }
-}
-
-/** The project's newest recheck batch, or null when it has had none. Read every 5 s while Core counts
- * rows unfinished and no output stream holds the batch. */
+/** The project's newest recheck batch, or null when it has had none; RecheckStarted and RecheckFinished on the
+ * project stream refresh it. */
 export function lastRecheckQuery(workflowId: string) {
   return queryOptions({
     queryKey: runKeys.recheck(workflowId),
     queryFn: () => unwrap(client.GET('/api/workflows/{workflow}/recheck', { params: { path: { workflow: workflowId } } })),
     retry: retryLost,
-    refetchInterval: (query) => {
-      const last = query.state.data
-      if (last == null || last.counts.unfinished === 0 || streamed.has(last.recheck_id)) return false
-      return 5000
-    },
   })
 }
 
@@ -173,7 +155,6 @@ export function invalidateRuns(queryClient: QueryClient): void {
   void queryClient.invalidateQueries({ queryKey: runKeys.all() })
 }
 
-/** A finished row or batch refreshes that workflow's newest-batch read and that batch's rows, nothing else. */
 /** One task's run and attempt list, as TaskProgressChanged names them. */
 export function invalidateTaskRun(queryClient: QueryClient, workflowId: string, version: number, task: number): void {
   void queryClient.invalidateQueries({ queryKey: runKeys.task(workflowId, version, task) })
@@ -186,6 +167,7 @@ export function invalidateAttemptReads(queryClient: QueryClient, attemptId: stri
   void queryClient.invalidateQueries({ queryKey: runKeys.conflict(attemptId) })
 }
 
+/** A finished row, a batch's start or its end refreshes that workflow's newest-batch read and that batch's rows, nothing else. */
 export function invalidateRecheck(queryClient: QueryClient, workflowId: string, recheckId: string): void {
   void queryClient.invalidateQueries({ queryKey: runKeys.recheck(workflowId) })
   void queryClient.invalidateQueries({ queryKey: runKeys.recheckRows(recheckId) })

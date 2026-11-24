@@ -170,7 +170,7 @@ changes) and B-210 (RecheckStarted and RecheckFinished on the project tail). The
   neither query has an interval.
 
 ### F-144 · The last recheck follows the stream
-- Status: todo
+- Status: done
 - Plan: none (the section above). After B-210, `lastRecheckQuery` has no interval at all;
   RecheckStarted and RecheckFinished refresh it.
 - Read: B-210 in `docs/backend/stages.md`, `web/src/stream/refresh.ts`, `lastRecheckQuery` in `web/src/api/runs.ts`.

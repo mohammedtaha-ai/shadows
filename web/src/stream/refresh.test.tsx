@@ -12,7 +12,7 @@ import { useThreadStream } from './use-thread-stream'
 import { waitingPermissionsQuery } from '@/api/permissions'
 import { threadKeys } from '@/api/threads'
 import { designKeys } from '@/api/design'
-import { attemptChecksQuery, attemptConflictQuery, attemptsQuery, taskRunQuery } from '@/api/runs'
+import { attemptChecksQuery, attemptConflictQuery, attemptsQuery, lastRecheckQuery, recheckRowsQuery, taskRunQuery } from '@/api/runs'
 import { planProgressQuery } from '@/api/workflows'
 import { elementRevisionsQuery, elementsQuery, projectStateQuery } from '@/api/project-state'
 
@@ -298,6 +298,20 @@ it('task_progress_refreshes_the_checks_and_conflict_of_its_attempt_and_no_other'
   dispatchRefresh(client, classifyRefresh({
     kind: 'TaskProgressChanged', seq: 1, threadId: null, operationId: null, projectId: 'p1',
     payload: { project_id: 'p1', workflow_id: 'w1', version: 1, task: 2, attempt_id: 'a1' },
+  }))
+  expect(mine.map(key => client.getQueryState(key)?.isInvalidated)).toEqual([true, true])
+  expect(others.map(key => client.getQueryState(key)?.isInvalidated)).toEqual([false, false])
+  client.clear()
+})
+
+it.each(['RecheckStarted', 'RecheckFinished'])('%s_refreshes_that_workflows_recheck_and_that_batchs_rows_and_no_other', kind => {
+  const client = new QueryClient()
+  const mine = [lastRecheckQuery('w1').queryKey, recheckRowsQuery('r1').queryKey]
+  const others = [lastRecheckQuery('w2').queryKey, recheckRowsQuery('r2').queryKey]
+  for (const queryKey of [...mine, ...others]) client.getQueryCache().build(client, { queryKey })
+  dispatchRefresh(client, classifyRefresh({
+    kind, seq: 1, threadId: null, operationId: null, projectId: 'p1',
+    payload: { project_id: 'p1', workflow_id: 'w1', recheck_id: 'r1' },
   }))
   expect(mine.map(key => client.getQueryState(key)?.isInvalidated)).toEqual([true, true])
   expect(others.map(key => client.getQueryState(key)?.isInvalidated)).toEqual([false, false])

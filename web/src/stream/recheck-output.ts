@@ -3,7 +3,7 @@
 
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
-import { holdRecheckStream, invalidateRecheck, recheckOutputUrl } from '@/api/runs'
+import { invalidateRecheck, recheckOutputUrl } from '@/api/runs'
 
 export interface RecheckOutput {
   /** Text printed so far, by `rowKey`; only rows this connection saw start. */
@@ -57,7 +57,7 @@ export interface OutputSource {
 const open = (url: string): OutputSource => new EventSource(url)
 
 /** Follows a batch's output while mounted. Each finished row and the end refetch what Core stores
- * for that workflow and batch only; while it follows, the page does not poll the batch. */
+ * for that workflow and batch only. */
 export function useRecheckOutput(
   recheckId: string | undefined,
   workflowId: string,
@@ -68,7 +68,6 @@ export function useRecheckOutput(
   const [held, setHeld] = useState<{ id: string | undefined; state: RecheckOutput }>({ id: recheckId, state: START })
   useEffect(() => {
     if (recheckId === undefined) return
-    const release = holdRecheckStream(recheckId)
     const source = connect(recheckOutputUrl(recheckId))
     for (const type of ['started', 'chunk', 'finished', 'lagged', 'end']) {
       source.addEventListener(type, (event) => {
@@ -82,9 +81,7 @@ export function useRecheckOutput(
         if (type === 'end') source.close()
       })
     }
-    // TanStack evaluates the batch read's interval only after a fetch, and it said "no poll" while
-    // held; refreshing that read on release lets an unfinished batch's 5 s poll resume.
-    return () => { source.close(); release(); invalidateRecheck(queryClient, workflowId, recheckId) }
+    return () => source.close()
   }, [recheckId, workflowId, queryClient, connect])
   return held.id === recheckId ? held.state : START
 }
