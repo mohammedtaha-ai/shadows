@@ -752,8 +752,10 @@ agent_reply_cards: readAgentNotice exposes generated AgentReplyNotice beside the
 
 recheck_output:
   owner: recheck-output.ts
-  rule: "useRecheckOutput holds one EventSource on a project recheck batch's output while mounted and folds started, chunk, finished, lagged and end frames into the text each row has printed (keyed by rowKey: task, attempt id, check id). A reconnect's started restarts that row's text, because Core resends the output so far. While mounted it holds the batch (holdRecheckStream), so the newest-batch read does not poll. A finished row and the end invalidate only that workflow's recheck key and that batch's rows key (invalidateRecheck), so the stored rows and counts follow; other runs queries stay fresh. useRecheckOutput takes (recheckId, workflowId, connect). The end closes the source, so EventSource does not reconnect to a finished batch."
+  rule: "useRecheckOutput holds one EventSource on a project recheck batch's output while mounted and folds started, chunk, finished, lagged and end frames into the text each row has printed (keyed by rowKey: task, attempt id, check id). A reconnect's started restarts that row's text, because Core resends the output so far. While mounted it holds the batch (holdRecheckStream), so the newest-batch read does not poll; releasing it (unmount or a new batch) invalidates the same keys, because TanStack re-evaluates the interval only after a fetch and an unfinished batch's poll must resume. A finished row and the end invalidate only that workflow's recheck key and that batch's rows key (invalidateRecheck), so the stored rows and counts follow; other runs queries stay fresh. useRecheckOutput takes (recheckId, workflowId, connect). The end closes the source, so EventSource does not reconnect to a finished batch."
   tested_by:
     - chunks_append_to_the_started_row_and_a_new_start_restarts_it
     - finished_clears_the_running_row_and_end_closes_the_batch
     - the_hook_reads_frames_and_closes_on_end
+    - a_finished_frame_refreshes_only_that_batch_and_workflow
+    - unmounting_the_hook_refreshes_the_workflows_recheck_read

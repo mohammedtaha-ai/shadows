@@ -82,7 +82,9 @@ export function useRecheckOutput(
         if (type === 'end') source.close()
       })
     }
-    return () => { source.close(); release() }
+    // TanStack evaluates the batch read's interval only after a fetch, and it said "no poll" while
+    // held; refreshing that read on release lets an unfinished batch's 5 s poll resume.
+    return () => { source.close(); release(); invalidateRecheck(queryClient, workflowId, recheckId) }
   }, [recheckId, workflowId, queryClient, connect])
   return held.id === recheckId ? held.state : START
 }

@@ -66,3 +66,17 @@ it('a_finished_frame_refreshes_only_that_batch_and_workflow', async () => {
   expect(stale(['runs', 'recheck-rows', 'r1'])).toBe(true)
   expect(stale(['runs', 'task', 'w1', '1', '1'])).toBe(false)
 })
+
+it('unmounting_the_hook_refreshes_the_workflows_recheck_read', async () => {
+  const source: OutputSource = { addEventListener: () => {}, close: () => {} }
+  const client = new QueryClient()
+  const seed = (queryKey: string[]) => client.fetchQuery({ queryKey, queryFn: () => 1 })
+  const stale = (queryKey: string[]) => client.getQueryState(queryKey)?.isInvalidated
+  await seed(['runs', 'recheck', 'w1'])
+  function Probe() { useRecheckOutput('r1', 'w1', () => source); return null }
+  const root = createRoot(document.createElement('div'))
+  await act(async () => root.render(<QueryClientProvider client={client}><Probe /></QueryClientProvider>))
+  expect(stale(['runs', 'recheck', 'w1'])).toBe(false)
+  await act(async () => root.unmount())
+  expect(stale(['runs', 'recheck', 'w1'])).toBe(true)
+})
