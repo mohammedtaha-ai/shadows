@@ -57,6 +57,49 @@ T2's, which completed the plan, started one (15:06:42 to 15:12:13: 30 passed, 6 
 rename tests fail with "Access is denied" inside the sandbox; Shadows' own checks passed them.
 The Planner waited for a recheck message that a mark-started recheck with no failure never sends.
 
+## The person's recheck on the plan page (2026-11-24)
+
+Same daemon and plan ("Water CLI reset-today"), web on `vite` at 5173. Each row is one recheck
+started by the person, rebuilt and restarted before it. Times UTC.
+
+| Built at | Started | Finished | Result | What was seen |
+|---|---|---|---|---|
+| B-206 `89995c61`, F-137 `41926e85` | 16:06:21 | 16:12:04 | 30 passed, 6 `not_run` | The line read the earlier batch (30 passed, 6 not run), the button gave way to "Rechecking…", and the page updated itself when the batch finished |
+| B-207 `0389c34b`, F-138 `47acbc1d` | 16:47:40 | 16:53 | 30 passed, 6 `not_run` | The panel opened on the click, rows turned passed one by one, a finished row showed pytest's output as in a terminal; `contract` rows print nothing |
+| B-208 to B-210, F-139 to F-144 (`578f909b`) | 19:59:10 | 20:05:06 | 30 passed, 6 `not_run` | The button and line updated from the project stream; no read polled while the batch ran |
+
+The 6 `not_run` are the Python `contract` checks: pyright is not installed.
+
+**Requests from the plan page.** Before the polling work, an idle plan page read `/api/projects`
+and the project's threads every 10 s each, and `/recheck` every 5 s while a batch ran; the tab,
+open since 14:22, had sent thousands. After `578f909b`, with the project and thread streams open:
+
+| Plan page | Window | Requests to the daemon |
+|---|---|---|
+| Idle | 54 s | 0 |
+| Recheck running, panel open | 420 s | `/recheck` 43, `/rechecks/{id}` 42, `/rechecks/{id}/output` 2: about one of each per finished check; the rest (2 each) were the page's own refetch when the pane was shown |
+
+Timers ran at their normal rate in the hidden pane (10 ticks of 500 ms in 5 s), so the 0 is not
+throttling. On the task page, each full refetch (`/api/me` included) followed a
+`visibilitychange` from the app's pane being shown and hidden: React Query's refetch on focus,
+not polling.
+
+**Defects found while trying it, fixed on the branch:**
+
+- The all-passed recheck card showed no body: `notice-item.tsx` did not pass it (`224713f5`).
+- A batch the person asked for with a failing check and no Planner thread to tell never
+  finished: `end_recheck` returned early on `Unavailable`, so "Rechecking…" would never end
+  (`18454d14`, found by B-207's builder).
+- With the panel open the whole app scrolled up and left a black band: each row's hidden state
+  label was placed against `main`, ending at y=1447 (`dba10814`); in a window under about 470 px
+  the fixed-height panel overflowed (`d6cd1ea2`). Checked live at 400 and 682 px: no scroll.
+- `cargo test -p shadows-core --test contracts` failed on `Only::over` in the codebase contract
+  and an unquoted colon in the harness contract, both written earlier on the branch (`45924006`).
+
+**Observed, not fixed:** `GET /api/harnesses/codex/catalog` answered 502 at 20:10 UTC
+(`Codex: workspace routing discovery timed out`). Drive E filled to 100% during a test build;
+22 older test-binary copies were deleted and Mohammed freed space.
+
 ## Shadows defects found and fixed on the branch
 
 - **Unnoted changes asked about files the Planner never wrote** (B-197, `ac7d1e3d`). Before:
