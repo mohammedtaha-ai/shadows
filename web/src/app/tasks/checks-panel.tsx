@@ -5,8 +5,8 @@ import { CheckRow } from '../check-row'
 import { ErrorLine } from '../error-line'
 
 /** The executor's report and Shadows' confirmation stay separate, as Core records them. */
-export function ChecksPanel({ attemptId, watch }: { attemptId: string; watch: boolean }) {
-  const checks = useQuery(attemptChecksQuery(attemptId, watch))
+export function ChecksPanel({ attemptId }: { attemptId: string }) {
+  const checks = useQuery(attemptChecksQuery(attemptId))
   return <section aria-label="Checks" className="space-y-2 border-t border-border pt-3">
     <h3 className="text-sm font-semibold">Checks</h3>
     {checks.data !== undefined ? (checks.data.length === 0

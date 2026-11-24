@@ -108,7 +108,7 @@ export function recheckProject(workflowId: string, commandId: string) {
 }
 
 /** An attempt's check results; TaskProgressChanged on the project stream refreshes them. */
-export function attemptChecksQuery(id: string, _watched?: boolean) {
+export function attemptChecksQuery(id: string) {
   return queryOptions({
     queryKey: runKeys.checks(id),
     queryFn: () => unwrap(client.GET('/api/attempts/{id}/checks', { params: { path: { id } } })),
