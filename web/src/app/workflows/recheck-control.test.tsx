@@ -64,7 +64,7 @@ it('no_result_shows_the_button_and_no_line', async () => {
 it('running_replaces_the_button_and_reads_again_every_5_seconds', async () => {
   vi.useFakeTimers({ shouldAdvanceTime: true })
   const { host, gets } = await draw(last({ unfinished: 2 }, { finished_at: null }))
-  expect(host.textContent).toContain('Rechecking…')
+  expect(host.textContent).toContain('Rechecking… 0 of 2')
   expect(host.querySelector('button')).toBeNull()
   const before = gets()
   await act(async () => { await vi.advanceTimersByTimeAsync(5100) })
@@ -77,4 +77,30 @@ it('a_click_posts_once_with_a_command_id', async () => {
   await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)) })
   expect(posts).toHaveLength(1)
   expect((posts[0] as { command_id: string }).command_id).toMatch(/^[0-9a-f-]{36}$/)
+})
+
+async function mount(node: React.ReactNode) {
+  const host = document.createElement('div')
+  document.body.append(host)
+  await act(async () => createRoot(host).render(<QueryClientProvider client={new QueryClient()}>{node}</QueryClientProvider>))
+  await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)) })
+  return host
+}
+
+it('the_terminal_icon_toggles_the_panel_beside_the_last_result', async () => {
+  vi.stubGlobal('fetch', async () => Response.json(last({ passed: 1 })))
+  const toggled = vi.fn()
+  const host = await mount(<RecheckLine workflowId="w1" onToggle={toggled} />)
+  await act(async () => { host.querySelector('button')?.click() })
+  expect(toggled).toHaveBeenCalledOnce()
+})
+
+it('a_started_recheck_tells_the_page_to_open_the_panel', async () => {
+  const started = vi.fn()
+  vi.stubGlobal('fetch', async (request: Request) =>
+    request.method === 'POST' ? Response.json({ recheck_id: 'r2' }, { status: 202 }) : Response.json(null))
+  const host = await mount(<RecheckControl workflowId="w1" onStarted={started} />)
+  await act(async () => { host.querySelector('button')?.click() })
+  await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)) })
+  expect(started).toHaveBeenCalledOnce()
 })

@@ -749,3 +749,11 @@ refresh_policy:
 background_tasks: "The tasks frame replaces the open session's list, including between turns. A disconnect clears it; the next caught-up is followed by the current nonempty snapshot."
 
 agent_reply_cards: readAgentNotice exposes generated AgentReplyNotice beside the existing AttemptNotice parser, rejecting malformed reply fields. Entry authorship still decides whether content is a notice.
+
+recheck_output:
+  owner: recheck-output.ts
+  rule: "useRecheckOutput holds one EventSource on a project recheck batch's output while mounted and folds started, chunk, finished, lagged and end frames into the text each row has printed (keyed by rowKey: task, attempt id, check id). A reconnect's started restarts that row's text, because Core resends the output so far. A finished row and the end invalidate the runs queries, so the stored rows and counts follow. The end closes the source, so EventSource does not reconnect to a finished batch."
+  tested_by:
+    - chunks_append_to_the_started_row_and_a_new_start_restarts_it
+    - finished_clears_the_running_row_and_end_closes_the_batch
+    - the_hook_reads_frames_and_closes_on_end

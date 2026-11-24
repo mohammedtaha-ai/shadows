@@ -20,6 +20,7 @@ import { ErrorLine } from '../error-line'
 import { ApproveBar } from './approve-bar'
 import { TaskView } from './task-view'
 import { RecheckControl, RecheckLine } from './recheck-control'
+import { RecheckPanel } from './recheck-panel'
 import { PlanGraph } from './plan-graph'
 import { stateLabel } from './plan-state'
 import { usePlan } from './use-plan'
@@ -46,6 +47,7 @@ function PlanView({ projectId, workflowId, savedViewport, onViewportChange }: {
   const selected = search.selected ?? search.task
   const showPhases = search.phases === true
   const opened = search.task !== undefined || search.invalidTask === true
+  const [recheckOpen, setRecheckOpen] = useState(false)
   const taskButtons = useRef(new Map<number, HTMLButtonElement>())
   const wasOpen = useRef(opened)
   useEffect(() => {
@@ -75,6 +77,8 @@ function PlanView({ projectId, workflowId, savedViewport, onViewportChange }: {
   return (
     <div className="flex h-full min-h-0 flex-col bg-background">
       <Header plan={p} projectId={projectId} showPhases={showPhases}
+        recheckOpen={recheckOpen} onToggleRecheck={() => { setRecheckOpen(open => !open) }}
+        onRecheckStarted={() => { setRecheckOpen(true) }}
         onTogglePhases={opened ? undefined : () => { void navigate({ replace: true,
           search: previous => ({ ...previous, phases: showPhases ? undefined : true }),
         }) }} />
@@ -126,12 +130,14 @@ function PlanView({ projectId, workflowId, savedViewport, onViewportChange }: {
             </section>}
         </div>}
       </div>
+      {recheckOpen && <RecheckPanel workflowId={workflowId} onClose={() => { setRecheckOpen(false) }} />}
     </div>
   )
 }
 
-function Header({ plan, projectId, showPhases, onTogglePhases }: {
+function Header({ plan, projectId, showPhases, onTogglePhases, recheckOpen, onToggleRecheck, onRecheckStarted }: {
   plan: Plan; projectId: string; showPhases: boolean; onTogglePhases?: () => void
+  recheckOpen: boolean; onToggleRecheck: () => void; onRecheckStarted: () => void
 }) {
   const queryClient = useQueryClient()
   const { data: planVersions } = useQuery(planVersionsQuery(plan.plan_id))
@@ -201,7 +207,7 @@ function Header({ plan, projectId, showPhases, onTogglePhases }: {
       <div className="flex flex-wrap items-center gap-4">
         <div className="space-y-1.5">
           <PlanProgress plan={plan} projectId={projectId} />
-          <RecheckLine workflowId={plan.id} />
+          <RecheckLine workflowId={plan.id} open={recheckOpen} onToggle={onToggleRecheck} />
         </div>
         <div className="flex items-center gap-2">
           {onTogglePhases && <Button variant="outline" size="sm" onClick={onTogglePhases}
@@ -255,7 +261,7 @@ function Header({ plan, projectId, showPhases, onTogglePhases }: {
           >
             Continue this plan
           </Link>
-          <RecheckControl workflowId={plan.id} />
+          <RecheckControl workflowId={plan.id} onStarted={onRecheckStarted} />
           <Button
             variant="outline"
             size="sm"

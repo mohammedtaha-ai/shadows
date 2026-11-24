@@ -429,6 +429,7 @@ it is that folder's `contract.yaml`.
 | `web/src/app/workflows/plan-map.tsx` | Latest-plan map of a project | `web/src/app/workflows/contract.yaml` |
 | `web/src/app/workflows/plan-page.tsx` | Workflows page for one plan version | `web/src/app/workflows/contract.yaml` |
 | `web/src/app/workflows/recheck-control.tsx` | The plan header's project recheck: button, last-batch line, Rechecking… state | `web/src/app/workflows/contract.yaml` |
+| `web/src/app/workflows/recheck-panel.tsx` | The plan page's terminal panel for the newest recheck | `web/src/app/workflows/contract.yaml` |
 | `web/src/app/workflows/plan-state.ts` | How a plan version's state reads to a person | `web/src/app/workflows/contract.yaml` |
 | `web/src/app/workflows/task-node.tsx` | Draws one node of the plan graph | `web/src/app/workflows/contract.yaml` |
 | `web/src/app/workflows/task-view.tsx` | Show a task's phase graph | `web/src/app/workflows/contract.yaml` |
@@ -457,6 +458,7 @@ it is that folder's `contract.yaml`.
 | `web/src/stream/refresh.ts` | Refresh API-owned queries from stream events, once per shared stream | `web/src/stream/contract.yaml` |
 | `web/src/stream/use-plan-events.ts` | Hold writer-thread plan refresh | `web/src/stream/contract.yaml` |
 | `web/src/stream/use-project-events.ts` | Refetches project plan views on journal notices | `web/src/stream/contract.yaml` |
+| `web/src/stream/recheck-output.ts` | Holds one project recheck batch's live output stream | `web/src/stream/contract.yaml` |
 | `web/src/stream/use-thread-stream.ts` | Bind a registry subscription to a component | `web/src/stream/contract.yaml` |
 | `web/src/stream/index.ts` | Expose stream public capabilities | `web/src/stream/contract.yaml` |
 | `web/src/test/composer.ts` | Shared session-ready composer fixtures | `web/src/app/conversation/contract.yaml` |

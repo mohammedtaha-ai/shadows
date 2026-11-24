@@ -1461,6 +1461,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/rechecks/{recheck}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A recheck batch's rows in plan version, task and check order, each with its command,
+         *     outcome, times and stored output (none until the row finishes).
+         */
+        get: operations["recheck_rows"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/rechecks/{recheck}/output": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A recheck batch's output as its checks print it. */
+        get: operations["recheck_output"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/runtime": {
         parameters: {
             query?: never;
@@ -4196,6 +4233,24 @@ export interface components {
             failed: components["schemas"]["RecheckFailure"][];
             plan_id: components["schemas"]["PlanId"];
             recheck_id: string;
+        };
+        /** @description One row of a recheck batch: one check of one done task, as the person reads it. */
+        RecheckRow: {
+            attempt_id: components["schemas"]["AttemptId"];
+            check_id: string;
+            /** @description The check's command, its words joined by spaces; empty for the `contract` check. */
+            command: string;
+            finished_at: string | null;
+            outcome: null | components["schemas"]["CheckOutcome"];
+            /** @description The stored output, once the row finishes. */
+            output: string | null;
+            started_at: string | null;
+            /** Format: int32 */
+            task: number;
+            truncated: boolean;
+            /** Format: int64 */
+            version: number;
+            workflow_id: components["schemas"]["WorkflowId"];
         };
         /** @description The model and effort last chosen for this harness. */
         RememberedSettings: {
@@ -9706,6 +9761,95 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PlanListing"][];
+                };
+            };
+            /** @description STORAGE_UNAVAILABLE */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    recheck_rows: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The recheck batch */
+                recheck: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecheckRow"][];
+                };
+            };
+            /** @description no such recheck batch */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description STORAGE_UNAVAILABLE */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    recheck_output: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The recheck batch */
+                recheck: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /**
+             * @description Server-sent events of one recheck batch, live only: nothing is replayed after a reconnect but the running row's output so far. Each frame's `data:` is JSON.
+             *
+             *     - `started` — `{task, attempt_id, check_id}`: a row began; its output starts empty.
+             *     - `chunk` — `{task, attempt_id, check_id, text}`: text the row's check printed. On connect, the running row's `started` and its output so far come first.
+             *     - `finished` — `{task, attempt_id, check_id, outcome}`: the row finished; read its stored output from GET /api/rechecks/{recheck}.
+             *     - `lagged` — empty: this client fell behind and missed output.
+             *     - `end` — `{}`: the batch finished, and the stream ends. A finished batch sends it at once.
+             */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": string;
+                };
+            };
+            /** @description no such recheck batch */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
                 };
             };
             /** @description STORAGE_UNAVAILABLE */

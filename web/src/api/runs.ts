@@ -1,7 +1,7 @@
 import { queryOptions, type QueryClient } from '@tanstack/react-query'
 import { writeSaved } from './saved-answer'
 import type { components } from './schema'
-import { client, unwrap, ApiError } from './transport'
+import { client, DAEMON_URL, unwrap, ApiError } from './transport'
 import { retryLost } from './error'
 
 export type TaskRun = components['schemas']['TaskRun']
@@ -15,6 +15,8 @@ export type AttemptNotice = components['schemas']['AttemptNotice']
 export type AgentReplyNotice = components['schemas']['AgentReplyNotice']
 export type RecheckNotice = components['schemas']['RecheckNotice']
 export type RecheckFailure = components['schemas']['RecheckFailure']
+export type RecheckRow = components['schemas']['RecheckRow']
+export type CheckOutcome = components['schemas']['CheckOutcome']
 export type LastRecheck = components['schemas']['LastRecheck']
 export type AgentNotice = AttemptNotice | AgentReplyNotice
 export type CheckResult = components['schemas']['CheckResult']
@@ -37,6 +39,7 @@ const runKeys = {
   conflict: (attemptId: string) => ['runs', 'conflict', attemptId],
   checks: (attemptId: string) => ['runs', 'checks', attemptId],
   recheck: (workflowId: string) => ['runs', 'recheck', workflowId],
+  recheckRows: (recheckId: string) => ['runs', 'recheck-rows', recheckId],
 }
 
 /** A task's run state: its marks, latest attempt, needs and whether Start may run. */
@@ -86,6 +89,20 @@ export function lastRecheckQuery(workflowId: string) {
     retry: retryLost,
     refetchInterval: (query) => (query.state.data?.counts.unfinished ?? 0) > 0 ? 5000 : false,
   })
+}
+
+/** One recheck batch's rows in Core's order, with the stored output of each finished row. */
+export function recheckRowsQuery(recheckId: string) {
+  return queryOptions({
+    queryKey: runKeys.recheckRows(recheckId),
+    queryFn: () => unwrap(client.GET('/api/rechecks/{recheck}', { params: { path: { recheck: recheckId } } })),
+    retry: retryLost,
+  })
+}
+
+/** The address of a batch's live output; `EventSource` in `stream/` owns the connection. */
+export function recheckOutputUrl(recheckId: string): string {
+  return new URL(`/api/rechecks/${encodeURIComponent(recheckId)}/output`, DAEMON_URL).toString()
 }
 
 /** Asks Core to rerun the checks of the project's done tasks; it answers at once and runs in the background. */
