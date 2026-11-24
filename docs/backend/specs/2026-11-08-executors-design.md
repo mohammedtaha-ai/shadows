@@ -348,7 +348,13 @@ the agent's word. This replaces the critic's evidence role (§5.1 already replac
   ([evidence](../../evidence/2026-11-23-testing8-go-python-live.md)). A failure is told as
   above. A recheck that was asked for and in which every check passed tells its asker so in one
   short notice, since nothing else would answer it; the one a completing mark began says nothing
-  when nothing new fails (2026-11-24).
+  when nothing new fails (2026-11-24). The person reads a batch (Mohammed, 2026-11-24): its rows
+  in order (task, then check), each with its command, outcome, times and stored output; and, while
+  it runs, its output live: each row's start, the text its check prints, its finish with the
+  outcome, and the batch's end. A watcher who connects mid-row first gets that row's output so
+  far. The live output is held in memory by Runs, capped as the stored output is (64 KiB, the
+  end kept); it is not journaled and nothing new is written to the database; a restart loses
+  only the running row's live output, and the row runs again.
 - **The lock orders Shadows' own runs only.** What executors run is ordered by their instructions
   and by waiting on a lock error, as above.
 - **An addition is a new attempt,** with its own commit and its own checks.

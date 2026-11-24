@@ -3,6 +3,7 @@ pub use core_runs::LiveAttempt;
 pub use core_runs::{Chooser, ExecutorChoice, ExecutorInput};
 pub use core_runs::{LastRecheck, RecheckBegan, RecheckCounts};
 pub use core_runs::{ProjectRecheck, RecheckFailure, RecheckNotice};
+pub use core_runs::{RecheckOutput, RecheckRow, RecheckWatch};
 pub use core_runtime::RuntimeError;
 mod error;
 pub use core_project_lifecycle::ProjectLifecycle;

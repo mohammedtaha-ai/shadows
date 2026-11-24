@@ -324,6 +324,58 @@ pub struct LastRecheck {
     pub counts: RecheckCounts,
 }
 
+/// One row of a recheck batch: one check of one done task, as the person reads it.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, utoipa::ToSchema)]
+pub struct RecheckRow {
+    pub workflow_id: WorkflowId,
+    pub version: i64,
+    pub task: u32,
+    pub attempt_id: AttemptId,
+    pub check_id: String,
+    /// The check's command, its words joined by spaces; empty for the `contract` check.
+    pub command: String,
+    /// None until the row finishes.
+    #[schema(required)]
+    pub outcome: Option<CheckOutcome>,
+    #[schema(required)]
+    pub started_at: Option<String>,
+    #[schema(required)]
+    pub finished_at: Option<String>,
+    /// The stored output, once the row finishes.
+    #[schema(required)]
+    pub output: Option<String>,
+    pub truncated: bool,
+}
+
+/// What a running recheck batch's watcher hears, in order. Nothing of it is stored.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RecheckOutput {
+    /// A row began (again, when its check repeats): its output so far is empty.
+    Started {
+        task: u32,
+        attempt_id: AttemptId,
+        check_id: String,
+    },
+    /// Text the row's check printed.
+    Chunk {
+        task: u32,
+        attempt_id: AttemptId,
+        check_id: String,
+        text: String,
+    },
+    /// The row finished with `outcome`.
+    Finished {
+        task: u32,
+        attempt_id: AttemptId,
+        check_id: String,
+        outcome: CheckOutcome,
+    },
+    /// This watcher fell behind and missed output.
+    Lagged,
+    /// The batch finished; nothing follows.
+    End,
+}
+
 /// A task as the runs see it: marked done or not, its latest attempt, the
 /// tasks it needs, whether Start may run now, and the model to offer first.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, utoipa::ToSchema)]

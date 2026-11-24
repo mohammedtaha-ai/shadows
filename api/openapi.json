@@ -7884,6 +7884,80 @@
         ],
         "type": "object"
       },
+      "RecheckRow": {
+        "description": "One row of a recheck batch: one check of one done task, as the person reads it.",
+        "properties": {
+          "attempt_id": {
+            "$ref": "#/components/schemas/AttemptId"
+          },
+          "check_id": {
+            "type": "string"
+          },
+          "command": {
+            "description": "The check's command, its words joined by spaces; empty for the `contract` check.",
+            "type": "string"
+          },
+          "finished_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "outcome": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/CheckOutcome",
+                "description": "None until the row finishes."
+              }
+            ]
+          },
+          "output": {
+            "description": "The stored output, once the row finishes.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "started_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "task": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "truncated": {
+            "type": "boolean"
+          },
+          "version": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "workflow_id": {
+            "$ref": "#/components/schemas/WorkflowId"
+          }
+        },
+        "required": [
+          "workflow_id",
+          "version",
+          "task",
+          "attempt_id",
+          "check_id",
+          "command",
+          "outcome",
+          "started_at",
+          "finished_at",
+          "output",
+          "truncated"
+        ],
+        "type": "object"
+      },
       "RememberedSettings": {
         "description": "The model and effort last chosen for this harness.",
         "properties": {
@@ -17256,6 +17330,113 @@
         "summary": "The project's plans, each by its latest version, in the order\nthey were created. Active plans only, or archived ones too when `archived=true`.\nAn unknown project has none.",
         "tags": [
           "workflows"
+        ]
+      }
+    },
+    "/api/rechecks/{recheck}": {
+      "get": {
+        "operationId": "recheck_rows",
+        "parameters": [
+          {
+            "description": "The recheck batch",
+            "in": "path",
+            "name": "recheck",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RecheckRow"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "no such recheck batch"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          }
+        },
+        "summary": "A recheck batch's rows in plan version, task and check order, each with its command,\noutcome, times and stored output (none until the row finishes).",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/rechecks/{recheck}/output": {
+      "get": {
+        "operationId": "recheck_output",
+        "parameters": [
+          {
+            "description": "The recheck batch",
+            "in": "path",
+            "name": "recheck",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Server-sent events of one recheck batch, live only: nothing is replayed after a reconnect but the running row's output so far. Each frame's `data:` is JSON.\n\n- `started` — `{task, attempt_id, check_id}`: a row began; its output starts empty.\n- `chunk` — `{task, attempt_id, check_id, text}`: text the row's check printed. On connect, the running row's `started` and its output so far come first.\n- `finished` — `{task, attempt_id, check_id, outcome}`: the row finished; read its stored output from GET /api/rechecks/{recheck}.\n- `lagged` — empty: this client fell behind and missed output.\n- `end` — `{}`: the batch finished, and the stream ends. A finished batch sends it at once."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "no such recheck batch"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          }
+        },
+        "summary": "A recheck batch's output as its checks print it.",
+        "tags": [
+          "stream"
         ]
       }
     },

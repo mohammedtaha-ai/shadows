@@ -133,6 +133,8 @@ runs:
     - 'GET /api/attempts/{id}/conflict -> Runs::conflict (TaskConflict, or null for an attempt with none; unknown attempt 404)'
     - 'GET /api/attempts/{id}/diff -> Runs::diff'
     - 'GET /api/attempts/{id}/files?path= -> Runs::file (AttemptFile; 409 outside_writes is a RunRefusal)'
+    - 'GET /api/rechecks/{recheck} -> Runs::recheck_rows ([RecheckRow]; unknown batch 404)'
+    - 'GET /api/rechecks/{recheck}/output -> Runs::watch_recheck, SSE live only: started, chunk, finished, lagged and end frames, each one RecheckOutput; the stream ends after end or at shutdown; unknown batch 404'
   refusals: >
     A Runs refusal is 409 RunRefusal { code, reason } with Runs' own opaque code, the same
     codes a task's start answer carries (missing_input and input_unavailable among them);

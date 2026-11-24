@@ -1,5 +1,6 @@
 //! Confirming an attempt's command checks on the shared project folder.
 use crate::git::Git;
+use crate::recheck_live::LiveRow;
 use crate::scope::Scope;
 use crate::store::{Continued, checks::Finished};
 use crate::{Attempt, AttemptId, AttemptOrigin, CheckOutcome, CheckResult, Runs, RunsError};
@@ -12,7 +13,7 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 use tokio::io::{AsyncRead, AsyncReadExt};
 
-const OUTPUT_LIMIT: usize = 65_536;
+pub(crate) const OUTPUT_LIMIT: usize = 65_536;
 
 /// The id of the check Shadows runs itself: the contract's symbols, by name.
 /// Plans refuses a task check with this id.
@@ -259,20 +260,22 @@ impl Runs {
                 .cloned()
                 .collect();
             let before = git.head().await;
-            match batch {
+            let live = match batch {
                 Some(batch) => {
                     self.inner
                         .store
                         .start_recheck(batch, &attempt.id, check)
-                        .await?
+                        .await?;
+                    Some(self.live_started(batch, task, &attempt.id, &check.id))
                 }
                 None => {
                     self.inner
                         .store
                         .start_check(&attempt.id, task, check, ordinal, before.clone())
-                        .await?
+                        .await?;
+                    None
                 }
-            }
+            };
             if !leftovers.is_empty() {
                 let foreign = !leftovers.iter().any(|p| own.admits(p));
                 let output = if foreign {
@@ -298,7 +301,7 @@ impl Runs {
             }
             let hashes = git.hash(&dirty).await.map_err(RunsError::Unavailable)?;
             let start = Storage::now();
-            let mut result = Self::execute_check(&folder, check).await;
+            let mut result = Self::execute_check(&folder, check, live).await;
             let end = Storage::now();
             result.head = git.head().await;
             let after = git.changed(&prefix).await.map_err(RunsError::Unavailable)?;
@@ -372,7 +375,8 @@ impl Runs {
         line
     }
 
-    async fn execute_check(root: &Path, check: &TaskCheck) -> Finished {
+    /// Runs the check's command; `live`, for a recheck row, hears its output as it is printed.
+    async fn execute_check(root: &Path, check: &TaskCheck, mut live: Option<LiveRow>) -> Finished {
         let mut result = Finished {
             outcome: CheckOutcome::NotRun,
             exit_code: None,
@@ -443,6 +447,9 @@ impl Runs {
             let mut bytes = VecDeque::new();
             let mut truncated = false;
             while let Some(chunk) = receive.recv().await {
+                if let Some(live) = live.as_mut() {
+                    live.chunk(&chunk);
+                }
                 bytes.extend(chunk);
                 if bytes.len() > OUTPUT_LIMIT {
                     bytes.drain(..bytes.len() - OUTPUT_LIMIT);

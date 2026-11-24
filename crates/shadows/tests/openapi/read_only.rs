@@ -254,6 +254,7 @@ async fn no_get_route_changes_state() {
                 "part" => part.to_string(),
                 "outcome" => outcome.to_string(),
                 "element" => "E1".into(),
+                "recheck" => "read-recheck".into(),
                 _ => panic!("unseeded path parameter {name} in {template}"),
             };
             path = path.replace(&format!("{{{name}}}"), &value);
@@ -289,10 +290,11 @@ async fn no_get_route_changes_state() {
         // The seeded attempt has no commit, so its file is not found; the
         // route still must not write. It has no saved context either, so its
         // brief is refused as not recorded. The project has no element, so its revisions are
-        // not found.
+        // not found. The project has had no recheck, so its batch is not found.
         let not_found = (template == "/api/attempts/{id}/files" && status == 404)
             || (template == "/api/attempts/{id}/brief" && status == 409)
-            || (template.ends_with("/elements/{element}/revisions") && status == 404);
+            || (template.ends_with("/elements/{element}/revisions") && status == 404)
+            || (template.starts_with("/api/rechecks/") && status == 404);
         assert!(
             (200..300).contains(&status) || not_found,
             "{path}: {status} {body}"

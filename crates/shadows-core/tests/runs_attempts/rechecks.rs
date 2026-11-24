@@ -584,3 +584,87 @@ async fn the_plan_page_reads_the_projects_last_recheck() {
     assert_eq!(done.counts.failed + done.counts.not_run, 0);
     f.finish().await;
 }
+
+#[tokio::test]
+async fn the_person_reads_a_finished_rechecks_rows_with_their_output() {
+    let f = done_task(false).await;
+    let runs = f.core.runs();
+    let id = asked(&f, &f.workflow, "rows").await.unwrap();
+    finished(&f).await;
+    let rows = runs.recheck_rows(&id).await.unwrap();
+    let row = rows.iter().find(|row| row.check_id == "c1").unwrap();
+    assert_eq!(row.task, 3);
+    assert_eq!(row.command, "git --version");
+    assert_eq!(row.outcome, Some(shadows_core::CheckOutcome::Passed));
+    assert!(row.finished_at.is_some());
+    assert!(
+        row.output.as_deref().unwrap().contains("git version"),
+        "{:?}",
+        row.output
+    );
+    assert!(matches!(
+        runs.recheck_rows("no-such-batch").await,
+        Err(shadows_core::RunsError::NotFound)
+    ));
+    f.finish().await;
+}
+
+#[tokio::test]
+async fn the_person_watches_a_running_checks_output_live() {
+    let run: Vec<String> = if cfg!(windows) {
+        ["cmd", "/c", "echo printed-early& ping -n 4 127.0.0.1 >nul"]
+    } else {
+        ["sh", "-c", "echo printed-early; sleep 3"]
+    }
+    .iter()
+    .map(|word| word.to_string())
+    .collect();
+    let (f, attempt, _, _) = super::checks::candidate(vec![run]).await;
+    sqlx::query("UPDATE run_attempts SET notice_sent_at=? WHERE id=?")
+        .bind("2026-11-16T00:00:00Z")
+        .bind(attempt.as_str())
+        .execute(f.storage.reader())
+        .await
+        .unwrap();
+    let runs = f.core.runs();
+    runs.mark_done(
+        "done-three".into(),
+        &f.workflow,
+        1,
+        3,
+        true,
+        Some("Verified by the person".into()),
+    )
+    .await
+    .unwrap();
+    let id = asked(&f, &f.workflow, "live").await.unwrap();
+    let mut watch = runs.watch_recheck(&id).await.unwrap();
+    let mut seen = Vec::new();
+    let wait = tokio::time::timeout(std::time::Duration::from_secs(120), async {
+        while let Some(output) = watch.next().await {
+            seen.push(output);
+        }
+    });
+    wait.await.expect("the batch ends");
+    let chunk = seen
+        .iter()
+        .position(|output| {
+            matches!(output, shadows_core::RecheckOutput::Chunk { check_id, text, .. }
+                if check_id == "c1" && text.contains("printed-early"))
+        })
+        .unwrap_or_else(|| panic!("no chunk: {seen:?}"));
+    let done = seen
+        .iter()
+        .position(|output| {
+            matches!(output, shadows_core::RecheckOutput::Finished { check_id, .. }
+                if check_id == "c1")
+        })
+        .unwrap_or_else(|| panic!("no finish: {seen:?}"));
+    assert!(chunk < done, "{seen:?}");
+    assert_eq!(seen.last(), Some(&shadows_core::RecheckOutput::End));
+    finished(&f).await;
+    let mut after = runs.watch_recheck(&id).await.unwrap();
+    assert_eq!(after.next().await, Some(shadows_core::RecheckOutput::End));
+    assert_eq!(after.next().await, None);
+    f.finish().await;
+}

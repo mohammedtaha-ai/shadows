@@ -66,6 +66,7 @@ pattern to follow, not merely an example.
 |---|---|---|
 | `crates/core-runs/src/recheck.rs` | rechecking done tasks | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/store/rechecks.rs` | recheck persistence | `crates/core-runs/contract.yaml` |
+| `crates/core-runs/src/recheck_live.rs` | a running recheck's output in memory | `crates/core-runs/contract.yaml` |
 | `crates/core-plans/src/signal.rs` | live plan-show vocabulary | `crates/core-plans/contract.yaml` |
 | `crates/core-harness/src/owners.rs` | harness configuration dependencies | `crates/core-harness/contract.yaml` |
 | `crates/core-harness/src/live.rs` | live adapter opening | `crates/core-harness/contract.yaml` |

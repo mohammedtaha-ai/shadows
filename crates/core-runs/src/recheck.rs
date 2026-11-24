@@ -123,20 +123,24 @@ impl Runs {
                         .await?;
                     let check: TaskCheck = serde_json::from_str(&row.run_json)?;
                     let result = if check.id == CONTRACT_CHECK {
+                        self.live_started(id, row.task, &attempt.id, &check.id);
                         self.recheck_contract(id, &attempt, row.task, &check)
                             .await?
                     } else {
                         self.run_check(&attempt, row.task, 0, &check, Some(id))
                             .await?
                     };
+                    let outcome = result.outcome;
                     self.inner
                         .store
                         .finish_recheck(id, &attempt.id, &check.id, result)
                         .await?;
+                    self.live_finished(id, outcome);
                 }
                 drop(held);
             }
             self.end_recheck(&batch).await?;
+            self.live_ended(id);
         }
         self.deliver_recheck(id).await
     }
@@ -340,7 +344,7 @@ impl Runs {
         }))
     }
 
-    fn recheck_result(row: &ResultRow) -> Result<CheckResult, RunsError> {
+    pub(crate) fn recheck_result(row: &ResultRow) -> Result<CheckResult, RunsError> {
         let check: TaskCheck = serde_json::from_str(&row.run_json)?;
         let outcome: Option<CheckOutcome> = row
             .outcome

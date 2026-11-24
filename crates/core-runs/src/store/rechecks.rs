@@ -274,6 +274,16 @@ impl RunsStore {
         .await?)
     }
 
+    /// Whether batch `id` exists (outer) and when it finished (inner, none while it runs).
+    pub async fn recheck_finished(&self, id: &str) -> Result<Option<Option<String>>, RunsError> {
+        Ok(
+            sqlx::query_scalar("SELECT finished_at FROM run_rechecks WHERE id=?")
+                .bind(id)
+                .fetch_optional(self.storage.reader())
+                .await?,
+        )
+    }
+
     /// The project's newest batch and its rows counted by outcome, in one read.
     pub async fn last_recheck(
         &self,

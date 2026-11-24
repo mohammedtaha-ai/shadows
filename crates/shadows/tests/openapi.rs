@@ -240,6 +240,8 @@ fn the_document_names_every_route() {
             "GET /api/projects/{id}/threads",
             "GET /api/projects/{id}/vision-proposals",
             "GET /api/projects/{id}/workflows",
+            "GET /api/rechecks/{recheck}",
+            "GET /api/rechecks/{recheck}/output",
             "GET /api/runtime",
             "GET /api/subscribe",
             "GET /api/threads/{id}",

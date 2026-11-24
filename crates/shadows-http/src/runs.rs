@@ -1,7 +1,7 @@
 //! One job: the routes over a task's attempts — the task's run state,
 //! Start, Stop, an attempt's brief, its contract conflict, its diff, a file at
-//! its commit, the person's done mark, the project recheck the person asks for and
-//! the project's last recheck batch.
+//! its commit, the person's done mark, the project recheck the person asks for,
+//! the project's last recheck batch, and a batch's rows and live output.
 //!
 //! Each handler reads the request, calls one `Runs` method and shapes the
 //! answer. A refused Start is 409 with Runs' own `code` and `reason`.
@@ -10,13 +10,16 @@
 use axum::Json;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
+use axum::response::sse::{Event, Sse};
+use std::convert::Infallible;
+use tokio_stream::wrappers::ReceiverStream;
 
 use super::AppState;
 use super::failure::{ErrorBody, RunFailure, RunRefusal};
 use super::transport::Transport;
 use shadows_core::{
-    Attempt, AttemptBrief, AttemptFile, AttemptId, FileDiff, TaskConflict, TaskProgress, TaskRun,
-    WorkflowId,
+    Attempt, AttemptBrief, AttemptFile, AttemptId, FileDiff, RecheckOutput, TaskConflict,
+    TaskProgress, TaskRun, WorkflowId,
 };
 
 /// A task of a plan version: `/api/workflows/{workflow}/versions/{version}/tasks/{task}`.
@@ -299,6 +302,109 @@ pub(super) async fn last_recheck(
     Path(workflow): Path<WorkflowId>,
 ) -> Result<Json<Option<shadows_core::LastRecheck>>, RunFailure> {
     Ok(Json(s.core.runs().last_recheck(&workflow).await?))
+}
+
+/// A recheck batch's rows in plan version, task and check order, each with its command,
+/// outcome, times and stored output (none until the row finishes).
+#[utoipa::path(
+    get,
+    path = "/api/rechecks/{recheck}",
+    tag = "runs",
+    params(("recheck" = String, Path, description = "The recheck batch")),
+    responses(
+        (status = 200, body = Vec<shadows_core::RecheckRow>),
+        (status = 404, description = "no such recheck batch", body = ErrorBody),
+        (status = 500, description = "STORAGE_UNAVAILABLE", body = ErrorBody),
+    )
+)]
+pub(super) async fn recheck_rows(
+    State(s): State<AppState>,
+    Path(recheck): Path<String>,
+) -> Result<Json<Vec<shadows_core::RecheckRow>>, RunFailure> {
+    Ok(Json(s.core.runs().recheck_rows(&recheck).await?))
+}
+
+/// OpenAPI cannot type the frames of an event stream, so the document describes them here.
+const RECHECK_OUTPUT_DESCRIPTION: &str = "Server-sent events of one recheck batch, live only: \
+nothing is replayed after a reconnect but the running row's output so far. Each frame's `data:` \
+is JSON.\n\n\
+- `started` — `{task, attempt_id, check_id}`: a row began; its output starts empty.\n\
+- `chunk` — `{task, attempt_id, check_id, text}`: text the row's check printed. On connect, \
+the running row's `started` and its output so far come first.\n\
+- `finished` — `{task, attempt_id, check_id, outcome}`: the row finished; read its stored \
+output from GET /api/rechecks/{recheck}.\n\
+- `lagged` — empty: this client fell behind and missed output.\n\
+- `end` — `{}`: the batch finished, and the stream ends. A finished batch sends it at once.";
+
+/// A recheck batch's output as its checks print it.
+#[utoipa::path(
+    get,
+    path = "/api/rechecks/{recheck}/output",
+    tag = "stream",
+    params(("recheck" = String, Path, description = "The recheck batch")),
+    responses(
+        (status = 200, content_type = "text/event-stream", body = String,
+         description = RECHECK_OUTPUT_DESCRIPTION),
+        (status = 404, description = "no such recheck batch", body = ErrorBody),
+        (status = 500, description = "STORAGE_UNAVAILABLE", body = ErrorBody),
+    )
+)]
+pub(super) async fn recheck_output(
+    State(s): State<AppState>,
+    Path(recheck): Path<String>,
+) -> Result<Sse<ReceiverStream<Result<Event, Infallible>>>, RunFailure> {
+    let mut watch = s.core.runs().watch_recheck(&recheck).await?;
+    let (tx, rx) = tokio::sync::mpsc::channel(1024);
+    let mut shutdown = s.shutdown.clone();
+    tokio::spawn(async move {
+        loop {
+            let output = tokio::select! {
+                biased;
+                _ = shutdown.wait_for(|stopping| *stopping) => return,
+                output = watch.next() => output,
+            };
+            let Some(output) = output else { return };
+            let frame = match output {
+                RecheckOutput::Started {
+                    task,
+                    attempt_id,
+                    check_id,
+                } => Event::default().event("started").data(
+                    serde_json::json!({"task": task, "attempt_id": attempt_id, "check_id": check_id})
+                        .to_string(),
+                ),
+                RecheckOutput::Chunk {
+                    task,
+                    attempt_id,
+                    check_id,
+                    text,
+                } => Event::default().event("chunk").data(
+                    serde_json::json!({
+                        "task": task, "attempt_id": attempt_id, "check_id": check_id, "text": text
+                    })
+                    .to_string(),
+                ),
+                RecheckOutput::Finished {
+                    task,
+                    attempt_id,
+                    check_id,
+                    outcome,
+                } => Event::default().event("finished").data(
+                    serde_json::json!({
+                        "task": task, "attempt_id": attempt_id, "check_id": check_id,
+                        "outcome": outcome
+                    })
+                    .to_string(),
+                ),
+                RecheckOutput::Lagged => Event::default().event("lagged").data(""),
+                RecheckOutput::End => Event::default().event("end").data("{}"),
+            };
+            if tx.send(Ok(frame)).await.is_err() {
+                return;
+            }
+        }
+    });
+    Ok(Sse::new(ReceiverStream::new(rx)))
 }
 
 /// Stops the attempt and answers once its turn's end is confirmed. An
