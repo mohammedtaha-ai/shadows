@@ -84,7 +84,7 @@ boundaries do not exempt their sources from the other architecture rules.
 | `sidebar` | `app/sidebar/**` | `app/sidebar/index.ts` | `app/sidebar/contract.yaml` | `api, ui, shared, desktop, stream, agents, groups, new-project, workflows, navigation, desktop-ui` |
 | `groups` | `app/groups/**` | `app/groups/index.ts, app/groups/group-page.tsx` | `app/groups/contract.yaml` | `api, ui, shared, stream, agents, conversation` |
 | `workflows` | `app/workflows/**` | `app/workflows/index.ts, app/workflows/plan-state.ts, app/workflows/plan-page.tsx, app/workflows/plan-map.tsx, app/workflows/flow-theme.ts` | `app/workflows/contract.yaml` | `api, ui, shared, stream, agreements` |
-| `tasks` | `app/tasks/**` | `app/tasks/task-page.tsx` | `app/tasks/contract.yaml` | `api, ui, shared, conversation` |
+| `tasks` | `app/tasks/**` | `app/tasks/task-page.tsx` | `app/tasks/contract.yaml` | `api, ui, shared, stream, conversation` |
 | `test-support` | `test/**, architecture.test.ts, architecture.fixtures.ts, codemap.test.ts` | `test/**, architecture.fixtures.ts` | `-` | `composition, api, stream, desktop, ui, shared` |
 
 The two `startup.ts` entries expose only pre-readiness dependencies; their static
