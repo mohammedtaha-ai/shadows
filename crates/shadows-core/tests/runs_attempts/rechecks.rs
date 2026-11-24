@@ -254,6 +254,24 @@ async fn a_failing_recheck_tells_the_planner_once() {
 }
 
 #[tokio::test]
+async fn a_person_asked_recheck_with_a_failing_check_finishes() {
+    let f = done_task(true).await;
+    let runs = f.core.runs();
+    let id = asked(&f, &f.workflow, "fails").await.unwrap();
+    finished(&f).await;
+    let last = runs.last_recheck(&f.workflow).await.unwrap().unwrap();
+    assert_eq!(last.recheck_id, id);
+    assert!(last.finished_at.is_some());
+    assert_eq!(last.counts.failed, 1);
+    let rows = f.core.runs().recheck_rows(&id).await.unwrap();
+    let row = rows.iter().find(|row| row.check_id == "c1").unwrap();
+    assert_eq!(row.outcome, Some(shadows_core::CheckOutcome::Failed));
+    let mut watch = f.core.runs().watch_recheck(&id).await.unwrap();
+    assert_eq!(watch.next().await, Some(shadows_core::RecheckOutput::End));
+    f.finish().await;
+}
+
+#[tokio::test]
 async fn a_passing_recheck_a_mark_began_sends_no_notice() {
     let f = done_task(false).await;
     let planner = super::checks::prepare_planner(&f).await;

@@ -251,17 +251,16 @@ impl Runs {
         // A batch tells a new failure; an asked one also tells its asker that every check
         // passed, since nothing else would answer it.
         let all_passed = batch.asked && failing.is_empty();
+        // The batch ends whoever can be told: a Planner that cannot be told yet (no turn whose
+        // settings a notice takes) is told nothing, as a plan with no Planner is, and the
+        // failing rows stay readable on the plan page.
         let recipient = if failed.is_empty() && !all_passed {
             None
-        } else if all_passed {
-            // A pass owes no correction: a Planner that cannot be told yet does not hold the
-            // batch open, as a failure would.
+        } else {
             self.recheck_recipient(batch).await.unwrap_or_else(|error| {
-                tracing::warn!(id=%batch.id, %error, "runs.recheck_pass_untold");
+                tracing::warn!(id=%batch.id, %error, "runs.recheck_untold");
                 None
             })
-        } else {
-            self.recheck_recipient(batch).await?
         };
         let notice = if failed.is_empty() && !all_passed {
             None
