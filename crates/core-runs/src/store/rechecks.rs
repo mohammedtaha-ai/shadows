@@ -474,25 +474,52 @@ impl RunsStore {
         let id = id.to_string();
         self.storage
             .write_txn_as(move |conn| {
+                Box::pin(async move { Self::finish_batch_in(conn, &id, notice).await })
+            })
+            .await
+    }
+
+    /// Ends batch `id` after its worker failed: every row not yet finished becomes
+    /// `not_run` with `reason` as its output, and the batch finishes with no notice.
+    pub async fn abandon_batch(&self, id: &str, reason: String) -> Result<(), RunsError> {
+        let id = id.to_string();
+        self.storage
+            .write_txn_as(move |conn| {
                 Box::pin(async move {
-                    let at = Storage::now();
-                    let moved = sqlx::query(
-                        "UPDATE run_rechecks SET finished_at=?,notice_json=?
-                WHERE id=? AND finished_at IS NULL",
+                    sqlx::query(
+                        "UPDATE run_recheck_results SET outcome='not_run',output=?,finished_at=?
+                         WHERE recheck_id=? AND finished_at IS NULL",
                     )
-                    .bind(&at)
-                    .bind(notice)
+                    .bind(reason)
+                    .bind(Storage::now())
                     .bind(&id)
                     .execute(&mut *conn)
-                    .await?
-                    .rows_affected();
-                    if moved > 0 {
-                        recheck_event_in(conn, "RecheckFinished", &id, &at).await?;
-                    }
-                    Ok(())
+                    .await?;
+                    Self::finish_batch_in(conn, &id, None).await
                 })
             })
             .await
+    }
+
+    async fn finish_batch_in(
+        conn: &mut Tx,
+        id: &str,
+        notice: Option<String>,
+    ) -> Result<(), RunsError> {
+        let at = Storage::now();
+        let moved = sqlx::query(
+            "UPDATE run_rechecks SET finished_at=?,notice_json=? WHERE id=? AND finished_at IS NULL",
+        )
+        .bind(&at)
+        .bind(notice)
+        .bind(id)
+        .execute(&mut *conn)
+        .await?
+        .rows_affected();
+        if moved > 0 {
+            recheck_event_in(conn, "RecheckFinished", id, &at).await?;
+        }
+        Ok(())
     }
 
     pub async fn recheck_sent(&self, id: &str) -> Result<(), RunsError> {

@@ -272,6 +272,48 @@ async fn a_person_asked_recheck_with_a_failing_check_finishes() {
 }
 
 #[tokio::test]
+async fn a_recheck_whose_result_cannot_be_saved_still_ends() {
+    let f = done_task(false).await;
+    // The database refuses every real result: saving the first check fails mid-batch.
+    sqlx::query(
+        "CREATE TRIGGER refuse_results BEFORE UPDATE OF outcome ON run_recheck_results
+         WHEN NEW.outcome <> 'not_run' BEGIN SELECT RAISE(ABORT, 'refused for the test'); END",
+    )
+    .execute(f.storage.reader())
+    .await
+    .unwrap();
+    let id = asked(&f, &f.workflow, "refused").await.unwrap();
+    finished(&f).await;
+    let rows = f.core.runs().recheck_rows(&id).await.unwrap();
+    assert!(!rows.is_empty());
+    for row in &rows {
+        assert_eq!(
+            row.outcome,
+            Some(shadows_core::CheckOutcome::NotRun),
+            "{}",
+            row.check_id
+        );
+        assert!(
+            row.output
+                .as_deref()
+                .unwrap_or_default()
+                .contains("refused for the test")
+        );
+    }
+    let ended: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM durable_event WHERE kind='RecheckFinished' AND payload_json LIKE ?",
+    )
+    .bind(format!("%{id}%"))
+    .fetch_one(f.storage.reader())
+    .await
+    .unwrap();
+    assert_eq!(ended, 1);
+    let mut watch = f.core.runs().watch_recheck(&id).await.unwrap();
+    assert_eq!(watch.next().await, Some(shadows_core::RecheckOutput::End));
+    f.finish().await;
+}
+
+#[tokio::test]
 async fn a_passing_recheck_a_mark_began_sends_no_notice() {
     let f = done_task(false).await;
     let planner = super::checks::prepare_planner(&f).await;

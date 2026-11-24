@@ -343,7 +343,7 @@ Plan: [backend review fixes](plans/2026-11-25-backend-review-fixes.md); each ent
 
 ### B-214 · A failed recheck worker ends its batch
 
-- Status: todo. Plan task 6.
+- Status: done (2026-11-25). Plan task 6. A failed worker ends its batch (`abandon_batch`): unfinished rows `not_run` with the error, no notice, watchers released. No retry loop (accepted risk: the person rechecks again).
 
 ### B-215 · A committed write is announced even if its caller is dropped
 

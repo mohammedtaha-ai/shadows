@@ -98,7 +98,19 @@ impl Runs {
     pub(crate) async fn recheck_done(&self, id: String) {
         if let Err(error) = self.run_recheck(&id).await {
             tracing::warn!(%id, %error, "runs.recheck_failed");
+            self.abandon_recheck(&id, &error).await;
         }
+    }
+
+    /// A worker that failed still ends its batch, so the plan page and a watcher stop
+    /// waiting: its unfinished rows read `not_run` with the error. When even that write
+    /// fails the batch stays unfinished for startup recovery, and watchers are released.
+    async fn abandon_recheck(&self, id: &str, error: &RunsError) {
+        let reason = format!("The recheck stopped: {error}");
+        if let Err(error) = self.inner.store.abandon_batch(id, reason).await {
+            tracing::warn!(%id, %error, "runs.recheck_abandon_failed");
+        }
+        self.live_ended(id);
     }
 
     async fn run_recheck(&self, id: &str) -> Result<(), RunsError> {
@@ -394,6 +406,7 @@ impl Runs {
         for id in ids {
             if let Err(error) = self.run_recheck(&id).await {
                 tracing::warn!(%id, %error, "runs.recheck_recovery_failed");
+                self.abandon_recheck(&id, &error).await;
             }
         }
     }
