@@ -675,8 +675,8 @@ functions:
       # Blocking. `walk` limited (`Only::over`) to those files and the folders
       # above them: the keys the walk keeps now, the ignore files on the way
       # included.
-    Only::over:
-      signature: "(paths: &[String]) -> Arc<Only>"
+    over:
+      signature: "Only::over(paths: &[String]) -> Arc<Only>"
       # Those paths' keys and every folder above them (the root included):
       # the one limit `walk` and the listing's `walked` share (`Only::holds`).
     names_itself:

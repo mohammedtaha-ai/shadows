@@ -401,8 +401,8 @@ functions:
         grant, keeps a success for CATALOG_TTL (300 s, Codex's own model-list cache age) and
         reads again after it, and coalesces concurrent reads per harness. A failed first read
         is an error and tried again on the next call; a failed later read answers the last
-        list for another CATALOG_TTL (logged harness.catalog_reread_failed). B-204 (testing8):
-        a Codex probe while Codex's refresh failed answered its built-in list, without
+        list for another CATALOG_TTL (logged harness.catalog_reread_failed). B-204 (testing8)
+        found that a Codex probe while Codex's refresh failed answered its built-in list, without
         gpt-6.2-sol, and the daemon kept it for its life. Claude Code switches models in one
         ACP session and excludes models the account cannot select without more usage
         credits. Codex reads model/list.
