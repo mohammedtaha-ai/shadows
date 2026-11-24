@@ -5,7 +5,7 @@ here and set its status. Task shape: [`AGENTS.md`](./AGENTS.md#a-task-in-stagesm
 
 ## Now
 
-F-137 and F-138 are open on `feature/after-75`. The project's state view, its ER diagram and screen flow,
+F-137 and F-138 are done and F-139 to F-144 open on `feature/after-75`. The project's state view, its ER diagram and screen flow,
 and `code_where` in the web (F-130 to F-136) are on `main` in PR #75 (`4d69977d`).
 
 ### F-137 · The person rechecks the project from the plan page
@@ -56,6 +56,115 @@ and `code_where` in the web (F-130 to F-136) are on `main` in PR #75 (`4d69977d`
   src/app/workflows/recheck-control.test.tsx` passes (opens on Recheck, the icon opens and
   closes it, live chunks append to the running check, selecting a finished check shows its
   stored output, the counts), then the task checks in "Now".
+
+### Polling gives way to the event stream (F-139 to F-144)
+
+Agreed with Hamoud and approved by Mohammed on 2026-11-24. The client polls where an event
+already reaches it. F-139 to F-141 need no backend. F-142 to F-144 each drop a poll once
+Hamoud's matching task in `docs/backend/stages.md` journals the change: B-a (thread list changes
+on the project tail), B-b (check finished, conflict delivery changed) and B-c (RecheckStarted and
+RecheckFinished on the project tail). The facts this rests on:
+- `shell.tsx` holds the open project's stream at all times, and
+  `TaskProgressChanged {project_id, workflow_id, version, task, attempt_id}` reaches it. Core
+  writes it in the same write that records an attempt as running, before it answers Start.
+- `holdThreadRefresh` (`stream/refresh.ts`) already refreshes a thread's entries and operations.
+- External connections change only by the person's own issue or revoke, which already
+  invalidates the list.
+
+### F-139 · The recheck panel and external connections stop polling
+- Status: todo
+- Plan: none (the section above). While the recheck panel holds a batch's output stream,
+  `lastRecheckQuery` is not read on an interval; with the panel closed it keeps today's 5 s read
+  while rows are unfinished (until F-144). A `finished` or `end` frame invalidates only that
+  workflow's `runKeys.recheck` and that batch's `runKeys.recheckRows`, not every run key.
+  `connectionsQuery` loses its 10 s interval.
+- Read: `web/src/stream/recheck-output.ts`, `web/src/app/workflows/recheck-panel.tsx`,
+  `recheck-control.tsx`, `lastRecheckQuery` and `recheckRowsQuery` in `web/src/api/runs.ts`,
+  `web/src/api/external-connections.ts`, `web/src/stream/contract.yaml`, `web/src/api/contract.yaml`.
+- Touch: `web/src/stream/recheck-output.ts` and its test, `web/src/api/runs.ts`, `web/src/api/runs.test.ts`,
+  `web/src/app/workflows/recheck-panel.tsx` and its test, `web/src/app/workflows/recheck-control.tsx`,
+  `web/src/api/external-connections.ts`, `web/src/api/contract.yaml`, `web/src/stream/contract.yaml`,
+  `web/src/app/workflows/contract.yaml`.
+- Needs: none.
+- Done when: `npx vitest run src/stream/recheck-output.test.tsx src/app/workflows/recheck-panel.test.tsx
+  src/app/workflows/recheck-control.test.tsx src/api/runs.test.ts` passes, with new cases: a
+  `finished` frame invalidates the batch's recheck and rows keys and leaves another task's run
+  key fresh; `lastRecheckQuery` has no interval while the panel streams a batch.
+
+### F-140 · Task progress follows the stream, not a 2 s read
+- Status: todo
+- Plan: none (the section above). `classifyRefresh` maps `TaskProgressChanged` to that task's run
+  key, its attempts key and the plan's progress key (`workflow_id`, `version`, `task` from the
+  payload), through invalidate functions in `api/runs.ts` and `api/workflows.ts`. Then
+  `taskRunQuery`, `attemptsQuery` and `planProgressQuery` lose their 2 s intervals, and
+  `use-task-run.ts` drops `STARTING_READ_MS`. `run-tab.tsx` holds the executor's thread with
+  `holdThreadRefresh` on `attempt.thread_id` instead of reading entries and operations every 2 s.
+  Remove the "Known and left" line about `TaskProgressChanged` below.
+- Read: `web/src/stream/refresh.ts`, `web/src/stream/contract.yaml`, `taskRunQuery` and `attemptsQuery`
+  in `web/src/api/runs.ts`, `planProgressQuery` in `web/src/api/workflows.ts`,
+  `web/src/app/tasks/use-task-run.ts`, `web/src/app/tasks/run-tab.tsx`.
+- Touch: `web/src/stream/refresh.ts`, `web/src/stream/refresh.test.tsx`, `web/src/api/runs.ts`,
+  `web/src/api/runs.test.ts`, `web/src/api/workflows.ts`, `web/src/api/workflows.test.ts`,
+  `web/src/app/tasks/use-task-run.ts`, `web/src/app/tasks/run-tab.tsx`, `web/src/app/tasks/task-page.test.tsx`,
+  `web/src/api/contract.yaml`, `web/src/stream/contract.yaml`, `web/src/app/tasks/contract.yaml`,
+  this file.
+- Needs: none.
+- Done when: `npx vitest run src/stream/refresh.test.tsx src/api/runs.test.ts src/api/workflows.test.ts
+  src/app/tasks/task-page.test.tsx` passes, with new cases: `TaskProgressChanged` refreshes that
+  task's run, attempts and plan progress and no other task's; none of the three queries has an interval.
+
+### F-141 · The connection indicator reads the stream; code servers poll only while starting
+- Status: todo
+- Plan: none (the section above). With a project open, `ConnectionIndicator` shows the project
+  stream's connection (`live` is Connected, `connecting` and `reconnecting` are Connecting,
+  `failed` is Not reachable) and the project list is not polled. With no project open, the
+  project list is read every 30 s, as today's reachability check. Never both. `stream/` gives the
+  connection through a hook beside `useProjectEvents`, from the subscriber's `onState`.
+  `codeServersQuery` is read every 5 s only while a server's state is `starting`.
+- Read: `web/src/app/daemon-status.tsx`, `projectsQuery` in `web/src/api/projects.ts`,
+  `web/src/stream/use-project-events.ts`, `web/src/stream/thread-registry.ts`,
+  `web/src/app/sidebar/sidebar.tsx`, `codeServersQuery` in `web/src/api/code.ts`, `ServerState`
+  in `web/src/api/schema.d.ts`.
+- Touch: `web/src/app/daemon-status.tsx`, a new `web/src/app/daemon-status.test.tsx`,
+  `web/src/app/sidebar/sidebar.tsx`, `web/src/api/projects.ts`, `web/src/api/projects.test.ts`,
+  `web/src/stream/use-project-events.ts` and its test, `web/src/stream/index.ts`, `web/src/api/code.ts`,
+  `web/src/api/code.test.ts`, `web/src/api/contract.yaml`, `web/src/stream/contract.yaml`,
+  the `contract.yaml` that covers `daemon-status.tsx`, the code map row.
+- Needs: none.
+- Done when: `npx vitest run src/app/daemon-status.test.tsx src/stream/use-project-events.test.tsx
+  src/api/projects.test.ts src/api/code.test.ts` passes, with cases: each stream connection shows
+  its label; with a project open the project list has no interval, without one it has 30 s;
+  code servers have an interval only while one is `starting`.
+
+### F-142 · Conversation lists follow the project stream
+- Status: blocked (Hamoud's B-a)
+- Plan: none (the section above). After B-a, `threadsQuery` and `agentThreadsQuery` lose their
+  10 s intervals, and `ThreadRemoved` and a turn's end refresh `thread-lists` in `classifyRefresh`.
+  `AgentList` holds the AYLUL project's stream itself with `useProjectEvents(agents.data?.project_id)`;
+  today it is only held because `GroupList` is drawn beside it.
+- Read: B-a in `docs/backend/stages.md`, `web/src/stream/refresh.ts`, `web/src/api/threads.ts`,
+  `agentThreadsQuery` in `web/src/api/aylul-profiles.ts`, `web/src/app/sidebar/agent-list.tsx`.
+- Touch: to be named when B-a is built.
+- Needs: B-a.
+- Done when: to be named when B-a is built.
+
+### F-143 · Checks and a conflict's delivery follow the stream
+- Status: blocked (Hamoud's B-b)
+- Plan: none (the section above). After B-b, `attemptChecksQuery` and `attemptConflictQuery` lose
+  their 2 s intervals and refresh on the new events.
+- Read: B-b in `docs/backend/stages.md`, `web/src/stream/refresh.ts`, `web/src/api/runs.ts`.
+- Touch: to be named when B-b is built.
+- Needs: B-b.
+- Done when: to be named when B-b is built.
+
+### F-144 · The last recheck follows the stream
+- Status: blocked (Hamoud's B-c)
+- Plan: none (the section above). After B-c, `lastRecheckQuery` has no interval at all;
+  RecheckStarted and RecheckFinished refresh it.
+- Read: B-c in `docs/backend/stages.md`, `web/src/stream/refresh.ts`, `lastRecheckQuery` in `web/src/api/runs.ts`.
+- Touch: to be named when B-c is built.
+- Needs: B-c.
+- Done when: to be named when B-c is built.
 
 Every task's checks run from `web/`: the tests it names, then `npm run typecheck`, `npm run lint`,
 `npm run build` and `npx vitest run src/codemap.test.ts src/architecture`.
