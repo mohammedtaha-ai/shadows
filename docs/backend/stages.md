@@ -324,3 +324,84 @@ The `testing8` live run is finished. Open: its findings (B-199), B-200 to B-205,
 - Done when: a test asks for a recheck and reads `RecheckStarted` then `RecheckFinished` for that
   batch from the project stream; a test's completing done mark starts a batch and its
   `RecheckStarted` is there.
+
+## Backend review fixes (2026-11-25)
+
+Plan: [backend review fixes](plans/2026-11-25-backend-review-fixes.md); each entry is that plan's task, in its order. Executed inline by the controller on Mohammed's request (2026-11-25).
+
+### B-211 · Fixed-width database times; check overlap compares instants
+
+- Status: todo. Plan task 2.
+
+### B-212 · The ended-turn cursor reads only operation endings
+
+- Status: todo. Plan task 8.
+
+### B-213 · The database opens its literal filename
+
+- Status: todo. Plan task 3.
+
+### B-214 · A failed recheck worker ends its batch
+
+- Status: todo. Plan task 6.
+
+### B-215 · A committed write is announced even if its caller is dropped
+
+- Status: todo. Plan task 7.
+
+### B-216 · A replayed recheck ask returns its own stored outcome
+
+- Status: todo. Plan task 1.
+
+### B-217 · The last recheck and its counts come from one snapshot
+
+- Status: todo. Plan task 9.
+
+### B-218 · A cancelled LSP question closes its document
+
+- Status: todo. Plan task 5.
+
+### B-219 · LSP hierarchy work and startup waits are bounded
+
+- Status: todo. Plan task 13.
+
+### B-220 · Extension import copies outside the writer
+
+- Status: todo. Plan task 4.
+
+### B-221 · Quiet-project waits use Operations' busy check
+
+- Status: todo. Plan task 11.
+
+### B-222 · Supersession reads only the project's marks
+
+- Status: todo. Plan task 10.
+
+### B-223 · Project state builds only what it returns
+
+- Status: todo. Plan task 12.
+
+### B-224 · A project subscription holds only the channels it reads
+
+- Status: todo. Plan task 17.
+
+### B-225 · Planner command construction is type-safe
+
+- Status: todo. Plan task 18.
+
+### B-226 · Startup validates executable paths and origin ports
+
+- Status: todo. Plan task 19.
+
+### B-227 · A clipped provider catalog says so
+
+- Status: todo. Plan task 20.
+
+### B-228 · An agent home's settings are published whole, never clobbered
+
+- Status: todo. Plan task 21.
+
+### B-229 · Architecture tests cover Runs and Messages
+
+- Status: todo. Plan task 15.
+
