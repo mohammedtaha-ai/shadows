@@ -84,6 +84,14 @@ it('the_checks_list_contains_its_hidden_state_labels', async () => {
   }
 })
 
+// The layout rule, as classes (no layout in happy-dom): 18rem at most, shrinkable to nothing, clipped.
+it('the_panel_gives_way_to_a_short_window', async () => {
+  const host = await draw()
+  const panel = host.querySelector('section[aria-label="Project recheck"]')
+  expect([...panel?.classList ?? []]).toEqual(expect.arrayContaining(['h-72', 'min-h-0', 'overflow-hidden']))
+  expect(panel?.classList.contains('shrink-0')).toBe(false)
+})
+
 it('the_chevron_closes_the_panel', async () => {
   const onClose = vi.fn()
   const host = await draw(onClose)

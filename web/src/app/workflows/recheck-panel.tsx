@@ -64,7 +64,10 @@ export function RecheckPanel({ workflowId, onClose }: { workflowId: string; onCl
   if (last == null) return null
   const { passed, failed, unfinished } = last.counts
   return (
-    <section aria-label="Project recheck" className="flex h-72 shrink-0 flex-col border-t border-border bg-background">
+    // At most 18rem, and it gives way to a short window: the graph above (no basis) reaches zero first, then
+    // this shrinks, down to nothing, so the plan page never grows past the window.
+    <section aria-label="Project recheck"
+      className="flex h-72 min-h-0 flex-col overflow-hidden border-t border-border bg-background">
       <header className="flex items-center gap-3 border-b border-border px-4 py-1.5 text-xs">
         <h2 className="font-semibold">Project recheck</h2>
         <span className="text-muted-foreground">
