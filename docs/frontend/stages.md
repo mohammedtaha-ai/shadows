@@ -33,7 +33,7 @@ and `code_where` in the web (F-130 to F-136) are on `main` in PR #75 (`4d69977d`
   checks in "Now".
 
 ### F-138 · The recheck's terminal panel on the plan page
-- Status: blocked (needs a new file under `web/src/stream/`, outside Touch: the rule that only `stream/` opens an `EventSource` (architecture test, `server_access`) leaves the `/api/rechecks/{recheck}/output` reader nowhere in Touch. Add `web/src/stream/recheck-output.ts` (+ test, export in `index.ts`, `stream/contract.yaml`, code map row) to Touch.)
+- Status: todo
 - Plan: none. Mockup agreed with Mohammed on 2026-11-24: a panel at the bottom of the plan
   page, over the plan graph (which gets shorter). Its header reads "Project recheck", who began
   it and when, the passed, failed and left counts, and a chevron that closes it. Its left column
@@ -48,8 +48,9 @@ and `code_where` in the web (F-130 to F-136) are on `main` in PR #75 (`4d69977d`
   `api/openapi.json`; `web/src/app/workflows/recheck-control.tsx`; `plan-page.tsx`.
 - Touch: `web/src/api/schema.d.ts` (generated), `web/src/api/runs.ts`, `web/src/api/contract.yaml`,
   `web/src/app/workflows/plan-page.tsx`, `recheck-control.tsx` and its test, a new
-  `web/src/app/workflows/recheck-panel.tsx` and its test, `web/src/app/workflows/contract.yaml`,
-  the code map row.
+  `web/src/app/workflows/recheck-panel.tsx` and its test, `web/src/app/workflows/contract.yaml`, a new `web/src/stream/recheck-output.ts` (the
+  `EventSource` reader and its hook; only `stream/` opens one) and its test, its export in
+  `web/src/stream/index.ts`, `web/src/stream/contract.yaml`, the code map rows.
 - Needs: B-207.
 - Done when: `npx vitest run src/app/workflows/recheck-panel.test.tsx
   src/app/workflows/recheck-control.test.tsx` passes (opens on Recheck, the icon opens and
