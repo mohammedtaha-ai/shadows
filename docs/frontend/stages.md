@@ -137,7 +137,7 @@ changes) and B-210 (RecheckStarted and RecheckFinished on the project tail). The
   code servers have an interval only while one is `starting`.
 
 ### F-142 · Conversation lists follow the project stream
-- Status: blocked (B-208)
+- Status: todo
 - Plan: none (the section above). After B-208, `threadsQuery` and `agentThreadsQuery` lose their
   10 s intervals, and `ThreadRemoved` and a turn's end (the `Operation…` kinds) refresh `thread-lists` in
   `classifyRefresh`; the filter in `dispatch` that drops `thread-lists` from a project scope goes.
@@ -145,18 +145,29 @@ changes) and B-210 (RecheckStarted and RecheckFinished on the project tail). The
   today it is only held because `GroupList` is drawn beside it.
 - Read: B-208 in `docs/backend/stages.md`, `web/src/stream/refresh.ts`, `web/src/api/threads.ts`,
   `agentThreadsQuery` in `web/src/api/aylul-profiles.ts`, `web/src/app/sidebar/agent-list.tsx`.
-- Touch: to be named when B-208 is built.
-- Needs: B-208.
-- Done when: to be named when B-208 is built.
+- Touch: `web/src/stream/refresh.ts`, `web/src/stream/refresh.test.tsx`, `web/src/api/threads.ts`,
+  `web/src/api/threads.test.ts`, `web/src/api/aylul-profiles.ts`, `web/src/api/aylul-profiles.test.ts`,
+  `web/src/app/sidebar/agent-list.tsx`, `web/src/app/sidebar/sidebar.test.tsx`, `web/src/api/contract.yaml`,
+  `web/src/stream/contract.yaml`, `web/src/app/sidebar/contract.yaml`.
+- Needs: B-208 (`e3195821`). On the project tail an event has no thread scope: `classifyRefresh` is called
+  with `threadId: null` there, so `ThreadRemoved` and the `Operation…` kinds map to `thread-lists` whatever the scope.
+- Done when: `npx vitest run src/stream/refresh.test.tsx src/api/threads.test.ts src/api/aylul-profiles.test.ts
+  src/app/sidebar/sidebar.test.tsx` passes, with cases: on a project stream `ThreadRetitled`, `ThreadRemoved` and
+  `OperationCompleted` refresh the thread lists; neither list query has an interval; `AgentList` holds the
+  AYLUL project's stream.
 
 ### F-143 · Checks and a conflict's delivery follow the stream
-- Status: blocked (B-209)
+- Status: todo (after F-140, which owns the same `TaskProgressChanged` mapping)
 - Plan: none (the section above). After B-209, `TaskProgressChanged` also refreshes `runKeys.checks`
   and `runKeys.conflict` of its `attempt_id`, and `attemptChecksQuery` and `attemptConflictQuery` lose their 2 s intervals.
 - Read: B-209 in `docs/backend/stages.md`, `web/src/stream/refresh.ts`, `web/src/api/runs.ts`.
-- Touch: to be named when B-209 is built.
-- Needs: B-209.
-- Done when: to be named when B-209 is built.
+- Touch: `web/src/stream/refresh.ts`, `web/src/stream/refresh.test.tsx`, `web/src/api/runs.ts`,
+  `web/src/api/runs.test.ts`, `web/src/api/contract.yaml`, `web/src/stream/contract.yaml`.
+- Needs: B-209 (`691af7f2`): `TaskProgressChanged` is also written when an attempt's check takes its result,
+  when a conflict is recorded and when its delivery leaves `pending`.
+- Done when: `npx vitest run src/stream/refresh.test.tsx src/api/runs.test.ts` passes, with cases:
+  `TaskProgressChanged` refreshes the checks and conflict of its `attempt_id` and no other attempt's;
+  neither query has an interval.
 
 ### F-144 · The last recheck follows the stream
 - Status: blocked (B-210)
