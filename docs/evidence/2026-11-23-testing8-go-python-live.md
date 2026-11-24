@@ -39,6 +39,24 @@ The executor ran pytest itself (66 passed), its new test copied a fixture into p
 temporary folder, and `git add` and `git commit` were not denied (its report names only LF→CRLF
 warnings). The sandbox findings below are Codex's only.
 
+## After B-200 to B-205 (2026-11-24)
+
+Rebuilt with `2853797a` to `3957395b`. Plan "Water CLI reset-today", two tasks, Codex
+`gpt-6-luna`, medium (`gpt-6.2-sol` was not offered: Codex's own cache, fetched from OpenAI at
+14:24 UTC, listed only `gpt-6-luna`, `gpt-5.6-terra` and `gpt-5.6-luna`).
+
+| | T1 `a4923097` | T2 `b3fbb5d6` |
+|---|---|---|
+| Attempt ended (UTC) | 15:04:57 | 15:06:29 |
+| Notice sent | 15:05:17 (20 s) | 15:06:33 (3 s) |
+| Git | committed first time | committed first time |
+
+No `index.lock` denial and no approval in either report (B-201). T1's mark started no recheck;
+T2's, which completed the plan, started one (15:06:42 to 15:12:13: 30 passed, 6 `contract`
+`not_run` for want of pyright), which sent no notice (B-200). T1's executor still saw `go test`
+rename tests fail with "Access is denied" inside the sandbox; Shadows' own checks passed them.
+The Planner waited for a recheck message that a mark-started recheck with no failure never sends.
+
 ## Shadows defects found and fixed on the branch
 
 - **Unnoted changes asked about files the Planner never wrote** (B-197, `ac7d1e3d`). Before:

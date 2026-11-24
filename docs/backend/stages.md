@@ -143,7 +143,10 @@ The `testing8` live run is finished. Open: its findings (B-199), and B-200 to B-
 
 - Status: done (2026-11-24) in code and tests: only the mark that completes its plan version
   rechecks; `Runs::recheck_project` serves `POST /api/workflows/{workflow}/recheck` and the
-  Planner's `project_recheck`. The live run in "Done when" is not yet done.
+  Planner's `project_recheck`. Live in `testing8` (2026-11-24, plan "Water CLI reset-today"):
+  T1's mark started no recheck; T2's, completing the plan, started one (15:06:42 to 15:12:13 UTC,
+  30 passed, 6 `contract` `not_run` for want of pyright, no notice). Notices came 20 s and 3 s
+  after the commits ([evidence](../evidence/2026-11-23-testing8-go-python-live.md)).
   Follow-up (2026-11-24): the Planner prompt names `project_recheck` (when the person asks; a
   completing done mark already starts one), held by
   `mcp_tools::the_planner_is_told_how_to_run_and_judge_tasks`. An asked recheck in which every
@@ -164,7 +167,9 @@ The `testing8` live run is finished. Open: its findings (B-199), and B-200 to B-
 ### B-201 · A Codex conversation in `ask` can commit
 
 - Status: done (2026-11-24) in code and a signed-in live test
-  (`live_a_codex_conversation_in_ask_commits_but_keeps_hooks_and_config`). A per-turn
+  (`live_a_codex_conversation_in_ask_commits_but_keeps_hooks_and_config`), and live in
+  `testing8` (2026-11-24): two Codex `gpt-6-luna` executors committed first time, with no
+  `index.lock` denial and no approval. A per-turn
   `sandboxPolicy` replaces a profile, so `ask` sends the experimental `permissions` field; the
   connection opens with `experimentalApi` and the snapshot was re-adopted from the experimental
   schema. The `testing8` executor run in "Done when" is not yet done.
