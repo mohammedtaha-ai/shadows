@@ -1,7 +1,7 @@
 //! Persistence of confirmations and their delivery on the owning attempt.
 use super::RunsStore;
 use crate::{AttemptId, CheckOutcome, CheckResult, ReportedOutcome, RunsError};
-use core_db::Storage;
+use core_db::{Actor, Storage};
 use core_plans::{TaskCheck, WorkflowId};
 use core_projects::ProjectId;
 use core_threads::ThreadId;
@@ -277,6 +277,7 @@ impl RunsStore {
                     .bind(check)
                     .execute(&mut *tx)
                     .await?;
+                    super::attempt_progress_in(tx, &id, Actor::system(), &Storage::now()).await?;
                     Ok(())
                 })
             })

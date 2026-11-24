@@ -106,7 +106,9 @@ page still shows its `Planned` block; both are rows of [Core future](../../core/
 **Progress reaches the project stream** (2026-11-20, from the frontend's review of the project
 state request). Every write that changes what a task's progress answers (`Runs::progress`: an
 attempt inserted, an attempt's state changed by its report, its end, a Stop, a startup's
-interruption, and a done or not-done mark) journals `TaskProgressChanged { project_id,
+interruption, and a done or not-done mark) and every write that changes what the task page
+reads of an attempt (one of its check rows finished, its conflict recorded or its delivery moved
+from pending; a recheck row is not one) journals `TaskProgressChanged { project_id,
 workflow_id, version, task, attempt_id }` in that same write. `attempt_id` is null for a mark.
 Runs journals it, and a replay journals nothing. The project event tail carries it, so a project
 view refreshes progress without following each executor's thread. Plan:

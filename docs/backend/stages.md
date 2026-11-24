@@ -295,7 +295,7 @@ The `testing8` live run is finished. Open: its findings (B-199), B-200 to B-205,
 
 ### B-209 · A task's check results and conflict delivery reach the project stream
 
-- Status: open. Decided by Mohammed on 2026-11-24. For F-b and the follow-up that drops the 2 s
+- Status: done. Decided by Mohammed on 2026-11-24. For F-b and the follow-up that drops the 2 s
   polls of `attemptChecksQuery` and `attemptConflictQuery`.
 - Owner: [executors design, "Progress reaches the project stream"](specs/2026-11-08-executors-design.md);
   amend it: `TaskProgressChanged` names any change to what the task page reads of an attempt,

@@ -834,3 +834,41 @@ async fn invalid_conflicts_are_refused() {
     assert!(f.core.runs().conflict(&attempt.id).await.unwrap().is_none());
     f.finish().await;
 }
+
+/// Recording a conflict and moving its delivery from pending each journal one
+/// TaskProgressChanged for the attempt; a replay journals none.
+#[tokio::test]
+async fn a_conflict_and_its_delivery_journal_progress() {
+    let f = fixture().await;
+    f.planner_turn("p1", "fake-large").await;
+    f.busy_planner().await;
+    let attempt = f.start("s1", 1, "hang").await;
+    let grant = f.executor(&attempt).await;
+    let events = || async {
+        sqlx::query_scalar::<_, i64>(
+            "SELECT COUNT(*) FROM durable_event WHERE kind = 'TaskProgressChanged'
+             AND json_extract(payload_json, '$.attempt_id') = ?",
+        )
+        .bind(attempt.id.as_str())
+        .fetch_one(f.storage.reader())
+        .await
+        .unwrap()
+    };
+    let started = events().await;
+    let acked = f
+        .core
+        .runs()
+        .conflict_for(&grant, input("c1"))
+        .await
+        .unwrap();
+    assert_eq!(acked.delivery, ConflictDelivery::Delivered);
+    assert_eq!(events().await, started + 2, "the conflict and its delivery");
+    f.core
+        .runs()
+        .conflict_for(&grant, input("c1"))
+        .await
+        .unwrap();
+    assert_eq!(events().await, started + 2, "a replayed conflict journaled");
+    f.release();
+    f.finish().await;
+}
