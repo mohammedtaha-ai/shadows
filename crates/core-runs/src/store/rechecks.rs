@@ -21,6 +21,19 @@ pub(crate) struct Batch {
     pub notice_sent_at: Option<String>,
 }
 
+/// A batch as the plan page reads it.
+#[derive(sqlx::FromRow)]
+pub(crate) struct LastBatch {
+    pub id: String,
+    pub cause_workflow_id: String,
+    pub cause_version: i64,
+    pub cause_task: u32,
+    pub asked: bool,
+    pub asker_thread_id: Option<String>,
+    pub created_at: String,
+    pub finished_at: Option<String>,
+}
+
 #[derive(sqlx::FromRow)]
 pub(crate) struct ResultRow {
     pub attempt_id: String,
@@ -259,6 +272,44 @@ impl RunsStore {
         .bind(id)
         .fetch_one(self.storage.reader())
         .await?)
+    }
+
+    /// The project's newest batch and its rows counted by outcome, in one read.
+    pub async fn last_recheck(
+        &self,
+        project: &str,
+    ) -> Result<Option<(LastBatch, crate::RecheckCounts)>, RunsError> {
+        let Some(batch) = sqlx::query_as::<_, LastBatch>(
+            "SELECT id,cause_workflow_id,cause_version,cause_task,asked,asker_thread_id,
+             created_at,finished_at FROM run_rechecks WHERE project_id=?
+             ORDER BY created_at DESC,id DESC LIMIT 1",
+        )
+        .bind(project)
+        .fetch_optional(self.storage.reader())
+        .await?
+        else {
+            return Ok(None);
+        };
+        let counts: Vec<(Option<String>, u32)> = sqlx::query_as(
+            "SELECT CASE WHEN finished_at IS NULL THEN NULL ELSE outcome END AS o,COUNT(*)
+             FROM run_recheck_results WHERE recheck_id=? GROUP BY o ORDER BY o",
+        )
+        .bind(&batch.id)
+        .fetch_all(self.storage.reader())
+        .await?;
+        let mut total = crate::RecheckCounts::default();
+        for (outcome, n) in counts {
+            let slot = match outcome.as_deref() {
+                None => &mut total.unfinished,
+                Some("passed") => &mut total.passed,
+                Some("failed") => &mut total.failed,
+                Some("timed_out") => &mut total.timed_out,
+                Some("inconclusive") => &mut total.inconclusive,
+                Some(_) => &mut total.not_run,
+            };
+            *slot += n;
+        }
+        Ok(Some((batch, total)))
     }
 
     pub async fn recheck_rows(&self, id: &str) -> Result<Vec<ResultRow>, RunsError> {

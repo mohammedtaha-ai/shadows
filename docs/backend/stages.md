@@ -241,7 +241,7 @@ The `testing8` live run is finished. Open: its findings (B-199), and B-200 to B-
 
 ### B-206 · The plan page can read the project's last recheck
 
-- Status: todo. For F-137 (the person's "Recheck project" button). Decided by Mohammed on
+- Status: done. For F-137 (the person's "Recheck project" button). Decided by Mohammed on
   2026-11-24.
 - Owner: [executors design, "A project recheck runs when a plan is complete, or when
   asked"](specs/2026-11-08-executors-design.md).

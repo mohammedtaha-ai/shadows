@@ -249,6 +249,7 @@ fn the_document_names_every_route() {
             "GET /api/threads/{id}/operations",
             "GET /api/threads/{id}/queue",
             "GET /api/workflows/{id}",
+            "GET /api/workflows/{workflow}/recheck",
             "GET /api/workflows/{workflow}/versions/{version}/progress",
             "GET /api/workflows/{workflow}/versions/{version}/tasks/{task}",
             "GET /api/workflows/{workflow}/versions/{version}/tasks/{task}/attempts",

@@ -321,7 +321,7 @@ fn run_routes(table: OpenApiRouter<AppState>) -> OpenApiRouter<AppState> {
         .routes(routes!(runs::set_executor))
         .routes(routes!(runs::attempts, runs::start))
         .routes(routes!(runs::mark_done))
-        .routes(routes!(runs::recheck))
+        .routes(routes!(runs::recheck, runs::last_recheck))
         .routes(routes!(runs::stop))
         .routes(routes!(runs::diff))
         .routes(routes!(runs::brief))

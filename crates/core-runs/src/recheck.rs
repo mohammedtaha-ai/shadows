@@ -6,8 +6,8 @@ use crate::notify::NoticeIntent;
 use crate::store::checks::Finished;
 use crate::store::rechecks::{Batch, ResultRow};
 use crate::{
-    Attempt, AttemptId, CheckOutcome, CheckResult, ProjectRecheck, RecheckFailure, RecheckNotice,
-    Runs, RunsError,
+    Attempt, AttemptId, CheckOutcome, CheckResult, LastRecheck, ProjectRecheck, RecheckBegan,
+    RecheckFailure, RecheckNotice, Runs, RunsError,
 };
 use core_db::CommandContext;
 use core_plans::{TaskCheck, WorkflowId};
@@ -52,6 +52,47 @@ impl Runs {
             });
         }
         Ok(ProjectRecheck { recheck_id: id })
+    }
+
+    /// The newest recheck batch of the project of plan version `workflow`, with its rows
+    /// counted by outcome; none when the project has had no recheck.
+    pub async fn last_recheck(
+        &self,
+        workflow: &WorkflowId,
+    ) -> Result<Option<LastRecheck>, RunsError> {
+        let plan = self.read_plan(workflow).await?;
+        let Some((batch, counts)) = self
+            .inner
+            .store
+            .last_recheck(plan.project_id.as_str())
+            .await?
+        else {
+            return Ok(None);
+        };
+        let began = match (batch.asked, batch.asker_thread_id) {
+            (true, Some(thread_id)) => RecheckBegan::Planner { thread_id },
+            (true, None) => RecheckBegan::Person,
+            (false, _) => {
+                let cause = WorkflowId::from_recorded(batch.cause_workflow_id);
+                let plan_title = if &cause == workflow {
+                    plan.title
+                } else {
+                    self.read_plan(&cause).await?.title
+                };
+                RecheckBegan::Mark {
+                    plan_title,
+                    version: batch.cause_version,
+                    task: batch.cause_task,
+                }
+            }
+        };
+        Ok(Some(LastRecheck {
+            recheck_id: batch.id,
+            began,
+            created_at: batch.created_at,
+            finished_at: batch.finished_at,
+            counts,
+        }))
     }
 
     pub(crate) async fn recheck_done(&self, id: String) {

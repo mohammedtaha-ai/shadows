@@ -1,6 +1,7 @@
 //! One job: the routes over a task's attempts — the task's run state,
 //! Start, Stop, an attempt's brief, its contract conflict, its diff, a file at
-//! its commit, the person's done mark and the project recheck the person asks for.
+//! its commit, the person's done mark, the project recheck the person asks for and
+//! the project's last recheck batch.
 //!
 //! Each handler reads the request, calls one `Runs` method and shapes the
 //! answer. A refused Start is 409 with Runs' own `code` and `reason`.
@@ -278,6 +279,26 @@ pub(super) async fn recheck(
         .recheck_project(body.command_id, &workflow, None)
         .await?;
     Ok((StatusCode::ACCEPTED, Json(started)))
+}
+
+/// The project's newest recheck batch: what began it, its times and its rows counted by
+/// outcome; null when the project has had no recheck.
+#[utoipa::path(
+    get,
+    path = "/api/workflows/{workflow}/recheck",
+    tag = "runs",
+    params(("workflow" = WorkflowId, Path, description = "A plan version of the project")),
+    responses(
+        (status = 200, body = Option<shadows_core::LastRecheck>),
+        (status = 404, description = "no such plan version", body = ErrorBody),
+        (status = 500, description = "STORAGE_UNAVAILABLE", body = ErrorBody),
+    )
+)]
+pub(super) async fn last_recheck(
+    State(s): State<AppState>,
+    Path(workflow): Path<WorkflowId>,
+) -> Result<Json<Option<shadows_core::LastRecheck>>, RunFailure> {
+    Ok(Json(s.core.runs().last_recheck(&workflow).await?))
 }
 
 /// Stops the attempt and answers once its turn's end is confirmed. An

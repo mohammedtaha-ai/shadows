@@ -56,6 +56,7 @@ pub use model::{
     TaskProgress, TaskRun,
 };
 pub use model::{Chooser, ExecutorChoice, ExecutorInput, ProjectRecheck};
+pub use model::{LastRecheck, RecheckBegan, RecheckCounts};
 pub use question::{PlannedScope, ProducerStatus, TaskAnswer, TaskQuestion};
 
 use code_record::CodeRecord;

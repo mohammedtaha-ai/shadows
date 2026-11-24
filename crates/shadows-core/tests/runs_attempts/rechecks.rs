@@ -550,3 +550,37 @@ async fn a_done_task_a_newer_version_marks_done_is_not_rechecked() {
     assert_eq!(rows, 0, "version 1's T3 is superseded by version 2's mark");
     f.finish().await;
 }
+
+#[tokio::test]
+async fn the_plan_page_reads_the_projects_last_recheck() {
+    let f = done_task(false).await;
+    let runs = f.core.runs();
+    assert_eq!(runs.last_recheck(&f.workflow).await.unwrap(), None);
+    let id = asked(&f, &f.workflow, "page").await.unwrap();
+    finished(&f).await;
+    let rows: u32 = sqlx::query_scalar("SELECT COUNT(*) FROM run_recheck_results")
+        .fetch_one(f.storage.reader())
+        .await
+        .unwrap();
+    assert!(rows > 0);
+    let done = runs.last_recheck(&f.workflow).await.unwrap().unwrap();
+    // The batch as it stood while running: no row finished yet.
+    for sql in [
+        "UPDATE run_rechecks SET finished_at=NULL",
+        "UPDATE run_recheck_results SET finished_at=NULL",
+    ] {
+        sqlx::query(sql).execute(f.storage.reader()).await.unwrap();
+    }
+    let running = runs.last_recheck(&f.workflow).await.unwrap().unwrap();
+    assert_eq!(running.recheck_id, id);
+    assert_eq!(running.began, shadows_core::RecheckBegan::Person);
+    assert_eq!(running.finished_at, None);
+    assert_eq!(running.counts.unfinished, rows);
+    assert_eq!(running.counts.passed, 0);
+    assert_eq!(done.recheck_id, id);
+    assert!(done.finished_at.is_some());
+    assert_eq!(done.counts.unfinished, 0);
+    assert_eq!(done.counts.passed, rows);
+    assert_eq!(done.counts.failed + done.counts.not_run, 0);
+    f.finish().await;
+}

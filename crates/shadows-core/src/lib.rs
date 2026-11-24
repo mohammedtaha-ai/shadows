@@ -1,6 +1,7 @@
 mod app;
 pub use core_runs::LiveAttempt;
 pub use core_runs::{Chooser, ExecutorChoice, ExecutorInput};
+pub use core_runs::{LastRecheck, RecheckBegan, RecheckCounts};
 pub use core_runs::{ProjectRecheck, RecheckFailure, RecheckNotice};
 pub use core_runtime::RuntimeError;
 mod error;

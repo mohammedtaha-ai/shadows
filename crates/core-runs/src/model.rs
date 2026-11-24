@@ -285,6 +285,45 @@ pub struct ProjectRecheck {
     pub recheck_id: Option<String>,
 }
 
+/// What began a recheck batch.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, utoipa::ToSchema)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum RecheckBegan {
+    /// The done mark of `task` completed version `version` of the plan titled `plan_title`.
+    Mark {
+        plan_title: String,
+        version: i64,
+        task: u32,
+    },
+    /// The person asked.
+    Person,
+    /// A Planner asked from this thread.
+    Planner { thread_id: String },
+}
+
+/// A recheck batch's rows counted by outcome; `unfinished` counts rows not finished yet.
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, utoipa::ToSchema)]
+pub struct RecheckCounts {
+    pub passed: u32,
+    pub failed: u32,
+    pub timed_out: u32,
+    pub inconclusive: u32,
+    pub not_run: u32,
+    pub unfinished: u32,
+}
+
+/// The newest recheck batch of a project, as the plan page shows it.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, utoipa::ToSchema)]
+pub struct LastRecheck {
+    pub recheck_id: String,
+    pub began: RecheckBegan,
+    pub created_at: String,
+    /// None while the batch runs.
+    #[schema(required)]
+    pub finished_at: Option<String>,
+    pub counts: RecheckCounts,
+}
+
 /// A task as the runs see it: marked done or not, its latest attempt, the
 /// tasks it needs, whether Start may run now, and the model to offer first.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, utoipa::ToSchema)]
