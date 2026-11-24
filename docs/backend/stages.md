@@ -84,7 +84,7 @@ this file at `db760593`.
 
 ## Open
 
-The `testing8` live run is finished. Open: its findings (B-199), and B-200 to B-205 on `feature/after-75`. B-196, B-197 and B-198 are done on
+The `testing8` live run is finished. Open: its findings (B-199), B-200 to B-205, and B-208 to B-210 (polling to SSE) on `feature/after-75`. B-196, B-197 and B-198 are done on
 `feature/after-75` and stay here until the next docs sync.
 
 ### B-196 · Verify Codex commit recovery on Windows
@@ -274,3 +274,53 @@ The `testing8` live run is finished. Open: its findings (B-199), and B-200 to B-
 - Done when: a test reads a finished batch's rows with their output; a test subscribes while a
   check runs and receives a chunk the check printed before it finishes, then its finish and the
   end event; `cargo test -p shadows --test openapi` passes.
+
+### B-208 · The project stream says when a planning thread's list changes
+
+- Status: open. Decided by Mohammed on 2026-11-24 (polling to SSE; Hamoud's proposal, agreed with
+  Masada). For F-d, which drops the 10 s polls of `threadsQuery` and `agentThreadsQuery`.
+- Owner: [project plans design, "How the pages stay current"](../core/specs/2026-10-01-project-plans-design.md);
+  amend it in place: the project tail also carries what changes a project's thread list.
+- Change:
+  - Events: the project tail (`read_project_events_after`, `crates/core-events/src/store.rs`)
+    also carries `ThreadRetitled` and `ThreadRemoved`, which Threads already journals with the
+    thread's project.
+  - Operations: a turn's end (`OperationCompleted`, `OperationFailed`, `OperationCancelled`,
+    `OperationInterrupted`, including recovery's) is journaled with its thread's project, read
+    in the same write; the project tail carries these four kinds. A turn with no thread has no
+    project and stays off the tail. The payload is unchanged.
+  - Update the core-events and core-operations contracts.
+- Done when: a test retitles a thread, ends a turn in it and removes it, and reads the three
+  events from the project stream in sequence order; a thread of another project is not there.
+
+### B-209 · A task's check results and conflict delivery reach the project stream
+
+- Status: open. Decided by Mohammed on 2026-11-24. For F-b and the follow-up that drops the 2 s
+  polls of `attemptChecksQuery` and `attemptConflictQuery`.
+- Owner: [executors design, "Progress reaches the project stream"](specs/2026-11-08-executors-design.md);
+  amend it: `TaskProgressChanged` names any change to what the task page reads of an attempt,
+  not only its progress.
+- Change: Runs journals one `TaskProgressChanged { project_id, workflow_id, version, task,
+  attempt_id }`, same payload, in the write that finishes one of an attempt's check rows
+  (outcome set, `crates/core-runs/src/store/checks.rs`), and in the write that changes a
+  conflict's delivery or the scope it holds (`store/conflict.rs`). A recheck's rows
+  (`run_recheck_results`) journal nothing here; B-210 covers them. A replay journals nothing.
+  Update the core-runs contract.
+- Done when: a test commits an attempt whose check finishes after the commit and reads a
+  `TaskProgressChanged` for that attempt after the check's outcome is stored; a test moves a
+  conflict's delivery from pending and reads one.
+
+### B-210 · A project recheck's start and end reach the project stream
+
+- Status: open. Decided by Mohammed on 2026-11-24. For F-a's follow-up: `lastRecheckQuery` reads
+  again on these events and polls never.
+- Owner: [executors design, "A project recheck runs when a plan is complete, or when
+  asked"](specs/2026-11-08-executors-design.md); amend it with the two events.
+- Change: Runs journals `RecheckStarted { project_id, workflow_id, recheck_id }` in the write that
+  begins a batch (a completing done mark's and `recheck_project`'s; `workflow_id` the cause
+  plan), and `RecheckFinished` with the same payload in the write that sets the batch's
+  `finished_at`, also for a batch recovery runs again. A replayed ask journals nothing. The
+  project tail carries both kinds. Update the core-runs and core-events contracts.
+- Done when: a test asks for a recheck and reads `RecheckStarted` then `RecheckFinished` for that
+  batch from the project stream; a test's completing done mark starts a batch and its
+  `RecheckStarted` is there.
