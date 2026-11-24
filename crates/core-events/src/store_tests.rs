@@ -66,10 +66,14 @@ async fn fixture(kinds: &[&str]) -> (tempfile::TempDir, EventsStore, Vec<i64>) {
 
 #[tokio::test]
 async fn ended_turns_come_back_in_seq_order_after_the_cursor() {
+    // A recheck event carrying a thread and an operation is not a turn's ending: the
+    // cursor passes over it instead of failing at it.
     let (_tmp, store, seq) = fixture(&[
         "OperationFailed",
         "OperationStarted",
         "OperationCompleted",
+        "RecheckStarted",
+        "RecheckFinished",
         "OperationCancelled",
     ])
     .await;
@@ -80,7 +84,7 @@ async fn ended_turns_come_back_in_seq_order_after_the_cursor() {
     assert_eq!(first[0].operation_id.as_str(), "op1");
     let rest = store.ended_turns_after(first[0].seq, 10).await.unwrap();
     assert_eq!(rest.len(), 1);
-    assert_eq!(rest[0].seq, seq[3]);
+    assert_eq!(rest[0].seq, seq[5]);
     assert_eq!(rest[0].thread_id.as_str(), "t2");
 }
 

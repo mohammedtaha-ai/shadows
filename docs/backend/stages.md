@@ -335,7 +335,7 @@ Plan: [backend review fixes](plans/2026-11-25-backend-review-fixes.md); each ent
 
 ### B-212 · The ended-turn cursor reads only operation endings
 
-- Status: todo. Plan task 8.
+- Status: done (2026-11-25). Plan task 8. The ended-turn query lists the four operation endings only; RecheckStarted/RecheckFinished stay on the project tail.
 
 ### B-213 · The database opens its literal filename
 

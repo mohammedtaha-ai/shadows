@@ -49,8 +49,7 @@ impl EventsStore {
             "SELECT seq, thread_id, operation_id, kind FROM durable_event
               WHERE seq > ? AND thread_id IS NOT NULL AND operation_id IS NOT NULL
                 AND kind IN ('OperationCompleted', 'OperationFailed',
-                             'OperationCancelled', 'OperationInterrupted',
-                               'RecheckStarted', 'RecheckFinished')
+                             'OperationCancelled', 'OperationInterrupted')
               ORDER BY seq LIMIT ?",
         )
         .bind(after)

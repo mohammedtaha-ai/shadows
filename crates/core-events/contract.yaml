@@ -113,7 +113,7 @@ shapes:
 
 
 functions:
-  ended_turns_after: Replay durable terminal turns after a journal sequence in order.
+  ended_turns_after: Replay durable terminal turns (the four operation endings only; a recheck event is not one) after a journal sequence in order.
   new: Constructs Events over declared publication and subscription dependencies.
   service:
     subscribe_project:
