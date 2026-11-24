@@ -303,13 +303,15 @@ impl RunsStore {
         &self,
         project: &str,
     ) -> Result<Option<(LastBatch, crate::RecheckCounts)>, RunsError> {
+        // One read transaction: the batch and its counts come from the same snapshot.
+        let mut read = self.storage.reader().begin().await?;
         let Some(batch) = sqlx::query_as::<_, LastBatch>(
             "SELECT id,cause_workflow_id,cause_version,cause_task,asked,asker_thread_id,
              created_at,finished_at FROM run_rechecks WHERE project_id=?
              ORDER BY created_at DESC,id DESC LIMIT 1",
         )
         .bind(project)
-        .fetch_optional(self.storage.reader())
+        .fetch_optional(&mut *read)
         .await?
         else {
             return Ok(None);
@@ -319,8 +321,9 @@ impl RunsStore {
              FROM run_recheck_results WHERE recheck_id=? GROUP BY o ORDER BY o",
         )
         .bind(&batch.id)
-        .fetch_all(self.storage.reader())
+        .fetch_all(&mut *read)
         .await?;
+        read.commit().await?;
         let mut total = crate::RecheckCounts::default();
         for (outcome, n) in counts {
             let slot = match outcome.as_deref() {

@@ -355,7 +355,7 @@ Plan: [backend review fixes](plans/2026-11-25-backend-review-fixes.md); each ent
 
 ### B-217 · The last recheck and its counts come from one snapshot
 
-- Status: todo. Plan task 9.
+- Status: done (2026-11-25). Plan task 9. `last_recheck` reads the batch and its counts in one reader transaction; no race test (it would need a hook inside the store).
 
 ### B-218 · A cancelled LSP question closes its document
 
