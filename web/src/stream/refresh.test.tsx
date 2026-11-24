@@ -12,7 +12,7 @@ import { useThreadStream } from './use-thread-stream'
 import { waitingPermissionsQuery } from '@/api/permissions'
 import { threadKeys } from '@/api/threads'
 import { designKeys } from '@/api/design'
-import { attemptsQuery, taskRunQuery } from '@/api/runs'
+import { attemptChecksQuery, attemptConflictQuery, attemptsQuery, taskRunQuery } from '@/api/runs'
 import { planProgressQuery } from '@/api/workflows'
 import { elementRevisionsQuery, elementsQuery, projectStateQuery } from '@/api/project-state'
 
@@ -287,6 +287,20 @@ it('task_progress_refreshes_that_tasks_run_attempts_and_plan_progress_and_no_oth
   }))
   expect(mine.map(key => client.getQueryState(key)?.isInvalidated)).toEqual([true, true, true])
   expect(others.map(key => client.getQueryState(key)?.isInvalidated)).toEqual([false, false, false, false])
+  client.clear()
+})
+
+it('task_progress_refreshes_the_checks_and_conflict_of_its_attempt_and_no_other', () => {
+  const client = new QueryClient()
+  const mine = [attemptChecksQuery('a1').queryKey, attemptConflictQuery('a1').queryKey]
+  const others = [attemptChecksQuery('a2').queryKey, attemptConflictQuery('a2').queryKey]
+  for (const queryKey of [...mine, ...others]) client.getQueryCache().build(client, { queryKey })
+  dispatchRefresh(client, classifyRefresh({
+    kind: 'TaskProgressChanged', seq: 1, threadId: null, operationId: null, projectId: 'p1',
+    payload: { project_id: 'p1', workflow_id: 'w1', version: 1, task: 2, attempt_id: 'a1' },
+  }))
+  expect(mine.map(key => client.getQueryState(key)?.isInvalidated)).toEqual([true, true])
+  expect(others.map(key => client.getQueryState(key)?.isInvalidated)).toEqual([false, false])
   client.clear()
 })
 

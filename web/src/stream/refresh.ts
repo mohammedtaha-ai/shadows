@@ -6,7 +6,7 @@ import { invalidateProjects } from '@/api/projects'
 import { invalidateEntries, invalidateOperations, invalidateThreadLists } from '@/api/threads'
 import { invalidatePermissions } from '@/api/permissions'
 import { groupKeys } from '@/api/groups'
-import { invalidateExecutorChoices, invalidateTaskRun } from '@/api/runs'
+import { invalidateAttemptReads, invalidateExecutorChoices, invalidateTaskRun } from '@/api/runs'
 import { invalidateElementRevisions, invalidateProjectState } from '@/api/project-state'
 import type { DurableEvent } from './frames'
 import { subscribeProjectStream, subscribeThreadStream, type StreamSubscriber } from './thread-registry'
@@ -19,6 +19,7 @@ type RefreshTarget =
   | { kind: 'entries' | 'operations'; threadId: string }
   | { kind: 'group'; groupId: string }
   | { kind: 'task-progress'; workflowId: string; version: number; task: number }
+  | { kind: 'attempt-reads'; attemptId: string }
 
 type RefreshEvent = DurableEvent & { projectId?: string }
 
@@ -52,6 +53,10 @@ export function classifyRefresh(event: RefreshEvent): RefreshTarget[] {
       'version' in payload && typeof payload.version === 'number' &&
       'task' in payload && typeof payload.task === 'number') {
     targets.push({ kind: 'task-progress', workflowId: payload.workflow_id, version: payload.version, task: payload.task })
+  }
+  if (event.kind === 'TaskProgressChanged' && typeof payload === 'object' && payload !== null &&
+      'attempt_id' in payload && typeof payload.attempt_id === 'string') {
+    targets.push({ kind: 'attempt-reads', attemptId: payload.attempt_id })
   }
   if (event.kind === 'ProjectRemoved') targets.push({ kind: 'projects' })
   if (event.kind === 'TaskExecutorChosen' && projectId !== undefined) targets.push({ kind: 'executor-choices' })
@@ -95,6 +100,7 @@ export function dispatchRefresh(client: QueryClient, targets: readonly RefreshTa
       case 'entries': invalidateEntries(client, target.threadId); break
       case 'operations': invalidateOperations(client, target.threadId); break
       case 'thread-lists': invalidateThreadLists(client); break
+      case 'attempt-reads': invalidateAttemptReads(client, target.attemptId); break
       case 'task-progress':
         invalidateTaskRun(client, target.workflowId, target.version, target.task)
         invalidatePlanProgress(client, target.workflowId, target.version)
@@ -129,7 +135,7 @@ function refreshSubscriber(client: QueryClient, current: () => RefreshScope): St
         // Project design and agreement notices must reach dirty editors during replay.
         if (scope.threadId === undefined && target.kind !== 'workflows' && target.kind !== 'project-workflows' &&
             target.kind !== 'project-state' && target.kind !== 'element-revisions' &&
-            target.kind !== 'group' && target.kind !== 'groups' && target.kind !== 'executor-choices' && target.kind !== 'task-progress' && !PLAN_EVENTS.has(event.kind)) {
+            target.kind !== 'group' && target.kind !== 'groups' && target.kind !== 'executor-choices' && target.kind !== 'task-progress' && target.kind !== 'attempt-reads' && !PLAN_EVENTS.has(event.kind)) {
           dispatchRefresh(client, [target])
         } else pending.set(JSON.stringify(target), target)
       }

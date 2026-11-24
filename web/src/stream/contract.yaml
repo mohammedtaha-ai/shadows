@@ -739,7 +739,7 @@ refresh_policy:
   sharing: "Holders of one thread or project share one refresh per QueryClient (holdThreadRefresh, holdProjectRefresh): each event and caught-up dispatches once however many views hold it. Thread scope is the union of holders: writer-only while every holder is a writer, the first supplied project id. A holder joining a live stream dispatches only the baseline targets it adds."
   project_state:
     kinds: "STATE_EVENTS: the five plan kinds, DesignElementChanged, CodeRecordChanged, TaskProgressChanged, ProjectDesignChanged, MapProposed, RoadmapProposed and RoadmapApproved refresh the project's state and elements reads."
-    revisions: "DesignElementChanged with a string element_id also refreshes that element's revisions only; TaskProgressChanged with workflow_id, version and task also refreshes that task's run, attempts and its plan version's progress (target task-progress; replayed ones reconcile at caught-up) and no other task's; CodeRecordChanged gives no other target."
+    revisions: "DesignElementChanged with a string element_id also refreshes that element's revisions only; TaskProgressChanged with workflow_id, version and task also refreshes that task's run, attempts and its plan version's progress (target task-progress; replayed ones reconcile at caught-up) and no other task's; TaskProgressChanged with a string attempt_id also refreshes that attempt's checks and conflict only (target attempt-reads, invalidateAttemptReads); CodeRecordChanged gives no other target."
     replay: "Both targets are parked until caught-up and reconcile once."
     baseline: "Every project caught-up reconciles the state and the elements; the revisions are not in the baseline."
   tested_by:

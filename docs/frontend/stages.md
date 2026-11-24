@@ -157,7 +157,7 @@ changes) and B-210 (RecheckStarted and RecheckFinished on the project tail). The
   AYLUL project's stream.
 
 ### F-143 · Checks and a conflict's delivery follow the stream
-- Status: todo
+- Status: done
 - Plan: none (the section above). After B-209, `TaskProgressChanged` also refreshes `runKeys.checks`
   and `runKeys.conflict` of its `attempt_id`, and `attemptChecksQuery` and `attemptConflictQuery` lose their 2 s intervals.
 - Read: B-209 in `docs/backend/stages.md`, `web/src/stream/refresh.ts`, `web/src/api/runs.ts`.

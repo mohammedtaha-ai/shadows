@@ -125,14 +125,12 @@ export function recheckProject(workflowId: string, commandId: string) {
   }))
 }
 
-/** Confirmations can finish after the commit; keep the current attempt's results fresh. */
-export function attemptChecksQuery(id: string, watch: boolean) {
+/** An attempt's check results; TaskProgressChanged on the project stream refreshes them. */
+export function attemptChecksQuery(id: string, _watched?: boolean) {
   return queryOptions({
     queryKey: runKeys.checks(id),
     queryFn: () => unwrap(client.GET('/api/attempts/{id}/checks', { params: { path: { id } } })),
     retry: retryLost,
-    refetchInterval: (query) => watch && query.state.error === null &&
-      (query.state.data?.length === 0 || query.state.data?.some((check) => check.outcome == null)) ? 2000 : false,
   })
 }
 
@@ -150,19 +148,12 @@ export function attemptBriefQuery(id: string) {
   })
 }
 
-/** The contract conflict the executor reported, or null. Read again while the attempt runs, Core holds its scope
- * or the Planner's copy is not yet delivered; the client holds no liveness or impact rule of its own. */
+/** The contract conflict the executor reported, or null; TaskProgressChanged on the project stream refreshes it. */
 export function attemptConflictQuery(id: string) {
   return queryOptions({
     queryKey: runKeys.conflict(id),
     queryFn: () => unwrap(client.GET('/api/attempts/{id}/conflict', { params: { path: { id } } })),
     retry: retryLost,
-    refetchInterval: (query) => {
-      const conflict = query.state.data
-      return conflict != null && (conflict.attempt_state === 'running' || conflict.scope_held || conflict.delivery === 'pending')
-        ? 2000
-        : false
-    },
   })
 }
 
@@ -187,6 +178,12 @@ export function invalidateRuns(queryClient: QueryClient): void {
 export function invalidateTaskRun(queryClient: QueryClient, workflowId: string, version: number, task: number): void {
   void queryClient.invalidateQueries({ queryKey: runKeys.task(workflowId, version, task) })
   void queryClient.invalidateQueries({ queryKey: runKeys.attempts(workflowId, version, task) })
+}
+
+/** One attempt's check results and conflict, as TaskProgressChanged names the attempt. */
+export function invalidateAttemptReads(queryClient: QueryClient, attemptId: string): void {
+  void queryClient.invalidateQueries({ queryKey: runKeys.checks(attemptId) })
+  void queryClient.invalidateQueries({ queryKey: runKeys.conflict(attemptId) })
 }
 
 export function invalidateRecheck(queryClient: QueryClient, workflowId: string, recheckId: string): void {

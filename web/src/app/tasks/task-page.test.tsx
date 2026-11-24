@@ -131,6 +131,9 @@ describe('the task page', () => {
     await click(a.button('Report'))
     await until(() => a.text().includes('Confirmed: pending'))
     finished = true
+    const project = a.sources.find(source => source.url.includes('/projects/'))!
+    act(() => project.caughtUp(0))
+    act(() => project.durable(1, 'TaskProgressChanged', null, { project_id: 'p1', workflow_id: 'w1', version: 1, task: 1, attempt_id: 'a1' }))
     expect(a.text()).toContain('Reported: passed')
     await until(() => a.text().includes('Confirmed: passed'))
     expect(a.text()).not.toContain('Reading the checks')
