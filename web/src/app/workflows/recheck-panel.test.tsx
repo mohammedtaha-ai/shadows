@@ -73,6 +73,17 @@ it('selecting_a_finished_check_shows_its_stored_output', async () => {
   expect(output(host)).toBe('stored two')
 })
 
+// happy-dom has no layout, so this holds the cause: the absolutely placed state labels must have the
+// scrolling list as their containing block, or they extend the page past the window.
+it('the_checks_list_contains_its_hidden_state_labels', async () => {
+  const host = await draw()
+  const list = host.querySelector('ul[aria-label="Checks"]')
+  expect(list?.classList.contains('relative')).toBe(true)
+  for (const label of host.querySelectorAll('li .sr-only')) {
+    expect(label.parentElement?.closest('.relative, .absolute, .fixed, .sticky')).toBe(list)
+  }
+})
+
 it('the_chevron_closes_the_panel', async () => {
   const onClose = vi.fn()
   const host = await draw(onClose)

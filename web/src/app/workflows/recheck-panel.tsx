@@ -79,7 +79,9 @@ export function RecheckPanel({ workflowId, onClose }: { workflowId: string; onCl
       </header>
       {rows.isError && <div className="px-4 py-1"><ErrorLine error={rows.error} /></div>}
       <div className="flex min-h-0 flex-1">
-        <ul aria-label="Checks" className="w-72 shrink-0 overflow-y-auto border-r border-border py-1">
+        {/* `relative`: each row's screen-reader state is absolutely placed, and without a positioned list its
+            box escapes this scroller to the page's `main`, which then overflows the window. */}
+        <ul aria-label="Checks" className="relative w-72 shrink-0 overflow-y-auto border-r border-border py-1">
           {list.map((row) => {
             const state = stateOf(row, output.running)
             const rowId = rowKey(row)
