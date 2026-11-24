@@ -13,6 +13,7 @@ import { waitingPermissionsQuery } from '@/api/permissions'
 import { threadKeys } from '@/api/threads'
 import { designKeys } from '@/api/design'
 import { attemptsQuery, taskRunQuery } from '@/api/runs'
+import { planProgressQuery } from '@/api/workflows'
 import { elementRevisionsQuery, elementsQuery, projectStateQuery } from '@/api/project-state'
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
@@ -264,15 +265,35 @@ it('a_design_element_change_refetches_only_that_elements_revisions', () => {
   client.clear()
 })
 
-it('task_progress_and_record_changes_name_only_the_project_state', () => {
+it('task_progress_and_record_changes_name_the_project_state_and_the_task', () => {
   const only = [{ kind: 'project-state', projectId: 'p1' }]
   expect(classifyRefresh({
     kind: 'TaskProgressChanged', seq: 1, threadId: null, operationId: null,
     payload: { project_id: 'p1', workflow_id: 'w1', version: 1, task: 1, attempt_id: null },
-  })).toEqual(only)
+  })).toEqual([...only, { kind: 'task-progress', workflowId: 'w1', version: 1, task: 1 }])
   expect(classifyRefresh({
     kind: 'CodeRecordChanged', seq: 2, threadId: null, operationId: null, payload: { project_id: 'p1' },
   })).toEqual(only)
+})
+
+it('task_progress_refreshes_that_tasks_run_attempts_and_plan_progress_and_no_other', () => {
+  const client = new QueryClient()
+  const mine = [taskRunQuery('w1', 1, 2).queryKey, attemptsQuery('w1', 1, 2).queryKey, planProgressQuery('w1', 1).queryKey]
+  const others = [taskRunQuery('w1', 1, 3).queryKey, attemptsQuery('w1', 1, 3).queryKey, planProgressQuery('w1', 2).queryKey, planProgressQuery('w2', 1).queryKey]
+  for (const queryKey of [...mine, ...others]) client.getQueryCache().build(client, { queryKey })
+  dispatchRefresh(client, classifyRefresh({
+    kind: 'TaskProgressChanged', seq: 1, threadId: null, operationId: null, projectId: 'p1',
+    payload: { project_id: 'p1', workflow_id: 'w1', version: 1, task: 2, attempt_id: 'a1' },
+  }))
+  expect(mine.map(key => client.getQueryState(key)?.isInvalidated)).toEqual([true, true, true])
+  expect(others.map(key => client.getQueryState(key)?.isInvalidated)).toEqual([false, false, false, false])
+  client.clear()
+})
+
+it('the_task_queries_have_no_interval', () => {
+  for (const options of [taskRunQuery('w1', 1, 1), attemptsQuery('w1', 1, 1), planProgressQuery('w1', 1)]) {
+    expect('refetchInterval' in options).toBe(false)
+  }
 })
 
 it('replayed_state_events_reconcile_the_state_once_at_caught_up', () => {

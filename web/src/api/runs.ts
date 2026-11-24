@@ -48,11 +48,6 @@ export function taskRunQuery(workflowId: string, version: number, task: number) 
     queryKey: runKeys.task(workflowId, version, task),
     queryFn: () => getTaskRun(workflowId, version, task),
     retry: retryLost,
-    // A running attempt, or a committed one the Planner has not judged, changes without the page asking.
-    refetchInterval: (query) => {
-      const run = query.state.data
-      return run !== undefined && (run.latest?.state === 'running' || awaitingJudgment(run)) ? 2000 : false
-    },
   })
 }
 
@@ -67,13 +62,12 @@ export function stoppedOnAdditionCap(run: TaskRun): boolean {
   return run.latest !== null && run.latest.state === 'committed' && run.latest.origin === 'planner' && run.latest.addition !== null && !run.done && run.start.allowed
 }
 
-/** The task's attempts, newest first, read again while the newest one runs. */
+/** The task's attempts, newest first; TaskProgressChanged on the project stream refreshes it. */
 export function attemptsQuery(workflowId: string, version: number, task: number) {
   return queryOptions({
     queryKey: runKeys.attempts(workflowId, version, task),
     queryFn: () => listAttempts(workflowId, version, task),
     retry: retryLost,
-    refetchInterval: (query) => (query.state.data?.[0]?.state === 'running' ? 2000 : false),
   })
 }
 
@@ -189,6 +183,12 @@ export function invalidateRuns(queryClient: QueryClient): void {
 }
 
 /** A finished row or batch refreshes that workflow's newest-batch read and that batch's rows, nothing else. */
+/** One task's run and attempt list, as TaskProgressChanged names them. */
+export function invalidateTaskRun(queryClient: QueryClient, workflowId: string, version: number, task: number): void {
+  void queryClient.invalidateQueries({ queryKey: runKeys.task(workflowId, version, task) })
+  void queryClient.invalidateQueries({ queryKey: runKeys.attempts(workflowId, version, task) })
+}
+
 export function invalidateRecheck(queryClient: QueryClient, workflowId: string, recheckId: string): void {
   void queryClient.invalidateQueries({ queryKey: runKeys.recheck(workflowId) })
   void queryClient.invalidateQueries({ queryKey: runKeys.recheckRows(recheckId) })

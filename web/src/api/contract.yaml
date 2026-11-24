@@ -55,8 +55,8 @@ code_record:
 runs:
   stoppedOnAdditionCap: True when the latest attempt is committed, carries a non-null addition, the task is not done and Core allows Start; the only place the web reads the cap, without counting additions.
   awaitingJudgment: True when the task's latest attempt is committed, the task is not done and Core refuses Start with task_busy (a task stopped on the cap may be started, so it does not wait); the only place the web reads it.
-  taskRunQuery: Read a task's run state; read again every two seconds while its latest attempt runs or awaitingJudgment holds; retry only a lost call (up to 3), never Core's answer.
-  attemptsQuery: Read a task's attempts, newest first; read again every two seconds while the newest runs; retry only a lost call (up to 3), never Core's answer.
+  taskRunQuery: Read a task's run state; no interval, TaskProgressChanged refreshes it (invalidateTaskRun); retry only a lost call (up to 3), never Core's answer.
+  attemptsQuery: Read a task's attempts, newest first; no interval, TaskProgressChanged refreshes it (invalidateTaskRun); retry only a lost call (up to 3), never Core's answer.
   startAttempt: Start an attempt on Core's saved choice using only the caller's command id; a refusal's ApiError message is Core's reason.
   setTaskExecutor: Save the chosen CLI, model and effort with a caller-provided command id; a refusal retains Core's reason.
   invalidateExecutorChoices: Reconcile saved choices and readiness by refreshing task run queries.
@@ -298,7 +298,7 @@ query_keys:
       archived }]"
   planVersionsQuery: "(planId: string) -> queryOptions; ['workflows', 'versions', planId]"
   planQuery: "(workflowId: string) -> queryOptions; ['workflows', 'plan', workflowId]"
-  planProgressQuery: "(workflowId: string, version: number) -> queryOptions; ['workflows', 'progress', workflowId, version]; read again every two seconds while a task's latest attempt runs"
+  planProgressQuery: "(workflowId: string, version: number) -> queryOptions; ['workflows', 'progress', workflowId, version]; no interval, TaskProgressChanged refreshes it (invalidatePlanProgress)"
   instructionsQuery: "(projectId: string) -> queryOptions; ['projects', id, 'instructions']"
   standardsQuery: "(projectId: string) -> queryOptions; ['projects', id, 'design', 'standards']"
   stageQuery: "(projectId: string) -> queryOptions; ['projects', id, 'design', 'stage']"

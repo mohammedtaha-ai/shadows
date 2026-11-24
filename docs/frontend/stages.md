@@ -92,7 +92,7 @@ changes) and B-210 (RecheckStarted and RecheckFinished on the project tail). The
   key fresh; `lastRecheckQuery` has no interval while the panel streams a batch.
 
 ### F-140 · Task progress follows the stream, not a 2 s read
-- Status: todo
+- Status: done
 - Plan: none (the section above). `classifyRefresh` maps `TaskProgressChanged` to that task's run
   key, its attempts key and the plan's progress key (`workflow_id`, `version`, `task` from the
   payload), through invalidate functions in `api/runs.ts` and `api/workflows.ts`. Then
@@ -221,7 +221,6 @@ PRs #59 and #66 have no `F-` task. Two composer fixes in PR #61 have none either
 
 - The light palette and F-114's composer tiles are recorded in `docs/evidence/2026-11-18-visual-acceptance.md`.
   Left to Mohammed: the tiles inside a sent message and the desktop login item (start with Windows).
-- The plan page's progress and the task page are not refreshed by `TaskProgressChanged`; the state read asks only for the state and the elements. Using the event there is a later choice (`docs/frontend/plans/2026-11-20-project-state-views.md` at `4d69977d`, "Not in these tasks").
 
 ### Before a new task
 

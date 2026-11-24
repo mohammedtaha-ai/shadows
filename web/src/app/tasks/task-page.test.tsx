@@ -280,7 +280,10 @@ describe('the task page', () => {
       },
     })))
     await until(() => a.text().includes('Stopped'))
+    const source = a.sources.find(item => item.url.includes('/api/projects/p1/'))!
+    await act(async () => source.caughtUp(0))
     await click(a.button('Start'))
+    await act(async () => source.durable(1, 'TaskProgressChanged', null, { project_id: 'p1', workflow_id: 'w1', version: 1, task: 1, attempt_id: 'a2' }))
     await until(() => a.text().includes('Running') && a.button('Stop') !== undefined)
     expect(a.text()).not.toContain('Stopped')
     await act(async () => { held.answer?.() })
@@ -461,6 +464,9 @@ describe('the task page', () => {
     const a = (app = await startApp(PAGE, answers({ taskRun: () => Response.json(current) })))
     await until(() => a.text().includes("Waiting for the Planner's judgment"))
     current = { ...current, done: true, done_at: '2026-11-11T10:00:00Z' }
+    const source = a.sources.find(item => item.url.includes('/api/projects/p1/'))!
+    await act(async () => source.caughtUp(0))
+    await act(async () => source.durable(1, 'TaskProgressChanged', null, { project_id: 'p1', workflow_id: 'w1', version: 1, task: 1, attempt_id: 'a1' }))
     await until(() => !a.text().includes("Waiting for the Planner's judgment"))
     expect(a.text()).toContain('Done')
   })
@@ -548,6 +554,9 @@ describe('the task page', () => {
     await click(a.button('Report'))
     await until(() => a.text().includes('Attempt 1'))
     current = [attempt({ state: 'committed', commit: 'abc123', ended_at: '2026-11-08T10:05:00Z' })]
+    const source = a.sources.find(item => item.url.includes('/api/projects/p1/'))!
+    await act(async () => source.caughtUp(0))
+    await act(async () => source.durable(1, 'TaskProgressChanged', null, { project_id: 'p1', workflow_id: 'w1', version: 1, task: 1, attempt_id: 'a1' }))
     await until(() => a.text().includes('abc123'))
   })
 
@@ -638,6 +647,9 @@ describe('the task page', () => {
     await click(a.button('Run'))
     await until(() => a.text().includes('Do task T1.'))
     ended = true
+    const thread = a.sources.find(item => item.param('thread_id') === 't1')!
+    await act(async () => thread.caughtUp(0))
+    await act(async () => thread.durable(1, 'ThreadEntryAppended', 't1', { kind: 'AgentMessage' }))
     await until(() => a.text().includes('the T2 test waits for T2.'))
   })
 

@@ -1,12 +1,12 @@
 import type { QueryClient } from '@tanstack/react-query'
-import { invalidateWorkflows, invalidateProjectWorkflows } from '@/api/workflows'
+import { invalidateWorkflows, invalidateProjectWorkflows, invalidatePlanProgress } from '@/api/workflows'
 import { invalidateDesign } from '@/api/design'
 import { invalidateAgreements, invalidateAgreementVersions } from '@/api/agreements'
 import { invalidateProjects } from '@/api/projects'
 import { invalidateEntries, invalidateOperations, invalidateThreadLists } from '@/api/threads'
 import { invalidatePermissions } from '@/api/permissions'
 import { groupKeys } from '@/api/groups'
-import { invalidateExecutorChoices } from '@/api/runs'
+import { invalidateExecutorChoices, invalidateTaskRun } from '@/api/runs'
 import { invalidateElementRevisions, invalidateProjectState } from '@/api/project-state'
 import type { DurableEvent } from './frames'
 import { subscribeProjectStream, subscribeThreadStream, type StreamSubscriber } from './thread-registry'
@@ -18,6 +18,7 @@ type RefreshTarget =
   | { kind: 'element-revisions'; projectId: string; elementId: string }
   | { kind: 'entries' | 'operations'; threadId: string }
   | { kind: 'group'; groupId: string }
+  | { kind: 'task-progress'; workflowId: string; version: number; task: number }
 
 type RefreshEvent = DurableEvent & { projectId?: string }
 
@@ -45,6 +46,12 @@ export function classifyRefresh(event: RefreshEvent): RefreshTarget[] {
         'element_id' in payload && typeof payload.element_id === 'string') {
       targets.push({ kind: 'element-revisions', projectId, elementId: payload.element_id })
     }
+  }
+  if (event.kind === 'TaskProgressChanged' && typeof payload === 'object' && payload !== null &&
+      'workflow_id' in payload && typeof payload.workflow_id === 'string' &&
+      'version' in payload && typeof payload.version === 'number' &&
+      'task' in payload && typeof payload.task === 'number') {
+    targets.push({ kind: 'task-progress', workflowId: payload.workflow_id, version: payload.version, task: payload.task })
   }
   if (event.kind === 'ProjectRemoved') targets.push({ kind: 'projects' })
   if (event.kind === 'TaskExecutorChosen' && projectId !== undefined) targets.push({ kind: 'executor-choices' })
@@ -87,6 +94,10 @@ export function dispatchRefresh(client: QueryClient, targets: readonly RefreshTa
       case 'entries': invalidateEntries(client, target.threadId); break
       case 'operations': invalidateOperations(client, target.threadId); break
       case 'thread-lists': invalidateThreadLists(client); break
+      case 'task-progress':
+        invalidateTaskRun(client, target.workflowId, target.version, target.task)
+        invalidatePlanProgress(client, target.workflowId, target.version)
+        break
     }
   }
 }
@@ -118,7 +129,7 @@ function refreshSubscriber(client: QueryClient, current: () => RefreshScope): St
         // Project design and agreement notices must reach dirty editors during replay.
         if (scope.threadId === undefined && target.kind !== 'workflows' && target.kind !== 'project-workflows' &&
             target.kind !== 'project-state' && target.kind !== 'element-revisions' &&
-            target.kind !== 'group' && target.kind !== 'groups' && target.kind !== 'executor-choices' && !PLAN_EVENTS.has(event.kind)) {
+            target.kind !== 'group' && target.kind !== 'groups' && target.kind !== 'executor-choices' && target.kind !== 'task-progress' && !PLAN_EVENTS.has(event.kind)) {
           dispatchRefresh(client, [target])
         } else pending.set(JSON.stringify(target), target)
       }
