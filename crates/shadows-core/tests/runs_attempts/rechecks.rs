@@ -167,14 +167,53 @@ async fn a_done_mark_reruns_the_checks_of_the_plans_done_tasks() {
 #[tokio::test]
 async fn a_replayed_ask_starts_no_second_recheck() {
     let f = done_task(false).await;
-    cause(&f).await;
-    cause(&f).await;
+    let first = asked(&f, &f.workflow, "cause").await;
+    assert!(first.is_some());
+    assert_eq!(asked(&f, &f.workflow, "cause").await, first);
     finished(&f).await;
     let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM run_rechecks")
         .fetch_one(f.storage.reader())
         .await
         .unwrap();
     assert_eq!(count, 1);
+    f.finish().await;
+}
+
+/// A replay answers what the first ask recorded: an ask that found nothing to recheck stays
+/// nothing, even after a done mark begins a batch under the same command id string.
+#[tokio::test]
+async fn a_replayed_empty_ask_stays_empty() {
+    let (f, id, _, _) =
+        super::checks::candidate(vec![vec!["git".into(), "--version".into()]]).await;
+    sqlx::query("UPDATE run_attempts SET notice_sent_at=? WHERE id=?")
+        .bind("2026-11-16T00:00:00Z")
+        .bind(id.as_str())
+        .execute(f.storage.reader())
+        .await
+        .unwrap();
+    assert_eq!(asked(&f, &f.workflow, "same").await, None);
+    for (task, command) in [(3, "done-3"), (1, "done-1"), (4, "done-4"), (5, "done-5")] {
+        let why = Some("Verified by the person".into());
+        f.core
+            .runs()
+            .mark_done(command.into(), &f.workflow, 1, task, true, why)
+            .await
+            .unwrap();
+    }
+    f.core
+        .runs()
+        .mark_done("done-6".into(), &f.workflow, 1, 6, true, None)
+        .await
+        .unwrap();
+    f.core
+        .runs()
+        .mark_done("same".into(), &f.workflow, 1, 7, true, None)
+        .await
+        .unwrap();
+    finished(&f).await;
+    assert_eq!(batches(&f).await, 1, "the completing mark began a batch");
+    assert_eq!(asked(&f, &f.workflow, "same").await, None);
+    assert_eq!(batches(&f).await, 1);
     f.finish().await;
 }
 

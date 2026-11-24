@@ -112,13 +112,10 @@ impl RunsStore {
                             core_db::StorageError::CommandConflict => RunsError::CommandConflict,
                             other => other.into(),
                         })?;
-                    if seen.is_some() {
-                        let id =
-                            sqlx::query_scalar("SELECT id FROM run_rechecks WHERE cause_command=?")
-                                .bind(&command.command_id)
-                                .fetch_optional(&mut *conn)
-                                .await?;
-                        return Ok((id, false));
+                    // A replay answers what this command recorded: its batch id, or empty when
+                    // it found nothing to recheck.
+                    if let Some(recorded) = seen {
+                        return Ok((Some(recorded).filter(|id| !id.is_empty()), false));
                     }
                     let id = Self::begin_recheck_in(
                         conn,

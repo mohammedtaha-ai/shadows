@@ -351,7 +351,7 @@ Plan: [backend review fixes](plans/2026-11-25-backend-review-fixes.md); each ent
 
 ### B-216 · A replayed recheck ask returns its own stored outcome
 
-- Status: todo. Plan task 1.
+- Status: done (2026-11-25). Plan task 1. Replay decodes the stored outcome (empty is none). No schema change: `cause_command` keeps its UNIQUE (accepted risk in the plan).
 
 ### B-217 · The last recheck and its counts come from one snapshot
 
