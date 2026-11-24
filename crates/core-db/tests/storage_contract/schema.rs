@@ -144,3 +144,28 @@ async fn fresh_database_migrates_and_applies_the_connection_policy() {
 
     storage.close().await.unwrap();
 }
+
+#[test]
+fn now_always_writes_nine_fraction_digits() {
+    for _ in 0..2000 {
+        let now = Storage::now();
+        assert_eq!(
+            now.len(),
+            30,
+            "fixed width so text order is time order: {now}"
+        );
+        assert!(now.ends_with('Z') && now.as_bytes()[19] == b'.', "{now}");
+    }
+}
+
+#[test]
+fn an_instant_reads_any_stored_width_in_time_order() {
+    let at = |text| Storage::instant(text).unwrap();
+    assert!(at("2026-11-25T12:00:00.1Z") < at("2026-11-25T12:00:00.12Z"));
+    assert!(at("2026-11-25T12:00:00Z") < at("2026-11-25T12:00:00.5Z"));
+    assert_eq!(
+        at("2026-11-25T12:00:00.5Z"),
+        at("2026-11-25T12:00:00.500000000Z")
+    );
+    assert!(Storage::instant("not a time").is_err());
+}

@@ -331,7 +331,7 @@ Plan: [backend review fixes](plans/2026-11-25-backend-review-fixes.md); each ent
 
 ### B-211 · Fixed-width database times; check overlap compares instants
 
-- Status: todo. Plan task 2.
+- Status: done (2026-11-25). Plan task 2. `Storage::now` and `Storage::format_time` write nine fraction digits; `Storage::instant` reads any width; `overlapped` compares instants; `core-grants` writes through the shared formatter. Old rows keep their width (accepted).
 
 ### B-212 · The ended-turn cursor reads only operation endings
 

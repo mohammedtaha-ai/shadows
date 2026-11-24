@@ -357,6 +357,8 @@ obligations:
     tested_by: [an_asked_recheck_starts_and_finishes_on_the_project_stream, a_completing_mark_starts_a_recheck_on_the_project_stream]
   - rule: A done task's `contract` check is rechecked; a later task removing a promised function is told once; a not_run contract recheck is never told and never hides a later failure; a card (attempt or recheck notice) carries the `contract` verdict and no command output.
     tested_by: [a_later_task_removing_a_done_tasks_function_is_told_once, a_not_run_recheck_never_hides_a_later_failure, a_recheck_card_keeps_the_contract_verdict_but_no_command_output, no_language_server_is_said_and_not_returned, live_a_later_task_removing_a_done_tasks_function_is_told]
+  - rule: A check overlaps another executor's turn when the turn started before the check ended and finished after it started (an absent time is open), compared as instants through Storage::instant, never as text; an unreadable stored time is an error, not a pass.
+    tested_by: [a_turn_ending_just_after_the_check_starts_overlaps_in_any_width, a_turn_ending_before_the_check_starts_does_not_overlap, a_turn_starting_on_the_whole_second_before_the_end_overlaps, an_unreadable_time_is_an_error_not_a_pass, turn_during_check_reruns_it]
   - rule: A check that moved HEAD or changed the working tree is inconclusive, and its output names the cause, the moved HEAD or the changed files.
     tested_by: [head_moved_during_check_is_inconclusive, file_the_check_wrote_is_named]
   - rule: A person's Stop and an interruption notify the Planner once; enqueue failure leaves the notice owed for recovery, while a Planner Stop and a conflict produce no second generic notice.

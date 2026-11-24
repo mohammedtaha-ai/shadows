@@ -116,17 +116,35 @@ impl Runs {
                 .operations(&thread)
                 .await
                 .map_err(|e| RunsError::Unavailable(e.to_string()))?;
-            if operations.iter().any(|op| {
-                op.started_at.as_deref().is_none_or(|started| started < end)
-                    && op
-                        .finished_at
-                        .as_deref()
-                        .is_none_or(|finished| finished > start)
-            }) {
-                return Ok(true);
+            for op in &operations {
+                let (started, finished) = (op.started_at.as_deref(), op.finished_at.as_deref());
+                if Self::ran_during(start, end, started, finished)? {
+                    return Ok(true);
+                }
             }
         }
         Ok(false)
+    }
+
+    /// Whether a turn that started at `started` and finished at `finished` (either still
+    /// open when absent) shared any instant with the check from `start` to `end`. Times are
+    /// compared as instants: rows written before the fixed width trim their fraction.
+    fn ran_during(
+        start: &str,
+        end: &str,
+        started: Option<&str>,
+        finished: Option<&str>,
+    ) -> Result<bool, RunsError> {
+        let at = |text: &str| Storage::instant(text).map_err(RunsError::from);
+        let began_before_end = match started {
+            Some(started) => at(started)? < at(end)?,
+            None => true,
+        };
+        let ended_after_start = match finished {
+            Some(finished) => at(finished)? > at(start)?,
+            None => true,
+        };
+        Ok(began_before_end && ended_after_start)
     }
 
     async fn confirm_attempt(&self, attempt: &Attempt) -> Result<(), RunsError> {
@@ -622,5 +640,36 @@ async fn read_check_output<T: AsyncRead + Unpin>(
         if send.send(buf[..n].to_vec()).await.is_err() {
             return Ok(());
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Runs;
+
+    const START: &str = "2026-11-25T12:00:00.5Z";
+    const END: &str = "2026-11-25T12:00:02.5Z";
+
+    #[test]
+    fn a_turn_ending_just_after_the_check_starts_overlaps_in_any_width() {
+        let ended = Some("2026-11-25T12:00:00.52Z");
+        assert!(Runs::ran_during(START, END, Some("2026-11-25T11:00:00Z"), ended).unwrap());
+    }
+
+    #[test]
+    fn a_turn_ending_before_the_check_starts_does_not_overlap() {
+        let ended = Some("2026-11-25T12:00:00.499999999Z");
+        assert!(!Runs::ran_during(START, END, Some("2026-11-25T11:00:00Z"), ended).unwrap());
+    }
+
+    #[test]
+    fn a_turn_starting_on_the_whole_second_before_the_end_overlaps() {
+        let started = Some("2026-11-25T12:00:02Z");
+        assert!(Runs::ran_during(START, END, started, None).unwrap());
+    }
+
+    #[test]
+    fn an_unreadable_time_is_an_error_not_a_pass() {
+        assert!(Runs::ran_during(START, END, Some("yesterday"), None).is_err());
     }
 }

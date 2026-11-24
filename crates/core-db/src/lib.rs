@@ -39,10 +39,28 @@ pub struct Storage {
 }
 
 impl Storage {
+    /// The time a row records, in UTC with all nine fraction digits: fixed width, so readers
+    /// may order and compare these strings as text.
     pub fn now() -> String {
-        time::OffsetDateTime::now_utc()
-            .format(&time::format_description::well_known::Rfc3339)
-            .expect("RFC3339 formatting cannot fail")
+        Self::format_time(time::OffsetDateTime::now_utc())
+    }
+
+    /// `at` spelled as [`Storage::now`] spells it.
+    pub fn format_time(at: time::OffsetDateTime) -> String {
+        let fixed = time::macros::format_description!(
+            "[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond digits:9]Z"
+        );
+        at.to_offset(time::UtcOffset::UTC)
+            .format(&fixed)
+            .expect("a UTC time always formats")
+    }
+
+    /// A stored RFC3339 time as nanoseconds since the Unix epoch, whatever its fraction
+    /// width: rows written before the fixed width trim trailing zeros, so compare these.
+    pub fn instant(text: &str) -> Result<i128, StorageError> {
+        time::OffsetDateTime::parse(text, &time::format_description::well_known::Rfc3339)
+            .map(time::OffsetDateTime::unix_timestamp_nanos)
+            .map_err(|_| StorageError::Unavailable(format!("stored time is unreadable: {text}")))
     }
 
     pub async fn open(db_path: &Path) -> Result<Self, StorageError> {
