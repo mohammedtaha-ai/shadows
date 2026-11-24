@@ -61,9 +61,9 @@ and `code_where` in the web (F-130 to F-136) are on `main` in PR #75 (`4d69977d`
 
 Agreed with Hamoud and approved by Mohammed on 2026-11-24. The client polls where an event
 already reaches it. F-139 to F-141 need no backend. F-142 to F-144 each drop a poll once
-Hamoud's matching task in `docs/backend/stages.md` journals the change: B-a (thread list changes
-on the project tail), B-b (check finished, conflict delivery changed) and B-c (RecheckStarted and
-RecheckFinished on the project tail). The facts this rests on:
+Hamoud's matching task in `docs/backend/stages.md` journals the change: B-208 (thread list changes
+on the project tail), B-209 (`TaskProgressChanged` also when a check finishes or a conflict's delivery
+changes) and B-210 (RecheckStarted and RecheckFinished on the project tail). The facts this rests on:
 - `shell.tsx` holds the open project's stream at all times, and
   `TaskProgressChanged {project_id, workflow_id, version, task, attempt_id}` reaches it. Core
   writes it in the same write that records an attempt as running, before it answers Start.
@@ -137,34 +137,35 @@ RecheckFinished on the project tail). The facts this rests on:
   code servers have an interval only while one is `starting`.
 
 ### F-142 · Conversation lists follow the project stream
-- Status: blocked (Hamoud's B-a)
-- Plan: none (the section above). After B-a, `threadsQuery` and `agentThreadsQuery` lose their
-  10 s intervals, and `ThreadRemoved` and a turn's end refresh `thread-lists` in `classifyRefresh`.
+- Status: blocked (B-208)
+- Plan: none (the section above). After B-208, `threadsQuery` and `agentThreadsQuery` lose their
+  10 s intervals, and `ThreadRemoved` and a turn's end (the `Operation…` kinds) refresh `thread-lists` in
+  `classifyRefresh`; the filter in `dispatch` that drops `thread-lists` from a project scope goes.
   `AgentList` holds the AYLUL project's stream itself with `useProjectEvents(agents.data?.project_id)`;
   today it is only held because `GroupList` is drawn beside it.
-- Read: B-a in `docs/backend/stages.md`, `web/src/stream/refresh.ts`, `web/src/api/threads.ts`,
+- Read: B-208 in `docs/backend/stages.md`, `web/src/stream/refresh.ts`, `web/src/api/threads.ts`,
   `agentThreadsQuery` in `web/src/api/aylul-profiles.ts`, `web/src/app/sidebar/agent-list.tsx`.
-- Touch: to be named when B-a is built.
-- Needs: B-a.
-- Done when: to be named when B-a is built.
+- Touch: to be named when B-208 is built.
+- Needs: B-208.
+- Done when: to be named when B-208 is built.
 
 ### F-143 · Checks and a conflict's delivery follow the stream
-- Status: blocked (Hamoud's B-b)
-- Plan: none (the section above). After B-b, `attemptChecksQuery` and `attemptConflictQuery` lose
-  their 2 s intervals and refresh on the new events.
-- Read: B-b in `docs/backend/stages.md`, `web/src/stream/refresh.ts`, `web/src/api/runs.ts`.
-- Touch: to be named when B-b is built.
-- Needs: B-b.
-- Done when: to be named when B-b is built.
+- Status: blocked (B-209)
+- Plan: none (the section above). After B-209, `TaskProgressChanged` also refreshes `runKeys.checks`
+  and `runKeys.conflict` of its `attempt_id`, and `attemptChecksQuery` and `attemptConflictQuery` lose their 2 s intervals.
+- Read: B-209 in `docs/backend/stages.md`, `web/src/stream/refresh.ts`, `web/src/api/runs.ts`.
+- Touch: to be named when B-209 is built.
+- Needs: B-209.
+- Done when: to be named when B-209 is built.
 
 ### F-144 · The last recheck follows the stream
-- Status: blocked (Hamoud's B-c)
-- Plan: none (the section above). After B-c, `lastRecheckQuery` has no interval at all;
+- Status: blocked (B-210)
+- Plan: none (the section above). After B-210, `lastRecheckQuery` has no interval at all;
   RecheckStarted and RecheckFinished refresh it.
-- Read: B-c in `docs/backend/stages.md`, `web/src/stream/refresh.ts`, `lastRecheckQuery` in `web/src/api/runs.ts`.
-- Touch: to be named when B-c is built.
-- Needs: B-c.
-- Done when: to be named when B-c is built.
+- Read: B-210 in `docs/backend/stages.md`, `web/src/stream/refresh.ts`, `lastRecheckQuery` in `web/src/api/runs.ts`.
+- Touch: to be named when B-210 is built.
+- Needs: B-210.
+- Done when: to be named when B-210 is built.
 
 Every task's checks run from `web/`: the tests it names, then `npm run typecheck`, `npm run lint`,
 `npm run build` and `npx vitest run src/codemap.test.ts src/architecture`.
