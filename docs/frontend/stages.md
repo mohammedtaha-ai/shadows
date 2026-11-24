@@ -33,7 +33,7 @@ and `code_where` in the web (F-130 to F-136) are on `main` in PR #75 (`4d69977d`
   checks in "Now".
 
 ### F-138 · The recheck's terminal panel on the plan page
-- Status: todo
+- Status: blocked (needs a new file under `web/src/stream/`, outside Touch: the rule that only `stream/` opens an `EventSource` (architecture test, `server_access`) leaves the `/api/rechecks/{recheck}/output` reader nowhere in Touch. Add `web/src/stream/recheck-output.ts` (+ test, export in `index.ts`, `stream/contract.yaml`, code map row) to Touch.)
 - Plan: none. Mockup agreed with Mohammed on 2026-11-24: a panel at the bottom of the plan
   page, over the plan graph (which gets shorter). Its header reads "Project recheck", who began
   it and when, the passed, failed and left counts, and a chevron that closes it. Its left column
