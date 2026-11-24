@@ -428,6 +428,7 @@ it is that folder's `contract.yaml`.
 | `web/src/app/workflows/plan-graph.tsx` | A plan version drawn as its graph canvas | `web/src/app/workflows/contract.yaml` |
 | `web/src/app/workflows/plan-map.tsx` | Latest-plan map of a project | `web/src/app/workflows/contract.yaml` |
 | `web/src/app/workflows/plan-page.tsx` | Workflows page for one plan version | `web/src/app/workflows/contract.yaml` |
+| `web/src/app/workflows/recheck-control.tsx` | The plan header's project recheck: button, last-batch line, Rechecking… state | `web/src/app/workflows/contract.yaml` |
 | `web/src/app/workflows/plan-state.ts` | How a plan version's state reads to a person | `web/src/app/workflows/contract.yaml` |
 | `web/src/app/workflows/task-node.tsx` | Draws one node of the plan graph | `web/src/app/workflows/contract.yaml` |
 | `web/src/app/workflows/task-view.tsx` | Show a task's phase graph | `web/src/app/workflows/contract.yaml` |

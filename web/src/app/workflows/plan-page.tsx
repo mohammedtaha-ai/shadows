@@ -19,6 +19,7 @@ import {
 import { ErrorLine } from '../error-line'
 import { ApproveBar } from './approve-bar'
 import { TaskView } from './task-view'
+import { RecheckControl, RecheckLine } from './recheck-control'
 import { PlanGraph } from './plan-graph'
 import { stateLabel } from './plan-state'
 import { usePlan } from './use-plan'
@@ -198,7 +199,10 @@ function Header({ plan, projectId, showPhases, onTogglePhases }: {
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-4">
-        <PlanProgress plan={plan} projectId={projectId} />
+        <div className="space-y-1.5">
+          <PlanProgress plan={plan} projectId={projectId} />
+          <RecheckLine workflowId={plan.id} />
+        </div>
         <div className="flex items-center gap-2">
           {onTogglePhases && <Button variant="outline" size="sm" onClick={onTogglePhases}
             aria-pressed={showPhases} aria-controls="main-plan-graph">
@@ -251,6 +255,7 @@ function Header({ plan, projectId, showPhases, onTogglePhases }: {
           >
             Continue this plan
           </Link>
+          <RecheckControl workflowId={plan.id} />
           <Button
             variant="outline"
             size="sm"

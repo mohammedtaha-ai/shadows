@@ -15,6 +15,7 @@ export type AttemptNotice = components['schemas']['AttemptNotice']
 export type AgentReplyNotice = components['schemas']['AgentReplyNotice']
 export type RecheckNotice = components['schemas']['RecheckNotice']
 export type RecheckFailure = components['schemas']['RecheckFailure']
+export type LastRecheck = components['schemas']['LastRecheck']
 export type AgentNotice = AttemptNotice | AgentReplyNotice
 export type CheckResult = components['schemas']['CheckResult']
 export type DiffHunk = components['schemas']['DiffHunk']
@@ -35,6 +36,7 @@ const runKeys = {
   brief: (attemptId: string) => ['runs', 'brief', attemptId],
   conflict: (attemptId: string) => ['runs', 'conflict', attemptId],
   checks: (attemptId: string) => ['runs', 'checks', attemptId],
+  recheck: (workflowId: string) => ['runs', 'recheck', workflowId],
 }
 
 /** A task's run state: its marks, latest attempt, needs and whether Start may run. */
@@ -74,6 +76,24 @@ export function attemptsQuery(workflowId: string, version: number, task: number)
 
 export function attemptDiffQuery(attemptId: string) {
   return queryOptions({ queryKey: runKeys.diff(attemptId), queryFn: () => getAttemptDiff(attemptId) })
+}
+
+/** The project's newest recheck batch, or null when it has had none. Read every 5 s while Core counts rows unfinished. */
+export function lastRecheckQuery(workflowId: string) {
+  return queryOptions({
+    queryKey: runKeys.recheck(workflowId),
+    queryFn: () => unwrap(client.GET('/api/workflows/{workflow}/recheck', { params: { path: { workflow: workflowId } } })),
+    retry: retryLost,
+    refetchInterval: (query) => (query.state.data?.counts.unfinished ?? 0) > 0 ? 5000 : false,
+  })
+}
+
+/** Asks Core to rerun the checks of the project's done tasks; it answers at once and runs in the background. */
+export function recheckProject(workflowId: string, commandId: string) {
+  return unwrap(client.POST('/api/workflows/{workflow}/recheck', {
+    params: { path: { workflow: workflowId } },
+    body: { command_id: commandId },
+  }))
 }
 
 /** Confirmations can finish after the commit; keep the current attempt's results fresh. */

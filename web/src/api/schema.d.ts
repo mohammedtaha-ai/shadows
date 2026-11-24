@@ -1948,6 +1948,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/workflows/{workflow}/recheck": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The project's newest recheck batch: what began it, its times and its rows counted by
+         *     outcome; null when the project has had no recheck.
+         */
+        get: operations["last_recheck"];
+        put?: never;
+        /**
+         * Reruns the checks of the project's done tasks, in the background. The plan's Planner is
+         *     told of the checks that now fail.
+         */
+        post: operations["recheck"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/workflows/{workflow}/versions/{version}/progress": {
         parameters: {
             query?: never;
@@ -2282,6 +2306,11 @@ export interface components {
             agent: string;
             principal: string;
             request?: null | components["schemas"]["ApprovalRequest"];
+        };
+        /** @description What a project recheck takes. */
+        AskRecheck: {
+            /** @description The idempotency key: the same key and plan answer the first batch. */
+            command_id: string;
         };
         Attachment: {
             /** Format: int64 */
@@ -3221,6 +3250,15 @@ export interface components {
             revision: number;
             summary: string;
         };
+        /** @description The newest recheck batch of a project, as the plan page shows it. */
+        LastRecheck: {
+            began: components["schemas"]["RecheckBegan"];
+            counts: components["schemas"]["RecheckCounts"];
+            created_at: string;
+            /** @description None while the batch runs. */
+            finished_at: string | null;
+            recheck_id: string;
+        };
         /** @description A layer another layer may depend on. No kind means the same part. */
         LayerRef: {
             layer: string;
@@ -3914,6 +3952,14 @@ export interface components {
             /** @description The slug of the project that reads. */
             project: string;
         };
+        /**
+         * @description A project recheck asked for. It runs in the background; only checks that now fail are told,
+         *     to the asking Planner or the named plan's Planner.
+         */
+        ProjectRecheck: {
+            /** @description The batch begun; none when no done task of the project has checks to run. */
+            recheck_id: string | null;
+        };
         /** @description The project's stage, its parts with their plans and elements, and its gaps. */
         ProjectStateView: {
             /** @description Elements in gap or unchecked, by part order then element number, at most 100. */
@@ -4091,6 +4137,38 @@ export interface components {
          * @enum {string}
          */
         Rank: "exact" | "path" | "part" | "words";
+        /** @description What began a recheck batch. */
+        RecheckBegan: {
+            /** @enum {string} */
+            kind: "mark";
+            plan_title: string;
+            /** Format: int32 */
+            task: number;
+            /** Format: int64 */
+            version: number;
+        } | {
+            /** @enum {string} */
+            kind: "person";
+        } | {
+            /** @enum {string} */
+            kind: "planner";
+            thread_id: string;
+        };
+        /** @description A recheck batch's rows counted by outcome; `unfinished` counts rows not finished yet. */
+        RecheckCounts: {
+            /** Format: int32 */
+            failed: number;
+            /** Format: int32 */
+            inconclusive: number;
+            /** Format: int32 */
+            not_run: number;
+            /** Format: int32 */
+            passed: number;
+            /** Format: int32 */
+            timed_out: number;
+            /** Format: int32 */
+            unfinished: number;
+        };
         /** @description A done task whose recorded checks did not all pass on a recheck. */
         RecheckFailure: {
             attempt_id: components["schemas"]["AttemptId"];
@@ -4102,9 +4180,15 @@ export interface components {
             version: number;
             workflow_id: components["schemas"]["WorkflowId"];
         };
-        /** @description The outcome of rechecking other done tasks after a new done mark. */
+        /**
+         * @description The outcome of rechecking the project's done tasks, after the done mark that completed a
+         *     plan or on request.
+         */
         RecheckNotice: {
-            /** Format: int32 */
+            /**
+             * Format: int32
+             * @description The task whose done mark completed the plan; 0 for a recheck asked for.
+             */
             cause_task: number;
             /** Format: int64 */
             cause_version: number;
@@ -11088,6 +11172,99 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    last_recheck: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A plan version of the project */
+                workflow: components["schemas"]["WorkflowId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": null | components["schemas"]["LastRecheck"];
+                };
+            };
+            /** @description no such plan version */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description STORAGE_UNAVAILABLE */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    recheck: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A plan version of the project */
+                workflow: components["schemas"]["WorkflowId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AskRecheck"];
+            };
+        };
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectRecheck"];
+                };
+            };
+            /** @description no such plan version */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description command_conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunRefusal"];
+                };
+            };
+            /** @description STORAGE_UNAVAILABLE */
             500: {
                 headers: {
                     [name: string]: unknown;
