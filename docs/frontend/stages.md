@@ -137,7 +137,7 @@ changes) and B-210 (RecheckStarted and RecheckFinished on the project tail). The
   code servers have an interval only while one is `starting`.
 
 ### F-142 · Conversation lists follow the project stream
-- Status: todo
+- Status: done
 - Plan: none (the section above). After B-208, `threadsQuery` and `agentThreadsQuery` lose their
   10 s intervals, and `ThreadRemoved` and a turn's end (the `Operation…` kinds) refresh `thread-lists` in
   `classifyRefresh`; the filter in `dispatch` that drops `thread-lists` from a project scope goes.

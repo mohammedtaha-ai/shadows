@@ -20,7 +20,6 @@ export function threadsQuery(projectId: string) {
   return queryOptions({
     queryKey: threadKeys.list(projectId),
     queryFn: () => listThreads(projectId),
-    refetchInterval: 10_000,
   })
 }
 

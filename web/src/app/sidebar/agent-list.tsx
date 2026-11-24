@@ -8,6 +8,7 @@ import { Bot, ChevronRight, Plus, Settings } from 'lucide-react'
 import { useState } from 'react'
 import { type Agent, agentsQuery, providersQuery } from '@/api/aylul-profiles'
 import { threadQuery } from '@/api/threads'
+import { useProjectEvents } from '@/stream'
 import { ErrorLine } from '../error-line'
 import { ThreadList } from './thread-list'
 import { colorOf } from '@/app/agents'
@@ -17,6 +18,8 @@ import { SkeletonContent } from '@/components/ui/skeleton'
 export function AgentList({ filter = '' }: { filter?: string }) {
   const agents = useQuery(agentsQuery)
   const providers = useQuery(providersQuery)
+  // The AYLUL project's stream keeps the conversation lists fresh.
+  useProjectEvents(agents.data?.project_id)
   const { threadId } = useParams({ strict: false })
   // The open conversation's agent starts unfolded, so the page shows where it is.
   const thread = useQuery({ ...threadQuery(threadId ?? ''), enabled: threadId !== undefined })

@@ -175,10 +175,9 @@ obligations:
       writes; the name says "creates nothing" more widely than the assertion proves.
 
   - rule: >
-      An open project's conversations are refetched every 10 seconds, so a title sent by
-      the harness later appears.
+      X
     tested_by:
-      - "an open project’s conversations are polled, so a title the harness sends later shows"
+      - "an open project’s conversations are not polled; its stream refreshes them"
 
   - rule: >
       Delete asks first: Cancel sends nothing. Confirming sends one command for that
@@ -283,8 +282,8 @@ tests:
     checks: >
       The folded project's + link navigates to its /new draft and shows the first-message
       note; no POST to a /threads path is sent.
-  - name: "an open project’s conversations are polled, so a title the harness sends later shows"
-    checks: "The threads query for the open project has refetchInterval 10000."
+  - name: "an open project’s conversations are not polled; its stream refreshes them"
+    checks: "The threads query for the open project has no refetchInterval."
   - name: "deletes a conversation after asking, and leaves its page"
     checks: >
       The dialog's text appears only after the menu opens, Cancel sends no DELETE, and Delete

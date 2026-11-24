@@ -33,3 +33,6 @@ it('profile queries and refresh factories retain their exact identities', () => 
   expect(agentEnvQuery('ay').queryKey).toEqual(['aylul-agent', 'ay', 'env'])
   expect(profileKeys.threads('ay')).toEqual(agentThreadsQuery('ay').queryKey)
 })
+it('an agent\'s conversation list is not polled', () => {
+  expect(agentThreadsQuery('ay')).not.toHaveProperty('refetchInterval')
+})

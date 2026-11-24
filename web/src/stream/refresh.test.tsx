@@ -320,3 +320,8 @@ it('replayed_state_events_reconcile_the_state_once_at_caught_up', () => {
     expect(reads()).toBe(2)
   } finally { act(() => root.unmount()); client.clear(); vi.unstubAllGlobals() }
 })
+
+it.each(['ThreadRetitled', 'ThreadRemoved', 'OperationCompleted'])('a project stream refreshes the thread lists on %s', kind => {
+  const targets = classifyRefresh({ kind, seq: 1, threadId: null, operationId: null, payload: {}, projectId: 'p1' })
+  expect(targets).toContainEqual({ kind: 'thread-lists' })
+})

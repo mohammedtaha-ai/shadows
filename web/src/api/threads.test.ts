@@ -26,3 +26,6 @@ it('thread queries preserve the stream refresh arrays', () => {
   expect(queuedQuery('t').queryKey).toEqual(['threads', 't', 'queue'])
   expect(operationsQuery('t').queryKey).toEqual(['threads', 't', 'operations'])
 })
+it('the thread list is not polled', () => {
+  expect(threadsQuery('p')).not.toHaveProperty('refetchInterval')
+})

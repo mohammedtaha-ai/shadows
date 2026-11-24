@@ -67,7 +67,8 @@ export function classifyRefresh(event: RefreshEvent): RefreshTarget[] {
     if (event.kind === 'ThreadEntryAppended' || operation) targets.push({ kind: 'entries', threadId: event.threadId })
     if (operation) targets.push({ kind: 'operations', threadId: event.threadId })
   }
-  if (event.kind === 'ThreadRetitled') targets.push({ kind: 'thread-lists' })
+  // A project tail has no thread scope, so these refresh the lists whatever the scope.
+  if (event.kind === 'ThreadRetitled' || event.kind === 'ThreadRemoved' || event.kind.startsWith('Operation')) targets.push({ kind: 'thread-lists' })
   if (event.kind === 'ThreadEntryAppended' && typeof payload === 'object' && payload !== null &&
       'kind' in payload && payload.kind === 'AgentMessage') targets.push({ kind: 'thread-lists' })
   return targets
@@ -123,7 +124,6 @@ function refreshSubscriber(client: QueryClient, current: () => RefreshScope): St
       if (scope.threadId !== undefined && !plan) {
         targets = targets.filter(target => target.kind === 'entries' || target.kind === 'operations' || target.kind === 'thread-lists')
       }
-      if (scope.threadId === undefined) targets = targets.filter(target => target.kind !== 'thread-lists')
       if (live) dispatchRefresh(client, targets)
       else for (const target of targets) {
         // Project design and agreement notices must reach dirty editors during replay.

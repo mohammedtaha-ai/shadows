@@ -286,7 +286,7 @@ query_keys:
   projectsQuery: "const; ['projects']; retry 2; never polled itself"
   projectsReachabilityQuery: "(projectOpen: boolean) -> options; polled every 30 s only with no project open and after a first answer"
   harnessesQuery: "const; ['harnesses']"
-  threadsQuery: "(projectId: string) -> queryOptions; ['projects', id, 'threads']; polled 10 s"
+  threadsQuery: "(projectId: string) -> queryOptions; ['projects', id, 'threads']; not polled, the project stream refreshes it"
   threadQuery: "(threadId: string) -> queryOptions; ['threads', id, 'detail']"
   threadEntriesKey: "(threadId: string) -> ['threads', id, 'entries']"
   entriesQuery: "(threadId: string) -> queryOptions"
@@ -657,7 +657,7 @@ aylul_configuration:
   source: aylul-profiles.ts
   providersQuery: "['aylul-providers']; provider metadata only"
   agentsQuery: "['aylul-agents']; hidden project id with live agents"
-  agentThreadsQuery: "['aylul-agent', slug, 'threads']; newest conversations; polls every 10 seconds"
+  agentThreadsQuery: "['aylul-agent', slug, 'threads']; newest conversations; not polled, the AYLUL project stream refreshes it"
   agentEnvQuery: "['aylul-agent', slug, 'env']; names and timestamps only"
   saveProvider: Create or update metadata with a caller-owned command id.
   setProviderKey: Send a write-only value; receive metadata only.
