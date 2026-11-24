@@ -312,7 +312,7 @@ The `testing8` live run is finished. Open: its findings (B-199), B-200 to B-205,
 
 ### B-210 · A project recheck's start and end reach the project stream
 
-- Status: open. Decided by Mohammed on 2026-11-24. For F-a's follow-up: `lastRecheckQuery` reads
+- Status: done. Decided by Mohammed on 2026-11-24. For F-a's follow-up: `lastRecheckQuery` reads
   again on these events and polls never.
 - Owner: [executors design, "A project recheck runs when a plan is complete, or when
   asked"](specs/2026-11-08-executors-design.md); amend it with the two events.

@@ -359,7 +359,12 @@ the agent's word. This replaces the critic's evidence role (§5.1 already replac
   outcome, and the batch's end. A watcher who connects mid-row first gets that row's output so
   far. The live output is held in memory by Runs, capped as the stored output is (64 KiB, the
   end kept); it is not journaled and nothing new is written to the database; a restart loses
-  only the running row's live output, and the row runs again.
+  only the running row's live output, and the row runs again. A batch's start and end reach the
+  project stream (Mohammed, 2026-11-24): `RecheckStarted { project_id, workflow_id, recheck_id }`
+  in the write that begins it (a completing mark's or an ask's; `workflow_id` is the cause plan)
+  and `RecheckFinished`, same payload, in the write that sets its `finished_at`, also for a batch
+  recovery runs again; a replayed ask journals nothing. The plan page reads the last recheck
+  again on either, and polls never.
 - **The lock orders Shadows' own runs only.** What executors run is ordered by their instructions
   and by waiting on a lock error, as above.
 - **An addition is a new attempt,** with its own commit and its own checks.

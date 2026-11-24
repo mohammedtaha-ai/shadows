@@ -2,7 +2,7 @@
 use super::{RunsStore, checks::Finished};
 use crate::checks::CONTRACT_CHECK;
 use crate::{AttemptId, RunsError};
-use core_db::{Storage, Tx};
+use core_db::{Actor, JournalEntry, Storage, Tx};
 use core_plans::{Plan, PlanId, Plans, TaskCheck, TaskContext, WorkflowId};
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -57,6 +57,22 @@ pub(crate) enum RecheckCause {
     Mark(u32),
     /// The person (none) or a Planner's thread asked for it.
     Asked(Option<core_threads::ThreadId>),
+}
+
+/// Journals `kind` (RecheckStarted or RecheckFinished) for batch `id`, identifiers only.
+async fn recheck_event_in(conn: &mut Tx, kind: &str, id: &str, at: &str) -> Result<(), RunsError> {
+    let (project, workflow): (String, String) =
+        sqlx::query_as("SELECT project_id,cause_workflow_id FROM run_rechecks WHERE id=?")
+            .bind(id)
+            .fetch_one(&mut *conn)
+            .await?;
+    let event = JournalEntry::new(kind, Actor::system())
+        .with_project(&project)
+        .with_payload(serde_json::json!({
+            "project_id": project, "workflow_id": workflow, "recheck_id": id,
+        }));
+    JournalEntry::append_event(conn, event, at).await?;
+    Ok(())
 }
 
 impl RunsStore {
@@ -226,7 +242,7 @@ impl RunsStore {
         if pending.is_empty() {
             return Ok(None);
         }
-        let id = uuid::Uuid::new_v4().to_string();
+        let (id, now) = (uuid::Uuid::new_v4().to_string(), Storage::now());
         sqlx::query(
             "INSERT INTO run_rechecks (id,project_id,plan_id,cause_workflow_id,cause_version,
              cause_task,cause_command,created_at,asked,asker_thread_id)
@@ -239,7 +255,7 @@ impl RunsStore {
         .bind(plan.version)
         .bind(i64::from(cause_task.unwrap_or(0)))
         .bind(command)
-        .bind(Storage::now())
+        .bind(&now)
         .bind(asked)
         .bind(asker.as_ref().map(|thread| thread.as_str().to_string()))
         .execute(&mut *conn)
@@ -261,6 +277,7 @@ impl RunsStore {
             .execute(&mut *conn)
             .await?;
         }
+        recheck_event_in(conn, "RecheckStarted", &id, &now).await?;
         Ok(Some(id))
     }
 
@@ -458,15 +475,20 @@ impl RunsStore {
         self.storage
             .write_txn_as(move |conn| {
                 Box::pin(async move {
-                    sqlx::query(
+                    let at = Storage::now();
+                    let moved = sqlx::query(
                         "UPDATE run_rechecks SET finished_at=?,notice_json=?
                 WHERE id=? AND finished_at IS NULL",
                     )
-                    .bind(Storage::now())
+                    .bind(&at)
                     .bind(notice)
-                    .bind(id)
+                    .bind(&id)
                     .execute(&mut *conn)
-                    .await?;
+                    .await?
+                    .rows_affected();
+                    if moved > 0 {
+                        recheck_event_in(conn, "RecheckFinished", &id, &at).await?;
+                    }
                     Ok(())
                 })
             })

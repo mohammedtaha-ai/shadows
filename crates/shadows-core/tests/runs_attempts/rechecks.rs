@@ -686,3 +686,60 @@ async fn the_person_watches_a_running_checks_output_live() {
     assert_eq!(after.next().await, None);
     f.finish().await;
 }
+
+/// The project stream's recheck events, as (kind, recheck_id), in sequence order.
+async fn recheck_events(f: &Fixture) -> Vec<(String, String)> {
+    f.core
+        .events()
+        .read_project_events_after(core_events::EventCursor(0), &f.project, 1000)
+        .await
+        .unwrap()
+        .into_iter()
+        .filter(|event| event.kind.starts_with("Recheck"))
+        .map(|event| {
+            let payload: Value = serde_json::from_str(&event.payload_json).unwrap();
+            assert_eq!(payload["project_id"], f.project.as_str());
+            assert_eq!(payload["workflow_id"], f.workflow.as_str());
+            (
+                event.kind,
+                payload["recheck_id"].as_str().unwrap().to_string(),
+            )
+        })
+        .collect()
+}
+
+#[tokio::test]
+async fn an_asked_recheck_starts_and_finishes_on_the_project_stream() {
+    let f = done_task(false).await;
+    let id = asked(&f, &f.workflow, "cause").await.unwrap();
+    asked(&f, &f.workflow, "cause").await;
+    finished(&f).await;
+    assert_eq!(
+        recheck_events(&f).await,
+        vec![
+            ("RecheckStarted".to_string(), id.clone()),
+            ("RecheckFinished".to_string(), id),
+        ]
+    );
+    f.finish().await;
+}
+
+#[tokio::test]
+async fn a_completing_mark_starts_a_recheck_on_the_project_stream() {
+    let f = done_task(false).await;
+    for task in [1, 4, 5, 6, 7] {
+        f.core
+            .runs()
+            .mark_done(format!("done-{task}"), &f.workflow, 1, task, true, None)
+            .await
+            .unwrap();
+    }
+    let id: String = sqlx::query_scalar("SELECT id FROM run_rechecks")
+        .fetch_one(f.storage.reader())
+        .await
+        .unwrap();
+    let events = recheck_events(&f).await;
+    assert_eq!(events[0], ("RecheckStarted".to_string(), id));
+    finished(&f).await;
+    f.finish().await;
+}
