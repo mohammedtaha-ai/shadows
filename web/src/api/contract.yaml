@@ -186,7 +186,7 @@ projects_and_code:
   listCodeLinks: "(projectId: string) -> Promise<ProjectLink[]>"
   putCodeLink: "(projectId: string, linkedId: string, commandId: string) -> Promise<ProjectLink>"
   removeCodeLink: "(projectId: string, linkedId: string, commandId: string) -> Promise<void>"
-  codeServersQuery: "(projectId: string) -> queryOptions<ServerStatus[]>; polls every 5 s"
+  codeServersQuery: "(projectId: string) -> queryOptions<ServerStatus[]>; polls every 5 s only while a server is starting"
   setServerOff: "(serverId: string, off: boolean, commandId: string) -> Promise<void>"
   addServer: "(server: AddedServer, commandId: string) -> Promise<ServerStatus>"
   removeServer: "(serverId: string, commandId: string) -> Promise<void>"
@@ -283,7 +283,8 @@ saved_answers:
 
 query_keys:
   # Domain files: each returns queryOptions unless it is a key or a constant
-  projectsQuery: "const; ['projects']; retry 2; polled every 10 s only after a first answer"
+  projectsQuery: "const; ['projects']; retry 2; never polled itself"
+  projectsReachabilityQuery: "(projectOpen: boolean) -> options; polled every 30 s only with no project open and after a first answer"
   harnessesQuery: "const; ['harnesses']"
   threadsQuery: "(projectId: string) -> queryOptions; ['projects', id, 'threads']; polled 10 s"
   threadQuery: "(threadId: string) -> queryOptions; ['threads', id, 'detail']"
@@ -745,12 +746,12 @@ thread_cache:
 
 project_cache:
   owner: projects.ts
-  keys: "projectKeys preserves project root/prefix, instructions and grant arrays; projectsQuery polling and retries are unchanged"
+  keys: "projectKeys preserves project root/prefix, instructions and grant arrays; projectsQuery retries are unchanged; polling moved to projectsReachabilityQuery"
   saved_answers: "saveProjectAnswer, saveRemovedProjectAnswer, saveInstructionsAnswer and saveRevokedConnection use writeSaved to cancel exact reads before replacing, filtering or merging server answers"
 
 code_cache:
   owner: code.ts
-  keys: "codeKeys holds per-project server, status and link keys; status polls 2 s while indexing, else 10 s, and the server list every 5 s"
+  keys: "codeKeys holds per-project server, status and link keys; status polls 2 s while indexing, else 10 s, and the server list every 5 s only while one is starting"
   saved_answers: "saveUnlinkedCodeAnswer filters one link through writeSaved, cancelling the exact prior read"
 
 directory_cache:

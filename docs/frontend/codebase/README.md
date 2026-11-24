@@ -71,7 +71,7 @@ boundaries do not exempt their sources from the other architecture rules.
 | `stream` | `stream/**` | `stream/index.ts` | `stream/contract.yaml` | `api` |
 | `desktop` | `desktop/**` | `desktop/index.ts, desktop/startup.ts` | `desktop/contract.yaml` | `api` |
 | `ui` | `components/ui/**` | `components/ui/*` | `-` | `-` |
-| `shared` | `app/error-line.tsx, app/copy-button.tsx, app/daemon-status.tsx, app/confirm-panel.tsx, app/check-row.tsx, app/element-content.tsx` | `app/error-line.tsx, app/copy-button.tsx, app/daemon-status.tsx, app/confirm-panel.tsx, app/check-row.tsx, app/element-content.tsx` | `-` | `api, ui` |
+| `shared` | `app/error-line.tsx, app/copy-button.tsx, app/daemon-status.tsx, app/daemon-status.test.tsx, app/confirm-panel.tsx, app/check-row.tsx, app/element-content.tsx` | `app/error-line.tsx, app/copy-button.tsx, app/daemon-status.tsx, app/confirm-panel.tsx, app/check-row.tsx, app/element-content.tsx` | `-` | `api, stream, ui` |
 | `agents` | `app/agents/**` | `app/agents/index.ts, app/agents/home.tsx` | `app/agents/contract.yaml` | `api, ui, shared, desktop, navigation` |
 | `agreements` | `app/agreements/**` | `app/agreements/index.ts, app/agreements/agreements-page.tsx` | `app/agreements/contract.yaml` | `api, ui, shared` |
 | `conversation` | `app/conversation/**` | `app/conversation/index.ts, app/conversation/conversation.tsx, app/conversation/draft.tsx` | `app/conversation/contract.yaml` | `api, ui, shared, desktop, stream, design, workflows, desktop-ui, navigation` |

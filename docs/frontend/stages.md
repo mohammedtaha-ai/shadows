@@ -114,7 +114,7 @@ changes) and B-210 (RecheckStarted and RecheckFinished on the project tail). The
   task's run, attempts and plan progress and no other task's; none of the three queries has an interval.
 
 ### F-141 · The connection indicator reads the stream; code servers poll only while starting
-- Status: todo
+- Status: done
 - Plan: none (the section above). With a project open, `ConnectionIndicator` shows the project
   stream's connection (`live` is Connected, `connecting` and `reconnecting` are Connecting,
   `failed` is Not reachable) and the project list is not polled. With no project open, the

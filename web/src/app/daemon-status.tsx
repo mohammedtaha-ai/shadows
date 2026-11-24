@@ -8,18 +8,27 @@ import { CircleAlert } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { DAEMON_URL } from '@/api/projects'
 import { ApiError } from '@/api/error'
-import { projectsQuery } from '@/api/projects'
+import { projectsReachabilityQuery } from '@/api/projects'
+import { useProjectConnection } from '@/stream'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 
 const DAEMON_HOST = new URL(DAEMON_URL).host
 
 /** A dot and a line: connecting, connected, or why not. */
-export function ConnectionIndicator() {
-  const { status, error } = useQuery(projectsQuery)
+export function ConnectionIndicator({ projectId }: { projectId?: string }) {
+  const connection = useProjectConnection(projectId)
+  // With a project open its stream answers; the list is read only without one.
+  const { status, error } = useQuery({ ...projectsReachabilityQuery(projectId !== undefined), enabled: projectId === undefined })
 
   const [dot, label] =
-    status === 'success'
+    connection !== undefined
+      ? connection === 'live'
+        ? ['bg-success shadow-[0_0_8px_var(--success)]', 'Connected']
+        : connection === 'failed'
+          ? ['bg-destructive', 'Not reachable']
+          : ['animate-pulse bg-faint-foreground', 'Connecting']
+      : status === 'success'
       ? ['bg-success shadow-[0_0_8px_var(--success)]', 'Connected']
       : status === 'pending'
         ? ['animate-pulse bg-faint-foreground', 'Connecting']

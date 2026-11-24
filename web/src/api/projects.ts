@@ -11,8 +11,7 @@ export const projectKeys = {
 
 /** The project list, which the app shell also reads as "is the daemon there".
  *
- * Polled only once the daemon has answered, so a daemon that goes away turns
- * the indicator red. Before the first answer it is not polled: a query with no
+ * Not polled itself; `projectsReachabilityQuery` polls it for the indicator. Before the first answer it is not polled: a query with no
  * data goes back to `pending` on every fetch, which would flash "Connecting"
  * over the error every few seconds. Then the next attempt is the Try again
  * button, or coming back to the window after starting the daemon in a
@@ -22,8 +21,17 @@ export const projectsQuery = queryOptions({
   queryFn: listProjects,
   retry: 2,
   retryDelay: (attempt) => Math.min(500 * 2 ** attempt, 4000),
-  refetchInterval: (query) => (query.state.data === undefined ? false : 10_000),
 })
+
+/** The reachability read with no project open, when no project stream says whether
+ * the daemon answers: every 30 s, and only once the daemon has answered (see above).
+ * With a project open it is not polled at all. */
+export function projectsReachabilityQuery(projectOpen: boolean) {
+  return queryOptions({
+    ...projectsQuery,
+    refetchInterval: (query) => (projectOpen || query.state.data === undefined ? false : 30_000),
+  })
+}
 
 export function instructionsQuery(projectId: string) {
   return queryOptions({

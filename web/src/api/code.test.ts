@@ -18,3 +18,11 @@ it('code query identities retain their arrays', () => {
   expect(codeLinksQuery('p').queryKey).toEqual(['projects', 'p', 'code', 'links'])
   expect(codeServersQuery('p').queryKey).toEqual(['projects', 'p', 'code', 'servers'])
 })
+it('code servers are polled only while one is starting', () => {
+  const interval = (states: string[]) => {
+    const fn = codeServersQuery('p').refetchInterval as unknown as (q: { state: { data: unknown } }) => unknown
+    return fn({ state: { data: states.map(state => ({ state: { state } })) } })
+  }
+  expect(interval(['running', 'idle'])).toBe(false)
+  expect(interval(['running', 'starting'])).toBe(5_000)
+})

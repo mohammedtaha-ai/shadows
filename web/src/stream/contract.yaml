@@ -193,6 +193,7 @@ hooks:
     "(threadId: string, onDurable?: DurableListener, onNotice?: NoticeListener, projectId?: string)
       -> StreamState & { retry: () => void }"
   useProjectEvents: "(projectId: string | undefined) -> void"
+  useProjectConnection: "(projectId: string | undefined) -> Connection | undefined; the project stream's connection, for the connection indicator"
   usePlanEvents: "(threadId: string | undefined, projectId?: string) -> void"
 
 pure:
@@ -718,7 +719,7 @@ design_cache_identity: "Project design refresh uses api/design.designKeys shared
 
 thread_query_identity: "Thread snapshot refresh uses API-owned identities shared with feature reads"
 
-feature_entry: "index.ts exposes SlashCommand, tabId, LimitWindow, Limits, PlanShowFrame, SubagentCard, toLimits, Connection, readSubagentCard, readAttemptNotice, readRecheckNotice, ToolFrame, TodosFrame, TodoItem, readToolCard, readTodoList, DurableEvent, UsageFrame, useThreadStream, useProjectEvents, usePlanEvents."
+feature_entry: "index.ts exposes SlashCommand, tabId, LimitWindow, Limits, PlanShowFrame, SubagentCard, toLimits, Connection, readSubagentCard, readAttemptNotice, readRecheckNotice, ToolFrame, TodosFrame, TodoItem, readToolCard, readTodoList, DurableEvent, UsageFrame, useThreadStream, useProjectEvents, useProjectConnection, usePlanEvents."
 
 refresh_policy:
   classifier: "refresh.ts classifyRefresh is pure: an event with delivery identifiers becomes refresh targets."
