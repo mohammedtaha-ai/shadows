@@ -5,7 +5,7 @@ here and set its status. Task shape: [`AGENTS.md`](./AGENTS.md#a-task-in-stagesm
 
 ## Now
 
-F-137 is open on `feature/after-75`. The project's state view, its ER diagram and screen flow,
+F-137 and F-138 are open on `feature/after-75`. The project's state view, its ER diagram and screen flow,
 and `code_where` in the web (F-130 to F-136) are on `main` in PR #75 (`4d69977d`).
 
 ### F-137 · The person rechecks the project from the plan page
@@ -31,6 +31,30 @@ and `code_where` in the web (F-130 to F-136) are on `main` in PR #75 (`4d69977d`
   src/app/conversation/recheck-notice.test.tsx` passes (idle with last result, no result,
   running state, a click posts once with a command id, the all-passed card), then the task
   checks in "Now".
+
+### F-138 · The recheck's terminal panel on the plan page
+- Status: todo
+- Plan: none. Mockup agreed with Mohammed on 2026-11-24: a panel at the bottom of the plan
+  page, over the plan graph (which gets shorter). Its header reads "Project recheck", who began
+  it and when, the passed, failed and left counts, and a chevron that closes it. Its left column
+  lists every check of the batch (task and command) with a state icon (passed, failed, running,
+  waiting, not run); its right side shows the selected check's output in the mono font, line by
+  line as it arrives, kept scrolled to the end while it runs. The running check is selected
+  until the person picks another. Pressing "Recheck project" opens the panel. A terminal icon
+  button beside "Last project recheck" opens and closes it at any time, showing the newest
+  batch (its stored output once finished). While a recheck runs the button's place reads
+  "Rechecking… N of M".
+- Read: `docs/backend/stages.md` B-207; the two `/api/rechecks/{recheck}` routes in
+  `api/openapi.json`; `web/src/app/workflows/recheck-control.tsx`; `plan-page.tsx`.
+- Touch: `web/src/api/schema.d.ts` (generated), `web/src/api/runs.ts`, `web/src/api/contract.yaml`,
+  `web/src/app/workflows/plan-page.tsx`, `recheck-control.tsx` and its test, a new
+  `web/src/app/workflows/recheck-panel.tsx` and its test, `web/src/app/workflows/contract.yaml`,
+  the code map row.
+- Needs: B-207.
+- Done when: `npx vitest run src/app/workflows/recheck-panel.test.tsx
+  src/app/workflows/recheck-control.test.tsx` passes (opens on Recheck, the icon opens and
+  closes it, live chunks append to the running check, selecting a finished check shows its
+  stored output, the counts), then the task checks in "Now".
 
 Every task's checks run from `web/`: the tests it names, then `npm run typecheck`, `npm run lint`,
 `npm run build` and `npx vitest run src/codemap.test.ts src/architecture`.

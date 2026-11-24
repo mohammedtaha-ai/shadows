@@ -252,3 +252,25 @@ The `testing8` live run is finished. Open: its findings (B-199), and B-200 to B-
   not run, not finished yet). Regenerate `api/openapi.json`; update the core-runs contract.
 - Done when: a test reads none, then a running batch with unfinished rows, then the finished
   batch's counts; `cargo test -p shadows --test openapi` passes.
+
+### B-207 · The person can read a project recheck's output, live while it runs
+
+- Status: todo. For F-138 (the recheck's terminal panel on the plan page). Decided by Mohammed
+  on 2026-11-24.
+- Owner: [executors design, "A project recheck runs when a plan is complete, or when
+  asked"](specs/2026-11-08-executors-design.md); amend it with the two reads below.
+- Change: two Runs reads and two routes.
+  - `GET /api/rechecks/{recheck}`: the batch's rows in order (task, then the check's ordinal):
+    task, attempt id, check id, the check's command as the person reads it, outcome or none,
+    started and finished times, and the stored output with its truncated flag. 404 for an
+    unknown batch.
+  - `GET /api/rechecks/{recheck}/output`, SSE, live only (not journaled): on connect, each
+    started and unfinished row's output so far, then each new chunk as the check prints it
+    (`{task, attempt_id, check_id, text}`), a row's start and finish (with its outcome), and an
+    end event when the batch finishes; a finished batch answers the end event at once. The
+    output a running row has printed is held in memory by Runs, capped as the stored output is;
+    nothing new is written to the database.
+  - Regenerate `api/openapi.json`; update the core-runs contract and the shadows-http routes.
+- Done when: a test reads a finished batch's rows with their output; a test subscribes while a
+  check runs and receives a chunk the check printed before it finishes, then its finish and the
+  end event; `cargo test -p shadows --test openapi` passes.
