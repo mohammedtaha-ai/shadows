@@ -16,3 +16,5 @@ crates/code-record/src/store/lookup.rs :: CodeRecordStore::read_rows_with_words 
 # The OpenAPI create_group operation identifier is scanned as a SQL keyword.
 crates/shadows-http/src/groups.rs :: module SQL review: unsupported statement [b610c6ad582c5341] #1
 crates/shadows/src/cli/args.rs :: tests name resolution review: glob import [19dbf88307d136ac] #1
+# Supersession binds the selected plans' version ids through SQLite json_each over Runs' own marks (B-222).
+crates/core-runs/src/store/rechecks.rs :: RunsStore::superseded_in SQL review: qualified table or table function [5c088d945cefb7a5] #1
