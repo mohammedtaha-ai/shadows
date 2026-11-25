@@ -81,7 +81,8 @@ review its one shell, and making the core check the agent itself:
    the list does not exist in the session, so no mode can run it.
 2. **The person's own Claude settings stay out**: `settingSources: []` and
    `strictMcpConfig: true`. That drops their MCP connectors, plugins, skills
-   and hooks (a hook runs a shell command outside `auto`'s review), and also the project's `CLAUDE.md`; the project's instructions
+   and hooks (a hook runs a shell command outside `auto`'s review), and also
+   the project's `CLAUDE.md`; the project's instructions
    reach the Planner through Shadows' own (§13.8). Decided with Mohammed on
    2026-10-12.
 3. **The Planner's subagents are advisers with the Planner's authority.**
