@@ -1,13 +1,14 @@
 # The Planner's project switches: the web section
 
-- **Date:** 2026-11-25. Drafted by Masada; not yet in `stages.md`.
+- **Date:** 2026-11-25. Masada. Tasks F-145 to F-148 are in `docs/frontend/stages.md`.
 - **Owner spec:** §24.3, "The person may widen the Planner's reach, never its hands"
   (`docs/core/specs/2026-10-08-approval-authority-design.md`).
 - **Backend:** `docs/backend/plans/2026-11-25-planner-project-switches.md`. Only **B-234**
   (the routes, and `planner_reads_claude_md` on `Project`) changes what the web sees.
 - **Shared request:** `docs/shared/requests/2026-11-25-planner-project-switches.md`.
-  **Status `asked`.** No task below goes into `stages.md` until it is `accepted`; F-146 to
-  F-148 then stay `blocked` until B-234 is `done` and its routes show in `api/openapi.json`.
+  **Status `accepted`** (Hamoud's answer at `77ed3cd`, "as asked"; Mohammed's rulings of
+  2026-11-25 in it). F-146 to F-148 stay `blocked` until B-234 is `done` and its routes show
+  in `api/openapi.json`.
 - **Checked against the code at `3e9fb7f`**: every path, name and line below was read there.
 
 ## What the person gets
@@ -60,15 +61,42 @@ Nothing here is a second copy: no second switch, no second merge, no second key 
 6. **The project view follows library edits** through `invalidateLibraryViews` (F-148), so
    an item added or removed in Settings › Plugins & Skills shows or leaves here without a
    reload, as it does for agents today.
-7. **The section shows for every project the page shows**, the assistant project included:
-   Core accepts the switches for any live project, and the screen copies no rule about it.
+7. **The section shows for every project the page shows**, and the screen copies no rule
+   about which project may have it. The assistant (AYLUL) project needs nothing (Mohammed,
+   2026-11-25): the web already hides it from the sidebar and home, so its settings page is
+   not opened; Core still accepts the switches for any live project.
+8. **The screen keys on the status, never on `code` or the text** (the backend answer). The
+   codes are recorded below for the tests; the screen reads none of them.
+
+## Settled with the backend (Mohammed, 2026-11-25; not to be reopened)
+
+1. **AYLUL not configured:** no signal. The view is all three lists empty, the same as an
+   empty library, and the section shows the empty line.
+2. **A skipped CLAUDE.md** (missing, too large, a symlink, not UTF-8): no notice on the page.
+   Core only logs `planner.claude_md_skipped`.
+3. **The assistant project:** nothing on either side (decision 7).
+4. **Codex projects:** the fixed line "applies to the Planner on Claude Code" is enough; the
+   section shows whatever harness the project's conversations use.
+
+## Core's answers, exactly
+
+From the backend answer. The item `PUT` answers `AgentItem` for both kinds (`transport` set
+for MCP); `GET` always sends `plugins: []`, `skills` and `mcp` ordered by name, then id;
+`planner_reads_claude_md` comes after `assistant` and starts `false`.
+
+| When | Route | Status | `code` | `message` | The screen |
+|---|---|---|---|---|---|
+| `kind` is `plugin` | item `PUT` | 400 | `PROFILE_INVALID` | `invalid profile: plugins are not offered to the Planner` | never sent (`PlannerExtensionKind`); would go back with the message |
+| unknown or removed project | `GET` | 404 | `EXTENSION_NOT_FOUND` | `extension not found` | error view with Retry; CLAUDE.md switch stays |
+| unknown or removed project, item removed meanwhile, or AYLUL not configured | item `PUT` | 404 | `EXTENSION_NOT_FOUND` | `extension not found` | goes back with the message, and refetches the view |
+| unknown or removed project | CLAUDE.md `PUT` | 404 | `INVALID_COMMAND` | `not found: project` | goes back with the message; no refetch (the page already handles a missing project) |
+| same `command_id`, different body | every `PUT` | 409 | `COMMAND_CONFLICT` | `command conflict: the same command id was reused with a different request` | goes back with the message; never retried |
 
 ## F-145 · The agent form's switch becomes a shared switch
 
 **Goal:** move the switch row out of the agent form into `shared`, unchanged in behaviour.
 
-**Needs:** none on the backend. Scheduled once the request is `accepted`, so the shape is
-settled before the agent form is touched.
+**Needs:** none on the backend. The request is `accepted`, so it can start now.
 
 **New file `web/src/app/saving-switch.tsx`** (one job: *One switch saving each change at
 once*). It exports one generic component and its props type, nothing else:
@@ -317,12 +345,13 @@ Its body, top to bottom:
 | retry | Retry |
 | link | Add to library |
 
-**Errors**, as the request's table, with no code beyond the above: every refused or failed
-`PUT` (400 plugin, 404, 409 `COMMAND_CONFLICT`, a network failure) sends the switch back to
-its saved value and shows `ErrorLine` with Core's message under it (`SavingSwitch` already
-does both). A 404 also refetches the view. A retry of the same change resends the same
-command id (`attemptFor`); a 409 is never retried by the screen. A 404 on the `GET` is the
-error view with Retry; the CLAUDE.md switch stays usable.
+**Errors**, as "Core's answers, exactly" above, with no code beyond the above: every refused
+or failed `PUT` (400, 404, 409, a network failure) sends the switch back to its saved value
+and shows `ErrorLine` with Core's message under it (`SavingSwitch` already does both). A 404
+on an item `PUT` also refetches the view; the CLAUDE.md switch has no `onFailed`. A retry of
+the same change resends the same command id (`attemptFor`); a 409 is never retried by the
+screen. A 404 on the `GET` is the error view with Retry; the CLAUDE.md switch stays usable.
+The screen reads the status only, never `code` or the text.
 
 **`web/src/app/project-settings/project-settings.tsx`:** inside the existing
 `project !== undefined` block for `ProjectModes`, after it:
@@ -347,19 +376,23 @@ in `plugins` that must never show:
   answers 500 `STORAGE_UNAVAILABLE`; the message shows and the switch is unchecked; the
   second click's body equals the first; a third click after a success has a new id (as
   `a failed switch goes back` in the agent tests).
-- `a switch whose item is gone refetches the list`: the `PUT` answers 404; the switch goes
+- `a switch whose item is gone refetches the list`: the `PUT` answers 404
+  `EXTENSION_NOT_FOUND` "extension not found"; the switch goes
   back, a second `GET /api/projects/p1/planner-extensions` is made, and with the item gone
   from that answer its switch is no longer drawn.
-- `a conflict is shown and not retried`: the `PUT` answers 409 `COMMAND_CONFLICT` with a
-  message; the message shows, the switch is unchecked, and exactly one `PUT` was made.
+- `a conflict is shown and not retried`: the `PUT` answers 409 `COMMAND_CONFLICT` "command
+  conflict: the same command id was reused with a different request"; the message shows, the switch is unchecked, and exactly one `PUT` was made.
 - `the CLAUDE.md switch saves the project`: one `PUT /api/projects/p1/planner-claude-md`
   with `{ enabled: true, command_id: <string> }`; answering the project with the field
-  `true`, the projects cache holds it and the switch is checked.
+  `true`, the projects cache holds it and the switch is checked. A second case answers 404
+  `INVALID_COMMAND` "not found: project": the message shows, the switch is unchecked, and no
+  second `GET …/planner-extensions` is made.
 - `an empty library says so, links to the library, and keeps the CLAUDE.md switch`: the
+  `GET` answers all three lists empty (also what AYLUL not configured answers); the
   empty line; the CLAUDE.md switch is drawn and saves; "Add to library" opens the dialog
   titled "Plugins & Skills" and the path stays `/projects/p1/settings`.
 - `a failed load shows Core's message with Retry, and the CLAUDE.md switch still works`: the
-  `GET` answers 404 with a message; it shows with "Retry", not the empty line; Retry makes a
+  `GET` answers 404 `EXTENSION_NOT_FOUND` "extension not found"; it shows with "Retry", not the empty line; Retry makes a
   second `GET`; the CLAUDE.md switch is drawn.
 - `a late answer stays with its project`: `p2` added to `GET /api/projects` with its own
   view; a `review` `PUT` on p1 is held, the page navigates to p2 (as the existing
@@ -423,21 +456,20 @@ line 108 and `extension_refresh_owner` (line 199) say library writes call
 
 | Task | Waits on |
 |---|---|
-| F-145 | the request `accepted` (no backend) |
-| F-146 | the request `accepted`, B-234 `done` |
+| F-145 | nothing: the request is `accepted`, and it needs no backend |
+| F-146 | B-234 `done` |
 | F-147 | F-145, F-146 |
-| F-148 | F-146, F-147 |
+| F-148 | F-146, F-147, so B-234 too: its call `invalidateLibraryViews` comes with F-146, and its test runs on F-147's page |
 
 The browser check of the page (a person turns each switch in `shadows serve` and reads the
 next Planner opening in the logs) waits for Mohammed's machine, with B-235.
 
 ## Left out, on purpose
 
-- Telling "AYLUL is not configured" apart from an empty library (the request's one open
-  point; decision 8 of the backend plan gives no signal).
+- Telling "AYLUL is not configured" apart from an empty library (settled 1).
 - Tool rules for a project's MCP server (backend decision 3), plugins (decision 2), Codex
   (decision 6).
-- Saying in the screen whether `CLAUDE.md` exists or was skipped: Core logs
-  `planner.claude_md_skipped` and sends nothing the screen could show.
+- Saying in the screen whether `CLAUDE.md` exists or was skipped (settled 2). Showing it later
+  is a row in `docs/core/future.md`.
 - A test file for `saving-switch.tsx` alone: its behaviour is held by the agent form's
   tests and F-147's, through the two screens that draw it.

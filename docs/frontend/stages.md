@@ -6,7 +6,7 @@ here and set its status. Task shape: [`AGENTS.md`](./AGENTS.md#a-task-in-stagesm
 ## Now
 
 PR #76 (`e7b9332`) is on `main`: the project recheck on the plan page (F-137, F-138) and the screens
-that follow the stream instead of polling (F-139 to F-144). No frontend task is open. The project's state view, its ER diagram and screen flow,
+that follow the stream instead of polling (F-139 to F-144). Open: the Planner's project switches (F-145 to F-148, below). The project's state view, its ER diagram and screen flow,
 and `code_where` in the web (F-130 to F-136) are on `main` in PR #75 (`4d69977d`).
 
 Every task's checks run from `web/`: the tests it names, then `npm run typecheck`, `npm run lint`,
@@ -59,3 +59,68 @@ PRs #59 and #66 have no `F-` task. Two composer fixes in PR #61 have none either
 Its shared request must be accepted and its backend response must exist. Expand the API hooks,
 routing, event refresh, contracts and code-map paths first. The old mockup's `Built` label is not
 evidence of completion.
+
+## The Planner's project switches
+
+Plan: `docs/frontend/plans/2026-11-25-planner-project-switches.md`. Shared request `docs/shared/requests/2026-11-25-planner-project-switches.md`,
+`accepted` (Hamoud's answer at `77ed3cd`). Backend: B-234 in `docs/backend/stages.md` (the
+routes and `Project.planner_reads_claude_md`). Order: F-145, then F-146 once B-234 is `done`,
+then F-147, then F-148.
+
+### F-145 · The agent form's switch becomes a shared switch
+- Status: todo
+- Plan: docs/frontend/plans/2026-11-25-planner-project-switches.md#f-145--the-agent-forms-switch-becomes-a-shared-switch
+- Read: `web/src/app/agents/contract.yaml` (`AgentExtensions`); `docs/frontend/codebase/README.md`
+  (the architecture table's `shared` row); `web/src/app/agents/agent-extensions.tsx`
+  (`ExtensionSwitch`, `AgentExtensions`)
+- Touch: `web/src/app/saving-switch.tsx` (new), `web/src/app/agents/agent-extensions.tsx`,
+  `web/src/app/agents/contract.yaml`, `docs/frontend/codebase/README.md`
+- Needs: none (the request is `accepted`; no backend)
+- Done when: `npx vitest run src/app/agents/agent-extensions.test.tsx src/app/agents/tool-rules.test.tsx
+  src/app/agents/agent-form.test.tsx` passes with no test file changed, then the four checks
+
+### F-146 · The project's switch calls in `web/src/api/`
+- Status: blocked: on B-234 (`docs/backend/stages.md`) being `done`, with its three routes and
+  `Project.planner_reads_claude_md` in `api/openapi.json`
+- Plan: docs/frontend/plans/2026-11-25-planner-project-switches.md#f-146--the-projects-switch-calls-in-websrcapi
+- Read: `web/src/api/contract.yaml` (`extensions`, `extension_cache`, the projects functions);
+  the plan's "Core's answers, exactly"; `web/src/api/extensions.ts` (`extensionKeys`,
+  `saveAgentExtensionAnswer`, `writeSaved`); `web/src/api/projects.ts` (`saveProjectAnswer`)
+- Touch: `web/src/api/schema.d.ts` (through `npm run gen:api` only, run first),
+  `web/src/api/extensions.ts`, `web/src/api/projects.ts`, `web/src/api/extensions.test.ts`,
+  `web/src/api/requests.test.ts`, `web/src/api/contract.yaml`, `web/src/test/contract-fixtures.ts`
+- Needs: `docs/shared/requests/2026-11-25-planner-project-switches.md` (accepted); B-234 `done`
+- Done when: `npx vitest run src/api/extensions.test.ts src/api/requests.test.ts
+  src/app/agents/agent-extensions.test.tsx` passes, with the four tests the plan names, then
+  the four checks
+
+### F-147 · The section "What the Planner may use"
+- Status: blocked: on F-146, so on B-234
+- Plan: docs/frontend/plans/2026-11-25-planner-project-switches.md#f-147--the-section-what-the-planner-may-use
+- Read: `web/src/app/project-settings/contract.yaml`; `docs/frontend/codebase/README.md`
+  (the `project-settings` row); the plan's "Core's answers, exactly" and decisions 5, 7, 8;
+  `web/src/app/project-settings/project-settings.tsx` (the `ProjectModes` block);
+  `web/src/app/agents/agent-extensions.test.tsx` (`switchOf`, `a failed switch goes back`)
+- Touch: `web/src/app/project-settings/planner-switches.tsx` (new),
+  `web/src/app/project-settings/planner-switches.test.tsx` (new),
+  `web/src/app/project-settings/project-settings.tsx`,
+  `web/src/app/project-settings/contract.yaml`, `web/src/test/fake-daemon.ts`,
+  `docs/frontend/codebase/README.md`
+- Needs: F-145, F-146 (so B-234 `done`)
+- Done when: `npx vitest run src/app/project-settings` passes, with the nine tests the plan
+  names, then the four checks
+
+### F-148 · A library change reaches the project's switches
+- Status: blocked: on F-146 and F-147, so on B-234 (it calls F-146's `invalidateLibraryViews`
+  and tests on F-147's page)
+- Plan: docs/frontend/plans/2026-11-25-planner-project-switches.md#f-148--a-library-change-reaches-the-projects-switches
+- Read: `web/src/app/settings/contract.yaml` (the library notes, `extension_refresh_owner`);
+  the three `onSuccess` blocks the plan names in `mcp-form.tsx`, `extension-import.tsx`,
+  `extension-list.tsx`
+- Touch: `web/src/app/settings/mcp-form.tsx`, `web/src/app/settings/extension-import.tsx`,
+  `web/src/app/settings/extension-list.tsx`, `web/src/app/settings/contract.yaml`,
+  `web/src/app/project-settings/planner-switches.test.tsx`
+- Needs: F-146, F-147
+- Done when: `npx vitest run src/app/settings src/app/agents/agent-extensions.test.tsx
+  src/app/project-settings/planner-switches.test.tsx` passes, with
+  `a library removal refreshes the project's switches`, then the four checks

@@ -1,6 +1,6 @@
 # What the Planner may use: a project's switches
 
-- Status: answered
+- Status: accepted
 - Asked by: Masada, 2026-11-25
 - Screen: a new section of the project settings page
   (`web/src/app/project-settings/project-settings.tsx`), as §24.3 of
@@ -136,5 +136,26 @@ plugin, so this is only for the record.
 B-234 is `done` and its routes show in `api/openapi.json`.
 
 ## Frontend reply
+
+Masada, 2026-11-25. **Accepted.** The answer gives the screen everything it needs; nothing
+must change on the backend side.
+
+- **Fields:** taken as confirmed. The item `PUT`'s `AgentItem` (with `transport` for MCP) is
+  merged into `skills` or `mcp` by one private updater shared with the agent form's
+  `saveAgentExtensionAnswer`; `plugins` is never read; `planner_reads_claude_md` comes from the
+  projects list.
+- **Errors:** the screen keys on the status, never on `code` or the text. Every refused or failed
+  `PUT` sends its switch back and shows Core's `message` in `ErrorLine`. A 404 on an item `PUT`
+  refetches the project's view (all three `EXTENSION_NOT_FOUND` rows). A 404 on the CLAUDE.md
+  `PUT` (`INVALID_COMMAND`, `not found: project`) only goes back and shows the message: the
+  settings page already handles a missing project. A 409 `COMMAND_CONFLICT` is shown, never
+  retried. A 404 on the `GET` is the section's error view with Retry; the CLAUDE.md switch
+  stays usable.
+- **The four rulings** are in the plan as settled: one empty view when AYLUL is not
+  configured, no notice for a skipped CLAUDE.md, nothing for the assistant project, the fixed
+  Claude-Code-only line for every harness.
+
+Order, as the answer says: F-145 starts now; F-146 to F-148 stay `blocked` on B-234 until its
+routes show in `api/openapi.json`. Plan: `docs/frontend/plans/2026-11-25-planner-project-switches.md`.
 
 ## Ruling
