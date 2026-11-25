@@ -223,6 +223,9 @@ functions:
     record_answer_for_tests:
       signature: "(&self, key: &str, answer: RecordedAnswer)"
       # test-support only: `key` is answered with `answer` from then on.
+    shorten_start_wait_for_tests:
+      signature: "(&self, every: Duration, total: Duration)"
+      # test-support only: a starting server is asked again every `every`, for `total`.
     outcome:
       signature: "Verdict::outcome(&self) -> VerdictOutcome"
       # Failed when a symbol is missing; else passed when one is found; else not_run.
