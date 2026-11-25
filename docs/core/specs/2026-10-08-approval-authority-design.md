@@ -64,20 +64,24 @@ Decided with Mohammed on 2026-10-12.
 The one forgery that matters is an approval recorded with agent = `human`
 that the person did not click. The Planner could do it only by sending the web
 client's own HTTP request from a shell (`curl`). The earlier `shadow` did not
-stop this; this section does, by giving the Planner no hand to send it:
+stop this; this section does, by fixing the Planner's hands, having `auto`
+review its one shell, and making the core check the agent itself:
 
 1. **The Planner's tools are fixed by Shadows** when it opens the session.
    Its built-in tools are exactly Read, Grep, Glob, WebSearch, WebFetch,
-   ToolSearch, Agent and TodoWrite, plus Shadows' MCP tools. ToolSearch is
+   ToolSearch, Agent, TodoWrite and Bash, plus Shadows' MCP tools. ToolSearch is
    how Claude Code loads the deferred MCP tools; Agent starts the Planner's
    subagents (§22); TodoWrite keeps a list inside the session and writes no
-   file. No shell, no Write, no Edit, no other MCP server. Sent as
+   file. Bash is the Planner's shell on Claude Code, in `auto` mode, whose
+   reviewer checks each command before it runs; it installs language servers and
+   prepares the environment ([language servers design](../../backend/specs/2026-11-13-language-servers-design.md),
+   Mohammed, 2026-11-13; `auto`'s review judged enough by Mohammed on 2026-11-25).
+   No Write, no Edit, no PowerShell, no other MCP server. Sent as
    `_meta.claudeCode.options.tools` on every session opening; a tool not in
    the list does not exist in the session, so no mode can run it.
 2. **The person's own Claude settings stay out**: `settingSources: []` and
    `strictMcpConfig: true`. That drops their MCP connectors, plugins, skills
-   and hooks (a hook runs a shell command, the very hand this section
-   removes), and also the project's `CLAUDE.md`; the project's instructions
+   and hooks (a hook runs a shell command outside `auto`'s review), and also the project's `CLAUDE.md`; the project's instructions
    reach the Planner through Shadows' own (§13.8). Decided with Mohammed on
    2026-10-12.
 3. **The Planner's subagents are advisers with the Planner's authority.**
@@ -93,8 +97,8 @@ stop this; this section does, by giving the Planner no hand to send it:
 6. **The core is the boundary.** An approval method checks its agent itself;
    the tools and the client are defence in depth.
 
-Losing the shell costs the Planner running commands such as `git log` or a
-build. It plans; reading files is enough for that.
+The Planner plans; writing code is the executors' (§17), and its instructions
+keep its shell to reading the project and preparing the environment.
 
 The probe (evidence: `docs/evidence/2026-10-12-planner-tool-lock-probe.md` at `0187365`,
 code at `d8d3465`) showed on `claude-agent-acp` 0.81.1: without these options
@@ -108,17 +112,24 @@ tool list does not depend on the mode.
 **The person may widen the Planner's reach, never its hands.** Planned for
 §23.9 PR 3c: a project settings page with switches for what is safe to give
 the Planner — the person's own MCP connectors, their skills, and the
-project's `CLAUDE.md`. Write, Edit, Bash and PowerShell are never offered:
-a shell is the forgery this section removes, and writing code is the
-executors' (§17). Decided with Mohammed on 2026-10-12.
+project's `CLAUDE.md`. Write, Edit and PowerShell are never offered, and Bash
+stays as item 1 sets it: writing code is the executors' (§17). Decided with
+Mohammed on 2026-10-12.
 
-> **OPEN — how each switch is delivered without the settings it rides on.**
-> `settingSources: ["project"]` would bring the project's hooks with its
-> `CLAUDE.md`, and a hook runs a shell command. Shadows may instead read
-> `CLAUDE.md` itself into the appended instructions, pass chosen MCP servers
-> in `mcpServers`, and pass skills through the SDK's own options. **Closes
-> when** a probe like 2026-10-12's shows each switch brings its item and no
-> hook runs, and this paragraph names the delivery.
+Each switch is delivered without the settings it rides on, so
+`settingSources: []` and `strictMcpConfig: true` stay and no hook runs
+(probe: `docs/evidence/2026-11-25-planner-switches-probe.md`, Claude Code only):
+
+- **`CLAUDE.md`:** Shadows reads the project's `CLAUDE.md` itself and appends it
+  to the Planner's instructions. `settingSources: ["project"]` is never sent: it
+  brings the project's hooks with the file.
+- **Connectors:** each chosen MCP server is passed in the session's `mcpServers`
+  beside Shadows' own.
+- **Skills:** Shadows builds a plugin folder holding only the chosen skills'
+  folders (never a plugin's `hooks/`, commands, agents or MCP servers, since a
+  plugin runs its own hooks), passes it in `plugins`, adds `Skill` to the tools,
+  and names the chosen skills in `skills`, which also hides Claude Code's bundled
+  ones.
 
 > **OPEN — executors.** §17's executors need a shell, so §24.3's rule cannot
 > protect them. **Closes when** §17 specifies their sandbox: a shell that
