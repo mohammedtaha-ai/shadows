@@ -33,12 +33,27 @@ impl Agents {
                 file.write_all(settings.as_bytes())?;
                 file.sync_all()
             });
-        let linked = written.and_then(|()| std::fs::hard_link(&temp, &target));
+        let linked = match written {
+            Ok(()) => std::fs::hard_link(&temp, &target),
+            Err(e) => Err(e),
+        };
         let _ = std::fs::remove_file(&temp);
         match linked {
             Ok(()) => Ok(()),
-            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => Ok(()),
-            Err(_) => Err(unwritable()),
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists && target.exists() => Ok(()),
+            // A filesystem without hard links (FAT, some shares): create the file in place,
+            // still never over one already there.
+            Err(_) => match std::fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(&target)
+            {
+                Ok(mut file) => file
+                    .write_all(settings.as_bytes())
+                    .map_err(|_| unwritable()),
+                Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => Ok(()),
+                Err(_) => Err(unwritable()),
+            },
         }
     }
 
