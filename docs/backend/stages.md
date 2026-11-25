@@ -375,7 +375,7 @@ Plan: [backend review fixes](plans/2026-11-25-backend-review-fixes.md); each ent
 
 ### B-222 · Supersession reads only the project's marks
 
-- Status: todo. Plan task 10.
+- Status: done (2026-11-25). Plan task 10. `superseded_in` reads done marks only for the selected plans' versions (`json_each`), searched through the marks' primary key (EXPLAIN QUERY PLAN: SEARCH ... USING INDEX (workflow_id=?)).
 
 ### B-223 · Project state builds only what it returns
 

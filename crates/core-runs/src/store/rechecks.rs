@@ -365,10 +365,18 @@ impl RunsStore {
                 plan_of.insert(workflow.as_str().to_string(), plan.as_str().to_string());
             }
         }
-        let marks: Vec<(String, i64, u32)> =
-            sqlx::query_as("SELECT workflow_id,version,task FROM run_task_marks WHERE done=1")
-                .fetch_all(&mut *conn)
-                .await?;
+        if plan_of.is_empty() {
+            return Ok(BTreeSet::new());
+        }
+        // Only the selected plans' versions: other projects' history is never read here.
+        let workflows = serde_json::to_string(&plan_of.keys().collect::<Vec<_>>())?;
+        let marks: Vec<(String, i64, u32)> = sqlx::query_as(
+            "SELECT workflow_id,version,task FROM run_task_marks
+             WHERE done=1 AND workflow_id IN (SELECT value FROM json_each(?))",
+        )
+        .bind(workflows)
+        .fetch_all(&mut *conn)
+        .await?;
         let mut newest = BTreeMap::<(&str, u32), i64>::new();
         for (workflow, version, task) in &marks {
             if let Some(plan) = plan_of.get(workflow) {
