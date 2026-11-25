@@ -80,8 +80,7 @@ then F-147, then F-148.
   src/app/agents/agent-form.test.tsx` passes with no test file changed, then the four checks
 
 ### F-146 · The project's switch calls in `web/src/api/`
-- Status: blocked: on B-234 (`docs/backend/stages.md`) being `done`, with its three routes and
-  `Project.planner_reads_claude_md` in `api/openapi.json`
+- Status: done
 - Plan: docs/frontend/plans/2026-11-25-planner-project-switches.md#f-146--the-projects-switch-calls-in-websrcapi
 - Read: `web/src/api/contract.yaml` (`extensions`, `extension_cache`, the projects functions);
   the plan's "Core's answers, exactly"; `web/src/api/extensions.ts` (`extensionKeys`,

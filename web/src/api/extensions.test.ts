@@ -1,5 +1,6 @@
+import { QueryClient } from '@tanstack/react-query'
 import { afterEach, expect, it, vi } from 'vitest'
-import { saveMcp, removeExtension } from './extensions'
+import { extensionKeys, invalidateLibraryViews, projectExtensionsQuery, removeExtension, saveMcp, saveProjectExtensionAnswer, setProjectExtension, type AgentExtensions } from './extensions'
 afterEach(() => vi.unstubAllGlobals())
 it('MCP creation and editing use generated routes and preserve absent secret values', async () => {
   const calls: { method: string; path: string; body: unknown }[] = []
@@ -20,4 +21,34 @@ it('MCP deletion uses the existing kind route', async () => {
     return new Response(null, { status: 204 })
   })
   await removeExtension('remove', 'mcp', 'm1')
+})
+it("project switches use the project routes with the caller's command id", async () => {
+  const calls: { method: string; path: string; body: unknown }[] = []
+  vi.stubGlobal('fetch', async (request: Request) => {
+    const text = await request.text()
+    calls.push({ method: request.method, path: new URL(request.url).pathname, body: text === '' ? null : JSON.parse(text) })
+    return Response.json(request.method === 'GET' ? { plugins: [], skills: [], mcp: [] } : { id: 'm1', name: 'tools', description: '', enabled: true })
+  })
+  await new QueryClient().fetchQuery(projectExtensionsQuery('p1'))
+  await setProjectExtension('p1', 'mcp', 'm1', true, 'cmd')
+  expect(calls[0]).toMatchObject({ method: 'GET', path: '/api/projects/p1/planner-extensions' })
+  expect(calls[1]).toEqual({ method: 'PUT', path: '/api/projects/p1/planner-extensions/mcp/m1', body: { command_id: 'cmd', enabled: true } })
+})
+const item = (id: string, enabled: boolean) => ({ id, name: id, description: '', enabled }) as AgentExtensions['skills'][number]
+const view = (): AgentExtensions => ({ plugins: [], skills: [item('s1', false), item('s2', false)], mcp: [] })
+it("a saved project switch replaces only its item in its project's view", async () => {
+  const client = new QueryClient()
+  client.setQueryData(extensionKeys.project('p1'), view())
+  client.setQueryData(extensionKeys.project('p2'), view())
+  await saveProjectExtensionAnswer(client, 'p1', 'skill', item('s1', true))
+  const p1 = client.getQueryData<AgentExtensions>(extensionKeys.project('p1'))
+  expect(p1?.skills).toEqual([item('s1', true), item('s2', false)])
+  expect(client.getQueryData(extensionKeys.project('p2'))).toEqual(view())
+})
+it('invalidateLibraryViews refreshes the library, every agent and every project', async () => {
+  const client = new QueryClient()
+  const keys = [extensionKeys.library(), extensionKeys.agent('a'), extensionKeys.project('p1')]
+  for (const key of keys) client.setQueryData(key, view())
+  await invalidateLibraryViews(client)
+  for (const key of keys) expect(client.getQueryState(key)?.isInvalidated).toBe(true)
 })

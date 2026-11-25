@@ -120,6 +120,17 @@ export function saveInstructions(
   )
 }
 
+/** PUT /api/projects/{id}/planner-claude-md, body { command_id, enabled }: whether the
+ *  Planner on Claude Code receives the project directory's CLAUDE.md. Answers the Project. */
+export function setPlannerClaudeMd(projectId: string, commandId: string, enabled: boolean): Promise<Project> {
+  return unwrap(
+    client.PUT('/api/projects/{id}/planner-claude-md', {
+      params: { path: { id: projectId } },
+      body: { command_id: commandId, enabled },
+    }),
+  )
+}
+
 /** Plan notifications of one project, resumed by the existing journal cursor. */
 export function projectEventsUrl(projectId: string, after: number): string {
   const url = new URL(`/api/projects/${encodeURIComponent(projectId)}/events`, DAEMON_URL)
