@@ -4,7 +4,7 @@ mod approver;
 mod error;
 mod model;
 mod writer;
-pub use approver::{ApprovalRequest, ApprovedBy, Approver};
+pub use approver::{ApprovalRequest, ApprovedBy, Approver, PlannerApprover};
 pub use error::GrantsError;
 pub use writer::Writer;
 mod approval;

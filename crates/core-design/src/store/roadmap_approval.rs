@@ -22,11 +22,11 @@ impl DesignStore {
         planned: &BTreeSet<String>,
     ) -> Result<DesignChange, crate::DesignError> {
         let (mut ctx, ts) = (ctx.clone(), Storage::now());
-        if let core_grants::Approver::Planner {
+        if let core_grants::Approver::Planner(core_grants::PlannerApprover {
             writer: writer @ core_grants::Writer::Planner { thread, .. },
             turn,
             ..
-        } = &approver
+        }) = &approver
         {
             core_grants::Grants::check_writer(conn, writer, p).await?;
             core_operations::Operations::require_running_in(conn, thread, turn).await?;

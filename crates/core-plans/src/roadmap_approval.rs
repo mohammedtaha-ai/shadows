@@ -26,12 +26,12 @@ impl Plans {
         grant: &Grant,
         proposal: &str,
     ) -> Result<DesignChange, PlansError> {
-        let approver = self.design.planner_approver(grant).await?;
-        let ctx = approver.command(
+        let planner = self.design.planner_approver(grant).await?;
+        let ctx = planner.command(
             "RoadmapProposalApprove",
             serde_json::json!({"project":grant.project_id,"proposal":proposal}),
         );
-        self.approve_roadmap_with(ctx, &grant.project_id, proposal, approver)
+        self.approve_roadmap_with(ctx, &grant.project_id, proposal, Approver::Planner(planner))
             .await
     }
 

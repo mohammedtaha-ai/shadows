@@ -23,11 +23,11 @@ impl DesignStore {
         self.storage
             .write_txn_as::<_, _, crate::DesignError>(move |conn| {
                 Box::pin(async move {
-                    if let core_grants::Approver::Planner {
+                    if let core_grants::Approver::Planner(core_grants::PlannerApprover {
                         writer: writer @ core_grants::Writer::Planner { thread, .. },
                         turn,
                         ..
-                    } = &approver
+                    }) = &approver
                     {
                         core_grants::Grants::check_writer(conn, writer, &project).await?;
                         core_operations::Operations::require_running_in(conn, thread, turn).await?;

@@ -13,11 +13,11 @@ impl Grants {
         approver: &Approver,
         project: &ProjectId,
     ) -> Result<Option<ThreadEntryId>, GrantsError> {
-        let Approver::Planner {
+        let Approver::Planner(super::PlannerApprover {
             writer,
             turn,
             harness,
-        } = approver
+        }) = approver
         else {
             return Ok(None);
         };

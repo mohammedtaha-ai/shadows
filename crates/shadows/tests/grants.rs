@@ -536,11 +536,11 @@ async fn an_approval_needs_a_message_from_the_person_in_its_turn() {
                         )
                         .await?;
                         let harness = Threads::harness_in(conn, &thread, &project).await?;
-                        let approver = Approver::Planner {
+                        let approver = Approver::Planner(shadows_core::PlannerApprover {
                             writer,
                             turn: op.clone(),
                             harness,
-                        };
+                        });
                         Ok((
                             entry.id,
                             Grants::authorise_in(conn, &approver, &project).await,

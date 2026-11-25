@@ -142,11 +142,12 @@ impl Plans {
         if plan.project_id != grant.project_id {
             return Err(crate::StorageError::NotFound("workflow").into());
         }
-        let approver = self.design.planner_approver(grant).await?;
-        let ctx = approver.command(
+        let planner = self.design.planner_approver(grant).await?;
+        let ctx = planner.command(
             "PlanApprove",
             serde_json::json!({"workflow":workflow,"expected_revision":expected_revision}),
         );
+        let approver = core_grants::Approver::Planner(planner);
         self.store
             .approve_plan_with(&ctx, workflow, expected_revision, &approver)
             .await

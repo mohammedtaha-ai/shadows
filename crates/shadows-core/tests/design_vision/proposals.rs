@@ -136,14 +136,14 @@ async fn refused_authority(end_turn: bool) {
         command_schema_ver: 1,
         request_fingerprint: "fixture".into(),
     };
-    let approver = shadows_core::Approver::Planner {
+    let approver = shadows_core::Approver::Planner(shadows_core::PlannerApprover {
         writer: Writer::Planner {
             thread: thread.clone(),
             grant: f.grant.id.clone(),
         },
         turn: turn.to_string(),
         harness: "claude-code".into(),
-    };
+    });
     assert!(
         f.core
             .design()

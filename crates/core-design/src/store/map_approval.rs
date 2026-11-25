@@ -19,11 +19,11 @@ impl DesignStore {
         self.storage
             .write_txn_as::<_, _, crate::DesignError>(move |conn| {
                 Box::pin(async move {
-                    if let core_grants::Approver::Planner {
+                    if let core_grants::Approver::Planner(core_grants::PlannerApprover {
                         writer: writer @ core_grants::Writer::Planner { thread, .. },
                         turn,
                         ..
-                    } = &approver
+                    }) = &approver
                     {
                         core_grants::Grants::check_writer(conn, writer, &p).await?;
                         core_operations::Operations::require_running_in(conn, thread, turn).await?;
@@ -46,7 +46,7 @@ impl DesignStore {
                         super::proposal_read::ProposalReadRows::live_vision(conn, &p).await?;
                     let proposal =
                         super::map_proposal_read::MapProposalReadRows::load(conn, &p, &id).await?;
-                    if matches!(approver, core_grants::Approver::Planner { .. })
+                    if matches!(approver, core_grants::Approver::Planner(_))
                         && proposal.action == MapAction::First
                         && !proposal.waivers.is_empty()
                     {

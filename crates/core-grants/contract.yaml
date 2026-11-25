@@ -44,7 +44,13 @@ shapes:
     External: "{ grant: GrantId }"
   Approver:
     Person: unit
-    Planner: "{ writer: Writer, turn: String, harness: String }"
+    Planner: "PlannerApprover"
+  PlannerApprover:
+    # The only approver that builds a command (`command(kind, params)`): its id is derived
+    # from the turn and the request's fingerprint. A person's command keeps its own id.
+    writer: Writer
+    turn: String
+    harness: String
   ApprovalRequest:
     thread_id: ThreadId
     entry_id: ThreadEntryId
