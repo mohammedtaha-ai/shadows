@@ -165,11 +165,11 @@ obligations:
 
   - rule: >
       A switch saves at once under a command id; a failure sends it back with Core's
-      message, a retry resends the same id, and a conflict is never retried.
+      message, a retry resends the same id, and a conflict requires a fresh id on the next click.
     tested_by:
       - "a switch saves at once with a command id"
       - "a failed switch goes back, and its retry resends the same command id"
-      - "a conflict is shown and not retried"
+      - "a conflict is shown and a new attempt uses a fresh command id"
 
   - rule: >
       A 404 on an item switch refetches the view; a 404 on the CLAUDE.md switch does not.
@@ -188,6 +188,10 @@ obligations:
       A late answer stays with its project.
     tested_by:
       - "a late answer stays with its project"
+
+  - rule: A saved setting updates only its own field in the project cache.
+    tested_by:
+      - "a late allowed-modes answer preserves a separately saved CLAUDE.md switch"
 
 # ── agreements ───────────────────────────────────────────────────────────────────
 
@@ -292,8 +296,10 @@ tests:
     checks: "See planner-switches.test.tsx."
   - name: "a switch whose item is gone refetches the list"
     checks: "See planner-switches.test.tsx."
-  - name: "a conflict is shown and not retried"
+  - name: "a conflict is shown and a new attempt uses a fresh command id"
     checks: "See planner-switches.test.tsx."
+  - name: "a late allowed-modes answer preserves a separately saved CLAUDE.md switch"
+    checks: "The two saves answer out of order and both changes stay visible."
   - name: "the CLAUDE.md switch saves the project"
     checks: "See planner-switches.test.tsx."
   - name: "an empty library says so, links to the library, and keeps the CLAUDE.md switch"

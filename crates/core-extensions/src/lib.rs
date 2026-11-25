@@ -69,17 +69,17 @@ impl Extensions {
     }
 
     /// A project's Planner switches over the library; plugins are never offered.
-    /// Without AYLUL the view is empty.
+    /// Without AYLUL a live project has an empty view.
     pub async fn project_extensions(
         &self,
         project: &ProjectId,
     ) -> Result<AgentExtensions, ExtensionsError> {
+        let holder = Holder::Project(project.clone());
         if self.home_root.is_none() {
+            self.store.require_holder(&holder).await?;
             return Ok(AgentExtensions::default());
         }
-        self.store
-            .holder_library(&Holder::Project(project.clone()))
-            .await
+        self.store.holder_library(&holder).await
     }
 
     pub async fn add_extension(

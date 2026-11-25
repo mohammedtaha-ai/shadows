@@ -318,6 +318,10 @@ obligations:
       "project.planner_claude_md" params { project, enabled }; principal
       User/local, schema version 1.
     tested_by: project_thread_and_instructions_command_fingerprints_do_not_move
+    note: >
+      It reads the command log and compares each column with `fingerprint`
+      of those literals; it passes on 33ec030 and fails there with the sort
+      removed.
   - rule: >
       The CLAUDE.md switch. A new project's Planner does not read CLAUDE.md;
       `set_planner_claude_md` sets it and `planner_reads_claude_md_in` reads
@@ -328,10 +332,6 @@ obligations:
       - the_claude_md_switch_starts_off_and_is_set
       - the_claude_md_switch_replays_and_conflicts
       - the_claude_md_switch_on_a_removed_project_is_not_found
-    note: >
-      It reads the command log and compares each column with `fingerprint`
-      of those literals; it passes on 33ec030 and fails there with the sort
-      removed.
 
   - rule: >
       A bad directory is refused before any write, each with its own code:

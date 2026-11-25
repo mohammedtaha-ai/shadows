@@ -32,7 +32,7 @@ export function ProjectModes({ project }: { project: Project }) {
     mutationFn: ({ commandId, allowed }: { commandId: string; allowed: Allowed }) =>
       setProjectModes(project.id, commandId, allowed),
     onSuccess: async (saved, { allowed }) => {
-      await saveProjectAnswer(queryClient, saved)
+      await saveProjectAnswer(queryClient, saved, 'allowed_modes')
       settle(allowed)
     },
     // A refused change shows the set the daemon holds, with the error.

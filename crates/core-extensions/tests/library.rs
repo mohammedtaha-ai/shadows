@@ -1686,6 +1686,11 @@ async fn without_aylul_a_project_view_is_empty_and_a_switch_not_found() {
     let bare = Extensions::new(w.storage.clone(), w.secrets.clone(), w.agents.clone(), None);
     let view = bare.project_extensions(&p).await.unwrap();
     assert!(view.skills.is_empty() && view.plugins.is_empty() && view.mcp.is_empty());
+    let unknown = core_projects::ProjectId::from_recorded(uuid::Uuid::new_v4().to_string());
+    assert!(matches!(
+        bare.project_extensions(&unknown).await,
+        Err(ExtensionsError::NotFound)
+    ));
     assert!(matches!(
         bare.set_project_extension("on".into(), &p, ExtensionKind::Mcp, &id, true)
             .await,

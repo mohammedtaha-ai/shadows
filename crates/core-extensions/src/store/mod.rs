@@ -86,6 +86,11 @@ impl ExtensionsStore {
         }
     }
 
+    pub(super) async fn require_holder(&self, holder: &Holder) -> Result<(), ExtensionsError> {
+        let mut conn = self.storage.reader().acquire().await?;
+        Self::require_holder_in(&mut conn, holder).await
+    }
+
     pub(super) async fn holder_library(
         &self,
         holder: &Holder,

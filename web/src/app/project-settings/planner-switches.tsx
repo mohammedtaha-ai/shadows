@@ -41,7 +41,7 @@ export function PlannerSwitches({ project }: { project: Project }) {
         enabled={project.planner_reads_claude_md}
         request={{ project: project.id, setting: 'planner_reads_claude_md' }}
         send={(enabled, commandId) => setPlannerClaudeMd(project.id, commandId, enabled)}
-        onSaved={async saved => { await saveProjectAnswer(client, saved) }}
+        onSaved={saved => saveProjectAnswer(client, saved, 'planner_reads_claude_md')}
       />
       {state.isPending ? (
         <SkeletonContent label="Loading the library…" />

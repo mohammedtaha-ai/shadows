@@ -1,6 +1,7 @@
 import { useMutation } from '@tanstack/react-query'
 import { useRef, useState, type ReactNode } from 'react'
 import { attemptFor, type Attempt } from '@/api/command-id'
+import { ApiError } from '@/api/error'
 import { ErrorLine } from './error-line'
 
 export interface SavingSwitchProps<T> {
@@ -36,7 +37,12 @@ export function SavingSwitch<T>({ name, description, enabled, request, send, onS
       attempt.current = null
       await onSaved(saved)
     },
-    onError: error => onFailed?.(error),
+    onError: error => {
+      if (error instanceof ApiError && error.problem.kind !== 'unreachable' && error.problem.status === 409) {
+        attempt.current = null
+      }
+      onFailed?.(error)
+    },
     onSettled: () => { locked.current = false; setOptimistic(null) },
   })
   return (

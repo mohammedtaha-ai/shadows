@@ -40,9 +40,14 @@ export function instructionsQuery(projectId: string) {
   })
 }
 
-export function saveProjectAnswer(client: QueryClient, project: Project) {
+/** Each settings command owns only its field, even when Core answers with the full project. */
+export function saveProjectAnswer(
+  client: QueryClient,
+  project: Project,
+  field: 'allowed_modes' | 'planner_reads_claude_md',
+) {
   return writeSaved<Project[]>(client, projectKeys.all(), projects =>
-    projects?.map(value => value.id === project.id ? project : value))
+    projects?.map(value => value.id === project.id ? { ...value, [field]: project[field] } : value))
 }
 export function saveRemovedProjectAnswer(client: QueryClient, projectId: string) {
   return writeSaved<Project[]>(client, projectKeys.all(), projects =>

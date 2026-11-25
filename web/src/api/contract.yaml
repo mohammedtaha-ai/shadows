@@ -751,7 +751,7 @@ thread_cache:
 project_cache:
   owner: projects.ts
   keys: "projectKeys preserves project root/prefix, instructions and grant arrays; projectsQuery retries are unchanged; polling moved to projectsReachabilityQuery"
-  saved_answers: "saveProjectAnswer, saveRemovedProjectAnswer, saveInstructionsAnswer and saveRevokedConnection use writeSaved to cancel exact reads before replacing, filtering or merging server answers"
+  saved_answers: "saveProjectAnswer, saveRemovedProjectAnswer, saveInstructionsAnswer and saveRevokedConnection use writeSaved to cancel exact reads before filtering or merging server answers. A project settings save merges only the field its command changed."
 
 code_cache:
   owner: code.ts

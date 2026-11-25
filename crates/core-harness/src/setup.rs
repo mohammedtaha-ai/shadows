@@ -4,6 +4,7 @@
 //! therefore travel after the person text, without rebuilding the session.
 
 use std::collections::HashMap;
+use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, OnceLock};
 
@@ -513,7 +514,11 @@ impl Setups {
             if meta.len() > CLAUDE_MD_LIMIT {
                 return Err("too_large");
             }
-            let bytes = std::fs::read(&path).map_err(|_| "unreadable")?;
+            let file = std::fs::File::open(&path).map_err(|_| "unreadable")?;
+            let mut bytes = Vec::new();
+            file.take(CLAUDE_MD_LIMIT + 1)
+                .read_to_end(&mut bytes)
+                .map_err(|_| "unreadable")?;
             if bytes.len() as u64 > CLAUDE_MD_LIMIT {
                 return Err("too_large");
             }

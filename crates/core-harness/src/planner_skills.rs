@@ -62,7 +62,11 @@ impl Setups {
     /// next opening of the thread removes it again.
     pub(super) fn remove_skills(&self, thread: &ThreadId) {
         if let Some(root) = &self.aylul_root {
-            let _ = std::fs::remove_dir_all(root.join(FOLDER).join(thread.as_str()));
+            let parent = root.join(FOLDER);
+            let folder = parent.join(thread.as_str());
+            if Homes::check_local(&parent).is_ok() && Homes::check_local(&folder).is_ok() {
+                let _ = std::fs::remove_dir_all(folder);
+            }
         }
     }
 }

@@ -68,17 +68,17 @@ stop this; this section does, by fixing the Planner's hands, having `auto`
 review its one shell, and making the core check the agent itself:
 
 1. **The Planner's tools are fixed by Shadows** when it opens the session.
-   Its built-in tools are exactly Read, Grep, Glob, WebSearch, WebFetch,
-   ToolSearch, Agent, TodoWrite and Bash, plus Shadows' MCP tools. ToolSearch is
+   Its base tools are Read, Grep, Glob, WebSearch, WebFetch, ToolSearch, Agent,
+   TodoWrite and Bash, plus Shadows' MCP tools. The project switches below may
+   add `Skill` and the project's selected library MCP servers. ToolSearch is
    how Claude Code loads the deferred MCP tools; Agent starts the Planner's
    subagents (§22); TodoWrite keeps a list inside the session and writes no
    file. Bash is the Planner's shell on Claude Code, in `auto` mode, whose
    reviewer checks each command before it runs; it installs language servers and
    prepares the environment ([language servers design](../../backend/specs/2026-11-13-language-servers-design.md),
    Mohammed, 2026-11-13; `auto`'s review judged enough by Mohammed on 2026-11-25).
-   No Write, no Edit, no PowerShell, no other MCP server. Sent as
-   `_meta.claudeCode.options.tools` on every session opening; a tool not in
-   the list does not exist in the session, so no mode can run it.
+   Write, Edit and PowerShell stay unavailable. Shadows sends the built-in
+   tool list as `_meta.claudeCode.options.tools` on every session opening.
 2. **The person's own Claude settings stay out**: `settingSources: []` and
    `strictMcpConfig: true`. That drops their MCP connectors, plugins, skills
    and hooks (a hook runs a shell command outside `auto`'s review), and also
@@ -91,8 +91,9 @@ review its one shell, and making the core check the agent itself:
    with the same limits (no waiver map, no Create structure). They never run
    or write code. Executors are a different matter (the OPEN below). Decided
    with Mohammed on 2026-10-12.
-4. **Every permission request is still refused**, as today: defence in depth
-   for any tool the list lets through.
+4. **Claude Code's permission requests wait for the person.** Tools added by
+   a project switch go through the conversation's mode. The switch grants no
+   per-tool approval.
 5. **A read never writes.** Every HTTP route that changes state is a `POST`,
    `PUT` or `DELETE`; a `GET` changes nothing, so a fetch tool cannot approve.
 6. **The core is the boundary.** An approval method checks its agent itself;
@@ -110,9 +111,8 @@ existed, and a planted project hook, skill and `CLAUDE.md` that plain Claude
 Code loaded did not reach the Planner. Bypass is not in Shadows' mode policy (§12.4) and was not run; the
 tool list does not depend on the mode.
 
-**The person may widen the Planner's reach, never its hands.** Planned for
-§23.9 PR 3c: a project settings page with switches for what is safe to give
-the Planner — the MCP servers and skills of AYLUL's extension library (the
+**The person may widen the Planner's reach, never its hands.** The project settings
+switches in §23.9 PR 3c cover the MCP servers and skills of AYLUL's extension library (the
 `Extensions` library AYLUL's agents switch; plugins are not offered, since a
 plugin runs its own hooks), and the project's `CLAUDE.md`. Shadows never reads
 the person's own Claude settings for them (Mohammed, 2026-11-25). Write, Edit

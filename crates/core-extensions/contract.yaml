@@ -153,5 +153,5 @@ obligations:
     tested_by: [deleting_an_item_removes_its_project_switch]
   - rule: A project snapshot resolves only switched-on servers and carries no tool rules.
     tested_by: [a_project_snapshot_resolves_only_switched_on_servers_with_no_rules]
-  - rule: Without AYLUL a project view is empty and a project switch is NotFound.
+  - rule: Without AYLUL a live project view is empty, and unknown projects and project switches are NotFound.
     tested_by: [without_aylul_a_project_view_is_empty_and_a_switch_not_found]

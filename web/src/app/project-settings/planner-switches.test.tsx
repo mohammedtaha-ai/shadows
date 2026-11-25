@@ -3,7 +3,7 @@ import { act } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { projectExtensionsQuery, type AgentExtensions } from '@/api/extensions'
 import { projectsQuery, type Project } from '@/api/projects'
-import { projectFixture } from '@/test/contract-fixtures'
+import { projectFixture, projectWithModes } from '@/test/contract-fixtures'
 import { answers } from '@/test/fake-daemon'
 import { startApp, until, type Answer, type TestApp } from '@/test/test-app'
 
@@ -80,12 +80,16 @@ describe('the Planner switches', () => {
     expect(switchOf('research')).not.toBeNull()
   })
 
-  it('a conflict is shown and not retried', async () => {
+  it('a conflict is shown and a new attempt uses a fresh command id', async () => {
     const message = 'command conflict: the same command id was reused with a different request'
-    const a = await open({ [SKILL_PUT]: () => failure(409, 'COMMAND_CONFLICT', message) })
+    const a = await open({ [SKILL_PUT]: () => count(a, SKILL_PUT) === 1
+      ? failure(409, 'COMMAND_CONFLICT', message)
+      : Response.json({ ...skill, enabled: true }) })
     act(() => switchOf('review').click()); await until(() => a.text().includes(message) && !switchOf('review').disabled)
     expect(switchOf('review').checked).toBe(false)
     expect(count(a, SKILL_PUT)).toBe(1)
+    act(() => switchOf('review').click()); await until(() => a.bodies.length === 2)
+    expect(a.bodies[1]).not.toEqual(a.bodies[0])
   })
 
   it('the CLAUDE.md switch saves the project', async () => {
@@ -94,6 +98,25 @@ describe('the Planner switches', () => {
     expect(a.bodies[0]).toEqual({ enabled: true, ...ID })
     await until(() => switchOf(CLAUDE).checked && !switchOf(CLAUDE).disabled)
     expect(a.queryClient.getQueryData<Project[]>(projectsQuery.queryKey)?.[0].planner_reads_claude_md).toBe(true)
+  })
+
+  it('a late allowed-modes answer preserves a separately saved CLAUDE.md switch', async () => {
+    const project = projectWithModes({ 'claude-code': ['acceptEdits', 'auto'] })
+    let finishModes!: (response: Response) => void
+    const a = await open({
+      'GET /api/projects': [project],
+      'PATCH /api/projects/p1': () => new Promise<Response>(resolve => { finishModes = resolve }),
+      [CLAUDE_PUT]: () => Response.json({ ...project, planner_reads_claude_md: true }),
+    })
+    await until(() => a.checkbox('Auto') !== undefined)
+    act(() => a.checkbox('Auto')!.click())
+    await until(() => finishModes !== undefined)
+    act(() => switchOf(CLAUDE).click())
+    await until(() => switchOf(CLAUDE).checked && !switchOf(CLAUDE).disabled)
+    await act(async () => finishModes(Response.json({ ...project, allowed_modes: { 'claude-code': ['acceptEdits'] } })))
+    const saved = () => a.queryClient.getQueryData<Project[]>(projectsQuery.queryKey)?.[0]
+    await until(() => saved()?.allowed_modes['claude-code']?.includes('auto') === false)
+    expect(saved()?.planner_reads_claude_md).toBe(true)
   })
 
   it('the CLAUDE.md switch goes back when the project is gone', async () => {
