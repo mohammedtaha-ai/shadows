@@ -1,6 +1,6 @@
 # What the Planner may use: a project's switches
 
-- Status: asked
+- Status: answered
 - Asked by: Masada, 2026-11-25
 - Screen: a new section of the project settings page
   (`web/src/app/project-settings/project-settings.tsx`), as §24.3 of
@@ -75,6 +75,65 @@ item's id. `Toggle` is the existing body of the agent switch routes.
 | Network failure on a `PUT` | The switch returns to its saved state, with `ErrorLine`. A retry of the same change resends the same `command_id`. |
 
 ## Backend answer
+
+Hamoud, 2026-11-25. **As asked.** The three routes and `Project.planner_reads_claude_md` are
+B-234 exactly as the plan writes them; no route or field changes. The one thing to read
+below is the error codes and texts: they are the ones the existing error mapping gives, and
+they differ from route to route.
+
+**Owners and contracts.** No new service.
+- `GET …/planner-extensions` and `PUT …/planner-extensions/{kind}/{item}`: `Extensions`
+  (`crates/core-extensions/contract.yaml`), `project_extensions` and `set_project_extension`
+  (B-230, done at `0a9201a`).
+- `PUT …/planner-claude-md` and the field on `Project`: `Projects`
+  (`crates/core-projects/contract.yaml`), `set_planner_claude_md` (B-231) and
+  `shapes.Project` (B-234).
+- The routes: `crates/shadows-http/src/planner_switches.rs`, recorded in
+  `crates/shadows-http/src/contract.yaml` (B-234). Each calls one method; no rule in the adapter.
+- How a switch reaches the Planner is `Harness` (`crates/core-harness/contract.yaml`, B-233);
+  the screen sees none of it.
+
+**Fields, confirmed.**
+- `PUT …/planner-extensions/{kind}/{item}` answers `AgentItem` for both kinds, as the agent
+  toggle does today. For an MCP item `transport` is set; it is never an `AgentMcpItem`. Merge
+  it into `mcp` as `saveAgentExtensionAnswer` already does.
+- `GET …/planner-extensions` always sends `plugins: []`. `skills` and `mcp` are ordered by
+  name, then id.
+- `Project.planner_reads_claude_md` comes after `assistant`, starts `false` for every project,
+  and is set only by the `PUT`.
+
+**Errors, exactly** (status, `code`, `message`):
+
+| When | Route | Status | `code` | `message` |
+|---|---|---|---|---|
+| `kind` is `plugin` | item `PUT` | 400 | `PROFILE_INVALID` | `invalid profile: plugins are not offered to the Planner` |
+| unknown or removed project | `GET` and item `PUT` | 404 | `EXTENSION_NOT_FOUND` | `extension not found` |
+| unknown item, or an item removed meanwhile | item `PUT` | 404 | `EXTENSION_NOT_FOUND` | `extension not found` |
+| AYLUL not configured | item `PUT` | 404 | `EXTENSION_NOT_FOUND` | `extension not found` |
+| unknown or removed project | CLAUDE.md `PUT` | 404 | `INVALID_COMMAND` | `not found: project` |
+| same `command_id`, different body | all `PUT`s | 409 | `COMMAND_CONFLICT` | `command conflict: the same command id was reused with a different request` |
+
+On the extension routes a missing project and a missing item are the same 404 by design (the
+service maps both to `ExtensionsError::NotFound`). Key on the status, not the text: the
+screen's rule "a 404 refetches the view" is right for all three 404 rows. The 400's text
+carries the `invalid profile: ` prefix from the existing mapping; the screen never sends a
+plugin, so this is only for the record.
+
+**Masada's open points, settled** (Mohammed, 2026-11-25; not to be reopened):
+1. **AYLUL not configured:** no signal. The view is simply empty, like an empty library, and
+   the screen stays as written. No field is asked or added.
+2. **A skipped CLAUDE.md** (missing, too large, a symlink, not UTF-8): no notice on the page.
+   Core only logs `planner.claude_md_skipped`. Showing it later is a row in
+   `docs/core/future.md` ("A skipped CLAUDE.md shown in the project's settings").
+3. **The assistant (AYLUL) project:** nothing needed. The web already hides it from the
+   sidebar and home, so its settings page is never opened. Core still accepts the switches
+   for any live project (frontend decision 7 holds), and nothing changes on either side.
+4. **Codex projects:** the fixed line "applies to the Planner on Claude Code" is enough. The
+   section shows for a project whatever harness its conversations use; Core ignores the
+   switches on Codex.
+
+**Order.** B-234 waits for this request to be `accepted`. F-146 to F-148 stay `blocked` until
+B-234 is `done` and its routes show in `api/openapi.json`.
 
 ## Frontend reply
 
