@@ -383,7 +383,7 @@ Plan: [backend review fixes](plans/2026-11-25-backend-review-fixes.md); each ent
 
 ### B-224 · A project subscription holds only the channels it reads
 
-- Status: todo. Plan task 17.
+- Status: done (2026-11-25). Plan task 17. A project subscription holds only the committed watch; the bus, options, commands, UI signals and tasks receivers (`ThreadLive`) are taken only by a thread subscription, still before its replay. No new test: the change is which receivers exist, and the stream suites stay green.
 
 ### B-225 · Planner command construction is type-safe
 

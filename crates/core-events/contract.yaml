@@ -118,7 +118,7 @@ functions:
   service:
     subscribe_project:
       signature: "(&self, project: ProjectId, after: i64) -> Result<Subscription, EventsError>"
-      # Validates the project is live; same committed watch and subscription
+      # Validates the project is live; holds only the committed watch (no thread receivers); same subscription
       # replay loop, filtered to plan events, ProjectDesignChanged and
       # AgreementChanged and ProjectStandardsSaved. Standards payload carries
       # only the saved number, so clients refetch effective standards and stage.
