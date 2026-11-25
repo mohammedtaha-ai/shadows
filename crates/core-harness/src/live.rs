@@ -181,7 +181,13 @@ impl Sessions {
                     .ok_or_else(|| OpenError::Start("Codex is not configured".into()))?;
                 setup = self
                     .setups
-                    .for_opening(thread, &context.project_id, context.kind, &context.harness)
+                    .for_opening(
+                        thread,
+                        &context.project_id,
+                        context.kind,
+                        &context.harness,
+                        &cwd,
+                    )
                     .await
                     .map_err(OpenError::Start)?;
                 match program.process_spec(&cwd, &setup) {
@@ -250,7 +256,13 @@ impl Sessions {
                     setup
                 } else {
                     self.setups
-                        .for_opening(thread, &context.project_id, context.kind, &context.harness)
+                        .for_opening(
+                            thread,
+                            &context.project_id,
+                            context.kind,
+                            &context.harness,
+                            &cwd,
+                        )
                         .await?
                 };
                 // A request still waiting at the deadline answers nothing; what the

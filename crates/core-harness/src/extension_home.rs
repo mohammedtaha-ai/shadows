@@ -58,12 +58,39 @@ impl Homes {
         Ok(())
     }
 }
-fn copy(root: &Path, stage: &Path, item: &Item) -> Result<(), HarnessError> {
-    if uuid::Uuid::parse_str(&item.id).is_err() || !safe_name(&item.name) {
-        return Err(invalid());
+impl Homes {
+    /// Copies one library item into `target`, refusing an id that is not a
+    /// UUID and a name that is not a safe folder name.
+    pub(super) fn copy_item(root: &Path, target: &Path, item: &Item) -> Result<(), HarnessError> {
+        if uuid::Uuid::parse_str(&item.id).is_err() || !safe_name(&item.name) {
+            return Err(invalid());
+        }
+        Extensions::copy_tree(&root.join("library").join(&item.id), target)?;
+        Ok(())
     }
-    Extensions::copy_tree(&root.join("library").join(&item.id), stage)?;
-    Ok(())
+
+    /// The agent connection's form of one resolved MCP server.
+    pub(super) fn mcp_spec(
+        server: core_extensions::McpServerConfig,
+    ) -> shadows_agent::acp::McpServerSpec {
+        match server {
+            core_extensions::McpServerConfig::Http {
+                name, url, headers, ..
+            } => shadows_agent::acp::McpServerSpec::Http { name, url, headers },
+            core_extensions::McpServerConfig::Stdio {
+                name,
+                command,
+                args,
+                env,
+                ..
+            } => shadows_agent::acp::McpServerSpec::Stdio {
+                name,
+                command,
+                args,
+                env,
+            },
+        }
+    }
 }
 fn project(
     root: &Path,
@@ -158,11 +185,11 @@ fn project(
     std::fs::create_dir_all(marketplace.join(".claude-plugin")).map_err(|_| invalid())?;
     let result = (|| {
         for item in &skills {
-            copy(root, &stage.join("skills").join(&item.name), item)?;
+            Homes::copy_item(root, &stage.join("skills").join(&item.name), item)?;
         }
         for item in &plugins {
             let target = marketplace.join("plugins").join(&item.name);
-            copy(root, &target, item)?;
+            Homes::copy_item(root, &target, item)?;
             let manifest_path = target.join(".claude-plugin/plugin.json");
             let mut manifest: serde_json::Value =
                 serde_json::from_slice(&std::fs::read(&manifest_path).map_err(|_| invalid())?)
@@ -303,26 +330,6 @@ impl Homes {
         // No imported code is executed by projection.
         project(root, home, skills, plugins)?;
         Self::write_tool_rules(home, &snapshot.mcp)?;
-        Ok(snapshot
-            .mcp
-            .into_iter()
-            .map(|server| match server {
-                core_extensions::McpServerConfig::Http {
-                    name, url, headers, ..
-                } => shadows_agent::acp::McpServerSpec::Http { name, url, headers },
-                core_extensions::McpServerConfig::Stdio {
-                    name,
-                    command,
-                    args,
-                    env,
-                    ..
-                } => shadows_agent::acp::McpServerSpec::Stdio {
-                    name,
-                    command,
-                    args,
-                    env,
-                },
-            })
-            .collect())
+        Ok(snapshot.mcp.into_iter().map(Self::mcp_spec).collect())
     }
 }

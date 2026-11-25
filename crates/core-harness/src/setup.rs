@@ -4,6 +4,7 @@
 //! therefore travel after the person text, without rebuilding the session.
 
 use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, OnceLock};
 
 use sha2::{Digest, Sha256};
@@ -14,7 +15,7 @@ use crate::executor::ExecutorSession;
 use core_db::{Storage, StorageError};
 use core_grants::GrantId;
 use core_instructions::{Instructions, InstructionsVersion};
-use core_projects::ProjectId;
+use core_projects::{ProjectId, Projects};
 use core_standards::{EffectiveStandards, Standards};
 use core_threads::{ThreadId, ThreadKind};
 use shadows_agent::connection::{McpServerSpec, SessionSetup};
@@ -94,6 +95,11 @@ pub(crate) struct Setups {
     instructions: Instructions,
     grants: core_grants::Grants,
     mcp_url: Option<String>,
+    /// The library a Planner's switched-on skills and servers come from.
+    pub(super) extensions: Arc<core_extensions::Extensions>,
+    /// Where the library lives and Planner skills folders are written; `None`
+    /// without AYLUL, when a Planner gets no library item.
+    pub(super) aylul_root: Option<PathBuf>,
     held: Mutex<HashMap<ThreadId, Held>>,
     /// Threads that are executor sessions: what their next opening is built from.
     executors: Mutex<HashMap<ThreadId, ExecutorSession>>,
@@ -105,12 +111,16 @@ impl Setups {
         instructions: Instructions,
         mcp_url: Option<String>,
         grants: core_grants::Grants,
+        extensions: Arc<core_extensions::Extensions>,
+        aylul_root: Option<PathBuf>,
     ) -> Self {
         Self {
             storage,
             instructions,
             grants,
             mcp_url,
+            extensions,
+            aylul_root,
             held: Mutex::new(HashMap::new()),
             executors: Mutex::new(HashMap::new()),
         }
@@ -142,6 +152,7 @@ impl Setups {
         project: &ProjectId,
         kind: ThreadKind,
         harness: &str,
+        cwd: &Path,
     ) -> Result<SessionSetup, String> {
         self.forget(thread).await;
         let executor = self
@@ -173,13 +184,26 @@ impl Setups {
         let additions = Standards::current_in(&mut snapshot, project)
             .await
             .map_err(|e| e.to_string())?;
+        let claude = harness == policy::CLAUDE_CODE;
+        let reads_claude_md = claude
+            && Projects::planner_reads_claude_md_in(&mut snapshot, project)
+                .await
+                .map_err(|e| e.to_string())?;
         snapshot.commit().await.map_err(|e| e.to_string())?;
         let standards = additions.as_ref().map(|v| v.id.clone());
         let effective = EffectiveStandards {
             base: Standards::base().clone(),
             additions,
         };
-        let (grant, mcp) = match &self.mcp_url {
+        let switched = match &self.aylul_root {
+            Some(root) if claude => Some(
+                self.switched_on(root, thread, project)
+                    .await
+                    .map_err(|e| e.to_string())?,
+            ),
+            _ => None,
+        };
+        let (grant, mut mcp) = match &self.mcp_url {
             Some(url) => {
                 let thread = thread.clone();
                 let (grant, token) = self
@@ -208,6 +232,16 @@ impl Setups {
             }
             None => (None, vec![]),
         };
+        let mut tools: Vec<String> = PLANNER_TOOLS.iter().map(|t| t.to_string()).collect();
+        let (mut plugins, mut skills) = (vec![], None);
+        if let Some(switched) = switched {
+            mcp.extend(switched.mcp);
+            if let Some(dir) = switched.folder {
+                plugins.push(dir);
+                tools.push("Skill".to_string());
+                skills = Some(switched.skills);
+            }
+        }
         let instructions = current.as_ref().map(|v| v.id.clone());
         self.lock().insert(
             thread.clone(),
@@ -223,15 +257,18 @@ impl Setups {
         if let Some(body) = body(current.as_ref()) {
             append.push_str(&format!("\n\n## Project instructions\n\n{body}"));
         }
+        if reads_claude_md && let Some(text) = Self::claude_md(project, cwd) {
+            append.push_str(&format!("\n\n## The project's CLAUDE.md\n\n{text}"));
+        }
         Ok(SessionSetup {
             mcp,
             append: Some(append),
             allowed_tools: vec![ALLOWED.to_string()],
-            tools: Some(PLANNER_TOOLS.iter().map(|t| t.to_string()).collect()),
+            tools: Some(tools),
             setting_sources: None,
             permissions: vec![],
-            plugins: vec![],
-            skills: None,
+            plugins,
+            skills,
         })
     }
 
@@ -418,6 +455,7 @@ impl Setups {
     /// The adapter closed: revoke its grant. A failed revocation is logged;
     /// the next daemon start revokes every thread grant left live.
     pub(crate) async fn forget(&self, thread: &ThreadId) {
+        self.remove_skills(thread);
         let held = self.lock().remove(thread);
         if let Some(grant) = held.and_then(|h| h.grant)
             && let Err(error) = self.grants.revoke_thread_grant(&grant).await
@@ -426,11 +464,87 @@ impl Setups {
         }
     }
 
+    /// The project's switched-on MCP servers, and its switched-on skills
+    /// written to the thread's skills folder. The library snapshot is held
+    /// until the folder is written, so no change lands halfway.
+    async fn switched_on(
+        &self,
+        root: &Path,
+        thread: &ThreadId,
+        project: &ProjectId,
+    ) -> Result<Switched, HarnessError> {
+        let snapshot = self.extensions.project_snapshot(project).await?;
+        let skills: Vec<_> = snapshot
+            .library
+            .skills
+            .iter()
+            .filter(|i| i.enabled)
+            .map(|i| i.item.clone())
+            .collect();
+        let folder = self.write_skills(root, thread, &skills)?;
+        let mcp = snapshot
+            .mcp
+            .into_iter()
+            .map(super::profile_home::Homes::mcp_spec)
+            .collect();
+        Ok(Switched {
+            mcp,
+            folder,
+            skills: skills
+                .iter()
+                .map(|i| format!("shadows-skills:{}", i.name))
+                .collect(),
+        })
+    }
+
+    /// The project's `CLAUDE.md` in the session's directory: a regular file,
+    /// not a symlink, of at most 64 KiB, in UTF-8. Anything else is skipped
+    /// and logged with its reason.
+    fn claude_md(project: &ProjectId, cwd: &Path) -> Option<String> {
+        let path = cwd.join("CLAUDE.md");
+        let read = || -> Result<String, &'static str> {
+            let meta = std::fs::symlink_metadata(&path).map_err(|e| match e.kind() {
+                std::io::ErrorKind::NotFound => "missing",
+                _ => "unreadable",
+            })?;
+            if !meta.file_type().is_file() {
+                return Err("not_a_file");
+            }
+            if meta.len() > CLAUDE_MD_LIMIT {
+                return Err("too_large");
+            }
+            let bytes = std::fs::read(&path).map_err(|_| "unreadable")?;
+            if bytes.len() as u64 > CLAUDE_MD_LIMIT {
+                return Err("too_large");
+            }
+            String::from_utf8(bytes).map_err(|_| "not_utf8")
+        };
+        match read() {
+            Ok(text) => Some(text),
+            Err(reason) => {
+                tracing::info!(project_id = %project, reason, "planner.claude_md_skipped");
+                None
+            }
+        }
+    }
+
     fn lock(&self) -> std::sync::MutexGuard<'_, HashMap<ThreadId, Held>> {
         self.held
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner())
     }
+}
+
+/// The largest `CLAUDE.md` a Planner opening reads, in bytes.
+const CLAUDE_MD_LIMIT: u64 = 65_536;
+
+/// What a project switched on for its Planner, ready for the setup.
+struct Switched {
+    mcp: Vec<McpServerSpec>,
+    /// The skills folder, when the project switched on any skill.
+    folder: Option<String>,
+    /// The skills by their plugin-qualified names.
+    skills: Vec<String>,
 }
 
 /// Built-in tools permitted in every Planner session. `Bash` is its shell, for

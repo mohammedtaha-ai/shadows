@@ -149,7 +149,7 @@ B-230, B-232, B-231, B-233, B-234, B-235.
 
 ### B-233 · Harness: the Planner opens with the project's switches
 
-- Status: todo
+- Status: done
 - Plan: docs/backend/plans/2026-11-25-planner-project-switches.md#b-233--harness-the-planner-opens-with-the-projects-switches (and "What the person
   gets", "Decisions" 5 to 8)
 - Read: `crates/core-harness/contract.yaml`; `crates/core-extensions/contract.yaml`

@@ -24,6 +24,7 @@ mod model;
 mod offers;
 mod owners;
 mod permissions;
+mod planner_skills;
 pub use owners::AylulOwners;
 mod profile_home;
 mod sessions;

@@ -283,6 +283,7 @@ pattern to follow, not merely an example.
 | `crates/core-harness/src/store/mode.rs` | conversation permission persistence | `crates/core-harness/contract.yaml` |
 | `crates/core-turns/src/store/remove.rs` | thread removal composition | `crates/core-turns/contract.yaml` |
 | `crates/core-harness/src/setup.rs` | what a Planner session opens with | `crates/core-harness/src/setup.rs` |
+| `crates/core-harness/src/planner_skills.rs` | Planner session skills folder | `crates/core-harness/contract.yaml` |
 | `crates/core-harness/src/standards.rs` | Planner standards rendering | `crates/core-harness/src/standards.rs` |
 | `crates/core-harness/src/offers.rs` | the latest choices each open session offers | `crates/core-harness/src/offers.rs` |
 | `crates/core-harness/src/commands.rs` | the latest `/` list each open session sent | `crates/core-harness/src/commands.rs` |
