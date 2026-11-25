@@ -5,7 +5,8 @@
   (`docs/core/specs/2026-10-08-approval-authority-design.md`). Its delivery is fixed by the
   probe `docs/evidence/2026-11-25-planner-switches-probe.md`.
 - **Tasks:** B-230 to B-235 in `docs/backend/stages.md`. The web's section is the shared
-  request `docs/shared/requests/2026-11-25-planner-project-switches.md` (not written yet).
+  request `docs/shared/requests/2026-11-25-planner-project-switches.md`, which Masada writes
+  (Mohammed, 2026-11-25).
   Only B-234 changes what the frontend sees; it waits for that request to be `accepted`.
 - **Checked against the code at `e7b9332`** (2026-11-25 review): every path, signature and
   line named below was read there.
@@ -23,7 +24,7 @@ switched on when its session is next opened:
 - `CLAUDE.md` rides in the appended instructions, which a resumed or forked Claude session
   keeps from its first opening (`crates/core-harness/src/setup.rs`, module comment and
   `keeps_parent_prompt`). So it reaches a new conversation; an existing one keeps what it
-  opened with.
+  opened with. (Mohammed, 2026-11-25: accepted for now.)
 
 A session already open keeps what it opened with.
 
@@ -411,7 +412,7 @@ Tests:
   lists both.
 
 Codex and executors are held by the branch in step 3, not by a new test; their existing
-tests (`codex_session`, `executor_session`) must pass unchanged.
+tests (`codex_session`, `executor_session`) must pass unchanged (Mohammed, 2026-11-25).
 
 Contract `crates/core-harness/contract.yaml`: the module `planner_skills.rs: Planner
 session skills folder` under `modules`; the opening rules above with these test names; the
@@ -513,4 +514,4 @@ machine. With the tasks in `stages.md`, Hamoud adds the three rows below to
 - A live session picking up a switch change without reopening, and `CLAUDE.md` reaching a
   resumed or forked conversation.
 - A skills folder left by a daemon that stopped with a session open stays until that thread
-  opens again.
+  opens again; no cleanup at start (Mohammed, 2026-11-25).

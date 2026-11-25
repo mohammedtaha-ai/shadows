@@ -112,10 +112,13 @@ tool list does not depend on the mode.
 
 **The person may widen the Planner's reach, never its hands.** Planned for
 §23.9 PR 3c: a project settings page with switches for what is safe to give
-the Planner — the person's own MCP connectors, their skills, and the
-project's `CLAUDE.md`. Write, Edit and PowerShell are never offered, and Bash
-stays as item 1 sets it: writing code is the executors' (§17). Decided with
-Mohammed on 2026-10-12.
+the Planner — the MCP servers and skills of AYLUL's extension library (the
+`Extensions` library AYLUL's agents switch; plugins are not offered, since a
+plugin runs its own hooks), and the project's `CLAUDE.md`. Shadows never reads
+the person's own Claude settings for them (Mohammed, 2026-11-25). Write, Edit
+and PowerShell are never offered, and Bash stays as item 1 sets it: writing
+code is the executors' (§17). Decided with Mohammed on 2026-10-12. Plan:
+`docs/backend/plans/2026-11-25-planner-project-switches.md`.
 
 Each switch is delivered without the settings it rides on, so
 `settingSources: []` and `strictMcpConfig: true` stay and no hook runs
@@ -123,9 +126,11 @@ Each switch is delivered without the settings it rides on, so
 
 - **`CLAUDE.md`:** Shadows reads the project's `CLAUDE.md` itself and appends it
   to the Planner's instructions. `settingSources: ["project"]` is never sent: it
-  brings the project's hooks with the file.
-- **Connectors:** each chosen MCP server is passed in the session's `mcpServers`
-  beside Shadows' own.
+  brings the project's hooks with the file. A resumed or forked Claude session
+  keeps the instructions it first opened with, so the switch reaches a new
+  conversation (Mohammed, 2026-11-25).
+- **MCP servers:** each chosen library server is passed in the session's
+  `mcpServers` beside Shadows' own.
 - **Skills:** Shadows builds a plugin folder holding only the chosen skills'
   folders (never a plugin's `hooks/`, commands, agents or MCP servers, since a
   plugin runs its own hooks), passes it in `plugins`, adds `Skill` to the tools,

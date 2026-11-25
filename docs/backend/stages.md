@@ -93,8 +93,108 @@ this file at `db760593`.
 
 ## Open
 
-Only B-199 is open, paused: the `testing8` run is finished and its findings below remain. The tasks
+B-199 is open, paused: the `testing8` run is finished and its findings below remain. The tasks
 that PR #75 and PR #76 delivered are in the Shipped table, and their open remainders are in Known and left.
+B-230 to B-235 are the Planner's project switches (§23.9 PR 3c), plan
+`docs/backend/plans/2026-11-25-planner-project-switches.md`; run them one at a time, in the order
+B-230, B-232, B-231, B-233, B-234, B-235.
+
+### B-230 · Extensions: project switches over the library
+
+- Status: todo
+- Plan: docs/backend/plans/2026-11-25-planner-project-switches.md#b-230--extensions-project-switches-over-the-library (and "Decisions" 2, 3, 8)
+- Read: `crates/core-extensions/contract.yaml`; `crates/core-projects/contract.yaml`
+  (`require_live_in`); `crates/core-db/contract.yaml` (the migration catalog test);
+  `crates/shadows/tests/architecture/README.md` (literal SQL, table owners)
+- Touch: `crates/core-db/migrations/0080_planner_project_switches.sql`,
+  `crates/core-db/tests/fixtures/base_migrations.sha384`,
+  `crates/core-db/tests/migration_checksums.rs`, `crates/core-db/contract.yaml`,
+  `crates/shadows/tests/architecture/table-owners.txt`,
+  `crates/core-extensions/Cargo.toml`, `crates/core-extensions/contract.yaml`,
+  `crates/core-extensions/src/lib.rs`, `crates/core-extensions/src/model.rs`,
+  `crates/core-extensions/src/mcp.rs`, `crates/core-extensions/src/store/mod.rs`,
+  `crates/core-extensions/tests/library.rs`, this file (Status only)
+- Needs: nothing
+- Done when: `cargo test -p core-extensions`, `cargo test -p core-db --test migration_checksums`,
+  `cargo test -p shadows-core --test storage_contract` and
+  `cargo test -p shadows --test architecture` pass, with the plan's seven new tests in
+  `tests/library.rs` among them.
+
+### B-232 · The agent's session options: plugins and skills
+
+- Status: todo
+- Plan: docs/backend/plans/2026-11-25-planner-project-switches.md#b-232--the-agents-session-options-plugins-and-skills
+- Read: `crates/shadows-agent/contract.yaml`
+- Touch: `crates/shadows-agent/contract.yaml`, `crates/shadows-agent/src/connection.rs`,
+  `crates/shadows-agent/src/acp/session.rs`, `crates/shadows-agent/src/acp_tests.rs`,
+  `crates/core-harness/src/assistant.rs`, `crates/core-harness/src/setup.rs` (in these two,
+  only `plugins: vec![], skills: None` added to the three `SessionSetup` literals), this file
+  (Status only)
+- Needs: nothing
+- Done when: `cargo test -p shadows-agent` passes, with `plugins_and_skills_reach_the_options`
+  and `no_plugins_or_skills_sends_neither`, and
+  `cargo check --workspace --all-targets --features fake-acp/test-support` builds.
+
+### B-231 · Projects: the CLAUDE.md switch
+
+- Status: todo
+- Plan: docs/backend/plans/2026-11-25-planner-project-switches.md#b-231--projects-the-claudemd-switch
+- Read: `crates/core-projects/contract.yaml`
+- Touch: `crates/core-projects/contract.yaml`, `crates/core-projects/src/lib.rs`,
+  `crates/core-projects/src/store/mod.rs`, `crates/core-projects/tests/project_contract.rs`,
+  this file (Status only)
+- Needs: B-230 (its migration adds the column)
+- Done when: `cargo test -p core-projects` passes, with the plan's three
+  `the_claude_md_switch_*` tests.
+
+### B-233 · Harness: the Planner opens with the project's switches
+
+- Status: todo
+- Plan: docs/backend/plans/2026-11-25-planner-project-switches.md#b-233--harness-the-planner-opens-with-the-projects-switches (and "What the person
+  gets", "Decisions" 5 to 8)
+- Read: `crates/core-harness/contract.yaml`; `crates/core-extensions/contract.yaml`
+  (`project_snapshot`); `crates/core-projects/contract.yaml` (`planner_reads_claude_md_in`);
+  `docs/codebase/README.md` (the `core-harness` rows)
+- Touch: `crates/core-harness/contract.yaml`, `crates/core-harness/src/lib.rs`,
+  `crates/core-harness/src/setup.rs`, `crates/core-harness/src/sessions.rs`,
+  `crates/core-harness/src/live.rs`, `crates/core-harness/src/extension_home.rs`,
+  `crates/core-harness/src/planner_skills.rs` (new),
+  `crates/shadows/tests/planner_switches.rs` (new), `docs/codebase/README.md` (one row),
+  this file (Status only)
+- Needs: B-230, B-231, B-232
+- Done when: `cargo test -p shadows --test planner_switches --test planner_mcp --test codemap --test architecture`
+  and `cargo test -p shadows-core --test aylul_session --test aylul_extensions --test executor_session --test codex_session`
+  pass, with the plan's seven `planner_switches` tests.
+
+### B-234 · Routes, and the switch on `Project`
+
+- Status: blocked: on `docs/shared/requests/2026-11-25-planner-project-switches.md` (Masada
+  writes it) being `accepted`; this task changes what the frontend sees.
+- Plan: docs/backend/plans/2026-11-25-planner-project-switches.md#b-234--routes-and-the-switch-on-project
+- Read: `crates/shadows-http/src/contract.yaml`; `crates/core-projects/contract.yaml`; the
+  accepted shared request
+- Touch: `crates/core-projects/contract.yaml`, `crates/core-projects/src/model.rs`,
+  `crates/core-projects/src/store/mod.rs`, `crates/shadows-http/src/contract.yaml`,
+  `crates/shadows-http/src/lib.rs`, `crates/shadows-http/src/planner_switches.rs` (new),
+  `crates/shadows-http/src/aylul_extensions.rs` (only `Toggle`'s two fields `pub(super)`),
+  `crates/shadows/tests/planner_switches.rs`, `api/openapi.json`, `docs/codebase/README.md`
+  (one row), this file (Status only)
+- Needs: B-230, B-231, B-233; the accepted shared request
+- Done when: `cargo test -p core-projects` and
+  `cargo test -p shadows --test planner_switches --test openapi --test codemap --test architecture`
+  pass, with the plan's three route tests.
+
+### B-235 · Live acceptance on Claude
+
+- Status: todo
+- Plan: docs/backend/plans/2026-11-25-planner-project-switches.md#b-235--live-acceptance-on-claude
+- Read: `crates/shadows/tests/fixtures/live.rs`; `docs/evidence/2026-11-25-planner-switches-probe.md`
+- Touch: `crates/shadows/tests/planner_switches_live.rs` (new),
+  `docs/evidence/2026-11-25-planner-switches-probe.md` (a new heading "Through Shadows"),
+  this file (Status only)
+- Needs: B-233
+- Done when: `cargo test -p shadows --test planner_switches_live -- --ignored --test-threads=1`
+  passes here on MiniMax, with its output recorded in the evidence.
 
 ### B-199 · Finish the testing8 live run, and the findings it left
 
