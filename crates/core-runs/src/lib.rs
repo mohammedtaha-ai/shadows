@@ -119,6 +119,8 @@ struct Inner {
     plans: Plans,
     harness: Arc<Harness>,
     turns: Turns,
+    /// Answers whether an executor thread has a turn open, for the quiet wait.
+    operations: core_operations::Operations,
     projects: Projects,
     /// Read for the commands an executor ran, in a lessons record.
     threads: Arc<Threads>,
@@ -145,6 +147,7 @@ impl Runs {
         plans: Plans,
         harness: Arc<Harness>,
         turns: Turns,
+        operations: core_operations::Operations,
         projects: Projects,
         threads: Arc<Threads>,
         code: Codebase,
@@ -159,6 +162,7 @@ impl Runs {
                 plans,
                 harness,
                 turns,
+                operations,
                 projects,
                 threads,
                 code,

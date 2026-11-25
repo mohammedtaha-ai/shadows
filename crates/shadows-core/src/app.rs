@@ -495,6 +495,7 @@ impl AppCore {
             plans.clone(),
             harness.clone(),
             turns.clone(),
+            operations.clone(),
             projects.clone(),
             threads.clone(),
             code.clone(),

@@ -371,7 +371,7 @@ Plan: [backend review fixes](plans/2026-11-25-backend-review-fixes.md); each ent
 
 ### B-221 · Quiet-project waits use Operations' busy check
 
-- Status: todo. Plan task 11.
+- Status: done (2026-11-25). Plan task 11. `wait_for_quiet` asks `Operations::thread_is_busy` (one row) per executor thread; Operations is passed into Runs by AppCore (Runs already depended on core-operations).
 
 ### B-222 · Supersession reads only the project's marks
 

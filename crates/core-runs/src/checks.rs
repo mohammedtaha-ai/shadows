@@ -83,15 +83,8 @@ impl Runs {
         loop {
             let mut busy = false;
             for thread in self.inner.store.quiet_threads(&attempt.project_id).await? {
-                if self
-                    .inner
-                    .turns
-                    .operations(&thread)
-                    .await
-                    .map_err(|e| RunsError::Unavailable(e.to_string()))?
-                    .iter()
-                    .any(|op| op.finished_at.is_none())
-                {
+                // The owner's one-row check, not the thread's whole history.
+                if self.inner.operations.thread_is_busy(&thread).await? {
                     busy = true;
                     break;
                 }
