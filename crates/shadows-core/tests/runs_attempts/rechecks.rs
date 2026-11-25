@@ -352,6 +352,35 @@ async fn a_recheck_whose_result_cannot_be_saved_still_ends() {
     f.finish().await;
 }
 
+/// A batch that stopped told nothing, so a failure the next batch finds is told.
+#[tokio::test]
+async fn a_failure_after_a_stopped_batch_is_told() {
+    let f = done_task(true).await;
+    let planner = super::checks::prepare_planner(&f).await;
+    sqlx::query(
+        "CREATE TRIGGER refuse_results BEFORE UPDATE OF outcome ON run_recheck_results
+         WHEN NEW.outcome <> 'not_run' BEGIN SELECT RAISE(ABORT, 'refused for the test'); END",
+    )
+    .execute(f.storage.reader())
+    .await
+    .unwrap();
+    asked(&f, &f.workflow, "stopped").await.unwrap();
+    finished(&f).await;
+    sqlx::query("DROP TRIGGER refuse_results")
+        .execute(f.storage.reader())
+        .await
+        .unwrap();
+    asked(&f, &f.workflow, "next").await.unwrap();
+    let message = notified(&f, &planner).await;
+    assert!(
+        !message.notice.unwrap().card["failed"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
+    f.finish().await;
+}
+
 #[tokio::test]
 async fn a_passing_recheck_a_mark_began_sends_no_notice() {
     let f = done_task(false).await;

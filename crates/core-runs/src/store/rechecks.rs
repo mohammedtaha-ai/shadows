@@ -397,7 +397,8 @@ impl RunsStore {
     }
 
     /// Whether the same check of the same task did not pass either in the latest earlier batch
-    /// that ran it: such a failure was told already, and is told again only after a pass.
+    /// that ran it: such a failure was told already, and is told again only after a pass. A
+    /// row with no start belongs to a batch that stopped and told nothing.
     /// A `contract` row that could not run is skipped, so a server down once hides nothing.
     pub async fn failed_before(&self, batch: &str, row: &ResultRow) -> Result<bool, RunsError> {
         let previous: Option<Option<String>> = sqlx::query_scalar(
@@ -405,6 +406,7 @@ impl RunsStore {
              JOIN run_rechecks b ON b.id=r.recheck_id
              JOIN run_rechecks cur ON cur.id=?
              WHERE r.workflow_id=? AND r.task=? AND r.check_id=? AND r.finished_at IS NOT NULL
+               AND r.started_at IS NOT NULL
                AND NOT (r.check_id='contract' AND r.outcome='not_run')
                AND (b.created_at<cur.created_at OR (b.created_at=cur.created_at AND b.id<cur.id))
              ORDER BY b.created_at DESC,b.id DESC LIMIT 1",
@@ -488,7 +490,9 @@ impl RunsStore {
     }
 
     /// Ends batch `id` after its worker failed: every row not yet finished becomes
-    /// `not_run` with `reason` as its output, and the batch finishes with no notice.
+    /// `not_run` with `reason` as its output, and the batch finishes with no notice. It told
+    /// nothing, so its rows that did not pass lose their start: `failed_before` skips them
+    /// and the next batch tells what it finds.
     pub async fn abandon_batch(&self, id: &str, reason: String) -> Result<(), RunsError> {
         let id = id.to_string();
         self.storage
@@ -500,6 +504,13 @@ impl RunsStore {
                     )
                     .bind(reason)
                     .bind(Storage::now())
+                    .bind(&id)
+                    .execute(&mut *conn)
+                    .await?;
+                    sqlx::query(
+                        "UPDATE run_recheck_results SET started_at=NULL
+                         WHERE recheck_id=? AND outcome<>'passed'",
+                    )
                     .bind(&id)
                     .execute(&mut *conn)
                     .await?;
