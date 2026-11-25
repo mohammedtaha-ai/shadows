@@ -14,14 +14,15 @@ const PROTOCOL: &str = "the server's answer was not MCP";
 impl Extensions {
     pub async fn agent_tools(&self, slug: &str, id: &str) -> Result<AgentTools, ExtensionsError> {
         let guard = self.extension_guard().await;
-        let mut list = self.store.agent_library(slug).await?;
+        let holder = crate::model::Holder::Agent(slug.to_owned());
+        let mut list = self.store.holder_library(&holder).await?;
         if !list.mcp.iter().any(|i| i.item.id == id) {
             return Err(ExtensionsError::NotFound);
         }
         for item in &mut list.mcp {
             item.enabled = item.item.id == id;
         }
-        let servers = self.resolve_mcp_servers(slug, &list).await?;
+        let servers = self.resolve_mcp_servers(&holder, &list).await?;
         drop(guard);
         let server = servers
             .into_iter()

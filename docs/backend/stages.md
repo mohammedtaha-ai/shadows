@@ -101,7 +101,7 @@ B-230, B-232, B-231, B-233, B-234, B-235.
 
 ### B-230 · Extensions: project switches over the library
 
-- Status: todo
+- Status: done
 - Plan: docs/backend/plans/2026-11-25-planner-project-switches.md#b-230--extensions-project-switches-over-the-library (and "Decisions" 2, 3, 8)
 - Read: `crates/core-extensions/contract.yaml`; `crates/core-projects/contract.yaml`
   (`require_live_in`); `crates/core-db/contract.yaml` (the migration catalog test);

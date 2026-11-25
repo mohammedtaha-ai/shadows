@@ -1,8 +1,9 @@
 # Database infrastructure: core-db; domain rules and private stores remain here.
 # Owns the shared AYLUL extension library (plugins and skills copied into owned,
-# immutable library folders) and each agent's enabled switch over it.
+# immutable library folders), each agent's enabled switch over it, and each
+# project's Planner switches over its skills and MCP servers (project switches).
 # An agent's liveness is proved through Agents::require_live_in inside the same
-# read or write. Library mutations hold one lock that the harness also holds while
+# read or write; a project's through Projects::require_live_in. Library mutations hold one lock that the harness also holds while
 # it projects the library into a home.
 name: extensions
 version: 1
@@ -26,6 +27,7 @@ dependencies:
   agents: crates/core-agents/contract.yaml
   secrets: crates/core-secrets/contract.yaml
   providers: crates/core-providers/contract.yaml
+  projects: crates/core-projects/contract.yaml
 
 shapes:
   Extensions:
@@ -36,6 +38,9 @@ shapes:
   ExtensionsStore:
     storage: Arc<Storage> # Private to extensions; shares the existing pool.
     tool_rules: Owns aylul_agent_mcp_tool_rule in the shared database.
+    project_switches: Owns project_extension and project_mcp in the shared database.
+  Holder:
+    note: crate-private; who a switch belongs to, Agent(slug) or Project(ProjectId). No public signature names it.
   ExtensionsError:
     NotFound: ExtensionNotFound for a caller
     NameConflict: ExtensionNameConflict for a caller
@@ -73,6 +78,9 @@ functions:
   delete_extension: Remove the item and every enablement in one transaction; MCP deletion removes its secret scope.
   agent_extensions: List the whole library with one live agent's switches.
   set_agent_extension: Atomically validate and set one live agent's switch.
+  project_extensions: "public: (project: &ProjectId) -> AgentExtensions; the library with one live project's Planner switches, plugins omitted; empty without AYLUL."
+  set_project_extension: "public: (command_id, project: &ProjectId, kind, id, enabled) -> AgentItem; refuses a plugin (Invalid), NotFound without AYLUL, then command extension.project_toggle with params { project, kind, id, enabled }."
+  project_snapshot: "public: (project: &ProjectId) -> AgentExtensionSnapshot; the project's switched-on servers resolved with empty rules, under the library guard."
   tool_rules: List stored rules ordered by tool for a live agent and existing MCP item.
   set_tool_rules: Replayably replace one agent's item rules; ask removes a stored rule.
   agent_tools: Discover one item's tools over its configured transport, returning stored rules on discovery failure.
@@ -84,6 +92,7 @@ functions:
 
 called_by_other_services:
   opening_snapshot: Harness pins library items and MCP values through one home projection.
+  project_snapshot: Harness, the Planner opening, reads a project's switched-on skills and servers.
   extension_guard: Harness serializes library snapshot projection against library mutations.
   copy_tree: Harness copies bounded regular library files into a managed snapshot.
   remove_agent_in: Harness::delete_agent, in the same write as Agents::delete_in.
@@ -130,3 +139,17 @@ obligations:
     tested_by: [mcp_commands_replay_and_conflict]
   - rule: Trusted openings receive only enabled MCP servers and Debug redacts their values.
     tested_by: [an_opening_resolves_only_enabled_mcp_servers]
+  - rule: A project's switches are independent of every agent's, over the same library.
+    tested_by: [a_project_switch_is_independent_of_agents]
+  - rule: A plugin is never offered to a Planner; switching one is Invalid and the project view lists none.
+    tested_by: [a_project_switch_refuses_a_plugin]
+  - rule: An unknown or removed project, or an unknown item, is NotFound.
+    tested_by: [a_project_switch_on_an_unknown_project_or_item_is_not_found]
+  - rule: Project switches replay equal fingerprints and refuse a changed one.
+    tested_by: [a_project_switch_replays_and_conflicts]
+  - rule: Deleting an item removes its project switches (ON DELETE CASCADE).
+    tested_by: [deleting_an_item_removes_its_project_switch]
+  - rule: A project snapshot resolves only switched-on servers and carries no tool rules.
+    tested_by: [a_project_snapshot_resolves_only_switched_on_servers_with_no_rules]
+  - rule: Without AYLUL a project view is empty and a project switch is NotFound.
+    tested_by: [without_aylul_a_project_view_is_empty_and_a_switch_not_found]

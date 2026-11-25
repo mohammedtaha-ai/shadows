@@ -14,6 +14,8 @@ aylul_agent_mcp_tool_rule :: extensions
 aylul_extension :: extensions
 aylul_extension_declined :: extensions
 aylul_mcp_server :: extensions
+project_extension :: extensions
+project_mcp :: extensions
 aylul_person :: person
 aylul_provider :: providers
 aylul_usage :: usage

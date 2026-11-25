@@ -15,6 +15,7 @@ workspace = true
 [dependencies]
 core-db = { path = "../core-db" }
 core-agents = { path = "../core-agents" }
+core-projects = { path = "../core-projects" }
 core-providers = { path = "../core-providers" }
 core-secrets = { path = "../core-secrets" }
 shadows-process = { path = "../shadows-process" }
@@ -35,4 +36,3 @@ yaml-rust2 = { workspace = true }
 [dev-dependencies]
 axum = { workspace = true }
 core-db = { path = "../core-db", features = ["test-support"] }
-core-projects = { path = "../core-projects" }
