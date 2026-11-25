@@ -111,7 +111,8 @@ describe('the composer bar', () => {
     await until(() => app.text().includes('Connecting to Claude Code…'))
     act(() => release())
     await until(() => app.button('fake-large') !== undefined)
-    expect(app.text()).not.toContain('Connecting')
+    // The composer's own line; the sidebar's daemon dot reads a stream this test never opens.
+    expect(app.text()).not.toContain('Connecting to Claude Code')
     expect(app.button('Accept edits')).toBeDefined()
     expect(app.button('high')).toBeDefined()
   })
