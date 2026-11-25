@@ -854,7 +854,9 @@ functions:
       # Rescan (logged); a read (an `Access` other than `Close(Write)`) is
       # dropped; per path, relative, one under target/ or
       # node_modules/ is dropped, a `.gitignore` sends Rescan, the rest
-      # Path. `try_send`: a full or closed channel sets `lost`.
+      # Path. A created folder also reports the files already in it (at most 500):
+      # on Linux a file written into a new folder before its watch exists sends no
+      # event (`created_files`). `try_send`: a full or closed channel sets `lost`.
   store:
     # All instance methods below belong to the private CodeStore.
     servers_off:
