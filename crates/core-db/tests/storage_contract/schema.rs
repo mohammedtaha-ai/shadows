@@ -102,7 +102,9 @@ async fn fresh_database_migrates_and_applies_the_connection_policy() {
             "planner_instructions_version",
             "planning_thread",
             "project",
+            "project_extension",
             "project_link",
+            "project_mcp",
             "project_mode",
             "queued_message",
             "run_agent_messages",
@@ -144,7 +146,8 @@ async fn fresh_database_migrates_and_applies_the_connection_policy() {
          0070 the recheck batches and their results, 0071 the project's design decisions, \
          0073 the task's executor choice and its saves, \
          0074 the external connections and their project scopes, \
-         0075 the code record's verdicts, 0076 the code record)"
+         0075 the code record's verdicts, 0076 the code record, \
+         0080 the project's Planner switches)"
     );
 
     storage.close().await.unwrap();
