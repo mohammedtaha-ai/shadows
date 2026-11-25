@@ -6,7 +6,7 @@ here and set its status. Task shape: [`AGENTS.md`](./AGENTS.md#a-task-in-stagesm
 ## Now
 
 PR #76 (`e7b9332`) is on `main`: the project recheck on the plan page (F-137, F-138) and the screens
-that follow the stream instead of polling (F-139 to F-144). Open: the Planner's project switches (F-145 to F-148, below). The project's state view, its ER diagram and screen flow,
+that follow the stream instead of polling (F-139 to F-144). The Planner's project switches (F-145 to F-148, below) are in PR #77. The project's state view, its ER diagram and screen flow,
 and `code_where` in the web (F-130 to F-136) are on `main` in PR #75 (`4d69977d`).
 
 Every task's checks run from `web/`: the tests it names, then `npm run typecheck`, `npm run lint`,
