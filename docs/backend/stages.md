@@ -391,7 +391,7 @@ Plan: [backend review fixes](plans/2026-11-25-backend-review-fixes.md); each ent
 
 ### B-226 · Startup validates executable paths and origin ports
 
-- Status: todo. Plan task 19.
+- Status: done (2026-11-25). Plan task 19. `harness_path` requires an existing file (a folder is refused); `allowed_origin` also requires a host and, when given, a port from 1 to 65535 (bracketed IPv6 kept; `:80` kept as spelled).
 
 ### B-227 · A clipped provider catalog says so
 

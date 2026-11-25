@@ -89,6 +89,13 @@ fn a_bare_program_name_is_refused_as_a_harness_path() {
     let absolute = dir.path().join("claude");
     std::fs::write(&absolute, "").unwrap();
     assert_eq!(harness_path(&absolute).unwrap(), absolute);
+    let folder = dir.path().join("a-folder");
+    std::fs::create_dir(&folder).unwrap();
+    assert_eq!(
+        harness_path(&folder).unwrap_err(),
+        ConfigError::HarnessNotFound(folder.to_string_lossy().into_owned()),
+        "a folder is not an executable"
+    );
     let missing = dir.path().join("missing-claude");
     assert_eq!(
         harness_path(&missing).unwrap_err(),

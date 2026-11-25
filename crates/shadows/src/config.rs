@@ -53,7 +53,7 @@ pub enum ConfigError {
          path resolves against whatever directory the daemon happens to be in."
     )]
     HarnessNotAbsolute(String),
-    #[error("configured harness path does not exist: `{0}`")]
+    #[error("configured harness path is not an existing file: `{0}`")]
     HarnessNotFound(String),
     #[error(
         "`{0}` is not an origin. An origin is exactly what a browser sends in its \
@@ -76,12 +76,38 @@ pub fn allowed_origin(raw: &str) -> Result<String, ConfigError> {
     let usable = !authority.is_empty()
         && authority.is_ascii()
         && !authority.contains(['/', '?', '#', '@', ' '])
-        && !authority.starts_with(':');
+        && !authority.starts_with(':')
+        && host_and_port(authority);
     if usable {
         Ok(raw.to_string())
     } else {
         Err(invalid())
     }
+}
+
+/// Whether `authority` is a host with an optional port a browser can send: a bracketed
+/// IPv6 address or a name without `:`, then nothing or `:` and a port from 1 to 65535.
+fn host_and_port(authority: &str) -> bool {
+    let (host, rest) = match authority.strip_prefix('[') {
+        Some(v6) => match v6.split_once(']') {
+            Some((address, rest)) => (address, rest),
+            None => return false,
+        },
+        None => {
+            let host = authority.split(':').next().unwrap_or_default();
+            (host, &authority[host.len()..])
+        }
+    };
+    let port_ok = match rest.strip_prefix(':') {
+        Some(port) => {
+            !port.is_empty()
+                && port.len() <= 5
+                && port.bytes().all(|b| b.is_ascii_digit())
+                && port.parse::<u16>().is_ok_and(|p| p > 0)
+        }
+        None => rest.is_empty(),
+    };
+    !host.is_empty() && port_ok
 }
 
 /// The only way a `harness_path` should be obtained from user input.
@@ -97,7 +123,7 @@ pub fn allowed_origin(raw: &str) -> Result<String, ConfigError> {
 /// not a stable fact, so it carries the same ambiguity one step further in.
 pub fn harness_path(raw: &Path) -> Result<PathBuf, ConfigError> {
     if raw.is_absolute() {
-        if raw.exists() {
+        if raw.is_file() {
             Ok(raw.to_path_buf())
         } else {
             Err(ConfigError::HarnessNotFound(
