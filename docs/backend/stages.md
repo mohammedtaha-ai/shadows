@@ -399,7 +399,7 @@ Plan: [backend review fixes](plans/2026-11-25-backend-review-fixes.md); each ent
 
 ### B-228 · An agent home's settings are published whole, never clobbered
 
-- Status: todo. Plan task 21.
+- Status: done (2026-11-25). Plan task 21. `seed_home` writes a temporary file, syncs it and hard-links it into place (fails rather than replace), using `std` only. No fault-injection test: the home test checks no temporary file is left.
 
 ### B-229 · Architecture tests cover Runs and Messages
 

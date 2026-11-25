@@ -29,6 +29,12 @@ async fn opening_projects_only_enabled_extensions() {
     w.core.harness().open_session(&w.thread).await.unwrap();
     let home = w._tmp.path().join("home/profiles/aylul");
     assert!(home.join("skills/demo-skill/SKILL.md").exists());
+    let leftovers = std::fs::read_dir(&home)
+        .unwrap()
+        .flatten()
+        .filter(|e| e.file_name().to_string_lossy().starts_with(".settings-"))
+        .count();
+    assert_eq!(leftovers, 0, "seeding leaves no temporary file");
     let settings: Value =
         serde_json::from_slice(&std::fs::read(home.join("settings.json")).unwrap()).unwrap();
     assert_eq!(

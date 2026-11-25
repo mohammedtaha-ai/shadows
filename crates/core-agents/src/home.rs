@@ -8,23 +8,38 @@ use std::path::Path;
 pub(super) const TEMPLATE: &str = include_str!("../assets/aylul-profile/CLAUDE.md");
 
 impl Agents {
-    /// Writes the default `settings.json` when the home does not already hold one.
+    /// Writes the default `settings.json` when the home does not already hold one. The file
+    /// appears whole or not at all: it is written to a private temporary name, then linked
+    /// in place, which fails rather than replace a file already there (the person's own).
     pub(super) fn seed_home(home: &Path) -> Result<(), StorageError> {
+        let unwritable = || StorageError::Unavailable("agent home write".into());
         std::fs::create_dir_all(home)
             .map_err(|_| StorageError::Unavailable("agent home".into()))?;
+        let target = home.join("settings.json");
+        if target.exists() {
+            return Ok(());
+        }
         let settings = include_str!("../assets/aylul-profile/settings.json");
-        match std::fs::OpenOptions::new()
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or_default();
+        let temp = home.join(format!(".settings-{}-{nanos}.json", std::process::id()));
+        let written = std::fs::OpenOptions::new()
             .write(true)
             .create_new(true)
-            .open(home.join("settings.json"))
-        {
-            Ok(mut file) => file
-                .write_all(settings.as_bytes())
-                .map_err(|_| StorageError::Unavailable("agent home write".into()))?,
-            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {}
-            Err(_) => return Err(StorageError::Unavailable("agent home write".into())),
+            .open(&temp)
+            .and_then(|mut file| {
+                file.write_all(settings.as_bytes())?;
+                file.sync_all()
+            });
+        let linked = written.and_then(|()| std::fs::hard_link(&temp, &target));
+        let _ = std::fs::remove_file(&temp);
+        match linked {
+            Ok(()) => Ok(()),
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => Ok(()),
+            Err(_) => Err(unwritable()),
         }
-        Ok(())
     }
 
     /// The bundled instructions a new agent's form starts from.
