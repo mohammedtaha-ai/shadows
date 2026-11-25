@@ -110,8 +110,7 @@ then F-147, then F-148.
   names, then the four checks
 
 ### F-148 · A library change reaches the project's switches
-- Status: blocked: on F-146 and F-147, so on B-234 (it calls F-146's `invalidateLibraryViews`
-  and tests on F-147's page)
+- Status: done
 - Plan: docs/frontend/plans/2026-11-25-planner-project-switches.md#f-148--a-library-change-reaches-the-projects-switches
 - Read: `web/src/app/settings/contract.yaml` (the library notes, `extension_refresh_owner`);
   the three `onSuccess` blocks the plan names in `mcp-form.tsx`, `extension-import.tsx`,
