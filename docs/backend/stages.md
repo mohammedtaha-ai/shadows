@@ -168,8 +168,8 @@ B-230, B-232, B-231, B-233, B-234, B-235.
 
 ### B-234 · Routes, and the switch on `Project`
 
-- Status: blocked: on `docs/shared/requests/2026-11-25-planner-project-switches.md` (Masada
-  writes it) being `accepted`; this task changes what the frontend sees.
+- Status: todo (the shared request `docs/shared/requests/2026-11-25-planner-project-switches.md`
+  is `accepted` at `940c91e`).
 - Plan: docs/backend/plans/2026-11-25-planner-project-switches.md#b-234--routes-and-the-switch-on-project
 - Read: `crates/shadows-http/src/contract.yaml`; `crates/core-projects/contract.yaml`; the
   accepted shared request
