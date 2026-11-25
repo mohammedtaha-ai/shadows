@@ -21,6 +21,8 @@ impl Sessions {
             tools: None,
             setting_sources: Some(vec!["user".into()]),
             permissions: vec![],
+            plugins: vec![],
+            skills: None,
         }
     }
 }

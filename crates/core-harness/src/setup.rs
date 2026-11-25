@@ -230,6 +230,8 @@ impl Setups {
             tools: Some(PLANNER_TOOLS.iter().map(|t| t.to_string()).collect()),
             setting_sources: None,
             permissions: vec![],
+            plugins: vec![],
+            skills: None,
         })
     }
 
@@ -286,6 +288,8 @@ impl Setups {
             tools: ExecutorSession::tools(harness),
             setting_sources: None,
             permissions: vec![],
+            plugins: vec![],
+            skills: None,
         })
     }
 

@@ -122,7 +122,7 @@ B-230, B-232, B-231, B-233, B-234, B-235.
 
 ### B-232 · The agent's session options: plugins and skills
 
-- Status: todo
+- Status: done
 - Plan: docs/backend/plans/2026-11-25-planner-project-switches.md#b-232--the-agents-session-options-plugins-and-skills
 - Read: `crates/shadows-agent/contract.yaml`
 - Touch: `crates/shadows-agent/contract.yaml`, `crates/shadows-agent/src/connection.rs`,

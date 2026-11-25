@@ -181,6 +181,39 @@ fn aylul_meta_loads_only_user_settings() {
 }
 
 #[test]
+fn plugins_and_skills_reach_the_options() {
+    let path = "/tmp/shadows-plugin".to_string();
+    let setup = SessionSetup {
+        tools: Some(vec![]),
+        plugins: vec![path.clone()],
+        skills: Some(vec!["shadows-skills:hello".into()]),
+        ..Default::default()
+    };
+    let meta = serde_json::to_value(setup.meta().unwrap()).unwrap();
+    let options = &meta["claudeCode"]["options"];
+    assert_eq!(
+        options["plugins"],
+        serde_json::json!([{ "type": "local", "path": path }])
+    );
+    assert_eq!(
+        options["skills"],
+        serde_json::json!(["shadows-skills:hello"])
+    );
+}
+
+#[test]
+fn no_plugins_or_skills_sends_neither() {
+    let setup = SessionSetup {
+        tools: Some(vec![]),
+        ..Default::default()
+    };
+    let meta = serde_json::to_value(setup.meta().unwrap()).unwrap();
+    let options = meta["claudeCode"]["options"].as_object().unwrap();
+    assert!(!options.contains_key("plugins"));
+    assert!(!options.contains_key("skills"));
+}
+
+#[test]
 fn a_server_error_mentioning_connection_closed_is_still_an_rpc_error() {
     let error = agent_client_protocol::Error::new(-32603, "connection closed by policy");
     assert!(matches!(

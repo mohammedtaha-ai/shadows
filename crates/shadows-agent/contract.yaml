@@ -134,6 +134,13 @@ obligations:
     tested_by: [a_server_error_mentioning_connection_closed_is_still_an_rpc_error, codex_eof_fails_pending_work]
   - rule: Planner session setup distinguishes an absent tool restriction from an explicit empty list.
     tested_by: [absent_and_empty_tool_policies_are_distinct]
+  - rule: >
+      SessionSetup.plugins (local plugin folders, absolute paths as text) travel as
+      options.plugins [{type: local, path}]; SessionSetup.skills, when Some, travels as
+      options.skills, the only skills the session lists.
+    tested_by: [plugins_and_skills_reach_the_options]
+  - rule: Empty plugins and absent skills send no plugins and no skills key.
+    tested_by: [no_plugins_or_skills_sends_neither]
   - rule: The launch specification uses the configured Node, adapter and Claude executable.
     tested_by: [configured_adapter_preserves_launch_identity]
   - rule: >
