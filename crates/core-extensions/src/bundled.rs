@@ -13,6 +13,7 @@ impl Extensions {
             return Ok(());
         };
         let _guard = self.extension_guard().await;
+        Extensions::clear_unfinished(&home.join("library"));
         let mut items = BTreeMap::<(&str, &str), Vec<(&str, &[u8])>>::new();
         for &(path, bytes) in FILES {
             let mut parts = path.splitn(3, '/');

@@ -261,6 +261,78 @@ async fn extension_import_copies_and_redacts_source() {
     w.storage.close().await.unwrap();
 }
 
+/// Copying an extension does not hold the database's writer: a write made while the copy
+/// runs finishes before the import does.
+#[tokio::test]
+async fn an_import_copies_without_holding_the_writer() {
+    let w = Arc::new(world().await);
+    let path = source(&w, ExtensionKind::Skill, "big-skill");
+    let chunk = vec![b'x'; 1024 * 1024];
+    for n in 0..60 {
+        std::fs::write(path.join(format!("part-{n}.bin")), &chunk).unwrap();
+    }
+    let library = w._tmp.path().join("home/library");
+    let importer = w.clone();
+    let import_path = path.clone();
+    let import = tokio::spawn(async move {
+        importer
+            .extensions
+            .add_extension("big".into(), ExtensionKind::Skill, &import_path)
+            .await
+    });
+    let copying = |dir: &std::path::Path| {
+        std::fs::read_dir(dir)
+            .into_iter()
+            .flatten()
+            .flatten()
+            .any(|e| e.file_name().to_string_lossy().starts_with(".import-"))
+    };
+    for _ in 0..2000 {
+        if copying(&library) {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(1)).await;
+    }
+    assert!(copying(&library), "the copy never began");
+    w.storage
+        .write_txn(|conn| {
+            Box::pin(async move {
+                sqlx::query("CREATE TABLE IF NOT EXISTS unrelated_write (x INTEGER)")
+                    .execute(&mut *conn)
+                    .await?;
+                Ok(())
+            })
+        })
+        .await
+        .unwrap();
+    assert!(
+        !import.is_finished(),
+        "the write waited for the whole import"
+    );
+    let item = import.await.unwrap().unwrap();
+    assert!(library.join(&item.id).exists());
+}
+
+/// A copy a crash cut short leaves an `.import-` folder; the next start removes it and keeps
+/// every published item.
+#[tokio::test]
+async fn a_start_removes_an_unfinished_import() {
+    let w = world().await;
+    let path = source(&w, ExtensionKind::Skill, "kept-skill");
+    let kept = w
+        .extensions
+        .add_extension("kept".into(), ExtensionKind::Skill, &path)
+        .await
+        .unwrap();
+    let library = w._tmp.path().join("home/library");
+    let leftover = library.join(".import-00000000-0000-0000-0000-000000000000");
+    std::fs::create_dir_all(leftover.join("half")).unwrap();
+    w.extensions.import_bundled().await.unwrap();
+    assert!(!leftover.exists(), "the unfinished copy is gone");
+    assert!(library.join(&kept.id).exists(), "a published item stays");
+    w.storage.close().await.unwrap();
+}
+
 #[tokio::test]
 async fn extension_commands_replay_and_conflict() {
     let w = world().await;

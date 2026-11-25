@@ -367,7 +367,7 @@ Plan: [backend review fixes](plans/2026-11-25-backend-review-fixes.md); each ent
 
 ### B-220 · Extension import copies outside the writer
 
-- Status: todo. Plan task 4.
+- Status: done (2026-11-25). Plan task 4. Replay check through a reader, copy (`.import-<id>` then rename) before the writer, one short metadata write; `import_bundled` clears leftover `.import-` folders at start. Accepted: a crash between the rename and the commit leaves an unread id folder.
 
 ### B-221 · Quiet-project waits use Operations' busy check
 

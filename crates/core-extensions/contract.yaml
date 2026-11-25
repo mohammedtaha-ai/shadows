@@ -65,8 +65,8 @@ shapes:
 functions:
   new: "public: (storage: Arc<Storage>, secrets: Arc<Secrets>, home_root: Option<PathBuf>) -> Arc<Extensions>"
   extensions: List the shared extension library ordered by name and id.
-  add_extension: Import a bounded immutable local copy under one replayable command.
-  import_bundled: Import embedded items at startup unless present or previously declined; no-op without AYLUL.
+  add_extension: Import a bounded immutable local copy under one replayable command; a replay answers before copying, the copy (staged as .import-<id>, then renamed) runs before the database writer is taken, and one short write records it (its folder is removed if that write refuses).
+  import_bundled: First removes .import- folders a crash left mid-copy, then imports embedded items at startup unless present or previously declined; no-op without AYLUL.
   add_mcp: Create replayable MCP configuration with write-only values in the same transaction.
   update_mcp: Replace configuration without changing its id or switches; omitted values are retained.
   opening_snapshot: Resolve the agent's library and only its enabled MCP servers under one retained library guard.
@@ -92,6 +92,8 @@ shared_in_transaction:
   remove_agent_in: Agent enablements removed in the caller write.
 
 obligations:
+  - rule: An import copies without holding the database writer, and a start removes a copy a crash left unfinished.
+    tested_by: [an_import_copies_without_holding_the_writer, a_start_removes_an_unfinished_import]
   - rule: Tool names accept MCP's ASCII letters, digits, underscore, hyphen and dot up to 128 characters.
     tested_by: [tool_rule_input_is_checked, dotted_tool_names_can_be_saved]
   - rule: Discovery redacts resolved values echoed as whole tokens in descriptions and refuses names that contain one; a value inside a longer word is not an echo.
