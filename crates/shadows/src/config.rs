@@ -77,7 +77,7 @@ pub fn allowed_origin(raw: &str) -> Result<String, ConfigError> {
         && authority.is_ascii()
         && !authority.contains(['/', '?', '#', '@', ' '])
         && !authority.starts_with(':')
-        && host_and_port(authority);
+        && host_and_port(authority, if raw.starts_with("https") { 443 } else { 80 });
     if usable {
         Ok(raw.to_string())
     } else {
@@ -85,9 +85,10 @@ pub fn allowed_origin(raw: &str) -> Result<String, ConfigError> {
     }
 }
 
-/// Whether `authority` is a host with an optional port a browser can send: a bracketed
-/// IPv6 address or a name without `:`, then nothing or `:` and a port from 1 to 65535.
-fn host_and_port(authority: &str) -> bool {
+/// Whether `authority` is a host with an optional port as a browser sends it: a bracketed
+/// IPv6 address or a name without `:`, then nothing or `:` and a port from 1 to 65535 with
+/// no leading zero and not the scheme's `default` (a browser leaves that one out).
+fn host_and_port(authority: &str, default: u16) -> bool {
     let (host, rest) = match authority.strip_prefix('[') {
         Some(v6) => match v6.split_once(']') {
             Some((address, rest)) => (address, rest),
@@ -103,7 +104,8 @@ fn host_and_port(authority: &str) -> bool {
             !port.is_empty()
                 && port.len() <= 5
                 && port.bytes().all(|b| b.is_ascii_digit())
-                && port.parse::<u16>().is_ok_and(|p| p > 0)
+                && !port.starts_with('0')
+                && port.parse::<u16>().is_ok_and(|p| p > 0 && p != default)
         }
         None => rest.is_empty(),
     };

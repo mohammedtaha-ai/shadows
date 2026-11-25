@@ -183,7 +183,7 @@ fn an_allowed_origin_is_exactly_scheme_host_and_port() {
         "https://app.example.com",
         "http://[::1]:5173",
         "http://[::1]",
-        "http://localhost:80",
+        "https://localhost:80",
     ] {
         assert_eq!(allowed_origin(good), Ok(good.to_string()));
     }
@@ -201,6 +201,9 @@ fn an_allowed_origin_is_exactly_scheme_host_and_port() {
         "http://[::1",
         "http://[::1]x",
         "http://a:1:2",
+        "http://localhost:80",
+        "https://localhost:443",
+        "http://localhost:0080",
     ] {
         assert_eq!(
             allowed_origin(bad),
