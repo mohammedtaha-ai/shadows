@@ -95,7 +95,8 @@ impl ProjectsStore {
     /// so a project could never be hidden by a missing event; there is none.
     pub(super) async fn list(&self) -> Result<Vec<Project>, StorageError> {
         let rows: Vec<ProjectRow> = sqlx::query_as(
-            "SELECT p.id, p.slug, p.name, p.directory, p.created_at, p.assistant
+            "SELECT p.id, p.slug, p.name, p.directory, p.created_at, p.assistant,
+                    p.planner_reads_claude_md
                FROM project p
                LEFT JOIN durable_event e
                  ON e.project_id = p.id AND e.kind = 'ProjectCreated'
@@ -116,7 +117,8 @@ impl ProjectsStore {
     /// time order within a second (CLAUDE.md: ordering is explicit).
     pub(super) async fn by_recent_activity(&self) -> Result<Vec<Project>, StorageError> {
         let rows: Vec<ProjectRow> = sqlx::query_as(
-            "SELECT p.id, p.slug, p.name, p.directory, p.created_at, p.assistant
+            "SELECT p.id, p.slug, p.name, p.directory, p.created_at, p.assistant,
+                    p.planner_reads_claude_md
                FROM project p
               WHERE p.removed_at IS NULL
               ORDER BY COALESCE(
@@ -251,6 +253,47 @@ impl ProjectsStore {
             })
             .await
     }
+
+    /// Sets whether the Planner reads the project's CLAUDE.md. An idempotent
+    /// command: a replay answers the project as it now stands. No journal
+    /// event, like the extension switches.
+    pub(super) async fn set_planner_claude_md(
+        &self,
+        ctx: &CommandContext,
+        project_id: &ProjectId,
+        enabled: bool,
+    ) -> Result<Project, StorageError> {
+        let (ctx, id, ts) = (ctx.clone(), project_id.clone(), Storage::now());
+        self.storage
+            .write_txn(move |conn| {
+                Box::pin(async move {
+                    if CommandContext::classify(conn, &ctx, "Project", id.as_str())
+                        .await?
+                        .is_some()
+                    {
+                        return load_project(conn, &id).await;
+                    }
+                    Projects::require_live_in(conn, &id).await?;
+                    sqlx::query("UPDATE project SET planner_reads_claude_md = ? WHERE id = ?")
+                        .bind(enabled)
+                        .bind(id.as_str())
+                        .execute(&mut *conn)
+                        .await?;
+                    CommandContext::record_command(
+                        conn,
+                        &ctx,
+                        "Project",
+                        id.as_str(),
+                        "Project",
+                        id.as_str(),
+                        &ts,
+                    )
+                    .await?;
+                    load_project(conn, &id).await
+                })
+            })
+            .await
+    }
 }
 
 /// Deletes and reinserts the project's rows for each harness in `modes`.
@@ -344,10 +387,10 @@ async fn project_modes(
     Ok(group(rows).remove(id.as_str()).unwrap_or_else(empty_modes))
 }
 
-type ProjectRow = (String, String, String, Option<String>, String, bool);
+type ProjectRow = (String, String, String, Option<String>, String, bool, bool);
 
 fn project(
-    (id, slug, name, directory, created_at, assistant): ProjectRow,
+    (id, slug, name, directory, created_at, assistant, planner_reads_claude_md): ProjectRow,
     allowed_modes: BTreeMap<String, Vec<String>>,
 ) -> Project {
     let allowed_modes = if allowed_modes.is_empty() {
@@ -363,6 +406,7 @@ fn project(
         created_at,
         allowed_modes,
         assistant,
+        planner_reads_claude_md,
     }
 }
 
@@ -372,7 +416,8 @@ async fn load_project(
     id: &ProjectId,
 ) -> Result<Project, StorageError> {
     let row: ProjectRow = sqlx::query_as(
-        "SELECT id, slug, name, directory, created_at, assistant FROM project WHERE id = ?",
+        "SELECT id, slug, name, directory, created_at, assistant, planner_reads_claude_md \
+         FROM project WHERE id = ?",
     )
     .bind(id.as_str())
     .fetch_optional(&mut *conn)
@@ -437,6 +482,22 @@ impl Projects {
                 .fetch_optional(&mut *conn)
                 .await?;
         known.map(|_| ()).ok_or(StorageError::NotFound("project"))
+    }
+
+    /// Whether the Planner reads a live project's CLAUDE.md, in the caller's
+    /// snapshot: `NotFound("project")` for an unknown or removed one. The one
+    /// read other services call for this switch.
+    pub async fn planner_reads_claude_md_in(
+        conn: &mut SqliteConnection,
+        project: &ProjectId,
+    ) -> Result<bool, StorageError> {
+        Self::require_live_in(conn, project).await?;
+        Ok(
+            sqlx::query_scalar("SELECT planner_reads_claude_md FROM project WHERE id = ?")
+                .bind(project.as_str())
+                .fetch_one(&mut *conn)
+                .await?,
+        )
     }
 }
 

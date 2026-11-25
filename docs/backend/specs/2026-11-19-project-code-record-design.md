@@ -341,6 +341,7 @@ and `layout` (CodeRecord → Design; Design depends on no service that depends o
      `docs/shared/requests/2026-11-19-code-where.md` is accepted), the Planner told to ask it
      before naming a file, and its acceptance: a second plan names the first plan's files without
      reading the folder.
-3. **Code no plan wrote:** moved to importing a project (§6).
+3. **Code no plan wrote:** moved to importing a project (§6), the last feature (Mohammed,
+   2026-11-25).
 
 Each plan is in `docs/backend/plans/` before any of its tasks is dispatched.

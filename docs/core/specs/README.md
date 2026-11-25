@@ -40,7 +40,7 @@ design-note, and status narratives.
 | §20 | [`2026-10-05-message-queue-design.md`](./2026-10-05-message-queue-design.md) — the queue and Send now (built) |
 | §21 | [`2026-10-05-slash-menu-design.md`](./2026-10-05-slash-menu-design.md) — the `/` menu (built) |
 | §22 | [`2026-10-05-subagent-cards-design.md`](./2026-10-05-subagent-cards-design.md) — subagent cards and their side panel (built) |
-| §23 | [`2026-10-08-guided-planning-design.md`](./2026-10-08-guided-planning-design.md) — accepted; PRs 0–5 merged except PR 3c (§23.9), which waits on §24.3's OPEN |
+| §23 | [`2026-10-08-guided-planning-design.md`](./2026-10-08-guided-planning-design.md) — accepted; PRs 0–5 merged; PR 3c (§23.9), the Planner's project switches, is in PR #77 |
 | §24 | [`2026-10-08-approval-authority-design.md`](./2026-10-08-approval-authority-design.md) — principal and agent; enforced by §23.9 PR 3b (merged) |
 
 ## Maintenance rules

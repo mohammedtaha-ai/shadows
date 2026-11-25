@@ -1,8 +1,8 @@
 // Stub fetch to verify routes and preserve caller-owned command ids.
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { fakeChoices, threadFixture } from '@/test/contract-fixtures'
-import { setProjectModes } from './projects'
+import { fakeChoices, projectFixture, threadFixture } from '@/test/contract-fixtures'
+import { setPlannerClaudeMd, setProjectModes } from './projects'
 import { openSession } from './sessions'
 import { attachmentUrl, uploadAttachment, forkThread, setThreadHarness, startTurn } from './threads'
 
@@ -64,6 +64,13 @@ describe('client', () => {
       { command_id: 'cmd-m', allowed_modes: { 'claude-code': ['acceptEdits'] } },
       { command_id: 'cmd-f', at_entry_id: 'e9' },
     ])
+  })
+
+  it("setPlannerClaudeMd sends the toggle to the project's route", async () => {
+    const { calls, bodies } = record(() => Response.json(projectFixture))
+    await setPlannerClaudeMd('p1', 'cmd-c', true)
+    expect(calls).toEqual(['PUT /api/projects/p1/planner-claude-md'])
+    expect(bodies).toEqual([{ command_id: 'cmd-c', enabled: true }])
   })
 })
 

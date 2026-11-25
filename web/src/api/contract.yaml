@@ -183,6 +183,7 @@ projects_and_code:
   setProjectModes: "(projectId: string, commandId: string, allowedModes: Record<string, string[]>)
       -> Promise<Project>"
   removeProject: "(projectId: string, commandId: string) -> Promise<Project>"
+  setPlannerClaudeMd: "(projectId: string, commandId: string, enabled: boolean) -> Promise<Project>"
   listCodeLinks: "(projectId: string) -> Promise<ProjectLink[]>"
   putCodeLink: "(projectId: string, linkedId: string, commandId: string) -> Promise<ProjectLink>"
   removeCodeLink: "(projectId: string, linkedId: string, commandId: string) -> Promise<void>"
@@ -689,6 +690,8 @@ extensions:
   removeExtension: "DELETE /api/aylul/extensions/{kind}/{id} with command_id query; unwrapEmpty handles 204"
   agentExtensionsQuery: "GET /api/aylul/agents/{slug}/extensions; ['aylul-agent-extensions', slug]"
   setAgentExtension: "PUT /api/aylul/agents/{slug}/extensions/{kind}/{id} with caller command_id and enabled; resolves AgentItem; no automatic mutation retry"
+  projectExtensionsQuery: "GET /api/projects/{id}/planner-extensions; ['aylul-project-extensions', projectId]; the library with this project's switches"
+  setProjectExtension: "PUT /api/projects/{id}/planner-extensions/{kind}/{item}, kind skill or mcp, with caller command_id and enabled; resolves AgentItem"
 
 image_attachments:
   source: "threads.ts; Attachment is an alias from schema.d.ts"
@@ -708,8 +711,10 @@ agreement_cache:
 
 extension_cache:
   owner: extensions.ts
-  keys: "extensionKeys preserves library, all-agent prefix and per-agent arrays"
+  keys: "extensionKeys preserves library, all-agent prefix and per-agent arrays, and the project prefix ['aylul-project-extensions'] with ['aylul-project-extensions', projectId]"
   saveAgentExtensionAnswer: "writeSaved cancels the agent's exact read before merging the saved plugin or skill; other items and agents are preserved"
+  saveProjectExtensionAnswer: "writeSaved cancels the project's exact read before merging the saved skill or mcp item; other items and projects are preserved"
+  invalidateLibraryViews: "invalidates the library, every agent's and every project's view by prefix"
 
 person_cache:
   owner: person.ts
@@ -746,7 +751,7 @@ thread_cache:
 project_cache:
   owner: projects.ts
   keys: "projectKeys preserves project root/prefix, instructions and grant arrays; projectsQuery retries are unchanged; polling moved to projectsReachabilityQuery"
-  saved_answers: "saveProjectAnswer, saveRemovedProjectAnswer, saveInstructionsAnswer and saveRevokedConnection use writeSaved to cancel exact reads before replacing, filtering or merging server answers"
+  saved_answers: "saveProjectAnswer, saveRemovedProjectAnswer, saveInstructionsAnswer and saveRevokedConnection use writeSaved to cancel exact reads before filtering or merging server answers. A project settings save merges only the field its command changed."
 
 code_cache:
   owner: code.ts
@@ -799,7 +804,7 @@ sessions_operations:
 
 projects_operations:
   owner: projects.ts
-  operations: "listProjects createProject setProjectModes removeProject getInstructions saveInstructions projectEventsUrl"
+  operations: "listProjects createProject setProjectModes setPlannerClaudeMd removeProject getInstructions saveInstructions projectEventsUrl"
   types: "Project CreateProject InstructionsVersion Grant IssuedGrant; generated schema aliases"
   daemon_url: "re-exports the transport's DAEMON_URL for the daemon-status screen, which names the origin the projects probe reached; the value is still held by transport/index.ts"
   transport: "transport/index.ts owns the shared generated client and error mapping"

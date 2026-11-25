@@ -138,6 +138,7 @@ impl Sessions {
         let period = (config.idle_after / 4)
             .min(Duration::from_secs(60))
             .max(Duration::from_millis(1));
+        let extensions = owners.extensions.clone();
         let sessions = Arc::new(Self {
             owners,
             homes: super::profile_home::Homes::default(),
@@ -146,6 +147,8 @@ impl Sessions {
                 instructions,
                 config.mcp_url.clone(),
                 grants,
+                extensions,
+                config.aylul.as_ref().map(|a| a.home_root.clone()),
             ),
             adapter,
             storage,

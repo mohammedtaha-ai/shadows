@@ -32,12 +32,12 @@ components:
     note: Accessible Plugins/Skills/MCP tools tabs; Add and MCP Edit replace the body without another dialog.
   McpForm:
     signature: "({ item: McpItem | null, onDone: () => void }) => JSX.Element"
-    note: HTTP headers and stdio environment values use password inputs, never read values. An empty value on edit omits value to retain it. Arguments are explicit rows. Core owns validation; failed attempts retain command identity, success clears secret drafts and invalidates library plus agent capabilities.
+    note: HTTP headers and stdio environment values use password inputs, never read values. An empty value on edit omits value to retain it. Arguments are explicit rows. Core owns validation; failed attempts retain command identity, success clears secret drafts and calls invalidateLibraryViews (library, every agent view, every project view).
   ExtensionImport:
     signature: "({ kind: ExtensionKind, onDone: () => void }) => JSX.Element"
   ExtensionList:
     signature: "({ kind: ExtensionKind, items: (Item | McpItem)[], onEdit?: (item: McpItem) => void }) => JSX.Element"
-    note: ConfirmPanel renders the inline confirmation with non-submitting buttons; ExtensionList owns the selected item, mutation, per-item command attempts, invalidations and locked ref.
+    note: ConfirmPanel renders the inline confirmation with non-submitting buttons; ExtensionList owns the selected item, mutation, per-item command attempts, its call to invalidateLibraryViews and locked ref.
   UsageSection:
     signature: "() => JSX.Element"
     note: A captured range per opening/period selection; no old rows during a new pending range.
@@ -105,8 +105,8 @@ obligations:
     tested_by: ["browser General has no native preferences", "desktop defaults come from native without a write", "each switch sends flat partial camelCase arguments", "failed recovery read keeps controls disabled until explicit Retry", "a StrictMode read cannot overwrite accepted desktop preferences", "a failed Core save does not disable or invoke native switches"]
   - rule: The shared library has no global enablement switch. Add uses a trimmed daemon-side folder path, retains it after failure and reuses unchanged command identities. Back discards unsubmitted input; successful import returns to the selected tab.
     tested_by: ["the library has tabs and no switches", "Add imports a folder on the daemon", "import retry preserves command identity", "Back discards an unsubmitted import"]
-  - rule: Remove requires inline library-wide confirmation, uses a command id in the DELETE query, accepts 204 and preserves retry identity after failure. Library writes invalidate the library and every agent-extension cache prefix.
-    tested_by: ["Remove confirms its library-wide effect", "a failed Remove can be retried", "library removal clears every agent view"]
+  - rule: Remove requires inline library-wide confirmation, uses a command id in the DELETE query, accepts 204 and preserves retry identity after failure. Library writes call invalidateLibraryViews (library, every agent view, every project view).
+    tested_by: ["Remove confirms its library-wide effect", "a failed Remove can be retried", "library removal clears every agent view", "a library removal refreshes the project's switches"]
   - rule: Usage queries rolling 7/30-day periods or the person's local calendar month, serialized as UTC RFC3339. Exactly at month start the end advances one millisecond. Requests and cache entries stay scoped to their captured range.
     tested_by: ["periods produce bounded UTC ranges", "Usage opens with Last 7 days", "changing the period fetches its own report"]
   - rule: Usage preserves historical provider titles, report ordering and per-provider model identities. Bars compare input plus output tokens; zero totals have finite zero widths. Missing cost or currency displays a dash, never estimated zero or mixed-currency totals.
@@ -196,7 +196,7 @@ tests:
   - name: "adds_and_removes_a_server"
     checks: An extension without a dot is posted and Core's refusal shown; the corrected server posts as typed; Remove deletes an added one.
 
-extension_refresh_owner: "Library changes invalidate extensionKeys from api/extensions.ts"
+extension_refresh_owner: "Library changes call invalidateLibraryViews from api/extensions.ts (library, every agent view, every project view)"
 
 person_cache_owner: "Both person forms send only their changed fields through api/person.savePerson and pass saved whole records through api/person.savePersonAnswer"
 

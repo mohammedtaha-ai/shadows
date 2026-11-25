@@ -259,3 +259,94 @@ async fn projects_are_listed_in_creation_order_whatever_their_timestamp_text() {
 
     storage.close().await.unwrap();
 }
+
+async fn switch_fixture() -> (
+    tempfile::TempDir,
+    std::sync::Arc<Storage>,
+    Projects,
+    core_projects::ProjectId,
+) {
+    let tmp = tempfile::tempdir().unwrap();
+    let storage = std::sync::Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
+    let projects = Projects::new(storage.clone());
+    let dir = dir();
+    let project = projects
+        .create("create-1".into(), "demo", "Demo", dir.as_str())
+        .await
+        .unwrap();
+    (tmp, storage, projects, project.id)
+}
+
+async fn reads_claude_md(
+    storage: &Storage,
+    id: &core_projects::ProjectId,
+) -> Result<bool, core_db::StorageError> {
+    let mut conn = storage.reader().acquire().await.unwrap();
+    Projects::planner_reads_claude_md_in(&mut conn, id).await
+}
+
+#[tokio::test]
+async fn the_claude_md_switch_starts_off_and_is_set() {
+    let (_tmp, storage, projects, id) = switch_fixture().await;
+    assert!(!reads_claude_md(&storage, &id).await.unwrap());
+    projects
+        .set_planner_claude_md("on".into(), &id, true)
+        .await
+        .unwrap();
+    assert!(reads_claude_md(&storage, &id).await.unwrap());
+    projects
+        .set_planner_claude_md("off".into(), &id, false)
+        .await
+        .unwrap();
+    assert!(!reads_claude_md(&storage, &id).await.unwrap());
+}
+
+#[tokio::test]
+async fn the_claude_md_switch_replays_and_conflicts() {
+    let (_tmp, storage, projects, id) = switch_fixture().await;
+    let first = projects
+        .set_planner_claude_md("cmd".into(), &id, true)
+        .await
+        .unwrap();
+    let again = projects
+        .set_planner_claude_md("cmd".into(), &id, true)
+        .await
+        .unwrap();
+    assert_eq!(first.id, again.id);
+    assert_eq!(first.slug, again.slug);
+    let flipped = projects
+        .set_planner_claude_md("cmd".into(), &id, false)
+        .await;
+    assert!(matches!(
+        flipped,
+        Err(core_projects::ProjectsError::Storage(
+            core_db::StorageError::CommandConflict
+        ))
+    ));
+    assert!(reads_claude_md(&storage, &id).await.unwrap());
+}
+
+#[tokio::test]
+async fn the_claude_md_switch_on_a_removed_project_is_not_found() {
+    let (_tmp, storage, projects, id) = switch_fixture().await;
+    let removed = id.clone();
+    storage
+        .write_txn(move |conn| {
+            Box::pin(
+                async move { Projects::mark_removed_in(conn, &removed, &Storage::now()).await },
+            )
+        })
+        .await
+        .unwrap();
+    let set = projects.set_planner_claude_md("on".into(), &id, true).await;
+    assert!(matches!(
+        set,
+        Err(core_projects::ProjectsError::Storage(
+            core_db::StorageError::NotFound("project")
+        ))
+    ));
+    assert!(matches!(
+        reads_claude_md(&storage, &id).await,
+        Err(core_db::StorageError::NotFound("project"))
+    ));
+}

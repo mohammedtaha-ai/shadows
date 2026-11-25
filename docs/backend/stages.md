@@ -17,7 +17,9 @@ at `449d4f95` (PR #70). Its plan is `docs/backend/plans/2026-11-09-local-deliver
 `449d4f95`. The code record's slices 1 and 2 are on `main`: the contract check (PR #73, `7b7abec`), and
 the project's state, its diagrams' data and `code_where` with the code record sent to the Planner
 (PR #75, `4d69977d`). Codex commit recovery is on `main` in PR #75, and its live acceptance is closed
-(B-196, 2026-11-23). The Claude catalog issue waits for Claude quota to return.
+(`docs/backend/stages.md` at `4d69977d`, 2026-11-23). PR #76 (`e7b9332`) is on `main`: the project recheck on the plan page, the
+streams that replace the polls, and the backend review fixes; its tasks are in the Shipped table.
+The Claude Code catalog test passes signed in (Shipped, PR #76).
 
 The Windows `testing7` run is recorded in `docs/evidence/2026-11-22-testing7-go-notes-live.md`
 at `627a0e94`.
@@ -54,7 +56,8 @@ A shipped task's entry, and its plan once deleted, are in this file in Git at th
 | #72 | Plan progress for a plan version (B-163, F-127), one delivery's start failure refused without stalling the others (B-162), slice 4's live tests and the planned-consumer fix (B-164, B-166; evidence `docs/evidence/2026-11-18-slice-4-live.md`), structure and depth on a real provider (B-165; evidence `docs/evidence/2026-11-18-structure-and-depth-live.md`), Settings › Code as one row (F-126), visual acceptances (F-128; evidence `docs/evidence/2026-11-18-visual-acceptance.md`) | B-162 to B-166; F-126 to F-128 | `753b26a4` |
 | #73 | Task contracts checked against the code: file refusals (B-167, B-169), a big listing no longer stalls Shadows (B-168), the code record's first slice (plan `docs/backend/plans/2026-11-19-code-record.md` at `7b7abec`; the `contract` check and the record written with done, B-170 to B-173; acceptance on Sonnet with pyright, B-174; evidence `docs/evidence/2026-11-19-code-record-live.md`), the Report tab's contract row (F-129) | B-167 to B-174; F-129 | `7b7abec` |
 | — | Executor choices accepted by Mohammed in the browser (2026-11-18); the signed-in live tests were not recorded. Its plan is deleted (`docs/backend/plans/2026-11-18-executor-choices.md` at `7029198`) | B-159 | `7029198` |
-| #75 | Project state and the code record: Design's tables and screens pinned by tasks, element states, `project_state` (B-175 to B-181, B-187; evidence `docs/evidence/2026-11-21-code-record-2-live.md` at `4d69977d`); `code_where` and the Planner asking it, and the code record sent with the Planner's context (B-182 to B-186, B-188 to B-193); Codex commit recovery: the Git-write procedure and Start's readiness for an attempted task (B-194, B-195; B-196 closed 2026-11-23; evidence `docs/evidence/2026-11-22-codex-commit-recovery-live.md` at `4d69977d`); the web's state, diagrams and `code_where` (F-130 to F-136) | B-175 to B-195; F-130 to F-136 | `4d69977d` |
+| #75 | Project state and the code record: Design's tables and screens pinned by tasks, element states, `project_state` (B-175 to B-181, B-187; evidence `docs/evidence/2026-11-21-code-record-2-live.md` at `4d69977d`); `code_where` and the Planner asking it, and the code record sent with the Planner's context (B-182 to B-186, B-188 to B-193); Codex commit recovery: the Git-write procedure and Start's readiness for an attempted task (plan `docs/backend/plans/2026-11-22-codex-commit-recovery.md` at `4d69977d`; B-194, B-195; B-196 closed 2026-11-23; evidence `docs/evidence/2026-11-22-codex-commit-recovery-live.md` at `4d69977d`); the web's state, diagrams and `code_where` (F-130 to F-136) | B-175 to B-195; F-130 to F-136 | `4d69977d` |
+| #76 | The plan page's project recheck and its live panel (B-206, B-207); the project and thread streams replace the polls (B-208 to B-210); a hold reports only project files (B-197); the Codex 0.171.0 protocol (B-198); a Codex conversation in `ask` commits (B-201); an interrupted recheck runs again (B-202); a slow Codex start names its reason (B-203); Shadows' Codex model list reread (B-204); the Claude Code catalog test passes, no code change (B-205); the backend review fixes (B-211 to B-229; plan `docs/backend/plans/2026-11-25-backend-review-fixes.md`, which keeps its deferred tasks) | B-197, B-198, B-200 to B-229; F-137 to F-144 | `e7b9332` |
 
 Replaced or dropped without being built: B-97, B-98, B-119 (by slice 2), B-102, B-110 (with the
 critic), B-112 (by the Planner's judgment), B-115, B-116 (by B-125 and B-126). Their entries are in
@@ -81,42 +84,119 @@ this file at `db760593`.
 - The contract check's Go shapes (`(*X).m`) are tested on recorded gopls answers only; no live gopls run yet.
 - A language server that exits is not started again until `shadows serve` restarts; until then `code_where` gives the record's half with `unchecked` and why (evidence, fifth run).
 - A Planner's `Read` (Claude) and read-only sandbox (Codex) can read any file the account can, outside the project too; only its instructions keep it in the project. Accepted as is by Mohammed on 2026-11-18.
+- A reviewer's denial of a Codex Git approval is not observed: `ask` routes every approval to Codex's `auto_review`, so a person cannot reject one (`docs/evidence/2026-11-23-codex-commit-recovery-live.md`; `docs/backend/stages.md` at `4d69977d`, B-196).
+- The live check of a Codex conversation in `ask` (two Codex executors commit first time, `testing8`, 2026-11-24) is recorded in `docs/evidence/2026-11-23-testing8-go-python-live.md`; a full executor run on `testing8` is not yet repeated (`docs/backend/stages.md` at `e7b9332`, B-201).
+- The executor menu in a browser has not yet been seen offering `gpt-6.2-sol` (the live catalog test lists it, `docs/backend/stages.md` at `e7b9332`).
+- Whether a model switch refused with a 403 (quota out) should skip that one model in the Claude Code catalog probe is open (`docs/backend/stages.md` at `e7b9332`, B-205).
+- Project state keeps element-state facts beside stage and layout, and reads per plan; no measurement asked for the split or the batching (`docs/backend/stages.md` at `e7b9332`, B-223).
+- Whether the provider form says a clipped catalog was clipped is Masada's decision; the field is on the wire (`docs/backend/stages.md` at `e7b9332`, B-227).
 
 ## Open
 
-The `testing8` live run is finished. Open: its findings (B-199), B-200 to B-205, and B-208 to B-210 (polling to SSE) on `feature/after-75`. B-196, B-197 and B-198 are done on
-`feature/after-75` and stay here until the next docs sync.
+B-199 is open, paused: the `testing8` run is finished and its findings below remain. The tasks
+that PR #75 and PR #76 delivered are in the Shipped table, and their open remainders are in Known and left.
+B-230 to B-235 are the Planner's project switches (§23.9 PR 3c), plan
+`docs/backend/plans/2026-11-25-planner-project-switches.md`; run them one at a time, in the order
+B-230, B-232, B-231, B-233, B-234, B-235.
 
-### B-196 · Verify Codex commit recovery on Windows
+### B-230 · Extensions: project switches over the library
 
-- Status: done (2026-11-23). The native approved retry, the existing lock, released leftovers,
-  the personal-edit refusal and the Planner's judgment were observed
-  (2026-11-22, [live evidence](../evidence/2026-11-22-codex-commit-recovery-live.md)).
-  A person cannot reject a Codex Git approval: `ask` routes every request to Codex's
-  `auto_review`, never to the person; a reviewer denial stays unobserved
-  ([finding](../evidence/2026-11-23-codex-commit-recovery-live.md)).
-- Plan: [Codex commit recovery, B-196](plans/2026-11-22-codex-commit-recovery.md#b-196--verify-the-recovery-with-native-codex-on-windows).
-- Read: B-196's acceptance steps and `docs/evidence/2026-11-22-testing7-go-notes-live.md` at `627a0e94`.
-- Touch: one `docs/evidence/<run-date>-codex-commit-recovery-live.md` and this entry's status.
-- Needs: nothing. B-194 and B-195 are done. Controller and person run the live acceptance.
-- Done when: the evidence records a rejected approval request for a denied Git write, and what the
-  executor and the Planner did after it.
+- Status: done
+- Plan: docs/backend/plans/2026-11-25-planner-project-switches.md#b-230--extensions-project-switches-over-the-library (and "Decisions" 2, 3, 8)
+- Read: `crates/core-extensions/contract.yaml`; `crates/core-projects/contract.yaml`
+  (`require_live_in`); `crates/core-db/contract.yaml` (the migration catalog test);
+  `crates/shadows/tests/architecture/README.md` (literal SQL, table owners)
+- Touch: `crates/core-db/migrations/0080_planner_project_switches.sql`,
+  `crates/core-db/tests/fixtures/base_migrations.sha384`,
+  `crates/core-db/tests/migration_checksums.rs`, `crates/core-db/contract.yaml`,
+  `crates/shadows/tests/architecture/table-owners.txt`,
+  `crates/core-extensions/Cargo.toml`, `crates/core-extensions/contract.yaml`,
+  `crates/core-extensions/src/lib.rs`, `crates/core-extensions/src/model.rs`,
+  `crates/core-extensions/src/mcp.rs`, `crates/core-extensions/src/store/mod.rs`,
+  `crates/core-extensions/tests/library.rs`, this file (Status only)
+- Needs: nothing
+- Done when: `cargo test -p core-extensions`, `cargo test -p core-db --test migration_checksums`,
+  `cargo test -p shadows-core --test storage_contract` and
+  `cargo test -p shadows --test architecture` pass, with the plan's seven new tests in
+  `tests/library.rs` among them.
 
-### B-197 · A hold reports only project files, and an attempt's writes are its own
+### B-232 · The agent's session options: plugins and skills
 
-- Status: done (2026-11-23, `ac7d1e3d`). Found live in `testing8`: the Planner's end-of-turn check
-  asked about an executor's files, git-ignored caches and build output, folders and vanished temp
-  files, and `project_change_note` refused most of them. `ActiveHold::changed()` now keeps only
-  paths the project's listing holds as files (or a known file deleted), and `hold_claiming` gives
-  a running attempt the paths inside its `writes`. Tests: `crates/codebase/tests/hold.rs`.
-  Live: zero such notices with two Codex attempts and pytest running
-  ([evidence](../evidence/2026-11-23-testing8-go-python-live.md)).
+- Status: done
+- Plan: docs/backend/plans/2026-11-25-planner-project-switches.md#b-232--the-agents-session-options-plugins-and-skills
+- Read: `crates/shadows-agent/contract.yaml`
+- Touch: `crates/shadows-agent/contract.yaml`, `crates/shadows-agent/src/connection.rs`,
+  `crates/shadows-agent/src/acp/session.rs`, `crates/shadows-agent/src/acp_tests.rs`,
+  `crates/core-harness/src/assistant.rs`, `crates/core-harness/src/setup.rs` (in these two,
+  only `plugins: vec![], skills: None` added to the three `SessionSetup` literals), this file
+  (Status only)
+- Needs: nothing
+- Done when: `cargo test -p shadows-agent` passes, with `plugins_and_skills_reach_the_options`
+  and `no_plugins_or_skills_sends_neither`, and
+  `cargo check --workspace --all-targets --features fake-acp/test-support` builds.
 
-### B-198 · Adopt the Codex CLI 0.171.0 protocol
+### B-231 · Projects: the CLAUDE.md switch
 
-- Status: done (2026-11-23, `d5d7baba`). 0.171.0 changed `AgentMessageDisplay`, which Shadows does
-  not read. The snapshot was adopted with `adopt_the_installed_codex_protocol` after the signed-in
-  live Codex tests passed; the fixtures follow the new floor.
+- Status: done
+- Plan: docs/backend/plans/2026-11-25-planner-project-switches.md#b-231--projects-the-claudemd-switch
+- Read: `crates/core-projects/contract.yaml`
+- Touch: `crates/core-projects/contract.yaml`, `crates/core-projects/src/lib.rs`,
+  `crates/core-projects/src/store/mod.rs`, `crates/core-projects/tests/project_contract.rs`,
+  this file (Status only)
+- Needs: B-230 (its migration adds the column)
+- Done when: `cargo test -p core-projects` passes, with the plan's three
+  `the_claude_md_switch_*` tests.
+
+### B-233 · Harness: the Planner opens with the project's switches
+
+- Status: done
+- Plan: docs/backend/plans/2026-11-25-planner-project-switches.md#b-233--harness-the-planner-opens-with-the-projects-switches (and "What the person
+  gets", "Decisions" 5 to 8)
+- Read: `crates/core-harness/contract.yaml`; `crates/core-extensions/contract.yaml`
+  (`project_snapshot`); `crates/core-projects/contract.yaml` (`planner_reads_claude_md_in`);
+  `docs/codebase/README.md` (the `core-harness` rows)
+- Touch: `crates/core-harness/contract.yaml`, `crates/core-harness/src/lib.rs`,
+  `crates/core-harness/src/setup.rs`, `crates/core-harness/src/sessions.rs`,
+  `crates/core-harness/src/live.rs`, `crates/core-harness/src/extension_home.rs`,
+  `crates/core-harness/src/planner_skills.rs` (new),
+  `crates/shadows/tests/planner_switches.rs` (new), `docs/codebase/README.md` (one row),
+  this file (Status only)
+- Needs: B-230, B-231, B-232
+- Done when: `cargo test -p shadows --test planner_switches --test planner_mcp --test codemap --test architecture`
+  and `cargo test -p shadows-core --test aylul_session --test aylul_extensions --test executor_session --test codex_session`
+  pass, with the plan's seven `planner_switches` tests.
+
+### B-234 · Routes, and the switch on `Project`
+
+- Status: done (the shared request `docs/shared/requests/2026-11-25-planner-project-switches.md`
+  is `accepted` at `940c91e`).
+- Plan: docs/backend/plans/2026-11-25-planner-project-switches.md#b-234--routes-and-the-switch-on-project
+- Read: `crates/shadows-http/src/contract.yaml`; `crates/core-projects/contract.yaml`; the
+  accepted shared request
+- Touch: `crates/core-projects/contract.yaml`, `crates/core-projects/src/model.rs`,
+  `crates/core-projects/src/store/mod.rs`, `crates/shadows-http/src/contract.yaml`,
+  `crates/shadows-http/src/lib.rs`, `crates/shadows-http/src/planner_switches.rs` (new),
+  `crates/shadows-http/src/aylul_extensions.rs` (only `Toggle`'s two fields `pub(super)`),
+  `crates/shadows/tests/planner_switches.rs`, `crates/shadows/tests/openapi.rs`, `api/openapi.json`, `docs/codebase/README.md`
+  (one row), this file (Status only)
+- Needs: B-230, B-231, B-233; the accepted shared request
+- Done when: `cargo test -p core-projects` and
+  `cargo test -p shadows --test planner_switches --test openapi --test codemap --test architecture`
+  pass, with the plan's three route tests.
+
+### B-235 · Live acceptance on Claude
+
+- Status: done through `shadows serve` and the browser on Claude Code (2026-11-25,
+  [evidence](../evidence/2026-11-25-planner-switches-probe.md#through-shadows)). The automated
+  `planner_switches_live.rs` is not written: this container has no `API_KEY_MINIMAX`.
+- Plan: docs/backend/plans/2026-11-25-planner-project-switches.md#b-235--live-acceptance-on-claude
+- Read: `crates/shadows/tests/fixtures/live.rs`; `docs/evidence/2026-11-25-planner-switches-probe.md`
+- Touch: `crates/shadows/tests/planner_switches_live.rs` (new),
+  `docs/evidence/2026-11-25-planner-switches-probe.md` (a new heading "Through Shadows"),
+  this file (Status only)
+- Needs: B-233
+- Done when: `cargo test -p shadows --test planner_switches_live -- --ignored --test-threads=1`
+  passes here on MiniMax, with its output recorded in the evidence.
 
 ### B-199 · Finish the testing8 live run, and the findings it left
 
@@ -126,11 +206,12 @@ The `testing8` live run is finished. Open: its findings (B-199), B-200 to B-205,
   - Codex's sandbox cannot run the WindowsApps `python` alias, so executors report Python checks
     `not_run` (Shadows' own checks pass them).
   - Every Codex executor's first `git add` is denied on `index.lock`, then approved: one extra
-    round per task.
+    round per task. Fixed in PR #76 (`e7b9332`).
   - A Codex start slower than `setup_wait` (20 s) because its model-list refresh timed out fails
-    to open, and the reason is only in Codex's own log.
-  - Shadows' Codex model list did not offer `gpt-6.2-sol`.
-  - `live_the_claude_code_catalog_lists_each_models_efforts` failed; not examined.
+    to open, and the reason is only in Codex's own log. Fixed in PR #76 (`e7b9332`).
+  - Shadows' Codex model list did not offer `gpt-6.2-sol`. Fixed in PR #76 (`e7b9332`).
+  - `live_the_claude_code_catalog_lists_each_models_efforts` failed; not examined. Passes signed in
+    in PR #76 (`e7b9332`); the 403 question is in Known and left.
   - pyright is not installed on this machine (each Python contract is `unchecked`).
   - Codex's sandbox could not copy a fixture into its temporary folder (`PermissionError`), so an
     executor's subprocess test did not run there.
@@ -138,270 +219,3 @@ The `testing8` live run is finished. Open: its findings (B-199), B-200 to B-205,
     copied into a temp folder and committed with no denial (`6a662f5`).
   - The Planner counted 15 tasks; the plans hold 14.
 - Done when: each finding is fixed, accepted or moved to future.
-
-### B-200 · A project recheck runs when a plan is complete, or when asked
-
-- Status: done (2026-11-24) in code and tests: only the mark that completes its plan version
-  rechecks; `Runs::recheck_project` serves `POST /api/workflows/{workflow}/recheck` and the
-  Planner's `project_recheck`. Live in `testing8` (2026-11-24, plan "Water CLI reset-today"):
-  T1's mark started no recheck; T2's, completing the plan, started one (15:06:42 to 15:12:13 UTC,
-  30 passed, 6 `contract` `not_run` for want of pyright, no notice). Notices came 20 s and 3 s
-  after the commits ([evidence](../evidence/2026-11-23-testing8-go-python-live.md)).
-  Follow-up (2026-11-24): the Planner prompt names `project_recheck` (when the person asks; a
-  completing done mark already starts one), held by
-  `mcp_tools::the_planner_is_told_how_to_run_and_judge_tasks`. An asked recheck in which every
-  check passed tells its asker so (`an_asked_recheck_that_passes_says_every_check_passed`); a
-  mark's batch keeps its rule, notice only on a new failure.
-- Owner: [executors design, "A project recheck runs when a plan is complete, or when
-  asked"](specs/2026-11-08-executors-design.md).
-- Change: a done mark runs no project recheck unless it completes its plan. Add one Runs method
-  that starts a project recheck on request, called by an HTTP route (the person) and an MCP tool
-  (the Planner); its notice goes to the asking Planner, or to the plan's Planner when the person
-  asks. Update the `core-runs` contract and the MCP tool list.
-- Needs: a frontend task for the person's "Recheck the project" control (shared request to the
-  frontend side).
-- Done when: in a live run, marking a task that is not its plan's last starts no recheck and the
-  next notice arrives without waiting; marking the last task starts one; the person and the
-  Planner can each start one.
-
-### B-201 · A Codex conversation in `ask` can commit
-
-- Status: done (2026-11-24) in code and a signed-in live test
-  (`live_a_codex_conversation_in_ask_commits_but_keeps_hooks_and_config`), and live in
-  `testing8` (2026-11-24): two Codex `gpt-6-luna` executors committed first time, with no
-  `index.lock` denial and no approval. A per-turn
-  `sandboxPolicy` replaces a profile, so `ask` sends the experimental `permissions` field; the
-  connection opens with `experimentalApi` and the snapshot was re-adopted from the experimental
-  schema. The `testing8` executor run in "Done when" is not yet done.
-- Owner: [language servers design, "A Codex conversation in `ask` can commit"](specs/2026-11-13-language-servers-design.md#the-planners-shell-and-its-changes).
-- Change: in `crates/shadows-agent/src/codex.rs` and `codex/session.rs`, the `ask` mode's
-  filesystem permissions write the project root and its `.git`, read `.git/hooks` and
-  `.git/config`, deny `.git/config.lock`, write the temp folder and read the rest. The probe used
-  a `[permissions.<name>.filesystem]` profile with `default_permissions`; first confirm that the
-  per-turn `sandboxPolicy` does not replace it, and keep the opening's echo check true.
-  `read-only` is unchanged. Update the `shadows-agent` contract.
-- Done when: a live Codex executor in `testing8` commits with no `index.lock` denial, and a
-  signed-in live test shows a hook write and `git config` refused.
-
-### B-202 · A recheck interrupted by a restart runs again
-
-- Status: done (2026-11-24). Found in `testing8` (2026-11-23): a restart mid-recheck left its
-  unfinished checks `not_run`, and nothing ran them again. Cause: `recover_rechecks` marked them
-  `not_run` by design. It now runs the batch through `run_recheck`, as a fresh one runs. Test:
-  `a_restart_runs_an_interrupted_recheck_again`.
-- Owner: [executors design, "A restart loses nothing"](specs/2026-11-08-executors-design.md).
-- Change: `Runs::recover_rechecks` (`crates/core-runs/src/recheck.rs`) runs a batch's unfinished
-  rows at startup instead of marking them interrupted, then ends and delivers it as usual.
-- Done when: a test interrupts a recheck, restarts Runs, and sees the rows run and the batch end.
-
-### B-203 · A slow Codex start says why it failed
-
-- Status: done (2026-11-24). Found in `testing8`: two Setup attempts failed to open because Codex's
-  model-list refresh timed out past the 20 s `setup_wait`; the reason was only in Codex's log.
-  Cause: Codex's own `thread/start` waits on its model-list refresh (Codex's log, 16:19 UTC: the
-  stale cache, two 5 s tries reading the 850 KB list, then `get_default_model` a third), which
-  Shadows cannot skip; Shadows threw away Codex's stderr, so a timeout said only "harness setup
-  timed out". The second attempt's own reason (`workspace routing discovery timed out`) was
-  carried already. Now the opening's timeout ends with the last error Codex logged on stderr.
-  Test: `a_codex_start_past_setup_wait_names_what_codex_logged`.
-- Owner: [harness controls, `setup_wait`](../core/specs/2026-09-24-harness-controls-design.md).
-- Change: find why Codex's opening waits on the model-list refresh, and either keep it off the
-  opening's path or give the opening's failure Codex's reason. Root cause first.
-- Done when: an opening with no network fails or succeeds within `setup_wait` and, on failure,
-  the attempt's reason names the cause.
-
-### B-204 · Shadows' Codex model list offers what Codex offers
-
-- Status: done (2026-11-24) in code and the live Codex catalog test (it lists `gpt-6.2-sol`);
-  the executor menu in a browser is not yet seen. Found in `testing8`: `gpt-6.2-sol` was in
-  Codex's own cache but not in Shadows' list, so executors could not use it. Cause: the catalog
-  was probed once per daemon and kept for its life. The probe at 16:12 UTC ran while Codex
-  0.169.0's cache was stale and its refresh timed out (Codex's log), and Codex answered its
-  built-in list (`gpt-6.1-sol` first, `gpt-5.5`, no 6.2; the Planner quoted it at 16:26);
-  Codex itself listed `gpt-6.2-sol` later, Shadows never asked again. Now a read catalog stands
-  for 300 s (Codex's own cache age), then is read again; a failed re-read keeps the last list.
-  Tests: `an_aged_catalog_is_read_again`, `a_failed_reread_keeps_the_last_catalog`.
-- Change: find where the Codex catalog drops it (`crates/core-harness/src/catalog.rs` and the
-  Codex probe) and fix the cause. Root cause first.
-- Done when: the live Codex catalog test lists `gpt-6.2-sol` and the task executor menu offers it.
-
-### B-205 · The Claude Code catalog live test passes
-
-- Status: done (2026-11-24), no code change: the test passes signed in (11 models, `fable`
-  among them). `harness_catalog.rs:160` is the catalog probe's own `unwrap`, so the probe
-  failed then; its error was not kept. The probe's one recorded failure of this kind
-  (`docs/evidence/2026-11-22-testing7-go-notes-live.md`) is Claude Code refusing a model switch
-  (`claude-fable-5-1`: `API error: 403 Request not allowed · model not changed`) while the
-  account's Claude quota was out, which ends the whole probe (only "Usage credits are required"
-  skips one model). Cause outside Shadows; whether a 403 should skip that one model is left open.
-  `live_the_claude_code_catalog_lists_each_models_efforts` (`harness_catalog.rs:160`) failed
-  during B-198's run and was not examined then.
-- Change: run it, find whether the test or the catalog is wrong, fix that. Root cause first.
-- Done when: the test passes signed in.
-
-### B-206 · The plan page can read the project's last recheck
-
-- Status: done. For F-137 (the person's "Recheck project" button). Decided by Mohammed on
-  2026-11-24.
-- Owner: [executors design, "A project recheck runs when a plan is complete, or when
-  asked"](specs/2026-11-08-executors-design.md).
-- Change: one Runs read and one route, `GET /api/workflows/{workflow}/recheck`: the project's
-  newest recheck batch (the workflow names the project), or none. It answers the batch id, what
-  began it (a completing mark with plan title and task, the person, or a Planner), created and
-  finished times, and counts of its rows by outcome (passed, failed, timed out, inconclusive,
-  not run, not finished yet). Regenerate `api/openapi.json`; update the core-runs contract.
-- Done when: a test reads none, then a running batch with unfinished rows, then the finished
-  batch's counts; `cargo test -p shadows --test openapi` passes.
-
-### B-207 · The person can read a project recheck's output, live while it runs
-
-- Status: done. For F-138 (the recheck's terminal panel on the plan page). Decided by Mohammed
-  on 2026-11-24.
-- Owner: [executors design, "A project recheck runs when a plan is complete, or when
-  asked"](specs/2026-11-08-executors-design.md); amend it with the two reads below.
-- Change: two Runs reads and two routes.
-  - `GET /api/rechecks/{recheck}`: the batch's rows in order (task, then the check's ordinal):
-    task, attempt id, check id, the check's command as the person reads it, outcome or none,
-    started and finished times, and the stored output with its truncated flag. 404 for an
-    unknown batch.
-  - `GET /api/rechecks/{recheck}/output`, SSE, live only (not journaled): on connect, each
-    started and unfinished row's output so far, then each new chunk as the check prints it
-    (`{task, attempt_id, check_id, text}`), a row's start and finish (with its outcome), and an
-    end event when the batch finishes; a finished batch answers the end event at once. The
-    output a running row has printed is held in memory by Runs, capped as the stored output is;
-    nothing new is written to the database.
-  - Regenerate `api/openapi.json`; update the core-runs contract and the shadows-http routes.
-- Done when: a test reads a finished batch's rows with their output; a test subscribes while a
-  check runs and receives a chunk the check printed before it finishes, then its finish and the
-  end event; `cargo test -p shadows --test openapi` passes.
-
-### B-208 · The project stream says when a planning thread's list changes
-
-- Status: done (2026-11-24). Decided by Mohammed on 2026-11-24 (polling to SSE; Hamoud's proposal, agreed with
-  Masada). For F-d, which drops the 10 s polls of `threadsQuery` and `agentThreadsQuery`.
-- Owner: [project plans design, "How the pages stay current"](../core/specs/2026-10-01-project-plans-design.md);
-  amend it in place: the project tail also carries what changes a project's thread list.
-- Change:
-  - Events: the project tail (`read_project_events_after`, `crates/core-events/src/store.rs`)
-    also carries `ThreadRetitled` and `ThreadRemoved`, which Threads already journals with the
-    thread's project.
-  - Operations: a turn's end (`OperationCompleted`, `OperationFailed`, `OperationCancelled`,
-    `OperationInterrupted`, including recovery's) is journaled with its thread's project, read
-    in the same write; the project tail carries these four kinds. A turn with no thread has no
-    project and stays off the tail. The payload is unchanged.
-  - Update the core-events and core-operations contracts.
-- Done when: a test retitles a thread, ends a turn in it and removes it, and reads the three
-  events from the project stream in sequence order; a thread of another project is not there.
-
-### B-209 · A task's check results and conflict delivery reach the project stream
-
-- Status: done. Decided by Mohammed on 2026-11-24. For F-b and the follow-up that drops the 2 s
-  polls of `attemptChecksQuery` and `attemptConflictQuery`.
-- Owner: [executors design, "Progress reaches the project stream"](specs/2026-11-08-executors-design.md);
-  amend it: `TaskProgressChanged` names any change to what the task page reads of an attempt,
-  not only its progress.
-- Change: Runs journals one `TaskProgressChanged { project_id, workflow_id, version, task,
-  attempt_id }`, same payload, in the write that finishes one of an attempt's check rows
-  (outcome set, `crates/core-runs/src/store/checks.rs`), and in the write that changes a
-  conflict's delivery or the scope it holds (`store/conflict.rs`). A recheck's rows
-  (`run_recheck_results`) journal nothing here; B-210 covers them. A replay journals nothing.
-  Update the core-runs contract.
-- Done when: a test commits an attempt whose check finishes after the commit and reads a
-  `TaskProgressChanged` for that attempt after the check's outcome is stored; a test moves a
-  conflict's delivery from pending and reads one.
-
-### B-210 · A project recheck's start and end reach the project stream
-
-- Status: done. Decided by Mohammed on 2026-11-24. For F-a's follow-up: `lastRecheckQuery` reads
-  again on these events and polls never.
-- Owner: [executors design, "A project recheck runs when a plan is complete, or when
-  asked"](specs/2026-11-08-executors-design.md); amend it with the two events.
-- Change: Runs journals `RecheckStarted { project_id, workflow_id, recheck_id }` in the write that
-  begins a batch (a completing done mark's and `recheck_project`'s; `workflow_id` the cause
-  plan), and `RecheckFinished` with the same payload in the write that sets the batch's
-  `finished_at`, also for a batch recovery runs again. A replayed ask journals nothing. The
-  project tail carries both kinds. Update the core-runs and core-events contracts.
-- Done when: a test asks for a recheck and reads `RecheckStarted` then `RecheckFinished` for that
-  batch from the project stream; a test's completing done mark starts a batch and its
-  `RecheckStarted` is there.
-
-## Backend review fixes (2026-11-25)
-
-Plan: [backend review fixes](plans/2026-11-25-backend-review-fixes.md); each entry is that plan's task, in its order. Executed inline by the controller on Mohammed's request (2026-11-25).
-
-### B-211 · Fixed-width database times; check overlap compares instants
-
-- Status: done (2026-11-25). Plan task 2. `Storage::now` and `Storage::format_time` write nine fraction digits; `Storage::instant` reads any width; `overlapped` compares instants; `core-grants` writes through the shared formatter. Old rows keep their width (accepted).
-
-### B-212 · The ended-turn cursor reads only operation endings
-
-- Status: done (2026-11-25). Plan task 8. The ended-turn query lists the four operation endings only; RecheckStarted/RecheckFinished stay on the project tail.
-
-### B-213 · The database opens its literal filename
-
-- Status: done (2026-11-25). Plan task 3. `Storage::open` uses `SqliteConnectOptions::filename`. The plan's Unix non-UTF-8 case is not added: the product runs on Windows and the check would only run on CI's Linux.
-
-### B-214 · A failed recheck worker ends its batch
-
-- Status: done (2026-11-25). Plan task 6. A failed worker ends its batch (`abandon_batch`): unfinished rows `not_run` with the error, no notice, watchers released. No retry loop (accepted risk: the person rechecks again).
-
-### B-215 · A committed write is announced even if its caller is dropped
-
-- Status: done (2026-11-25). Plan task 7. A drop guard armed from commit to announcement spawns one announcement on the writer when the caller is dropped or the sequence read fails. Test-only `Storage::pause_after_commit` (feature `test-support`).
-
-### B-216 · A replayed recheck ask returns its own stored outcome
-
-- Status: done (2026-11-25). Plan task 1. Replay decodes the stored outcome (empty is none). No schema change: `cause_command` keeps its UNIQUE (accepted risk in the plan).
-
-### B-217 · The last recheck and its counts come from one snapshot
-
-- Status: done (2026-11-25). Plan task 9. `last_recheck` reads the batch and its counts in one reader transaction; no race test (it would need a hook inside the store).
-
-### B-218 · A cancelled LSP question closes its document
-
-- Status: done (2026-11-25). Plan task 5. `Server::ask` holds an `OpenDocument` guard that sends `didClose` on close or drop, before the question lock is released.
-
-### B-219 · LSP hierarchy work and startup waits are bounded
-
-- Status: done in part (2026-11-25). Plan task 13. Contract verification shares one start wait across its files (`verify`). The hierarchy work cap in `codebase/src/lsp/ask.rs` is deferred to future: no observed failure, and its test needs a process-backed hierarchy server.
-
-### B-220 · Extension import copies outside the writer
-
-- Status: done (2026-11-25). Plan task 4. Replay check through a reader, copy (`.import-<id>` then rename) before the writer, one short metadata write; `import_bundled` clears leftover `.import-` folders at start. Accepted: a crash between the rename and the commit leaves an unread id folder.
-
-### B-221 · Quiet-project waits use Operations' busy check
-
-- Status: done (2026-11-25). Plan task 11. `wait_for_quiet` asks `Operations::thread_is_busy` (one row) per executor thread; Operations is passed into Runs by AppCore (Runs already depended on core-operations).
-
-### B-222 · Supersession reads only the project's marks
-
-- Status: done (2026-11-25). Plan task 10. `superseded_in` reads done marks only for the selected plans' versions (`json_each`), searched through the marks' primary key (EXPLAIN QUERY PLAN: SEARCH ... USING INDEX (workflow_id=?)).
-
-### B-223 · Project state builds only what it returns
-
-- Status: done in part (2026-11-25). Plan task 12. `bounded` keeps the first N and only counts the rest; part detail builds task lists only for the kept plans, with progress indexed by task. Not done: splitting element-state facts from stage/layout and batching per-plan reads (no measurement showed them needed).
-
-### B-224 · A project subscription holds only the channels it reads
-
-- Status: done (2026-11-25). Plan task 17. A project subscription holds only the committed watch; the bus, options, commands, UI signals and tasks receivers (`ThreadLive`) are taken only by a thread subscription, still before its replay. No new test: the change is which receivers exist, and the stream suites stay green.
-
-### B-225 · Planner command construction is type-safe
-
-- Status: done (2026-11-25). Plan task 18. `Approver::Planner(PlannerApprover)`; only `PlannerApprover::command` builds a derived command, so the `unreachable!` is gone; `Design::planner_approver` returns a `PlannerApprover`.
-
-### B-226 · Startup validates executable paths and origin ports
-
-- Status: done (2026-11-25). Plan task 19. `harness_path` requires an existing file (a folder is refused); `allowed_origin` also requires a host and, when given, a port from 1 to 65535 (bracketed IPv6 kept; `:80` kept as spelled).
-
-### B-227 · A clipped provider catalog says so
-
-- Status: done (2026-11-25). Plan task 20. `ProviderTestOutcome.truncated` (additive; `api/openapi.json` and `web/src/api/schema.d.ts` regenerated); a cursor given twice stops the listing. The web does not show it yet: Masada to decide whether the provider form says the list was clipped.
-
-### B-228 · An agent home's settings are published whole, never clobbered
-
-- Status: done (2026-11-25). Plan task 21. `seed_home` writes a temporary file, syncs it and hard-links it into place (fails rather than replace), using `std` only. No fault-injection test: the home test checks no temporary file is left.
-
-### B-229 · Architecture tests cover Runs and Messages
-
-- Status: done (2026-11-25). Plan task 15, small part. `extracted_runs_depends_only_on_declared_lower_owners` and `extracted_messages_depends_only_on_declared_lower_owners` pin today's edges (a new one is added on purpose). The table-driven rewrite is in future.
-

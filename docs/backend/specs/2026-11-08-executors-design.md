@@ -331,14 +331,14 @@ the agent's word. This replaces the critic's evidence role (§5.1 already replac
 - **A restart loses nothing.** A committed attempt whose checks did not all finish runs them again
   at startup; one whose results are complete but whose notice was not sent sends it. A project
   recheck a restart cut short runs its unfinished checks at startup, keeps the finished ones, then
-  ends and tells as it would have (B-202: in `testing8` a restart left them `not_run` and nothing
-  ran them again). A notice is written once, before it is first sent, and a resend is that same
+  ends and tells as it would have (found in `testing8`: a restart left them `not_run` and nothing
+  ran them again; `docs/backend/stages.md` at `e7b9332`). A notice is written once, before it is first sent, and a resend is that same
   notice, so it is never sent twice, even when the Planner's settings changed in between.
 - **A recheck that fails still ends.** When a recheck's worker stops on an error while the
   daemon runs (a result it cannot save, a folder it cannot read), its unfinished rows become
   `not_run` with the error as their output and the batch finishes with no notice, so the plan
   page and a watcher stop waiting; the person rechecks again. Only when that write also fails does
-  the batch wait for startup recovery (B-214, from the 2026-11-25 backend review).
+  the batch wait for startup recovery (`docs/backend/stages.md` at `e7b9332`, from the 2026-11-25 backend review).
 - **A done mark frees only the attempt it judged.** The mark records the attempt it judged; the
   same mark sent again finishes freeing that attempt and never frees a later one.
 - **A project recheck reruns the checks of the project's done tasks** (Mohammed, 2026-11-16:

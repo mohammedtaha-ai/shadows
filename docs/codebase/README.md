@@ -108,6 +108,7 @@ pattern to follow, not merely an example.
 | `crates/core-harness/src/extension_home.rs` | per-agent extension projection | `crates/core-harness/contract.yaml` |
 | `crates/shadows-http/src/aylul_extensions.rs` | extension HTTP translation | `crates/core-extensions/contract.yaml` |
 | `crates/shadows-http/src/aylul_extensions_tests.rs` | extension route acceptance | `crates/shadows-http/src/aylul_extensions.rs` |
+| `crates/shadows-http/src/planner_switches.rs` | Planner switch HTTP translation | `crates/shadows-http/src/contract.yaml` |
 | `crates/core-turns/src/store/usage.rs` | atomic turn usage insertion | `crates/core-turns/contract.yaml` |
 | `crates/core-harness/src/profile_home.rs` | serialized agent home settings writes | `docs/aylul/specs/2026-10-19-aylul-claude-code-brain-design.md` |
 | `crates/shadows-http/src/aylul_env.rs` | AYLUL environment HTTP translation | `crates/core-agents/contract.yaml` |
@@ -283,6 +284,7 @@ pattern to follow, not merely an example.
 | `crates/core-harness/src/store/mode.rs` | conversation permission persistence | `crates/core-harness/contract.yaml` |
 | `crates/core-turns/src/store/remove.rs` | thread removal composition | `crates/core-turns/contract.yaml` |
 | `crates/core-harness/src/setup.rs` | what a Planner session opens with | `crates/core-harness/src/setup.rs` |
+| `crates/core-harness/src/planner_skills.rs` | Planner session skills folder | `crates/core-harness/contract.yaml` |
 | `crates/core-harness/src/standards.rs` | Planner standards rendering | `crates/core-harness/src/standards.rs` |
 | `crates/core-harness/src/offers.rs` | the latest choices each open session offers | `crates/core-harness/src/offers.rs` |
 | `crates/core-harness/src/commands.rs` | the latest `/` list each open session sent | `crates/core-harness/src/commands.rs` |

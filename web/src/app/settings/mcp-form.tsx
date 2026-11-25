@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useRef, useState, type FormEvent } from 'react'
-import { extensionKeys, saveMcp, type McpInput, type McpItem, type McpValueInput } from '@/api/extensions'
+import { invalidateLibraryViews, saveMcp, type McpInput, type McpItem, type McpValueInput } from '@/api/extensions'
 import { attemptFor, type Attempt } from '@/api/command-id'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -30,7 +30,7 @@ export function McpForm({ item, onDone }: { item: McpItem | null; onDone: () => 
     },
     onSuccess: async () => {
       attempt.current = null; setHeaders([]); setEnv([])
-      await Promise.all([client.invalidateQueries({ queryKey: extensionKeys.library() }), client.invalidateQueries({ queryKey: extensionKeys.agents() })])
+      await invalidateLibraryViews(client)
       onDone()
     },
     onSettled: () => { locked.current = false },

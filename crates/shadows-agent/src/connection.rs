@@ -45,6 +45,12 @@ pub struct SessionSetup {
     /// Claude Code permission rules allowed up front
     /// (`_meta.claudeCode.options.settings.permissions.allow`). Empty sends none.
     pub permissions: Vec<String>,
+    /// Local plugin folders the session loads (`_meta.claudeCode.options.plugins`),
+    /// each an absolute path as text. Empty sends none.
+    pub plugins: Vec<String>,
+    /// The only skills the session lists (`_meta.claudeCode.options.skills`).
+    /// `None` sends none.
+    pub skills: Option<Vec<String>>,
 }
 
 /// Transport settings. The header and environment values stay out of Debug.

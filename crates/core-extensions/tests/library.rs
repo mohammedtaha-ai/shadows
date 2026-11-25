@@ -1365,3 +1365,335 @@ async fn an_opening_resolves_only_enabled_mcp_servers() {
         _ => panic!("wrong transport"),
     }
 }
+
+async fn project(w: &World, slug: &str) -> core_projects::ProjectId {
+    let dir = w._tmp.path().join(format!("project-{slug}"));
+    std::fs::create_dir_all(&dir).unwrap();
+    Projects::new(w.storage.clone())
+        .create(format!("create-{slug}"), slug, slug, dir.to_str().unwrap())
+        .await
+        .unwrap()
+        .id
+}
+
+fn enabled_skill(list: &core_extensions::AgentExtensions, id: &str) -> bool {
+    list.skills
+        .iter()
+        .find(|i| i.item.id == id)
+        .unwrap()
+        .enabled
+}
+
+#[tokio::test]
+async fn a_project_switch_is_independent_of_agents() {
+    let w = world().await;
+    let p = project(&w, "p").await;
+    let id = w
+        .extensions
+        .add_extension(
+            "add".into(),
+            ExtensionKind::Skill,
+            &source(&w, ExtensionKind::Skill, "hello"),
+        )
+        .await
+        .unwrap()
+        .id;
+    w.extensions
+        .set_agent_extension("a-on".into(), "aylul", ExtensionKind::Skill, &id, true)
+        .await
+        .unwrap();
+    assert!(enabled_skill(
+        &w.extensions.agent_extensions("aylul").await.unwrap(),
+        &id
+    ));
+    assert!(!enabled_skill(
+        &w.extensions.project_extensions(&p).await.unwrap(),
+        &id
+    ));
+    w.extensions
+        .set_agent_extension("a-off".into(), "aylul", ExtensionKind::Skill, &id, false)
+        .await
+        .unwrap();
+    w.extensions
+        .set_project_extension("p-on".into(), &p, ExtensionKind::Skill, &id, true)
+        .await
+        .unwrap();
+    assert!(!enabled_skill(
+        &w.extensions.agent_extensions("aylul").await.unwrap(),
+        &id
+    ));
+    assert!(enabled_skill(
+        &w.extensions.project_extensions(&p).await.unwrap(),
+        &id
+    ));
+}
+
+#[tokio::test]
+async fn a_project_switch_refuses_a_plugin() {
+    let w = world().await;
+    let p = project(&w, "p").await;
+    let id = w
+        .extensions
+        .add_extension(
+            "add".into(),
+            ExtensionKind::Plugin,
+            &source(&w, ExtensionKind::Plugin, "plug"),
+        )
+        .await
+        .unwrap()
+        .id;
+    let before = serde_json::to_value(w.extensions.project_extensions(&p).await.unwrap()).unwrap();
+    assert!(matches!(
+        w.extensions
+            .set_project_extension("on".into(), &p, ExtensionKind::Plugin, &id, true)
+            .await,
+        Err(ExtensionsError::Invalid(_))
+    ));
+    let after = w.extensions.project_extensions(&p).await.unwrap();
+    assert!(after.plugins.is_empty());
+    assert_eq!(serde_json::to_value(after).unwrap(), before);
+}
+
+#[tokio::test]
+async fn a_project_switch_on_an_unknown_project_or_item_is_not_found() {
+    let w = world().await;
+    let id = w
+        .extensions
+        .add_extension(
+            "add".into(),
+            ExtensionKind::Skill,
+            &source(&w, ExtensionKind::Skill, "hello"),
+        )
+        .await
+        .unwrap()
+        .id;
+    let unknown = core_projects::ProjectId::from_recorded(uuid::Uuid::new_v4().to_string());
+    let removed = project(&w, "gone").await;
+    let gone = removed.clone();
+    w.storage
+        .write_txn(|conn| {
+            Box::pin(async move { Projects::mark_removed_in(conn, &gone, &Storage::now()).await })
+        })
+        .await
+        .unwrap();
+    for (n, p) in [unknown, removed].iter().enumerate() {
+        assert!(matches!(
+            w.extensions.project_extensions(p).await,
+            Err(ExtensionsError::NotFound)
+        ));
+        assert!(matches!(
+            w.extensions
+                .set_project_extension(format!("on-{n}"), p, ExtensionKind::Skill, &id, true)
+                .await,
+            Err(ExtensionsError::NotFound)
+        ));
+    }
+    let live = project(&w, "live").await;
+    for kind in [ExtensionKind::Skill, ExtensionKind::Mcp] {
+        assert!(matches!(
+            w.extensions
+                .set_project_extension(format!("missing-{kind:?}"), &live, kind, "missing", true)
+                .await,
+            Err(ExtensionsError::NotFound)
+        ));
+    }
+}
+
+#[tokio::test]
+async fn a_project_switch_replays_and_conflicts() {
+    let w = world().await;
+    let p = project(&w, "p").await;
+    let id = rule_item(&w).await;
+    let first = w
+        .extensions
+        .set_project_extension("on".into(), &p, ExtensionKind::Mcp, &id, true)
+        .await
+        .unwrap();
+    let replay = w
+        .extensions
+        .set_project_extension("on".into(), &p, ExtensionKind::Mcp, &id, true)
+        .await
+        .unwrap();
+    assert_eq!(
+        serde_json::to_value(first).unwrap(),
+        serde_json::to_value(replay).unwrap()
+    );
+    assert!(matches!(
+        w.extensions
+            .set_project_extension("on".into(), &p, ExtensionKind::Mcp, &id, false)
+            .await,
+        Err(ExtensionsError::Storage(
+            core_db::StorageError::CommandConflict
+        ))
+    ));
+}
+
+#[tokio::test]
+async fn deleting_an_item_removes_its_project_switch() {
+    let w = world().await;
+    let p = project(&w, "p").await;
+    let skill = w
+        .extensions
+        .add_extension(
+            "add".into(),
+            ExtensionKind::Skill,
+            &source(&w, ExtensionKind::Skill, "hello"),
+        )
+        .await
+        .unwrap()
+        .id;
+    let server = rule_item(&w).await;
+    w.extensions
+        .set_project_extension("s".into(), &p, ExtensionKind::Skill, &skill, true)
+        .await
+        .unwrap();
+    w.extensions
+        .set_project_extension("m".into(), &p, ExtensionKind::Mcp, &server, true)
+        .await
+        .unwrap();
+    w.extensions
+        .delete_extension("ds".into(), ExtensionKind::Skill, &skill)
+        .await
+        .unwrap();
+    w.extensions
+        .delete_extension("dm".into(), ExtensionKind::Mcp, &server)
+        .await
+        .unwrap();
+    for table in [
+        "SELECT COUNT(*) FROM project_extension",
+        "SELECT COUNT(*) FROM project_mcp",
+    ] {
+        let n: i64 = sqlx::query_scalar(table)
+            .fetch_one(w.storage.reader())
+            .await
+            .unwrap();
+        assert_eq!(n, 0, "{table}");
+    }
+}
+
+#[tokio::test]
+async fn a_project_snapshot_resolves_only_switched_on_servers_with_no_rules() {
+    let w = world().await;
+    let p = project(&w, "p").await;
+    let on = w
+        .extensions
+        .add_mcp(
+            "on-item".into(),
+            mcp_input("docs", json!([{"name":"TOKEN","value":"synthetic-value"}])),
+        )
+        .await
+        .unwrap()
+        .id;
+    w.extensions
+        .add_mcp("off-item".into(), mcp_input("other", json!([])))
+        .await
+        .unwrap();
+    w.extensions
+        .set_tool_rules("set".into(), "aylul", &on, rules(&[("read", "deny")]))
+        .await
+        .unwrap();
+    w.extensions
+        .set_project_extension("on".into(), &p, ExtensionKind::Mcp, &on, true)
+        .await
+        .unwrap();
+    let snapshot = w.extensions.project_snapshot(&p).await.unwrap();
+    assert_eq!(snapshot.mcp.len(), 1);
+    let core_extensions::McpServerConfig::Stdio {
+        name, env, rules, ..
+    } = &snapshot.mcp[0]
+    else {
+        panic!("expected stdio");
+    };
+    assert_eq!(name, "docs");
+    assert_eq!(
+        env,
+        &vec![("TOKEN".to_owned(), "synthetic-value".to_owned())]
+    );
+    assert!(rules.is_empty());
+}
+
+#[tokio::test]
+async fn a_server_without_values_opens_when_the_secrets_store_is_unavailable() {
+    let w = world().await;
+    let p = project(&w, "p").await;
+    let bare = w
+        .extensions
+        .add_mcp("bare".into(), mcp_input("bare", json!([])))
+        .await
+        .unwrap()
+        .id;
+    let keyed = w
+        .extensions
+        .add_mcp(
+            "keyed".into(),
+            mcp_input("keyed", json!([{"name":"TOKEN","value":"synthetic-value"}])),
+        )
+        .await
+        .unwrap()
+        .id;
+    for (n, id) in [&bare, &keyed].into_iter().enumerate() {
+        w.extensions
+            .set_project_extension(format!("p-{n}"), &p, ExtensionKind::Mcp, id, true)
+            .await
+            .unwrap();
+        w.extensions
+            .set_agent_extension(format!("a-{n}"), "aylul", ExtensionKind::Mcp, id, true)
+            .await
+            .unwrap();
+    }
+    let keyless = Extensions::new(
+        w.storage.clone(),
+        Secrets::new(w.storage.clone(), None),
+        w.agents.clone(),
+        Some(w._tmp.path().join("home")),
+    );
+    let unavailable = |r: Result<_, ExtensionsError>| {
+        matches!(
+            r,
+            Err(ExtensionsError::Secrets(
+                core_secrets::SecretsError::Unavailable
+            ))
+        )
+    };
+    assert!(unavailable(keyless.project_snapshot(&p).await.map(|_| ())));
+    assert!(unavailable(
+        keyless.opening_snapshot("aylul").await.map(|_| ())
+    ));
+    w.extensions
+        .set_project_extension("p-off".into(), &p, ExtensionKind::Mcp, &keyed, false)
+        .await
+        .unwrap();
+    w.extensions
+        .set_agent_extension("a-off".into(), "aylul", ExtensionKind::Mcp, &keyed, false)
+        .await
+        .unwrap();
+    let project = keyless.project_snapshot(&p).await.unwrap().mcp;
+    let agent = keyless.opening_snapshot("aylul").await.unwrap().mcp;
+    for servers in [project, agent] {
+        let [core_extensions::McpServerConfig::Stdio { name, env, .. }] = servers.as_slice() else {
+            panic!("expected one stdio server");
+        };
+        assert_eq!(name, "bare");
+        assert!(env.is_empty());
+    }
+}
+
+#[tokio::test]
+async fn without_aylul_a_project_view_is_empty_and_a_switch_not_found() {
+    let w = world().await;
+    let p = project(&w, "p").await;
+    let id = rule_item(&w).await;
+    let bare = Extensions::new(w.storage.clone(), w.secrets.clone(), w.agents.clone(), None);
+    let view = bare.project_extensions(&p).await.unwrap();
+    assert!(view.skills.is_empty() && view.plugins.is_empty() && view.mcp.is_empty());
+    let unknown = core_projects::ProjectId::from_recorded(uuid::Uuid::new_v4().to_string());
+    assert!(matches!(
+        bare.project_extensions(&unknown).await,
+        Err(ExtensionsError::NotFound)
+    ));
+    assert!(matches!(
+        bare.set_project_extension("on".into(), &p, ExtensionKind::Mcp, &id, true)
+            .await,
+        Err(ExtensionsError::NotFound)
+    ));
+}

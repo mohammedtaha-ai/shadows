@@ -1,4 +1,4 @@
-//! The shared extension library and each agent's switches over it.
+//! The shared extension library, and each agent's and each project's switches over it.
 mod bundled;
 mod error;
 mod files;
@@ -17,6 +17,8 @@ pub use model::{
 };
 
 use core_db::{CommandContext, Storage};
+use core_projects::ProjectId;
+use model::Holder;
 use sha2::{Digest, Sha256};
 use sqlx::SqliteConnection;
 use std::path::{Path, PathBuf};
@@ -33,7 +35,7 @@ pub struct Extensions {
     agents: Arc<core_agents::Agents>,
 }
 
-/// The agent's library and resolved servers, pinned until home projection finishes.
+/// A holder's library and resolved servers, pinned until home projection finishes.
 pub struct AgentExtensionSnapshot {
     pub library: AgentExtensions,
     pub mcp: Vec<McpServerConfig>,
@@ -61,7 +63,23 @@ impl Extensions {
     }
 
     pub async fn agent_extensions(&self, slug: &str) -> Result<AgentExtensions, ExtensionsError> {
-        self.store.agent_library(slug).await
+        self.store
+            .holder_library(&Holder::Agent(slug.to_owned()))
+            .await
+    }
+
+    /// A project's Planner switches over the library; plugins are never offered.
+    /// Without AYLUL a live project has an empty view.
+    pub async fn project_extensions(
+        &self,
+        project: &ProjectId,
+    ) -> Result<AgentExtensions, ExtensionsError> {
+        let holder = Holder::Project(project.clone());
+        if self.home_root.is_none() {
+            self.store.require_holder(&holder).await?;
+            return Ok(AgentExtensions::default());
+        }
+        self.store.holder_library(&holder).await
     }
 
     pub async fn add_extension(
@@ -141,7 +159,38 @@ impl Extensions {
             serde_json::json!({
             "slug":slug,"kind":kind,"id":id,"enabled":enabled}),
         );
-        self.store.toggle(c, slug, kind, id, enabled).await
+        self.store
+            .toggle(c, &Holder::Agent(slug.to_owned()), kind, id, enabled)
+            .await
+    }
+
+    /// Switches one skill or MCP server for a project's Planner.
+    pub async fn set_project_extension(
+        &self,
+        command_id: String,
+        project: &ProjectId,
+        kind: ExtensionKind,
+        id: &str,
+        enabled: bool,
+    ) -> Result<AgentItem, ExtensionsError> {
+        if kind == ExtensionKind::Plugin {
+            return Err(ExtensionsError::Invalid(
+                "plugins are not offered to the Planner".into(),
+            ));
+        }
+        if self.home_root.is_none() {
+            return Err(ExtensionsError::NotFound);
+        }
+        let _guard = self.extension_guard().await;
+        let c = CommandContext::user(
+            command_id,
+            "extension.project_toggle",
+            serde_json::json!({
+            "project":project,"kind":kind,"id":id,"enabled":enabled}),
+        );
+        self.store
+            .toggle(c, &Holder::Project(project.clone()), kind, id, enabled)
+            .await
     }
 
     /// Held while the harness projects the library into a home.

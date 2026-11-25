@@ -34,10 +34,15 @@ export function saveMcp(id: string | null, commandId: string, input: McpInput): 
     : unwrap(client.PUT('/api/aylul/extensions/mcp/{id}', { params: { path: { id } }, body }))
 }
 
+/** The kinds a project may switch for its Planner. Core refuses a plugin. */
+export type PlannerExtensionKind = Exclude<ExtensionKind, 'plugin'>
+
 export const extensionKeys = {
   library: () => ['aylul-extensions'],
   agents: () => ['aylul-agent-extensions'],
   agent: (slug: string) => ['aylul-agent-extensions', slug],
+  projects: () => ['aylul-project-extensions'],
+  project: (projectId: string) => ['aylul-project-extensions', projectId],
 }
 
 export const extensionsQuery = queryOptions({ queryKey: extensionKeys.library(), retry: false,
@@ -60,8 +65,37 @@ export function setAgentExtension(slug: string, kind: ExtensionKind, id: string,
   }))
 }
 
-export function saveAgentExtensionAnswer(client: QueryClient, slug: string, kind: ExtensionKind, saved: AgentItem) {
+function withSaved(kind: ExtensionKind, saved: AgentItem) {
   const field = kind === 'plugin' ? 'plugins' : kind === 'skill' ? 'skills' : 'mcp'
-  return writeSaved<AgentExtensions>(client, extensionKeys.agent(slug), current => current
-    ? { ...current, [field]: current[field].map(value => value.id === saved.id ? saved : value) } : current)
+  return (current: AgentExtensions | undefined): AgentExtensions | undefined => current
+    ? { ...current, [field]: current[field].map(value => value.id === saved.id ? saved : value) } : current
+}
+
+export function saveAgentExtensionAnswer(client: QueryClient, slug: string, kind: ExtensionKind, saved: AgentItem) {
+  return writeSaved<AgentExtensions>(client, extensionKeys.agent(slug), withSaved(kind, saved))
+}
+
+/** GET /api/projects/{id}/planner-extensions: the library with this project's switches. */
+export function projectExtensionsQuery(projectId: string) {
+  return queryOptions({ queryKey: extensionKeys.project(projectId), retry: false,
+    queryFn: () => unwrap(client.GET('/api/projects/{id}/planner-extensions', { params: { path: { id: projectId } } })),
+  })
+}
+
+/** PUT /api/projects/{id}/planner-extensions/{kind}/{item}, body { command_id, enabled }. */
+export function setProjectExtension(projectId: string, kind: PlannerExtensionKind, id: string, enabled: boolean, commandId: string): Promise<AgentItem> {
+  return unwrap(client.PUT('/api/projects/{id}/planner-extensions/{kind}/{item}', {
+    params: { path: { id: projectId, kind, item: id } }, body: { command_id: commandId, enabled },
+  }))
+}
+
+/** Writes a saved project switch into that project's view, cancelling a stale read. */
+export function saveProjectExtensionAnswer(client: QueryClient, projectId: string, kind: PlannerExtensionKind, saved: AgentItem) {
+  return writeSaved<AgentExtensions>(client, extensionKeys.project(projectId), withSaved(kind, saved))
+}
+
+/** Refreshes every view that lists the library: the library, each agent's, each project's. */
+export async function invalidateLibraryViews(client: QueryClient): Promise<void> {
+  await Promise.all([extensionKeys.library(), extensionKeys.agents(), extensionKeys.projects()]
+    .map(queryKey => client.invalidateQueries({ queryKey })))
 }

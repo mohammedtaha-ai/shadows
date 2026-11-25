@@ -133,8 +133,8 @@ Codex's `thread/start` waits on Codex's own model-list refresh (about 5 s a try,
 more than one try when the cached list is stale), which Shadows cannot skip; on a
 slow network it passes `setup_wait` and answers nothing. The failure then ends
 with the last error Codex logged on stderr ("harness setup timed out; the harness
-logged: failed to refresh available models: request timed out"; B-203,
-`testing8`, 2026-11-23).
+logged: failed to refresh available models: request timed out"; `docs/backend/stages.md` at `e7b9332`,
+found in `testing8`, 2026-11-23).
 
 **Permission requests are refused.** The adapter asks the client before a tool
 runs that the mode does not already allow (`session/request_permission`). In

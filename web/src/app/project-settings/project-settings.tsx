@@ -3,6 +3,7 @@ import { getRouteApi } from '@tanstack/react-router'
 import { projectsQuery } from '@/api/projects'
 import { CodeIndex } from './code-index'
 import { InstructionsEditor } from './instructions-editor'
+import { PlannerSwitches } from './planner-switches'
 import { ProjectModes } from './project-modes'
 import { RemoveProject } from './remove-project'
 
@@ -30,6 +31,9 @@ export function ProjectSettings() {
         <InstructionsEditor key={`instructions-${projectId}`} projectId={projectId} />
         {project !== undefined && (
           <ProjectModes key={`modes-${projectId}`} project={project} />
+        )}
+        {project !== undefined && (
+          <PlannerSwitches key={`planner-${projectId}`} project={project} />
         )}
         {project !== undefined && (
           <>

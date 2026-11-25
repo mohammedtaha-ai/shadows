@@ -194,9 +194,26 @@ impl Extensions {
         &self,
         slug: &str,
     ) -> Result<crate::AgentExtensionSnapshot, ExtensionsError> {
+        self.snapshot(&crate::model::Holder::Agent(slug.to_owned()))
+            .await
+    }
+
+    /// The Planner opening's view of a project's switches; its servers carry no rules.
+    pub async fn project_snapshot(
+        &self,
+        project: &core_projects::ProjectId,
+    ) -> Result<crate::AgentExtensionSnapshot, ExtensionsError> {
+        self.snapshot(&crate::model::Holder::Project(project.clone()))
+            .await
+    }
+
+    async fn snapshot(
+        &self,
+        holder: &crate::model::Holder,
+    ) -> Result<crate::AgentExtensionSnapshot, ExtensionsError> {
         let guard = self.extension_guard().await;
-        let list = self.store.agent_library(slug).await?;
-        let mcp = self.resolve_mcp_servers(slug, &list).await?;
+        let list = self.store.holder_library(holder).await?;
+        let mcp = self.resolve_mcp_servers(holder, &list).await?;
         Ok(crate::AgentExtensionSnapshot {
             library: list,
             mcp,
@@ -206,17 +223,28 @@ impl Extensions {
 
     pub(super) async fn resolve_mcp_servers(
         &self,
-        slug: &str,
+        holder: &crate::model::Holder,
         list: &crate::AgentExtensions,
     ) -> Result<Vec<McpServerConfig>, ExtensionsError> {
         let mut out = Vec::new();
         for agent_item in list.mcp.iter().filter(|item| item.enabled) {
             let item = agent_item.item.clone();
-            let rules = self.store.tool_rules(slug, &item.id).await?;
-            let values = self
-                .secrets
-                .resolve_env(&core_secrets::Secrets::mcp_scope(&item.id))
-                .await?;
+            let rules = match holder {
+                crate::model::Holder::Agent(slug) => self.store.tool_rules(slug, &item.id).await?,
+                crate::model::Holder::Project(_) => Vec::new(),
+            };
+            let declared = match &item.transport {
+                McpTransport::Http { headers, .. } => headers,
+                McpTransport::Stdio { env, .. } => env,
+            };
+            // A server that declares no value must open without the secrets store.
+            let values = if declared.is_empty() {
+                Vec::new()
+            } else {
+                self.secrets
+                    .resolve_env(&core_secrets::Secrets::mcp_scope(&item.id))
+                    .await?
+            };
             let select = |names: Vec<McpValue>| -> Result<Vec<(String, String)>, ExtensionsError> {
                 names
                     .into_iter()

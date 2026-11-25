@@ -137,3 +137,10 @@ pub struct AgentMcpItem {
     pub item: McpItem,
     pub enabled: bool,
 }
+
+/// Who a switch belongs to: one AYLUL agent, or one project's Planner.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum Holder {
+    Agent(String),
+    Project(core_projects::ProjectId),
+}

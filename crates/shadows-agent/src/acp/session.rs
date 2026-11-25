@@ -64,6 +64,17 @@ impl SessionSetup {
                 serde_json::json!({ "permissions": { "allow": self.permissions } }),
             );
         }
+        if !self.plugins.is_empty() {
+            let plugins: Vec<_> = self
+                .plugins
+                .iter()
+                .map(|path| serde_json::json!({ "type": "local", "path": path }))
+                .collect();
+            options.insert("plugins".into(), serde_json::json!(plugins));
+        }
+        if let Some(skills) = &self.skills {
+            options.insert("skills".into(), serde_json::json!(skills));
+        }
         if !options.is_empty() {
             meta.insert(
                 "claudeCode".into(),

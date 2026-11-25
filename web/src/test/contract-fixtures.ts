@@ -90,6 +90,7 @@ export function projectWithModes(modes: Record<string, string[]>): Project {
     created_at: '2026-09-24T00:00:00Z',
     allowed_modes: modes,
     assistant: false,
+    planner_reads_claude_md: false,
   }
 }
 

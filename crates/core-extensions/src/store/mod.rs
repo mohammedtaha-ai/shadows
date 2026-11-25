@@ -1,11 +1,13 @@
-//! Transactional extension library metadata and per-agent enablement.
+//! Transactional extension library metadata and per-agent and per-project enablement.
 use crate::mcp::PreparedMcp;
+use crate::model::Holder;
 use crate::{
     AgentExtensions, AgentItem, AgentMcpItem, ExtensionKind, ExtensionLibrary, Extensions,
     ExtensionsError, Item, McpItem, McpTransport, ToolRule, ToolRuleEntry,
 };
 use core_agents::Agents;
 use core_db::{CommandContext, Storage, StorageError};
+use core_projects::Projects;
 use sqlx::{Row, SqliteConnection};
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -69,18 +71,46 @@ impl ExtensionsStore {
         }
         Ok(out)
     }
-    pub(super) async fn agent_library(
+    /// A live holder in the caller's snapshot; an unknown or removed one is `NotFound`.
+    async fn require_holder_in(
+        conn: &mut SqliteConnection,
+        holder: &Holder,
+    ) -> Result<(), ExtensionsError> {
+        match holder {
+            Holder::Agent(slug) => Ok(Agents::require_live_in(conn, slug).await?),
+            Holder::Project(project) => match Projects::require_live_in(conn, project).await {
+                Ok(()) => Ok(()),
+                Err(StorageError::NotFound(_)) => Err(ExtensionsError::NotFound),
+                Err(error) => Err(error.into()),
+            },
+        }
+    }
+
+    pub(super) async fn require_holder(&self, holder: &Holder) -> Result<(), ExtensionsError> {
+        let mut conn = self.storage.reader().acquire().await?;
+        Self::require_holder_in(&mut conn, holder).await
+    }
+
+    pub(super) async fn holder_library(
         &self,
-        slug: &str,
+        holder: &Holder,
     ) -> Result<AgentExtensions, ExtensionsError> {
         let mut conn = self.storage.reader().acquire().await?;
-        Agents::require_live_in(&mut conn, slug).await?;
-        let rows = sqlx::query(
-            "SELECT e.*,COALESCE(a.enabled,0) AS enabled FROM aylul_extension e
+        Self::require_holder_in(&mut conn, holder).await?;
+        let rows = match holder {
+            Holder::Agent(slug) => sqlx::query(
+                "SELECT e.*,COALESCE(a.enabled,0) AS enabled FROM aylul_extension e
         LEFT JOIN aylul_agent_extension a ON a.extension_id=e.id AND a.agent_slug=?
         ORDER BY e.name,e.id",
-        )
-        .bind(slug)
+            )
+            .bind(slug.as_str()),
+            Holder::Project(project) => sqlx::query(
+                "SELECT e.*,COALESCE(p.enabled,0) AS enabled FROM aylul_extension e
+         LEFT JOIN project_extension p ON p.extension_id=e.id AND p.project_id=?
+         ORDER BY e.name,e.id",
+            )
+            .bind(project.as_str()),
+        }
         .fetch_all(&mut *conn)
         .await?;
         let mut out = AgentExtensions::default();
@@ -91,16 +121,26 @@ impl ExtensionsStore {
                 transport: None,
             };
             if row.get::<String, _>("kind") == "plugin" {
-                out.plugins.push(v);
+                // A plugin runs its own hooks, so none is offered to a Planner.
+                if matches!(holder, Holder::Agent(_)) {
+                    out.plugins.push(v);
+                }
             } else {
                 out.skills.push(v);
             }
         }
-        let rows = sqlx::query(
-            "SELECT e.*,COALESCE(a.enabled,0) AS enabled FROM aylul_mcp_server e
+        let rows = match holder {
+            Holder::Agent(slug) => sqlx::query(
+                "SELECT e.*,COALESCE(a.enabled,0) AS enabled FROM aylul_mcp_server e
              LEFT JOIN aylul_agent_mcp a ON a.mcp_id=e.id AND a.agent_slug=? ORDER BY e.name,e.id",
-        )
-        .bind(slug)
+            )
+            .bind(slug.as_str()),
+            Holder::Project(project) => sqlx::query(
+                "SELECT e.*,COALESCE(p.enabled,0) AS enabled FROM aylul_mcp_server e
+             LEFT JOIN project_mcp p ON p.mcp_id=e.id AND p.project_id=? ORDER BY e.name,e.id",
+            )
+            .bind(project.as_str()),
+        }
         .fetch_all(&mut *conn)
         .await?;
         for row in rows {
@@ -269,12 +309,12 @@ impl ExtensionsStore {
     pub(super) async fn toggle(
         &self,
         c: CommandContext,
-        slug: &str,
+        holder: &Holder,
         kind: ExtensionKind,
         id: &str,
         enabled: bool,
     ) -> Result<AgentItem, ExtensionsError> {
-        let (slug, id) = (slug.to_owned(), id.to_owned());
+        let (holder, id) = (holder.clone(), id.to_owned());
         self.storage
             .write_txn_as(move |conn| {
                 Box::pin(async move {
@@ -283,18 +323,27 @@ impl ExtensionsStore {
                     {
                         return Ok(serde_json::from_str(&out)?);
                     }
-                    Agents::require_live_in(conn, &slug).await?;
+                    Self::require_holder_in(conn, &holder).await?;
                     if kind == ExtensionKind::Mcp {
                         let row = sqlx::query("SELECT * FROM aylul_mcp_server WHERE id=?")
                             .bind(&id)
                             .fetch_optional(&mut *conn)
                             .await?
                             .ok_or(ExtensionsError::NotFound)?;
-                        sqlx::query(
-                            "INSERT INTO aylul_agent_mcp(agent_slug,mcp_id,enabled) VALUES (?,?,?)
-                             ON CONFLICT(agent_slug,mcp_id) DO UPDATE SET enabled=excluded.enabled",
-                        )
-                        .bind(&slug)
+                        match &holder {
+                            Holder::Agent(slug) => sqlx::query(
+                                "INSERT INTO aylul_agent_mcp(agent_slug,mcp_id,enabled)
+                             VALUES (?,?,?)
+                             ON CONFLICT(agent_slug,mcp_id)
+                             DO UPDATE SET enabled=excluded.enabled",
+                            )
+                            .bind(slug.as_str()),
+                            Holder::Project(project) => sqlx::query(
+                                "INSERT INTO project_mcp(project_id,mcp_id,enabled) VALUES (?,?,?)
+                             ON CONFLICT(project_id,mcp_id) DO UPDATE SET enabled=excluded.enabled",
+                            )
+                            .bind(project.as_str()),
+                        }
                         .bind(&id)
                         .bind(enabled)
                         .execute(&mut *conn)
@@ -319,12 +368,20 @@ impl ExtensionsStore {
                         .fetch_optional(&mut *conn)
                         .await?
                         .ok_or(ExtensionsError::NotFound)?;
-                    sqlx::query(
-                        "INSERT INTO aylul_agent_extension(agent_slug,extension_id,enabled)
+                    match &holder {
+                        Holder::Agent(slug) => sqlx::query(
+                            "INSERT INTO aylul_agent_extension(agent_slug,extension_id,enabled)
             VALUES (?,?,?) ON CONFLICT(agent_slug,extension_id)
             DO UPDATE SET enabled=excluded.enabled",
-                    )
-                    .bind(&slug)
+                        )
+                        .bind(slug.as_str()),
+                        Holder::Project(project) => sqlx::query(
+                            "INSERT INTO project_extension(project_id,extension_id,enabled)
+            VALUES (?,?,?) ON CONFLICT(project_id,extension_id)
+            DO UPDATE SET enabled=excluded.enabled",
+                        )
+                        .bind(project.as_str()),
+                    }
                     .bind(&id)
                     .bind(enabled)
                     .execute(&mut *conn)

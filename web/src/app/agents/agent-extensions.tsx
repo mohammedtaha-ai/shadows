@@ -1,16 +1,16 @@
 import { SkeletonContent } from '@/components/ui/skeleton'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useRef, useState } from 'react'
-import { agentExtensionsQuery, setAgentExtension, saveAgentExtensionAnswer, type AgentItem, type ExtensionKind } from '@/api/extensions'
-import { attemptFor, type Attempt } from '@/api/command-id'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { agentExtensionsQuery, setAgentExtension, saveAgentExtensionAnswer } from '@/api/extensions'
 import { Button } from '@/components/ui/button'
 import { ErrorLine } from '../error-line'
+import { SavingSwitch } from '../saving-switch'
 import { useOpenSettings } from '@/app/navigation'
 import { ToolRules } from './tool-rules'
 
 export function AgentExtensions({ slug }: { slug: string }) {
   const state = useQuery(agentExtensionsQuery(slug))
   const open = useOpenSettings()
+  const client = useQueryClient()
   return (
     <section role="group" aria-label="Capabilities" className="space-y-3">
       <h2 className="font-medium">Capabilities</h2>
@@ -39,12 +39,20 @@ export function AgentExtensions({ slug }: { slug: string }) {
                 {kind === 'skill' ? 'Skills' : kind === 'plugin' ? 'Plugins' : 'MCP tools'}
               </h3>
               {(kind === 'plugin' ? state.data.plugins : kind === 'skill' ? state.data.skills : state.data.mcp).map(item => (
-                <ExtensionSwitch
+                <SavingSwitch
                   key={`${slug}:${kind}:${item.id}`}
-                  slug={slug}
-                  kind={kind}
-                  item={item}
-                />
+                  name={item.name}
+                  description={item.description}
+                  enabled={item.enabled}
+                  request={{ slug, kind, id: item.id }}
+                  send={(enabled, commandId) => setAgentExtension(slug, kind, item.id, enabled, commandId)}
+                  onSaved={async saved => {
+                    await saveAgentExtensionAnswer(client, slug, kind, saved)
+                    await client.invalidateQueries({ queryKey: agentExtensionsQuery(slug).queryKey, exact: true })
+                  }}
+                >
+                  {kind === 'mcp' && item.enabled && <ToolRules slug={slug} id={item.id} />}
+                </SavingSwitch>
               ))}
             </div>
           ))}
@@ -52,46 +60,5 @@ export function AgentExtensions({ slug }: { slug: string }) {
       )}
       <Button type="button" variant="link" onClick={() => open('plugins')}>Add to library</Button>
     </section>
-  )
-}
-
-function ExtensionSwitch({ slug, kind, item }: { slug: string; kind: ExtensionKind; item: AgentItem }) {
-  const client = useQueryClient()
-  const queryKey = agentExtensionsQuery(slug).queryKey
-  const attempt = useRef<Attempt | null>(null)
-  const locked = useRef(false)
-  const [optimistic, setOptimistic] = useState<boolean | null>(null)
-  const toggle = useMutation({ retry: false,
-    mutationFn: (enabled: boolean) => {
-      attempt.current = attemptFor(attempt.current, { slug, kind, id: item.id, enabled })
-      return setAgentExtension(slug, kind, item.id, enabled, attempt.current.commandId)
-    },
-    onSuccess: async saved => {
-      attempt.current = null
-      await saveAgentExtensionAnswer(client, slug, kind, saved)
-      await client.invalidateQueries({ queryKey, exact: true })
-    },
-    onSettled: () => { locked.current = false; setOptimistic(null) },
-  })
-  return (
-    <div className="surface-panel space-y-2 rounded-lg p-3">
-      <label className="flex items-center justify-between gap-3 text-sm">
-        <span>{item.name}</span>
-        <input
-          type="checkbox"
-          role="switch"
-          aria-label={item.name}
-          checked={optimistic ?? item.enabled}
-          disabled={toggle.isPending}
-          onChange={event => {
-            if (locked.current) return
-            locked.current = true; setOptimistic(event.target.checked); toggle.mutate(event.target.checked)
-          }}
-        />
-      </label>
-      <p className="text-xs text-muted-foreground">{item.description}</p>
-      {toggle.error && <ErrorLine error={toggle.error} />}
-      {kind === 'mcp' && item.enabled && <ToolRules slug={slug} id={item.id} />}
-    </div>
   )
 }

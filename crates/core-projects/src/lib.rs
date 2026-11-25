@@ -174,6 +174,22 @@ impl Projects {
         Ok(self.store.set_modes(&c, project, &modes).await?)
     }
 
+    /// Sets whether the Planner reads the project's CLAUDE.md.
+    /// "project.planner_claude_md", params { "project", "enabled" }.
+    pub async fn set_planner_claude_md(
+        &self,
+        command_id: String,
+        project: &ProjectId,
+        enabled: bool,
+    ) -> Result<Project, ProjectsError> {
+        let params = serde_json::json!({ "project": project, "enabled": enabled });
+        let c = CommandContext::user(command_id, "project.planner_claude_md", params);
+        Ok(self
+            .store
+            .set_planner_claude_md(&c, project, enabled)
+            .await?)
+    }
+
     /// A directory's immediate subdirectories, or the roots when `path` is
     /// absent or empty. Read on a blocking thread.
     pub async fn list_dirs(&self, path: Option<String>) -> Result<DirectoryListing, ProjectsError> {

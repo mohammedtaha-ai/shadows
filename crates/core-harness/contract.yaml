@@ -173,6 +173,7 @@ modules:
   commands.rs: live slash command lists
   tasks.rs: session background task state
   extension_home.rs: enabled extension projection
+  planner_skills.rs: Planner session skills folder
   tool_rules_home.rs: recoverable MCP rule projection
   live.rs: adapter cache opening
   offers.rs: synchronous option offer dispatch
@@ -205,6 +206,22 @@ tool_rule_projection:
     an_unwritable_rule_manifest_leaves_settings_unchanged,
     dotted_tool_rules_use_claudes_normalized_name, colliding_tool_names_keep_only_the_block,
     an_agent_without_rules_opens_with_odd_permissions, foreign_rule_order_is_kept]
+planner_switches:
+  where: "Setups::for_opening, Planner branch only, and only for claude-code. Executors return before it; Codex never enters it."
+  when: After the standards read and before the grant is issued, so a failure leaves nothing issued. Any error fails the opening with its text.
+  claude_md: "Projects::planner_reads_claude_md_in on the standards reader snapshot. When on, <cwd>/CLAUDE.md is appended after the project instructions as \"\\n\\n## The project's CLAUDE.md\\n\\n{text}\" only if symlink_metadata says a regular file (not a symlink) of at most 65536 bytes in UTF-8. Otherwise nothing is appended and planner.claude_md_skipped is logged at info with project_id and reason (missing, not_a_file, too_large, not_utf8, unreadable)."
+  library: "Only with AYLUL configured (aylul_root): Extensions::project_snapshot, held until the skills folder is written. Switched-on servers convert with Homes::mcp_spec and follow shadows in the MCP list."
+  skills: "Switched-on skills are written by Setups::write_skills (planner_skills.rs) to <aylul_root>/planner-skills/<thread>/ as the plugin shadows-skills (.claude-plugin/plugin.json, skills/<name>/ through Homes::copy_item); the setup gets plugins [folder], tools PLANNER_TOOLS + Skill, skills shadows-skills:<name>. No skill writes nothing and leaves the three as before. A failure removes the folder. Setups::forget removes it (remove_skills), so it goes when the session closes and before each new opening; two conversations never share one."
+  file_access: The CLAUDE.md read is capped at 65537 bytes to detect growth past the limit. Skills teardown checks the managed parent and session folder for filesystem links before removal.
+  held: Held records nothing new; a switch change reaches the next opening, not a live session.
+  homes: "Homes::copy_item (refuses a non-UUID id and an unsafe name) and Homes::mcp_spec are shared by AYLUL home projection and the Planner."
+  tested_by: [planner_switches::with_nothing_switched_on_the_planner_opens_as_before,
+    planner_switches::a_switched_on_skill_reaches_the_planner_as_a_plugin,
+    planner_switches::a_switched_on_server_reaches_the_planner_after_shadows,
+    planner_switches::a_switched_off_item_and_a_library_plugin_never_reach_the_planner,
+    planner_switches::the_claude_md_switch_appends_the_file,
+    planner_switches::a_claude_md_that_is_too_large_or_a_symlink_is_skipped,
+    planner_switches::a_switch_change_reaches_the_next_opening_only]
 source: crates/core-harness/src
 
 
@@ -401,7 +418,7 @@ functions:
         grant, keeps a success for CATALOG_TTL (300 s, Codex's own model-list cache age) and
         reads again after it, and coalesces concurrent reads per harness. A failed first read
         is an error and tried again on the next call; a failed later read answers the last
-        list for another CATALOG_TTL (logged harness.catalog_reread_failed). B-204 (testing8)
+        list for another CATALOG_TTL (logged harness.catalog_reread_failed). B-204 (testing8; `docs/backend/stages.md` at `e7b9332`)
         found that a Codex probe while Codex's refresh failed answered its built-in list, without
         gpt-6.2-sol, and the daemon kept it for its life. Claude Code switches models in one
         ACP session and excludes models the account cannot select without more usage
