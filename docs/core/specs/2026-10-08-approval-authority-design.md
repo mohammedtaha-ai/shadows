@@ -78,7 +78,8 @@ review its one shell, and making the core check the agent itself:
    prepares the environment ([language servers design](../../backend/specs/2026-11-13-language-servers-design.md),
    Mohammed, 2026-11-13; `auto`'s review judged enough by Mohammed on 2026-11-25).
    Write, Edit and PowerShell stay unavailable. Shadows sends the built-in
-   tool list as `_meta.claudeCode.options.tools` on every session opening.
+   tool list as `_meta.claudeCode.options.tools` on every session opening; a
+   tool not in the list does not exist in the session, so no mode can run it.
 2. **The person's own Claude settings stay out**: `settingSources: []` and
    `strictMcpConfig: true`. That drops their MCP connectors, plugins, skills
    and hooks (a hook runs a shell command outside `auto`'s review), and also
