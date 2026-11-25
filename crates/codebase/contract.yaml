@@ -999,6 +999,8 @@ enums:
 
 
 obligations:
+  - rule: A file question (shadows-lsp Server::ask) closes the document it opened however it ends, a caller dropped mid-request included, before its question lock is released.
+    tested_by: [a_question_dropped_while_held_closes_its_document]
   - rule: >
       A hold keeps the paths the project's watcher saw change while it lived, git's
       own bookkeeping and a folder modified in place left out.

@@ -359,7 +359,7 @@ Plan: [backend review fixes](plans/2026-11-25-backend-review-fixes.md); each ent
 
 ### B-218 · A cancelled LSP question closes its document
 
-- Status: todo. Plan task 5.
+- Status: done (2026-11-25). Plan task 5. `Server::ask` holds an `OpenDocument` guard that sends `didClose` on close or drop, before the question lock is released.
 
 ### B-219 · LSP hierarchy work and startup waits are bounded
 
