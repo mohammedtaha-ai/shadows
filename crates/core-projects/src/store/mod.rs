@@ -95,7 +95,8 @@ impl ProjectsStore {
     /// so a project could never be hidden by a missing event; there is none.
     pub(super) async fn list(&self) -> Result<Vec<Project>, StorageError> {
         let rows: Vec<ProjectRow> = sqlx::query_as(
-            "SELECT p.id, p.slug, p.name, p.directory, p.created_at, p.assistant, p.planner_reads_claude_md
+            "SELECT p.id, p.slug, p.name, p.directory, p.created_at, p.assistant,
+                    p.planner_reads_claude_md
                FROM project p
                LEFT JOIN durable_event e
                  ON e.project_id = p.id AND e.kind = 'ProjectCreated'
@@ -116,7 +117,8 @@ impl ProjectsStore {
     /// time order within a second (CLAUDE.md: ordering is explicit).
     pub(super) async fn by_recent_activity(&self) -> Result<Vec<Project>, StorageError> {
         let rows: Vec<ProjectRow> = sqlx::query_as(
-            "SELECT p.id, p.slug, p.name, p.directory, p.created_at, p.assistant, p.planner_reads_claude_md
+            "SELECT p.id, p.slug, p.name, p.directory, p.created_at, p.assistant,
+                    p.planner_reads_claude_md
                FROM project p
               WHERE p.removed_at IS NULL
               ORDER BY COALESCE(

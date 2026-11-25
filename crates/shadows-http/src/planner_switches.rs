@@ -22,7 +22,8 @@ pub(super) async fn extensions(
 /// Switches one library skill or MCP server on or off for the project's Planner.
 #[utoipa::path(put,path="/api/projects/{id}/planner-extensions/{kind}/{item}",tag="projects",
     operation_id="set_project_planner_extension",
-    params(("id"=ProjectId,Path),("kind"=ExtensionKind,Path),("item"=String,Path)),request_body=Toggle,
+    params(("id"=ProjectId,Path),("kind"=ExtensionKind,Path),("item"=String,Path)),
+    request_body=Toggle,
     responses((status=200,body=AgentItem),(status=400,body=ErrorBody),(status=404,body=ErrorBody),
         (status=409,body=ErrorBody),(status=500,body=ErrorBody)))]
 pub(super) async fn set_extension(

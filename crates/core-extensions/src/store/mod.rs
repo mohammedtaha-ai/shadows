@@ -327,8 +327,10 @@ impl ExtensionsStore {
                             .ok_or(ExtensionsError::NotFound)?;
                         match &holder {
                             Holder::Agent(slug) => sqlx::query(
-                                "INSERT INTO aylul_agent_mcp(agent_slug,mcp_id,enabled) VALUES (?,?,?)
-                             ON CONFLICT(agent_slug,mcp_id) DO UPDATE SET enabled=excluded.enabled",
+                                "INSERT INTO aylul_agent_mcp(agent_slug,mcp_id,enabled)
+                             VALUES (?,?,?)
+                             ON CONFLICT(agent_slug,mcp_id)
+                             DO UPDATE SET enabled=excluded.enabled",
                             )
                             .bind(slug.as_str()),
                             Holder::Project(project) => sqlx::query(

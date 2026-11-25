@@ -11,7 +11,10 @@ use crate::profile_home::Homes;
 use crate::setup::Setups;
 
 const FOLDER: &str = "planner-skills";
-const MANIFEST: &str = r#"{"name":"shadows-skills","version":"0.0.0","description":"Skills this project gives its Planner"}"#;
+const MANIFEST: &str = concat!(
+    r#"{"name":"shadows-skills","version":"0.0.0","#,
+    r#""description":"Skills this project gives its Planner"}"#
+);
 
 impl Setups {
     /// Writes `skills` to `<root>/planner-skills/<thread>/` as one plugin and

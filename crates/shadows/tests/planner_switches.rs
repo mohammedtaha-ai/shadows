@@ -148,7 +148,9 @@ async fn skills_folder(app: &App, thread: &str) -> PathBuf {
 fn as_before() -> Value {
     json!({
         "allowedTools": ["mcp__shadows__*"],
-        "tools": ["Read","Grep","Glob","WebSearch","WebFetch","ToolSearch","Agent","TodoWrite","Bash"],
+        "tools": [
+            "Read","Grep","Glob","WebSearch","WebFetch","ToolSearch","Agent","TodoWrite","Bash"
+        ],
         "settingSources": [],
         "strictMcpConfig": true
     })
