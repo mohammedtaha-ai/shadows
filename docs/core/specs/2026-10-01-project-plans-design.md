@@ -338,6 +338,11 @@ sidebar's plan list and a `PlanView` card in any other conversation refetch when
 that stream names their plan, and after the person's own actions. Nothing polls
 on a timer. The project stream lands with the conversation delete (Task 5);
 until then those views refetch only after the person's own actions.
+The project stream also carries what changes the project's thread list:
+`ThreadRetitled`, `ThreadRemoved`, and a turn's end (`OperationCompleted`,
+`OperationFailed`, `OperationCancelled`, `OperationInterrupted`, recovery's
+included), journaled with its thread's project read in the same write. A turn
+with no thread has no project and stays off the project stream.
 
 **1b dependency invalidation:** a new plan edit, version, approval or archive
 change journals `PlanDependenciesChanged {plan_id}` in each other live project

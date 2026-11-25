@@ -43,18 +43,21 @@ export function planQuery(workflowId: string) {
     queryFn: () => getPlan(workflowId),
   })
 }
-/** Every task's done mark and latest attempt state; read again every two seconds while an attempt
- * runs, as the task page's run is, and with the workflows prefix when a plan event arrives. */
+/** Every task's done mark and latest attempt state; refreshed by TaskProgressChanged and with the
+ * workflows prefix when a plan event arrives. */
 export function planProgressQuery(workflowId: string, version: number) {
   return queryOptions({
     queryKey: workflowKeys.progress(workflowId, version),
     queryFn: () => getPlanProgress(workflowId, version),
-    refetchInterval: (query) => (query.state.data?.some((t) => t.state === 'running') ? 2000 : false),
   })
 }
 
 export function savePlanAnswer(client: QueryClient, plan: Plan) {
   return writeSaved(client, workflowKeys.plan(plan.id), plan)
+}
+
+export function invalidatePlanProgress(client: QueryClient, workflowId: string, version: number): void {
+  void client.invalidateQueries({ queryKey: workflowKeys.progress(workflowId, version) })
 }
 
 export function invalidateWorkflows(client: QueryClient): void {

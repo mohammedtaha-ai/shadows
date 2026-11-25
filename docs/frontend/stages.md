@@ -5,183 +5,186 @@ here and set its status. Task shape: [`AGENTS.md`](./AGENTS.md#a-task-in-stagesm
 
 ## Now
 
-Branch `codex/code-record-live-fixes`: the project's state, its ER diagram and screen flow, and `code_where`
-in the web. Plan: [plans/2026-11-20-project-state-views.md](plans/2026-11-20-project-state-views.md).
-Shared requests, accepted 2026-11-20: `docs/shared/requests/2026-11-19-project-state-and-diagrams.md`
-(F-130 to F-134) and `docs/shared/requests/2026-11-19-code-where.md` (F-135). The controller
-dispatches the builders (Mohammed, 2026-11-19); Masada prepares and checks. Every task is blocked
-until its backend tasks are built and `api/openapi.json` shows them. The plan's "Rulings for every
-task" bind each one.
+F-137 and F-138 are done and F-139 to F-144 open on `feature/after-75`. The project's state view, its ER diagram and screen flow,
+and `code_where` in the web (F-130 to F-136) are on `main` in PR #75 (`4d69977d`).
+
+### F-137 · The person rechecks the project from the plan page
+- Status: done (`41926e85`; `notice-item.tsx` passes the card's body, added to Touch after the build)
+- Plan: none. Mockup agreed with Mohammed on 2026-11-24: in the plan page header, the button
+  row reads "Show phases · Versions · Continue this plan · Recheck project · Archive"; a line
+  between the progress bar and the button row reads "Last project recheck HH:MM" with passed,
+  failed and not-run counts (failed in danger color, shown only when above 0), or nothing when
+  there was none; while a batch has unfinished rows the button's place reads "Rechecking…"
+  with no button, and the page reads again every 5 s until it finishes. In the Planner's
+  conversation the recheck card shows an all-passed notice (empty failed list) as a success
+  card titled "Project recheck passed" with its body text.
+- Read: `docs/backend/stages.md` B-200 and B-206; `POST /api/workflows/{workflow}/recheck` and
+  `GET /api/workflows/{workflow}/recheck` in `api/openapi.json`; `web/src/app/workflows/plan-page.tsx`;
+  `web/src/app/conversation/recheck-notice.tsx`; `web/src/api/runs.ts`.
+- Touch: `web/src/api/schema.d.ts` (generated), `web/src/api/runs.ts`, `web/src/api/contract.yaml`,
+  `web/src/app/workflows/plan-page.tsx`, a new `web/src/app/workflows/recheck-control.tsx` and its
+  test, `web/src/app/workflows/contract.yaml`, `web/src/app/conversation/recheck-notice.tsx`,
+  `recheck-notice.test.tsx`, `web/src/app/conversation/notice-item.tsx`,
+  `web/src/app/conversation/contract.yaml`, the code map row.
+- Needs: B-206.
+- Done when: `npx vitest run src/app/workflows/recheck-control.test.tsx
+  src/app/conversation/recheck-notice.test.tsx` passes (idle with last result, no result,
+  running state, a click posts once with a command id, the all-passed card), then the task
+  checks in "Now".
+
+### F-138 · The recheck's terminal panel on the plan page
+- Status: done
+- Plan: none. Mockup agreed with Mohammed on 2026-11-24: a panel at the bottom of the plan
+  page, over the plan graph (which gets shorter). Its header reads "Project recheck", who began
+  it and when, the passed, failed and left counts, and a chevron that closes it. Its left column
+  lists every check of the batch (task and command) with a state icon (passed, failed, running,
+  waiting, not run); its right side shows the selected check's output in the mono font, line by
+  line as it arrives, kept scrolled to the end while it runs. The running check is selected
+  until the person picks another. Pressing "Recheck project" opens the panel. A terminal icon
+  button beside "Last project recheck" opens and closes it at any time, showing the newest
+  batch (its stored output once finished). While a recheck runs the button's place reads
+  "Rechecking… N of M".
+- Read: `docs/backend/stages.md` B-207; the two `/api/rechecks/{recheck}` routes in
+  `api/openapi.json`; `web/src/app/workflows/recheck-control.tsx`; `plan-page.tsx`.
+- Touch: `web/src/api/schema.d.ts` (generated), `web/src/api/runs.ts`, `web/src/api/contract.yaml`,
+  `web/src/app/workflows/plan-page.tsx`, `recheck-control.tsx` and its test, a new
+  `web/src/app/workflows/recheck-panel.tsx` and its test, `web/src/app/workflows/contract.yaml`, a new `web/src/stream/recheck-output.ts` (the
+  `EventSource` reader and its hook; only `stream/` opens one) and its test, its export in
+  `web/src/stream/index.ts`, `web/src/stream/contract.yaml`, the code map rows.
+- Needs: B-207.
+- Done when: `npx vitest run src/app/workflows/recheck-panel.test.tsx
+  src/app/workflows/recheck-control.test.tsx` passes (opens on Recheck, the icon opens and
+  closes it, live chunks append to the running check, selecting a finished check shows its
+  stored output, the counts), then the task checks in "Now".
+
+### Polling gives way to the event stream (F-139 to F-144)
+
+Agreed with Hamoud and approved by Mohammed on 2026-11-24. The client polls where an event
+already reaches it. F-139 to F-141 need no backend. F-142 to F-144 each drop a poll once
+Hamoud's matching task in `docs/backend/stages.md` journals the change: B-208 (thread list changes
+on the project tail), B-209 (`TaskProgressChanged` also when a check finishes or a conflict's delivery
+changes) and B-210 (RecheckStarted and RecheckFinished on the project tail). The facts this rests on:
+- `shell.tsx` holds the open project's stream at all times, and
+  `TaskProgressChanged {project_id, workflow_id, version, task, attempt_id}` reaches it. Core
+  writes it in the same write that records an attempt as running, before it answers Start.
+- `holdThreadRefresh` (`stream/refresh.ts`) already refreshes a thread's entries and operations.
+- External connections change only by the person's own issue or revoke, which already
+  invalidates the list.
+
+### F-139 · The recheck panel and external connections stop polling
+- Status: done
+- Plan: none (the section above). While the recheck panel holds a batch's output stream,
+  `lastRecheckQuery` is not read on an interval; with the panel closed it keeps today's 5 s read
+  while rows are unfinished (until F-144). A `finished` or `end` frame invalidates only that
+  workflow's `runKeys.recheck` and that batch's `runKeys.recheckRows`, not every run key.
+  `connectionsQuery` loses its 10 s interval.
+- Read: `web/src/stream/recheck-output.ts`, `web/src/app/workflows/recheck-panel.tsx`,
+  `recheck-control.tsx`, `lastRecheckQuery` and `recheckRowsQuery` in `web/src/api/runs.ts`,
+  `web/src/api/external-connections.ts`, `web/src/stream/contract.yaml`, `web/src/api/contract.yaml`.
+- Touch: `web/src/stream/recheck-output.ts` and its test, `web/src/api/runs.ts`, `web/src/api/runs.test.ts`,
+  `web/src/app/workflows/recheck-panel.tsx` and its test, `web/src/app/workflows/recheck-control.tsx`,
+  `web/src/api/external-connections.ts`, `web/src/api/contract.yaml`, `web/src/stream/contract.yaml`,
+  `web/src/app/workflows/contract.yaml`.
+- Needs: none.
+- Done when: `npx vitest run src/stream/recheck-output.test.tsx src/app/workflows/recheck-panel.test.tsx
+  src/app/workflows/recheck-control.test.tsx src/api/runs.test.ts` passes, with new cases: a
+  `finished` frame invalidates the batch's recheck and rows keys and leaves another task's run
+  key fresh; `lastRecheckQuery` has no interval while the panel streams a batch.
+
+### F-140 · Task progress follows the stream, not a 2 s read
+- Status: done
+- Plan: none (the section above). `classifyRefresh` maps `TaskProgressChanged` to that task's run
+  key, its attempts key and the plan's progress key (`workflow_id`, `version`, `task` from the
+  payload), through invalidate functions in `api/runs.ts` and `api/workflows.ts`. Then
+  `taskRunQuery`, `attemptsQuery` and `planProgressQuery` lose their 2 s intervals, and
+  `use-task-run.ts` drops `STARTING_READ_MS`. `run-tab.tsx` holds the executor's thread with
+  `holdThreadRefresh` on `attempt.thread_id` instead of reading entries and operations every 2 s.
+  Remove the "Known and left" line about `TaskProgressChanged` below.
+- Read: `web/src/stream/refresh.ts`, `web/src/stream/contract.yaml`, `taskRunQuery` and `attemptsQuery`
+  in `web/src/api/runs.ts`, `planProgressQuery` in `web/src/api/workflows.ts`,
+  `web/src/app/tasks/use-task-run.ts`, `web/src/app/tasks/run-tab.tsx`.
+- Touch: `web/src/stream/refresh.ts`, `web/src/stream/refresh.test.tsx`, `web/src/api/runs.ts`,
+  `web/src/api/runs.test.ts`, `web/src/api/workflows.ts`, `web/src/api/workflows.test.ts`,
+  `web/src/app/tasks/use-task-run.ts`, `web/src/app/tasks/run-tab.tsx`, `web/src/app/tasks/task-page.test.tsx`,
+  `web/src/api/contract.yaml`, `web/src/stream/contract.yaml`, `web/src/app/tasks/contract.yaml`,
+  this file.
+- Needs: none.
+- Done when: `npx vitest run src/stream/refresh.test.tsx src/api/runs.test.ts src/api/workflows.test.ts
+  src/app/tasks/task-page.test.tsx` passes, with new cases: `TaskProgressChanged` refreshes that
+  task's run, attempts and plan progress and no other task's; none of the three queries has an interval.
+
+### F-141 · The connection indicator reads the stream; code servers poll only while starting
+- Status: done
+- Plan: none (the section above). With a project open, `ConnectionIndicator` shows the project
+  stream's connection (`live` is Connected, `connecting` and `reconnecting` are Connecting,
+  `failed` is Not reachable) and the project list is not polled. With no project open, the
+  project list is read every 30 s, as today's reachability check. Never both. `stream/` gives the
+  connection through a hook beside `useProjectEvents`, from the subscriber's `onState`.
+  `codeServersQuery` is read every 5 s only while a server's state is `starting`.
+- Read: `web/src/app/daemon-status.tsx`, `projectsQuery` in `web/src/api/projects.ts`,
+  `web/src/stream/use-project-events.ts`, `web/src/stream/thread-registry.ts`,
+  `web/src/app/sidebar/sidebar.tsx`, `codeServersQuery` in `web/src/api/code.ts`, `ServerState`
+  in `web/src/api/schema.d.ts`.
+- Touch: `web/src/app/daemon-status.tsx`, a new `web/src/app/daemon-status.test.tsx`,
+  `web/src/app/sidebar/sidebar.tsx`, `web/src/api/projects.ts`, `web/src/api/projects.test.ts`,
+  `web/src/stream/use-project-events.ts` and its test, `web/src/stream/index.ts`, `web/src/api/code.ts`,
+  `web/src/api/code.test.ts`, `web/src/api/contract.yaml`, `web/src/stream/contract.yaml`,
+  the `contract.yaml` that covers `daemon-status.tsx`, the code map row.
+- Needs: none.
+- Done when: `npx vitest run src/app/daemon-status.test.tsx src/stream/use-project-events.test.tsx
+  src/api/projects.test.ts src/api/code.test.ts` passes, with cases: each stream connection shows
+  its label; with a project open the project list has no interval, without one it has 30 s;
+  code servers have an interval only while one is `starting`.
+
+### F-142 · Conversation lists follow the project stream
+- Status: done
+- Plan: none (the section above). After B-208, `threadsQuery` and `agentThreadsQuery` lose their
+  10 s intervals, and `ThreadRemoved` and a turn's end (the `Operation…` kinds) refresh `thread-lists` in
+  `classifyRefresh`; the filter in `dispatch` that drops `thread-lists` from a project scope goes.
+  `AgentList` holds the AYLUL project's stream itself with `useProjectEvents(agents.data?.project_id)`;
+  today it is only held because `GroupList` is drawn beside it.
+- Read: B-208 in `docs/backend/stages.md`, `web/src/stream/refresh.ts`, `web/src/api/threads.ts`,
+  `agentThreadsQuery` in `web/src/api/aylul-profiles.ts`, `web/src/app/sidebar/agent-list.tsx`.
+- Touch: `web/src/stream/refresh.ts`, `web/src/stream/refresh.test.tsx`, `web/src/api/threads.ts`,
+  `web/src/api/threads.test.ts`, `web/src/api/aylul-profiles.ts`, `web/src/api/aylul-profiles.test.ts`,
+  `web/src/app/sidebar/agent-list.tsx`, `web/src/app/sidebar/sidebar.test.tsx`, `web/src/api/contract.yaml`,
+  `web/src/stream/contract.yaml`, `web/src/app/sidebar/contract.yaml`.
+- Needs: B-208 (`e3195821`). On the project tail an event has no thread scope: `classifyRefresh` is called
+  with `threadId: null` there, so `ThreadRemoved` and the `Operation…` kinds map to `thread-lists` whatever the scope.
+- Done when: `npx vitest run src/stream/refresh.test.tsx src/api/threads.test.ts src/api/aylul-profiles.test.ts
+  src/app/sidebar/sidebar.test.tsx` passes, with cases: on a project stream `ThreadRetitled`, `ThreadRemoved` and
+  `OperationCompleted` refresh the thread lists; neither list query has an interval; `AgentList` holds the
+  AYLUL project's stream.
+
+### F-143 · Checks and a conflict's delivery follow the stream
+- Status: done
+- Plan: none (the section above). After B-209, `TaskProgressChanged` also refreshes `runKeys.checks`
+  and `runKeys.conflict` of its `attempt_id`, and `attemptChecksQuery` and `attemptConflictQuery` lose their 2 s intervals.
+- Read: B-209 in `docs/backend/stages.md`, `web/src/stream/refresh.ts`, `web/src/api/runs.ts`.
+- Touch: `web/src/stream/refresh.ts`, `web/src/stream/refresh.test.tsx`, `web/src/api/runs.ts`,
+  `web/src/api/runs.test.ts`, `web/src/api/contract.yaml`, `web/src/stream/contract.yaml`.
+- Needs: B-209 (`691af7f2`): `TaskProgressChanged` is also written when an attempt's check takes its result,
+  when a conflict is recorded and when its delivery leaves `pending`.
+- Done when: `npx vitest run src/stream/refresh.test.tsx src/api/runs.test.ts` passes, with cases:
+  `TaskProgressChanged` refreshes the checks and conflict of its `attempt_id` and no other attempt's;
+  neither query has an interval.
+
+### F-144 · The last recheck follows the stream
+- Status: done
+- Plan: none (the section above). After B-210, `lastRecheckQuery` has no interval at all;
+  RecheckStarted and RecheckFinished refresh it.
+- Read: B-210 in `docs/backend/stages.md`, `web/src/stream/refresh.ts`, `lastRecheckQuery` in `web/src/api/runs.ts`.
+- Touch: `web/src/stream/refresh.ts`, `web/src/stream/refresh.test.tsx`, `web/src/api/runs.ts`,
+  `web/src/api/runs.test.ts`, `web/src/stream/recheck-output.ts` and its test (the stream hold from F-139 goes),
+  `web/src/api/contract.yaml`, `web/src/stream/contract.yaml`.
+- Needs: B-210 (`37b1c186`): `RecheckStarted` and `RecheckFinished {project_id, workflow_id, recheck_id}` on the
+  project tail; `workflow_id` is the plan whose done mark or request began the batch.
+- Done when: `npx vitest run src/stream/refresh.test.tsx src/api/runs.test.ts src/stream/recheck-output.test.tsx`
+  passes, with cases: `RecheckStarted` and `RecheckFinished` refresh that workflow's recheck read and that batch's
+  rows; `lastRecheckQuery` has no interval.
 
 Every task's checks run from `web/`: the tests it names, then `npm run typecheck`, `npm run lint`,
 `npm run build` and `npx vitest run src/codemap.test.ts src/architecture`.
-
-### F-130 · The API domain and the stream refresh for the project's state
-
-- Status: done
-- Plan: [plans/2026-11-20-project-state-views.md#f-130--the-api-domain-and-the-stream-refresh](plans/2026-11-20-project-state-views.md#f-130--the-api-domain-and-the-stream-refresh)
-- Read:
-  - `web/src/api/contract.yaml`, `web/src/stream/contract.yaml` (`refresh_policy`);
-  - the shared request's Fields and "Refresh";
-  - `web/src/stream/refresh.ts`.
-- Touch:
-  - `web/src/api/schema.d.ts` (only by `npm run gen:api`);
-  - `web/src/api/error.ts`, `web/src/api/runs.ts` (`retryLost` moves, nothing else);
-  - `web/src/api/project-state.ts` (new), `web/src/api/project-state.test.ts` (new);
-  - `web/src/api/contract.yaml`;
-  - `web/src/stream/refresh.ts`, `web/src/stream/refresh.test.tsx`, `web/src/stream/contract.yaml`;
-  - `docs/frontend/codebase/README.md` (two rows).
-- Not: any file under `web/src/app/`; `web/src/stream/use-project-events.ts`;
-  `web/src/stream/thread-registry.ts`.
-- Needs: the shared request (accepted); B-177 to B-180 and B-187 built.
-- Done when, run with `npx vitest run src/api/project-state.test.ts src/stream/refresh.test.tsx src/api/groups.test.ts src/stream/use-project-events.test.tsx`:
-  - `project_state_events_refetch_the_state_and_the_elements` (all 12 kinds);
-  - `a_design_element_change_refetches_only_that_elements_revisions`;
-  - `task_progress_and_record_changes_name_only_the_project_state`;
-  - `replayed_state_events_reconcile_the_state_once_at_caught_up`;
-  - `the_state_read_sends_part_id_only_when_asked`;
-  - `the_reads_retry_only_a_lost_call`;
-  - every earlier test in those files still passes;
-  - the four standard checks pass.
-
-### F-131 · The state page and the state view
-
-- Status: done
-- Plan: [plans/2026-11-20-project-state-views.md#f-131--the-state-page-and-the-state-view](plans/2026-11-20-project-state-views.md#f-131--the-state-page-and-the-state-view)
-- Read:
-  - the plan's "Where the screens live" and "What is reused";
-  - `web/src/app/design/workspace-page.tsx`;
-  - `web/src/router.tsx` (`workspaceRoute`, `agreementsRoute`);
-  - `web/src/stream/use-project-events.test.tsx` (the integration pattern);
-  - `docs/frontend/codebase/README.md` ("Architecture modules").
-- Touch:
-  - `web/src/router.tsx`;
-  - `web/src/app/design/workspace-page.tsx` (one `Link`);
-  - `web/src/app/project-state/index.ts`, `state-page.tsx`, `state-badge.tsx`, `state-view.tsx`,
-    `state-view.test.tsx`, `contract.yaml` (all new);
-  - `docs/frontend/codebase/README.md` (rows, the `project-state` module row, `composition`'s
-    dependencies, the Contracts list).
-- Not: `web/src/api/`, `web/src/stream/`, any other file in `web/src/app/design/`.
-- Needs: F-130.
-- Done when, run with `npx vitest run src/app/project-state/state-view.test.tsx src/app/design`:
-  - the nine tests the plan names for F-131 pass;
-  - the design folder's tests still pass;
-  - the four standard checks pass.
-
-### F-132 · The element panel and the ER diagram
-
-- Status: done
-- Plan: [plans/2026-11-20-project-state-views.md#f-132--the-element-panel-and-the-er-diagram](plans/2026-11-20-project-state-views.md#f-132--the-element-panel-and-the-er-diagram)
-- Read:
-  - `web/src/app/design/map-canvas.tsx`;
-  - `web/src/app/workflows/layout.ts` (`placeGraph`, `handles`);
-  - `web/src/app/workflows/flow-theme.ts`;
-  - `web/src/app/project-state/contract.yaml`;
-  - the shared request's "Reading the shapes".
-- Touch:
-  - `web/src/app/element-content.tsx` (new, shared);
-  - `web/src/app/project-state/diagram-layout.ts`, `diagram-layout.test.ts`, `element-canvas.tsx`,
-    `element-panel.tsx`, `tables-view.tsx`, `tables-view.test.tsx` (all new);
-  - `web/src/app/project-state/state-page.tsx`, `web/src/app/project-state/contract.yaml`;
-  - `docs/frontend/codebase/README.md` (rows; `app/element-content.tsx` in the `shared` row).
-- Not: `web/src/app/design/`, `web/src/app/workflows/`, `web/src/api/`, `web/src/stream/`,
-  `web/src/router.tsx`.
-- Needs: F-131.
-- Done when, run with `npx vitest run src/app/project-state`:
-  - the four layout tests and the seven tables-view tests the plan names pass;
-  - F-131's tests still pass;
-  - the four standard checks pass.
-
-### F-133 · The screen flow
-
-- Status: done
-- Plan: [plans/2026-11-20-project-state-views.md#f-133--the-screen-flow](plans/2026-11-20-project-state-views.md#f-133--the-screen-flow)
-- Read: `web/src/app/project-state/tables-view.tsx`, `web/src/app/project-state/contract.yaml`.
-- Touch:
-  - `web/src/app/project-state/screens-view.tsx`, `screens-view.test.tsx` (new);
-  - `web/src/app/project-state/state-page.tsx`, `web/src/app/project-state/contract.yaml`;
-  - `docs/frontend/codebase/README.md` (rows);
-  - only as the plan allows: `web/src/app/project-state/elements-view.tsx` (new) and
-    `tables-view.tsx`.
-- Not: anything outside `web/src/app/project-state/` but the code map.
-- Needs: F-132.
-- Done when, run with `npx vitest run src/app/project-state`:
-  - the four screens-view tests pass;
-  - every earlier test in the folder still passes;
-  - the four standard checks pass.
-
-### F-134 · Pinned elements in plan review and in the attempt brief
-
-- Status: done
-- Plan: [plans/2026-11-20-project-state-views.md#f-134--pinned-elements-in-plan-review-and-in-the-brief](plans/2026-11-20-project-state-views.md#f-134--pinned-elements-in-plan-review-and-in-the-brief)
-- Read:
-  - `web/src/app/workflows/contract.yaml`, `web/src/app/tasks/contract.yaml`;
-  - `web/src/app/workflows/inspect-panel.tsx`, `web/src/app/tasks/brief-panel.tsx`;
-  - the shared request's "Plan review and the task brief".
-- Touch:
-  - `web/src/app/workflows/inspect-panel.tsx`, `web/src/app/workflows/plan-page.test.tsx`,
-    `web/src/app/workflows/contract.yaml`;
-  - `web/src/app/tasks/brief-panel.tsx`, `web/src/app/tasks/task-page.test.tsx`,
-    `web/src/app/tasks/contract.yaml`.
-- Not: `web/src/api/`, `web/src/app/element-content.tsx` (used as F-132 left it), any other file.
-- Needs: F-132; B-177 built (its fields are in the schema F-130 generated).
-- Done when, run with `npx vitest run src/app/workflows/plan-page.test.tsx src/app/tasks/task-page.test.tsx`:
-  - `the_inspect_panel_lists_pinned_elements_by_name`;
-  - `a_pin_whose_element_is_not_read_shows_its_id`;
-  - `the_brief_lists_its_pinned_revisions_in_full`;
-  - `a_brief_without_elements_has_no_pinned_section`;
-  - every earlier test in both files still passes;
-  - the four standard checks pass.
-
-### F-135 · `code_where` in the web
-
-- Status: done
-- Plan: [plans/2026-11-20-project-state-views.md#f-135--code_where-in-the-web](plans/2026-11-20-project-state-views.md#f-135--code_where-in-the-web)
-- Read:
-  - `docs/shared/requests/2026-11-19-code-where.md` (Fields, "Who uses a symbol", Errors);
-  - `web/src/api/contract.yaml`, `web/src/app/project-state/contract.yaml`.
-- Touch:
-  - `web/src/api/schema.d.ts` (only by `npm run gen:api`);
-  - `web/src/api/code-record.ts`, `web/src/api/code-record.test.ts` (new);
-  - `web/src/api/contract.yaml`;
-  - `web/src/app/project-state/where-view.tsx`, `where-view.test.tsx` (new);
-  - `web/src/app/project-state/state-page.tsx`, `web/src/app/project-state/contract.yaml`;
-  - `docs/frontend/codebase/README.md` (rows).
-- Not: `web/src/stream/` (a question is never asked again by an event); `web/src/router.tsx`
-  (F-131 defined `topic`); `web/src/api/code.ts`.
-- Needs: the shared request (accepted); B-182, B-183 and B-185 built; F-132.
-- Done when, run with `npx vitest run src/api/code-record.test.ts src/app/project-state`:
-  - the two API tests and the eleven where-view tests the plan names pass;
-  - every earlier test in the folder still passes;
-  - the four standard checks pass.
-
-### F-136 · The where view shows each symbol's contract inputs and return
-
-- Status: done (built in the whole-branch review)
-- Plan: this entry (an addition to F-135's symbol block; the plan's F-135 section is the rest).
-- Read:
-  - `docs/shared/requests/2026-11-19-code-where.md` (the 2026-11-21 amendment and its
-    re-review);
-  - `web/src/app/project-state/where-view.tsx` (the symbol block);
-  - `web/src/app/project-state/where-view.test.tsx` (the `symbol` fixture).
-- Touch:
-  - `web/src/api/schema.d.ts` (only by `npm run gen:api`, run first);
-  - `web/src/app/project-state/where-view.tsx`, `where-view.test.tsx`;
-  - `web/src/app/project-state/contract.yaml` (the two tests under the where view's obligations).
-- Not: `web/src/api/code-record.ts` (`SymbolEntry` already comes from the schema); any other
-  view; `web/src/stream/`.
-- Needs: B-189 built; F-135.
-- The symbol block, after `Line {line}` and before `behavior`, shows Core's values as given:
-  - when `inputs` is not empty: a list (`aria-label="Inputs"`), one item per input in Core's
-    order, reading `{name}: {type_name} · {meaning}`;
-  - when `returns` is present: `Returns {type_name} · {meaning}`;
-  - nothing for an empty `inputs` or an absent `returns`; no text is parsed or inferred.
-- The `symbol` fixture gains `inputs: []`; no other earlier test changes.
-- Done when, run with `npx vitest run src/app/project-state`:
-  - `a_symbol_shows_its_contract_inputs_and_return` (two inputs in order, and the return line);
-  - `a_symbol_with_no_inputs_or_return_shows_neither` (no `Inputs` list, no `Returns`);
-  - every earlier test in the folder still passes;
-  - the four standard checks pass.
 
 ### Shipped
 
@@ -212,6 +215,7 @@ A shipped task's entry, and its plan once deleted, are in this file in Git at th
 | #71 | Executor choice on a task and in a new conversation | F-125 | `0e281585` |
 | #72 | Settings › Code as one collapsible row, the plan page's real progress (its read is in `docs/backend/stages.md` at `753b26a4`), the visual acceptances recorded | F-126 to F-128 | `753b26a4` |
 | #73 | The Report tab shows the `contract` check as Shadows' own (F-129; plan `docs/backend/plans/2026-11-19-code-record.md` at `7b7abec`) | F-129 | `7b7abec` |
+| #75 | The project's state view, its ER diagram and screen flow, pinned elements in plan review and in the attempt brief, `code_where` and its contract inputs and return (the shared requests `docs/shared/requests/2026-11-19-project-state-and-diagrams.md` and `docs/shared/requests/2026-11-19-code-where.md`) | F-130 to F-136 | `4d69977d` |
 
 Dropped without being built: F-99 and F-101 (covered by F-102's brief panel and F-116's server list; the rest is in [future](../core/future.md)), F-100 (with B-102), F-104 and F-105 (with the repair plan; slice 6 replanned them as F-121 to F-124). Their entries and plan are at `d997393a`.
 

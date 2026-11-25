@@ -328,7 +328,7 @@ and `layout` (CodeRecord → Design; Design depends on no service that depends o
    entries written on done and removed on not done. On `main` in PR #73 (`7b7abec`).
 2. **The project's state, its diagrams and `code_where`** (Mohammed, 2026-11-19): two plans, both
    built and delivered on one branch (`ccr-9e1b02d8-b0ylm1`).
-   - **2a** ([plan](../plans/2026-11-19-code-record-2a.md)): Design's elements; pins in the
+   - **2a** (plan `docs/backend/plans/2026-11-19-code-record-2a.md` at `4d69977d`): Design's elements; pins in the
      contract and the executor's task context; the record of pinned elements and their states;
      `project_state` (MCP tool and route); the routes and events the web's state view, ER diagram
      and screen flow need, after the shared request
@@ -336,7 +336,7 @@ and `layout` (CodeRecord → Design; Design depends on no service that depends o
      to read the state and write elements; acceptance on a real provider: a second plan pins the
      first plan's tables and screens by id from `project_state`, writes no duplicate, and the
      diagrams show them with their states in the browser.
-   - **2b** ([plan](../plans/2026-11-19-code-record-2b.md)): `code_where` (§5.3), owned by
+   - **2b** (plan `docs/backend/plans/2026-11-19-code-record-2b.md` at `4d69977d`): `code_where` (§5.3), owned by
      CodeRecord, its MCP tool and route (after the shared request
      `docs/shared/requests/2026-11-19-code-where.md` is accepted), the Planner told to ask it
      before naming a file, and its acceptance: a second plan names the first plan's files without

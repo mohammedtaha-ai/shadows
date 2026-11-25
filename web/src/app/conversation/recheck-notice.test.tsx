@@ -6,6 +6,7 @@ import { createRoot } from 'react-dom/client'
 import { afterEach, expect, it, vi } from 'vitest'
 import type { CheckResult, RecheckNotice } from '@/api/runs'
 import { NoticeItem } from './notice-item'
+import { RecheckNoticeItem } from './recheck-notice'
 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
@@ -87,4 +88,14 @@ it('a_failing_task_links_to_its_own_version', async () => {
   const links = [...host.querySelectorAll('a')].map(link => link.getAttribute('href'))
   expect(links).toContain('/projects/p1/workflows/w1/versions/2/tasks/3')
   expect(links).toContain('/projects/p1/workflows/w2/versions/1/tasks/1')
+})
+
+it('an_all_passed_recheck_is_a_success_card_with_its_body', async () => {
+  const host = document.createElement('div')
+  document.body.append(host)
+  await act(async () => createRoot(host).render(
+    <RecheckNoticeItem recheck={{ ...recheck, failed: [] }} projectId="p1" body="Every check still passes." />))
+  expect(host.textContent).toContain('Project recheck passed')
+  expect(host.textContent).toContain('Every check still passes.')
+  expect(host.textContent).not.toContain('These done tasks no longer pass')
 })

@@ -1,7 +1,7 @@
 # Section 15 — The Code Index (Milestone 3)
 
 - **Date:** 2026-09-30
-- **Status:** Designed with Mohammed on 2026-09-30. Built (`core-code`, `shadows-index`).
+- **Status:** Designed with Mohammed on 2026-09-30. Built (`codebase`, formerly `core-code`; `shadows-index`).
 - **Idea:** `docs/core/vision.md` §2.4, "Where is X?".
 
 An agent asks Shadows where something is, and Shadows answers with the name,
@@ -113,7 +113,7 @@ shadows-http ─┼─► shadows-core ─── Code ────┤
 - **`shadows-index`** has one job: a file's text in, its tags out. It knows
   nothing of SQLite, projects or the daemon. `shadows-core` depends on it, as
   it depends on `shadows-agent`.
-- **`Code`**, in `crates/core-code/`, owns the index of every
+- **`Code`**, in `crates/codebase/` (named `crates/core-code/` when written), owns the index of every
   project: scanning, watching, the active set, links and the questions. It has
   its `contract.yaml` (§14.7). Its files:
   - `mod.rs`: the service's methods;

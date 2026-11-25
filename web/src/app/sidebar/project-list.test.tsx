@@ -134,11 +134,11 @@ describe('the project tree', () => {
     expect(a.calls.filter((c) => c.endsWith('/threads') && c.startsWith('POST'))).toEqual([])
   })
 
-  it('an open project’s conversations are polled, so a title the harness sends later shows', async () => {
+  it('an open project’s conversations are not polled; its stream refreshes them', async () => {
     const a = (app = await startApp('/projects/p1/threads/t1', twoProjects()))
     await until(() => link('Conversation 1') !== undefined)
     const query = a.queryClient.getQueryCache().find({ queryKey: threadsQuery('p1').queryKey })
-    expect(query?.options).toMatchObject({ refetchInterval: 10_000 })
+    expect(query?.options).not.toHaveProperty('refetchInterval')
   })
 
   it('the filter narrows projects by name and by directory, and says when nothing matches', async () => {

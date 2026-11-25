@@ -4,8 +4,13 @@ use core_db::Storage;
 
 #[tokio::test]
 async fn fresh_database_migrates_and_applies_the_connection_policy() {
+    // A folder name that reads as percent-encoding is opened as written: beside it, the
+    // decoded name must stay empty.
     let tmp = tempfile::tempdir().unwrap();
-    let db = tmp.path().join("shadows.sqlite3");
+    let (literal, decoded) = (tmp.path().join("team%20A"), tmp.path().join("team A"));
+    std::fs::create_dir(&literal).unwrap();
+    std::fs::create_dir(&decoded).unwrap();
+    let db = literal.join("shadows.sqlite3");
     let storage = Storage::open(&db).await.expect("open should succeed");
 
     let journal: String = sqlx::query_scalar("PRAGMA journal_mode")
@@ -143,4 +148,35 @@ async fn fresh_database_migrates_and_applies_the_connection_policy() {
     );
 
     storage.close().await.unwrap();
+    assert!(db.is_file(), "the database is at the path asked for");
+    assert_eq!(
+        std::fs::read_dir(&decoded).unwrap().count(),
+        0,
+        "nothing in the decoded path"
+    );
+}
+
+#[test]
+fn now_always_writes_nine_fraction_digits() {
+    for _ in 0..2000 {
+        let now = Storage::now();
+        assert_eq!(
+            now.len(),
+            30,
+            "fixed width so text order is time order: {now}"
+        );
+        assert!(now.ends_with('Z') && now.as_bytes()[19] == b'.', "{now}");
+    }
+}
+
+#[test]
+fn an_instant_reads_any_stored_width_in_time_order() {
+    let at = |text| Storage::instant(text).unwrap();
+    assert!(at("2026-11-25T12:00:00.1Z") < at("2026-11-25T12:00:00.12Z"));
+    assert!(at("2026-11-25T12:00:00Z") < at("2026-11-25T12:00:00.5Z"));
+    assert_eq!(
+        at("2026-11-25T12:00:00.5Z"),
+        at("2026-11-25T12:00:00.500000000Z")
+    );
+    assert!(Storage::instant("not a time").is_err());
 }

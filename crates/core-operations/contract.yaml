@@ -125,7 +125,7 @@ shared_in_transaction:
   insert_pending_in: Turns commits Pending with the user entry and command record.
   list_operations_for_thread_in: Turns composes the invocation-enriched listing from durable rows.
   read_before: Internal transition snapshot under the write lock.
-  record: Internal operation event journaling in the same transaction.
+  record: Internal operation event journaling in the same transaction; a turn's end also carries its thread's project (Threads::project_in), so the project stream sees it.
   request_cancellation_in: Turns records the request before checking the live handle.
   require_running_in: Design and Plans check authority before provenance in their write.
   require_status_in: Turns checks Running before writing observations.

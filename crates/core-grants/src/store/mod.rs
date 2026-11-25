@@ -223,7 +223,10 @@ impl GrantsStore {
     pub(super) async fn prepare_draft(&self, grant: &GrantId) -> Result<String, GrantsError> {
         let grant = grant.clone();
         let issued = time::OffsetDateTime::now_utc();
-        let (created, expires) = (rfc3339(issued), rfc3339(issued + DRAFT_REF_LIFETIME));
+        let (created, expires) = (
+            Storage::format_time(issued),
+            Storage::format_time(issued + DRAFT_REF_LIFETIME),
+        );
         self.storage
             .write_txn_as(move |conn| {
                 Box::pin(async move {
@@ -417,10 +420,6 @@ impl Grants {
     }
 }
 
-fn rfc3339(at: time::OffsetDateTime) -> String {
-    at.format(&time::format_description::well_known::Rfc3339)
-        .expect("RFC3339 formatting cannot fail")
-}
 impl Grants {
     pub async fn check_writer(
         conn: &mut SqliteConnection,

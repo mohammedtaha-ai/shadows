@@ -578,6 +578,7 @@ checksum = "0c9ea0ac24bc397ab3c98583a3c9ba74fa56b09a4449bbe172b9b1ddb016027a"
 name = "code-record"
 version = "0.1.0"
 dependencies = [
+ "code-record",
  "codebase",
  "core-db",
  "core-design",
@@ -729,6 +730,7 @@ dependencies = [
  "core-operations",
  "core-plans",
  "core-projects",
+ "core-runtime",
  "core-threads",
  "core-turns",
  "serde",

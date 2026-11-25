@@ -7,12 +7,14 @@
 
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use std::time::Duration;
 
 use shadows_index::language_for;
 
 use super::Codebase;
 use super::model::{InventoryPage, InventoryQuery, InventoryState};
+use super::scan::Only;
 use super::scope::Asker;
 use super::store::InventoryRow;
 use super::watch::Job;
@@ -81,16 +83,20 @@ impl Codebase {
     }
 }
 
-/// Lists `dir` (blocking). The ignore walk decides what is ignored; the
-/// folder's own entries, read one folder at a time, decide what is listed.
-fn listed(dir: &Path) -> Listed {
+/// The keys the listing's ignore walk yields (blocking), limited to `only`
+/// when given, and whether an entry could not be read.
+fn walked(dir: &Path, only: Option<Arc<Only>>) -> (HashSet<String>, bool) {
     let mut incomplete = false;
     let mut seen = HashSet::new();
+    let root = dir.to_path_buf();
     let walk = Codebase::walker(dir, false)
-        .filter_entry(|e| {
+        .filter_entry(move |e| {
             let is_dir = e.file_type().is_some_and(|t| t.is_dir());
             let name = e.file_name().to_str();
             !(is_dir && name.is_some_and(|n| n == ".git" || Codebase::never_walked(n)))
+                && only
+                    .as_ref()
+                    .is_none_or(|only| only.holds(&root, e.path(), is_dir))
         })
         .build();
     for entry in walk {
@@ -103,6 +109,71 @@ fn listed(dir: &Path) -> Listed {
             Err(_) => incomplete = true,
         }
     }
+    (seen, incomplete)
+}
+
+/// How the listing shows one entry, by the first rule that decides: its
+/// kind and why it is excluded; `None` for one it does not list.
+fn entry_kind(
+    name: &str,
+    kind: std::fs::FileType,
+    walked: bool,
+) -> Option<(&'static str, Option<&'static str>)> {
+    if name == ".git" {
+        None
+    } else if kind.is_dir() && Codebase::never_walked(name) {
+        Some(("excluded", Some("dependencies")))
+    } else if Codebase::secret_name(name) {
+        Some(("excluded", Some("secret")))
+    } else if kind.is_symlink() {
+        Some(("excluded", Some("link")))
+    } else if !walked {
+        Some(("excluded", Some("ignored")))
+    } else if kind.is_dir() {
+        Some(("directory", None))
+    } else if kind.is_file() {
+        Some(("file", None))
+    } else {
+        None
+    }
+}
+
+impl Codebase {
+    /// Of `paths`, the keys of those a listing made now would hold as files
+    /// (blocking): each folder on the way listed as a directory, the path
+    /// itself as a file. A folder, an ignored path, a secret, a link or a path
+    /// not on disk is not among them.
+    pub(super) fn listed_now(dir: &Path, paths: &[String]) -> HashSet<String> {
+        let (seen, _) = walked(dir, Some(Only::over(paths)));
+        let file = |path: &str| {
+            let parts: Vec<&str> = path.split('/').collect();
+            (1..=parts.len()).all(|depth| {
+                let at = parts[..depth].join("/");
+                let Ok(meta) = std::fs::symlink_metadata(dir.join(&at)) else {
+                    return false;
+                };
+                let walked = seen.contains(&Codebase::path_key(&at));
+                let want = if depth == parts.len() {
+                    "file"
+                } else {
+                    "directory"
+                };
+                entry_kind(parts[depth - 1], meta.file_type(), walked)
+                    .is_some_and(|(kind, _)| kind == want)
+            })
+        };
+        paths
+            .iter()
+            .filter(|p| !p.is_empty() && file(p))
+            .map(|p| Codebase::path_key(p))
+            .collect()
+    }
+}
+
+/// Lists `dir` (blocking). The ignore walk decides what is ignored; the
+/// folder's own entries, read one folder at a time, decide what is listed.
+fn listed(dir: &Path) -> Listed {
+    let (seen, mut incomplete) = walked(dir, None);
     let mut rows = Vec::new();
     let mut stamps = HashMap::new();
     let mut folders = vec![String::new()];
@@ -129,28 +200,17 @@ fn listed(dir: &Path) -> Listed {
                 format!("{folder}/{name}")
             };
             let key = Codebase::path_key(&path);
-            let listed = if name == ".git" {
-                None
-            } else if kind.is_dir() && Codebase::never_walked(&name) {
-                Some(("excluded", Some("dependencies")))
-            } else if Codebase::secret_name(&name) {
-                Some(("excluded", Some("secret")))
-            } else if kind.is_symlink() {
-                Some(("excluded", Some("link")))
-            } else if !seen.contains(&key) {
-                Some(("excluded", Some("ignored")))
-            } else if kind.is_dir() {
-                folders.push(path.clone());
-                Some(("directory", None))
-            } else if kind.is_file() {
-                // Asked of the file itself: Windows' directory entry can lag a write.
-                if let Ok(meta) = std::fs::symlink_metadata(dir.join(&path)) {
-                    stamps.insert(path.clone(), Codebase::stamp(&meta));
+            let listed = entry_kind(&name, kind, seen.contains(&key));
+            match listed {
+                Some(("directory", _)) => folders.push(path.clone()),
+                Some(("file", _)) => {
+                    // Asked of the file itself: Windows' directory entry can lag a write.
+                    if let Ok(meta) = std::fs::symlink_metadata(dir.join(&path)) {
+                        stamps.insert(path.clone(), Codebase::stamp(&meta));
+                    }
                 }
-                Some(("file", None))
-            } else {
-                None
-            };
+                _ => {}
+            }
             if let Some((kind, excluded_reason)) = listed {
                 rows.push(InventoryRow {
                     path_key: key,

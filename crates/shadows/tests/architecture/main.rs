@@ -293,7 +293,9 @@ fn code_record_depends_only_on_declared_lower_owners() {
         .find(|entry| entry.lines().any(|line| line == r#"name = "code-record""#))
         .expect("code-record is a workspace package");
     // core-operations is a dev-dependency only: the fixtures build the Design they pass in.
+    // code-record itself is a dev-dependency too: its tests enable its own test-support.
     let owners = [
+        "code-record",
         "codebase",
         "core-db",
         "core-design",
@@ -638,6 +640,69 @@ fn extracted_turns_depends_only_on_declared_lower_owners() {
 }
 
 #[test]
+fn extracted_runs_depends_only_on_declared_lower_owners() {
+    // Runs calls each of these through AppCore's wiring (its contract names the calls).
+    let owners = [
+        "code-record",
+        "codebase",
+        "core-db",
+        "core-grants",
+        "core-harness",
+        "core-operations",
+        "core-plans",
+        "core-projects",
+        "core-threads",
+        "core-turns",
+    ];
+    for name in internal_dependencies("core-runs") {
+        assert!(
+            (!name.starts_with("shadows")
+                || ["shadows-agent", "shadows-process"].contains(&name.as_str()))
+                && (!scanner::service_crate(&name) || owners.contains(&name.as_str())),
+            "runs must depend only on lower owners and infrastructure: {name}"
+        );
+    }
+}
+
+#[test]
+fn extracted_messages_depends_only_on_declared_lower_owners() {
+    let owners = [
+        "codebase",
+        "core-agents",
+        "core-db",
+        "core-events",
+        "core-projects",
+        "core-providers",
+        "core-secrets",
+        "core-threads",
+        "core-turns",
+    ];
+    for name in internal_dependencies("core-messages") {
+        assert!(
+            (!name.starts_with("shadows") || name == "shadows-agent")
+                && (!scanner::service_crate(&name) || owners.contains(&name.as_str())),
+            "messages must depend only on lower owners and infrastructure: {name}"
+        );
+    }
+}
+
+/// The dependency names `Cargo.lock` lists for workspace package `package`.
+fn internal_dependencies(package: &str) -> Vec<String> {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let lock = std::fs::read_to_string(root.join("Cargo.lock")).unwrap();
+    let header = format!(r#"name = "{package}""#);
+    let entry = lock
+        .split("[[package]]")
+        .find(|entry| entry.lines().any(|line| line == header))
+        .unwrap_or_else(|| panic!("{package} is a workspace package"));
+    entry
+        .lines()
+        .filter(|line| line.trim_start().starts_with('"'))
+        .map(|line| line.trim().trim_matches(',').trim_matches('"').to_string())
+        .collect()
+}
+
+#[test]
 fn extracted_project_lifecycle_depends_only_on_declared_lower_owners() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     let lock = std::fs::read_to_string(root.join("Cargo.lock")).unwrap();
@@ -699,7 +764,10 @@ fn extracted_events_depends_only_on_declared_lower_owners() {
                         "core-projects",
                         "core-threads",
                         "core-turns",
-                        "core-events"
+                        "core-events",
+                        // Below operations; the tests register a runtime instance
+                        // to end a turn.
+                        "core-runtime"
                     ]
                     .contains(&name)),
             "events must depend only on lower owners and infrastructure: {name}"

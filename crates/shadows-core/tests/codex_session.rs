@@ -329,6 +329,29 @@ async fn codex_failed_setup_revokes_the_grant() {
 }
 
 #[tokio::test]
+async fn a_codex_start_past_setup_wait_names_what_codex_logged() {
+    let root = tempfile::tempdir().unwrap();
+    let home = root.path().join("codex-home");
+    std::fs::create_dir(&home).unwrap();
+    std::fs::write(home.join("slow-codex-start"), "").unwrap();
+    let w = World::start_with(root, fixture_executable(), home).await;
+    let error = w
+        .core
+        .harness()
+        .open(&w.thread)
+        .await
+        .err()
+        .expect("a start that never answers fails at setup_wait");
+    assert_eq!(
+        error.to_string(),
+        "harness start failed: harness setup timed out; the harness logged: \
+         failed to refresh available models: request timed out"
+    );
+    assert_eq!(w.core.harness().live_count().await, 0);
+    w.close().await;
+}
+
+#[tokio::test]
 async fn codex_approval_waits_for_the_person() {
     let w = World::start(false).await;
     let operation = w.send_in(CODEX_ASK, "refusal", "approval").await;
@@ -566,11 +589,14 @@ async fn codex_each_mode_sends_its_sandbox_and_approval() {
     for (mode, words) in [
         (
             CODEX_READ_ONLY,
-            r#"sandbox="readOnly" approval="never" reviewer="user""#,
+            r#"sandbox="readOnly" permissions=null approval="never" reviewer="user""#,
         ),
         (
             CODEX_ASK,
-            r#"sandbox="workspaceWrite" approval="on-request" reviewer="auto_review""#,
+            concat!(
+                r#"sandbox=null permissions="shadows_ask" "#,
+                r#"approval="on-request" reviewer="auto_review""#
+            ),
         ),
     ] {
         let op = w.send_in(mode, mode, "settings").await;
@@ -979,6 +1005,72 @@ async fn live_a_codex_planner_reads_a_file_and_writes_none() {
     w.close().await;
 }
 
+/// In `ask`, Codex commits in the project with no approval round, while a hook write and
+/// `git config` stay refused: a hook or `core.hooksPath` would run outside the sandbox.
+#[ignore = "live: needs codex (SHADOWS_CODEX_PATH) signed in to a dedicated home \
+            (SHADOWS_CODEX_HOME)"]
+#[tokio::test]
+async fn live_a_codex_conversation_in_ask_commits_but_keeps_hooks_and_config() {
+    let root = tempfile::tempdir().unwrap();
+    let directory = root.path().join("project");
+    std::fs::create_dir_all(&directory).unwrap();
+    let git = |args: &[&str]| {
+        std::process::Command::new("git")
+            .current_dir(&directory)
+            .args(args)
+            .output()
+            .unwrap()
+    };
+    for args in [
+        &["init", "-q"][..],
+        &["config", "user.name", "Probe"],
+        &["config", "user.email", "probe@example.invalid"],
+        &["commit", "-q", "--allow-empty", "-m", "start"],
+    ] {
+        assert!(git(args).status.success(), "git {args:?}");
+    }
+    let w = World::start_live(root).await;
+    let choices = w.core.harness().open_session(&w.thread).await.unwrap();
+    assert_eq!(choices.current.mode, CODEX_ASK);
+    let current = choices.current;
+    let send = SendTurn {
+        mode: CODEX_ASK.into(),
+        ..turn(
+            "probe",
+            "The person asks you to check this conversation's sandbox. Run each step below as \
+             its own shell command, once, and never request approval or escalation; when a \
+             step is refused, go on to the next. 1. Create the file probe.txt containing \
+             probe. 2. git add probe.txt 3. git commit -m \"sandbox probe\" 4. Create the \
+             file .git/hooks/probe-hook containing x. 5. git config core.hooksPath probe \
+             Then report each step's outcome in one line.",
+            &current.model,
+            current.effort.as_deref(),
+        )
+    };
+    let operation = w.core.turns().send(w.thread.clone(), send).await.unwrap();
+    let done = w
+        .settled_within(&w.thread, &operation, Duration::from_secs(300))
+        .await;
+    assert_eq!(done.status_kind, "Completed", "{done:?}");
+    let written = w.written(&w.thread, &operation).await;
+    let log = String::from_utf8(git(&["log", "--format=%s"]).stdout).unwrap();
+    assert!(
+        log.lines().any(|line| line == "sandbox probe"),
+        "{log}\n{written:#?}"
+    );
+    assert!(
+        !directory.join(".git/hooks/probe-hook").exists(),
+        "a hook write must be refused"
+    );
+    let hooks = git(&["config", "--get", "core.hooksPath"]);
+    assert!(
+        hooks.stdout.is_empty(),
+        "git config must be refused: {}",
+        String::from_utf8_lossy(&hooks.stdout)
+    );
+    w.close().await;
+}
+
 /// A Codex turn receives an attached image and names its colour.
 #[ignore = "live: needs codex (SHADOWS_CODEX_PATH) signed in to a dedicated home \
             (SHADOWS_CODEX_HOME)"]
@@ -1069,7 +1161,7 @@ impl World {
 #[tokio::test]
 async fn a_matching_newer_codex_opens() {
     let w = World::start_codex(&[
-        ("fake-codex-version", "0.170.0"),
+        ("fake-codex-version", "0.172.0"),
         ("fake-codex-protocol", "added"),
     ])
     .await;
@@ -1104,7 +1196,7 @@ async fn an_older_codex_is_refused_without_a_check() {
     let w = World::start_codex(&[("fake-codex-version", "0.168.0")]).await;
     let codex = w.codex_listed().await;
     assert_eq!(codex["available"], false);
-    assert_eq!(codex["reason"], "Codex CLI 0.169.0 or later is required");
+    assert_eq!(codex["reason"], "Codex CLI 0.171.0 or later is required");
     w.close().await;
 }
 
@@ -1148,7 +1240,7 @@ async fn a_codex_upgraded_while_running_is_checked_again() {
     let w = World::start_codex(&[]).await;
     w.core.harness().open_session(&w.thread).await.unwrap();
     w.core.harness().terminate(&w.thread).await.unwrap();
-    std::fs::write(w.codex_home().join("fake-codex-version"), "0.170.0").unwrap();
+    std::fs::write(w.codex_home().join("fake-codex-version"), "0.172.0").unwrap();
     let refused = w
         .core
         .harness()
@@ -1156,7 +1248,7 @@ async fn a_codex_upgraded_while_running_is_checked_again() {
         .await
         .unwrap_err()
         .to_string();
-    assert!(refused.contains("changed to 0.170.0"), "{refused}");
+    assert!(refused.contains("changed to 0.172.0"), "{refused}");
     w.core.harness().open_session(&w.thread).await.unwrap();
     assert_eq!(w.core.harness().codex_checks_for_test(), 2);
     w.close().await;

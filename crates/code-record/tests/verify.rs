@@ -298,3 +298,43 @@ async fn live_a_file_no_server_reads_is_unchecked() {
     );
     f.close().await;
 }
+
+/// Files whose language server is still starting share one start wait per verification:
+/// three such files take one wait, not one each.
+#[tokio::test]
+async fn files_of_a_starting_server_share_one_start_wait() {
+    use std::time::Duration;
+    let names = ["a.py", "b.py", "c.py"];
+    let f = Fixture::new(&names.map(|name| (name, "x = 1\n"))).await;
+    f.record
+        .shorten_start_wait_for_tests(Duration::from_millis(100), Duration::from_secs(1));
+    for path in names {
+        f.record
+            .record_answer_for_tests(path, code_record::RecordedAnswer::Starting);
+    }
+    let files = names.map(|name| (name, FileAction::Create));
+    let symbols = [
+        ("s1", "a.py", "a"),
+        ("s2", "b.py", "b"),
+        ("s3", "c.py", "c"),
+    ];
+    let promised = contract(&files, &symbols);
+    let began = std::time::Instant::now();
+    let verdict = f
+        .record
+        .verify("k", &f.project, 1, &promised)
+        .await
+        .unwrap();
+    let waited = began.elapsed();
+    assert!(waited >= Duration::from_secs(1), "{waited:?}");
+    assert!(
+        waited < Duration::from_secs(2),
+        "one shared wait, not one per file: {waited:?}"
+    );
+    for path in names {
+        let unchecked = verdict.unchecked_files.iter().find(|u| u.path == path);
+        let why = unchecked.map(|u| u.why.as_str()).unwrap_or_default();
+        assert!(why.contains("did not start"), "{path}: {verdict:?}");
+    }
+    f.close().await;
+}

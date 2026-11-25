@@ -1,8 +1,9 @@
 import { SkeletonContent } from '@/components/ui/skeleton'
-import { useQuery } from '@tanstack/react-query'
-import { useEffect, useRef } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect } from 'react'
 import type { Attempt } from '@/api/runs'
-import { entriesQuery, type Operation, operationsQuery } from '@/api/threads'
+import { entriesQuery } from '@/api/threads'
+import { holdThreadRefresh } from '@/stream'
 import { ReplyText } from '@/app/conversation'
 import { ErrorLine } from '../error-line'
 
@@ -19,30 +20,11 @@ export function RunTab({ attempt }: { attempt: Attempt | null }) {
   </>
 }
 
-/** Whether the attempt's turn may still add entries: an attempt that committed
- * keeps its turn going to report, so the turn's own end decides, as Core recorded it. */
-function turnOpen(attempt: Attempt, operations: readonly Operation[] | undefined): boolean {
-  if (attempt.state === 'running') return true
-  if (attempt.operation_id === null) return false
-  if (operations === undefined) return true
-  const turn = operations.find((op) => op.id === attempt.operation_id)
-  return turn !== undefined && turn.finished_at == null
-}
-
 function Entries({ attempt }: { attempt: Attempt }) {
-  const operations = useQuery({
-    ...operationsQuery(attempt.thread_id),
-    refetchInterval: (query) => (turnOpen(attempt, query.state.data) ? 2000 : false),
-  })
-  const open = turnOpen(attempt, operations.data)
-  const entries = useQuery({ ...entriesQuery(attempt.thread_id), refetchInterval: open ? 2000 : false })
-  // The last entries can land between the final read and the turn's end: read once more.
-  const wasOpen = useRef(open)
-  const { refetch } = entries
-  useEffect(() => {
-    if (wasOpen.current && !open) void refetch()
-    wasOpen.current = open
-  }, [open, refetch])
+  const queryClient = useQueryClient()
+  // The executor's thread stream refreshes its entries and operations while the turn goes on.
+  useEffect(() => holdThreadRefresh(queryClient, attempt.thread_id, {}), [queryClient, attempt.thread_id])
+  const entries = useQuery(entriesQuery(attempt.thread_id))
   if (entries.isError) return <div className="px-6 py-4"><ErrorLine error={entries.error} /></div>
   if (entries.data === undefined) return <SkeletonContent label="Reading the run…" layout="conversation" className="px-6 py-4" />
   return (

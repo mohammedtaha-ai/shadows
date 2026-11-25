@@ -117,6 +117,11 @@ layout_only: Map records contain no starter files; the stage has no Structure st
 # live, planner_runs_live::live_the_planner_starts_the_task_it_was_asked_to_run.
 # task_start's description names the tasks it starts: one the person asked for, or the task
 # task_done named as next.
+# project_recheck { workflow_id } calls Runs::recheck_project_for and answers ProjectRecheck
+# { recheck_id }; only the Planner's grant lists it. Its description says Shadows rechecks once
+# when a plan's last task is marked done, and tells this conversation only of checks that no
+# longer pass. Tested by mcp_server::the_tool_list_depends_on_the_grant_kind and
+# runs_attempts::rechecks::a_planner_asks_for_a_recheck_and_hears_it.
 # task_diff { workflow_id, task_number } calls Runs::diff_for; task_file
 # { workflow_id, task_number, path } calls Runs::file_for. Both use answer and Refusal::from;
 # only the Planner's grant lists them. Descriptions direct reading the commit before

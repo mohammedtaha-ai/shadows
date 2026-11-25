@@ -270,12 +270,14 @@ impl Server {
                 },
             })
             .map_err(|_| self.exited())?;
+        // Opened: from here the document is closed however this question ends, even when
+        // its caller is dropped mid-request, and before the question lock is released.
+        let mut open = OpenDocument {
+            socket: &self.socket,
+            uri: Some(uri),
+        };
         let answer = self.request(method, params, timeout).await;
-        let closed = self
-            .socket
-            .notify::<DidCloseTextDocument>(DidCloseTextDocumentParams {
-                text_document: TextDocumentIdentifier { uri },
-            });
+        let closed = open.close();
         drop(versions);
         let answer = answer?;
         closed.map_err(|_| self.exited())?;
@@ -402,6 +404,31 @@ impl ErrorLines {
             .split_once(':')
             .is_some_and(|(n, _)| !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()));
         numbered || trimmed.starts_with("at ") || line.starts_with("Stack backtrace")
+    }
+}
+
+/// A document one question opened; it sends `didClose` once, on `close` or when dropped.
+struct OpenDocument<'a> {
+    socket: &'a ServerSocket,
+    uri: Option<Url>,
+}
+
+impl OpenDocument<'_> {
+    fn close(&mut self) -> Result<(), async_lsp::Error> {
+        match self.uri.take() {
+            Some(uri) => self
+                .socket
+                .notify::<DidCloseTextDocument>(DidCloseTextDocumentParams {
+                    text_document: TextDocumentIdentifier { uri },
+                }),
+            None => Ok(()),
+        }
+    }
+}
+
+impl Drop for OpenDocument<'_> {
+    fn drop(&mut self) {
+        let _ = self.close();
     }
 }
 

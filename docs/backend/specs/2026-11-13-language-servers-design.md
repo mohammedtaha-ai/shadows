@@ -192,11 +192,23 @@ its own only when it needs it.
   otherwise in the project's first allowed mode: a project made before B-146 (`docs/backend/stages.md` at `db760593`) allows
   `read-only` only (migration 0050) and keeps it until the person adds `ask`. The picked
   mode is sent
-  with every `turn/start` as `sandboxPolicy`, `approvalPolicy` and `approvalsReviewer`,
+  with every `turn/start` as its sandbox (`sandboxPolicy` for Read only, the
+  `shadows_ask` permission profile through `permissions` for `ask`, since a legacy sandbox
+  replaces a profile), `approvalPolicy` and `approvalsReviewer`,
   and the opening refuses a thread whose answer does not echo the default mode's three
   (`shadows-agent/src/codex/session.rs`). In Read only the Planner cannot install a
   missing server, so its `person_ask` offers only "you install it" (with the install
   line) or "leave it"; the prompt states this against the Planner's own sandbox.
+- **A Codex conversation in `ask` can commit** (Mohammed, 2026-11-24). Codex keeps `.git` read-only
+  under a writable root, so every executor's first `git add` was denied on `index.lock` and
+  retried after `auto_review` approved it. The sandbox grants the project's `.git` write, and
+  keeps `.git/hooks` and `.git/config` read-only and `.git/config.lock` denied: a hook or a
+  config change (`core.hooksPath`) would run outside the sandbox on the person's next git
+  command. Probe, 2026-11-23, `mxc` on Windows: add and commit passed; writing a hook, `git
+  config`, replacing `config` with `Move-Item` and deleting it were refused.
+  Only Codex's experimental API selects a profile per turn (`permissions`), so the connection
+  opens with `experimentalApi` and the protocol snapshot is the experimental schema; accepted
+  by Mohammed on 2026-11-24. A Codex update that changes it is refused until adopted.
 - **Permission cards:** `Harness::waiting_permissions` holds and lists requests from Planner
   sessions as well as AYLUL's; Codex's `requestApproval` is held with its options instead
   of declined. The person's answer goes back through the route that exists

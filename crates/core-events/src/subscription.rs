@@ -107,10 +107,18 @@ pub enum Delivery {
 /// The live sources, taken before the replay is read.
 pub(super) struct Live {
     pub(super) committed: watch::Receiver<i64>,
+    /// A thread stream's live sources; a project stream reads the committed watch only,
+    /// so it holds none and no thread sender keeps history for it.
+    pub(super) thread: Option<ThreadLive>,
+}
+
+/// What only a thread stream reads live, taken before its replay.
+pub(super) struct ThreadLive {
     pub(super) bus: broadcast::Receiver<(ThreadId, OperationId, HarnessEvent)>,
     pub(super) options: broadcast::Receiver<(ThreadId, Offered)>,
     pub(super) commands: broadcast::Receiver<(ThreadId, Vec<SlashCommand>)>,
     pub(super) signals: broadcast::Receiver<UiSignal>,
+    pub(super) tasks: broadcast::Receiver<(ThreadId, u64, Vec<BackgroundTask>)>,
 }
 
 pub(super) enum Scope {
@@ -143,7 +151,6 @@ pub struct Subscription {
     /// `caught-up` was just sent on a thread stream: the session's task list
     /// follows when it is not empty, before the running turn's activity.
     tasks_due: bool,
-    tasks: broadcast::Receiver<(ThreadId, u64, Vec<BackgroundTask>)>,
     /// The revision of the list last sent; a queued older change is skipped.
     task_revision: u64,
     /// Activity frames read and not yet delivered.
@@ -161,7 +168,6 @@ impl Subscription {
         turns: Option<Turns>,
         live: Live,
     ) -> Self {
-        let tasks = harness.watch_tasks();
         Self {
             scope,
             store,
@@ -175,7 +181,6 @@ impl Subscription {
             commands_due: false,
             activity_due: false,
             tasks_due: false,
-            tasks,
             task_revision: 0,
             activity: VecDeque::new(),
             over: None,
@@ -314,14 +319,17 @@ impl Subscription {
         }
         // The select only decides which source woke; acting on it happens
         // after, so no borrowed `watch::Ref` is held across an await.
+        let Some(thread) = self.live.thread.as_mut() else {
+            return Some(self.end("shutdown: a thread stream without its live sources"));
+        };
         let woke = tokio::select! {
             biased;
             changed = self.live.committed.changed() => Woke::Committed(changed.is_ok()),
-            received = self.live.bus.recv() => Woke::Bus(received),
-            offered = self.live.options.recv() => Woke::Options(offered),
-            listed = self.live.commands.recv() => Woke::Commands(listed),
-            tasks = self.tasks.recv() => Woke::Tasks(tasks),
-            signal = self.live.signals.recv() => Woke::Signal(signal),
+            received = thread.bus.recv() => Woke::Bus(received),
+            offered = thread.options.recv() => Woke::Options(offered),
+            listed = thread.commands.recv() => Woke::Commands(listed),
+            tasks = thread.tasks.recv() => Woke::Tasks(tasks),
+            signal = thread.signals.recv() => Woke::Signal(signal),
         };
         match woke {
             Woke::Committed(true) => {

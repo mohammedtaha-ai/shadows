@@ -336,8 +336,48 @@ async fn anthropic_pagination_stops_at_five_pages() {
     let r = w.app.providers().test_provider(input(url)).await.unwrap();
     assert!(r.ok);
     assert_eq!(r.models.len(), 5);
+    assert!(
+        r.truncated,
+        "a fifth page that says there is more is a clipped list"
+    );
     server.await.unwrap();
 
+    w.app
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+}
+
+/// A provider that answers the same cursor again is not asked a third time, and the list
+/// it gave is marked clipped.
+#[tokio::test]
+async fn a_repeated_cursor_stops_the_listing() {
+    let w = world().await;
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let url = format!("http://{}", listener.local_addr().unwrap());
+    let server = tokio::spawn(async move {
+        for page in 0..2 {
+            let (mut socket, _) = listener.accept().await.unwrap();
+            let mut bytes = [0; 4096];
+            let _ = socket.read(&mut bytes).await.unwrap();
+            let body = serde_json::json!({"data":[{"id":format!("m{page}")}],
+                "has_more":true,"last_id":"same"})
+            .to_string();
+            let response = format!(
+                "HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\
+                Connection: close\r\n\r\n{body}",
+                body.len()
+            );
+            socket.write_all(response.as_bytes()).await.unwrap();
+        }
+        let third = tokio::time::timeout(std::time::Duration::from_millis(500), listener.accept());
+        assert!(third.await.is_err(), "the repeated cursor was asked again");
+    });
+    let r = w.app.providers().test_provider(input(url)).await.unwrap();
+    assert!(r.ok);
+    assert_eq!(r.models.len(), 2);
+    assert!(r.truncated);
+    server.await.unwrap();
     w.app
         .shut_down(std::time::Duration::from_secs(5), std::future::pending())
         .await

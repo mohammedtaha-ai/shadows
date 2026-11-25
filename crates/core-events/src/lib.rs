@@ -94,10 +94,13 @@ impl Events {
             Some(self.turns.clone()),
             subscription::Live {
                 committed: self.storage.watch_committed(),
-                bus: self.turns.subscribe_live(),
-                options: self.harness.watch_options(),
-                commands: self.harness.watch_commands(),
-                signals: self.ui.subscribe(),
+                thread: Some(subscription::ThreadLive {
+                    bus: self.turns.subscribe_live(),
+                    options: self.harness.watch_options(),
+                    commands: self.harness.watch_commands(),
+                    signals: self.ui.subscribe(),
+                    tasks: self.harness.watch_tasks(),
+                }),
             },
         )
     }
@@ -118,10 +121,7 @@ impl Events {
             None,
             subscription::Live {
                 committed: self.storage.watch_committed(),
-                bus: self.turns.subscribe_live(),
-                options: self.harness.watch_options(),
-                commands: self.harness.watch_commands(),
-                signals: self.ui.subscribe(),
+                thread: None,
             },
         ))
     }

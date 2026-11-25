@@ -71,7 +71,7 @@ boundaries do not exempt their sources from the other architecture rules.
 | `stream` | `stream/**` | `stream/index.ts` | `stream/contract.yaml` | `api` |
 | `desktop` | `desktop/**` | `desktop/index.ts, desktop/startup.ts` | `desktop/contract.yaml` | `api` |
 | `ui` | `components/ui/**` | `components/ui/*` | `-` | `-` |
-| `shared` | `app/error-line.tsx, app/copy-button.tsx, app/daemon-status.tsx, app/confirm-panel.tsx, app/check-row.tsx, app/element-content.tsx` | `app/error-line.tsx, app/copy-button.tsx, app/daemon-status.tsx, app/confirm-panel.tsx, app/check-row.tsx, app/element-content.tsx` | `-` | `api, ui` |
+| `shared` | `app/error-line.tsx, app/copy-button.tsx, app/daemon-status.tsx, app/daemon-status.test.tsx, app/confirm-panel.tsx, app/check-row.tsx, app/element-content.tsx` | `app/error-line.tsx, app/copy-button.tsx, app/daemon-status.tsx, app/confirm-panel.tsx, app/check-row.tsx, app/element-content.tsx` | `-` | `api, stream, ui` |
 | `agents` | `app/agents/**` | `app/agents/index.ts, app/agents/home.tsx` | `app/agents/contract.yaml` | `api, ui, shared, desktop, navigation` |
 | `agreements` | `app/agreements/**` | `app/agreements/index.ts, app/agreements/agreements-page.tsx` | `app/agreements/contract.yaml` | `api, ui, shared` |
 | `conversation` | `app/conversation/**` | `app/conversation/index.ts, app/conversation/conversation.tsx, app/conversation/draft.tsx` | `app/conversation/contract.yaml` | `api, ui, shared, desktop, stream, design, workflows, desktop-ui, navigation` |
@@ -84,7 +84,7 @@ boundaries do not exempt their sources from the other architecture rules.
 | `sidebar` | `app/sidebar/**` | `app/sidebar/index.ts` | `app/sidebar/contract.yaml` | `api, ui, shared, desktop, stream, agents, groups, new-project, workflows, navigation, desktop-ui` |
 | `groups` | `app/groups/**` | `app/groups/index.ts, app/groups/group-page.tsx` | `app/groups/contract.yaml` | `api, ui, shared, stream, agents, conversation` |
 | `workflows` | `app/workflows/**` | `app/workflows/index.ts, app/workflows/plan-state.ts, app/workflows/plan-page.tsx, app/workflows/plan-map.tsx, app/workflows/flow-theme.ts` | `app/workflows/contract.yaml` | `api, ui, shared, stream, agreements` |
-| `tasks` | `app/tasks/**` | `app/tasks/task-page.tsx` | `app/tasks/contract.yaml` | `api, ui, shared, conversation` |
+| `tasks` | `app/tasks/**` | `app/tasks/task-page.tsx` | `app/tasks/contract.yaml` | `api, ui, shared, stream, conversation` |
 | `test-support` | `test/**, architecture.test.ts, architecture.fixtures.ts, codemap.test.ts` | `test/**, architecture.fixtures.ts` | `-` | `composition, api, stream, desktop, ui, shared` |
 
 The two `startup.ts` entries expose only pre-readiness dependencies; their static
@@ -428,6 +428,8 @@ it is that folder's `contract.yaml`.
 | `web/src/app/workflows/plan-graph.tsx` | A plan version drawn as its graph canvas | `web/src/app/workflows/contract.yaml` |
 | `web/src/app/workflows/plan-map.tsx` | Latest-plan map of a project | `web/src/app/workflows/contract.yaml` |
 | `web/src/app/workflows/plan-page.tsx` | Workflows page for one plan version | `web/src/app/workflows/contract.yaml` |
+| `web/src/app/workflows/recheck-control.tsx` | The plan header's project recheck: button, last-batch line, Rechecking… state | `web/src/app/workflows/contract.yaml` |
+| `web/src/app/workflows/recheck-panel.tsx` | The plan page's terminal panel for the newest recheck | `web/src/app/workflows/contract.yaml` |
 | `web/src/app/workflows/plan-state.ts` | How a plan version's state reads to a person | `web/src/app/workflows/contract.yaml` |
 | `web/src/app/workflows/task-node.tsx` | Draws one node of the plan graph | `web/src/app/workflows/contract.yaml` |
 | `web/src/app/workflows/task-view.tsx` | Show a task's phase graph | `web/src/app/workflows/contract.yaml` |
@@ -456,6 +458,7 @@ it is that folder's `contract.yaml`.
 | `web/src/stream/refresh.ts` | Refresh API-owned queries from stream events, once per shared stream | `web/src/stream/contract.yaml` |
 | `web/src/stream/use-plan-events.ts` | Hold writer-thread plan refresh | `web/src/stream/contract.yaml` |
 | `web/src/stream/use-project-events.ts` | Refetches project plan views on journal notices | `web/src/stream/contract.yaml` |
+| `web/src/stream/recheck-output.ts` | Holds one project recheck batch's live output stream | `web/src/stream/contract.yaml` |
 | `web/src/stream/use-thread-stream.ts` | Bind a registry subscription to a component | `web/src/stream/contract.yaml` |
 | `web/src/stream/index.ts` | Expose stream public capabilities | `web/src/stream/contract.yaml` |
 | `web/src/test/composer.ts` | Shared session-ready composer fixtures | `web/src/app/conversation/contract.yaml` |

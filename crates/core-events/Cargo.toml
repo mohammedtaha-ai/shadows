@@ -33,3 +33,7 @@ test-support = ["core-db/test-support"]
 serde_json = { workspace = true }
 core-events = { path = ".", features = ["test-support"] }
 tempfile = { workspace = true }
+core-operations = { path = "../core-operations", features = ["test-support"] }
+core-projects = { path = "../core-projects", features = ["test-support"] }
+core-runtime = { path = "../core-runtime", features = ["test-support"] }
+core-threads = { path = "../core-threads", features = ["test-support"] }

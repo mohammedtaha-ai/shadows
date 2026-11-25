@@ -9,11 +9,16 @@ use utoipa::ToSchema;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Approver {
     Person,
-    Planner {
-        writer: Writer,
-        turn: String,
-        harness: String,
-    },
+    Planner(PlannerApprover),
+}
+
+/// A Planner approving through its own turn: the only approver whose command id is
+/// derived by the core, so only it builds one.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PlannerApprover {
+    pub writer: Writer,
+    pub turn: String,
+    pub harness: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
@@ -30,15 +35,13 @@ pub struct ApprovedBy {
     pub request: Option<ApprovalRequest>,
 }
 
-impl Approver {
+impl PlannerApprover {
     pub fn command(&self, kind: &str, params: serde_json::Value) -> CommandContext {
-        let Self::Planner { writer, turn, .. } = self else {
-            unreachable!("Planner command construction is core-only")
-        };
+        let (writer, turn) = (&self.writer, &self.turn);
         let fp = CommandContext::fingerprint(kind, &params);
         let (principal_kind, principal_id) = writer.principal();
         CommandContext {
-            agent: Some(self.agent()),
+            agent: Some(format!("planner:{}", self.harness)),
             principal_kind: principal_kind.into(),
             principal_id,
             command_id: Anchor::derived_id(Anchor::Operation(turn.as_str()), &fp),
@@ -47,17 +50,19 @@ impl Approver {
             request_fingerprint: fp,
         }
     }
+}
 
+impl Approver {
     pub fn agent(&self) -> String {
         match self {
             Self::Person => "human".into(),
-            Self::Planner { harness, .. } => format!("planner:{harness}"),
+            Self::Planner(planner) => format!("planner:{}", planner.harness),
         }
     }
     pub fn actor(&self) -> Actor {
         match self {
             Self::Person => Actor::user("local"),
-            Self::Planner { writer, .. } => writer.actor(),
+            Self::Planner(planner) => planner.writer.actor(),
         }
     }
 }

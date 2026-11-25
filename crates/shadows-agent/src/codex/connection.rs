@@ -37,6 +37,9 @@ pub(super) struct Rpc {
     outgoing: mpsc::UnboundedSender<Value>,
     pending: Arc<Mutex<Pending>>,
     next_id: Arc<AtomicU64>,
+    /// The last error Codex logged on stderr: a request it is still waiting on (a model-list
+    /// refresh, say) answers nothing until it ends, so this is the only reason there is.
+    said: Arc<Mutex<Option<String>>>,
 }
 
 impl Rpc {
@@ -46,7 +49,7 @@ impl Rpc {
         close: impl Fn(ConnectionError) + Send + Sync + 'static,
         held: crate::acp::Permissions,
     ) -> Result<Self, ConnectionError> {
-        let (mut stdin, stdout, mut stderr) = handle.take_stdio().ok_or(ConnectionError::Closed)?;
+        let (mut stdin, stdout, stderr) = handle.take_stdio().ok_or(ConnectionError::Closed)?;
         let (outgoing, mut writes) = mpsc::unbounded_channel::<Value>();
         let pending = Arc::new(Mutex::new(Pending::default()));
         let close = Arc::new(close);
@@ -135,14 +138,57 @@ impl Rpc {
             };
             fail(&read_pending, error, &*close);
         });
+        let said = Arc::new(Mutex::new(None));
+        let heard = said.clone();
         tokio::spawn(async move {
-            let _ = tokio::io::copy(&mut stderr, &mut tokio::io::sink()).await;
+            let mut stderr = BufReader::new(stderr);
+            let mut line = Vec::new();
+            while matches!(stderr.read_until(b'\n', &mut line).await, Ok(n) if n > 0) {
+                if let Some(error) = Self::logged_error(&String::from_utf8_lossy(&line)) {
+                    *heard.lock().unwrap() = Some(error);
+                }
+                line.clear();
+            }
         });
         Ok(Self {
             outgoing,
             pending,
             next_id: Arc::default(),
+            said,
         })
+    }
+
+    /// The message of one stderr log line at level ERROR, colours removed and any span
+    /// prefix (`name{fields}: `) cut, as a person may read it; none for another line.
+    fn logged_error(line: &str) -> Option<String> {
+        let mut plain = String::with_capacity(line.len());
+        let mut chars = line.chars();
+        while let Some(c) = chars.next() {
+            if c == '\u{1b}' {
+                // An SGR sequence: ESC [ ... m.
+                for c in chars.by_ref() {
+                    if c == 'm' {
+                        break;
+                    }
+                }
+            } else {
+                plain.push(c);
+            }
+        }
+        let mut words = plain.trim().splitn(3, ' ');
+        let (_time, level, rest) = (words.next()?, words.next()?, words.next()?);
+        if level != "ERROR" {
+            return None;
+        }
+        let (_target, message) = rest.split_once(": ")?;
+        let message = message.rsplit_once("}: ").map_or(message, |(_, m)| m);
+        let message = super::mapping::public_message(message);
+        (!message.is_empty()).then_some(message)
+    }
+
+    /// The last error Codex logged, if any.
+    pub(super) fn last_error(&self) -> Option<String> {
+        self.said.lock().unwrap().clone()
     }
 
     /// Holds a command or file-change approval for the person, with Allow and

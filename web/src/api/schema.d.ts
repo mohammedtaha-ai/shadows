@@ -1461,6 +1461,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/rechecks/{recheck}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A recheck batch's rows in plan version, task and check order, each with its command,
+         *     outcome, times and stored output (none until the row finishes).
+         */
+        get: operations["recheck_rows"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/rechecks/{recheck}/output": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A recheck batch's output as its checks print it. */
+        get: operations["recheck_output"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/runtime": {
         parameters: {
             query?: never;
@@ -1948,6 +1985,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/workflows/{workflow}/recheck": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The project's newest recheck batch: what began it, its times and its rows counted by
+         *     outcome; null when the project has had no recheck.
+         */
+        get: operations["last_recheck"];
+        put?: never;
+        /**
+         * Reruns the checks of the project's done tasks, in the background. The plan's Planner is
+         *     told of the checks that now fail.
+         */
+        post: operations["recheck"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/workflows/{workflow}/versions/{version}/progress": {
         parameters: {
             query?: never;
@@ -2282,6 +2343,11 @@ export interface components {
             agent: string;
             principal: string;
             request?: null | components["schemas"]["ApprovalRequest"];
+        };
+        /** @description What a project recheck takes. */
+        AskRecheck: {
+            /** @description The idempotency key: the same key and plan answer the first batch. */
+            command_id: string;
         };
         Attachment: {
             /** Format: int64 */
@@ -3221,6 +3287,15 @@ export interface components {
             revision: number;
             summary: string;
         };
+        /** @description The newest recheck batch of a project, as the plan page shows it. */
+        LastRecheck: {
+            began: components["schemas"]["RecheckBegan"];
+            counts: components["schemas"]["RecheckCounts"];
+            created_at: string;
+            /** @description None while the batch runs. */
+            finished_at: string | null;
+            recheck_id: string;
+        };
         /** @description A layer another layer may depend on. No kind means the same part. */
         LayerRef: {
             layer: string;
@@ -3914,6 +3989,14 @@ export interface components {
             /** @description The slug of the project that reads. */
             project: string;
         };
+        /**
+         * @description A project recheck asked for. It runs in the background; only checks that now fail are told,
+         *     to the asking Planner or the named plan's Planner.
+         */
+        ProjectRecheck: {
+            /** @description The batch begun; none when no done task of the project has checks to run. */
+            recheck_id: string | null;
+        };
         /** @description The project's stage, its parts with their plans and elements, and its gaps. */
         ProjectStateView: {
             /** @description Elements in gap or unchecked, by part order then element number, at most 100. */
@@ -4026,6 +4109,11 @@ export interface components {
             reason?: null | components["schemas"]["TestRefusal"];
             /** Format: int32 */
             status?: number | null;
+            /**
+             * @description The provider had more models than were read: paging stopped at five pages or at a
+             *     cursor it gave twice. `models` holds those read.
+             */
+            truncated?: boolean;
         };
         ProviderUsage: {
             /** Format: double */
@@ -4091,6 +4179,38 @@ export interface components {
          * @enum {string}
          */
         Rank: "exact" | "path" | "part" | "words";
+        /** @description What began a recheck batch. */
+        RecheckBegan: {
+            /** @enum {string} */
+            kind: "mark";
+            plan_title: string;
+            /** Format: int32 */
+            task: number;
+            /** Format: int64 */
+            version: number;
+        } | {
+            /** @enum {string} */
+            kind: "person";
+        } | {
+            /** @enum {string} */
+            kind: "planner";
+            thread_id: string;
+        };
+        /** @description A recheck batch's rows counted by outcome; `unfinished` counts rows not finished yet. */
+        RecheckCounts: {
+            /** Format: int32 */
+            failed: number;
+            /** Format: int32 */
+            inconclusive: number;
+            /** Format: int32 */
+            not_run: number;
+            /** Format: int32 */
+            passed: number;
+            /** Format: int32 */
+            timed_out: number;
+            /** Format: int32 */
+            unfinished: number;
+        };
         /** @description A done task whose recorded checks did not all pass on a recheck. */
         RecheckFailure: {
             attempt_id: components["schemas"]["AttemptId"];
@@ -4102,9 +4222,15 @@ export interface components {
             version: number;
             workflow_id: components["schemas"]["WorkflowId"];
         };
-        /** @description The outcome of rechecking other done tasks after a new done mark. */
+        /**
+         * @description The outcome of rechecking the project's done tasks, after the done mark that completed a
+         *     plan or on request.
+         */
         RecheckNotice: {
-            /** Format: int32 */
+            /**
+             * Format: int32
+             * @description The task whose done mark completed the plan; 0 for a recheck asked for.
+             */
             cause_task: number;
             /** Format: int64 */
             cause_version: number;
@@ -4112,6 +4238,24 @@ export interface components {
             failed: components["schemas"]["RecheckFailure"][];
             plan_id: components["schemas"]["PlanId"];
             recheck_id: string;
+        };
+        /** @description One row of a recheck batch: one check of one done task, as the person reads it. */
+        RecheckRow: {
+            attempt_id: components["schemas"]["AttemptId"];
+            check_id: string;
+            /** @description The check's command, its words joined by spaces; empty for the `contract` check. */
+            command: string;
+            finished_at: string | null;
+            outcome: null | components["schemas"]["CheckOutcome"];
+            /** @description The stored output, once the row finishes. */
+            output: string | null;
+            started_at: string | null;
+            /** Format: int32 */
+            task: number;
+            truncated: boolean;
+            /** Format: int64 */
+            version: number;
+            workflow_id: components["schemas"]["WorkflowId"];
         };
         /** @description The model and effort last chosen for this harness. */
         RememberedSettings: {
@@ -9635,6 +9779,95 @@ export interface operations {
             };
         };
     };
+    recheck_rows: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The recheck batch */
+                recheck: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecheckRow"][];
+                };
+            };
+            /** @description no such recheck batch */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description STORAGE_UNAVAILABLE */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    recheck_output: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The recheck batch */
+                recheck: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /**
+             * @description Server-sent events of one recheck batch, live only: nothing is replayed after a reconnect but the running row's output so far. Each frame's `data:` is JSON.
+             *
+             *     - `started` — `{task, attempt_id, check_id}`: a row began; its output starts empty.
+             *     - `chunk` — `{task, attempt_id, check_id, text}`: text the row's check printed. On connect, the running row's `started` and its output so far come first.
+             *     - `finished` — `{task, attempt_id, check_id, outcome}`: the row finished; read its stored output from GET /api/rechecks/{recheck}.
+             *     - `lagged` — empty: this client fell behind and missed output.
+             *     - `end` — `{}`: the batch finished, and the stream ends. A finished batch sends it at once.
+             */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": string;
+                };
+            };
+            /** @description no such recheck batch */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description STORAGE_UNAVAILABLE */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     identity: {
         parameters: {
             query?: never;
@@ -11088,6 +11321,99 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorBody"];
                 };
             };
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    last_recheck: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A plan version of the project */
+                workflow: components["schemas"]["WorkflowId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": null | components["schemas"]["LastRecheck"];
+                };
+            };
+            /** @description no such plan version */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description STORAGE_UNAVAILABLE */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    recheck: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A plan version of the project */
+                workflow: components["schemas"]["WorkflowId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AskRecheck"];
+            };
+        };
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectRecheck"];
+                };
+            };
+            /** @description no such plan version */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description command_conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunRefusal"];
+                };
+            };
+            /** @description STORAGE_UNAVAILABLE */
             500: {
                 headers: {
                     [name: string]: unknown;

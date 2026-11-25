@@ -66,11 +66,12 @@ impl Design {
         grant: &Grant,
         proposal: &str,
     ) -> Result<DesignChange, DesignError> {
-        let approver = self.planner_approver(grant).await?;
-        let ctx = approver.command(
+        let planner = self.planner_approver(grant).await?;
+        let ctx = planner.command(
             "MapProposalApprove",
             serde_json::json!({"project":grant.project_id,"proposal":proposal}),
         );
+        let approver = core_grants::Approver::Planner(planner);
         // The store performs waiver rejection after project scoping and authority checks.
         self.store
             .approve_map_proposal_in(&ctx, &grant.project_id, proposal, &approver)

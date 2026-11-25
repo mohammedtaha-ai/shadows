@@ -129,6 +129,12 @@ fixed cost: on Windows an opening took 2.6–5.7 s, nearly all of it the SDK's
 `sdk-initialize` phase (4.2 s in one), and the first bound of 5 s refused
 openings in Milestone 1's and Milestone 2's runs
 (`docs/evidence/milestone2/WINDOWS_RUN.md` at `92e6dae`).
+Codex's `thread/start` waits on Codex's own model-list refresh (about 5 s a try,
+more than one try when the cached list is stale), which Shadows cannot skip; on a
+slow network it passes `setup_wait` and answers nothing. The failure then ends
+with the last error Codex logged on stderr ("harness setup timed out; the harness
+logged: failed to refresh available models: request timed out"; B-203,
+`testing8`, 2026-11-23).
 
 **Permission requests are refused.** The adapter asks the client before a tool
 runs that the mode does not already allow (`session/request_permission`). In

@@ -100,7 +100,7 @@ export function NoticeItem({ body, card, recheck = null, projectId = '', sender 
   sender?: 'Executor' | 'Shadows'
 }) {
   const [open, setOpen] = useState(true)
-  if (recheck !== null) return <RecheckNoticeItem recheck={recheck} projectId={projectId} />
+  if (recheck !== null) return <RecheckNoticeItem recheck={recheck} projectId={projectId} body={body} />
   if (card !== null && 'message' in card) return <AgentReplyItem card={card} />
   const conflict = card?.conflict ?? null
   const left = card !== null && (card.outcome === 'interrupted' || card.outcome === 'stopped')

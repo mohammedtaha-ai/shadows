@@ -90,14 +90,27 @@ impl Selection {
     }
 }
 
-/// What one Codex mode asks of Codex: the thread's sandbox as requested, the
-/// same sandbox as Codex reports it, the approval policy, and who reviews a
-/// request. Read only asks nothing; Approve for me writes inside the project,
-/// and Codex's reviewer allows or denies each request itself, so none is held
-/// for the person.
+/// The permission profile `ask` selects; `catalog_spec` defines its filesystem.
+pub(super) const ASK_PROFILE: &str = "shadows_ask";
+
+/// Where one Codex mode's filesystem comes from. A legacy sandbox and a named
+/// profile replace each other in Codex, so a mode sends exactly one.
+enum Sandbox {
+    /// A legacy sandbox mode, as requested and as Codex reports it.
+    Legacy {
+        mode: &'static str,
+        kind: &'static str,
+    },
+    /// A named permission profile, which Codex reports as its active profile.
+    Profile(&'static str),
+}
+
+/// What one Codex mode asks of Codex: its sandbox, the approval policy, and who
+/// reviews a request. Read only asks nothing; Approve for me writes inside the
+/// project and its `.git` (its profile), and Codex's reviewer allows or denies
+/// each request itself, so none is held for the person.
 pub(super) struct Policy {
-    pub(super) sandbox: &'static str,
-    pub(super) sandbox_type: &'static str,
+    sandbox: Sandbox,
     pub(super) approval: &'static str,
     pub(super) reviewer: &'static str,
 }
@@ -106,14 +119,15 @@ impl Policy {
     pub(super) fn of(mode: &str) -> Option<Self> {
         match mode {
             crate::policy::CODEX_READ_ONLY => Some(Self {
-                sandbox: "read-only",
-                sandbox_type: "readOnly",
+                sandbox: Sandbox::Legacy {
+                    mode: "read-only",
+                    kind: "readOnly",
+                },
                 approval: "never",
                 reviewer: "user",
             }),
             crate::policy::CODEX_ASK => Some(Self {
-                sandbox: "workspace-write",
-                sandbox_type: "workspaceWrite",
+                sandbox: Sandbox::Profile(ASK_PROFILE),
                 approval: "on-request",
                 reviewer: "auto_review",
             }),
@@ -121,13 +135,48 @@ impl Policy {
         }
     }
 
-    /// The per-turn override, which moves an open thread to this mode.
-    pub(super) fn turn_params(&self) -> Value {
-        json!({
+    /// The opening's request: the thread's sandbox, approval and reviewer.
+    fn thread_params(&self) -> Value {
+        let mut params = json!({
             "approvalPolicy": self.approval,
             "approvalsReviewer": self.reviewer,
-            "sandboxPolicy": {"type": self.sandbox_type}
-        })
+        });
+        match self.sandbox {
+            Sandbox::Legacy { mode, .. } => params["sandbox"] = json!(mode),
+            Sandbox::Profile(id) => params["permissions"] = json!(id),
+        }
+        params
+    }
+
+    /// The per-turn override, which moves an open thread to this mode.
+    pub(super) fn turn_params(&self) -> Value {
+        let mut params = json!({
+            "approvalPolicy": self.approval,
+            "approvalsReviewer": self.reviewer,
+        });
+        match self.sandbox {
+            Sandbox::Legacy { kind, .. } => params["sandboxPolicy"] = json!({"type": kind}),
+            Sandbox::Profile(id) => params["permissions"] = json!(id),
+        }
+        params
+    }
+
+    /// Whether an opened thread runs under this mode, as Codex echoes it.
+    fn echoed(&self, opened: &Value) -> bool {
+        let sandbox = match self.sandbox {
+            Sandbox::Legacy { kind, .. } => {
+                opened.pointer("/sandbox/type").and_then(Value::as_str) == Some(kind)
+            }
+            Sandbox::Profile(id) => {
+                opened
+                    .pointer("/activePermissionProfile/id")
+                    .and_then(Value::as_str)
+                    == Some(id)
+            }
+        };
+        sandbox
+            && opened["approvalPolicy"].as_str() == Some(self.approval)
+            && opened["approvalsReviewer"].as_str() == Some(self.reviewer)
     }
 }
 
@@ -181,9 +230,6 @@ impl Connection {
         let policy = Policy::of(mode).ok_or(ConnectionError::Protocol("unknown Codex mode"))?;
         let mut params = json!({
             "cwd": cwd,
-            "sandbox": policy.sandbox,
-            "approvalPolicy": policy.approval,
-            "approvalsReviewer": policy.reviewer,
             "developerInstructions": setup.append,
             "config": {
                 "mcp_servers.shadows": {
@@ -194,6 +240,10 @@ impl Connection {
                 }
             }
         });
+        if let (Value::Object(params), Value::Object(mode)) = (&mut params, policy.thread_params())
+        {
+            params.extend(mode);
+        }
         let method = match &how {
             SessionStart::New => "thread/start",
             SessionStart::Resume(id) => {
@@ -237,10 +287,7 @@ impl Connection {
                 prompts.first_limits(&limits["rateLimits"]);
             }
         });
-        if opened.pointer("/sandbox/type").and_then(Value::as_str) != Some(policy.sandbox_type)
-            || opened["approvalPolicy"].as_str() != Some(policy.approval)
-            || opened["approvalsReviewer"].as_str() != Some(policy.reviewer)
-        {
+        if !policy.echoed(&opened) {
             return Err(ConnectionError::Protocol(
                 "Codex did not accept the Planner sandbox policy",
             ));

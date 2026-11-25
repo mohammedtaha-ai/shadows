@@ -223,6 +223,9 @@ functions:
     record_answer_for_tests:
       signature: "(&self, key: &str, answer: RecordedAnswer)"
       # test-support only: `key` is answered with `answer` from then on.
+    shorten_start_wait_for_tests:
+      signature: "(&self, every: Duration, total: Duration)"
+      # test-support only: a starting server is asked again every `every`, for `total`.
     outcome:
       signature: "Verdict::outcome(&self) -> VerdictOutcome"
       # Failed when a symbol is missing; else passed when one is found; else not_run.
@@ -353,13 +356,16 @@ functions:
       private: true
       # A documentSymbol result as Symbols; shared by ask and code_where.
     ask:
-      signature: "(&self, project: &ProjectId, path: &str) -> FileAnswer"
+      signature: "(&self, project: &ProjectId, path: &str, started: Instant) -> FileAnswer"
       private: true
       # `missing_inputs` first: an absent file is Absent (its symbols missing,
       # never unchecked). Then documentSymbol through `Codebase::lsp`. A NoServer
       # whose server is Some and state Idle, Starting or None is asked again
-      # every 5 s for up to 2 minutes; any other NoServer, or an error, is
-      # Unchecked at once, so a missing server never holds the project.
+      # every 5 s until 2 minutes after `started`, the verification's one start
+      # (its files share the wait; past it a starting server's file is Unchecked
+      # at once); any other NoServer, or an error, is Unchecked at once, so a
+      # missing server never holds the project. Tests may shorten the wait
+      # (shorten_start_wait_for_tests) or record a file as Starting.
     document_symbols:
       signature: "(result: &Value) -> Vec<Found>"
       private: true
@@ -438,6 +444,8 @@ shared_in_transaction:
   forget_done_in: "Runs' put_mark write: a not-done mark, or a done one with no contract, removes the task's record"
 
 obligations:
+  - rule: Files whose language server is still starting share one start wait per verification, not one each.
+    tested_by: [files_of_a_starting_server_share_one_start_wait]
   - rule: >
       Only class, method, constructor and function symbols count, for promised
       and unpromised alike, with struct, interface and enum counting as a

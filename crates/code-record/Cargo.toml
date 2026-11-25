@@ -28,6 +28,8 @@ tracing = { workspace = true }
 utoipa = { workspace = true }
 
 [dev-dependencies]
+# Its own recorded answers and shorter start wait.
+code-record = { path = ".", features = ["test-support"] }
 core-operations = { path = "../core-operations" }
 tempfile = { workspace = true }
 # Fixtures stop the code workers they started.

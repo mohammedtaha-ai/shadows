@@ -81,7 +81,7 @@ functions:
   instructions_template: public; the bundled instructions a new agent's form starts from.
   home_instructions: public; the agent name and nonempty role precede the stored text or template, None before the import.
   import_home_instructions: public; once at start, store each live agent's never-imported home CLAUDE.md (absent or equal to the template is empty; text without NUL as read) and return the slugs left unimported.
-  seed_home: private; create absent settings.json only; Harness owns writing CLAUDE.md at opening.
+  seed_home: private; create absent settings.json only, whole (a temporary file hard-linked into place; where hard links fail, created in place; never replacing an existing file); Harness owns writing CLAUDE.md at opening.
 
 called_by_other_services:
   home_instructions: Harness writes the owner's selected instructions under its home opening lock.

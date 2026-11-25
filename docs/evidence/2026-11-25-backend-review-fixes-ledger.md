@@ -1,0 +1,68 @@
+# Backend review fixes: execution ledger
+
+Date: 2026-11-25. The record kept while [the fix plan](../backend/plans/2026-11-25-backend-review-fixes.md) was executed inline (B-211 to B-229, `0dc04e22..e5aa33f2`), for the [backend review](2026-11-25-backend-review.md). Each `Ruling:` is a decision the executor took, with its cost if wrong; each `complete` line names its commits and the tests that ran. Dated fact, not authority.
+
+## Ledger
+
+- Spec: none separate; the review (docs/evidence/2026-11-25-backend-review.md) is the evidence, owner specs per task. Rulings are provisional against owner contracts.
+- Ruling: task-start/task-done scripts cannot parse this plan's `### N.` headings — ledger kept by hand with the same line format — cost if wrong: none, format identical.
+- Ruling: executed on feature/after-75 in place, no worktree — CLAUDE.md forbids a worktree build (one build cache) — cost if wrong: none.
+- Ruling: no local full gate; per task only the tests it touches plus fmt and clippy on changed crates — Mohammed's rule, CI runs the gate — cost if wrong: CI catches it.
+- Order: 2,8,3,6,7,1,9,5,13,4,11,10,12,17,18,19,20,21,15(small). Deferred: 14,16,15(rewrite).
+- Pre-flight: 9 reads ordering that 2 fixes at the writer (no interface change); 13 builds on 5's close guard in shadows-lsp client; 1, 6, 9, 10 all edit core-runs/src/store/rechecks.rs — run serially.
+- Task 2: Ruling: overlap boundary cannot be forced through the live check fixture (times come from the clock) — tested as a private pure predicate Runs::ran_during in checks.rs, plus the existing overlap_case integration tests — cost if wrong: a wiring bug in overlapped between predicate and rows, covered by turn_during_check_reruns_it.
+- Task 2: Ruling: parsing lives on Storage (Storage::instant -> i128 nanos), the owner of the format — core-runs needs no time dependency — cost if wrong: none.
+- Task 2: RED observed as compile errors (missing Storage::instant / Runs::ran_during); the width assertion matches the 7-digit times seen live on 2026-11-24.
+- Task 2: complete (commits 1b75dbad..8de0bce6, tests: storage_contract, core-runs --lib, core-grants, contracts, runs_attempts → all ok, runs_attempts 184 passed)
+- Task 8: complete (commits 8de0bce6..b4a28b6d, tests: cargo test -p core-events; runs_attempts project_stream → ok; RED: panicked at store_tests.rs:85 'Unknown turn ending')
+- Task 3: Ruling: the plan's Unix non-UTF-8 path case is not added — Windows product, the test would only run on Linux CI and SQLx's handling there is not ours to promise — cost if wrong: an untested non-UTF-8 path on Unix.
+- Task 3: Ruling: fixed a pre-existing failure found in the same run — migration 0079 (B-200) missing from tests/fixtures/base_migrations.sha384 — separate commit 14772a13 — cost if wrong: none, catalog matches the file.
+- Task 3: complete (commits 8de0bce6..76e46479, tests: cargo test -p core-db → ok; RED: schema.rs:151 decoded folder held the database)
+- Task 6: Ruling: no per-batch runner, retry or backoff — the plan's simplest checkpoint: end the batch with not_run rows and the error — cost if wrong: a transient error costs the person a second Recheck press.
+- Task 6: complete (commits 76e46479..8a002304, tests: runs_attempts rechecks:: 24 passed, contracts 6 passed; RED: 'recheck did not finish' at rechecks.rs:148)
+- Task 7: Ruling: a drop guard (Unannounced) instead of the plan's spawned commit+publish — keeps the borrowed transaction and the commit in the caller; only the rare dropped/failed announcement spawns, taking the writer next so SQLx has settled the commit — cost if wrong: a runtime-less drop (no tokio handle) skips the announcement; Core always runs inside tokio.
+- Task 7: complete (commits 8a002304..ba851502, tests: cargo test -p core-db, shadows --test project_events → ok; RED: 'the committed event was never announced' journal.rs:139)
+- Task 1: complete (commits ba851502..0a056aee, tests: runs_attempts rechecks:: 25 passed, contracts ok; RED: replay of an empty ask returned Some(batch of the completing mark) at rechecks.rs:202)
+- Task 9: Ruling: no race regression test — forcing a write between the two reads needs a test hook inside the core-runs store; the effect is a transient mismatch the next stream refresh corrects — cost if wrong: the snapshot could regress unnoticed.
+- Task 9: complete (commits 0a056aee..53bc61c1, tests: runs_attempts the_plan_page_reads_the_projects_last_recheck → ok)
+- Task 5: Ruling: the peer asks through textDocument/hover — the client refuses methods off its list ('test/ask is not a request this client sends') — cost if wrong: none.
+- Task 5: complete (commits 53bc61c1..9ca7b81b, tests: cargo test -p shadows-lsp, shadows --test code_lsp a_slow_answer_times_out, contracts → ok; RED: transcript [open:one, open:two] with no close)
+- Task 13: Ruling: start wait shared by one deadline per verify, not per server — simplest; a ready server's files are still asked at once — cost if wrong: a slow server can use up the budget for another starting server in the same verification.
+- Task 13: Ruling: paused tokio clock breaks the SQLite pool (PoolTimedOut); test uses test-support shorten_start_wait_for_tests and RecordedAnswer::Starting instead — cost if wrong: none for production.
+- Task 13: Ruling: the call-hierarchy cap half deferred to future.md — no observed failure, needs a process-backed hierarchy server to test — cost if wrong: a huge hierarchy question stays slow.
+- Task 13: complete (commits 9ca7b81b..5150a92c, tests: cargo test -p code-record, contracts → ok; RED: 'one shared wait, not one per file: 3.3179777s')
+- Task 13: contract fix commit cef6633d (contracts 6 passed)
+- Task 4: Ruling: kept the existing .import-<id> staging name instead of the plan's .staging-<uuid> — same role, already in files.rs — cost if wrong: none.
+- Task 4: Ruling: the rename stays inside publish (before the write), not in the transaction — simplest; accepted risk named in stages — cost if wrong: an orphan id folder after a crash in that gap.
+- Task 4: Ruling: concurrency test asserts order (a write finishes before the import) with a 60 MB source, no test hook — cost if wrong: on a very fast disk the copy could finish first and the test would fail spuriously.
+- Task 4: complete (commits cef6633d..e64cee87, tests: cargo test -p core-extensions 36 passed, shadows-core --test aylul_extensions, contracts → ok; RED: 'the write waited for the whole import', 'the unfinished copy is gone')
+- Task 13: Ruling: architecture rule allows code-record's self dev-dependency (test-support for its own tests) — commit cd1c0b40 — cost if wrong: none, dev-only edge.
+- Task 11: Ruling: busy = status not terminal (Operations' rule) replaces 'finished_at is null' — a terminal turn records finished_at, so they agree — cost if wrong: a terminal row without finished_at was busy before and is quiet now.
+- Task 11: complete (commits cd1c0b40..141f0fa3, tests: runs_attempts checks:: 65 passed, operation_lifecycle 12, architecture 51, contracts 6 → ok; optimization, no RED)
+- Task 10: complete (commits 141f0fa3..f4248e2e, tests: runs_attempts rechecks:: 25 passed; query plan SEARCH by workflow_id; optimization, no RED)
+- Task 12: Ruling: only the bounded/detail and progress-index changes; the facts split and per-plan batching are left — no measurement asked for them — cost if wrong: the elements endpoint still reads stage/layout.
+- Task 12: complete (commits f4248e2e..2cb946b4, tests: runs_attempts project_state:: 10, shadows --test project_state_routes 2 → ok; optimization, no RED)
+- Task 17: Ruling: no receiver-count test — the senders live in Turns/Harness/UI with no count API, and a private probe would add a diagnostic the plan says not to — cost if wrong: a future edit could re-add thread receivers to project streams unnoticed.
+- Task 17: complete (commits 2cb946b4..5af19ffb, tests: cargo test -p core-events, shadows --test project_events --test stream_frames --test protocol, contracts → ok)
+- Task 18: complete (commits 5af19ffb..591849cd, tests: shadows --test workspace_mcp --test grants, shadows-core --test design_vision --test contracts → ok; type change, no RED: the invalid call no longer compiles)
+- Task 19: Ruling: port parsed by our own code (reqwest is dev-only; no URL crate in production) — validation is product logic per CLAUDE.md — cost if wrong: an exotic authority spelling the browser accepts may be refused.
+- Task 19: complete (commits 591849cd..b9e43550, tests: shadows --test cors --test harness_config → ok; RED: 'http://localhost:abc' accepted)
+- Task 20: Ruling: shipped the additive truncated field without a prior shared-request round with Masada — additive, serde default, schema regenerated, web typecheck passes; stages names the open UI decision for her — cost if wrong: the field's name or meaning may need a follow-up change.
+- Task 20: complete (commits b9e43550..d17234a9, tests: shadows-core --test aylul_profiles probe:: 13 passed, shadows --test openapi 10, web typecheck, contracts → ok; RED: no field truncated)
+- Task 21: Ruling: no interrupted-write test — it needs fault injection inside std::fs; checked instead that no temporary file is left and existing home tests (pre-existing file kept) pass — cost if wrong: a partial temp is never linked, so the risk is only a leftover temp file.
+- Task 21: complete (commits d17234a9..f360d4bc, tests: cargo test -p core-agents 18, shadows-core --test aylul_extensions 6, contracts → ok)
+- Task 10: Ruling: the ratchet flagged json_each in superseded_in; recorded as a reviewed SQL exception like Messages' and CodeRecord's — commit 20926dcf — cost if wrong: none.
+- Task 15: complete (commits 20926dcf..21d66be8, tests: shadows --test architecture 53 passed; guard shown failing with core-turns removed: 'runs must depend only on lower owners and infrastructure: core-turns')
+- Final review: fresh reviewer (opus subagent), verdict 'With fixes'; 0 Critical, 2 Important, 7 Minor.
+- Final: fixed B-214 abandoned rows hid later failures — a_failure_after_a_stopped_batch_is_told RED→GREEN ('the recheck notice was not queued'), suite runs_attempts 187/187 — 0353e018
+- Final: fixed B-228 hard_link failing on filesystems without hard links — fallback create_new in place; Ruling: no RED test, it needs a FAT/exFAT volume — cost if wrong: the fallback path is untested on such a volume — eb0a750e
+- Final: fixed minor 4 (re-graded: the new test pinned a value no browser sends) — default port / leading zero refused, cors test RED→GREEN ('http://localhost:80') — 31dee777
+- Final: Ruling: second case of Important 1 (end_recheck fails after every row ran) — rows that did not pass lose their start too, so the next batch tells them; the notice is not rebuilt — cost if wrong: that batch's failures are told one batch later.
+- Final: minor (deferred): Storage::instant maps unreadable text to Unavailable (reads as transient).
+- Final: minor (deferred): a dropped import caller can leave an orphan id folder; startup clears only .import-*.
+- Final: minor (deferred): 'planner:{harness}' built in two places (PlannerApprover::command and Approver::agent).
+- Final: minor (deferred): start-wait message says 'in time' instead of naming the duration; test hook inside the retry loop.
+- Final: minor (deferred): abandoned row output shows internal RunsError text to the person.
+- Final: minor (deferred): Option<ThreadLive> lets a thread stream without live sources be built; could live in Scope::Thread.
+- Final: minor (deferred): bracketed text is not checked as IPv6 in allowed_origin.
+- Final: Cargo.lock entry for B-219 committed late (e5aa33f2)

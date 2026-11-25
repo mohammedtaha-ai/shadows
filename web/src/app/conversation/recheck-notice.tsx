@@ -3,7 +3,7 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { Bell } from 'lucide-react'
+import { Bell, CircleCheck } from 'lucide-react'
 import type { RecheckNotice } from '@/api/runs'
 import { planQuery } from '@/api/workflows'
 import { CheckRow } from '../check-row'
@@ -18,7 +18,17 @@ function PlanName({ workflowId, version }: { workflowId: string; version: number
   </p>
 }
 
-export function RecheckNoticeItem({ recheck, projectId }: { recheck: RecheckNotice; projectId: string }) {
+export function RecheckNoticeItem({ recheck, projectId, body = '' }: { recheck: RecheckNotice; projectId: string; body?: string }) {
+  // Core sends the all-passed notice with an empty failed list and its own sentence as the entry body.
+  if (recheck.failed.length === 0) {
+    return <section aria-label="Recheck passed" className="surface-panel space-y-2 rounded-xl border border-success/30 bg-success/10 p-3 text-xs">
+      <p className="flex items-center gap-2.5 font-medium text-success">
+        <CircleCheck aria-hidden className="size-3.5 shrink-0" />
+        Project recheck passed
+      </p>
+      {body !== '' && <p dir="auto" className="whitespace-pre-wrap text-secondary-foreground">{body}</p>}
+    </section>
+  }
   return <section aria-label="Recheck" className="surface-panel space-y-2.5 rounded-xl p-3 text-xs">
     <p className="flex items-center gap-2.5 font-medium text-foreground">
       <Bell aria-hidden className="size-3.5 shrink-0 text-accent-line/85" />

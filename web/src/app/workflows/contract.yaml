@@ -383,6 +383,27 @@ obligations:
     tested_by: draws the progress Core gives (plan-page.test.tsx) and shows "— done" while the progress read fails
 
 
+  - rule: >
+      The plan header's Recheck project button (after Continue this plan, before Archive) asks Core to recheck
+      the project with one command id per click. The line Last project recheck HH:MM with Core's passed, failed
+      and not-run counts (failed in the danger colour only above 0) sits beside the progress block, and is absent
+      when the project had no recheck. While the newest batch counts rows unfinished the button reads Rechecking…
+      in its place, as Rechecking… N of M rows finished, and the project stream's RecheckStarted and RecheckFinished refresh it; the page does not poll.
+    tested_by: the_terminal_icon_toggles_the_panel_beside_the_last_result, a_started_recheck_tells_the_page_to_open_the_panel, idle_with_a_last_result_shows_the_counts_and_the_button, no_failures_leaves_the_failed_count_out, no_result_shows_the_button_and_no_line, running_replaces_the_button_and_is_not_polled, a_click_posts_once_with_a_command_id (recheck-control.test.tsx)
+
+  - rule: >
+      The recheck panel sits under the plan graph, which gets shorter, and shows the project's newest batch: Project
+      recheck, who began it and when, Core's passed, failed and left counts, and a chevron that closes it. Its left
+      column lists every check (task and command) with a state icon; the right side shows the selected check's output
+      in the mono font, Core's stored output once the row finished and the streamed text while it runs, kept scrolled
+      to the end. The running check is selected until the person picks another. Recheck project opens the panel; the
+      terminal icon beside Last project recheck opens and closes it at any time. The panel never makes the page
+      taller than the window: it is 18rem tall at most; in a short window the plan graph shrinks to zero first,
+      then the panel shrinks with the space left, down to nothing, clipping what does not fit; and everything in
+      its check list, hidden state labels included, stays inside the list.
+    tested_by: shows_who_began_it_and_the_counts_and_one_line_per_check, live_chunks_append_to_the_running_check_which_is_selected_first, selecting_a_finished_check_shows_its_stored_output, the_checks_list_contains_its_hidden_state_labels, the_panel_gives_way_to_a_short_window, the_chevron_closes_the_panel (recheck-panel.test.tsx)
+
+
 # ── agreements ───────────────────────────────────────────────────────────────
 
 agreements:

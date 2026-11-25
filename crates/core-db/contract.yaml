@@ -102,10 +102,18 @@ functions:
   storage:
     now:
       signature: "Storage::now() -> String"
-      # RFC3339 UTC clock used by persisted records.
+      # RFC3339 UTC clock used by persisted records, always nine fraction digits
+      # (fixed width), so readers may order and compare these strings as text.
+    format_time:
+      signature: "Storage::format_time(at: OffsetDateTime) -> String"
+      # `at` spelled as `now` spells it; every Core writer of a stored time uses it.
+    instant:
+      signature: "Storage::instant(text: &str) -> Result<i128, StorageError>"
+      # A stored RFC3339 time as nanoseconds since the epoch, whatever its fraction
+      # width (rows before the fixed width trim it); unreadable text is Unavailable.
     open:
       signature: "(db_path: &Path) -> Result<Self, StorageError>"
-      # Opens WAL storage with foreign keys, migrations, an eight-connection reader
+      # Opens the literal filename (no URL decoding) as WAL storage with foreign keys, migrations, an eight-connection reader
       # pool and one serialized writer; initializes the committed journal cursor.
     reader:
       signature: "(&self) -> &SqlitePool"
@@ -123,6 +131,9 @@ functions:
       signature: "(&self, f: F) -> Result<T, StorageError>"
       # Serializes BEGIN IMMEDIATE writes; commits on success, rolls back on error,
       # uses SQLx drop rollback for abandoned transactions and publishes only after commit.
+      # A commit not yet announced when its caller is dropped (or whose sequence read
+      # failed) is announced by a spawned task that takes the writer next and reads the
+      # durable sequence on it (`Unannounced`).
       # A thin call to write_txn_as with E = StorageError.
     write_txn_as:
       signature: "(&self, f: F) -> Result<T, E> where E: From<StorageError>"
@@ -145,6 +156,12 @@ enums:
 
 
 obligations:
+  - rule: A commit whose caller is dropped before it is announced is still announced, with no later write.
+    tested_by: [a_commit_whose_caller_is_dropped_is_still_announced]
+  - rule: Storage::open creates the database at the path as written, even a folder name that reads as percent-encoding.
+    tested_by: [fresh_database_migrates_and_applies_the_connection_policy]
+  - rule: Storage::now writes a fixed-width time, and Storage::instant reads any stored width in time order.
+    tested_by: [now_always_writes_nine_fraction_digits, an_instant_reads_any_stored_width_in_time_order]
   - rule: Closing storage releases database files before its directory is removed, and is idempotent.
     tested_by: close_releases_the_database_and_is_idempotent
   - rule: Closing storage never holds the writer mutex while awaiting borrowed readers.

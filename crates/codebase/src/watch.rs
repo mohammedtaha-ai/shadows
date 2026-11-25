@@ -701,7 +701,41 @@ fn forward(
         } else if !rel.is_empty() {
             send(Seen::Path(rel));
         }
+        // On Linux a new folder is watched only once it exists, so a file written into it
+        // at once sends no event of its own: report what the folder already holds.
+        if matches!(event.kind, EventKind::Create(_)) && path.is_dir() {
+            for file in created_files(path) {
+                if let Some(rel) = Codebase::relative(dir, &file)
+                    && !rel.split('/').any(Codebase::never_walked)
+                {
+                    saw(&rel);
+                    send(Seen::Path(rel));
+                }
+            }
+        }
     }
+}
+
+/// The files under a folder just created, at most a few hundred: a folder this new holds
+/// what was written into it while it was not yet watched.
+fn created_files(folder: &Path) -> Vec<std::path::PathBuf> {
+    let (mut files, mut folders) = (Vec::new(), vec![folder.to_path_buf()]);
+    while let Some(next) = folders.pop() {
+        let Ok(entries) = std::fs::read_dir(&next) else {
+            continue;
+        };
+        for entry in entries.flatten() {
+            if files.len() >= 500 {
+                return files;
+            }
+            match entry.file_type() {
+                Ok(kind) if kind.is_dir() => folders.push(entry.path()),
+                Ok(kind) if kind.is_file() => files.push(entry.path()),
+                _ => {}
+            }
+        }
+    }
+    files
 }
 
 #[cfg(test)]

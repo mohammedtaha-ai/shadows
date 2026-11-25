@@ -16,7 +16,7 @@ use crate::{
 
 /// How often a server that would read the file but is not running yet is asked again.
 const RETRY_EVERY: Duration = Duration::from_secs(5);
-/// The longest a file waits for such a server.
+/// The longest one verification waits for such servers, shared by its files.
 const RETRY_FOR: Duration = Duration::from_secs(120);
 
 /// The `documentSymbol` kinds that count: class, method, constructor, enum,
@@ -72,9 +72,12 @@ impl CodeRecord {
             .map(|s| s.path.as_str())
             .chain(created.iter().copied())
             .collect();
+        // One start wait for the whole verification: files whose server is still starting
+        // share it, so a server that never starts costs it once, not once per file.
+        let started = Instant::now();
         let mut answers = BTreeMap::new();
         for path in paths {
-            answers.insert(path.to_string(), self.ask(project, path).await);
+            answers.insert(path.to_string(), self.ask(project, path, started).await);
         }
         let verdict = CodeRecord::compare(task, contract, &answers);
         self.store.put(key, project, &verdict).await?;
@@ -82,7 +85,7 @@ impl CodeRecord {
     }
 
     /// One file: absent, its counted symbols, or why it could not be checked.
-    async fn ask(&self, project: &ProjectId, path: &str) -> FileAnswer {
+    async fn ask(&self, project: &ProjectId, path: &str, started: Instant) -> FileAnswer {
         #[cfg(feature = "test-support")]
         {
             use crate::RecordedAnswer;
@@ -95,7 +98,12 @@ impl CodeRecord {
                 }
                 Some(RecordedAnswer::Absent) => return FileAnswer::Absent,
                 Some(RecordedAnswer::Failed(why)) => return FileAnswer::Unchecked(why),
-                Some(RecordedAnswer::References { .. } | RecordedAnswer::Workspace(_)) | None => {}
+                Some(
+                    RecordedAnswer::References { .. }
+                    | RecordedAnswer::Workspace(_)
+                    | RecordedAnswer::Starting,
+                )
+                | None => {}
             }
         }
         match self
@@ -107,7 +115,6 @@ impl CodeRecord {
             Ok(_) => {}
             Err(error) => return FileAnswer::Unchecked(format!("it could not be read: {error}")),
         }
-        let started = Instant::now();
         loop {
             let question = LspQuestion {
                 operation: LspOperation::DocumentSymbol,
@@ -117,43 +124,71 @@ impl CodeRecord {
                 query: None,
                 project: None,
             };
-            let answer = match self.code.lsp(Asker::Person(project), question).await {
-                Ok(answer) => answer,
-                Err(error) => return FileAnswer::Unchecked(error.to_string()),
+            #[cfg(feature = "test-support")]
+            let held = matches!(self.recorded(path), Some(crate::RecordedAnswer::Starting));
+            #[cfg(not(feature = "test-support"))]
+            let held = false;
+            let answer = if held {
+                None
+            } else {
+                match self.code.lsp(Asker::Person(project), question).await {
+                    Ok(answer) => Some(answer),
+                    Err(error) => return FileAnswer::Unchecked(error.to_string()),
+                }
             };
-            match answer {
-                LspAnswer::Answered {
+            let starting = match answer {
+                None => "recorded as starting".to_string(),
+                Some(LspAnswer::Answered {
                     result, truncated, ..
-                } => return CodeRecord::file_answer(&result, truncated),
-                LspAnswer::NoServer {
+                }) => return CodeRecord::file_answer(&result, truncated),
+                Some(LspAnswer::NoServer {
                     server: Some(server),
                     state: None | Some(ServerState::Idle | ServerState::Starting),
                     ..
-                } => {
-                    if started.elapsed() >= RETRY_FOR {
-                        return FileAnswer::Unchecked(format!(
-                            "the language server {server} did not start in 2 minutes"
-                        ));
-                    }
-                    tokio::time::sleep(RETRY_EVERY).await;
-                }
-                LspAnswer::NoServer {
-                    server: Some(server),
-                    state,
-                    ..
-                } => {
-                    let why = match state {
-                        Some(ServerState::NotInstalled) => "is not installed".to_string(),
-                        Some(ServerState::Off) => "is switched off".to_string(),
-                        Some(ServerState::Failed { error: Some(e) }) => format!("failed: {e}"),
-                        _ => "failed".to_string(),
-                    };
-                    return FileAnswer::Unchecked(format!("the language server {server} {why}"));
-                }
-                LspAnswer::NoServer { server: None, .. } => {
-                    return FileAnswer::Unchecked("no language server reads it".into());
-                }
+                }) => server,
+                Some(other) => return CodeRecord::not_running(other),
+            };
+            let (every, total) = self.start_wait();
+            if started.elapsed() >= total {
+                return FileAnswer::Unchecked(format!(
+                    "the language server {starting} did not start in time"
+                ));
             }
+            tokio::time::sleep(every).await;
+        }
+    }
+
+    /// How often a starting server is asked again, and for how long in all.
+    fn start_wait(&self) -> (Duration, Duration) {
+        #[cfg(feature = "test-support")]
+        if let Some(shorter) = *self.start_wait.lock().expect("start wait") {
+            return shorter;
+        }
+        (RETRY_EVERY, RETRY_FOR)
+    }
+
+    /// Why a file whose server will not answer it is unchecked.
+    fn not_running(answer: LspAnswer) -> FileAnswer {
+        match answer {
+            LspAnswer::NoServer {
+                server: Some(server),
+                state,
+                ..
+            } => {
+                let why = match state {
+                    Some(ServerState::NotInstalled) => "is not installed".to_string(),
+                    Some(ServerState::Off) => "is switched off".to_string(),
+                    Some(ServerState::Failed { error: Some(e) }) => format!("failed: {e}"),
+                    _ => "failed".to_string(),
+                };
+                FileAnswer::Unchecked(format!("the language server {server} {why}"))
+            }
+            LspAnswer::NoServer { server: None, .. } => {
+                FileAnswer::Unchecked("no language server reads it".into())
+            }
+            LspAnswer::Answered {
+                result, truncated, ..
+            } => CodeRecord::file_answer(&result, truncated),
         }
     }
 

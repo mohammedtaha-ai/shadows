@@ -64,6 +64,7 @@ impl Turns {
         let noted = noted.lock().map(|n| n.clone()).unwrap_or_default();
         let unnoted: Vec<String> = hold
             .changed()
+            .await
             .into_iter()
             .filter(|path| !noted.contains(path))
             .collect();

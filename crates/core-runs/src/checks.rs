@@ -1,5 +1,6 @@
 //! Confirming an attempt's command checks on the shared project folder.
 use crate::git::Git;
+use crate::recheck_live::LiveRow;
 use crate::scope::Scope;
 use crate::store::{Continued, checks::Finished};
 use crate::{Attempt, AttemptId, AttemptOrigin, CheckOutcome, CheckResult, Runs, RunsError};
@@ -12,7 +13,7 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 use tokio::io::{AsyncRead, AsyncReadExt};
 
-const OUTPUT_LIMIT: usize = 65_536;
+pub(crate) const OUTPUT_LIMIT: usize = 65_536;
 
 /// The id of the check Shadows runs itself: the contract's symbols, by name.
 /// Plans refuses a task check with this id.
@@ -82,15 +83,8 @@ impl Runs {
         loop {
             let mut busy = false;
             for thread in self.inner.store.quiet_threads(&attempt.project_id).await? {
-                if self
-                    .inner
-                    .turns
-                    .operations(&thread)
-                    .await
-                    .map_err(|e| RunsError::Unavailable(e.to_string()))?
-                    .iter()
-                    .any(|op| op.finished_at.is_none())
-                {
+                // The owner's one-row check, not the thread's whole history.
+                if self.inner.operations.thread_is_busy(&thread).await? {
                     busy = true;
                     break;
                 }
@@ -115,17 +109,35 @@ impl Runs {
                 .operations(&thread)
                 .await
                 .map_err(|e| RunsError::Unavailable(e.to_string()))?;
-            if operations.iter().any(|op| {
-                op.started_at.as_deref().is_none_or(|started| started < end)
-                    && op
-                        .finished_at
-                        .as_deref()
-                        .is_none_or(|finished| finished > start)
-            }) {
-                return Ok(true);
+            for op in &operations {
+                let (started, finished) = (op.started_at.as_deref(), op.finished_at.as_deref());
+                if Self::ran_during(start, end, started, finished)? {
+                    return Ok(true);
+                }
             }
         }
         Ok(false)
+    }
+
+    /// Whether a turn that started at `started` and finished at `finished` (either still
+    /// open when absent) shared any instant with the check from `start` to `end`. Times are
+    /// compared as instants: rows written before the fixed width trim their fraction.
+    fn ran_during(
+        start: &str,
+        end: &str,
+        started: Option<&str>,
+        finished: Option<&str>,
+    ) -> Result<bool, RunsError> {
+        let at = |text: &str| Storage::instant(text).map_err(RunsError::from);
+        let began_before_end = match started {
+            Some(started) => at(started)? < at(end)?,
+            None => true,
+        };
+        let ended_after_start = match finished {
+            Some(finished) => at(finished)? > at(start)?,
+            None => true,
+        };
+        Ok(began_before_end && ended_after_start)
     }
 
     async fn confirm_attempt(&self, attempt: &Attempt) -> Result<(), RunsError> {
@@ -259,20 +271,22 @@ impl Runs {
                 .cloned()
                 .collect();
             let before = git.head().await;
-            match batch {
+            let live = match batch {
                 Some(batch) => {
                     self.inner
                         .store
                         .start_recheck(batch, &attempt.id, check)
-                        .await?
+                        .await?;
+                    Some(self.live_started(batch, task, &attempt.id, &check.id))
                 }
                 None => {
                     self.inner
                         .store
                         .start_check(&attempt.id, task, check, ordinal, before.clone())
-                        .await?
+                        .await?;
+                    None
                 }
-            }
+            };
             if !leftovers.is_empty() {
                 let foreign = !leftovers.iter().any(|p| own.admits(p));
                 let output = if foreign {
@@ -298,7 +312,7 @@ impl Runs {
             }
             let hashes = git.hash(&dirty).await.map_err(RunsError::Unavailable)?;
             let start = Storage::now();
-            let mut result = Self::execute_check(&folder, check).await;
+            let mut result = Self::execute_check(&folder, check, live).await;
             let end = Storage::now();
             result.head = git.head().await;
             let after = git.changed(&prefix).await.map_err(RunsError::Unavailable)?;
@@ -372,7 +386,8 @@ impl Runs {
         line
     }
 
-    async fn execute_check(root: &Path, check: &TaskCheck) -> Finished {
+    /// Runs the check's command; `live`, for a recheck row, hears its output as it is printed.
+    async fn execute_check(root: &Path, check: &TaskCheck, mut live: Option<LiveRow>) -> Finished {
         let mut result = Finished {
             outcome: CheckOutcome::NotRun,
             exit_code: None,
@@ -443,6 +458,9 @@ impl Runs {
             let mut bytes = VecDeque::new();
             let mut truncated = false;
             while let Some(chunk) = receive.recv().await {
+                if let Some(live) = live.as_mut() {
+                    live.chunk(&chunk);
+                }
                 bytes.extend(chunk);
                 if bytes.len() > OUTPUT_LIMIT {
                     bytes.drain(..bytes.len() - OUTPUT_LIMIT);
@@ -615,5 +633,36 @@ async fn read_check_output<T: AsyncRead + Unpin>(
         if send.send(buf[..n].to_vec()).await.is_err() {
             return Ok(());
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Runs;
+
+    const START: &str = "2026-11-25T12:00:00.5Z";
+    const END: &str = "2026-11-25T12:00:02.5Z";
+
+    #[test]
+    fn a_turn_ending_just_after_the_check_starts_overlaps_in_any_width() {
+        let ended = Some("2026-11-25T12:00:00.52Z");
+        assert!(Runs::ran_during(START, END, Some("2026-11-25T11:00:00Z"), ended).unwrap());
+    }
+
+    #[test]
+    fn a_turn_ending_before_the_check_starts_does_not_overlap() {
+        let ended = Some("2026-11-25T12:00:00.499999999Z");
+        assert!(!Runs::ran_during(START, END, Some("2026-11-25T11:00:00Z"), ended).unwrap());
+    }
+
+    #[test]
+    fn a_turn_starting_on_the_whole_second_before_the_end_overlaps() {
+        let started = Some("2026-11-25T12:00:02Z");
+        assert!(Runs::ran_during(START, END, started, None).unwrap());
+    }
+
+    #[test]
+    fn an_unreadable_time_is_an_error_not_a_pass() {
+        assert!(Runs::ran_during(START, END, Some("yesterday"), None).is_err());
     }
 }

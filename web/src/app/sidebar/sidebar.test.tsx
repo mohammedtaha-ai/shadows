@@ -89,3 +89,10 @@ it('below 768 px it starts hidden, shows as an overlay, and closes on a chosen c
  click('Show sidebar'); await until(() => sidebar() !== null); click('Close sidebar'); await until(() => sidebar() === null)
  click('Show sidebar'); await until(() => [...document.querySelectorAll('nav a')].some(a => a.textContent?.includes('Conversation 1'))); act(() => [...document.querySelectorAll<HTMLAnchorElement>('nav a')].find(a => a.textContent?.includes('Conversation 1'))?.click()); await until(() => sidebar() === null)
 })
+it('the agent list holds the AYLUL project’s stream', async () => {
+  app = await startApp('/aylul', { ...answers(),
+    'GET /api/aylul/providers': [{ slug: 'fixture', models: [] }],
+    'GET /api/aylul/agents': { project_id: 'ay1', agents: [{ slug: 'work', name: 'Work' }] },
+  })
+  await until(() => app!.sources.some(source => source.url.includes('/projects/ay1/')))
+})

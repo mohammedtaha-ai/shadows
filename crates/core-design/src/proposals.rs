@@ -53,7 +53,7 @@ impl Design {
     pub async fn planner_approver(
         &self,
         grant: &Grant,
-    ) -> Result<core_grants::Approver, DesignError> {
+    ) -> Result<core_grants::PlannerApprover, DesignError> {
         let writer = super::agreement_scope::AgreementScope::writer(grant)?;
         let Writer::Planner { thread, .. } = &writer else {
             return Err(DesignError::GrantScope(
@@ -77,7 +77,7 @@ impl Design {
         )
         .await?
         .harness;
-        Ok(core_grants::Approver::Planner {
+        Ok(core_grants::PlannerApprover {
             writer,
             turn: turn.to_string(),
             harness,
@@ -89,11 +89,12 @@ impl Design {
         grant: &Grant,
         proposal: &str,
     ) -> Result<DesignChange, DesignError> {
-        let approver = self.planner_approver(grant).await?;
-        let ctx = approver.command(
+        let planner = self.planner_approver(grant).await?;
+        let ctx = planner.command(
             "VisionProposalApprove",
             serde_json::json!({"project":grant.project_id,"proposal":proposal}),
         );
+        let approver = core_grants::Approver::Planner(planner);
         self.store
             .approve_vision_proposal_in(&ctx, &grant.project_id, proposal, &approver)
             .await

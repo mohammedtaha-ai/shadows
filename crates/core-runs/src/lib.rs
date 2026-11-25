@@ -34,6 +34,7 @@ mod question;
 mod ready;
 mod ready_group;
 mod recheck;
+mod recheck_live;
 mod recover;
 mod report;
 mod scope;
@@ -55,8 +56,10 @@ pub use model::{
     RecoverReport, ReportedCheck, ReportedOutcome, StartAnswer, TaskConflict, TaskLesson,
     TaskProgress, TaskRun,
 };
-pub use model::{Chooser, ExecutorChoice, ExecutorInput};
+pub use model::{Chooser, ExecutorChoice, ExecutorInput, ProjectRecheck};
+pub use model::{LastRecheck, RecheckBegan, RecheckCounts, RecheckOutput, RecheckRow};
 pub use question::{PlannedScope, ProducerStatus, TaskAnswer, TaskQuestion};
+pub use recheck_live::RecheckWatch;
 
 use code_record::CodeRecord;
 use codebase::Codebase;
@@ -110,10 +113,14 @@ struct Inner {
     messaging: tokio::sync::Mutex<std::collections::HashMap<ThreadId, Arc<tokio::sync::Mutex<()>>>>,
     /// One lock per project: Shadows runs one check at a time there.
     checking: tokio::sync::Mutex<std::collections::HashMap<ProjectId, Arc<tokio::sync::Mutex<()>>>>,
+    /// The running recheck batches' live output, by batch id; never stored.
+    live_rechecks: recheck_live::LiveRechecks,
     store: RunsStore,
     plans: Plans,
     harness: Arc<Harness>,
     turns: Turns,
+    /// Answers whether an executor thread has a turn open, for the quiet wait.
+    operations: core_operations::Operations,
     projects: Projects,
     /// Read for the commands an executor ran, in a lessons record.
     threads: Arc<Threads>,
@@ -140,6 +147,7 @@ impl Runs {
         plans: Plans,
         harness: Arc<Harness>,
         turns: Turns,
+        operations: core_operations::Operations,
         projects: Projects,
         threads: Arc<Threads>,
         code: Codebase,
@@ -149,10 +157,12 @@ impl Runs {
             inner: Arc::new(Inner {
                 messaging: tokio::sync::Mutex::new(std::collections::HashMap::new()),
                 checking: tokio::sync::Mutex::new(std::collections::HashMap::new()),
+                live_rechecks: recheck_live::LiveRechecks::default(),
                 store: RunsStore::with_storage(storage),
                 plans,
                 harness,
                 turns,
+                operations,
                 projects,
                 threads,
                 code,

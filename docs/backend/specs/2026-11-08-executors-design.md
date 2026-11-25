@@ -106,11 +106,13 @@ page still shows its `Planned` block; both are rows of [Core future](../../core/
 **Progress reaches the project stream** (2026-11-20, from the frontend's review of the project
 state request). Every write that changes what a task's progress answers (`Runs::progress`: an
 attempt inserted, an attempt's state changed by its report, its end, a Stop, a startup's
-interruption, and a done or not-done mark) journals `TaskProgressChanged { project_id,
+interruption, and a done or not-done mark) and every write that changes what the task page
+reads of an attempt (one of its check rows finished, its conflict recorded or its delivery moved
+from pending; a recheck row is not one) journals `TaskProgressChanged { project_id,
 workflow_id, version, task, attempt_id }` in that same write. `attempt_id` is null for a mark.
 Runs journals it, and a replay journals nothing. The project event tail carries it, so a project
 view refreshes progress without following each executor's thread. Plan:
-`docs/backend/plans/2026-11-19-code-record-2a.md`, B-187 and B-180.
+`docs/backend/plans/2026-11-19-code-record-2a.md` at `4d69977d`, B-187 and B-180.
 
 ## 5. One task's life
 
@@ -327,16 +329,47 @@ the agent's word. This replaces the critic's evidence role (§5.1 already replac
   reason when any of its checks did not pass or has no finished result yet. The reason is recorded
   and shown with the mark. The Planner still judges (§5.1).
 - **A restart loses nothing.** A committed attempt whose checks did not all finish runs them again
-  at startup; one whose results are complete but whose notice was not sent sends it. A notice is
-  written once, before it is first sent, and a resend is that same notice, so it is never sent
-  twice, even when the Planner's settings changed in between.
+  at startup; one whose results are complete but whose notice was not sent sends it. A project
+  recheck a restart cut short runs its unfinished checks at startup, keeps the finished ones, then
+  ends and tells as it would have (B-202: in `testing8` a restart left them `not_run` and nothing
+  ran them again). A notice is written once, before it is first sent, and a resend is that same
+  notice, so it is never sent twice, even when the Planner's settings changed in between.
+- **A recheck that fails still ends.** When a recheck's worker stops on an error while the
+  daemon runs (a result it cannot save, a folder it cannot read), its unfinished rows become
+  `not_run` with the error as their output and the batch finishes with no notice, so the plan
+  page and a watcher stop waiting; the person rechecks again. Only when that write also fails does
+  the batch wait for startup recovery (B-214, from the 2026-11-25 backend review).
 - **A done mark frees only the attempt it judged.** The mark records the attempt it judged; the
   same mark sent again finishes freeing that attempt and never frees a later one.
-- **A done mark reruns the checks of the project's other done tasks** (Mohammed, 2026-11-16:
+- **A project recheck reruns the checks of the project's done tasks** (Mohammed, 2026-11-16:
   project-wide, each failure reported once). Every done task of every plan and version in the
-  project brings its judged attempt's checks; the marked task does not. A failing check is told
-  to the marking plan's Planner once, with its plan's title and version; it is told again only
-  after it has passed in a later recheck. Every check still runs and is recorded. Done marks stand.
+  project brings its judged attempt's checks. A failing check is told to the Planner of the plan
+  that caused the recheck once, with its plan's title and version; it is told again only after it
+  has passed in a later recheck. Every check still runs and is recorded. Done marks stand.
+- **A project recheck runs when a plan is complete, or when asked** (Mohammed, 2026-11-23,
+  replacing "after every done mark"). A done mark runs only its own task's checks. The recheck runs
+  once when the mark completes its plan (every task done), and whenever the person or the Planner
+  asks for one. Why: in `testing8` each recheck held the project's check lock for 6 to 8 minutes
+  over 14 done tasks, and the next ended attempt's own checks and notice waited behind it: the
+  last task's notice reached the Planner 5 minutes after its commit
+  ([evidence](../../evidence/2026-11-23-testing8-go-python-live.md)). A failure is told as
+  above. A recheck that was asked for and in which every check passed tells its asker so in one
+  short notice, since nothing else would answer it; the one a completing mark began says nothing
+  when nothing new fails (2026-11-24). A batch always finishes: when no Planner can be told (none,
+  or one whose thread has no turn yet), a pass or a failure is told to no one and the failing
+  rows stay on the plan page for the person to read (2026-11-24: a person-asked batch with a
+  failing check otherwise stayed "Rechecking…" until a restart). The person reads a batch (Mohammed, 2026-11-24): its rows
+  in order (task, then check), each with its command, outcome, times and stored output; and, while
+  it runs, its output live: each row's start, the text its check prints, its finish with the
+  outcome, and the batch's end. A watcher who connects mid-row first gets that row's output so
+  far. The live output is held in memory by Runs, capped as the stored output is (64 KiB, the
+  end kept); it is not journaled and nothing new is written to the database; a restart loses
+  only the running row's live output, and the row runs again. A batch's start and end reach the
+  project stream (Mohammed, 2026-11-24): `RecheckStarted { project_id, workflow_id, recheck_id }`
+  in the write that begins it (a completing mark's or an ask's; `workflow_id` is the cause plan)
+  and `RecheckFinished`, same payload, in the write that sets its `finished_at`, also for a batch
+  recovery runs again; a replayed ask journals nothing. The plan page reads the last recheck
+  again on either, and polls never.
 - **The lock orders Shadows' own runs only.** What executors run is ordered by their instructions
   and by waiting on a lock error, as above.
 - **An addition is a new attempt,** with its own commit and its own checks.

@@ -5,7 +5,7 @@
   Need and Fields, and accepts or replies)
 - Screen: the code record design §5.4
   (`docs/backend/specs/2026-11-19-project-code-record-design.md`); backend plan
-  `docs/backend/plans/2026-11-19-code-record-2a.md` (B-177, B-180)
+  `docs/backend/plans/2026-11-19-code-record-2a.md` at `4d69977d` (B-177, B-180)
 
 ## Need
 
@@ -191,7 +191,7 @@ request remains disputed for the controller's ruling under the shared-request cy
   an executor's thread.
 
 The frontend tasks are F-130 to F-134 in `docs/frontend/stages.md` (plan
-`docs/frontend/plans/2026-11-20-project-state-views.md`), blocked until B-177 to B-180 and B-187
+`docs/frontend/plans/2026-11-20-project-state-views.md` at `4d69977d`), blocked until B-177 to B-180 and B-187
 are built and `api/openapi.json` shows them.
 
 ## Ruling

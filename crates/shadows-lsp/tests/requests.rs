@@ -100,3 +100,98 @@ async fn a_servers_requests_are_answered() {
     );
     server.shutdown().await;
 }
+
+/// Records each `didOpen` (with its text) and `didClose`; holds the first
+/// `textDocument/hover` for good after writing `held` to the file its argument names, and
+/// answers the next with what it
+/// recorded.
+const RECORDS_DOCUMENTS: &str = r#"
+const fs = require('fs');
+let buffer = Buffer.alloc(0);
+const seen = [];
+let asked = 0;
+const send = (m) => {
+  const body = JSON.stringify(Object.assign({ jsonrpc: '2.0' }, m));
+  process.stdout.write(`Content-Length: ${Buffer.byteLength(body)}\r\n\r\n${body}`);
+};
+const handle = (m) => {
+  if (m.method === 'initialize') send({ id: m.id, result: { capabilities: {} } });
+  else if (m.method === 'textDocument/didOpen') seen.push(`open:${m.params.textDocument.text}`);
+  else if (m.method === 'textDocument/didClose') seen.push('close');
+  else if (m.method === 'textDocument/hover') {
+    asked += 1;
+    if (asked === 1) fs.writeFileSync(process.argv[1], 'held');
+    else send({ id: m.id, result: seen });
+  } else if (m.id !== undefined) send({ id: m.id, result: null });
+};
+process.stdin.on('data', (chunk) => {
+  buffer = Buffer.concat([buffer, chunk]);
+  for (;;) {
+    const end = buffer.indexOf('\r\n\r\n');
+    if (end < 0) return;
+    const length = Number(/Content-Length: (\d+)/i.exec(buffer.slice(0, end).toString())[1]);
+    if (buffer.length < end + 4 + length) return;
+    const message = JSON.parse(buffer.slice(end + 4, end + 4 + length).toString());
+    buffer = buffer.slice(end + 4 + length);
+    handle(message);
+  }
+});
+"#;
+
+#[tokio::test]
+async fn a_question_dropped_while_held_closes_its_document() {
+    let dir = tempfile::tempdir().unwrap();
+    let held = dir.path().join("held");
+    let server = std::sync::Arc::new(
+        Server::start(
+            ServerSpec {
+                executable: PathBuf::from("node"),
+                args: vec![
+                    "-e".into(),
+                    RECORDS_DOCUMENTS.into(),
+                    held.to_string_lossy().into_owned(),
+                ],
+                root: dir.path().to_path_buf(),
+                env: std::env::vars().collect(),
+            },
+            Duration::from_secs(20),
+        )
+        .await
+        .expect("the server starts"),
+    );
+    let file = dir.path().join("a.txt");
+    let first = server.clone();
+    let path = file.clone();
+    let question = tokio::spawn(async move {
+        let ask = first.ask(
+            &path,
+            "plaintext",
+            "one".into(),
+            "textDocument/hover",
+            json!({}),
+            Duration::from_secs(60),
+        );
+        ask.await
+    });
+    for _ in 0..200 {
+        if held.exists() {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(25)).await;
+    }
+    assert!(held.exists(), "the server never held the first question");
+    question.abort();
+    let _ = question.await;
+    let seen = server
+        .ask(
+            &file,
+            "plaintext",
+            "two".into(),
+            "textDocument/hover",
+            json!({}),
+            Duration::from_secs(10),
+        )
+        .await
+        .expect("the second question is answered");
+    assert_eq!(seen, json!(["open:one", "close", "open:two"]));
+}

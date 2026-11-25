@@ -193,6 +193,7 @@ hooks:
     "(threadId: string, onDurable?: DurableListener, onNotice?: NoticeListener, projectId?: string)
       -> StreamState & { retry: () => void }"
   useProjectEvents: "(projectId: string | undefined) -> void"
+  useProjectConnection: "(projectId: string | undefined) -> Connection | undefined; the project stream's connection, for the connection indicator"
   usePlanEvents: "(threadId: string | undefined, projectId?: string) -> void"
 
 pure:
@@ -392,6 +393,10 @@ obligations:
       per live Operation* event. The client keeps no list of which operation events end a turn.
     tested_by: "refetches entries at each caught-up, per live entry and live operation event,
         never per replayed one"
+
+  - rule: >
+      On a project stream ThreadRetitled, ThreadRemoved and every Operation kind refresh the thread lists.
+    tested_by: "a project stream refreshes the thread lists on retitle, removal and operation events"
 
   - rule: >
       A ThreadRetitled reads the thread lists again at once when live, or once at the
@@ -651,6 +656,10 @@ tests:
       A replayed ThreadRetitled refetches thread lists only at the caught-up, once; a live one
       refetches at once; the project detail key is not invalidated.
 
+  - name: "a project stream refreshes the thread lists on retitle, removal and operation events"
+    checks: >
+      classifyRefresh with no thread scope maps ThreadRetitled, ThreadRemoved and OperationCompleted to thread-lists.
+
   # use-project-events.test.tsx
   - name: independent tabs refresh every design slice, deduplicate and resume after disconnect
     checks: >
@@ -718,7 +727,7 @@ design_cache_identity: "Project design refresh uses api/design.designKeys shared
 
 thread_query_identity: "Thread snapshot refresh uses API-owned identities shared with feature reads"
 
-feature_entry: "index.ts exposes SlashCommand, tabId, LimitWindow, Limits, PlanShowFrame, SubagentCard, toLimits, Connection, readSubagentCard, readAttemptNotice, readRecheckNotice, ToolFrame, TodosFrame, TodoItem, readToolCard, readTodoList, DurableEvent, UsageFrame, useThreadStream, useProjectEvents, usePlanEvents."
+feature_entry: "index.ts exposes SlashCommand, tabId, LimitWindow, Limits, PlanShowFrame, SubagentCard, toLimits, Connection, readSubagentCard, readAttemptNotice, readRecheckNotice, ToolFrame, TodosFrame, TodoItem, readToolCard, readTodoList, DurableEvent, UsageFrame, useThreadStream, useProjectEvents, useProjectConnection, usePlanEvents."
 
 refresh_policy:
   classifier: "refresh.ts classifyRefresh is pure: an event with delivery identifiers becomes refresh targets."
@@ -730,7 +739,7 @@ refresh_policy:
   sharing: "Holders of one thread or project share one refresh per QueryClient (holdThreadRefresh, holdProjectRefresh): each event and caught-up dispatches once however many views hold it. Thread scope is the union of holders: writer-only while every holder is a writer, the first supplied project id. A holder joining a live stream dispatches only the baseline targets it adds."
   project_state:
     kinds: "STATE_EVENTS: the five plan kinds, DesignElementChanged, CodeRecordChanged, TaskProgressChanged, ProjectDesignChanged, MapProposed, RoadmapProposed and RoadmapApproved refresh the project's state and elements reads."
-    revisions: "DesignElementChanged with a string element_id also refreshes that element's revisions only; TaskProgressChanged and CodeRecordChanged give no other target."
+    revisions: "DesignElementChanged with a string element_id also refreshes that element's revisions only; TaskProgressChanged with workflow_id, version and task also refreshes that task's run, attempts and its plan version's progress (target task-progress; replayed ones reconcile at caught-up) and no other task's; TaskProgressChanged with a string attempt_id also refreshes that attempt's checks and conflict only (target attempt-reads, invalidateAttemptReads); CodeRecordChanged gives no other target."
     replay: "Both targets are parked until caught-up and reconcile once."
     baseline: "Every project caught-up reconciles the state and the elements; the revisions are not in the baseline."
   tested_by:
@@ -749,3 +758,13 @@ refresh_policy:
 background_tasks: "The tasks frame replaces the open session's list, including between turns. A disconnect clears it; the next caught-up is followed by the current nonempty snapshot."
 
 agent_reply_cards: readAgentNotice exposes generated AgentReplyNotice beside the existing AttemptNotice parser, rejecting malformed reply fields. Entry authorship still decides whether content is a notice.
+
+recheck_output:
+  owner: recheck-output.ts
+  rule: "useRecheckOutput holds one EventSource on a project recheck batch's output while mounted and folds started, chunk, finished, lagged and end frames into the text each row has printed (keyed by rowKey: task, attempt id, check id). A reconnect's started restarts that row's text, because Core resends the output so far. The newest-batch read has no interval: RecheckStarted and RecheckFinished {workflow_id, recheck_id} on the project stream refresh that workflow's recheck key and that batch's rows key (target recheck). A finished row and the end invalidate only that workflow's recheck key and that batch's rows key (invalidateRecheck), so the stored rows and counts follow; other runs queries stay fresh. useRecheckOutput takes (recheckId, workflowId, connect). The end closes the source, so EventSource does not reconnect to a finished batch."
+  tested_by:
+    - chunks_append_to_the_started_row_and_a_new_start_restarts_it
+    - finished_clears_the_running_row_and_end_closes_the_batch
+    - the_hook_reads_frames_and_closes_on_end
+    - a_finished_frame_refreshes_only_that_batch_and_workflow
+    - unmounting_the_hook_closes_the_source

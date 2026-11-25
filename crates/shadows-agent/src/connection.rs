@@ -183,6 +183,15 @@ impl ManagedConnection {
         }
     }
 
+    /// What the harness last logged as an error, for a failure its requests cannot answer
+    /// (one still waiting at a timeout). Codex logs on stderr; the ACP adapter says none.
+    pub fn last_error(&self) -> Option<String> {
+        match self {
+            Self::Acp(_) => None,
+            Self::Codex(connection) => connection.last_error(),
+        }
+    }
+
     pub fn prompt_capabilities(&self) -> PromptCapabilities {
         match self {
             Self::Acp(connection) => connection.prompt_capabilities(),

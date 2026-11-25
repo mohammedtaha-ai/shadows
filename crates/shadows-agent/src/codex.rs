@@ -64,6 +64,8 @@ impl CodexProgram {
             json!(project)
         );
         let shell = format!("shell_environment_policy.exclude=[\"{GRANT_ENV}\"]");
+        let profile = format!("default_permissions=\"{}\"", session::ASK_PROFILE);
+        let filesystem = Self::ask_filesystem(project);
         for setting in [
             "features.apps=false",
             "features.plugins=false",
@@ -72,6 +74,8 @@ impl CodexProgram {
             "web_search=\"disabled\"",
             &trust,
             &shell,
+            &profile,
+            &filesystem,
         ] {
             args.extend(["-c".into(), setting.into()]);
         }
@@ -97,6 +101,30 @@ impl CodexProgram {
             capture_stdout: true,
             pipe_stdin: true,
         })
+    }
+
+    /// The `ask` mode's filesystem: the project and its `.git` writable, so a commit needs no
+    /// approval; `.git/hooks` and `.git/config` read-only and `.git/config.lock` denied, since a
+    /// hook or a `core.hooksPath` would run outside the sandbox on the person's next git
+    /// command; the temporary folder writable; everything else readable.
+    fn ask_filesystem(project: &str) -> String {
+        let root = project.replace('\\', "/");
+        let root = root.trim_end_matches('/');
+        let entries = [
+            (":root".to_string(), "read"),
+            (":tmpdir".to_string(), "write"),
+            (root.to_string(), "write"),
+            (format!("{root}/.git"), "write"),
+            (format!("{root}/.git/hooks"), "read"),
+            (format!("{root}/.git/config"), "read"),
+            (format!("{root}/.git/config.lock"), "deny"),
+        ]
+        .map(|(path, access)| format!("{}=\"{access}\"", json!(path)))
+        .join(",");
+        format!(
+            "permissions.{}.filesystem={{{entries}}}",
+            session::ASK_PROFILE
+        )
     }
 
     /// Checks the installed CLI against the tested protocol. `scratch` receives the generated
@@ -160,7 +188,15 @@ impl CodexProgram {
             .ok_or(ConnectionError::Protocol("scratch path is not UTF-8"))?;
         self.run(
             scratch,
-            &["app-server", "generate-json-schema", "--out", out],
+            // Experimental, as the connection opens: `ask` selects its permission profile
+            // through the experimental `permissions` field.
+            &[
+                "app-server",
+                "generate-json-schema",
+                "--experimental",
+                "--out",
+                out,
+            ],
         )
         .await?;
         let bundle = std::fs::read_to_string(scratch.join(SCHEMA_BUNDLE)).map_err(|error| {
@@ -267,7 +303,7 @@ impl Connection {
                 "initialize",
                 json!({
                     "clientInfo": {"name":"shadows", "version":env!("CARGO_PKG_VERSION")},
-                    "capabilities":{"experimentalApi":false}
+                    "capabilities":{"experimentalApi":true}
                 }),
             )
             .await?;
@@ -295,6 +331,11 @@ impl Connection {
 
     pub fn is_closed(&self) -> bool {
         self.rpc.is_closed()
+    }
+
+    /// The last error Codex logged on its stderr, as a person may read it.
+    pub fn last_error(&self) -> Option<String> {
+        self.rpc.last_error()
     }
 
     pub fn held_permissions(&self) -> Vec<crate::acp::WaitingPermission> {

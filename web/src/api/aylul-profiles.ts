@@ -48,7 +48,7 @@ export function agentThreadsQuery(slug: string) {
   return queryOptions({ queryKey: profileKeys.threads(slug),
     queryFn: () => unwrap(client.GET('/api/aylul/agents/{slug}/threads', {
       params: { path: { slug } },
-    })), refetchInterval: 10_000 })
+    })) })
 }
 export function agentEnvQuery(slug: string) {
   return queryOptions({ queryKey: profileKeys.env(slug),

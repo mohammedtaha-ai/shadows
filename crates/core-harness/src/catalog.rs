@@ -15,9 +15,16 @@ pub(super) struct Catalogs {
     codex: Probe,
 }
 
+/// How long a read catalog stands before the next read probes again: Codex's own model-list
+/// cache lives as long. A CLI's list changes under a running daemon (a new model, an update,
+/// or Codex answering its built-in list while its refresh fails), and one answer kept for the
+/// daemon's life once hid `gpt-6.2-sol` from every executor choice.
+const CATALOG_TTL: Duration = Duration::from_secs(300);
+
 #[derive(Default)]
 struct Probe {
-    cached: Mutex<Option<HarnessCatalog>>,
+    /// The last catalog read and when; an older one than CATALOG_TTL is read again.
+    cached: Mutex<Option<(HarnessCatalog, tokio::time::Instant)>>,
     #[cfg(feature = "test-support")]
     attempts: std::sync::atomic::AtomicUsize,
     #[cfg(feature = "test-support")]
@@ -52,9 +59,31 @@ impl Harness {
             return Err(HarnessError::HarnessUnavailable(kind.into()));
         }
         let mut cached = probe.cached.lock().await;
-        if let Some(catalog) = cached.as_ref() {
+        let now = tokio::time::Instant::now();
+        if let Some((catalog, read_at)) = cached.as_ref()
+            && now.duration_since(*read_at) < CATALOG_TTL
+        {
             return Ok(catalog.clone());
         }
+        match self.probe(probe, kind).await {
+            Ok(catalog) => {
+                *cached = Some((catalog.clone(), now));
+                Ok(catalog)
+            }
+            // A failed reading keeps the last list for another while rather than leave the
+            // menus empty; it is tried again once that while has passed.
+            Err(error) => match cached.as_mut() {
+                Some((catalog, read_at)) => {
+                    tracing::warn!(kind, %error, "harness.catalog_reread_failed");
+                    *read_at = now;
+                    Ok(catalog.clone())
+                }
+                None => Err(error),
+            },
+        }
+    }
+
+    async fn probe(&self, probe: &Probe, kind: &str) -> Result<HarnessCatalog, HarnessError> {
         #[cfg(feature = "test-support")]
         {
             use std::sync::atomic::Ordering::Relaxed;
@@ -63,6 +92,8 @@ impl Harness {
                 return Err(failed("probe spawn failed"));
             }
         }
+        #[cfg(not(feature = "test-support"))]
+        let _ = probe;
         let cwd = self
             .sessions
             .config
@@ -72,12 +103,19 @@ impl Harness {
         tokio::fs::create_dir_all(&cwd).await.map_err(failed)?;
         let models = self.sessions.probe_catalog(kind, &cwd).await;
         let _ = tokio::fs::remove_dir(&cwd).await;
-        let catalog = HarnessCatalog {
+        Ok(HarnessCatalog {
             harness: kind.into(),
             models: models?,
-        };
-        *cached = Some(catalog.clone());
-        Ok(catalog)
+        })
+    }
+
+    /// Ages the read catalog of `kind` past CATALOG_TTL, so the next read probes again.
+    #[cfg(feature = "test-support")]
+    pub async fn age_catalog_for_test(&self, kind: &str) {
+        let probe = self.catalogs.for_kind(kind).unwrap();
+        if let Some((_, read_at)) = probe.cached.lock().await.as_mut() {
+            *read_at -= CATALOG_TTL;
+        }
     }
 
     #[cfg(feature = "test-support")]

@@ -131,6 +131,19 @@ impl Extensions {
         copy_tree(source, target)
     }
 
+    /// Removes `.import-` folders a crash left mid-copy; published items are untouched.
+    pub(super) fn clear_unfinished(library: &Path) {
+        let Ok(entries) = std::fs::read_dir(library) else {
+            return;
+        };
+        for entry in entries.flatten() {
+            let named = entry.file_name().to_string_lossy().starts_with(".import-");
+            if named && entry.file_type().is_ok_and(|kind| kind.is_dir()) {
+                let _ = std::fs::remove_dir_all(entry.path());
+            }
+        }
+    }
+
     /// Metadata deletion is authoritative; failed cleanup leaves only an inert owned copy.
     pub(super) fn retire(library: &Path, id: &str) {
         retire(library, id)

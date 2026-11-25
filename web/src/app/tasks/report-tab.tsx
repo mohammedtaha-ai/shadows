@@ -12,7 +12,7 @@ function attemptTime(value: string): string {
   return Number.isNaN(date.getTime()) ? value : date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
 }
 
-function AttemptEntry({ a, linked, current }: { a: Attempt; linked: boolean; current: boolean }) {
+function AttemptEntry({ a, linked }: { a: Attempt; linked: boolean }) {
   const [open, setOpen] = useState(linked)
   const ref = useRef<HTMLLIElement>(null)
   const detailsId = `attempt-${a.id}-details`
@@ -55,7 +55,7 @@ function AttemptEntry({ a, linked, current }: { a: Attempt; linked: boolean; cur
         </div>
       )}
       {a.reason !== null && <p dir="auto" className="text-destructive-foreground">{a.reason}</p>}
-      {a.state === 'committed' && <ChecksPanel attemptId={a.id} watch={current} />}
+      {a.state === 'committed' && <ChecksPanel attemptId={a.id} />}
       <div id={detailsId} role="region" aria-label={`Details for attempt ${a.number}`} hidden={!open}>
         {open && <div className="space-y-4 border-t border-border pt-4">
           <h3 className="text-sm font-semibold">Context &amp; contract details</h3>
@@ -75,7 +75,7 @@ export function ReportTab({ attempts }: { attempts: readonly Attempt[] }) {
   if (attempts.length === 0) return <p className="px-6 py-4 text-sm text-faint-foreground">No attempts yet.</p>
   return (
     <ol aria-label="Attempts" className="space-y-2 px-6 py-4 text-xs">
-      {attempts.map((a, i) => <AttemptEntry key={a.id} a={a} linked={hash === `attempt-${a.id}`} current={i === 0} />)}
+      {attempts.map((a) => <AttemptEntry key={a.id} a={a} linked={hash === `attempt-${a.id}`} />)}
     </ol>
   )
 }

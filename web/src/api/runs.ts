@@ -1,7 +1,7 @@
 import { queryOptions, type QueryClient } from '@tanstack/react-query'
 import { writeSaved } from './saved-answer'
 import type { components } from './schema'
-import { client, unwrap, ApiError } from './transport'
+import { client, DAEMON_URL, unwrap, ApiError } from './transport'
 import { retryLost } from './error'
 
 export type TaskRun = components['schemas']['TaskRun']
@@ -15,6 +15,9 @@ export type AttemptNotice = components['schemas']['AttemptNotice']
 export type AgentReplyNotice = components['schemas']['AgentReplyNotice']
 export type RecheckNotice = components['schemas']['RecheckNotice']
 export type RecheckFailure = components['schemas']['RecheckFailure']
+export type RecheckRow = components['schemas']['RecheckRow']
+export type CheckOutcome = components['schemas']['CheckOutcome']
+export type LastRecheck = components['schemas']['LastRecheck']
 export type AgentNotice = AttemptNotice | AgentReplyNotice
 export type CheckResult = components['schemas']['CheckResult']
 export type DiffHunk = components['schemas']['DiffHunk']
@@ -35,6 +38,8 @@ const runKeys = {
   brief: (attemptId: string) => ['runs', 'brief', attemptId],
   conflict: (attemptId: string) => ['runs', 'conflict', attemptId],
   checks: (attemptId: string) => ['runs', 'checks', attemptId],
+  recheck: (workflowId: string) => ['runs', 'recheck', workflowId],
+  recheckRows: (recheckId: string) => ['runs', 'recheck-rows', recheckId],
 }
 
 /** A task's run state: its marks, latest attempt, needs and whether Start may run. */
@@ -43,11 +48,6 @@ export function taskRunQuery(workflowId: string, version: number, task: number) 
     queryKey: runKeys.task(workflowId, version, task),
     queryFn: () => getTaskRun(workflowId, version, task),
     retry: retryLost,
-    // A running attempt, or a committed one the Planner has not judged, changes without the page asking.
-    refetchInterval: (query) => {
-      const run = query.state.data
-      return run !== undefined && (run.latest?.state === 'running' || awaitingJudgment(run)) ? 2000 : false
-    },
   })
 }
 
@@ -62,13 +62,12 @@ export function stoppedOnAdditionCap(run: TaskRun): boolean {
   return run.latest !== null && run.latest.state === 'committed' && run.latest.origin === 'planner' && run.latest.addition !== null && !run.done && run.start.allowed
 }
 
-/** The task's attempts, newest first, read again while the newest one runs. */
+/** The task's attempts, newest first; TaskProgressChanged on the project stream refreshes it. */
 export function attemptsQuery(workflowId: string, version: number, task: number) {
   return queryOptions({
     queryKey: runKeys.attempts(workflowId, version, task),
     queryFn: () => listAttempts(workflowId, version, task),
     retry: retryLost,
-    refetchInterval: (query) => (query.state.data?.[0]?.state === 'running' ? 2000 : false),
   })
 }
 
@@ -76,14 +75,44 @@ export function attemptDiffQuery(attemptId: string) {
   return queryOptions({ queryKey: runKeys.diff(attemptId), queryFn: () => getAttemptDiff(attemptId) })
 }
 
-/** Confirmations can finish after the commit; keep the current attempt's results fresh. */
-export function attemptChecksQuery(id: string, watch: boolean) {
+/** The project's newest recheck batch, or null when it has had none; RecheckStarted and RecheckFinished on the
+ * project stream refresh it. */
+export function lastRecheckQuery(workflowId: string) {
+  return queryOptions({
+    queryKey: runKeys.recheck(workflowId),
+    queryFn: () => unwrap(client.GET('/api/workflows/{workflow}/recheck', { params: { path: { workflow: workflowId } } })),
+    retry: retryLost,
+  })
+}
+
+/** One recheck batch's rows in Core's order, with the stored output of each finished row. */
+export function recheckRowsQuery(recheckId: string) {
+  return queryOptions({
+    queryKey: runKeys.recheckRows(recheckId),
+    queryFn: () => unwrap(client.GET('/api/rechecks/{recheck}', { params: { path: { recheck: recheckId } } })),
+    retry: retryLost,
+  })
+}
+
+/** The address of a batch's live output; `EventSource` in `stream/` owns the connection. */
+export function recheckOutputUrl(recheckId: string): string {
+  return new URL(`/api/rechecks/${encodeURIComponent(recheckId)}/output`, DAEMON_URL).toString()
+}
+
+/** Asks Core to rerun the checks of the project's done tasks; it answers at once and runs in the background. */
+export function recheckProject(workflowId: string, commandId: string) {
+  return unwrap(client.POST('/api/workflows/{workflow}/recheck', {
+    params: { path: { workflow: workflowId } },
+    body: { command_id: commandId },
+  }))
+}
+
+/** An attempt's check results; TaskProgressChanged on the project stream refreshes them. */
+export function attemptChecksQuery(id: string) {
   return queryOptions({
     queryKey: runKeys.checks(id),
     queryFn: () => unwrap(client.GET('/api/attempts/{id}/checks', { params: { path: { id } } })),
     retry: retryLost,
-    refetchInterval: (query) => watch && query.state.error === null &&
-      (query.state.data?.length === 0 || query.state.data?.some((check) => check.outcome == null)) ? 2000 : false,
   })
 }
 
@@ -101,19 +130,12 @@ export function attemptBriefQuery(id: string) {
   })
 }
 
-/** The contract conflict the executor reported, or null. Read again while the attempt runs, Core holds its scope
- * or the Planner's copy is not yet delivered; the client holds no liveness or impact rule of its own. */
+/** The contract conflict the executor reported, or null; TaskProgressChanged on the project stream refreshes it. */
 export function attemptConflictQuery(id: string) {
   return queryOptions({
     queryKey: runKeys.conflict(id),
     queryFn: () => unwrap(client.GET('/api/attempts/{id}/conflict', { params: { path: { id } } })),
     retry: retryLost,
-    refetchInterval: (query) => {
-      const conflict = query.state.data
-      return conflict != null && (conflict.attempt_state === 'running' || conflict.scope_held || conflict.delivery === 'pending')
-        ? 2000
-        : false
-    },
   })
 }
 
@@ -131,6 +153,24 @@ export function saveTaskRunAnswer(queryClient: QueryClient, workflowId: string, 
 
 export function invalidateRuns(queryClient: QueryClient): void {
   void queryClient.invalidateQueries({ queryKey: runKeys.all() })
+}
+
+/** One task's run and attempt list, as TaskProgressChanged names them. */
+export function invalidateTaskRun(queryClient: QueryClient, workflowId: string, version: number, task: number): void {
+  void queryClient.invalidateQueries({ queryKey: runKeys.task(workflowId, version, task) })
+  void queryClient.invalidateQueries({ queryKey: runKeys.attempts(workflowId, version, task) })
+}
+
+/** One attempt's check results and conflict, as TaskProgressChanged names the attempt. */
+export function invalidateAttemptReads(queryClient: QueryClient, attemptId: string): void {
+  void queryClient.invalidateQueries({ queryKey: runKeys.checks(attemptId) })
+  void queryClient.invalidateQueries({ queryKey: runKeys.conflict(attemptId) })
+}
+
+/** A finished row, a batch's start or its end refreshes that workflow's newest-batch read and that batch's rows, nothing else. */
+export function invalidateRecheck(queryClient: QueryClient, workflowId: string, recheckId: string): void {
+  void queryClient.invalidateQueries({ queryKey: runKeys.recheck(workflowId) })
+  void queryClient.invalidateQueries({ queryKey: runKeys.recheckRows(recheckId) })
 }
 
 export function invalidateExecutorChoices(queryClient: QueryClient): Promise<void> {

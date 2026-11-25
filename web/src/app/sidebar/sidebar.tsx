@@ -5,7 +5,7 @@ import { cn } from 'cn'
 import { motion, useReducedMotion } from 'motion/react'
 import { useRef, useState } from 'react'
 import { SidebarToggle } from './sidebar-toggle'
-import { useSearch } from '@tanstack/react-router'
+import { useParams, useSearch } from '@tanstack/react-router'
 import { DesktopSidebarActions } from '@/app/desktop'
 import { Plus, Search, Settings, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -24,6 +24,7 @@ export function Sidebar({ narrow, onToggle, onHide }: { narrow: boolean; onToggl
   const openNewProject = useOpenNewProject()
   const { workspace, switchTo } = useWorkspace()
   const openSettings = useOpenSettings()
+  const { projectId } = useParams({ strict: false })
   const onSettings = useSearch({ from: '__root__' }).settings !== undefined
   // Display only: the lists narrow what the client already holds.
   const [filter, setFilter] = useState('')
@@ -135,7 +136,7 @@ export function Sidebar({ narrow, onToggle, onHide }: { narrow: boolean; onToggl
       <DesktopSidebarActions />
       <footer className="flex items-center justify-between gap-3 border-t border-sidebar-border/70 bg-sidebar/90 px-4 py-3">
         <div className="min-w-0">
-          <ConnectionIndicator />
+          <ConnectionIndicator projectId={projectId} />
         </div>
         <button
           type="button"

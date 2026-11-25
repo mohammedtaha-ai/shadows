@@ -227,8 +227,10 @@ impl RunsStore {
                         record,
                     )
                     .await?;
-                    let recheck = if done {
-                        Self::begin_recheck_in(conn, &plan, &plans, task, command_id).await?
+                    // Only the mark that completes its plan version rechecks the project.
+                    let recheck = if done && Self::plan_complete_in(conn, &plan).await? {
+                        let cause = super::rechecks::RecheckCause::Mark(task);
+                        Self::begin_recheck_in(conn, &plan, &plans, cause, command_id).await?
                     } else {
                         None
                     };

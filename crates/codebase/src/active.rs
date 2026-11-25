@@ -6,7 +6,7 @@
 //! exactly one worker. Nothing is stored: after a restart a project waits for
 //! its next use.
 
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, Weak};
 use std::time::{Duration, Instant};
@@ -30,13 +30,30 @@ pub(super) struct Usage {
     holds: usize,
 }
 
+/// The paths a hold claims as its own work: while it lives, a path it claims
+/// goes to it, not to the project's other holds.
+type Claim = Arc<dyn Fn(&str) -> bool + Send + Sync>;
+
+/// One living hold as the watcher reaches it: what it has seen, held weakly,
+/// and what it claims.
+struct Watching {
+    seen: Weak<Mutex<BTreeSet<String>>>,
+    claim: Option<Claim>,
+}
+
+impl Watching {
+    fn claims(&self, path: &str) -> bool {
+        self.claim.as_ref().is_some_and(|claim| claim(path))
+    }
+}
+
 /// The use of every project, kept apart from `Active` so a hold's drop, which
 /// cannot await, records its end at once.
 #[derive(Default)]
 pub(super) struct Uses {
     by_project: HashMap<ProjectId, Usage>,
     /// What each living hold of a project has seen change, by project.
-    seen: HashMap<ProjectId, Vec<Weak<Mutex<BTreeSet<String>>>>>,
+    seen: HashMap<ProjectId, Vec<Watching>>,
 }
 
 impl Uses {
@@ -76,31 +93,40 @@ impl Uses {
         self.seen.remove(project);
     }
 
-    /// The watcher saw `path` change: every living hold of the project keeps
-    /// it; a path under `.git/` is git's own bookkeeping, not a project file.
+    /// The watcher saw `path` change: the living holds that claim it keep it,
+    /// or every living hold of the project when none does; a path under
+    /// `.git/` is git's own bookkeeping, not a project file.
     pub(super) fn saw(&mut self, project: &ProjectId, path: &str) {
         if path == ".git" || path.starts_with(".git/") {
             return;
         }
-        if let Some(holds) = self.seen.get_mut(project) {
-            holds.retain(|hold| match hold.upgrade() {
-                Some(seen) => {
-                    if let Ok(mut seen) = seen.lock() {
-                        seen.insert(path.to_string());
-                    }
-                    true
-                }
-                None => false,
-            });
+        let Some(holds) = self.seen.get_mut(project) else {
+            return;
+        };
+        holds.retain(|hold| hold.seen.strong_count() > 0);
+        let claimed = holds.iter().any(|hold| hold.claims(path));
+        for hold in holds.iter().filter(|hold| !claimed || hold.claims(path)) {
+            if let Some(seen) = hold.seen.upgrade()
+                && let Ok(mut seen) = seen.lock()
+            {
+                seen.insert(path.to_string());
+            }
         }
     }
 
-    fn watch_for(&mut self, project: &ProjectId) -> Arc<Mutex<BTreeSet<String>>> {
+    fn watch_for(
+        &mut self,
+        project: &ProjectId,
+        claim: Option<Claim>,
+    ) -> Arc<Mutex<BTreeSet<String>>> {
         let seen = Arc::new(Mutex::new(BTreeSet::new()));
         self.seen
             .entry(project.clone())
             .or_default()
-            .push(Arc::downgrade(&seen));
+            .push(Watching {
+                seen: Arc::downgrade(&seen),
+                claim,
+            });
         seen
     }
 }
@@ -112,17 +138,49 @@ pub struct ActiveHold {
     code: Codebase,
     project: ProjectId,
     seen: Arc<Mutex<BTreeSet<String>>>,
+    /// The keys of the files the project's listing held when the hold began:
+    /// a path gone now is a change only when it was one of them.
+    known: HashSet<String>,
 }
 
 impl ActiveHold {
-    /// The project-relative paths the watcher saw change while this hold
-    /// lived, sorted, `.git/` left out. A change made before the project's
-    /// watcher started, or that the watcher lost, is not among them.
-    pub fn changed(&self) -> Vec<String> {
-        self.seen
+    /// The project's files the watcher saw change while this hold lived,
+    /// sorted: those the listing holds as files now, and those gone now that
+    /// it held when the hold began. A folder, an ignored or otherwise excluded
+    /// path, `.git/`, and a file made and removed meanwhile are left out, as
+    /// is a path another living hold claimed. A change made before the
+    /// project's watcher started, or that the watcher lost, is not among them.
+    pub async fn changed(&self) -> Vec<String> {
+        let seen: Vec<String> = self
+            .seen
             .lock()
             .map(|seen| seen.iter().cloned().collect())
-            .unwrap_or_default()
+            .unwrap_or_default();
+        if seen.is_empty() {
+            return seen;
+        }
+        let Some(dir) = self.code.folder(&self.project).await else {
+            return Vec::new();
+        };
+        let files = {
+            let (dir, seen) = (dir.clone(), seen.clone());
+            tokio::task::spawn_blocking(move || Codebase::listed_now(&dir, &seen))
+                .await
+                .unwrap_or_default()
+        };
+        let mut changed = Vec::new();
+        for path in seen {
+            let key = Codebase::path_key(&path);
+            let kept = files.contains(&key)
+                || (self.known.contains(&key)
+                    && tokio::fs::symlink_metadata(dir.join(&path))
+                        .await
+                        .is_err_and(|e| e.kind() == std::io::ErrorKind::NotFound));
+            if kept {
+                changed.push(path);
+            }
+        }
+        changed
     }
 }
 
@@ -145,18 +203,44 @@ impl std::fmt::Debug for ActiveHold {
 impl Codebase {
     /// Keeps `project` active until the answer drops; activates it now.
     pub async fn hold(&self, project: &ProjectId) -> ActiveHold {
+        self.hold_with(project, None).await
+    }
+
+    /// `hold`, whose answer alone keeps the changed paths `claim` admits (a
+    /// project-relative path, with '/') while it lives: an attempt's own
+    /// writes are not the project's other holds' changes.
+    pub async fn hold_claiming(
+        &self,
+        project: &ProjectId,
+        claim: impl Fn(&str) -> bool + Send + Sync + 'static,
+    ) -> ActiveHold {
+        self.hold_with(project, Some(Arc::new(claim))).await
+    }
+
+    async fn hold_with(&self, project: &ProjectId, claim: Option<Claim>) -> ActiveHold {
         let seen = match self.inner.uses.lock() {
             Ok(mut uses) => {
                 uses.hold(project);
-                uses.watch_for(project)
+                uses.watch_for(project, claim)
             }
             Err(_) => Arc::default(),
         };
+        // A failed read knows no file: a deletion is then not reported.
+        let known = self
+            .inner
+            .store
+            .file_paths(project)
+            .await
+            .unwrap_or_default()
+            .iter()
+            .map(|path| Codebase::path_key(path))
+            .collect();
         self.activate(project).await;
         ActiveHold {
             code: self.clone(),
             project: project.clone(),
             seen,
+            known,
         }
     }
 

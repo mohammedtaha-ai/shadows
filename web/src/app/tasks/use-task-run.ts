@@ -16,8 +16,6 @@ export function attemptLabel(attempt: Attempt | null): string {
   return attempt === null ? 'Not started' : LABELS[attempt.state]
 }
 
-const STARTING_READ_MS = 1000
-
 /** A failed call that got an answer ends the command; only a lost one keeps its key for the retry. */
 function answered(error: unknown): boolean {
   return !(error instanceof ApiError) || error.problem.kind !== 'unreachable'
@@ -51,11 +49,9 @@ export function useTaskRun(workflowId: string, version: number, task: number) {
     onSettled: () => invalidateExecutorChoices(queryClient),
   })
 
-  // Core records the attempt as running before it opens the executor's session, and answers Start only once the
-  // session and its first turn are up, which takes seconds: read the task while Start is in flight, so the
-  // running attempt shows as soon as Core has it.
-  const runOptions = taskRunQuery(workflowId, version, task)
-  const run = useQuery(start.isPending ? { ...runOptions, refetchInterval: STARTING_READ_MS } : runOptions)
+  // Core records the attempt as running before Start answers; TaskProgressChanged on the project stream
+  // refreshes the task, so the running attempt shows without waiting for the answer.
+  const run = useQuery(taskRunQuery(workflowId, version, task))
   const attempts = useQuery(attemptsQuery(workflowId, version, task))
 
   // The Planner can start a new attempt without the page asking: when the latest one changes, read the list again.

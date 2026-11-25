@@ -68,6 +68,28 @@ async fn a_failed_probe_is_tried_again() {
 }
 
 #[tokio::test]
+async fn an_aged_catalog_is_read_again() {
+    let (_dir, harness) = fixture().await;
+    let first = harness.catalog("claude-code").await.unwrap();
+    harness.age_catalog_for_test("claude-code").await;
+    assert_eq!(first, harness.catalog("claude-code").await.unwrap());
+    assert_eq!(harness.catalog_probes_for_test("claude-code"), 2);
+    assert_eq!(first, harness.catalog("claude-code").await.unwrap());
+    assert_eq!(harness.catalog_probes_for_test("claude-code"), 2);
+}
+
+#[tokio::test]
+async fn a_failed_reread_keeps_the_last_catalog() {
+    let (_dir, harness) = fixture().await;
+    let first = harness.catalog("claude-code").await.unwrap();
+    harness.age_catalog_for_test("claude-code").await;
+    harness.fail_next_probe_for_test("claude-code");
+    assert_eq!(first, harness.catalog("claude-code").await.unwrap());
+    assert_eq!(first, harness.catalog("claude-code").await.unwrap());
+    assert_eq!(harness.catalog_probes_for_test("claude-code"), 2);
+}
+
+#[tokio::test]
 async fn codex_not_configured_is_unavailable() {
     let (_dir, harness) = fixture().await;
     for _ in 0..2 {
@@ -162,6 +184,7 @@ async fn live_catalog(kind: &str, codex_path: Option<PathBuf>, codex_home: Optio
     let offered = core.harness().open_session(&thread.id).await.unwrap();
     let catalog_ids: Vec<_> = catalog.models.iter().map(|model| &model.id).collect();
     let offered_ids: Vec<_> = offered.models.iter().map(|model| &model.id).collect();
+    eprintln!("{kind} catalog: {catalog_ids:?}");
     assert!(
         catalog_ids.iter().all(|model| offered_ids.contains(model)),
         "{catalog_ids:?} vs. {offered_ids:?}"

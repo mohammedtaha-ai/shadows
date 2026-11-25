@@ -140,21 +140,22 @@ impl Cli {
 #[cfg(test)]
 mod tests {
     use super::*;
-    const DIR: &str = env!("CARGO_MANIFEST_DIR");
+    /// The harness paths must be files; the crate's manifest is one on every platform.
+    const FILE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/Cargo.toml");
     const SERVE: [&str; 8] = [
         "shadows",
         "serve",
         "--harness",
-        DIR,
+        FILE,
         "--node",
-        DIR,
+        FILE,
         "--adapter",
-        DIR,
+        FILE,
     ];
 
     #[test]
     fn serve_accepts_an_aylul_config_path() {
-        let cli = Cli::try_parse_from(SERVE.iter().chain(&["--aylul-config", DIR])).unwrap();
+        let cli = Cli::try_parse_from(SERVE.iter().chain(&["--aylul-config", FILE])).unwrap();
         assert!(matches!(
             cli.command,
             Commands::Serve {

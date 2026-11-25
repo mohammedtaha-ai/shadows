@@ -55,8 +55,8 @@ code_record:
 runs:
   stoppedOnAdditionCap: True when the latest attempt is committed, carries a non-null addition, the task is not done and Core allows Start; the only place the web reads the cap, without counting additions.
   awaitingJudgment: True when the task's latest attempt is committed, the task is not done and Core refuses Start with task_busy (a task stopped on the cap may be started, so it does not wait); the only place the web reads it.
-  taskRunQuery: Read a task's run state; read again every two seconds while its latest attempt runs or awaitingJudgment holds; retry only a lost call (up to 3), never Core's answer.
-  attemptsQuery: Read a task's attempts, newest first; read again every two seconds while the newest runs; retry only a lost call (up to 3), never Core's answer.
+  taskRunQuery: Read a task's run state; no interval, TaskProgressChanged refreshes it (invalidateTaskRun); retry only a lost call (up to 3), never Core's answer.
+  attemptsQuery: Read a task's attempts, newest first; no interval, TaskProgressChanged refreshes it (invalidateTaskRun); retry only a lost call (up to 3), never Core's answer.
   startAttempt: Start an attempt on Core's saved choice using only the caller's command id; a refusal's ApiError message is Core's reason.
   setTaskExecutor: Save the chosen CLI, model and effort with a caller-provided command id; a refusal retains Core's reason.
   invalidateExecutorChoices: Reconcile saved choices and readiness by refreshing task run queries.
@@ -65,7 +65,7 @@ runs:
   markTaskDone: Mark a task done or not done using the caller's command id.
   attemptFileQuery: Read one file as an attempt's commit holds it (GET /api/attempts/{id}/files?path=); ['runs', 'file', attemptId, path]; a refusal's ApiError message is Core's.
   attemptBriefQuery: Read the context an attempt received (GET /api/attempts/{id}/brief); ['runs', 'brief', id]; a historical attempt answers HTTP 409 context_not_recorded (contextNotRecorded tells it), which is final and not retried.
-  attemptConflictQuery: Read an attempt's reported contract conflict or null (GET /api/attempts/{id}/conflict); ['runs', 'conflict', id]; read again every two seconds while attempt_state is running, scope_held is true or delivery is pending, and not otherwise (tested by settled_conflict_stops_polling).
+  attemptConflictQuery: Read an attempt's reported contract conflict or null (GET /api/attempts/{id}/conflict); ['runs', 'conflict', id]; no interval; TaskProgressChanged refreshes it (invalidateAttemptReads), tested by checks_and_conflict_have_no_interval.
   aliases: AttemptBrief, TaskConflict, ConflictEvidence, ConsumerRef, TaskRun, Attempt, AttemptState, Need, AttemptFile, AttemptNotice (an executor's notice card) and DiffHunk are exported from the generated schemas; FileDiff and RunRefusal stay inside runs.ts.
 mcp_tool_rules:
   agentToolsQuery: "GET /api/aylul/agents/{slug}/extensions/mcp/{id}/tools; ['aylul-agent-mcp-tools', slug, id]"
@@ -186,7 +186,7 @@ projects_and_code:
   listCodeLinks: "(projectId: string) -> Promise<ProjectLink[]>"
   putCodeLink: "(projectId: string, linkedId: string, commandId: string) -> Promise<ProjectLink>"
   removeCodeLink: "(projectId: string, linkedId: string, commandId: string) -> Promise<void>"
-  codeServersQuery: "(projectId: string) -> queryOptions<ServerStatus[]>; polls every 5 s"
+  codeServersQuery: "(projectId: string) -> queryOptions<ServerStatus[]>; polls every 5 s only while a server is starting"
   setServerOff: "(serverId: string, off: boolean, commandId: string) -> Promise<void>"
   addServer: "(server: AddedServer, commandId: string) -> Promise<ServerStatus>"
   removeServer: "(serverId: string, commandId: string) -> Promise<void>"
@@ -246,6 +246,11 @@ design:
   approveRoadmapProposal: "(projectId: string, proposalId: string, commandId: string) ->
       Promise<DesignChange>"
   RecheckNotice: "type; generated RecheckNotice, and RecheckFailure beside it, exported from runs.ts"
+  lastRecheckQuery: "(workflowId: string) -> queryOptions<LastRecheck | null>; GET /workflows/{workflow}/recheck; no interval, RecheckStarted and RecheckFinished refresh it (invalidateRecheck)"
+  recheckProject: "(workflowId: string, commandId: string) -> Promise<ProjectRecheck>; POST /workflows/{workflow}/recheck with { command_id }"
+  invalidateRecheck: "(queryClient, workflowId, recheckId) -> void; invalidates only that workflow's recheck key and that batch's rows key"
+  recheckRowsQuery: "(recheckId: string) -> queryOptions<RecheckRow[]>; GET /rechecks/{recheck}, the batch rows in Core order with stored output; refetched when the stream reports a finished row"
+  recheckOutputUrl: "(recheckId: string) -> string; the address of GET /rechecks/{recheck}/output, opened only by stream/recheck-output.ts"
   acceptDecision: "(projectId: string, decisionId: string, version: number, commandId: string) ->
       Promise<DecisionRecord>; POST /decisions/{decision}/accept with { command_id, version } (accept_sends_the_version_and_command_id)"
   approveVisionProposal: "(projectId: string, proposalId: string, commandId: string) ->
@@ -277,9 +282,10 @@ saved_answers:
 
 query_keys:
   # Domain files: each returns queryOptions unless it is a key or a constant
-  projectsQuery: "const; ['projects']; retry 2; polled every 10 s only after a first answer"
+  projectsQuery: "const; ['projects']; retry 2; never polled itself"
+  projectsReachabilityQuery: "(projectOpen: boolean) -> options; polled every 30 s only with no project open and after a first answer"
   harnessesQuery: "const; ['harnesses']"
-  threadsQuery: "(projectId: string) -> queryOptions; ['projects', id, 'threads']; polled 10 s"
+  threadsQuery: "(projectId: string) -> queryOptions; ['projects', id, 'threads']; not polled, the project stream refreshes it"
   threadQuery: "(threadId: string) -> queryOptions; ['threads', id, 'detail']"
   threadEntriesKey: "(threadId: string) -> ['threads', id, 'entries']"
   entriesQuery: "(threadId: string) -> queryOptions"
@@ -292,7 +298,7 @@ query_keys:
       archived }]"
   planVersionsQuery: "(planId: string) -> queryOptions; ['workflows', 'versions', planId]"
   planQuery: "(workflowId: string) -> queryOptions; ['workflows', 'plan', workflowId]"
-  planProgressQuery: "(workflowId: string, version: number) -> queryOptions; ['workflows', 'progress', workflowId, version]; read again every two seconds while a task's latest attempt runs"
+  planProgressQuery: "(workflowId: string, version: number) -> queryOptions; ['workflows', 'progress', workflowId, version]; no interval, TaskProgressChanged refreshes it (invalidatePlanProgress)"
   instructionsQuery: "(projectId: string) -> queryOptions; ['projects', id, 'instructions']"
   standardsQuery: "(projectId: string) -> queryOptions; ['projects', id, 'design', 'standards']"
   stageQuery: "(projectId: string) -> queryOptions; ['projects', id, 'design', 'stage']"
@@ -310,7 +316,7 @@ query_keys:
       'outcome', outcomeId]"
   outcomesQuery: "(projectId: string, parent?: string, after?: string) -> queryOptions"
   partsQuery: "(projectId: string, parent?: string, after?: string) -> queryOptions"
-  connectionsQuery: "global connection metadata; polled while mounted"
+  connectionsQuery: "global connection metadata; read on mount; an issue or revoke invalidates it"
   codeLinksQuery: "(projectId: string) -> queryOptions; ['projects', id, 'code', 'links']"
   codeServersQuery: "(projectId) -> options; ['projects', id, 'code', 'servers']"
   dirsQuery: "(path: string | null) -> queryOptions; ['fs', 'dirs', path]; retry false"
@@ -650,7 +656,7 @@ aylul_configuration:
   source: aylul-profiles.ts
   providersQuery: "['aylul-providers']; provider metadata only"
   agentsQuery: "['aylul-agents']; hidden project id with live agents"
-  agentThreadsQuery: "['aylul-agent', slug, 'threads']; newest conversations; polls every 10 seconds"
+  agentThreadsQuery: "['aylul-agent', slug, 'threads']; newest conversations; not polled, the AYLUL project stream refreshes it"
   agentEnvQuery: "['aylul-agent', slug, 'env']; names and timestamps only"
   saveProvider: Create or update metadata with a caller-owned command id.
   setProviderKey: Send a write-only value; receive metadata only.
@@ -739,12 +745,12 @@ thread_cache:
 
 project_cache:
   owner: projects.ts
-  keys: "projectKeys preserves project root/prefix, instructions and grant arrays; projectsQuery polling and retries are unchanged"
+  keys: "projectKeys preserves project root/prefix, instructions and grant arrays; projectsQuery retries are unchanged; polling moved to projectsReachabilityQuery"
   saved_answers: "saveProjectAnswer, saveRemovedProjectAnswer, saveInstructionsAnswer and saveRevokedConnection use writeSaved to cancel exact reads before replacing, filtering or merging server answers"
 
 code_cache:
   owner: code.ts
-  keys: "codeKeys holds per-project server, status and link keys; status polls 2 s while indexing, else 10 s, and the server list every 5 s"
+  keys: "codeKeys holds per-project server, status and link keys; status polls 2 s while indexing, else 10 s, and the server list every 5 s only while one is starting"
   saved_answers: "saveUnlinkedCodeAnswer filters one link through writeSaved, cancelling the exact prior read"
 
 directory_cache:
@@ -869,6 +875,6 @@ layout_only: "PartContent and StageView use the regenerated schema without start
 
 checks_results:
   owner: runs.ts
-  operations: attemptChecksQuery reads GET /api/attempts/{id}/checks and polls incomplete results on a watched attempt; Core refusals stop polling.
+  operations: attemptChecksQuery reads GET /api/attempts/{id}/checks and has no interval; TaskProgressChanged refreshes it (invalidateAttemptReads).
   types: CheckResult, AgentReplyNotice, AgentNotice are generated-schema aliases or their presentation union.
   done: markTaskDone carries optional reason and preserves Core refusal text.

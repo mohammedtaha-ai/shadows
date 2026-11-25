@@ -59,9 +59,38 @@ pub(super) struct Scanned {
 }
 
 /// The paths a walk is limited to: those files, and the folders above them.
-struct Only {
+pub(super) struct Only {
     files: HashSet<String>,
     folders: HashSet<String>,
+}
+
+impl Only {
+    /// `paths` and every folder above them, by key: a walk limited to them
+    /// reads the same ignore files a full walk would for them, and nothing else.
+    pub(super) fn over(paths: &[String]) -> Arc<Only> {
+        let files: HashSet<String> = paths.iter().map(|p| Codebase::path_key(p)).collect();
+        let mut folders = HashSet::from([String::new()]);
+        for f in &files {
+            let mut at = f.as_str();
+            while let Some((up, _)) = at.rsplit_once('/') {
+                folders.insert(up.to_string());
+                at = up;
+            }
+        }
+        Arc::new(Only { files, folders })
+    }
+
+    /// Whether a walk limited to these paths enters (a folder) or yields `path`.
+    pub(super) fn holds(&self, root: &Path, path: &Path, is_dir: bool) -> bool {
+        let Some(key) = Codebase::relative(root, path).map(|r| Codebase::path_key(&r)) else {
+            return false;
+        };
+        if is_dir {
+            self.folders.contains(&key)
+        } else {
+            self.files.contains(&key)
+        }
+    }
 }
 
 /// Step 1, blocking: the folder's own ignore files, no parent's and no
@@ -80,18 +109,8 @@ fn walk(dir: &Path, only: Option<Arc<Only>>) -> Walked {
             if is_dir && e.file_name().to_str().is_some_and(Codebase::never_walked) {
                 return false;
             }
-            let Some(only) = &only else {
-                return true;
-            };
-            let Some(key) = Codebase::relative(&root, e.path()).map(|r| Codebase::path_key(&r))
-            else {
-                return false;
-            };
-            if is_dir {
-                only.folders.contains(&key)
-            } else {
-                only.files.contains(&key)
-            }
+            only.as_ref()
+                .is_none_or(|only| only.holds(&root, e.path(), is_dir))
         })
         .build();
     for entry in walker {
@@ -445,16 +464,7 @@ impl Codebase {
     /// Of `paths`, the keys of those the walk would keep now: on disk, passing
     /// `keeps`, and named by no ignore file on their way (blocking).
     pub(super) fn kept_now(dir: &Path, paths: &[String]) -> HashSet<String> {
-        let files: HashSet<String> = paths.iter().map(|p| Codebase::path_key(p)).collect();
-        let mut folders = HashSet::from([String::new()]);
-        for f in &files {
-            let mut at = f.as_str();
-            while let Some((up, _)) = at.rsplit_once('/') {
-                folders.insert(up.to_string());
-                at = up;
-            }
-        }
-        let walked = walk(dir, Some(Arc::new(Only { files, folders })));
+        let walked = walk(dir, Some(Only::over(paths)));
         walked.paths.iter().map(|p| Codebase::path_key(p)).collect()
     }
 }

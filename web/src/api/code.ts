@@ -19,8 +19,8 @@ export function codeServersQuery(projectId: string) {
   return queryOptions({
     queryKey: codeKeys.servers(projectId),
     queryFn: () => listServers(projectId),
-    // A server starts or fails on its own, so a shown list follows it.
-    refetchInterval: 5_000,
+    // Only a starting server changes on its own; a settled list waits for a person.
+    refetchInterval: (query) => (query.state.data?.some(server => server.state.state === 'starting') ? 5_000 : false),
   })
 }
 export function saveUnlinkedCodeAnswer(client: QueryClient, projectId: string, linked: string) {

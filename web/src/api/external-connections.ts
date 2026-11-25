@@ -9,7 +9,6 @@ export type IssuedConnection = components['schemas']['IssuedGrantBody']
 export const connectionsQuery = queryOptions({
   queryKey: ['external-connections'],
   queryFn: () => unwrap(client.GET('/api/external-connections')),
-  refetchInterval: 10_000,
 })
 
 export function issueConnection(projectIds: string[], commandId: string): Promise<IssuedConnection> {

@@ -127,8 +127,30 @@ impl ExtensionsStore {
         library: PathBuf,
         bundled: bool,
     ) -> Result<Item, ExtensionsError> {
-        let created = std::sync::Arc::new(std::sync::Mutex::new(None));
-        let cleanup = created.clone();
+        // A replay answers before anything is copied, so a removed source still replays.
+        {
+            let mut read = self
+                .storage
+                .reader()
+                .acquire()
+                .await
+                .map_err(StorageError::from)?;
+            if let Some(out) =
+                CommandContext::classify(&mut read, &c, COMMAND_SCOPE.0, COMMAND_SCOPE.1).await?
+            {
+                return Ok(serde_json::from_str(&out)?);
+            }
+        }
+        // The copy runs before the writer is taken, so other writes go on meanwhile; only
+        // the short metadata write below holds it.
+        let id = uuid::Uuid::new_v4().to_string();
+        let destination = library.join(&id);
+        let (mut item, digest) =
+            tokio::task::spawn_blocking(move || Extensions::publish(&source, &library, kind, &id))
+                .await
+                .map_err(|_| StorageError::Unavailable("extension copy".into()))??;
+        item.bundled = bundled;
+        let row = item.clone();
         let result = self
             .storage
             .write_txn_as(move |conn| {
@@ -136,23 +158,14 @@ impl ExtensionsStore {
                     if let Some(out) =
                         CommandContext::classify(conn, &c, COMMAND_SCOPE.0, COMMAND_SCOPE.1).await?
                     {
-                        return Ok(serde_json::from_str(&out)?);
+                        return Ok((serde_json::from_str(&out)?, false));
                     }
-                    let id = uuid::Uuid::new_v4().to_string();
-                    let destination = library.join(&id);
-                    let (mut item, digest) = tokio::task::spawn_blocking(move || {
-                        Extensions::publish(&source, &library, kind, &id)
-                    })
-                    .await
-                    .map_err(|_| StorageError::Unavailable("extension copy".into()))??;
-                    item.bundled = bundled;
-                    *created.lock().expect("import ownership") = Some(destination);
                     let exists: bool = sqlx::query_scalar(
                         "SELECT EXISTS(SELECT 1 FROM aylul_extension
             WHERE kind=? AND name=?)",
                     )
                     .bind(kind.as_str())
-                    .bind(&item.name)
+                    .bind(&row.name)
                     .fetch_one(&mut *conn)
                     .await?;
                     if exists {
@@ -163,26 +176,32 @@ impl ExtensionsStore {
                          (id,kind,name,description,digest,created_at,bundled)
                          VALUES (?,?,?,?,?,?,?)",
                     )
-                    .bind(&item.id)
+                    .bind(&row.id)
                     .bind(kind.as_str())
-                    .bind(&item.name)
-                    .bind(&item.description)
+                    .bind(&row.name)
+                    .bind(&row.description)
                     .bind(digest)
                     .bind(Storage::now())
                     .bind(bundled)
                     .execute(&mut *conn)
                     .await?;
-                    Self::record(conn, &c, &serde_json::to_string(&item)?).await?;
-                    Ok(item)
+                    Self::record(conn, &c, &serde_json::to_string(&row)?).await?;
+                    Ok((row, true))
                 })
             })
             .await;
-        if result.is_err()
-            && let Some(path) = cleanup.lock().expect("import ownership").take()
-        {
-            let _ = std::fs::remove_dir_all(path);
+        match result {
+            Ok((stored, true)) => Ok(stored),
+            // Another import of the same command won while this one copied: keep its item.
+            Ok((stored, false)) => {
+                let _ = std::fs::remove_dir_all(&destination);
+                Ok(stored)
+            }
+            Err(error) => {
+                let _ = std::fs::remove_dir_all(&destination);
+                Err(error)
+            }
         }
-        result
     }
     pub(super) async fn remove(
         &self,

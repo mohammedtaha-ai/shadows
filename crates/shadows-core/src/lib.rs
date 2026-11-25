@@ -1,13 +1,15 @@
 mod app;
 pub use core_runs::LiveAttempt;
 pub use core_runs::{Chooser, ExecutorChoice, ExecutorInput};
-pub use core_runs::{RecheckFailure, RecheckNotice};
+pub use core_runs::{LastRecheck, RecheckBegan, RecheckCounts};
+pub use core_runs::{ProjectRecheck, RecheckFailure, RecheckNotice};
+pub use core_runs::{RecheckOutput, RecheckRow, RecheckWatch};
 pub use core_runtime::RuntimeError;
 mod error;
 pub use core_project_lifecycle::ProjectLifecycle;
 #[cfg(feature = "test-support")]
 pub mod testing;
-pub use core_grants::{ApprovalRequest, ApprovedBy, Approver, Writer};
+pub use core_grants::{ApprovalRequest, ApprovedBy, Approver, PlannerApprover, Writer};
 
 // The public surface: the application, its failure, the
 // services, and every type an adapter names or serializes. Storage, the

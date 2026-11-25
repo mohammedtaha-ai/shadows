@@ -152,7 +152,7 @@ impl Runs {
         {
             tracing::warn!(attempt = %attempt.id, %error, "runs.late_stop_failed");
         }
-        let hold = self.inner.code.hold(&attempt.project_id).await;
+        let hold = self.hold(&attempt).await;
         self.watch(
             attempt.id.clone(),
             attempt.thread_id.clone(),
@@ -160,6 +160,22 @@ impl Runs {
             hold,
         );
         self.inner.store.get(&attempt.id).await
+    }
+
+    /// The attempt's hold on its project, claiming the paths its `writes`
+    /// admit: they are its own work, not changes for the project's Planner.
+    /// A path it writes outside them still reaches every hold. Writes that
+    /// cannot be read or compiled claim nothing.
+    async fn hold(&self, attempt: &Attempt) -> codebase::ActiveHold {
+        let code = &self.inner.code;
+        let writes = self.inner.store.writes(&attempt.id).await;
+        match writes.ok().and_then(|writes| Scope::new(&writes).ok()) {
+            Some(scope) => {
+                code.hold_claiming(&attempt.project_id, move |path| scope.admits(path))
+                    .await
+            }
+            None => code.hold(&attempt.project_id).await,
+        }
     }
 
     /// What Start checks before it writes anything, in order: admission's

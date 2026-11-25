@@ -1,20 +1,116 @@
-//! Rechecking the recorded checks of other done tasks after a done mark.
+//! Rechecking the recorded checks of the project's done tasks: after the done mark that
+//! completes a plan, or when the person or a Planner asks.
 use crate::checks::CONTRACT_CHECK;
 use crate::git::Git;
 use crate::notify::NoticeIntent;
 use crate::store::checks::Finished;
 use crate::store::rechecks::{Batch, ResultRow};
 use crate::{
-    Attempt, AttemptId, CheckOutcome, CheckResult, RecheckFailure, RecheckNotice, Runs, RunsError,
+    Attempt, AttemptId, CheckOutcome, CheckResult, LastRecheck, ProjectRecheck, RecheckBegan,
+    RecheckFailure, RecheckNotice, Runs, RunsError,
 };
+use core_db::CommandContext;
 use core_plans::{TaskCheck, WorkflowId};
+use core_threads::ThreadId;
 use std::collections::BTreeMap;
 
 impl Runs {
+    /// Starts a recheck of the project of plan version `workflow`, asked for by the person
+    /// (`asker` none: its notice goes to that plan's Planner) or by a Planner (its thread hears
+    /// the notice). The batch runs in the background as a done mark's does; the same command
+    /// answers the same batch.
+    pub async fn recheck_project(
+        &self,
+        command: String,
+        workflow: &WorkflowId,
+        asker: Option<ThreadId>,
+    ) -> Result<ProjectRecheck, RunsError> {
+        let plan = self.read_plan(workflow).await?;
+        let plans = self
+            .inner
+            .plans
+            .list(&plan.project_id, true)
+            .await
+            .map_err(|e| RunsError::Unavailable(e.to_string()))?
+            .into_iter()
+            .map(|listing| listing.plan_id)
+            .collect();
+        let input = serde_json::json!({
+            "workflow": workflow,
+            "asker": asker.as_ref().map(|thread| thread.as_str().to_string()),
+        });
+        let command = CommandContext::user(command, "run.recheck", input);
+        let (id, fresh) = self
+            .inner
+            .store
+            .ask_recheck(command, plan, plans, asker)
+            .await?;
+        if let Some(batch) = id.clone().filter(|_| fresh) {
+            let runs = self.clone();
+            tokio::spawn(async move {
+                runs.recheck_done(batch).await;
+            });
+        }
+        Ok(ProjectRecheck { recheck_id: id })
+    }
+
+    /// The newest recheck batch of the project of plan version `workflow`, with its rows
+    /// counted by outcome; none when the project has had no recheck.
+    pub async fn last_recheck(
+        &self,
+        workflow: &WorkflowId,
+    ) -> Result<Option<LastRecheck>, RunsError> {
+        let plan = self.read_plan(workflow).await?;
+        let Some((batch, counts)) = self
+            .inner
+            .store
+            .last_recheck(plan.project_id.as_str())
+            .await?
+        else {
+            return Ok(None);
+        };
+        let began = match (batch.asked, batch.asker_thread_id) {
+            (true, Some(thread_id)) => RecheckBegan::Planner { thread_id },
+            (true, None) => RecheckBegan::Person,
+            (false, _) => {
+                let cause = WorkflowId::from_recorded(batch.cause_workflow_id);
+                let plan_title = if &cause == workflow {
+                    plan.title
+                } else {
+                    self.read_plan(&cause).await?.title
+                };
+                RecheckBegan::Mark {
+                    plan_title,
+                    version: batch.cause_version,
+                    task: batch.cause_task,
+                }
+            }
+        };
+        Ok(Some(LastRecheck {
+            recheck_id: batch.id,
+            began,
+            created_at: batch.created_at,
+            finished_at: batch.finished_at,
+            counts,
+        }))
+    }
+
     pub(crate) async fn recheck_done(&self, id: String) {
         if let Err(error) = self.run_recheck(&id).await {
             tracing::warn!(%id, %error, "runs.recheck_failed");
+            self.abandon_recheck(&id, &error).await;
         }
+    }
+
+    /// A worker that failed still ends its batch, so the plan page and a watcher stop
+    /// waiting: its unfinished rows read `not_run` with the error. When even that write
+    /// fails the batch stays unfinished for startup recovery, and watchers are released.
+    async fn abandon_recheck(&self, id: &str, error: &RunsError) {
+        let reason = format!("The recheck stopped: {error}");
+        if let Err(error) = self.inner.store.abandon_batch(id, reason).await {
+            tracing::warn!(%id, %error, "runs.recheck_abandon_failed");
+        }
+        self.live_ended(id);
     }
 
     async fn run_recheck(&self, id: &str) -> Result<(), RunsError> {
@@ -39,20 +135,24 @@ impl Runs {
                         .await?;
                     let check: TaskCheck = serde_json::from_str(&row.run_json)?;
                     let result = if check.id == CONTRACT_CHECK {
+                        self.live_started(id, row.task, &attempt.id, &check.id);
                         self.recheck_contract(id, &attempt, row.task, &check)
                             .await?
                     } else {
                         self.run_check(&attempt, row.task, 0, &check, Some(id))
                             .await?
                     };
+                    let outcome = result.outcome;
                     self.inner
                         .store
                         .finish_recheck(id, &attempt.id, &check.id, result)
                         .await?;
+                    self.live_finished(id, outcome);
                 }
                 drop(held);
             }
             self.end_recheck(&batch).await?;
+            self.live_ended(id);
         }
         self.deliver_recheck(id).await
     }
@@ -108,10 +208,15 @@ impl Runs {
         let mut plans = BTreeMap::<String, core_plans::Plan>::new();
         let mut lines = Vec::new();
         // A `contract` row that could not run is recorded and never told.
-        for row in rows.iter().filter(|row| {
-            row.outcome.as_deref() != Some("passed")
-                && !(row.check_id == CONTRACT_CHECK && row.outcome.as_deref() == Some("not_run"))
-        }) {
+        let failing: Vec<_> = rows
+            .iter()
+            .filter(|row| {
+                row.outcome.as_deref() != Some("passed")
+                    && !(row.check_id == CONTRACT_CHECK
+                        && row.outcome.as_deref() == Some("not_run"))
+            })
+            .collect();
+        for row in failing.iter().copied() {
             // Every check runs and is recorded; a failure already told stays untold until
             // the check has passed in between.
             if self.inner.store.failed_before(&batch.id, row).await? {
@@ -155,12 +260,56 @@ impl Runs {
             }
             failed.last_mut().unwrap().checks.push(check);
         }
-        let notice = if failed.is_empty() {
+        // A batch tells a new failure; an asked one also tells its asker that every check
+        // passed, since nothing else would answer it.
+        let all_passed = batch.asked && failing.is_empty();
+        // The batch ends whoever can be told: a Planner that cannot be told yet (no turn whose
+        // settings a notice takes) is told nothing, as a plan with no Planner is, and the
+        // failing rows stay readable on the plan page.
+        let recipient = if failed.is_empty() && !all_passed {
             None
-        } else if let Some(recipient) = self
-            .recipient_for(&WorkflowId::from_recorded(batch.cause_workflow_id.clone()))
-            .await?
-        {
+        } else {
+            self.recheck_recipient(batch).await.unwrap_or_else(|error| {
+                tracing::warn!(id=%batch.id, %error, "runs.recheck_untold");
+                None
+            })
+        };
+        let notice = if failed.is_empty() && !all_passed {
+            None
+        } else if let Some(recipient) = recipient {
+            let why = match (batch.asked, &batch.asker_thread_id) {
+                (false, _) => format!(
+                    "After T{} of version {} was marked done and completed its plan",
+                    batch.cause_task, batch.cause_version
+                ),
+                (true, Some(_)) => "As you asked".to_string(),
+                (true, None) => "As the person asked".to_string(),
+            };
+            let body = if all_passed {
+                // A `contract` row that could not run is not a pass; say it was not run.
+                let unchecked = rows
+                    .iter()
+                    .filter(|row| row.outcome.as_deref() != Some("passed"))
+                    .count();
+                let passed = match unchecked {
+                    0 => "Every check passed.".to_string(),
+                    n => format!(
+                        "Every check that ran passed; the contract check of {n} task(s) \
+                        could not run."
+                    ),
+                };
+                format!(
+                    "[Shadows] {why}, Shadows reran the checks of the project's done tasks. \
+                    {passed}"
+                )
+            } else {
+                format!(
+                    "[Shadows] {why}, Shadows reran the checks of the project's done tasks. \
+                    These no longer pass:\n{}\nTheir done marks stand. Read the change with \
+                    task_diff, then amend or plan a correction.",
+                    lines.join("\n")
+                )
+            };
             let card = RecheckNotice {
                 plan_id: recipient.plan.plan_id,
                 cause_workflow_id: WorkflowId::from_recorded(batch.cause_workflow_id.clone()),
@@ -171,14 +320,7 @@ impl Runs {
             };
             let intent = NoticeIntent {
                 planner: recipient.thread,
-                body: format!(
-                    "[Shadows] After T{} of version {} was marked done, Shadows reran \
-                    the checks of the project's done tasks. These no longer pass:\n{}\nTheir done \
-                    marks stand. Read the change with task_diff, then amend or plan a correction.",
-                    batch.cause_task,
-                    batch.cause_version,
-                    lines.join("\n")
-                ),
+                body,
                 model: recipient.invocation.requested_model,
                 mode: recipient.invocation.requested_mode,
                 effort: recipient.invocation.requested_effort,
@@ -192,7 +334,28 @@ impl Runs {
         self.inner.store.finish_batch(&batch.id, notice).await
     }
 
-    fn recheck_result(row: &ResultRow) -> Result<CheckResult, RunsError> {
+    /// Who hears a batch: the asking Planner's thread, else the cause plan's Planner.
+    async fn recheck_recipient(
+        &self,
+        batch: &Batch,
+    ) -> Result<Option<crate::notify::Recipient>, RunsError> {
+        let workflow = WorkflowId::from_recorded(batch.cause_workflow_id.clone());
+        let Some(thread) = &batch.asker_thread_id else {
+            return self.recipient_for(&workflow).await;
+        };
+        let thread = ThreadId::from_recorded(thread.clone());
+        let plan = self.read_plan(&workflow).await?;
+        let invocation = self.last_invocation(&thread).await.ok_or_else(|| {
+            RunsError::Unavailable("the Planner has no turn whose settings a notice takes".into())
+        })?;
+        Ok(Some(crate::notify::Recipient {
+            plan,
+            thread,
+            invocation,
+        }))
+    }
+
+    pub(crate) fn recheck_result(row: &ResultRow) -> Result<CheckResult, RunsError> {
         let check: TaskCheck = serde_json::from_str(&row.run_json)?;
         let outcome: Option<CheckOutcome> = row
             .outcome
@@ -237,19 +400,13 @@ impl Runs {
         Ok(())
     }
 
+    /// A batch a restart cut short runs its unfinished rows now, keeping the finished ones,
+    /// then ends and delivers as it would have; a finished batch only delivers its notice.
     pub(crate) async fn recover_rechecks(&self, ids: Vec<String>) {
         for id in ids {
-            let recovered = async {
-                let batch = self.inner.store.recheck_batch(&id).await?;
-                if batch.finished_at.is_none() {
-                    self.inner.store.interrupt_recheck(&id).await?;
-                    self.end_recheck(&batch).await?;
-                }
-                self.deliver_recheck(&id).await
-            }
-            .await;
-            if let Err(error) = recovered {
+            if let Err(error) = self.run_recheck(&id).await {
                 tracing::warn!(%id, %error, "runs.recheck_recovery_failed");
+                self.abandon_recheck(&id, &error).await;
             }
         }
     }

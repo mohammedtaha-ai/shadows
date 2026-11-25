@@ -1224,3 +1224,29 @@ async fn return_waits_for_a_turn_on_its_thread() {
     }
     panic!("the return never followed the turn's end");
 }
+
+async fn attempt_progress_events(f: &Fixture, id: &AttemptId) -> usize {
+    let count: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM durable_event WHERE kind = 'TaskProgressChanged'
+         AND json_extract(payload_json, '$.attempt_id') = ?",
+    )
+    .bind(id.as_str())
+    .fetch_one(f.storage.reader())
+    .await
+    .unwrap();
+    count as usize
+}
+
+#[tokio::test]
+async fn a_finished_check_journals_progress_for_its_attempt() {
+    let (f, id, _, _) = candidate(vec![cmd(&["git", "--version"])]).await;
+    let before = attempt_progress_events(&f, &id).await;
+    f.core.runs().recover().await.unwrap();
+    let rows = results(&f, &id, 1).await;
+    assert_eq!(rows[0].outcome, Some(CheckOutcome::Passed));
+    assert!(
+        attempt_progress_events(&f, &id).await > before,
+        "a stored outcome journaled no progress"
+    );
+    f.finish().await;
+}

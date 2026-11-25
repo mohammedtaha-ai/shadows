@@ -76,6 +76,7 @@ impl RunsStore {
                         &ts,
                     )
                     .await?;
+                    super::attempt_progress_in(conn, &attempt, Actor::system(), &ts).await?;
                     Ok(true)
                 })
             })
@@ -191,14 +192,19 @@ impl RunsStore {
         self.storage
             .write_txn_as(move |conn| {
                 Box::pin(async move {
-                    sqlx::query(
+                    let moved = sqlx::query(
                         "UPDATE run_attempts SET conflict_delivery = ?
                          WHERE id = ? AND conflict_delivery = 'pending'",
                     )
                     .bind(delivery.as_str())
                     .bind(attempt.as_str())
                     .execute(&mut *conn)
-                    .await?;
+                    .await?
+                    .rows_affected();
+                    if moved > 0 {
+                        let at = Storage::now();
+                        super::attempt_progress_in(conn, &attempt, Actor::system(), &at).await?;
+                    }
                     Ok(())
                 })
             })

@@ -918,6 +918,19 @@
         ],
         "type": "object"
       },
+      "AskRecheck": {
+        "description": "What a project recheck takes.",
+        "properties": {
+          "command_id": {
+            "description": "The idempotency key: the same key and plan answer the first batch.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "command_id"
+        ],
+        "type": "object"
+      },
       "Attachment": {
         "properties": {
           "byte_len": {
@@ -4209,6 +4222,38 @@
         ],
         "type": "object"
       },
+      "LastRecheck": {
+        "description": "The newest recheck batch of a project, as the plan page shows it.",
+        "properties": {
+          "began": {
+            "$ref": "#/components/schemas/RecheckBegan"
+          },
+          "counts": {
+            "$ref": "#/components/schemas/RecheckCounts"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "finished_at": {
+            "description": "None while the batch runs.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "recheck_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "recheck_id",
+          "began",
+          "created_at",
+          "finished_at",
+          "counts"
+        ],
+        "type": "object"
+      },
       "LayerRef": {
         "description": "A layer another layer may depend on. No kind means the same part.",
         "properties": {
@@ -6930,6 +6975,22 @@
         ],
         "type": "object"
       },
+      "ProjectRecheck": {
+        "description": "A project recheck asked for. It runs in the background; only checks that now fail are told,\nto the asking Planner or the named plan's Planner.",
+        "properties": {
+          "recheck_id": {
+            "description": "The batch begun; none when no done task of the project has checks to run.",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "recheck_id"
+        ],
+        "type": "object"
+      },
       "ProjectStateView": {
         "description": "The project's stage, its parts with their plans and elements, and its gaps.",
         "properties": {
@@ -7394,6 +7455,10 @@
               "integer",
               "null"
             ]
+          },
+          "truncated": {
+            "description": "The provider had more models than were read: paging stopped at five pages or at a\ncursor it gave twice. `models` holds those read.",
+            "type": "boolean"
           }
         },
         "required": [
@@ -7633,6 +7698,119 @@
         ],
         "type": "string"
       },
+      "RecheckBegan": {
+        "description": "What began a recheck batch.",
+        "oneOf": [
+          {
+            "description": "The done mark of `task` completed version `version` of the plan titled `plan_title`.",
+            "properties": {
+              "kind": {
+                "enum": [
+                  "mark"
+                ],
+                "type": "string"
+              },
+              "plan_title": {
+                "type": "string"
+              },
+              "task": {
+                "format": "int32",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "version": {
+                "format": "int64",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "plan_title",
+              "version",
+              "task",
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "The person asked.",
+            "properties": {
+              "kind": {
+                "enum": [
+                  "person"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "A Planner asked from this thread.",
+            "properties": {
+              "kind": {
+                "enum": [
+                  "planner"
+                ],
+                "type": "string"
+              },
+              "thread_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "thread_id",
+              "kind"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "RecheckCounts": {
+        "description": "A recheck batch's rows counted by outcome; `unfinished` counts rows not finished yet.",
+        "properties": {
+          "failed": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "inconclusive": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "not_run": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "passed": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "timed_out": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "unfinished": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "passed",
+          "failed",
+          "timed_out",
+          "inconclusive",
+          "not_run",
+          "unfinished"
+        ],
+        "type": "object"
+      },
       "RecheckFailure": {
         "description": "A done task whose recorded checks did not all pass on a recheck.",
         "properties": {
@@ -7672,9 +7850,10 @@
         "type": "object"
       },
       "RecheckNotice": {
-        "description": "The outcome of rechecking other done tasks after a new done mark.",
+        "description": "The outcome of rechecking the project's done tasks, after the done mark that completed a\nplan or on request.",
         "properties": {
           "cause_task": {
+            "description": "The task whose done mark completed the plan; 0 for a recheck asked for.",
             "format": "int32",
             "minimum": 0,
             "type": "integer"
@@ -7706,6 +7885,80 @@
           "cause_task",
           "recheck_id",
           "failed"
+        ],
+        "type": "object"
+      },
+      "RecheckRow": {
+        "description": "One row of a recheck batch: one check of one done task, as the person reads it.",
+        "properties": {
+          "attempt_id": {
+            "$ref": "#/components/schemas/AttemptId"
+          },
+          "check_id": {
+            "type": "string"
+          },
+          "command": {
+            "description": "The check's command, its words joined by spaces; empty for the `contract` check.",
+            "type": "string"
+          },
+          "finished_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "outcome": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/CheckOutcome",
+                "description": "None until the row finishes."
+              }
+            ]
+          },
+          "output": {
+            "description": "The stored output, once the row finishes.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "started_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "task": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "truncated": {
+            "type": "boolean"
+          },
+          "version": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "workflow_id": {
+            "$ref": "#/components/schemas/WorkflowId"
+          }
+        },
+        "required": [
+          "workflow_id",
+          "version",
+          "task",
+          "attempt_id",
+          "check_id",
+          "command",
+          "outcome",
+          "started_at",
+          "finished_at",
+          "output",
+          "truncated"
         ],
         "type": "object"
       },
@@ -17084,6 +17337,113 @@
         ]
       }
     },
+    "/api/rechecks/{recheck}": {
+      "get": {
+        "operationId": "recheck_rows",
+        "parameters": [
+          {
+            "description": "The recheck batch",
+            "in": "path",
+            "name": "recheck",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RecheckRow"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "no such recheck batch"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          }
+        },
+        "summary": "A recheck batch's rows in plan version, task and check order, each with its command,\noutcome, times and stored output (none until the row finishes).",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/rechecks/{recheck}/output": {
+      "get": {
+        "operationId": "recheck_output",
+        "parameters": [
+          {
+            "description": "The recheck batch",
+            "in": "path",
+            "name": "recheck",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Server-sent events of one recheck batch, live only: nothing is replayed after a reconnect but the running row's output so far. Each frame's `data:` is JSON.\n\n- `started` — `{task, attempt_id, check_id}`: a row began; its output starts empty.\n- `chunk` — `{task, attempt_id, check_id, text}`: text the row's check printed. On connect, the running row's `started` and its output so far come first.\n- `finished` — `{task, attempt_id, check_id, outcome}`: the row finished; read its stored output from GET /api/rechecks/{recheck}.\n- `lagged` — empty: this client fell behind and missed output.\n- `end` — `{}`: the batch finished, and the stream ends. A finished batch sends it at once."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "no such recheck batch"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          }
+        },
+        "summary": "A recheck batch's output as its checks print it.",
+        "tags": [
+          "stream"
+        ]
+      }
+    },
     "/api/runtime": {
       "get": {
         "operationId": "identity",
@@ -19040,6 +19400,135 @@
         },
         "tags": [
           "agreements"
+        ]
+      }
+    },
+    "/api/workflows/{workflow}/recheck": {
+      "get": {
+        "operationId": "last_recheck",
+        "parameters": [
+          {
+            "description": "A plan version of the project",
+            "in": "path",
+            "name": "workflow",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/WorkflowId"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "$ref": "#/components/schemas/LastRecheck"
+                    }
+                  ]
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "no such plan version"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          }
+        },
+        "summary": "The project's newest recheck batch: what began it, its times and its rows counted by\noutcome; null when the project has had no recheck.",
+        "tags": [
+          "runs"
+        ]
+      },
+      "post": {
+        "operationId": "recheck",
+        "parameters": [
+          {
+            "description": "A plan version of the project",
+            "in": "path",
+            "name": "workflow",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/WorkflowId"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AskRecheck"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectRecheck"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "no such plan version"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunRefusal"
+                }
+              }
+            },
+            "description": "command_conflict"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "STORAGE_UNAVAILABLE"
+          }
+        },
+        "summary": "Reruns the checks of the project's done tasks, in the background. The plan's Planner is\ntold of the checks that now fail.",
+        "tags": [
+          "runs"
         ]
       }
     },
