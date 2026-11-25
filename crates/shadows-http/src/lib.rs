@@ -42,6 +42,7 @@ mod harness;
 mod instructions;
 mod openapi;
 mod plan_design;
+mod planner_switches;
 mod planning_context;
 mod project;
 mod project_state;
@@ -263,6 +264,9 @@ fn conversation_routes(table: OpenApiRouter<AppState>) -> OpenApiRouter<AppState
     table
         .routes(routes!(project::update_project, project::remove_project))
         .routes(routes!(project::list_threads, project::create_thread))
+        .routes(routes!(planner_switches::extensions))
+        .routes(routes!(planner_switches::set_extension))
+        .routes(routes!(planner_switches::set_claude_md))
         .routes(routes!(conversation::list_entries))
         .routes(routes!(conversation::list_operations))
         .routes(routes!(conversation::start_turn))

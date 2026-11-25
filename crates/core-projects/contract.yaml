@@ -58,6 +58,9 @@ shapes:
     allowed_modes: BTreeMap<String, Vec<String>>
     # True only for the project `ensure_assistant` created (migration 0027).
     assistant: bool
+    # Whether the Planner on Claude Code receives the project directory's CLAUDE.md;
+    # false for every project until `set_planner_claude_md` sets it.
+    planner_reads_claude_md: bool
   ProjectDirectory:
     # Built only by `resolve`, so a value is proof the check ran.
     "0": String

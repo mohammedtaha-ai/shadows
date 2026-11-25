@@ -301,3 +301,118 @@ async fn a_switch_change_reaches_the_next_opening_only() {
     assert_eq!(servers(&app, &other).await, ["shadows", "docs"]);
     shut_down_app(app).await;
 }
+
+const UNKNOWN_PROJECT: &str = "00000000-0000-4000-8000-000000000000";
+
+#[tokio::test]
+async fn the_routes_list_and_switch_a_project_s_items() {
+    let app = switch_app().await;
+    let skill = add_skill(&app).await;
+    let server = add_server(&app).await;
+    let root = format!("/api/projects/{}/planner-extensions", app.project.as_str());
+
+    let (status, view) = app::call(&app, "GET", &root, None).await;
+    assert_eq!(status, 200, "{view}");
+    assert_eq!(view["skills"][0]["id"], skill.as_str());
+    assert_eq!(view["skills"][0]["enabled"], false);
+    assert_eq!(view["mcp"][0]["id"], server.as_str());
+    assert_eq!(view["plugins"], json!([]));
+
+    let body = json!({"command_id": "switch-skill", "enabled": true});
+    let path = format!("{root}/skill/{skill}");
+    let (status, item) = app::call(&app, "PUT", &path, Some(body.clone())).await;
+    assert_eq!(status, 200, "{item}");
+    assert_eq!(item["id"], skill.as_str());
+    assert_eq!(item["enabled"], true);
+    let (status, replay) = app::call(&app, "PUT", &path, Some(body)).await;
+    assert_eq!((status, replay), (200, item));
+
+    let (status, item) = app::call(
+        &app,
+        "PUT",
+        &format!("{root}/mcp/{server}"),
+        Some(json!({"command_id": "switch-server", "enabled": true})),
+    )
+    .await;
+    assert_eq!(status, 200, "{item}");
+    assert_eq!(item["enabled"], true);
+    assert_eq!(item["transport"]["type"], "stdio", "{item}");
+
+    let (_, view) = app::call(&app, "GET", &root, None).await;
+    assert_eq!(view["skills"][0]["enabled"], true);
+    assert_eq!(view["mcp"][0]["enabled"], true);
+
+    let (status, conflict) = app::call(
+        &app,
+        "PUT",
+        &path,
+        Some(json!({"command_id": "switch-skill", "enabled": false})),
+    )
+    .await;
+    assert_eq!(status, 409, "{conflict}");
+    assert_eq!(conflict["code"], "COMMAND_CONFLICT");
+    shut_down_app(app).await;
+}
+
+#[tokio::test]
+async fn the_routes_refuse_a_plugin_and_an_unknown_project() {
+    let app = switch_app().await;
+    let plugin = add_plugin(&app).await;
+    let skill = add_skill(&app).await;
+    let toggle = || Some(json!({"command_id": fresh_command(), "enabled": true}));
+
+    let path = format!(
+        "/api/projects/{}/planner-extensions/plugin/{plugin}",
+        app.project.as_str()
+    );
+    let (status, refused) = app::call(&app, "PUT", &path, toggle()).await;
+    assert_eq!(status, 400, "{refused}");
+    assert_eq!(refused["code"], "PROFILE_INVALID");
+
+    let unknown = format!("/api/projects/{UNKNOWN_PROJECT}/planner-extensions");
+    let (status, missing) = app::call(&app, "GET", &unknown, None).await;
+    assert_eq!(status, 404, "{missing}");
+    assert_eq!(missing["code"], "EXTENSION_NOT_FOUND");
+    let (status, missing) =
+        app::call(&app, "PUT", &format!("{unknown}/skill/{skill}"), toggle()).await;
+    assert_eq!(status, 404, "{missing}");
+    assert_eq!(missing["code"], "EXTENSION_NOT_FOUND");
+
+    let (status, missing) = app::call(
+        &app,
+        "PUT",
+        &format!("/api/projects/{UNKNOWN_PROJECT}/planner-claude-md"),
+        toggle(),
+    )
+    .await;
+    assert_eq!(status, 404, "{missing}");
+    assert_eq!(missing["code"], "INVALID_COMMAND");
+    shut_down_app(app).await;
+}
+
+#[tokio::test]
+async fn the_claude_md_route_sets_the_project() {
+    let app = switch_app().await;
+    let path = format!("/api/projects/{}/planner-claude-md", app.project.as_str());
+    let (status, project) = app::call(
+        &app,
+        "PUT",
+        &path,
+        Some(json!({"command_id": "claude-md-on", "enabled": true})),
+    )
+    .await;
+    assert_eq!(status, 200, "{project}");
+    assert_eq!(project["id"], app.project.as_str());
+    assert_eq!(project["planner_reads_claude_md"], true);
+
+    let (status, projects) = app::call(&app, "GET", "/api/projects", None).await;
+    assert_eq!(status, 200);
+    let listed = projects
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|p| p["id"] == app.project.as_str())
+        .unwrap();
+    assert_eq!(listed["planner_reads_claude_md"], true);
+    shut_down_app(app).await;
+}

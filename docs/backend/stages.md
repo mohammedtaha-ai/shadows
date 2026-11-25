@@ -168,7 +168,7 @@ B-230, B-232, B-231, B-233, B-234, B-235.
 
 ### B-234 · Routes, and the switch on `Project`
 
-- Status: todo (the shared request `docs/shared/requests/2026-11-25-planner-project-switches.md`
+- Status: done (the shared request `docs/shared/requests/2026-11-25-planner-project-switches.md`
   is `accepted` at `940c91e`).
 - Plan: docs/backend/plans/2026-11-25-planner-project-switches.md#b-234--routes-and-the-switch-on-project
 - Read: `crates/shadows-http/src/contract.yaml`; `crates/core-projects/contract.yaml`; the
@@ -177,7 +177,7 @@ B-230, B-232, B-231, B-233, B-234, B-235.
   `crates/core-projects/src/store/mod.rs`, `crates/shadows-http/src/contract.yaml`,
   `crates/shadows-http/src/lib.rs`, `crates/shadows-http/src/planner_switches.rs` (new),
   `crates/shadows-http/src/aylul_extensions.rs` (only `Toggle`'s two fields `pub(super)`),
-  `crates/shadows/tests/planner_switches.rs`, `api/openapi.json`, `docs/codebase/README.md`
+  `crates/shadows/tests/planner_switches.rs`, `crates/shadows/tests/openapi.rs`, `api/openapi.json`, `docs/codebase/README.md`
   (one row), this file (Status only)
 - Needs: B-230, B-231, B-233; the accepted shared request
 - Done when: `cargo test -p core-projects` and

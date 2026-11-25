@@ -108,6 +108,7 @@ pattern to follow, not merely an example.
 | `crates/core-harness/src/extension_home.rs` | per-agent extension projection | `crates/core-harness/contract.yaml` |
 | `crates/shadows-http/src/aylul_extensions.rs` | extension HTTP translation | `crates/core-extensions/contract.yaml` |
 | `crates/shadows-http/src/aylul_extensions_tests.rs` | extension route acceptance | `crates/shadows-http/src/aylul_extensions.rs` |
+| `crates/shadows-http/src/planner_switches.rs` | Planner switch HTTP translation | `crates/core-extensions/contract.yaml` |
 | `crates/core-turns/src/store/usage.rs` | atomic turn usage insertion | `crates/core-turns/contract.yaml` |
 | `crates/core-harness/src/profile_home.rs` | serialized agent home settings writes | `docs/aylul/specs/2026-10-19-aylul-claude-code-brain-design.md` |
 | `crates/shadows-http/src/aylul_env.rs` | AYLUL environment HTTP translation | `crates/core-agents/contract.yaml` |

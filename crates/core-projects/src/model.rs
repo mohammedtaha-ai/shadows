@@ -29,6 +29,8 @@ pub struct Project {
     /// True only for the project `Projects::ensure_assistant` created: the
     /// home of AYLUL's conversations, which clients list apart from projects.
     pub assistant: bool,
+    /// Whether the Planner on Claude Code receives the project directory's CLAUDE.md.
+    pub planner_reads_claude_md: bool,
 }
 
 impl ProjectId {

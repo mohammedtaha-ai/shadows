@@ -26,8 +26,8 @@ pub(super) struct Import {
 }
 #[derive(serde::Deserialize, utoipa::ToSchema)]
 pub(super) struct Toggle {
-    command_id: String,
-    enabled: bool,
+    pub(super) command_id: String,
+    pub(super) enabled: bool,
 }
 
 #[derive(serde::Deserialize, utoipa::ToSchema)]

@@ -95,7 +95,7 @@ impl ProjectsStore {
     /// so a project could never be hidden by a missing event; there is none.
     pub(super) async fn list(&self) -> Result<Vec<Project>, StorageError> {
         let rows: Vec<ProjectRow> = sqlx::query_as(
-            "SELECT p.id, p.slug, p.name, p.directory, p.created_at, p.assistant
+            "SELECT p.id, p.slug, p.name, p.directory, p.created_at, p.assistant, p.planner_reads_claude_md
                FROM project p
                LEFT JOIN durable_event e
                  ON e.project_id = p.id AND e.kind = 'ProjectCreated'
@@ -116,7 +116,7 @@ impl ProjectsStore {
     /// time order within a second (CLAUDE.md: ordering is explicit).
     pub(super) async fn by_recent_activity(&self) -> Result<Vec<Project>, StorageError> {
         let rows: Vec<ProjectRow> = sqlx::query_as(
-            "SELECT p.id, p.slug, p.name, p.directory, p.created_at, p.assistant
+            "SELECT p.id, p.slug, p.name, p.directory, p.created_at, p.assistant, p.planner_reads_claude_md
                FROM project p
               WHERE p.removed_at IS NULL
               ORDER BY COALESCE(
@@ -385,10 +385,10 @@ async fn project_modes(
     Ok(group(rows).remove(id.as_str()).unwrap_or_else(empty_modes))
 }
 
-type ProjectRow = (String, String, String, Option<String>, String, bool);
+type ProjectRow = (String, String, String, Option<String>, String, bool, bool);
 
 fn project(
-    (id, slug, name, directory, created_at, assistant): ProjectRow,
+    (id, slug, name, directory, created_at, assistant, planner_reads_claude_md): ProjectRow,
     allowed_modes: BTreeMap<String, Vec<String>>,
 ) -> Project {
     let allowed_modes = if allowed_modes.is_empty() {
@@ -404,6 +404,7 @@ fn project(
         created_at,
         allowed_modes,
         assistant,
+        planner_reads_claude_md,
     }
 }
 
@@ -413,7 +414,8 @@ async fn load_project(
     id: &ProjectId,
 ) -> Result<Project, StorageError> {
     let row: ProjectRow = sqlx::query_as(
-        "SELECT id, slug, name, directory, created_at, assistant FROM project WHERE id = ?",
+        "SELECT id, slug, name, directory, created_at, assistant, planner_reads_claude_md \
+         FROM project WHERE id = ?",
     )
     .bind(id.as_str())
     .fetch_optional(&mut *conn)

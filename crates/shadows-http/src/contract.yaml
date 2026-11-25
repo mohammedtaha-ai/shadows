@@ -34,6 +34,7 @@ modules:
   aylul_person.rs: PersonSettings service HTTP translation
   aylul_usage.rs: Usage service HTTP translation
   aylul_extensions.rs: Extensions library HTTP translation
+  planner_switches.rs: Planner switch HTTP translation
   transport.rs: shared HTTP request execution
   sse.rs: Events stream framing through private handlers
   runs.rs: Runs service HTTP translation
@@ -53,6 +54,17 @@ elements: >
   INVALID_ELEMENT is 422. Tested by design_routes::element_routes_list_states_and_revisions,
   project_state_routes::the_state_route_answers_the_method and
   project_state_routes::an_unknown_part_is_422.
+planner_switches: >
+  GET /api/projects/{id}/planner-extensions calls Extensions::project_extensions and answers
+  AgentExtensions (plugins always empty). PUT /api/projects/{id}/planner-extensions/{kind}/{item}
+  with Toggle calls Extensions::set_project_extension and answers AgentItem; a plugin is 400
+  PROFILE_INVALID, an unknown project or item 404 EXTENSION_NOT_FOUND. PUT
+  /api/projects/{id}/planner-claude-md with Toggle calls Projects::set_planner_claude_md and
+  answers Project; an unknown project is 404 INVALID_COMMAND. A replayed command id with a
+  changed body is 409 COMMAND_CONFLICT. Tested by
+  planner_switches::the_routes_list_and_switch_a_project_s_items,
+  planner_switches::the_routes_refuse_a_plugin_and_an_unknown_project and
+  planner_switches::the_claude_md_route_sets_the_project.
 code_where: >
   GET /api/projects/{id}/code-where?topic= calls CodeRecord::code_where (asking as
   Asker::Person of the project) and answers WhereAnswer. An unknown or removed project is 404;
