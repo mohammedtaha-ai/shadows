@@ -185,7 +185,11 @@ async fn a_switched_on_skill_reaches_the_planner_as_a_plugin() {
             .unwrap(),
     )
     .to_path_buf();
-    assert_eq!(folder, skills_folder(&app, &thread).await);
+    // Windows may name the temp folder in its short form on one side only.
+    assert_eq!(
+        folder.canonicalize().unwrap(),
+        skills_folder(&app, &thread).await.canonicalize().unwrap()
+    );
     assert!(folder.join(".claude-plugin/plugin.json").is_file());
     assert!(folder.join("skills/hello/SKILL.md").is_file());
     let tools = r["options"]["tools"].as_array().unwrap();
