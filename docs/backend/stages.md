@@ -403,5 +403,5 @@ Plan: [backend review fixes](plans/2026-11-25-backend-review-fixes.md); each ent
 
 ### B-229 · Architecture tests cover Runs and Messages
 
-- Status: todo. Plan task 15.
+- Status: done (2026-11-25). Plan task 15, small part. `extracted_runs_depends_only_on_declared_lower_owners` and `extracted_messages_depends_only_on_declared_lower_owners` pin today's edges (a new one is added on purpose). The table-driven rewrite is in future.
 
