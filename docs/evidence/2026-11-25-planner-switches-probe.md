@@ -56,3 +56,32 @@ R1 to R8 kept the built-in tools to the list sent (no Write, Edit or PowerShell)
 - Codex: not installed in the container.
 - The Planner's subagents, Windows, and a skill's own scripts run through `Bash`.
 - The pinned adapter 0.101.0 only; the latest is 0.112.0.
+
+## Through Shadows
+
+At `2b9e38c`, on the same container: `shadows serve` (debug build, `--harness` Claude Code
+2.1.332, the pinned adapter, an AYLUL config with its own home) and the web client on Vite,
+driven by Playwright in Chromium. The project folder held the same `CLAUDE.md` (word
+`PELICAN-7`) and a `.claude/settings.json` `SessionStart` hook touching a file. The library held
+the bundled `aylul-hello`, a local skill `pelican-facts` and the stdio server `kestrel`
+(tool `kestrel_word`, word `KESTREL-5`, no headers or env).
+
+The switches were set on the project's settings page, then a new Planner conversation was
+opened from the project's page with the four questions above.
+
+| Switches on | Code word | Skills | `kestrel` tool | Write or Edit |
+|---|---|---|---|---|
+| CLAUDE.md, `pelican-facts` | `PELICAN-7` | `shadows-skills:pelican-facts` | — (not on) | no |
+| CLAUDE.md, `pelican-facts`, `kestrel` | `PELICAN-7` | `shadows-skills:pelican-facts` | `KESTREL-5` | no |
+| none | NONE | NONE | NONE | no |
+
+- The project's hook never ran in any of the three.
+- Each switch held after a page reload; the browser console logged no error; the serve log
+  logged no `ERROR`.
+- Each conversation got its own `<aylul home>/planner-skills/<thread id>/` folder.
+- The first `kestrel` attempt failed to open the session: "encrypted environment storage is
+  unavailable". On Linux there is no secrets master key, and resolving an MCP server read the
+  secrets store even for a server with no values. Fixed in `2b9e38c`; this affected AYLUL's
+  agents as well.
+- Not run: `crates/shadows/tests/planner_switches_live.rs`, which needs `API_KEY_MINIMAX`, absent
+  in this container.

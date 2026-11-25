@@ -186,7 +186,9 @@ B-230, B-232, B-231, B-233, B-234, B-235.
 
 ### B-235 · Live acceptance on Claude
 
-- Status: todo
+- Status: done through `shadows serve` and the browser on Claude Code (2026-11-25,
+  [evidence](../evidence/2026-11-25-planner-switches-probe.md#through-shadows)). The automated
+  `planner_switches_live.rs` is not written: this container has no `API_KEY_MINIMAX`.
 - Plan: docs/backend/plans/2026-11-25-planner-project-switches.md#b-235--live-acceptance-on-claude
 - Read: `crates/shadows/tests/fixtures/live.rs`; `docs/evidence/2026-11-25-planner-switches-probe.md`
 - Touch: `crates/shadows/tests/planner_switches_live.rs` (new),
