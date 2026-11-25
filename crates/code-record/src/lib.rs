@@ -48,6 +48,8 @@ pub enum RecordedAnswer {
     },
     /// Under any key, the ask fails with this text, as a language server error would.
     Failed(String),
+    /// The file's language server stays `Starting`: the start wait runs on a real clock.
+    Starting,
     /// A `workspaceSymbol` result, under `"#workspace:{query}"`.
     Workspace(serde_json::Value),
 }
@@ -61,6 +63,9 @@ pub struct CodeRecord {
     /// Answers recorded by tests, by path; asked before any language server.
     #[cfg(feature = "test-support")]
     recorded: Arc<std::sync::Mutex<std::collections::HashMap<String, RecordedAnswer>>>,
+    /// A test's shorter start wait: how often, and how long in all.
+    #[cfg(feature = "test-support")]
+    start_wait: Arc<std::sync::Mutex<Option<(std::time::Duration, std::time::Duration)>>>,
 }
 
 impl CodeRecord {
@@ -71,6 +76,8 @@ impl CodeRecord {
             design,
             #[cfg(feature = "test-support")]
             recorded: Arc::default(),
+            #[cfg(feature = "test-support")]
+            start_wait: Arc::default(),
         }
     }
 
@@ -87,5 +94,16 @@ impl CodeRecord {
             .lock()
             .expect("recorded answers")
             .insert(key.to_string(), answer);
+    }
+
+    /// Asks a starting server again every `every`, for `total` in all, in place of 5 s and
+    /// 2 minutes.
+    #[cfg(feature = "test-support")]
+    pub fn shorten_start_wait_for_tests(
+        &self,
+        every: std::time::Duration,
+        total: std::time::Duration,
+    ) {
+        *self.start_wait.lock().expect("start wait") = Some((every, total));
     }
 }

@@ -363,7 +363,7 @@ Plan: [backend review fixes](plans/2026-11-25-backend-review-fixes.md); each ent
 
 ### B-219 · LSP hierarchy work and startup waits are bounded
 
-- Status: todo. Plan task 13.
+- Status: done in part (2026-11-25). Plan task 13. Contract verification shares one start wait across its files (`verify`). The hierarchy work cap in `codebase/src/lsp/ask.rs` is deferred to future: no observed failure, and its test needs a process-backed hierarchy server.
 
 ### B-220 · Extension import copies outside the writer
 

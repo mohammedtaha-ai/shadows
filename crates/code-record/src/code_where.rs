@@ -627,6 +627,9 @@ impl CodeRecord {
                 }
                 RecordedAnswer::Absent => Asked::Failed(crate::model::ABSENT.into()),
                 RecordedAnswer::Failed(why) => Asked::Failed(why),
+                RecordedAnswer::Starting => {
+                    Asked::NoServer("its language server is starting".into())
+                }
             };
         }
         #[cfg(not(feature = "test-support"))]
