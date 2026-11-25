@@ -46,6 +46,10 @@ pub struct ProviderTestOutcome {
     pub reason: Option<TestRefusal>,
     pub status: Option<u16>,
     pub message: Option<String>,
+    /// The provider had more models than were read: paging stopped at five pages or at a
+    /// cursor it gave twice. `models` holds those read.
+    #[serde(default)]
+    pub truncated: bool,
 }
 impl ProviderTestOutcome {
     fn refused(reason: TestRefusal, status: Option<u16>) -> Self {
@@ -63,6 +67,7 @@ impl ProviderTestOutcome {
             reason: Some(reason),
             status,
             message: Some(message.into()),
+            truncated: false,
         }
     }
     fn success(models: Vec<ListedModel>, listed: bool, status: u16) -> Self {
@@ -73,6 +78,7 @@ impl ProviderTestOutcome {
             reason: None,
             status: Some(status),
             message: None,
+            truncated: false,
         }
     }
 }
@@ -238,6 +244,8 @@ async fn run(base_url: &str, key: &str) -> ProbeResult<ProviderTestOutcome> {
     let mut models = std::collections::BTreeMap::new();
     let mut next = reqwest::Url::parse(&url)
         .map_err(|_| ProviderTestOutcome::refused(TestRefusal::Unexpected, None))?;
+    let mut seen = std::collections::BTreeSet::new();
+    let mut truncated = true;
     for _ in 0..5 {
         let (status, body) = request(&client, next.as_str(), key, format, custom).await?;
         if status == 404 {
@@ -255,15 +263,18 @@ async fn run(base_url: &str, key: &str) -> ProbeResult<ProviderTestOutcome> {
             models.insert(model.id.clone(), model);
         }
         let Some(after) = page.after else {
+            truncated = false;
             break;
         };
+        if !seen.insert(after.clone()) {
+            break;
+        }
         next = reqwest::Url::parse(&url)
             .map_err(|_| ProviderTestOutcome::refused(TestRefusal::Unexpected, None))?;
         next.query_pairs_mut().append_pair("after_id", &after);
     }
-    Ok(ProviderTestOutcome::success(
-        models.into_values().collect(),
-        true,
-        200,
-    ))
+    Ok(ProviderTestOutcome {
+        truncated,
+        ..ProviderTestOutcome::success(models.into_values().collect(), true, 200)
+    })
 }

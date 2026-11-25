@@ -7455,6 +7455,10 @@
               "integer",
               "null"
             ]
+          },
+          "truncated": {
+            "description": "The provider had more models than were read: paging stopped at five pages or at a\ncursor it gave twice. `models` holds those read.",
+            "type": "boolean"
           }
         },
         "required": [

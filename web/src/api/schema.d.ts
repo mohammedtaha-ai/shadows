@@ -4109,6 +4109,11 @@ export interface components {
             reason?: null | components["schemas"]["TestRefusal"];
             /** Format: int32 */
             status?: number | null;
+            /**
+             * @description The provider had more models than were read: paging stopped at five pages or at a
+             *     cursor it gave twice. `models` holds those read.
+             */
+            truncated?: boolean;
         };
         ProviderUsage: {
             /** Format: double */

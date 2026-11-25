@@ -57,6 +57,7 @@ shapes:
     api_key: Optional replacement; Debug redacted
   ProviderTestOutcome:
     message: Core-owned text; never a provider response body
+    truncated: The listing stopped at five pages or at a cursor given twice while the provider said there was more; models holds those read; false otherwise
   ListedModel:
     context_window: Optional provider-reported window
   TestRefusal:

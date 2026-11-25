@@ -395,7 +395,7 @@ Plan: [backend review fixes](plans/2026-11-25-backend-review-fixes.md); each ent
 
 ### B-227 · A clipped provider catalog says so
 
-- Status: todo. Plan task 20.
+- Status: done (2026-11-25). Plan task 20. `ProviderTestOutcome.truncated` (additive; `api/openapi.json` and `web/src/api/schema.d.ts` regenerated); a cursor given twice stops the listing. The web does not show it yet: Masada to decide whether the provider form says the list was clipped.
 
 ### B-228 · An agent home's settings are published whole, never clobbered
 
