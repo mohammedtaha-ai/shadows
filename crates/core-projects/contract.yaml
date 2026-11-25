@@ -150,6 +150,11 @@ functions:
       # "project.modes", params { project, allowed_modes: normalized } â†’
       # the store's `set_modes`. Refusals also: NotFound (no such project);
       # CommandConflict.
+    set_planner_claude_md:
+      signature: "(&self, command_id: String, project: &ProjectId, enabled: bool) -> Result<Project, ProjectsError>"
+      # "project.planner_claude_md", params { project, enabled } → the store's
+      # `set_planner_claude_md`. Refusals: NotFound (no such or removed
+      # project); CommandConflict.
     list_dirs:
       signature: "(&self, path: Option<String>) -> Result<DirectoryListing, ProjectsError>"
       # An empty `path` is the same as none: the roots. On a blocking thread.
@@ -215,6 +220,11 @@ functions:
       # removed (`require_live_in`) â†’ replace the named harnesses' rows â†’
       # `ProjectModesChanged` â†’ record_command. A replay answers the project
       # as it now stands.
+    set_planner_claude_md:
+      signature: "(&self, ctx, project_id, enabled: bool) -> Result<Project, StorageError>"
+      # One write: classify (scope Project; a replay answers load_project) →
+      # `require_live_in` → UPDATE `planner_reads_claude_md` → record_command.
+      # No journal event, like the extension switches.
     get_in:
       signature: "(conn: &mut SqliteConnection, id: &ProjectId) -> Result<Project, StorageError>"
       # Associated read in the caller's snapshot: require_live_in then load_project.
@@ -231,6 +241,10 @@ functions:
       # The one liveness check: `get` and
       # `set_modes` use it, and Instructions' save and current call
       # it instead of reading `project`.
+    planner_reads_claude_md_in:
+      signature: "(conn: &mut SqliteConnection, project: &ProjectId) -> Result<bool, StorageError>"
+      # `require_live_in` first (NotFound("project") for an unknown or
+      # removed project), then the column. The one read of the switch.
     load_project:
       signature: "(conn, id: &ProjectId) -> Result<Project, StorageError>"
       private: true
@@ -259,9 +273,11 @@ shared_in_transaction:
   by_slug_in: "Codebase::selected_project_in: live slug resolution in the dependency snapshot"
   slug_in: "Code link reads and replays: retained slugs in the caller's snapshot"
   require_live_in: "Instructions and Code: the one liveness check in the caller's transaction or snapshot"
+  planner_reads_claude_md_in: "Harness, the Planner opening: the CLAUDE.md switch in its snapshot"
 
 called_by_other_services:
   require_live_in: "Instructions (save/current) and Code (link writes, file writes, reach): liveness in the caller's transaction or snapshot"
+  planner_reads_claude_md_in: "Harness (the Planner opening): whether the Planner reads the project's CLAUDE.md"
   get: "Code (status, scan) and Events (events/mod.rs subscribe_project): a live project; Events refuses unknown or removed projects before opening its stream (Â§16.8)"
   by_slug: "Agents (assistant_project): the live project `aylul`, kept only when marked assistant"
   allowed_modes: "Turns (turns/record.rs, the mode check) and Harness (harness/mod.rs choices): the modes a project allows for a harness"
@@ -295,9 +311,20 @@ obligations:
   - rule: >
       Replay identity. "project.create" params { slug, name, directory } with
       the canonical directory, and "project.modes" params { project,
-      allowed_modes } with each list deduplicated and sorted; principal
+      allowed_modes } with each list deduplicated and sorted, and
+      "project.planner_claude_md" params { project, enabled }; principal
       User/local, schema version 1.
     tested_by: project_thread_and_instructions_command_fingerprints_do_not_move
+  - rule: >
+      The CLAUDE.md switch. A new project's Planner does not read CLAUDE.md;
+      `set_planner_claude_md` sets it and `planner_reads_claude_md_in` reads
+      it back. A replay answers the project, another `enabled` under the id
+      is CommandConflict and changes nothing, and a removed project is
+      NotFound("project") for both the write and the read.
+    tested_by:
+      - the_claude_md_switch_starts_off_and_is_set
+      - the_claude_md_switch_replays_and_conflicts
+      - the_claude_md_switch_on_a_removed_project_is_not_found
     note: >
       It reads the command log and compares each column with `fingerprint`
       of those literals; it passes on 33ec030 and fails there with the sort
@@ -457,3 +484,14 @@ tests:
       PATH_ALREADY_EXISTS; a missing parent is 404 PATH_NOT_FOUND.
   - name: a_name_that_is_not_one_valid_component_is_refused
     checks: Seventeen bad names are 400 PATH_INVALID and the parent stays empty.
+  - name: the_claude_md_switch_starts_off_and_is_set
+    checks: >
+      tests/project_contract.rs: false on a new project, true after set, false after unset.
+  - name: the_claude_md_switch_replays_and_conflicts
+    checks: >
+      tests/project_contract.rs: the same id and body answers the same project;
+      `enabled` flipped is CommandConflict and the column keeps true.
+  - name: the_claude_md_switch_on_a_removed_project_is_not_found
+    checks: >
+      tests/project_contract.rs: after mark_removed_in, the setter and the read
+      are NotFound("project").

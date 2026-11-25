@@ -137,7 +137,7 @@ B-230, B-232, B-231, B-233, B-234, B-235.
 
 ### B-231 · Projects: the CLAUDE.md switch
 
-- Status: todo
+- Status: done
 - Plan: docs/backend/plans/2026-11-25-planner-project-switches.md#b-231--projects-the-claudemd-switch
 - Read: `crates/core-projects/contract.yaml`
 - Touch: `crates/core-projects/contract.yaml`, `crates/core-projects/src/lib.rs`,

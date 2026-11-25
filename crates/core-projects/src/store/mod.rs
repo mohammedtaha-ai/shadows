@@ -251,6 +251,47 @@ impl ProjectsStore {
             })
             .await
     }
+
+    /// Sets whether the Planner reads the project's CLAUDE.md. An idempotent
+    /// command: a replay answers the project as it now stands. No journal
+    /// event, like the extension switches.
+    pub(super) async fn set_planner_claude_md(
+        &self,
+        ctx: &CommandContext,
+        project_id: &ProjectId,
+        enabled: bool,
+    ) -> Result<Project, StorageError> {
+        let (ctx, id, ts) = (ctx.clone(), project_id.clone(), Storage::now());
+        self.storage
+            .write_txn(move |conn| {
+                Box::pin(async move {
+                    if CommandContext::classify(conn, &ctx, "Project", id.as_str())
+                        .await?
+                        .is_some()
+                    {
+                        return load_project(conn, &id).await;
+                    }
+                    Projects::require_live_in(conn, &id).await?;
+                    sqlx::query("UPDATE project SET planner_reads_claude_md = ? WHERE id = ?")
+                        .bind(enabled)
+                        .bind(id.as_str())
+                        .execute(&mut *conn)
+                        .await?;
+                    CommandContext::record_command(
+                        conn,
+                        &ctx,
+                        "Project",
+                        id.as_str(),
+                        "Project",
+                        id.as_str(),
+                        &ts,
+                    )
+                    .await?;
+                    load_project(conn, &id).await
+                })
+            })
+            .await
+    }
 }
 
 /// Deletes and reinserts the project's rows for each harness in `modes`.
@@ -437,6 +478,22 @@ impl Projects {
                 .fetch_optional(&mut *conn)
                 .await?;
         known.map(|_| ()).ok_or(StorageError::NotFound("project"))
+    }
+
+    /// Whether the Planner reads a live project's CLAUDE.md, in the caller's
+    /// snapshot: `NotFound("project")` for an unknown or removed one. The one
+    /// read other services call for this switch.
+    pub async fn planner_reads_claude_md_in(
+        conn: &mut SqliteConnection,
+        project: &ProjectId,
+    ) -> Result<bool, StorageError> {
+        Self::require_live_in(conn, project).await?;
+        Ok(
+            sqlx::query_scalar("SELECT planner_reads_claude_md FROM project WHERE id = ?")
+                .bind(project.as_str())
+                .fetch_one(&mut *conn)
+                .await?,
+        )
     }
 }
 
