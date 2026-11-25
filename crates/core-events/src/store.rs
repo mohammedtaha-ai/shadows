@@ -75,8 +75,9 @@ impl EventsStore {
             .collect()
     }
 
-    /// A project's plan/design event tail, and what changes its thread list. Only identifiers are projected for client
-    /// invalidation; plan content and edit details never enter this stream.
+    /// A project's plan/design event tail, and what changes its thread list. Only identifiers
+    /// are projected for client invalidation; plan content and edit details never enter this
+    /// stream.
     /// Archive events name a plan, so they name its latest version to refetch.
     pub async fn read_project_events_after(
         &self,

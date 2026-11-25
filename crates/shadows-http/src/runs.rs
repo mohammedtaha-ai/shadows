@@ -370,8 +370,10 @@ pub(super) async fn recheck_output(
                     attempt_id,
                     check_id,
                 } => Event::default().event("started").data(
-                    serde_json::json!({"task": task, "attempt_id": attempt_id, "check_id": check_id})
-                        .to_string(),
+                    serde_json::json!({
+                        "task": task, "attempt_id": attempt_id, "check_id": check_id
+                    })
+                    .to_string(),
                 ),
                 RecheckOutput::Chunk {
                     task,

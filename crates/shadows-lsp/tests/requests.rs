@@ -101,8 +101,9 @@ async fn a_servers_requests_are_answered() {
     server.shutdown().await;
 }
 
-/// Records each `didOpen` (with its text) and `didClose`; holds the first `textDocument/hover` for good
-/// after writing `held` to the file its argument names, and answers the next with what it
+/// Records each `didOpen` (with its text) and `didClose`; holds the first
+/// `textDocument/hover` for good after writing `held` to the file its argument names, and
+/// answers the next with what it
 /// recorded.
 const RECORDS_DOCUMENTS: &str = r#"
 const fs = require('fs');

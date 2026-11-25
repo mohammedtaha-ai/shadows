@@ -527,7 +527,8 @@ impl RunsStore {
     ) -> Result<(), RunsError> {
         let at = Storage::now();
         let moved = sqlx::query(
-            "UPDATE run_rechecks SET finished_at=?,notice_json=? WHERE id=? AND finished_at IS NULL",
+            "UPDATE run_rechecks SET finished_at=?,notice_json=?
+             WHERE id=? AND finished_at IS NULL",
         )
         .bind(&at)
         .bind(notice)
