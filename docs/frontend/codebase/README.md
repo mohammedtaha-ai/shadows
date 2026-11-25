@@ -79,7 +79,7 @@ boundaries do not exempt their sources from the other architecture rules.
 | `project-state` | `app/project-state/**` | `app/project-state/index.ts, app/project-state/state-page.tsx` | `app/project-state/contract.yaml` | `api, ui, shared, workflows` |
 | `desktop-ui` | `app/desktop/**` | `app/desktop/index.ts, app/desktop/startup.ts, app/desktop/activity.tsx` | `app/desktop/contract.yaml` | `api, ui, shared, desktop, agents` |
 | `new-project` | `app/new-project/**` | `app/new-project/index.ts` | `app/new-project/contract.yaml` | `api, ui, shared` |
-| `project-settings` | `app/project-settings/**` | `app/project-settings/index.ts, app/project-settings/project-settings.tsx` | `app/project-settings/contract.yaml` | `api, ui, shared` |
+| `project-settings` | `app/project-settings/**` | `app/project-settings/index.ts, app/project-settings/project-settings.tsx` | `app/project-settings/contract.yaml` | `api, ui, shared, navigation` |
 | `settings` | `app/settings/**` | `app/settings/index.ts` | `app/settings/contract.yaml` | `api, ui, shared, desktop, agents, desktop-ui, navigation` |
 | `sidebar` | `app/sidebar/**` | `app/sidebar/index.ts` | `app/sidebar/contract.yaml` | `api, ui, shared, desktop, stream, agents, groups, new-project, workflows, navigation, desktop-ui` |
 | `groups` | `app/groups/**` | `app/groups/index.ts, app/groups/group-page.tsx` | `app/groups/contract.yaml` | `api, ui, shared, stream, agents, conversation` |
@@ -344,6 +344,7 @@ it is that folder's `contract.yaml`.
 | `web/src/app/page-pending.tsx` | Pane shown while a lazy page loads | `web/src/app/home.tsx` |
 | `web/src/app/project-settings/code-index.tsx` | The projects this one reads code from | `web/src/app/project-settings/contract.yaml` |
 | `web/src/app/project-settings/instructions-editor.tsx` | Editor for the Planner's project instructions | `web/src/app/project-settings/contract.yaml` |
+| `web/src/app/project-settings/planner-switches.tsx` | Switches for what the Planner may use | `web/src/app/project-settings/contract.yaml` |
 | `web/src/app/project-settings/project-modes.tsx` | Checklist of the project's allowed modes | `web/src/app/project-settings/contract.yaml` |
 | `web/src/app/project-settings/project-settings.tsx` | Project settings page, assembled from its sections | `web/src/app/project-settings/contract.yaml` |
 | `web/src/app/project-settings/remove-project.tsx` | Danger-zone control that removes the project | `web/src/app/project-settings/contract.yaml` |

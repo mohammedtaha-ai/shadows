@@ -1,5 +1,5 @@
 # Owns the project settings page: Planner instructions, allowed modes,
-# code links, and project removal. Each mounted section is keyed by project.
+# the Planner's switches (CLAUDE.md, library skills and MCP servers), code links, and project removal. Each mounted section is keyed by project.
 
 name: web-project-settings
 version: 1
@@ -24,7 +24,7 @@ shapes:
 # ── external types ───────────────────────────────────────────────────────────────
 
 external:
-  Project: "web/src/api/projects; id, slug, name, directory, allowed_modes"
+  Project: "web/src/api/projects; id, slug, name, directory, allowed_modes, planner_reads_claude_md"
   ProjectLink: "project, linked, created_at"
   InstructionsVersion: "body, number, created_at"
 
@@ -42,6 +42,10 @@ components:
   ProjectModes:
     signature: "({ project: Project }) => JSX.Element"
     # One checkbox per mode each harness lists (GET /api/harnesses); a toggle sends the whole new set.
+  PlannerSwitches:
+    signature: "({ project: Project }) => JSX.Element"
+    # Skills and MCP servers of the library, never plugins, no tool rules. The CLAUDE.md switch
+    # does not wait for the library. Every switch is a SavingSwitch from app/saving-switch.tsx.
   CodeIndex:
     signature: "({ project: Project }) => JSX.Element"
     # The projects this one reads code from, and a picker for the unlinked projects.
@@ -153,6 +157,37 @@ obligations:
     tested_by:
       - "a conversation started meanwhile is refused in the dialog, and turns Remove off"
 
+  - rule: >
+      The section lists the library's skills and MCP servers, never a plugin and no tool
+      rules; the screen keys on the status only, never on `code` or the text.
+    tested_by:
+      - "lists the library's skills and MCP servers, never a plugin, with no tool rules"
+
+  - rule: >
+      A switch saves at once under a command id; a failure sends it back with Core's
+      message, a retry resends the same id, and a conflict is never retried.
+    tested_by:
+      - "a switch saves at once with a command id"
+      - "a failed switch goes back, and its retry resends the same command id"
+      - "a conflict is shown and not retried"
+
+  - rule: >
+      A 404 on an item switch refetches the view; a 404 on the CLAUDE.md switch does not.
+    tested_by:
+      - "a switch whose item is gone refetches the list"
+      - "the CLAUDE.md switch saves the project"
+
+  - rule: >
+      The CLAUDE.md switch is drawn whatever the library answers (empty, or failed to load),
+      and the library part shows Core's message with Retry on a failed load.
+    tested_by:
+      - "an empty library says so, links to the library, and keeps the CLAUDE.md switch"
+      - "a failed load shows Core's message with Retry, and the CLAUDE.md switch still works"
+
+  - rule: >
+      A late answer stays with its project.
+    tested_by:
+      - "a late answer stays with its project"
 
 # ── agreements ───────────────────────────────────────────────────────────────────
 
@@ -249,8 +284,28 @@ tests:
     checks: >
       A PROJECT_HAS_THREADS refusal shows its message in the dialog, the page stays on
       settings, and the count of one conversation disables Remove.
+  - name: "lists the library's skills and MCP servers, never a plugin, with no tool rules"
+    checks: "See planner-switches.test.tsx."
+  - name: "a switch saves at once with a command id"
+    checks: "See planner-switches.test.tsx."
+  - name: "a failed switch goes back, and its retry resends the same command id"
+    checks: "See planner-switches.test.tsx."
+  - name: "a switch whose item is gone refetches the list"
+    checks: "See planner-switches.test.tsx."
+  - name: "a conflict is shown and not retried"
+    checks: "See planner-switches.test.tsx."
+  - name: "the CLAUDE.md switch saves the project"
+    checks: "See planner-switches.test.tsx."
+  - name: "an empty library says so, links to the library, and keeps the CLAUDE.md switch"
+    checks: "See planner-switches.test.tsx."
+  - name: "a failed load shows Core's message with Retry, and the CLAUDE.md switch still works"
+    checks: "See planner-switches.test.tsx."
+  - name: "a late answer stays with its project"
+    checks: "See planner-switches.test.tsx."
 
-project_cache_owner: "api/projects.ts owns saved modes, removed projects, instruction cache updates; forms preserve their existing requests and lifecycles"
+project_cache_owner: "api/projects.ts owns saved modes, the CLAUDE.md answer, removed projects, instruction cache updates; forms preserve their existing requests and lifecycles"
+
+extension_cache_owner: "api/extensions.ts owns the project view's key and saved-switch merge"
 
 code_cache_owner: "api/code.ts owns saved code-link cache updates"
 

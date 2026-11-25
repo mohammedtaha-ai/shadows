@@ -94,7 +94,7 @@ then F-147, then F-148.
   the four checks
 
 ### F-147 · The section "What the Planner may use"
-- Status: blocked: on F-146, so on B-234
+- Status: done
 - Plan: docs/frontend/plans/2026-11-25-planner-project-switches.md#f-147--the-section-what-the-planner-may-use
 - Read: `web/src/app/project-settings/contract.yaml`; `docs/frontend/codebase/README.md`
   (the `project-settings` row); the plan's "Core's answers, exactly" and decisions 5, 7, 8;
