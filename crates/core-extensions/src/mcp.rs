@@ -233,10 +233,18 @@ impl Extensions {
                 crate::model::Holder::Agent(slug) => self.store.tool_rules(slug, &item.id).await?,
                 crate::model::Holder::Project(_) => Vec::new(),
             };
-            let values = self
-                .secrets
-                .resolve_env(&core_secrets::Secrets::mcp_scope(&item.id))
-                .await?;
+            let declared = match &item.transport {
+                McpTransport::Http { headers, .. } => headers,
+                McpTransport::Stdio { env, .. } => env,
+            };
+            // A server that declares no value must open without the secrets store.
+            let values = if declared.is_empty() {
+                Vec::new()
+            } else {
+                self.secrets
+                    .resolve_env(&core_secrets::Secrets::mcp_scope(&item.id))
+                    .await?
+            };
             let select = |names: Vec<McpValue>| -> Result<Vec<(String, String)>, ExtensionsError> {
                 names
                     .into_iter()

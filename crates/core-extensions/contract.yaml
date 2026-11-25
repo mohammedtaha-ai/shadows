@@ -139,6 +139,8 @@ obligations:
     tested_by: [mcp_commands_replay_and_conflict]
   - rule: Trusted openings receive only enabled MCP servers and Debug redacts their values.
     tested_by: [an_opening_resolves_only_enabled_mcp_servers]
+  - rule: An opening reads the secrets store only for a switched-on server that declares header or environment values; a value-less server resolves without it, and a server with values fails with SecretsError::Unavailable when the store has no key.
+    tested_by: [a_server_without_values_opens_when_the_secrets_store_is_unavailable]
   - rule: A project's switches are independent of every agent's, over the same library.
     tested_by: [a_project_switch_is_independent_of_agents]
   - rule: A plugin is never offered to a Planner; switching one is Invalid and the project view lists none.

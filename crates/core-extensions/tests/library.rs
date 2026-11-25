@@ -1613,6 +1613,72 @@ async fn a_project_snapshot_resolves_only_switched_on_servers_with_no_rules() {
 }
 
 #[tokio::test]
+async fn a_server_without_values_opens_when_the_secrets_store_is_unavailable() {
+    let w = world().await;
+    let p = project(&w, "p").await;
+    let bare = w
+        .extensions
+        .add_mcp("bare".into(), mcp_input("bare", json!([])))
+        .await
+        .unwrap()
+        .id;
+    let keyed = w
+        .extensions
+        .add_mcp(
+            "keyed".into(),
+            mcp_input("keyed", json!([{"name":"TOKEN","value":"synthetic-value"}])),
+        )
+        .await
+        .unwrap()
+        .id;
+    for (n, id) in [&bare, &keyed].into_iter().enumerate() {
+        w.extensions
+            .set_project_extension(format!("p-{n}"), &p, ExtensionKind::Mcp, id, true)
+            .await
+            .unwrap();
+        w.extensions
+            .set_agent_extension(format!("a-{n}"), "aylul", ExtensionKind::Mcp, id, true)
+            .await
+            .unwrap();
+    }
+    let keyless = Extensions::new(
+        w.storage.clone(),
+        Secrets::new(w.storage.clone(), None),
+        w.agents.clone(),
+        Some(w._tmp.path().join("home")),
+    );
+    let unavailable = |r: Result<_, ExtensionsError>| {
+        matches!(
+            r,
+            Err(ExtensionsError::Secrets(
+                core_secrets::SecretsError::Unavailable
+            ))
+        )
+    };
+    assert!(unavailable(keyless.project_snapshot(&p).await.map(|_| ())));
+    assert!(unavailable(
+        keyless.opening_snapshot("aylul").await.map(|_| ())
+    ));
+    w.extensions
+        .set_project_extension("p-off".into(), &p, ExtensionKind::Mcp, &keyed, false)
+        .await
+        .unwrap();
+    w.extensions
+        .set_agent_extension("a-off".into(), "aylul", ExtensionKind::Mcp, &keyed, false)
+        .await
+        .unwrap();
+    let project = keyless.project_snapshot(&p).await.unwrap().mcp;
+    let agent = keyless.opening_snapshot("aylul").await.unwrap().mcp;
+    for servers in [project, agent] {
+        let [core_extensions::McpServerConfig::Stdio { name, env, .. }] = servers.as_slice() else {
+            panic!("expected one stdio server");
+        };
+        assert_eq!(name, "bare");
+        assert!(env.is_empty());
+    }
+}
+
+#[tokio::test]
 async fn without_aylul_a_project_view_is_empty_and_a_switch_not_found() {
     let w = world().await;
     let p = project(&w, "p").await;
