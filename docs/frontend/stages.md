@@ -68,7 +68,7 @@ routes and `Project.planner_reads_claude_md`). Order: F-145, then F-146 once B-2
 then F-147, then F-148.
 
 ### F-145 · The agent form's switch becomes a shared switch
-- Status: todo
+- Status: done
 - Plan: docs/frontend/plans/2026-11-25-planner-project-switches.md#f-145--the-agent-forms-switch-becomes-a-shared-switch
 - Read: `web/src/app/agents/contract.yaml` (`AgentExtensions`); `docs/frontend/codebase/README.md`
   (the architecture table's `shared` row); `web/src/app/agents/agent-extensions.tsx`

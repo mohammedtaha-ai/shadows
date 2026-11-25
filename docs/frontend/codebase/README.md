@@ -71,7 +71,7 @@ boundaries do not exempt their sources from the other architecture rules.
 | `stream` | `stream/**` | `stream/index.ts` | `stream/contract.yaml` | `api` |
 | `desktop` | `desktop/**` | `desktop/index.ts, desktop/startup.ts` | `desktop/contract.yaml` | `api` |
 | `ui` | `components/ui/**` | `components/ui/*` | `-` | `-` |
-| `shared` | `app/error-line.tsx, app/copy-button.tsx, app/daemon-status.tsx, app/daemon-status.test.tsx, app/confirm-panel.tsx, app/check-row.tsx, app/element-content.tsx` | `app/error-line.tsx, app/copy-button.tsx, app/daemon-status.tsx, app/confirm-panel.tsx, app/check-row.tsx, app/element-content.tsx` | `-` | `api, stream, ui` |
+| `shared` | `app/error-line.tsx, app/copy-button.tsx, app/daemon-status.tsx, app/daemon-status.test.tsx, app/confirm-panel.tsx, app/check-row.tsx, app/element-content.tsx, app/saving-switch.tsx` | `app/error-line.tsx, app/copy-button.tsx, app/daemon-status.tsx, app/confirm-panel.tsx, app/check-row.tsx, app/element-content.tsx, app/saving-switch.tsx` | `-` | `api, stream, ui` |
 | `agents` | `app/agents/**` | `app/agents/index.ts, app/agents/home.tsx` | `app/agents/contract.yaml` | `api, ui, shared, desktop, navigation` |
 | `agreements` | `app/agreements/**` | `app/agreements/index.ts, app/agreements/agreements-page.tsx` | `app/agreements/contract.yaml` | `api, ui, shared` |
 | `conversation` | `app/conversation/**` | `app/conversation/index.ts, app/conversation/conversation.tsx, app/conversation/draft.tsx` | `app/conversation/contract.yaml` | `api, ui, shared, desktop, stream, design, workflows, desktop-ui, navigation` |
@@ -331,6 +331,7 @@ it is that folder's `contract.yaml`.
 | `web/src/app/check-row.tsx` | One check's result row | `web/src/app/tasks/contract.yaml` |
 | `web/src/app/element-content.tsx` | One table or screen revision shown as text | `web/src/app/element-content.tsx` |
 | `web/src/app/confirm-panel.tsx` | Confirmation presentation with non-submitting action buttons | `web/src/app/error-line.tsx` |
+| `web/src/app/saving-switch.tsx` | One switch saving each change at once | `web/src/app/error-line.tsx` |
 | `web/src/app/home.tsx` | Main pane shown when no project is open | `web/src/app/shell.tsx` |
 | `web/src/app/new-project/folder-browser.tsx` | Browses one daemon directory to pick a folder | `web/src/app/new-project/contract.yaml` |
 | `web/src/app/new-project/folder-state.ts` | Current folder of the new-project browser | `web/src/app/new-project/contract.yaml` |
