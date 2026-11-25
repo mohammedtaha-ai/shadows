@@ -65,9 +65,10 @@ impl ProjectState {
                     .iter()
                     .zip(&plans)
                     .filter(|(live, _)| live.parts.contains(&layout_part.id))
-                    .map(|(_, plan)| plan.clone()),
+                    .map(|(_, plan)| plan),
                 PLANS_PER_PART,
             );
+            let listed = listed.into_iter().cloned().collect();
             let mut counts = StateCounts::default();
             for (element, state) in facts.elements.iter().zip(&facts.states) {
                 if element.part_id == layout_part.id {
@@ -97,9 +98,10 @@ impl ProjectState {
                 .iter()
                 .zip(&plans)
                 .filter(|(live, _)| live.parts.is_empty())
-                .map(|(_, plan)| plan.clone()),
+                .map(|(_, plan)| plan),
             PLANS_PER_PART,
         );
+        let unassigned = unassigned.into_iter().cloned().collect();
         let (gaps, gaps_more) = Self::bounded(Self::gaps(&facts).into_iter(), GAPS_MAX);
         let part = part.map(|part| Self::detail(&facts, part));
         Ok(ProjectStateView {
@@ -233,37 +235,43 @@ impl ProjectState {
 
     /// One part in full: its plans' live tasks with their progress, and its elements.
     fn detail(facts: &Facts, part: &PartId) -> PartDetail {
-        let (plans, plans_more) = Self::bounded(
+        // Only the plans kept are built in full; the rest are counted.
+        let (kept, plans_more) = Self::bounded(
             facts
                 .live
                 .iter()
                 .zip(&facts.progress)
                 .filter(|(live, _)| live.parts.contains(part))
-                .filter_map(|(live, progress)| {
-                    let frozen = live.live.as_ref()?;
-                    let tasks = frozen
-                        .tasks
-                        .iter()
-                        .map(|task| {
-                            let seen = progress.iter().find(|p| p.task == task.number);
-                            TaskLine {
-                                number: task.number,
-                                title: task.title.clone(),
-                                done: seen.is_some_and(|p| p.done),
-                                attempt: seen.and_then(|p| p.state),
-                            }
-                        })
-                        .collect();
-                    Some(PlanTasks {
-                        plan_id: live.plan_id.clone(),
-                        title: live.title.clone(),
-                        workflow_id: frozen.workflow_id.clone(),
-                        version: frozen.version,
-                        tasks,
-                    })
-                }),
+                .filter_map(|(live, progress)| Some((live, live.live.as_ref()?, progress))),
             DETAIL_PLANS_MAX,
         );
+        let plans = kept
+            .into_iter()
+            .map(|(live, frozen, progress)| {
+                let by_task: std::collections::HashMap<_, _> =
+                    progress.iter().map(|p| (p.task, p)).collect();
+                let tasks = frozen
+                    .tasks
+                    .iter()
+                    .map(|task| {
+                        let seen = by_task.get(&task.number);
+                        TaskLine {
+                            number: task.number,
+                            title: task.title.clone(),
+                            done: seen.is_some_and(|p| p.done),
+                            attempt: seen.and_then(|p| p.state),
+                        }
+                    })
+                    .collect();
+                PlanTasks {
+                    plan_id: live.plan_id.clone(),
+                    title: live.title.clone(),
+                    workflow_id: frozen.workflow_id.clone(),
+                    version: frozen.version,
+                    tasks,
+                }
+            })
+            .collect();
         let elements = facts
             .elements
             .iter()
@@ -282,11 +290,10 @@ impl ProjectState {
         }
     }
 
-    /// The first `max` items, and how many were left out.
-    fn bounded<T>(items: impl Iterator<Item = T>, max: usize) -> (Vec<T>, u32) {
-        let all: Vec<T> = items.collect();
-        let more = Self::more(all.len(), max);
-        (all.into_iter().take(max).collect(), more)
+    /// The first `max` items, and how many were left out; the rest are only counted.
+    fn bounded<T>(mut items: impl Iterator<Item = T>, max: usize) -> (Vec<T>, u32) {
+        let kept: Vec<T> = items.by_ref().take(max).collect();
+        (kept, u32::try_from(items.count()).unwrap_or(u32::MAX))
     }
 
     fn more(len: usize, max: usize) -> u32 {

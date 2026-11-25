@@ -379,7 +379,7 @@ Plan: [backend review fixes](plans/2026-11-25-backend-review-fixes.md); each ent
 
 ### B-223 · Project state builds only what it returns
 
-- Status: todo. Plan task 12.
+- Status: done in part (2026-11-25). Plan task 12. `bounded` keeps the first N and only counts the rest; part detail builds task lists only for the kept plans, with progress indexed by task. Not done: splitting element-state facts from stage/layout and batching per-plan reads (no measurement showed them needed).
 
 ### B-224 · A project subscription holds only the channels it reads
 
