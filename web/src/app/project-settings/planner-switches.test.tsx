@@ -121,6 +121,23 @@ describe('the Planner switches', () => {
     act(() => a.button('Retry')!.click()); await until(() => count(a, GET) === 2)
   })
 
+  it("a library removal refreshes the project's switches", async () => {
+    let removed = false
+    const a = await open({
+      [GET]: () => Response.json(removed ? { skills: [], mcp: [{ ...mcp, enabled: false }], plugins: [] } : view()),
+      'GET /api/aylul/extensions': () => Response.json({ plugins: [], skills: removed ? [] : [skill], mcp: [] }),
+      [`DELETE /api/aylul/extensions/skill/${skill.id}`]: () => { removed = true; return new Response(null, { status: 204 }) },
+    })
+    act(() => a.button('Add to library')!.click())
+    await until(() => document.querySelector('[data-slot="dialog-title"]')?.textContent === 'Plugins & Skills')
+    act(() => a.button('Skills')!.click()); const inDialog = (label: string) => [...document.querySelectorAll<HTMLButtonElement>('[role="dialog"] button')].filter(b => b.textContent === label)
+    await until(() => inDialog('Remove').length === 1)
+    act(() => inDialog('Remove')[0].click()); await until(() => inDialog('Remove').length === 2)
+    act(() => inDialog('Remove').at(-1)!.click())
+    await until(() => count(a, GET) === 2 && switchOf('review') === null)
+    expect(switchOf('research')).not.toBeNull()
+  })
+
   it('a late answer stays with its project', async () => {
     let resolve!: (response: Response) => void
     const p2 = { ...projectFixture, id: 'p2', slug: 'p2', name: 'Second' }

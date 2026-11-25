@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
-import { extensionsQuery, extensionKeys, removeExtension, type ExtensionKind, type Item, type McpItem } from '@/api/extensions'
+import { invalidateLibraryViews, removeExtension, type ExtensionKind, type Item, type McpItem } from '@/api/extensions'
 import { attemptFor, type Attempt } from '@/api/command-id'
 import { Button } from '@/components/ui/button'
 import { ConfirmPanel } from '../confirm-panel'
@@ -19,7 +19,7 @@ export function ExtensionList({ kind, items, onEdit }: { kind: ExtensionKind; it
     },
     onSuccess: async (_, input) => {
       attempts.current.delete(`${input.kind}:${input.id}`)
-      await Promise.all([client.invalidateQueries({ queryKey: extensionsQuery.queryKey }), client.invalidateQueries({ queryKey: extensionKeys.agents() })])
+      await invalidateLibraryViews(client)
       setConfirming(null)
     },
     onSettled: () => { locked.current = false },
