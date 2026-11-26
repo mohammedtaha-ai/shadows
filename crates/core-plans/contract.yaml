@@ -163,7 +163,7 @@ shapes:
     replayed: bool
   Plan:
     approved_by: "Option<core_grants::ApprovedBy>; provenance of the frozen version"
-    delivery: "Option<PlanDelivery>; the public reads' projection, filled after scoped authorization in the read snapshot; never in PlanContent or approval journals"
+    delivery: "Option<PlanDelivery>; the public reads' projection, filled after scoped authorization in the read snapshot; never in PlanContent or approval journals (a_plan_read_carries_its_delivery_links)"
     bindings: Vec<AgreementBinding>
     # Derived latest dependency previews, excluded from canonical PlanContent.
     # MCP omits unreachable incoming previews and redacts outgoing metadata.
@@ -488,8 +488,8 @@ functions:
     task_context_in:
       signature: "(tx: &mut Tx, project: &ProjectId, workflow: &WorkflowId, task: u32, phase: Option<&PhaseId>) -> Result<TaskContext, PlansError>"
       rule: The one assembly of a task's context as the caller's transaction sees it; task_context calls it after its grant checks, and Runs calls it inside an attempt's admitting write to save that attempt's brief. The version must be Frozen and in the project; it checks no grant and writes nothing.
-    TaskOwnership::resolve:
-      signature: "(layout: &ProjectLayout, task: &TaskContent) -> TaskOwnership"
+    resolve:
+      signature: "TaskOwnership::resolve(layout: &ProjectLayout, task: &TaskContent) -> TaskOwnership"
       rule: Plans-internal and pure. The one mapping of a task's reads and writes to the layout's owners, kept per access mode; each list keeps input order, holds a repeated path once and keeps every folder and layer owner ProjectLayout::owners returns (empty when none). task_context_in builds its parts and unowned_paths from the read-then-write union and still keeps explicitly tied parts with no path (task_ownership_preserves_access_and_nested_owners).
     task_for:
       signature: "(&self, grant: &Grant, named: Option<&WorkflowId>, number: u32) -> Result<PlanTask, PlansError>"
@@ -704,11 +704,11 @@ shared_in_transaction:
   version_in: "(conn, workflow) -> Result<Plan, PlansError>; Plans' own execution_plan_in, and Runs' executor choice save (its newest-version and task-id checks, in the pre-check read and again in the write): the workflow's version with its linked tasks, read inside the caller's transaction"
   apply_design_links_in: Owner entry in the caller transaction; design links rules.
   delivery_outcomes_in: "crate-internal: (conn, project, plan) -> Vec<DeliveryOutcome>: plan_outcome_ids_in with Design's outcome titles in the caller snapshot; both public reads and task_context_in use it."
-  plan_delivery_in: "store-internal: (conn, &Plan) -> PlanDelivery; read_plan fills Plan.delivery with it after scoped authorization (a_plan_read_carries_its_delivery_links)."
   plan_outcome_ids_in: "crate-internal: (conn, project, plan) -> Vec<OutcomeId>: the plan's current outcome links, ordered by outcome id, in the caller transaction."
+  latest_title_in: "crate-internal: (conn, plan) -> String; the title of the plan's latest version, which names the plan in edit_design's last-outcome refusal."
+  keeps_outcome_link_in: "crate-internal: (conn, plan) -> bool; whether the plan is Active with a Frozen version, so edit_design keeps at least one of its outcome links."
   effective_parts: "crate-internal, pure: (explicit: &[PartId], tasks: &[TaskOwnership]) -> Vec<PartId>; saved links then task write owners, each once."
   missing_delivery_requirements: "crate-internal, pure: (parts, outcomes) -> Vec<DeliveryRequirement>; part then outcome, lowercase wire keys."
-  link_plan_outcome_for_test: "test-support only: (&self, project, plan, outcome); checks the plan and outcome in the project, then writes the link in one transaction."
   anchor_plans_in: Owner entry in the caller transaction; design links rules.
   outcomes_with_plans_in: "Plans' own roadmap approval write: the outcomes a plan links to, which Design's removal refuses."
   link_plan_parts_in: Owner entry in the caller transaction; design parts rules.

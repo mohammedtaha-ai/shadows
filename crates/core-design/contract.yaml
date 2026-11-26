@@ -463,6 +463,8 @@ shared_in_transaction:
   revision_in: Owner entry in the caller transaction; parts rules.
   part_in: Owner entry in the caller transaction; parts rules.
   replay_edit_in: Owner entry in the caller transaction; vision rules.
+  apply_workspace_ops_in: "Owner entry in the caller transaction: workspace ops applied as the caller's actor with no recorded command; Plans links an anchored Planner draft to its outcome inside start_draft's write, and edit_workspace_in wraps it with the recorded command."
+  thread_anchor_in: "Owner entry in the caller transaction: the design anchor a Planner thread was opened at; Plans reads it in start_draft's write to link the new plan to that outcome."
   edit_workspace_in: Owner entry in the caller transaction; vision rules.
   require_roadmap_in: "Plans calls it in start_draft, edit_plan (the binding edit included) and approve_plan_with, after the replay lookup: STAGE_BLOCKED while roadmap_revision is 0. Design owns the revision."
   check_agreement_binding_in: "Plans validates exact Agreed versions, declared roles and operation identities inside edit/approval's transaction. Design owns agreement content."
