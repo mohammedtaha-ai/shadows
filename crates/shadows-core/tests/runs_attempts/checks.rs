@@ -615,11 +615,25 @@ async fn file_the_check_wrote_is_named() {
 
 #[tokio::test]
 async fn content_change_during_check_is_inconclusive() {
-    let (f, id, _, _) = candidate(vec![cmd(&["git", "-c", "alias.pause=!sleep 2", "pause"])]).await;
+    // The check marks a file outside the repository once its command runs, which is after
+    // the check has hashed the working tree; the file changes only then.
+    let outside = tempfile::tempdir().unwrap();
+    let marker = outside.path().join("running");
+    let alias = format!(
+        "alias.pause=!touch '{}' && sleep 2",
+        marker.display().to_string().replace('\\', "/")
+    );
+    let (f, id, _, _) = candidate(vec![cmd(&["git", "-c", &alias, "pause"])]).await;
     f.put("personal.txt", "before\n");
     f.core.runs().recover().await.unwrap();
     started(&f, &id).await;
-    tokio::time::sleep(Duration::from_millis(400)).await;
+    tokio::time::timeout(Duration::from_secs(15), async {
+        while !marker.exists() {
+            tokio::time::sleep(Duration::from_millis(25)).await;
+        }
+    })
+    .await
+    .expect("the check command runs");
     f.put("personal.txt", "after\n");
     assert_eq!(
         results(&f, &id, 1).await[0].outcome,
