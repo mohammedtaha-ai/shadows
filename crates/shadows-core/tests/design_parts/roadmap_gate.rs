@@ -20,7 +20,7 @@ async fn setup() -> (tempfile::TempDir, Arc<AppCore>, ProjectId, Grant, Storage)
     let grant = {
         let issued = core
             .grants()
-            .issue_external("grant".into(), vec![p.clone()])
+            .issue_external("grant".into(), None, vec![p.clone()])
             .await
             .unwrap();
         core.grants()

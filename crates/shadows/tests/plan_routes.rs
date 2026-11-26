@@ -288,7 +288,7 @@ async fn an_archived_plan_is_read_only_until_unarchived() {
     let connection = app
         .core
         .grants()
-        .issue_external("grant-external".into(), vec![app.project.clone()])
+        .issue_external("grant-external".into(), None, vec![app.project.clone()])
         .await
         .unwrap()
         .connection;

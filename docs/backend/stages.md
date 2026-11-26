@@ -219,3 +219,13 @@ B-230, B-232, B-231, B-233, B-234, B-235.
     copied into a temp folder and committed with no denial (`6a662f5`).
   - The Planner counted 15 tasks; the plans hold 14.
 - Done when: each finding is fixed, accepted or moved to future.
+
+### B-236 · Named external connections with editable project scope
+
+- Status: done
+- Plan: [External connection management](plans/2026-11-26-external-connection-management.md#b-236--name-credentials-and-replace-their-project-scope)
+- Read: `crates/core-grants/contract.yaml` and the accepted external connection management request.
+- Touch: Grants external connection service and store, Core DB migration 0081 and contract,
+  HTTP grants, router and contract, the generated OpenAPI document, Grants, OpenAPI
+  and MCP integration tests, and Rust test callers of the issue method.
+- Done when: the focused grant scope, migration and OpenAPI checks pass.

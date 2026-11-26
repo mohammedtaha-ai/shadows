@@ -3439,11 +3439,21 @@
           "id": {
             "$ref": "#/components/schemas/ExternalConnectionId"
           },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "project_ids": {
             "items": {
               "$ref": "#/components/schemas/ProjectId"
             },
             "type": "array"
+          },
+          "project_revision": {
+            "format": "int64",
+            "type": "integer"
           },
           "revoked_at": {
             "type": [
@@ -3454,7 +3464,9 @@
         },
         "required": [
           "id",
+          "name",
           "project_ids",
+          "project_revision",
           "created_at"
         ],
         "type": "object"
@@ -4123,6 +4135,12 @@
         "properties": {
           "command_id": {
             "type": "string"
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "project_ids": {
             "items": {
@@ -10236,6 +10254,29 @@
         ],
         "type": "object"
       },
+      "UpdateGrantProjects": {
+        "properties": {
+          "command_id": {
+            "type": "string"
+          },
+          "expected_revision": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "project_ids": {
+            "items": {
+              "$ref": "#/components/schemas/ProjectId"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "command_id",
+          "expected_revision",
+          "project_ids"
+        ],
+        "type": "object"
+      },
       "UpdateProject": {
         "description": "Sets the modes this project allows, per harness.",
         "properties": {
@@ -13377,6 +13418,85 @@
             "description": ""
           },
           "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "grants"
+        ]
+      },
+      "patch": {
+        "operationId": "update_grant_projects",
+        "parameters": [
+          {
+            "description": "The external connection",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ExternalConnectionId"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateGrantProjects"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalConnection"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "422": {
             "content": {
               "application/json": {
                 "schema": {

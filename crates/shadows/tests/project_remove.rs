@@ -121,7 +121,7 @@ async fn a_project_without_threads_is_removed_with_its_index_links_and_grants() 
     let issued = app
         .core
         .grants()
-        .issue_external(fresh_command(), vec![gone.clone()])
+        .issue_external(fresh_command(), None, vec![gone.clone()])
         .await
         .unwrap();
     let connection = issued.connection.id.clone();
@@ -192,7 +192,7 @@ async fn a_removed_project_is_not_found() {
         .await
         .unwrap();
     core.grants()
-        .issue_external(fresh_command(), vec![gone.clone()])
+        .issue_external(fresh_command(), None, vec![gone.clone()])
         .await
         .unwrap();
     let (status, body) = remove(&app, &gone, &fresh_command()).await;

@@ -29,8 +29,9 @@ source: crates/core-grants/src
 owns_tables: [mcp_grant, draft_intent, external_connection, external_connection_project]
 
 external_connections:
-  issue: Require a nonempty, normalized set of live project ids. Persist the connection hash and one scoped grant per project in the same transaction. Only the first response contains the token.
+  issue: Require a nonempty, normalized set of live project ids. Trim a supplied name and reject blank names. Persist the connection hash and one scoped grant per project in the same transaction. Only the first response contains the token. Nameless issues keep their command fingerprint.
   list: Return authorized project ids for each connection, with no credential material.
+  update_external_projects: Replace an active connection's scope at the expected project revision. An empty set is allowed. Removed grants are revoked, unchanged grants retain identity, and newly added projects get fresh grants. Keep the connection and its token. Replay reports its current state.
   authorize: Resolve a connection bearer by hash. Select an active child grant only for a live project on that connection.
   scope_rule: A project grant exists only as one connection's scope, so `GrantKind::Project` (and `Writer::External`) is the one test for an external connection's project-only reach.
   revoke: Revoke the connection and every child scope in one transaction. Command replay does not append more events.
@@ -254,6 +255,7 @@ shared_in_transaction:
   revoke_project_grants_in: "Projects' store (projects/store.rs ProjectsStore::remove): a removed project's live grants are revoked in the removal's own write, so its token stops with it (§4.2)"
   revoke_thread_grants_in: "Threads' store (threads/store/remove.rs remove_thread): every live Planner grant is revoked in the same write that marks the thread removed (§16.5)"
   issue_external: Private store entry; issues the connection and its project scopes in one owner write.
+  update_external_projects: Private store entry; changes the project scopes, revision and journal in one owner write.
   list_external: Private store entry; reads every connection in one owner snapshot, newest first by the seq of each one's `ExternalConnectionIssued` event, never by `created_at`.
   revoke_external: Private store entry; revokes the connection and every scope grant in one owner write.
   authorize_external: Private store entry; resolves a connection bearer by hash in one owner snapshot.
@@ -409,7 +411,8 @@ not_the_caller's:
       address with the connection.
   - >
       Build a CommandContext or fingerprint a grant command; `issue_external`
-      and `revoke_external` do, so a replay matches only when the same parameters reach
+      `update_external_projects` and `revoke_external` do, so a replay matches only
+      when the same parameters reach
       this service.
   - >
       Hash a bearer token or compare hashes; `authorize_external` looks the

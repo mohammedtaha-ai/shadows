@@ -335,7 +335,7 @@ fn run_routes(table: OpenApiRouter<AppState>) -> OpenApiRouter<AppState> {
         .routes(routes!(runs::checks))
         .routes(routes!(runs::file))
         .routes(routes!(grants::list_grants, grants::issue_grant))
-        .routes(routes!(grants::revoke_grant))
+        .routes(routes!(grants::update_grant_projects, grants::revoke_grant))
         .routes(routes!(
             instructions::get_instructions,
             instructions::save_instructions

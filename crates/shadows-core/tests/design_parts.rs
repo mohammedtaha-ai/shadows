@@ -296,7 +296,7 @@ async fn part_order_is_stable_across_restart() {
     let grant = {
         let issued = core
             .grants()
-            .issue_external("grant".into(), vec![p.clone()])
+            .issue_external("grant".into(), None, vec![p.clone()])
             .await
             .unwrap();
         core.grants()

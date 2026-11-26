@@ -22,6 +22,80 @@ fn issue_ctx(id: &str) -> shadows_core::testing::CommandContext {
 }
 
 #[tokio::test]
+async fn a_named_connection_changes_scope_without_replacing_its_token() {
+    let app = test_app().await;
+    let (other, _) = other_project(&app).await;
+    let path = "/api/external-connections";
+    let (status, issued) = post(
+        &app,
+        path,
+        json!({ "command_id": "named", "name": " Laptop ", "project_ids": [app.project] }),
+    )
+    .await;
+    assert_eq!(status, 200, "{issued}");
+    assert_eq!(issued["connection"]["name"], "Laptop");
+    assert_eq!(issued["connection"]["project_revision"], 0);
+    let token = issued["token"].as_str().unwrap();
+    let grants = app.core.grants();
+    let connection = grants.authorize_external(token).await.unwrap().unwrap();
+    let id = &connection.id;
+    let original = grants.external_project(id, &app.project).await.unwrap();
+
+    let path = format!("{path}/{id}");
+    let change = json!({ "command_id": "change", "expected_revision": 0, "project_ids": [other] });
+    let (status, changed) = call(&app, "PATCH", &path, Some(change.clone())).await;
+    assert_eq!(status, 200, "{changed}");
+    assert_eq!(changed["project_revision"], 1);
+    assert_eq!(changed["project_ids"], json!([other]));
+    assert!(changed.get("token").is_none());
+    assert_eq!(
+        call(&app, "PATCH", &path, Some(change)).await,
+        (200, changed)
+    );
+    let current = grants.authorize_external(token).await.unwrap().unwrap();
+    assert_eq!(current.project_ids, vec![other.clone()]);
+    assert!(grants.external_project(id, &app.project).await.is_err());
+    let kept = grants.external_project(id, &other).await.unwrap();
+
+    let edit = |command, revision| {
+        json!({
+            "command_id": command, "expected_revision": revision,
+            "project_ids": [other, app.project]
+        })
+    };
+    let (status, conflict) = call(&app, "PATCH", &path, Some(edit("stale", 0))).await;
+    assert_eq!(status, 409, "{conflict}");
+    assert_eq!(conflict["code"], "REVISION_CONFLICT");
+    let (status, restored) = call(&app, "PATCH", &path, Some(edit("restore", 1))).await;
+    assert_eq!(status, 200, "{restored}");
+    assert_eq!(
+        grants.external_project(id, &other).await.unwrap().id,
+        kept.id
+    );
+    assert_ne!(
+        grants.external_project(id, &app.project).await.unwrap().id,
+        original.id
+    );
+
+    let clear = json!({ "command_id": "clear", "expected_revision": 2, "project_ids": [] });
+    let (status, cleared) = call(&app, "PATCH", &path, Some(clear)).await;
+    assert_eq!(status, 200, "{cleared}");
+    assert!(
+        grants
+            .authorize_external(token)
+            .await
+            .unwrap()
+            .unwrap()
+            .project_ids
+            .is_empty()
+    );
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
 async fn a_replayed_issue_does_not_show_the_token_again() {
     let app = test_app().await;
     let path = "/api/external-connections";

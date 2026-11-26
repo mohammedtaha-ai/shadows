@@ -256,6 +256,7 @@ fn the_document_names_every_route() {
             "GET /api/workflows/{workflow}/versions/{version}/progress",
             "GET /api/workflows/{workflow}/versions/{version}/tasks/{task}",
             "GET /api/workflows/{workflow}/versions/{version}/tasks/{task}/attempts",
+            "PATCH /api/external-connections/{id}",
             "PATCH /api/me",
             "PATCH /api/projects/{id}",
             "PATCH /api/threads/{id}",
