@@ -557,7 +557,7 @@ export interface paths {
         delete: operations["revoke_grant"];
         options?: never;
         head?: never;
-        patch?: never;
+        patch: operations["update_grant_projects"];
         trace?: never;
     };
     "/api/fs/dirs": {
@@ -3108,7 +3108,10 @@ export interface components {
         ExternalConnection: {
             created_at: string;
             id: components["schemas"]["ExternalConnectionId"];
+            name: string | null;
             project_ids: components["schemas"]["ProjectId"][];
+            /** Format: int64 */
+            project_revision: number;
             revoked_at?: string | null;
         };
         /** Format: uuid */
@@ -3316,6 +3319,7 @@ export interface components {
         };
         IssueGrant: {
             command_id: string;
+            name?: string | null;
             project_ids: components["schemas"]["ProjectId"][];
         };
         IssuedGrantBody: {
@@ -4933,6 +4937,12 @@ export interface components {
             /** Format: int32 */
             line: number;
             name: string;
+        };
+        UpdateGrantProjects: {
+            command_id: string;
+            /** Format: int64 */
+            expected_revision: number;
+            project_ids: components["schemas"]["ProjectId"][];
         };
         /** @description Sets the modes this project allows, per harness. */
         UpdateProject: {
@@ -6971,6 +6981,64 @@ export interface operations {
                 };
             };
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    update_grant_projects: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The external connection */
+                id: components["schemas"]["ExternalConnectionId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateGrantProjects"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExternalConnection"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

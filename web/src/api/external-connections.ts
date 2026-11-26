@@ -11,9 +11,20 @@ export const connectionsQuery = queryOptions({
   queryFn: () => unwrap(client.GET('/api/external-connections')),
 })
 
-export function issueConnection(projectIds: string[], commandId: string): Promise<IssuedConnection> {
+export function issueConnection(
+  name: string, projectIds: string[], commandId: string,
+): Promise<IssuedConnection> {
   return unwrap(client.POST('/api/external-connections', {
-    body: { command_id: commandId, project_ids: projectIds },
+    body: { command_id: commandId, name, project_ids: projectIds },
+  }))
+}
+
+export function updateConnectionProjects(
+  id: string, expectedRevision: number, projectIds: string[], commandId: string,
+): Promise<ExternalConnection> {
+  return unwrap(client.PATCH('/api/external-connections/{id}', {
+    params: { path: { id } },
+    body: { command_id: commandId, expected_revision: expectedRevision, project_ids: projectIds },
   }))
 }
 
@@ -23,7 +34,7 @@ export function revokeConnection(id: string, commandId: string): Promise<Externa
   }))
 }
 
-export function saveRevokedConnection(client: QueryClient, revoked: ExternalConnection) {
+export function saveConnectionAnswer(client: QueryClient, saved: ExternalConnection) {
   return writeSaved<ExternalConnection[]>(client, connectionsQuery.queryKey, connections =>
-    connections?.map(connection => connection.id === revoked.id ? revoked : connection))
+    connections?.map(connection => connection.id === saved.id ? saved : connection))
 }

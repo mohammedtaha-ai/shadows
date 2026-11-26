@@ -24,14 +24,17 @@ tools with the same authenticated client.
 
 ## F-149 · Edit permissions and show portable setup
 
-- [ ] Regenerate the TypeScript API types. Add the name and PATCH calls to the existing
+- [x] Regenerate the TypeScript API types. Add the name and PATCH calls to the existing
   external connection client.
-- [ ] Extend the existing Settings interaction test for named creation, default manual
+- [x] Extend the existing Settings interaction test for named creation, default manual
   setup, both client commands, editing and revoking by connection.
-- [ ] Show a copyable MCP URL and bearer token in General setup. Keep Codex and Claude
+- [x] Show a copyable MCP URL and bearer token in General setup. Keep Codex and Claude
   Code shortcuts optional. Use `shadows` as the registration name. Display an informative
   fallback for unnamed connections.
-- [ ] Add a project editor per live connection with Save and Cancel. Use the revision
+- [x] Add a project editor per live connection with Save and Cancel. Use the revision
   captured when opening it, and refresh after a stale save. Update the UI contracts.
-- [ ] Run the focused Settings test, typecheck, lint, build and frontend architecture checks.
-- [ ] Commit the frontend task.
+- [x] Run the focused Settings test, typecheck, lint, build and frontend architecture checks.
+- [x] Commit the frontend task.
+
+Verification: 6 Settings and cache tests, 82 frontend architecture and code-map
+tests, typecheck, lint and the production build passed.

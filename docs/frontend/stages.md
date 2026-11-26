@@ -122,3 +122,13 @@ then F-147, then F-148.
 - Done when: `npx vitest run src/app/settings src/app/agents/agent-extensions.test.tsx
   src/app/project-settings/planner-switches.test.tsx` passes, with
   `a library removal refreshes the project's switches`, then the four checks
+
+### F-149 · External connection setup and project edits
+
+- Status: done
+- Plan: [External connection management](../backend/plans/2026-11-26-external-connection-management.md#f-149--edit-permissions-and-show-portable-setup)
+- Read: `web/src/app/settings/contract.yaml` and the accepted external connection management request.
+- Touch: External agents Settings section and its test, the external connections API module
+  and cache test, generated TypeScript schema and their contracts.
+- Needs: B-236
+- Done when: the external connection Settings interaction passes, then the four checks.

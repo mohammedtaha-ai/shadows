@@ -226,8 +226,10 @@ agreement_calls:
       number, review_id: string) -> Promise<AgreementVersion>"
 
 grants_and_fs:
-  issueConnection: "(projectIds: string[], commandId: string) -> Promise<IssuedConnection>"
+  issueConnection: "(name: string, projectIds: string[], commandId: string) -> Promise<IssuedConnection>"
+  updateConnectionProjects: "(id: string, expectedRevision: number, projectIds: string[], commandId: string) -> Promise<ExternalConnection>"
   revokeConnection: "(id: string, commandId: string) -> Promise<ExternalConnection>"
+  saveConnectionAnswer: Writes an updated or revoked connection over its cached record.
   listDirs: "(path: string | null) -> Promise<DirectoryListing>; null sends no path query"
   createDir: "(parent: string, name: string) -> Promise<DirectoryEntry>; sends no command_id"
 
