@@ -229,3 +229,53 @@ B-230, B-232, B-231, B-233, B-234, B-235.
   HTTP grants, router and contract, the generated OpenAPI document, Grants, OpenAPI
   and MCP integration tests, and Rust test callers of the issue method.
 - Done when: the focused grant scope, migration and OpenAPI checks pass.
+
+### B-237 · Resolve task ownership once
+
+- Status: todo
+- Plan: [Task 1](plans/2026-11-26-delivery-traceability.md#task-1--b-237--resolve-task-ownership-once)
+- Read: AppCore's Plans and Design entries, Plans' TaskContext and Design's layout contract.
+- Touch: TaskContext and its store, contract, focused tests, and this entry. Exact paths in Task 1.
+- Done when: the resolver keeps read/write ownership separate and the existing context still passes.
+
+### B-238 · Link a Planner draft from its outcome
+
+- Status: blocked on B-237
+- Plan: [Task 2](plans/2026-11-26-delivery-traceability.md#task-2--b-238--link-a-planner-draft-from-its-outcome)
+- Read: AppCore, Plans' draft and workspace edit owners, Design's anchor loader.
+- Touch: the draft, workspace edit and anchor paths and the MCP scenario listed in Task 2.
+- Done when: anchored start, replay, stale-anchor rollback and ordinary draft pass.
+
+### B-239 · Enforce delivery links at approval
+
+- Status: blocked on B-237 and B-238
+- Plan: [Task 3](plans/2026-11-26-delivery-traceability.md#task-3--b-239--enforce-delivery-links-at-approval)
+- Read: AppCore, Plans' approval and design-association contracts.
+- Touch: approval, association writes and explicit test fixtures listed in Task 3.
+- Done when: actual person and Planner approvals check delivery links and a last-link move
+  works as one transaction.
+
+### B-240 · Expose the same links in plan and task reads
+
+- Status: blocked on B-239
+- Plan: [Task 4](plans/2026-11-26-delivery-traceability.md#task-4--b-240--expose-the-same-links-in-plan-and-task-reads)
+- Read: AppCore, Plans and Runs context contracts, accepted delivery traceability request.
+- Touch: existing plan/context reads, related tests and OpenAPI listed in Task 4.
+- Done when: HTTP, MCP and the saved brief carry the same same-project links.
+
+### B-241 · Compose roadmap and map progress in ProjectState
+
+- Status: blocked on B-240
+- Plan: [Task 5](plans/2026-11-26-delivery-traceability.md#task-5--b-241--compose-roadmap-and-map-progress-in-projectstate)
+- Read: AppCore, ProjectState, Plans' live version view and Runs' progress.
+- Touch: existing live/version and State projections, adapters, tests and OpenAPI in Task 5.
+- Done when: outcome detail, scoped part tasks and unique live totals pass across State readers.
+
+### B-242 · Verify the real delivery path
+
+- Status: blocked on B-241 and F-152
+- Plan: [Task 9](plans/2026-11-26-delivery-traceability.md#task-9--b-242--verify-the-real-delivery-path)
+- Read: the acceptance in Task 9 and the actual branch revision under test.
+- Touch: dated evidence and this entry.
+- Done when: the real linked task and its acceptance can be followed in Roadmap, Map, State,
+  Planner and executor context.

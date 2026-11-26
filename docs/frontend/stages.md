@@ -132,3 +132,30 @@ then F-147, then F-148.
   and cache test, generated TypeScript schema and their contracts.
 - Needs: B-236
 - Done when: the external connection Settings interaction passes, then the four checks.
+
+### F-150 · Show approval requirements and return links
+
+- Status: blocked on B-240 and B-241
+- Plan: [Task 6](plans/2026-11-26-delivery-traceability.md#task-6--f-150--show-approval-requirements-and-return-links)
+- Read: the accepted delivery traceability request and the workflow, task and stream contracts.
+- Touch: generated schema, plan and task views and stream refresh paths listed in Task 6.
+- Needs: B-240 and B-241 OpenAPI
+- Done when: the missing association links to its editor and the saved plan/task links refresh.
+
+### F-151 · Display related tasks in Roadmap, Map and State
+
+- Status: blocked on F-150
+- Plan: [Task 7](plans/2026-11-26-delivery-traceability.md#task-7--f-151--display-related-tasks-in-roadmap-map-and-state)
+- Read: State and Design contracts and the accepted delivery traceability request.
+- Touch: State API/options and the three read views and tests listed in Task 7.
+- Needs: B-241 and F-150
+- Done when: selected outcomes and parts open exact tasks with Runs status and State shows the unique total.
+
+### F-152 · Read real dependency status in the plan graph
+
+- Status: blocked on F-151
+- Plan: [Task 8](plans/2026-11-26-delivery-traceability.md#task-8--f-152--read-real-dependency-status-in-the-plan-graph)
+- Read: the workflows contract's linked node, current progress query and linked-graph test.
+- Touch: linked node, its test, workflows contract and this entry.
+- Needs: F-150 and F-151
+- Done when: the graph shows the linked exact-version task status from Runs and the frontend checks pass.

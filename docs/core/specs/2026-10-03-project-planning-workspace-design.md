@@ -78,7 +78,7 @@ not move or copy the parts. Ordering is explicit. Planned outcomes are not
 automatically completed when a plan is approved or archived; execution
 evidence later supplies completion under §17.
 
-### Delivery traceability (proposed 2026-11-26)
+### Delivery traceability (approved design, 2026-11-26)
 
 Shadows links delivery work to its roadmap results, map ownership and execution
 state. The links follow saved relationships and task contracts. Initial project
