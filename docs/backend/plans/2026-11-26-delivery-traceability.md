@@ -111,26 +111,31 @@ that result even when nobody remembers to use the checkbox, and the Planner name
 `WorkspaceOp::PlanLinkPut`.
 **Produces:** `Design::thread_anchor_in(tx: &mut Tx, thread: &ThreadId) -> Result<Option<DesignAnchor>, StorageError>`
 using one loader, and `Design::apply_workspace_ops_in(conn, actor: &Actor, project, ops, facts)
--> Result<DesignChange, DesignError>`: the body of `edit_workspace_in` without its revision
-check against a caller's expectation and without recording a command. `edit_workspace_in`
-keeps its signature, checks `expected_revision`, calls the body, then records its command, so
-person edits behave as today.
+-> Result<DesignChange, DesignError>`: the shared body of `edit_workspace_in`. It applies the
+ops, raises the workspace revision and each changed outcome's revision, and appends
+`ProjectDesignChanged` with `actor`. It writes no `design_command_result` and records no
+command. `edit_workspace_in` keeps its signature: it checks `expected_revision`, calls the body
+with the user actor, then writes `design_command_result` and `record_command` together, so
+person edits and their replay behave as today, and a draft start leaves no result row
+without a command pointing to it.
 
 - [ ] In `workspace_mcp/delivery.rs`, write
   `an_outcome_anchored_draft_links_once_and_a_removed_anchor_rolls_back`. Use the existing
   `workspace_mcp` Planner fixture to set a real thread anchor and invoke `draft_start` during a
   turn. Assert the outcome references the exact returned `PlanId`, the workspace revision and
   that outcome's revision each advance once, and one `ProjectDesignChanged` names the outcome
-  with the Planner as actor. An identical replay answers the same IDs and changes no revision.
-  An outcome editor save sent with the revision read before the draft is refused as a revision
-  conflict. On a second turn the anchored outcome is removed before the draft; assert a
+  with the Planner as actor. Change the thread's anchor to another outcome, then replay the
+  identical draft start: it answers the same IDs, links nothing to the new anchor and changes
+  no revision. An outcome editor save sent with the revision read before the draft is refused
+  as a revision conflict. On a second turn the anchored outcome is removed before the draft; assert a
   refusal, no new plan and no extra draft or design event. Include a plain Planner turn with
   no outcome anchor as a control; it creates an unlinked draft.
 - [ ] Run `cargo test -p shadows --test workspace_mcp outcome_anchored_draft`.
   Expected RED at the missing association.
 - [ ] Extract the existing anchor lookup into `thread_anchor_in`; leave standalone reads using
   that loader. Split `edit_workspace_in` into the unrecorded body and its recorded wrapper;
-  the event's actor comes from the caller instead of `Actor::user(&ctx.principal_id)`.
+  the body's event actor comes from the caller instead of `Actor::user(&ctx.principal_id)`, and
+the command result row stays in the wrapper beside `record_command`.
 - [ ] In `PlansStore::start_draft`, after the recorded-command replay check, only in the
   **new plan** branch and only for `Writer::Planner`, read the anchor inside the existing
   transaction. For an outcome anchor, validate it with `Design::design_outcome_in` in that
@@ -323,11 +328,12 @@ Planner without a rule can also link a plan to an outcome it does not serve only
 
 - [ ] In `mcp_tools.rs`, write `the_planner_is_told_to_choose_a_version_or_a_new_plan` beside
   `the_planner_is_told_to_read_the_project_state`, asserting one exact prompt line: before
-  `draft_start`, read the plans of the outcome the work serves (the anchor's linked plans, or
-  `project_state` with its `outcome_id`); a changed way of reaching the same plan goal is that
-  plan's next version; a feature with acceptance of its own is a new plan under the outcome it
-  serves, or under a new outcome proposed with the roadmap flow; never link a plan to an
-  outcome it does not serve to pass approval.
+  `draft_start`, when the outcome the work serves is known, read its plans (the anchor's linked
+  plans, or `project_state` with its `outcome_id`); a changed way of reaching the same plan goal
+  is that plan's next version; a feature with acceptance of its own is a new plan under the
+  outcome it serves, or under a new outcome proposed with the roadmap flow; while the outcome is
+  unknown, explore in a draft and ask the person for the link before approval; never link a
+  plan to an outcome it does not serve to pass approval.
 - [ ] Run `cargo test -p shadows --test mcp_tools the_planner_is_told_to_choose`.
   Expected RED at the missing line.
 - [ ] Replace "start a new plan only when the person asks for one or none fits" in the plans

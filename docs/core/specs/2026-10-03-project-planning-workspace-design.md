@@ -75,8 +75,9 @@ tree. Parents are in the same project and containment is acyclic.
 An outcome references any number of parts and plans in its project. For
 example, login spans Auth Service, Login Page and their plans. References do
 not move or copy the parts. Ordering is explicit. Planned outcomes are not
-automatically completed when a plan is approved or archived; execution
-evidence later supplies completion under §17.
+automatically completed when a plan is approved or archived; who decides an
+outcome is achieved is open (see "Outcome acceptance" under Delivery
+traceability).
 
 ### Delivery traceability (approved design, 2026-11-26)
 
@@ -89,17 +90,19 @@ setup belongs to project preparation, outside the delivery plan lifecycle.
   there, Core reads the anchor and saves the link in the draft creation
   transaction; the Planner names no outcome. The outcome must still exist in
   the same project. The link raises the workspace and outcome revisions, so an
-  editor opened before it cannot save its older plan list over the link; the
-  draft's own event tells the views to read again. A replayed draft start
+  outcome editor opened before it adopts the new plan list, and a save built on
+  the older revision is refused as stale; the draft's own event tells the views
+  to read again. A replayed draft start
   answers from its recorded command and links nothing twice. A failed
   attachment leaves no new plan. The plan shows its outcome by name before
   approval, where the person corrects a wrong one in the outcome editor.
-- **A version or a new plan.** Before starting a plan, the Planner reads the
-  plans already linked to the outcome. A changed way of reaching the same plan
+- **A version or a new plan.** When the outcome is known, the Planner reads
+  its linked plans before starting one. A changed way of reaching the same plan
   goal is that plan's next version; a feature with acceptance of its own is a
   new plan, linked to the outcome it serves or to a new outcome the Planner
-  proposes. A plan is never linked to an outcome it does not serve to pass the
-  approval check.
+  proposes. While the outcome is still unknown, the Planner may explore in a
+  draft; approval asks for the link. A plan is never linked to an outcome it
+  does not serve to pass the approval check.
 - **Draft from a regular conversation.** A person or agent can explore and create
   a draft before choosing an outcome. When the person selects an existing
   outcome, Shadows saves the link. The outcome's **Linked plans** list also
