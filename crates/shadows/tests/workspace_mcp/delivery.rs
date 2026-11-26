@@ -29,6 +29,37 @@ async fn conversation(l: &listening::Listening, name: &str) -> (ThreadId, listen
     (thread, planner)
 }
 
+/// Ties the draft to the seeded part, gives it a task and asks the Planner
+/// to approve it: the tool call's refusal flag and text.
+async fn planner_approves(
+    l: &listening::Listening,
+    planner: &listening::Client,
+    draft: &serde_json::Value,
+) -> (bool, String) {
+    let plans = shadows_core::AppCore::plans_for_tests(l.app.storage.clone());
+    let part = shadows_core::AppCore::design_for_tests(l.app.storage.clone())
+        .seed_roadmap_for_tests(&l.app.project)
+        .await
+        .unwrap();
+    let plan = shadows_core::PlanId::from_literal(draft["plan_id"].as_str().unwrap());
+    plans
+        .link_plan_part_for_test(&l.app.project, &plan, &part)
+        .await
+        .unwrap();
+    let edited = ok(
+        planner,
+        "plan_edit",
+        json!({"workflow_id":draft["workflow_id"],"expected_revision":0,"ops":[plan::add(1)]}),
+    )
+    .await;
+    listening::call(
+        planner,
+        "plan_approve",
+        json!({"workflow_id":draft["workflow_id"],"expected_revision":edited["revision"]}),
+    )
+    .await
+}
+
 async fn workspace_revision(l: &listening::Listening, p: &ProjectId) -> i64 {
     l.app.core.design().vision(p).await.unwrap().revision
 }
@@ -46,7 +77,8 @@ async fn outcome_revision(l: &listening::Listening, p: &ProjectId, id: &OutcomeI
 
 async fn design_events(l: &listening::Listening, p: &ProjectId) -> Vec<serde_json::Value> {
     let rows: Vec<(String, String)> = sqlx::query_as(
-        "SELECT payload_json, actor_id FROM durable_event          WHERE kind='ProjectDesignChanged' AND project_id=? ORDER BY seq",
+        "SELECT payload_json, actor_id FROM durable_event \
+         WHERE kind='ProjectDesignChanged' AND project_id=? ORDER BY seq",
     )
     .bind(p.as_str())
     .fetch_all(l.app.storage.reader())
@@ -190,6 +222,9 @@ async fn an_outcome_anchored_draft_links_once_and_a_removed_anchor_rolls_back() 
         format!("{stale:?}").contains("RevisionConflict"),
         "{stale:?}"
     );
+    // The Planner approves at the person's request: the anchored plan serves its outcome.
+    let (error, text) = planner_approves(&l, &planner, &draft).await;
+    assert!(!error, "{text}");
 
     planner.cancel().await.unwrap();
     l.app.core.turns().stop(&op).await.unwrap();
@@ -218,6 +253,12 @@ async fn an_outcome_anchored_draft_links_once_and_a_removed_anchor_rolls_back() 
             .plans
             .iter()
             .any(|id| id.to_string() == plain["plan_id"].as_str().unwrap())
+    );
+    let (error, text) = planner_approves(&l, &planner, &plain).await;
+    assert!(error, "{text}");
+    assert!(
+        text.contains("plan has no roadmap outcome: link it on the Roadmap page"),
+        "{text}"
     );
     planner.cancel().await.unwrap();
 

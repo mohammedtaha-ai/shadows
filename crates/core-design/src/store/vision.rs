@@ -73,7 +73,8 @@ impl crate::Design {
         let ts = Storage::now();
         let id = uuid::Uuid::new_v4().to_string();
         sqlx::query(
-            "INSERT INTO design_command_result (id, project_id, result_json)                      VALUES (?,?,?)",
+            "INSERT INTO design_command_result (id, project_id, result_json) \
+                     VALUES (?,?,?)",
         )
         .bind(&id)
         .bind(project.as_str())

@@ -122,6 +122,14 @@ async fn new_plan(f: &Fixture, id: &str, parts: &[&PartId]) -> WorkflowId {
             .await
             .unwrap();
     }
+    let outcome = AppCore::design_for_tests(f.storage.clone())
+        .seed_delivery_outcome_for_tests(&f.project)
+        .await
+        .unwrap();
+    plans
+        .link_plan_outcome_for_test(&f.project, &PlanId::from_literal(id), &outcome)
+        .await
+        .unwrap();
     WorkflowId::from_literal(workflow)
 }
 

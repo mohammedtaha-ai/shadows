@@ -284,7 +284,7 @@ pub async fn draft_on(app: &App, thread: &ThreadId, command: &str) -> DraftStart
         .seed_roadmap_for_tests(&project)
         .await
         .unwrap();
-    shadows_core::AppCore::plans_for_tests(app.storage.clone())
+    let started = shadows_core::AppCore::plans_for_tests(app.storage.clone())
         .start_draft_for_test(
             &writer_ctx(&writer, command, "DraftStart", json!({ "t": thread })),
             &writer,
@@ -298,7 +298,22 @@ pub async fn draft_on(app: &App, thread: &ThreadId, command: &str) -> DraftStart
             std::slice::from_ref(&part),
         )
         .await
-        .unwrap()
+        .unwrap();
+    serve_outcome(app, &project, &started.plan_id).await;
+    started
+}
+
+/// Links `plan` to its project's fixture outcome, as the person does on the
+/// Roadmap page: a plan serving no outcome is not approved.
+pub async fn serve_outcome(app: &App, project: &ProjectId, plan: &PlanId) {
+    let outcome = shadows_core::AppCore::design_for_tests(app.storage.clone())
+        .seed_delivery_outcome_for_tests(project)
+        .await
+        .unwrap();
+    shadows_core::AppCore::plans_for_tests(app.storage.clone())
+        .link_plan_outcome_for_test(project, plan, &outcome)
+        .await
+        .unwrap();
 }
 
 /// Ties the plan of `workflow` to its project's seeded part, as the person
@@ -316,6 +331,7 @@ pub async fn tie_to_part(app: &App, workflow: &WorkflowId) {
         .link_plan_part_for_test(&plan.project_id, &plan.plan_id, &part)
         .await
         .unwrap();
+    serve_outcome(app, &plan.project_id, &plan.plan_id).await;
 }
 
 pub async fn edit(app: &App, workflow: &WorkflowId, expected: i64, ops: &[PlanOp]) -> i64 {

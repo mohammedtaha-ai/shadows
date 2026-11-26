@@ -691,6 +691,10 @@ shared_in_transaction:
   execution_plan_in: "(tx, workflow, version) -> Result<ExecutionPlan, PlansError>; Runs' Start preflight snapshot and its admission write, and an addition's write: the version with its linked tasks (version_in), another version number NotFound, and its refusal checked Archived, then NotFrozen, then Superseded (any next version, Draft or Frozen)."
   version_in: "(conn, workflow) -> Result<Plan, PlansError>; Plans' own execution_plan_in, and Runs' executor choice save (its newest-version and task-id checks, in the pre-check read and again in the write): the workflow's version with its linked tasks, read inside the caller's transaction"
   apply_design_links_in: Owner entry in the caller transaction; design links rules.
+  plan_outcome_ids_in: "(conn, project, plan) -> Vec<OutcomeId>: the plan's current outcome links, ordered by outcome id, in the caller transaction."
+  effective_parts: "crate-internal, pure: (explicit: &[PartId], tasks: &[TaskOwnership]) -> Vec<PartId>; saved links then task write owners, each once."
+  missing_delivery_requirements: "crate-internal, pure: (parts, outcomes) -> Vec<DeliveryRequirement>; part then outcome, lowercase wire keys."
+  link_plan_outcome_for_test: "test-support only: (&self, project, plan, outcome); checks the plan and outcome in the project, then writes the link in one transaction."
   anchor_plans_in: Owner entry in the caller transaction; design links rules.
   outcomes_with_plans_in: "Plans' own roadmap approval write: the outcomes a plan links to, which Design's removal refuses."
   plan_has_part_in: Owner entry in the caller transaction; design parts rules.
@@ -930,12 +934,29 @@ agreements:
       Plans asks Design, inside the write's own transaction, whether the roadmap
       is approved. start_draft, edit_plan (the binding edit included) and
       approve_plan_with refuse with StageBlocked before it, after the writer or
-      authority check and the replay lookup; approval further refuses a plan
-      tied to no part (design::plan_has_part_in). start_draft ties its plan to
+      authority check and the replay lookup. Approval then reads, in the same
+      transaction, the plan's effective parts (saved part links, then the parts
+      its tasks write into through TaskOwnership::resolve, effective_parts) and
+      its outcome links (plan_outcome_ids_in); missing_delivery_requirements
+      names a part first ("plan has no part") and then an outcome ("plan has no
+      roadmap outcome: link it on the Roadmap page"), for a person and for the
+      Planner at the person's request alike. Recorded approvals still replay.
+      start_draft ties its plan to
       the given parts through design::link_plan_parts_in. Design owns the
       roadmap and the links.
     holds: true
-    tested_by: [a_plan_cannot_start_before_the_roadmap, edit_and_approve_wait_for_the_roadmap, a_plan_with_no_part_cannot_be_approved, a_recorded_start_still_answers_before_the_roadmap]
+    tested_by: [a_plan_cannot_start_before_the_roadmap, edit_and_approve_wait_for_the_roadmap, a_plan_with_no_part_cannot_be_approved, a_recorded_start_still_answers_before_the_roadmap, an_outcome_anchored_draft_links_once_and_a_removed_anchor_rolls_back]
+  - between: [edit_design, approve_plan_with]
+    rule: >
+      An Active plan with a Frozen version that has an outcome link keeps at
+      least one: edit_workspace_with notes each such plan an outcome-removal
+      op names, applies the whole batch, then refuses with StageBlocked when
+      one is left with none, rolling back the Design revision, the outcome
+      revisions, the event and the links. A move between outcomes in one
+      batch passes in either order. A Draft-only plan or a legacy unlinked
+      record stays editable.
+    holds: true
+    tested_by: an_approved_plan_keeps_its_last_outcome_and_moves_it_whole
   - between: [check_design_plan_in, edit_design]
     rule: >
       Plans validates project-qualified plan identities in the workspace transaction.

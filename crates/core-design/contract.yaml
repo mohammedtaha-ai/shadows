@@ -246,6 +246,9 @@ functions:
     seed_roadmap_for_tests:
       signature: "test-support only: (&self, project: &ProjectId) -> Result<PartId, DesignError>"
       # Seeds the map if absent, one part with folder "seeded" and roadmap_revision 1; answers the part. Idempotent.
+    seed_delivery_outcome_for_tests:
+      signature: "test-support only: (&self, project: &ProjectId) -> Result<OutcomeId, DesignError>"
+      # After seed_roadmap_for_tests, one named fixture outcome a test plan serves; answers the same outcome when repeated. seed_roadmap_for_tests is unchanged.
     propose_roadmap:
       signature: "(&self, grant: &Grant, args: RoadmapPropose) -> Result<RoadmapProposal, DesignError>"
       # Planner/thread grant plus running turn; map approval and roadmap revision checked in the store.

@@ -69,7 +69,8 @@ pub async fn fixture() -> (tempfile::TempDir, std::sync::Arc<Storage>) {
     (temp, storage)
 }
 
-/// Puts `project` at the plans stage and ties each of `plans` to its seeded part.
+/// Puts `project` at the plans stage and ties each of `plans` to its seeded
+/// part and its fixture outcome.
 pub async fn approve_roadmap(storage: &std::sync::Arc<Storage>, project: &str, plans: &[&str]) {
     let project = shadows_core::ProjectId::from_literal(project);
     let part = shadows_core::AppCore::design_for_tests(storage.clone())
@@ -80,6 +81,14 @@ pub async fn approve_roadmap(storage: &std::sync::Arc<Storage>, project: &str, p
         let plan = shadows_core::PlanId::from_literal(*plan);
         shadows_core::AppCore::plans_for_tests(storage.clone())
             .link_plan_part_for_test(&project, &plan, &part)
+            .await
+            .unwrap();
+        let outcome = shadows_core::AppCore::design_for_tests(storage.clone())
+            .seed_delivery_outcome_for_tests(&project)
+            .await
+            .unwrap();
+        shadows_core::AppCore::plans_for_tests(storage.clone())
+            .link_plan_outcome_for_test(&project, &plan, &outcome)
             .await
             .unwrap();
     }

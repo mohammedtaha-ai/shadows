@@ -65,6 +65,13 @@ impl Design {
     pub async fn seed_roadmap_for_tests(&self, project: &ProjectId) -> Result<PartId, DesignError> {
         Ok(self.store.seed_roadmap_for_tests(project).await?)
     }
+    #[cfg(feature = "test-support")]
+    pub async fn seed_delivery_outcome_for_tests(
+        &self,
+        project: &ProjectId,
+    ) -> Result<OutcomeId, DesignError> {
+        Ok(self.store.seed_delivery_outcome_for_tests(project).await?)
+    }
     pub async fn stage(&self, project: &ProjectId) -> Result<StageView, DesignError> {
         Ok(self.store.project_stage(project).await?)
     }

@@ -79,3 +79,39 @@ impl Plans {
         Ok(ids.into_iter().map(PartId::from_recorded).collect())
     }
 }
+
+impl Plans {
+    /// A plan's parts: its saved links, then each part a task writes into,
+    /// each once.
+    pub(crate) fn effective_parts(
+        explicit: &[PartId],
+        tasks: &[crate::task_context::TaskOwnership],
+    ) -> Vec<PartId> {
+        let mut parts = explicit.to_vec();
+        for owner in tasks
+            .iter()
+            .flat_map(|task| &task.writes)
+            .flat_map(|scope| &scope.owners)
+        {
+            if !parts.contains(&owner.part_id) {
+                parts.push(owner.part_id.clone());
+            }
+        }
+        parts
+    }
+
+    /// The approval preconditions `parts` and `outcomes` leave unmet, part first.
+    pub(crate) fn missing_delivery_requirements(
+        parts: &[PartId],
+        outcomes: &[core_design::OutcomeId],
+    ) -> Vec<crate::model::DeliveryRequirement> {
+        let mut missing = Vec::new();
+        if parts.is_empty() {
+            missing.push(crate::model::DeliveryRequirement::Part);
+        }
+        if outcomes.is_empty() {
+            missing.push(crate::model::DeliveryRequirement::Outcome);
+        }
+        missing
+    }
+}

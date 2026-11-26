@@ -392,3 +392,14 @@ pub struct LiveTask {
     pub title: String,
     pub elements: Vec<crate::ElementPin>,
 }
+
+/// What a plan still needs before approval: a part it changes, then a roadmap
+/// outcome it serves.
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, utoipa::ToSchema,
+)]
+#[serde(rename_all = "lowercase")]
+pub enum DeliveryRequirement {
+    Part,
+    Outcome,
+}

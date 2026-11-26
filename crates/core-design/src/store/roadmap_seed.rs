@@ -73,6 +73,52 @@ impl DesignStore {
             .await
     }
 
+    /// After the roadmap seed, one named fixture outcome a plan can serve;
+    /// repeating it answers the same outcome.
+    pub async fn seed_delivery_outcome_for_tests(
+        &self,
+        project: &ProjectId,
+    ) -> Result<OutcomeId, StorageError> {
+        self.seed_roadmap_for_tests(project).await?;
+        let project = project.clone();
+        self.storage
+            .write_txn(move |conn| {
+                Box::pin(async move {
+                    let content = serde_json::to_string(&OutcomeContent {
+                        title: "Delivery fixture outcome".into(),
+                        intended_result: "Plans in tests serve a result".into(),
+                        acceptance: vec![],
+                    })?;
+                    let existing: Option<String> = sqlx::query_scalar(
+                        "SELECT id FROM design_outcome WHERE project_id=? AND content_json=?
+                         ORDER BY ordinal,id LIMIT 1",
+                    )
+                    .bind(project.as_str())
+                    .bind(&content)
+                    .fetch_optional(&mut *conn)
+                    .await?;
+                    if let Some(id) = existing {
+                        return Ok(OutcomeId::from_stored(id));
+                    }
+                    let id = OutcomeId::generate();
+                    sqlx::query(
+                        "INSERT INTO design_outcome
+                         (id,project_id,parent_id,revision,ordinal,content_json)
+                         SELECT ?,?,NULL,1,COALESCE(MAX(ordinal)+1,0),?
+                           FROM design_outcome WHERE project_id=? AND parent_id IS NULL",
+                    )
+                    .bind(id.as_str())
+                    .bind(project.as_str())
+                    .bind(content)
+                    .bind(project.as_str())
+                    .execute(&mut *conn)
+                    .await?;
+                    Ok(id)
+                })
+            })
+            .await
+    }
+
     pub(crate) async fn seed_elements_for_tests(
         &self,
         project: &ProjectId,

@@ -249,7 +249,7 @@ B-230, B-232, B-231, B-233, B-234, B-235.
 
 ### B-239 · Enforce delivery links at approval
 
-- Status: blocked on B-237 and B-238
+- Status: done
 - Plan: [Task 3](plans/2026-11-26-delivery-traceability.md#task-3--b-239--enforce-delivery-links-at-approval)
 - Read: AppCore, Plans' approval and design-association contracts.
 - Touch: approval, association writes and explicit test fixtures listed in Task 3.

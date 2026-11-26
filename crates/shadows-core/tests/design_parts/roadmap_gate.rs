@@ -48,6 +48,69 @@ async fn start(core: &AppCore, grant: &Grant, parts: Vec<PartId>) -> DraftStart 
     }
 }
 
+async fn outcomes(core: &AppCore, p: &ProjectId, n: usize) -> Vec<OutcomeId> {
+    let ids: Vec<_> = (0..n).map(|_| OutcomeId::generate()).collect();
+    let ops = ids
+        .iter()
+        .map(|id| DesignOp::OutcomeCreate {
+            id: id.clone(),
+            parent: None,
+            before: None,
+            content: OutcomeContent {
+                title: format!("Outcome {id}"),
+                intended_result: "served".into(),
+                acceptance: vec![],
+            },
+        })
+        .collect();
+    link(core, p, &format!("outcomes-{}", ids[0]), ops)
+        .await
+        .unwrap();
+    ids
+}
+
+fn put(outcome: &OutcomeId, plan: &shadows_core::PlanId) -> DesignOp {
+    DesignOp::PlanLinkPut {
+        anchor: shadows_core::DesignAnchor::Outcome(outcome.clone()),
+        plan: plan.clone(),
+    }
+}
+
+fn remove(outcome: &OutcomeId, plan: &shadows_core::PlanId) -> DesignOp {
+    DesignOp::PlanLinkRemove {
+        anchor: shadows_core::DesignAnchor::Outcome(outcome.clone()),
+        plan: plan.clone(),
+    }
+}
+
+/// The person's workspace edit at the current revision.
+async fn link(
+    core: &AppCore,
+    p: &ProjectId,
+    command: &str,
+    ops: Vec<DesignOp>,
+) -> Result<shadows_core::DesignChange, CoreError> {
+    let revision = core.design().vision(p).await.unwrap().revision;
+    core.plans()
+        .edit_design(command.into(), p, revision, ops)
+        .await
+        .map_err(CoreError::from)
+}
+
+/// Which of ids serve a plan, and each one's revision.
+async fn served(core: &AppCore, p: &ProjectId, ids: &[OutcomeId]) -> (Vec<OutcomeId>, Vec<i64>) {
+    let mut served = Vec::new();
+    let mut revisions = Vec::new();
+    for id in ids {
+        let view = core.plans().design_outcome(p, id).await.unwrap();
+        revisions.push(view.outcome.revision);
+        if !view.plans.is_empty() {
+            served.push(id.clone());
+        }
+    }
+    (served, revisions)
+}
+
 fn add_task() -> PlanOp {
     PlanOp::TaskAdd {
         task: TaskContent {
@@ -194,6 +257,24 @@ async fn a_plan_with_no_part_cannot_be_approved() {
         .await
         .map_err(shadows_core::CoreError::from)
         .unwrap();
+    blocked(
+        core.plans()
+            .approve("tied-unserved".into(), &tied.workflow_id, 1)
+            .await
+            .map_err(shadows_core::CoreError::from),
+        "plan has no roadmap outcome: link it on the Roadmap page",
+    );
+    let state = core
+        .plans()
+        .get_plan_for_test(&tied.workflow_id)
+        .await
+        .unwrap()
+        .state;
+    assert_eq!(state, shadows_core::WorkflowState::Draft);
+    let outcome = outcomes(&core, &p, 1).await.remove(0);
+    link(&core, &p, "serve", vec![put(&outcome, &tied.plan_id)])
+        .await
+        .unwrap();
     core.plans()
         .approve("tied-approve".into(), &tied.workflow_id, 1)
         .await
@@ -302,6 +383,75 @@ async fn a_recorded_start_still_answers_before_the_roadmap() {
             .unwrap(),
         first
     );
+
+    core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+    storage.close().await.unwrap();
+}
+
+#[tokio::test]
+async fn an_approved_plan_keeps_its_last_outcome_and_moves_it_whole() {
+    let (_tmp, core, p, grant, storage) = setup().await;
+    let part = core.design().seed_roadmap_for_tests(&p).await.unwrap();
+    let ids = outcomes(&core, &p, 4).await;
+    let args = start(&core, &grant, vec![part]).await;
+    let plan = core
+        .plans()
+        .start_draft(&grant, args)
+        .await
+        .map_err(CoreError::from)
+        .unwrap();
+    core.plans()
+        .edit(&grant, edit_args(&plan.workflow_id, 0, "keep-edit"))
+        .await
+        .map_err(CoreError::from)
+        .unwrap();
+    let both = vec![put(&ids[0], &plan.plan_id), put(&ids[1], &plan.plan_id)];
+    link(&core, &p, "both", both).await.unwrap();
+    core.plans()
+        .approve("keep-approve".into(), &plan.workflow_id, 1)
+        .await
+        .map_err(CoreError::from)
+        .unwrap();
+    link(&core, &p, "drop-one", vec![remove(&ids[0], &plan.plan_id)])
+        .await
+        .unwrap();
+    let before = served(&core, &p, &ids).await;
+    assert_eq!(before.0, vec![ids[1].clone()]);
+    let workspace = core.design().vision(&p).await.unwrap().revision;
+    blocked(
+        link(&core, &p, "drop-last", vec![remove(&ids[1], &plan.plan_id)]).await,
+        "keeps at least one roadmap outcome",
+    );
+    assert_eq!(served(&core, &p, &ids).await, before);
+    assert_eq!(core.design().vision(&p).await.unwrap().revision, workspace);
+    // Remove then put, and put then remove: each batch is checked whole.
+    let moved = vec![remove(&ids[1], &plan.plan_id), put(&ids[2], &plan.plan_id)];
+    link(&core, &p, "move-1", moved).await.unwrap();
+    let moved = vec![put(&ids[3], &plan.plan_id), remove(&ids[2], &plan.plan_id)];
+    link(&core, &p, "move-2", moved).await.unwrap();
+    assert_eq!(served(&core, &p, &ids).await.0, vec![ids[3].clone()]);
+
+    // A Draft-only plan stays editable down to no outcome.
+    let args = start(&core, &grant, vec![]).await;
+    let draft = core
+        .plans()
+        .start_draft(&grant, args)
+        .await
+        .map_err(CoreError::from)
+        .unwrap();
+    link(&core, &p, "draft-put", vec![put(&ids[0], &draft.plan_id)])
+        .await
+        .unwrap();
+    link(
+        &core,
+        &p,
+        "draft-drop",
+        vec![remove(&ids[0], &draft.plan_id)],
+    )
+    .await
+    .unwrap();
 
     core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
         .await

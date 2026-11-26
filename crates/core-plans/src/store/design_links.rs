@@ -102,3 +102,66 @@ impl Plans {
         Ok(rows.into_iter().map(crate::PlanId::from_stored).collect())
     }
 }
+
+impl Plans {
+    /// The outcomes `plan` is linked to now, ordered by outcome id.
+    pub async fn plan_outcome_ids_in(
+        conn: &mut SqliteConnection,
+        project: &ProjectId,
+        plan: &crate::PlanId,
+    ) -> Result<Vec<core_design::OutcomeId>, StorageError> {
+        let rows: Vec<String> = sqlx::query_scalar(
+            "SELECT outcome_id FROM design_outcome_plan \
+             WHERE project_id=? AND plan_id=? ORDER BY outcome_id",
+        )
+        .bind(project.as_str())
+        .bind(plan.as_str())
+        .fetch_all(conn)
+        .await?;
+        Ok(rows
+            .into_iter()
+            .map(core_design::OutcomeId::from_recorded)
+            .collect())
+    }
+
+    /// Whether `plan` is Active with an approved version: such a plan keeps
+    /// at least one outcome link once it has one.
+    pub(crate) async fn keeps_outcome_link_in(
+        conn: &mut SqliteConnection,
+        plan: &str,
+    ) -> Result<bool, StorageError> {
+        let found: Option<i64> = sqlx::query_scalar(
+            "SELECT 1 FROM plan p JOIN workflow w ON w.plan_id = p.id \
+             WHERE p.id = ? AND p.state = 'Active' AND w.state = 'Frozen' LIMIT 1",
+        )
+        .bind(plan)
+        .fetch_optional(conn)
+        .await?;
+        Ok(found.is_some())
+    }
+}
+
+#[cfg(feature = "test-support")]
+impl super::PlansStore {
+    pub async fn link_plan_outcome_for_tests(
+        &self,
+        p: &ProjectId,
+        plan: &crate::PlanId,
+        outcome: &core_design::OutcomeId,
+    ) -> Result<(), StorageError> {
+        let (p, plan, outcome) = (p.clone(), plan.clone(), outcome.clone());
+        self.storage
+            .write_txn(move |conn| {
+                Box::pin(async move {
+                    Plans::check_design_plan_in(conn, &p, &plan).await?;
+                    core_design::Design::design_outcome_in(conn, &p, &outcome).await?;
+                    let op = WorkspaceOp::PlanLinkPut {
+                        anchor: DesignAnchor::Outcome(outcome),
+                        plan: plan.to_string(),
+                    };
+                    Plans::apply_design_links_in(conn, &p, std::slice::from_ref(&op)).await
+                })
+            })
+            .await
+    }
+}
