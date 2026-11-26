@@ -885,3 +885,5 @@ checks_results:
   operations: attemptChecksQuery reads GET /api/attempts/{id}/checks and has no interval; TaskProgressChanged refreshes it (invalidateAttemptReads).
   types: CheckResult, AgentReplyNotice, AgentNotice are generated-schema aliases or their presentation union.
   done: markTaskDone carries optional reason and preserves Core refusal text.
+# workflows.ts re-exports PlanDelivery, the generated delivery block of a Plan read
+# (outcomes, parts, task ownership and approval_missing).

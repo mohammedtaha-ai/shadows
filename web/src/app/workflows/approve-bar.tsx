@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { CircleAlert, CircleCheck } from 'lucide-react'
+import { Link } from '@tanstack/react-router'
 import { useRef } from 'react'
 import { type Plan, approvePlan } from '@/api/workflows'
 import { type Attempt, attemptFor } from '@/api/command-id'
@@ -67,12 +68,35 @@ export function ApproveBar({ plan }: { plan: Plan }) {
             </ul>
           </div>
         )}
+        <Requirements plan={plan} />
         {approve.error !== null && <Refusal error={approve.error} />}
       </div>
       <Button onClick={press} disabled={approve.isPending} className="shrink-0">
         {approve.isPending ? 'Approving…' : 'Approve'}
       </Button>
     </section>
+  )
+}
+
+/** What Core says a draft still needs, each with the place that supplies it. */
+function Requirements({ plan }: { plan: Plan }) {
+  const missing = plan.delivery?.approval_missing ?? []
+  if (missing.length === 0) return null
+  return (
+    <ul aria-label="Approval requirements" className="ml-5 list-disc space-y-0.5 text-foreground">
+      {missing.includes('part') && (
+        <li>
+          <Link to="/projects/$projectId/workspace" params={{ projectId: plan.project_id }}
+            search={{ view: 'map' }} className="underline">Link a Project Map part</Link>
+        </li>
+      )}
+      {missing.includes('outcome') && (
+        <li>
+          <Link to="/projects/$projectId/workspace" params={{ projectId: plan.project_id }}
+            search={{ view: 'roadmap' }} className="underline">Link a roadmap outcome</Link>
+        </li>
+      )}
+    </ul>
   )
 }
 

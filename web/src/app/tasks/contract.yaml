@@ -35,3 +35,7 @@ checks:
   origin: Core origin checks is labelled Returned by checks, never as a Planner addition.
   done_reason: The optional reason is sent unchanged; Core decides whether it is required. Saved done_reason is shown beside Done. The retry command fingerprint includes the reason.
   tested_by: [shows_reported_and_confirmed_checks_with_output_on_request, refreshes_unfinished_checks_and_keeps_cached_results_visible, labels_returns_by_checks_without_calling_them_planner_additions, sends_and_displays_cores_completion_reason_after_a_refusal, the_brief_shows_check_commands_and_acceptance_items, shows_the_contract_check_as_shadows_own_without_command_or_reported, a_check_named_contract_that_shadows_does_not_run_is_an_ordinary_check]
+# Delivery: the Details tab reads Plan.delivery for its own task number only. Writes and
+# Reads list each declared path with the parts that own it (Map links), or "unmapped"
+# when Core names none; the plan's outcomes link to Roadmap. Absent delivery shows the
+# plain paths (the task page delivery links).

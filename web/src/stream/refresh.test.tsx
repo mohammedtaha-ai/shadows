@@ -13,7 +13,7 @@ import { waitingPermissionsQuery } from '@/api/permissions'
 import { threadKeys } from '@/api/threads'
 import { designKeys } from '@/api/design'
 import { attemptChecksQuery, attemptConflictQuery, attemptsQuery, lastRecheckQuery, recheckRowsQuery, taskRunQuery } from '@/api/runs'
-import { planProgressQuery } from '@/api/workflows'
+import { planProgressQuery, workflowKeys } from '@/api/workflows'
 import { elementRevisionsQuery, elementsQuery, projectStateQuery } from '@/api/project-state'
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
@@ -352,4 +352,15 @@ it('replayed_state_events_reconcile_the_state_once_at_caught_up', () => {
 it.each(['ThreadRetitled', 'ThreadRemoved', 'OperationCompleted'])('a project stream refreshes the thread lists on %s', kind => {
   const targets = classifyRefresh({ kind, seq: 1, threadId: null, operationId: null, payload: {}, projectId: 'p1' })
   expect(targets).toContainEqual({ kind: 'thread-lists' })
+})
+
+it('a_design_change_refetches_the_plan_reads_that_name_its_links', () => {
+  const client = new QueryClient()
+  const key = workflowKeys.plan('w1')
+  client.getQueryCache().build(client, { queryKey: key })
+  dispatchRefresh(client, classifyRefresh({
+    kind: 'ProjectDesignChanged', seq: 1, threadId: null, operationId: null, projectId: 'p1', payload: { project_id: 'p1' },
+  }))
+  expect(client.getQueryState(key)?.isInvalidated).toBe(true)
+  client.clear()
 })

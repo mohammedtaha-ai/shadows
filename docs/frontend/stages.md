@@ -135,7 +135,7 @@ then F-147, then F-148.
 
 ### F-150 · Show approval requirements and return links
 
-- Status: blocked on B-240 and B-241
+- Status: done
 - Plan: [Task 6](plans/2026-11-26-delivery-traceability.md#task-6--f-150--show-approval-requirements-and-return-links)
 - Read: the accepted delivery traceability request and the workflow, task and stream contracts.
 - Touch: generated schema, plan and task views and stream refresh paths listed in Task 6.

@@ -474,3 +474,35 @@ describe('the plan page', () => {
     expect(a.container.querySelector('aside[aria-label="T1"]')!.textContent).not.toContain('Tables and screens')
   })
 })
+
+describe('delivery links', () => {
+  const delivery = (extra: Partial<NonNullable<Plan['delivery']>> = {}): NonNullable<Plan['delivery']> => ({
+    map_revision: 1, outcomes: [], parts: [], task_parts: [], tasks: [], approval_missing: [], ...extra,
+  })
+
+  it('a draft missing an outcome links to Roadmap, and the saved link replaces it after a refresh', async () => {
+    let current = planFixture({ delivery: delivery({ approval_missing: ['outcome'] }) })
+    const a = (app = await startApp(PAGE, answers({
+      plan: () => Response.json(current), plans: [planListing(current)],
+    })))
+    await until(() => a.button('Approve') !== undefined)
+    const link = [...a.container.querySelectorAll('a')].find((l) => l.textContent === 'Link a roadmap outcome')
+    expect(link?.getAttribute('href')).toBe('/projects/p1/workspace?view=roadmap')
+    expect(a.button('Approve')?.disabled).toBe(false)
+
+    current = planFixture({
+      revision: 4,
+      delivery: delivery({ outcomes: [{ outcome_id: 'o1', title: 'People sign in' }] }),
+    })
+    const source = a.sources.find((s) => new URL(s.url).pathname === '/api/projects/p1/events')
+    if (source === undefined) throw new Error('the project stream was not opened')
+    await act(async () => {
+      source.caughtUp(0)
+      source.durable(1, 'ProjectDesignChanged', null, { project_id: 'p1' })
+    })
+    await until(() => a.text().includes('People sign in'))
+    const outcome = [...a.container.querySelectorAll('a')].find((l) => l.textContent === 'People sign in')
+    expect(outcome?.getAttribute('href')).toBe('/projects/p1/workspace?view=roadmap&outcome=o1')
+    expect(a.text()).not.toContain('Link a roadmap outcome')
+  })
+})

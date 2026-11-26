@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { ApiError } from '@/api/error'
 import type { DesignElement } from '@/api/project-state'
 import { type Attempt, type AttemptBrief, type TaskRun, taskRunQuery } from '@/api/runs'
-import { agentEntry, runningOperation, userEntry } from '@/test/contract-fixtures'
+import { agentEntry, planFixture, planTask, runningOperation, userEntry } from '@/test/contract-fixtures'
 import { answers } from '@/test/fake-daemon'
 import { type TestApp, startApp, typeInto, until } from '@/test/test-app'
 
@@ -696,5 +696,36 @@ describe('the task page', () => {
     await openBrief(undefined)
     expect(document.querySelector('[aria-label="Pinned elements"]')).toBeNull()
     expect(document.querySelector('[aria-label="Attempt brief"]')!.textContent).not.toContain('Tables and screens')
+  })
+})
+
+describe('the task page delivery links', () => {
+  it('shows only this task\'s scopes with owners, and the outcomes it serves', async () => {
+    const own = (path: string, part: string | null) => ({
+      path, owners: part === null ? [] : [{ part_id: part, via: 'Folder' as const }],
+    })
+    const plan = planFixture({
+      tasks: [
+        planTask(1, 'Schema', { writes: ['db/users.sql'], reads: ['docs/spec.md'] }),
+        planTask(2, 'Login screen', { writes: ['web/login.tsx'] }),
+      ],
+      delivery: {
+        map_revision: 1, approval_missing: [],
+        outcomes: [{ outcome_id: 'o1', title: 'People sign in' }],
+        parts: [{ part_id: 'pa', title: 'Database' }, { part_id: 'pb', title: 'Web' }],
+        task_parts: [{ part_id: 'pa', title: 'Database' }, { part_id: 'pb', title: 'Web' }],
+        tasks: [
+          { number: 1, ownership: { writes: [own('db/users.sql', 'pa')], reads: [own('docs/spec.md', null)] } },
+          { number: 2, ownership: { writes: [own('web/login.tsx', 'pb')], reads: [] } },
+        ],
+      },
+    })
+    const a = (app = await startApp(PAGE, answers({ plan, taskRun: taskRun() })))
+    await until(() => a.text().includes('db/users.sql'))
+    expect(a.text()).not.toContain('web/login.tsx')
+    const hrefs = [...a.container.querySelectorAll('a')].map((l) => [l.textContent, l.getAttribute('href')])
+    expect(hrefs).toContainEqual(['Database', '/projects/p1/workspace?view=map&part=pa'])
+    expect(hrefs).toContainEqual(['People sign in', '/projects/p1/workspace?view=roadmap&outcome=o1'])
+    expect(a.text()).toContain('unmapped')
   })
 })

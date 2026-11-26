@@ -776,3 +776,5 @@ recheck_output:
     - the_hook_reads_frames_and_closes_on_end
     - a_finished_frame_refreshes_only_that_batch_and_workflow
     - unmounting_the_hook_closes_the_source
+# ProjectDesignChanged also refreshes the workflows family, so a plan read shows a saved
+# outcome or part link (a_design_change_refetches_the_plan_reads_that_name_its_links).
