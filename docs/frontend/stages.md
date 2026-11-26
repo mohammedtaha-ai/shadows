@@ -153,7 +153,8 @@ then F-147, then F-148.
 
 ### F-152 · Read real dependency status in the plan graph
 
-- Status: todo, first; it needs no backend task
+- Status: done. The tests live in `plan-map.test.tsx`, beside the existing linked-card test;
+  `plan-graph.test.tsx` renders no linked card.
 - Plan: [Task 8](plans/2026-11-26-delivery-traceability.md#task-8--f-152--read-real-dependency-status-in-the-plan-graph)
 - Read: the workflows contract's linked node, current progress query and linked-graph test.
 - Touch: linked node, its test, workflows contract and this entry.

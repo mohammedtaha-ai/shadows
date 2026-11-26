@@ -329,6 +329,17 @@ obligations:
       number
 
   - rule: >
+      A linked task card shows what Runs holds for the task in the exact version on the
+      card: Done, Committed, Running, Stopped, Interrupted, Failed or Not started, read
+      with planProgressQuery, which cards of one version share. The plan's task preview
+      state is never shown. A Draft version shows Draft; a broken or unresolved card
+      shows Unavailable beside its reason; a failed read or a task missing from the
+      answer shows Status unavailable.
+    tested_by:
+      - shows a linked task card the status Runs holds for its exact version, not its plan preview
+      - says a linked task status is unavailable when its progress read fails
+
+  - rule: >
       One ThreadStream is shared by every watcher of a thread, and it closes when the
       last watcher unmounts.
     tested_by: shares writer watchers with a sibling conversation stream until the last watcher leaves
@@ -562,6 +573,15 @@ tests:
     checks: >
       Clicking the linked node 'Open Backend · T3' navigates to w2 and shows 'Login
       API' at node t3, and 'Local T3' never appears.
+  - name: shows a linked task card the status Runs holds for its exact version, not its plan preview
+    checks: >
+      Six cards whose previews say Pending: v2 tasks done, committed, not started and
+      running read 'Done · v2', 'Committed · v2', 'Not started · v2' and 'Running · v2';
+      a Draft card reads 'Draft · v1'; a broken card keeps its reason. 'Pending' never
+      shows, and the four v2 cards make one progress read.
+  - name: says a linked task status is unavailable when its progress read fails
+    checks: >
+      A 500 from the version's progress read shows 'Status unavailable · v2'.
   - name: keeps another open projects sidebar current without duplicating the active project stream
     checks: >
       Opening another project's section yields one stream for p1 and one for p2. A
