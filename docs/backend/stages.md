@@ -282,7 +282,7 @@ B-230, B-232, B-231, B-233, B-234, B-235.
 
 ### B-242 · Verify the real delivery path
 
-- Status: blocked on B-243, F-151 and F-152
+- Status: done. [Evidence](../evidence/2026-11-26-delivery-traceability-live.md): five findings.
 - Plan: [Task 10](plans/2026-11-26-delivery-traceability.md#task-10--b-242--verify-the-real-delivery-path)
 - Read: the acceptance in Task 10 and the actual branch revision under test.
 - Touch: dated evidence and this entry.
