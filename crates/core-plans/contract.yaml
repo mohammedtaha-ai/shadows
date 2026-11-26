@@ -164,11 +164,6 @@ shapes:
   Plan:
     approved_by: "Option<core_grants::ApprovedBy>; provenance of the frozen version"
     delivery: "Option<PlanDelivery>; the public reads' projection, filled after scoped authorization in the read snapshot; never in PlanContent or approval journals"
-  PlanDelivery: "{ map_revision, outcomes: [DeliveryOutcome], parts: [DeliveryPart] effective parts, task_parts: [DeliveryPart] read/write owners of this version's tasks, tasks: [TaskDelivery { number, ownership }], approval_missing: [DeliveryRequirement] empty outside an Active plan's Draft }"
-  DeliveryOutcome: "{ outcome_id: OutcomeId, title }"
-  DeliveryPart: "{ part_id: PartId, title }"
-  TaskOwnership: "{ reads: [ScopePath], writes: [ScopePath] }; ScopePath { path, owners: [ScopeOwner { part_id, via: OwnedVia }] }"
-  DeliveryRequirement: "part | outcome"
     bindings: Vec<AgreementBinding>
     # Derived latest dependency previews, excluded from canonical PlanContent.
     # MCP omits unreachable incoming previews and redacts outgoing metadata.
@@ -186,6 +181,11 @@ shapes:
     # The version copied from this one; changes after the fact, which is why a
     # replayed approval answers `Approved`, never the plan.
     next: Option<WorkflowId>
+  PlanDelivery: "{ map_revision, outcomes: [DeliveryOutcome], parts: [DeliveryPart] effective parts, task_parts: [DeliveryPart] read/write owners of this version's tasks, tasks: [TaskDelivery { number, ownership }], approval_missing: [DeliveryRequirement] empty outside an Active plan's Draft }"
+  DeliveryOutcome: "{ outcome_id: OutcomeId, title }"
+  DeliveryPart: "{ part_id: PartId, title }"
+  TaskOwnership: "{ reads: [ScopePath], writes: [ScopePath] }; ScopePath { path, owners: [ScopeOwner { part_id, via: OwnedVia }] }"
+  DeliveryRequirement: "part | outcome"
   PlanListing:
     # A plan by its latest version (`id`), ordered by the plan's `created_at`
     # (by `julianday`), then its id.
