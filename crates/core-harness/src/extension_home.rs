@@ -4,7 +4,7 @@ use crate::HarnessError;
 use core_extensions::Extensions;
 use core_extensions::Item;
 use serde_json::json;
-use std::{io::Write, path::Path};
+use std::path::Path;
 
 #[derive(Default, serde::Serialize, serde::Deserialize)]
 struct Manifest {
@@ -40,22 +40,7 @@ impl Homes {
         Ok(())
     }
     pub(super) fn write_atomic(path: &Path, bytes: &[u8]) -> Result<(), HarnessError> {
-        let temp = path.with_file_name(format!(".extension-write-{}", uuid::Uuid::new_v4()));
-        let result = (|| -> std::io::Result<()> {
-            let mut f = std::fs::OpenOptions::new()
-                .write(true)
-                .create_new(true)
-                .open(&temp)?;
-            f.write_all(bytes)?;
-            f.sync_all()?;
-            drop(f);
-            std::fs::rename(&temp, path)
-        })();
-        if result.is_err() {
-            let _ = std::fs::remove_file(temp);
-            return Err(invalid());
-        }
-        Ok(())
+        Self::replace_file(path, bytes).map_err(|_| invalid())
     }
 }
 impl Homes {
