@@ -476,6 +476,9 @@ functions:
     task_context_in:
       signature: "(tx: &mut Tx, project: &ProjectId, workflow: &WorkflowId, task: u32, phase: Option<&PhaseId>) -> Result<TaskContext, PlansError>"
       rule: The one assembly of a task's context as the caller's transaction sees it; task_context calls it after its grant checks, and Runs calls it inside an attempt's admitting write to save that attempt's brief. The version must be Frozen and in the project; it checks no grant and writes nothing.
+    TaskOwnership::resolve:
+      signature: "(layout: &ProjectLayout, task: &TaskContent) -> TaskOwnership"
+      rule: Plans-internal and pure. The one mapping of a task's reads and writes to the layout's owners, kept per access mode; each list keeps input order, holds a repeated path once and keeps every folder and layer owner ProjectLayout::owners returns (empty when none). task_context_in builds its parts and unowned_paths from the read-then-write union and still keeps explicitly tied parts with no path (task_ownership_preserves_access_and_nested_owners).
     task_for:
       signature: "(&self, grant: &Grant, named: Option<&WorkflowId>, number: u32) -> Result<PlanTask, PlansError>"
       # INVALID_COMMAND "T{n} does not exist in this plan" when the number is absent.
@@ -1002,6 +1005,8 @@ tests:
       A draft without the link lists the blocker and is refused; once linked and
       approved, T2's task_context resolves T1's findCustomer; T2's own task holds
       no signature, and T1's context has no contracts key.
+  - name: task_ownership_preserves_access_and_nested_owners
+    checks: A nested folder part and a layer on another part both own a shared read/write scope in each list; a repeated read appears once; an unmatched scope has no owner.
   - name: a_task_without_a_contract_serializes_as_before
     checks: No contract key in a legacy task's JSON or its TaskAdd op; it round-trips.
   - name: a_contract_names_files_and_a_symbol_and_round_trips

@@ -232,7 +232,7 @@ B-230, B-232, B-231, B-233, B-234, B-235.
 
 ### B-237 · Resolve task ownership once
 
-- Status: todo
+- Status: done
 - Plan: [Task 1](plans/2026-11-26-delivery-traceability.md#task-1--b-237--resolve-task-ownership-once)
 - Read: AppCore's Plans and Design entries, Plans' TaskContext and Design's layout contract.
 - Touch: TaskContext and its store, contract, focused tests, and this entry. Exact paths in Task 1.

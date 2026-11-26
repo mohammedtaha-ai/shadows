@@ -117,20 +117,12 @@ impl PlansStore {
             }
         }
         let layout = Design::layout_in(tx, &plan.project_id).await?;
-        let mut paths = Vec::new();
-        for path in task.reads.iter().chain(&task.writes) {
-            if !paths.contains(path) {
-                paths.push(path.clone());
-            }
-        }
-        let claims = paths
-            .iter()
-            .map(|p| (p.clone(), layout.owners(p)))
-            .collect::<Vec<_>>();
+        let ownership = crate::task_context::TaskOwnership::resolve(&layout, &task);
+        let claims = ownership.union();
         let unowned_paths = claims
             .iter()
-            .filter(|(_, owners)| owners.is_empty())
-            .map(|(p, _)| p.clone())
+            .filter(|scope| scope.owners.is_empty())
+            .map(|scope| scope.path.clone())
             .collect();
         let parts = layout
             .parts
@@ -138,12 +130,13 @@ impl PlansStore {
             .filter_map(|part| {
                 let paths = claims
                     .iter()
-                    .flat_map(|(path, owners)| {
-                        owners
+                    .flat_map(|scope| {
+                        scope
+                            .owners
                             .iter()
-                            .filter(|o| o.part == part.id)
+                            .filter(|o| o.part_id == part.id)
                             .map(|o| TaskPath {
-                                path: path.clone(),
+                                path: scope.path.clone(),
                                 via: o.via.clone(),
                             })
                     })
