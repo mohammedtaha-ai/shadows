@@ -5,6 +5,7 @@ use super::PlansStore;
 use super::task::TaskRows;
 use crate::{LiveFrozen, LiveTask, LiveVersion, PlanId, Plans, WorkflowId};
 use core_db::StorageError;
+use core_design::ProjectLayout;
 use core_projects::ProjectId;
 
 impl PlansStore {
@@ -12,9 +13,18 @@ impl PlansStore {
     pub async fn live_versions(
         &self,
         project: &ProjectId,
-    ) -> Result<Vec<LiveVersion>, StorageError> {
+        layout: Option<&ProjectLayout>,
+    ) -> Result<Vec<LiveVersion>, crate::PlansError> {
         let mut read = self.storage.reader().begin().await?;
-        let versions = live_versions_in(&mut read, project).await?;
+        let loaded;
+        let layout = match layout {
+            Some(layout) => layout,
+            None => {
+                loaded = core_design::Design::layout_in(&mut read, project).await?;
+                &loaded
+            }
+        };
+        let versions = live_versions_in(&mut read, project, layout).await?;
         read.commit().await?;
         Ok(versions)
     }
@@ -25,6 +35,7 @@ impl PlansStore {
 async fn live_versions_in(
     conn: &mut SqliteConnection,
     project: &ProjectId,
+    layout: &ProjectLayout,
 ) -> Result<Vec<LiveVersion>, StorageError> {
     let plans: Vec<String> = sqlx::query_scalar(
         "SELECT id FROM plan WHERE project_id = ? AND state = 'Active'
@@ -58,6 +69,7 @@ async fn live_versions_in(
                     .await?
                     .into_iter()
                     .map(|task| LiveTask {
+                        ownership: crate::TaskOwnership::resolve(layout, &task.content),
                         number: task.content.number,
                         title: task.content.title,
                         elements: task
@@ -75,8 +87,16 @@ async fn live_versions_in(
             }
             None => None,
         };
+        let explicit = Plans::plan_parts_in(conn, project, &plan).await?;
+        // A Draft-only plan has only its saved links: a Draft is never read.
+        let ownership: Vec<_> = live
+            .iter()
+            .flat_map(|frozen: &LiveFrozen| &frozen.tasks)
+            .map(|task| task.ownership.clone())
+            .collect();
         versions.push(LiveVersion {
-            parts: Plans::plan_parts_in(conn, project, &plan).await?,
+            parts: Plans::effective_parts(&explicit, &ownership),
+            outcomes: Plans::delivery_outcomes_in(conn, project, &plan).await?,
             plan_id: plan,
             title,
             live,

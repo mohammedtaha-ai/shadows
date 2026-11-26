@@ -266,7 +266,7 @@ B-230, B-232, B-231, B-233, B-234, B-235.
 
 ### B-241 · Compose roadmap and map progress in ProjectState
 
-- Status: blocked on B-240
+- Status: done
 - Plan: [Task 5](plans/2026-11-26-delivery-traceability.md#task-5--b-241--compose-roadmap-and-map-progress-in-projectstate)
 - Read: AppCore, ProjectState, Plans' live version view and Runs' progress.
 - Touch: existing live/version and State projections, adapters, tests and OpenAPI in Task 5.

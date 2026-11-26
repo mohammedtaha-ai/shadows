@@ -167,7 +167,7 @@ impl TaskOwnership {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::{OwnedVia, PartId, ProjectLayout, ScopeOwner, TaskContent, TaskOwnership};
     use core_design::{LayoutLayer, LayoutPart};
 
     fn part(id: &PartId, folder: &str, layers: Vec<LayoutLayer>) -> LayoutPart {

@@ -11,8 +11,9 @@ mod state;
 
 pub use error::ProjectStateError;
 pub use model::{
-    ElementGap, ElementView, PartDetail, PartState, PlanProgress, PlanTasks, ProjectStateView,
-    StateCounts, TaskCounts, TaskLine,
+    ElementGap, ElementView, OutcomeDelivery, OutcomePlanProgress, OutcomeProgress, PartDetail,
+    PartState, PlanProgress, PlanTasks, ProjectStateView, ScopeAccess, StateCounts, TaskCounts,
+    TaskLine,
 };
 
 use code_record::CodeRecord;

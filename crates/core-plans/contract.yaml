@@ -38,9 +38,9 @@ source: crates/core-plans/src
 
 
 shapes:
-  LiveVersion: "{ plan_id, title, parts: [PartId], live: Option<LiveFrozen>, draft: Option<WorkflowId> }: an Active plan as live_versions reads it; not served"
+  LiveVersion: "{ plan_id, title, parts: [PartId] effective parts (saved links, then the parts its live tasks write into; a Draft-only plan has its saved links only), outcomes: [DeliveryOutcome] by outcome id, live: Option<LiveFrozen>, draft: Option<WorkflowId> }: an Active plan as live_versions reads it; not served"
   LiveFrozen: "{ workflow_id, version, tasks: [LiveTask] }: the plan's highest Frozen version"
-  LiveTask: "{ number, title, elements: [ElementPin] }: a live task and its contract's element pins"
+  LiveTask: "{ number, title, elements: [ElementPin], ownership: TaskOwnership }: a live task, its contract's element pins and its scope resolved against the layout read with it"
   Phase:
     id: PhaseId
     number: u32
@@ -467,6 +467,10 @@ functions:
       # Active plans only, or archived ones too when requested.
     live_versions:
       signature: "(&self, project: &ProjectId) -> Result<Vec<LiveVersion>, PlansError>"
+      # Loads Design's layout inside its own read transaction, then the shared loader.
+    live_versions_for_layout:
+      signature: "(&self, project: &ProjectId, layout: &ProjectLayout) -> Result<Vec<LiveVersion>, PlansError>"
+      # The same loader against the layout the caller already read: ProjectState resolves task ownership against the map it shows.
       rule: >
         One reader transaction: every Active plan of the project in list's order (created_at,
         then id), with its parts (plan_parts_in), its live version (the highest Frozen version,

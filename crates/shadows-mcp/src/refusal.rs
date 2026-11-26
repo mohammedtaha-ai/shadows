@@ -242,7 +242,10 @@ impl From<shadows_core::ProjectStateError> for Refusal {
             ProjectStateError::Design(error) => error.into(),
             ProjectStateError::Plans(error) => error.into(),
             ProjectStateError::Runs(error) => error.into(),
-            other @ ProjectStateError::CodeRecord(_) => CoreError::from(other).into(),
+            other
+            @ (ProjectStateError::CodeRecord(_) | ProjectStateError::ConflictingSelectors) => {
+                CoreError::from(other).into()
+            }
         }
     }
 }

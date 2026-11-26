@@ -4,13 +4,15 @@ use axum::{
     Json,
     extract::{Path, Query, State},
 };
-use shadows_core::{CoreError, ElementView, PartId, ProjectId, ProjectStateView};
+use shadows_core::{CoreError, ElementView, OutcomeId, PartId, ProjectId, ProjectStateView};
 
 #[derive(serde::Deserialize, utoipa::IntoParams)]
 #[into_params(parameter_in = Query)]
 pub(super) struct StateQuery {
     /// One part of the map, answered in full under `part`.
     part_id: Option<PartId>,
+    /// One outcome, answered in full under `outcome`; never with `part_id`.
+    outcome_id: Option<OutcomeId>,
 }
 
 #[utoipa::path(get, path = "/api/projects/{id}/state", tag = "design",
@@ -26,7 +28,7 @@ pub(super) async fn state(
     let view = s
         .core
         .project_state()
-        .state(&project, q.part_id.as_ref())
+        .state_for(&project, q.part_id.as_ref(), q.outcome_id.as_ref())
         .await;
     Ok(Json(view.map_err(CoreError::from)?))
 }

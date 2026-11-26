@@ -5488,6 +5488,40 @@
         ],
         "type": "object"
       },
+      "OutcomeDelivery": {
+        "description": "One outcome in full: the Active plans that serve it with their live tasks.",
+        "properties": {
+          "outcome_id": {
+            "$ref": "#/components/schemas/OutcomeId"
+          },
+          "plans": {
+            "description": "At most 50, in the plans' list order.",
+            "items": {
+              "$ref": "#/components/schemas/OutcomePlanProgress"
+            },
+            "type": "array"
+          },
+          "plans_more": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "tasks": {
+            "$ref": "#/components/schemas/TaskCounts"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "outcome_id",
+          "title",
+          "plans",
+          "plans_more",
+          "tasks"
+        ],
+        "type": "object"
+      },
       "OutcomeId": {
         "format": "uuid",
         "type": "string"
@@ -5517,6 +5551,45 @@
         "required": [
           "revision",
           "items"
+        ],
+        "type": "object"
+      },
+      "OutcomePlanProgress": {
+        "description": "A plan serving an outcome, with its live version's task lines; none for a Draft only.",
+        "properties": {
+          "plan": {
+            "$ref": "#/components/schemas/PlanProgress"
+          },
+          "tasks": {
+            "items": {
+              "$ref": "#/components/schemas/TaskLine"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "plan",
+          "tasks"
+        ],
+        "type": "object"
+      },
+      "OutcomeProgress": {
+        "description": "An outcome with the live tasks of the Active plans that serve it.",
+        "properties": {
+          "outcome_id": {
+            "$ref": "#/components/schemas/OutcomeId"
+          },
+          "tasks": {
+            "$ref": "#/components/schemas/TaskCounts"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "outcome_id",
+          "title",
+          "tasks"
         ],
         "type": "object"
       },
@@ -7142,6 +7215,29 @@
             },
             "type": "array"
           },
+          "outcome": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/OutcomeDelivery",
+                "description": "One outcome in full, only when asked with its id."
+              }
+            ]
+          },
+          "outcomes": {
+            "description": "The outcomes Active plans serve, by outcome id, at most 100.",
+            "items": {
+              "$ref": "#/components/schemas/OutcomeProgress"
+            },
+            "type": "array"
+          },
+          "outcomes_more": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
           "part": {
             "oneOf": [
               {
@@ -7170,6 +7266,10 @@
           },
           "stage": {
             "$ref": "#/components/schemas/Stage"
+          },
+          "task_totals": {
+            "$ref": "#/components/schemas/TaskCounts",
+            "description": "Every live task of the project, each counted once."
           },
           "unassigned": {
             "description": "Active plans tied to no part, at most 20.",
@@ -8336,6 +8436,15 @@
           }
         },
         "type": "object"
+      },
+      "ScopeAccess": {
+        "description": "How a task reaches a part: it reads it, writes it, or both.",
+        "enum": [
+          "read",
+          "write",
+          "read_write"
+        ],
+        "type": "string"
       },
       "ScopeOwner": {
         "properties": {
@@ -9729,6 +9838,17 @@
       "TaskLine": {
         "description": "One task: whether it is marked done, and its latest attempt's state.",
         "properties": {
+          "access": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ScopeAccess",
+                "description": "How the task reaches the part asked in full; absent elsewhere."
+              }
+            ]
+          },
           "attempt": {
             "oneOf": [
               {
@@ -17502,6 +17622,15 @@
             "required": false,
             "schema": {
               "$ref": "#/components/schemas/PartId"
+            }
+          },
+          {
+            "description": "One outcome, answered in full under `outcome`; never with `part_id`.",
+            "in": "query",
+            "name": "outcome_id",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/OutcomeId"
             }
           }
         ],

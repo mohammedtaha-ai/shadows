@@ -374,7 +374,10 @@ pub struct LiveVersion {
     pub plan_id: PlanId,
     /// The live version's title, else the Draft's.
     pub title: String,
+    /// Its effective parts: saved links, then the parts its live tasks write into.
     pub parts: Vec<core_design::PartId>,
+    /// The outcomes it serves now, ordered by outcome id.
+    pub outcomes: Vec<DeliveryOutcome>,
     /// The highest Frozen version; none while the plan has only a Draft.
     pub live: Option<LiveFrozen>,
     /// The plan's Draft, when it has one: named, never read.
@@ -395,6 +398,8 @@ pub struct LiveTask {
     pub number: u32,
     pub title: String,
     pub elements: Vec<crate::ElementPin>,
+    /// The task scope per access mode against the layout read with it.
+    pub ownership: crate::TaskOwnership,
 }
 
 /// What a plan still needs before approval: a part it changes, then a roadmap
