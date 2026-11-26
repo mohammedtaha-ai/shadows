@@ -1009,6 +1009,26 @@ fn the_planner_is_told_to_read_the_project_state() {
 }
 
 #[test]
+fn the_planner_is_told_to_choose_a_version_or_a_new_plan() {
+    let prompt = shadows_core::testing::PROMPT;
+    let expected = concat!(
+        "The project's plans are shared by every conversation. When the person names a plan, ",
+        "find it with workflow_list, read it with workflow_get, and carry it on. Before ",
+        "draft_start, when the outcome the work serves is known, read its plans (the anchor's ",
+        "linked plans, or project_state with its outcome_id); a changed way of reaching the ",
+        "same plan goal is that plan's next version; a feature with acceptance of its own is a ",
+        "new plan under the outcome it serves, or under a new outcome proposed with the roadmap ",
+        "flow; while the outcome is unknown, explore in a draft and ask the person for the link ",
+        "before approval; never link a plan to an outcome it does not serve to pass approval. ",
+        "An archived plan is read only; a person must unarchive it. A new version needs its ",
+        "reason: say what changed the plan, as the person and conversation settled it, not as a ",
+        "summary of the edit. Name the plan version with workflow_id on every call to ",
+        "workflow_get, task_get, plan_edit, and plan_show."
+    );
+    assert!(prompt.lines().any(|line| line == expected));
+}
+
+#[test]
 fn the_planner_is_told_to_ask_code_where_first() {
     let prompt = shadows_core::testing::PROMPT;
     let tool = concat!(

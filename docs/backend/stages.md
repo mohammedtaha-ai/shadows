@@ -274,7 +274,7 @@ B-230, B-232, B-231, B-233, B-234, B-235.
 
 ### B-243 · Tell the Planner when to version and when to plan anew
 
-- Status: blocked on B-238 and B-241
+- Status: done
 - Plan: [Task 9](plans/2026-11-26-delivery-traceability.md#task-9--b-243--tell-the-planner-when-to-version-and-when-to-plan-anew)
 - Read: the Planner prompt's plans paragraph and the harness contract's prompt lines.
 - Touch: the Planner prompt, harness contract, `mcp_tools` test and this entry.
