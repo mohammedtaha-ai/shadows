@@ -3,7 +3,8 @@
 import { Handle, type NodeProps, Position } from '@xyflow/react'
 import { Link } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
-import { planProgressQuery, type LinkedTask, type TaskProgress } from '@/api/workflows'
+import { planProgressQuery, type LinkedTask } from '@/api/workflows'
+import { taskStatusLabel } from '@/api/project-state'
 import type { LinkedNode, MissingNode } from './linked-layout'
 
 export function MissingTaskNodeView({ data }: NodeProps<MissingNode>) {
@@ -37,10 +38,6 @@ export function LinkedNodeView({ data }: NodeProps<LinkedNode>) {
     <div className={className}>{content}</div>
 }
 
-const ATTEMPT_LABEL: Record<NonNullable<TaskProgress['state']>, string> = {
-  running: 'Running', committed: 'Committed', stopped: 'Stopped', interrupted: 'Interrupted', failed: 'Failed',
-}
-
 /** What Runs says of the linked task in the exact version on the card. The plan's task preview
  * says only what the plan holds, so an approved task never reads as Pending once it is done.
  * Cards of one version share one progress read. */
@@ -53,6 +50,5 @@ function useLinkedStatus(view: LinkedTask, number: number): string {
   if (progress.data === undefined) return 'Loading status'
   const row = progress.data.find((r) => r.task === number)
   if (row === undefined) return 'Status unavailable'
-  if (row.done) return 'Done'
-  return row.state === null ? 'Not started' : ATTEMPT_LABEL[row.state]
+  return taskStatusLabel({ done: row.done, attempt: row.state })
 }

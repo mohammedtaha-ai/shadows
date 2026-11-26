@@ -105,7 +105,7 @@ impl Plans {
 
 impl Plans {
     /// The outcomes `plan` is linked to now, ordered by outcome id.
-    pub async fn plan_outcome_ids_in(
+    pub(crate) async fn plan_outcome_ids_in(
         conn: &mut SqliteConnection,
         project: &ProjectId,
         plan: &crate::PlanId,
@@ -182,7 +182,7 @@ impl super::PlansStore {
 
 impl Plans {
     /// The outcomes `plan` serves now with their titles, ordered by outcome id.
-    pub async fn delivery_outcomes_in(
+    pub(crate) async fn delivery_outcomes_in(
         conn: &mut SqliteConnection,
         project: &ProjectId,
         plan: &crate::PlanId,

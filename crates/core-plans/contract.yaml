@@ -703,15 +703,14 @@ shared_in_transaction:
   execution_plan_in: "(tx, workflow, version) -> Result<ExecutionPlan, PlansError>; Runs' Start preflight snapshot and its admission write, and an addition's write: the version with its linked tasks (version_in), another version number NotFound, and its refusal checked Archived, then NotFrozen, then Superseded (any next version, Draft or Frozen)."
   version_in: "(conn, workflow) -> Result<Plan, PlansError>; Plans' own execution_plan_in, and Runs' executor choice save (its newest-version and task-id checks, in the pre-check read and again in the write): the workflow's version with its linked tasks, read inside the caller's transaction"
   apply_design_links_in: Owner entry in the caller transaction; design links rules.
-  delivery_outcomes_in: "(conn, project, plan) -> Vec<DeliveryOutcome>: plan_outcome_ids_in with Design's outcome titles in the caller snapshot; both public reads and task_context_in use it."
+  delivery_outcomes_in: "crate-internal: (conn, project, plan) -> Vec<DeliveryOutcome>: plan_outcome_ids_in with Design's outcome titles in the caller snapshot; both public reads and task_context_in use it."
   plan_delivery_in: "store-internal: (conn, &Plan) -> PlanDelivery; read_plan fills Plan.delivery with it after scoped authorization (a_plan_read_carries_its_delivery_links)."
-  plan_outcome_ids_in: "(conn, project, plan) -> Vec<OutcomeId>: the plan's current outcome links, ordered by outcome id, in the caller transaction."
+  plan_outcome_ids_in: "crate-internal: (conn, project, plan) -> Vec<OutcomeId>: the plan's current outcome links, ordered by outcome id, in the caller transaction."
   effective_parts: "crate-internal, pure: (explicit: &[PartId], tasks: &[TaskOwnership]) -> Vec<PartId>; saved links then task write owners, each once."
   missing_delivery_requirements: "crate-internal, pure: (parts, outcomes) -> Vec<DeliveryRequirement>; part then outcome, lowercase wire keys."
   link_plan_outcome_for_test: "test-support only: (&self, project, plan, outcome); checks the plan and outcome in the project, then writes the link in one transaction."
   anchor_plans_in: Owner entry in the caller transaction; design links rules.
   outcomes_with_plans_in: "Plans' own roadmap approval write: the outcomes a plan links to, which Design's removal refuses."
-  plan_has_part_in: Owner entry in the caller transaction; design parts rules.
   link_plan_parts_in: Owner entry in the caller transaction; design parts rules.
   part_bindings_in: "Plans reads derived part-plan adoption in its captured part snapshot, preserving historical pins."
   agreement_participants_in: "Plans reads current/historical task adoption in its captured impact review and agreement transaction; Plans owns binding rows."

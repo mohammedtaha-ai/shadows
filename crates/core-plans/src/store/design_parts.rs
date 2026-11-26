@@ -6,21 +6,6 @@ use crate::{ProjectId, StorageError};
 use core_design::PartId;
 use sqlx::SqliteConnection;
 impl Plans {
-    pub async fn plan_has_part_in(
-        conn: &mut SqliteConnection,
-        project: &ProjectId,
-        plan: &PlanId,
-    ) -> Result<bool, StorageError> {
-        let linked: Option<i64> = sqlx::query_scalar(
-            "SELECT 1 FROM design_part_plan WHERE project_id=? AND plan_id=? LIMIT 1",
-        )
-        .bind(project.as_str())
-        .bind(plan.as_str())
-        .fetch_optional(&mut *conn)
-        .await?;
-        Ok(linked.is_some())
-    }
-
     pub async fn link_plan_parts_in(
         conn: &mut SqliteConnection,
         project: &ProjectId,

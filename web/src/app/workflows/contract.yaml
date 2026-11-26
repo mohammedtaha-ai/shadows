@@ -331,7 +331,7 @@ obligations:
   - rule: >
       A linked task card shows what Runs holds for the task in the exact version on the
       card: Done, Committed, Running, Stopped, Interrupted, Failed or Not started, read
-      with planProgressQuery, which cards of one version share. The plan's task preview
+      with planProgressQuery, which cards of one version share, and worded by taskStatusLabel. The plan's task preview
       state is never shown. A Draft version shows Draft; a broken or unresolved card
       shows Unavailable beside its reason; a failed read or a task missing from the
       answer shows Status unavailable.

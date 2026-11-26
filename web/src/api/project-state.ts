@@ -37,7 +37,7 @@ const ATTEMPT_LABELS = {
 const ACCESS_LABELS = { read: 'Reads', write: 'Writes', read_write: 'Reads and writes' } as const
 
 /** A task's status as Runs reports it, the one wording every State-backed view uses. */
-export function taskStatusLabel(task: TaskLine): string {
+export function taskStatusLabel(task: Pick<TaskLine, 'done' | 'attempt'>): string {
   return task.done ? 'Done' : task.attempt !== null ? ATTEMPT_LABELS[task.attempt] : 'Not started'
 }
 
