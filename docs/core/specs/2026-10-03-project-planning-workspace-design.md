@@ -78,6 +78,34 @@ not move or copy the parts. Ordering is explicit. Planned outcomes are not
 automatically completed when a plan is approved or archived; execution
 evidence later supplies completion under §17.
 
+### Delivery plan links (proposed 2026-11-26)
+
+Delivery plans carry an explicit link to the result they serve. Initial project
+setup belongs to project preparation, outside the delivery plan lifecycle.
+
+- **Draft from an outcome.** Roadmap's **Plan from here** opens a Planner
+  conversation anchored to a saved outcome. When it creates a new plan, Plans
+  attaches that outcome in the draft creation transaction. The outcome must
+  still exist in the same project. A failed attachment leaves no new plan.
+- **Draft from a regular conversation.** A person or agent can explore and create
+  a draft before choosing an outcome. The person can attach an existing outcome
+  from its **Linked plans** list. When a new outcome is needed, the Planner can
+  propose one through the existing roadmap flow for the person to approve.
+- **Approval.** The same Plans approval operation for the person and Planner
+  requires at least one live roadmap outcome and one project map part. The
+  approval screen identifies a missing association and directs the person to
+  where it can be added. One plan can serve several outcomes and parts.
+- **History.** The association names the plan, so it covers later versions.
+  The rule applies to future approvals, including approvals of new versions.
+  Existing approved history needs no backfill. An active approved plan with an
+  outcome cannot lose its last outcome. Moving it to a different outcome in
+  one workspace edit is allowed.
+
+For example, starting `Data file format and storage` under
+`Shared data file format and safe storage` puts that plan under the outcome
+as soon as its draft exists. A normal conversation can draft the same work
+first, then the person attaches the outcome before approving the plan.
+
 ## 18.4 A shared contract
 
 - A contract has stable identity, project and capability name. It describes
