@@ -65,6 +65,8 @@ shapes:
     # decisions: Vec<DecisionRecord>, each pinned revision as Design holds it when the
     # context is built, state included (a frozen pin shows `superseded`); omitted when empty.
     # elements: Vec<DesignElement>, exact pinned revisions in pin order; omitted when empty.
+    # outcomes: Vec<DeliveryOutcome>, the plan's current outcome links (delivery_outcomes_in); omitted when empty.
+    # ownership: Option<TaskOwnership>, the task's reads and writes with their owners; omitted when absent, so a brief saved before it decodes.
     note: Approved task, its resolved contracts, exact plan identity/version, selected layout parts with ownership reasons, unowned paths, effective standards numbers and map revision.
   TaskPart:
     part: LayoutPart
@@ -161,6 +163,12 @@ shapes:
     replayed: bool
   Plan:
     approved_by: "Option<core_grants::ApprovedBy>; provenance of the frozen version"
+    delivery: "Option<PlanDelivery>; the public reads' projection, filled after scoped authorization in the read snapshot; never in PlanContent or approval journals"
+  PlanDelivery: "{ map_revision, outcomes: [DeliveryOutcome], parts: [DeliveryPart] effective parts, task_parts: [DeliveryPart] read/write owners of this version's tasks, tasks: [TaskDelivery { number, ownership }], approval_missing: [DeliveryRequirement] empty outside an Active plan's Draft }"
+  DeliveryOutcome: "{ outcome_id: OutcomeId, title }"
+  DeliveryPart: "{ part_id: PartId, title }"
+  TaskOwnership: "{ reads: [ScopePath], writes: [ScopePath] }; ScopePath { path, owners: [ScopeOwner { part_id, via: OwnedVia }] }"
+  DeliveryRequirement: "part | outcome"
     bindings: Vec<AgreementBinding>
     # Derived latest dependency previews, excluded from canonical PlanContent.
     # MCP omits unreachable incoming previews and redacts outgoing metadata.
@@ -691,6 +699,8 @@ shared_in_transaction:
   execution_plan_in: "(tx, workflow, version) -> Result<ExecutionPlan, PlansError>; Runs' Start preflight snapshot and its admission write, and an addition's write: the version with its linked tasks (version_in), another version number NotFound, and its refusal checked Archived, then NotFrozen, then Superseded (any next version, Draft or Frozen)."
   version_in: "(conn, workflow) -> Result<Plan, PlansError>; Plans' own execution_plan_in, and Runs' executor choice save (its newest-version and task-id checks, in the pre-check read and again in the write): the workflow's version with its linked tasks, read inside the caller's transaction"
   apply_design_links_in: Owner entry in the caller transaction; design links rules.
+  delivery_outcomes_in: "(conn, project, plan) -> Vec<DeliveryOutcome>: plan_outcome_ids_in with Design's outcome titles in the caller snapshot; both public reads and task_context_in use it."
+  plan_delivery_in: "store-internal: (conn, &Plan) -> PlanDelivery; read_plan fills Plan.delivery with it after scoped authorization (a_plan_read_carries_its_delivery_links)."
   plan_outcome_ids_in: "(conn, project, plan) -> Vec<OutcomeId>: the plan's current outcome links, ordered by outcome id, in the caller transaction."
   effective_parts: "crate-internal, pure: (explicit: &[PartId], tasks: &[TaskOwnership]) -> Vec<PartId>; saved links then task write owners, each once."
   missing_delivery_requirements: "crate-internal, pure: (parts, outcomes) -> Vec<DeliveryRequirement>; part then outcome, lowercase wire keys."

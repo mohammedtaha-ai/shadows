@@ -73,6 +73,7 @@ impl PlansStore {
         plan.linked_tasks = super::linked::LinkedRows::read(&mut snapshot, &plan, origin).await?;
         plan.linked_phases =
             super::phase_projection::PhaseProjection::read(&mut snapshot, &plan).await?;
+        plan.delivery = Some(crate::Plans::plan_delivery_in(&mut snapshot, &plan).await?);
         if external {
             plan.linked_tasks
                 .retain(|link| link.project_id.as_ref() == Some(&plan.project_id));
@@ -296,6 +297,7 @@ impl ReadRows {
                 changed_tasks: e.changed_tasks,
             });
         let mut plan = Plan {
+            delivery: None,
             linked_phases: Vec::new(),
             approved_by: {
                 let (principal, agent, request): (Option<String>, Option<String>, Option<String>) =

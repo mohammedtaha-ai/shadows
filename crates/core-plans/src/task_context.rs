@@ -30,6 +30,14 @@ pub struct TaskContext {
     pub unowned_paths: Vec<String>,
     pub standards: ContextStandards,
     pub map_revision: i64,
+    /// The outcomes the plan serves now; absent from briefs saved before.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[schema(required = false)]
+    pub outcomes: Vec<crate::DeliveryOutcome>,
+    /// The task scope per access mode; absent from briefs saved before.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schema(required = false)]
+    pub ownership: Option<TaskOwnership>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]

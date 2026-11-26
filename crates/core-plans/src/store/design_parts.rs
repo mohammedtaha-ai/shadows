@@ -115,3 +115,67 @@ impl Plans {
         missing
     }
 }
+
+impl Plans {
+    /// The delivery projection of the version `plan` as the caller's
+    /// snapshot sees it: its outcomes, its effective parts, each task's
+    /// ownership and, for an Active plan's Draft, what approval still needs.
+    pub(super) async fn plan_delivery_in(
+        conn: &mut SqliteConnection,
+        plan: &crate::Plan,
+    ) -> Result<crate::PlanDelivery, crate::PlansError> {
+        let project = &plan.project_id;
+        let layout = core_design::Design::layout_in(conn, project).await?;
+        let tasks: Vec<crate::TaskDelivery> = plan
+            .tasks
+            .iter()
+            .map(|t| crate::TaskDelivery {
+                number: t.content.number,
+                ownership: crate::TaskOwnership::resolve(&layout, &t.content),
+            })
+            .collect();
+        let ownership: Vec<_> = tasks.iter().map(|t| t.ownership.clone()).collect();
+        let explicit = Self::plan_parts_in(conn, project, &plan.plan_id).await?;
+        let parts = Self::effective_parts(&explicit, &ownership);
+        let mut task_parts = Vec::new();
+        for owner in ownership
+            .iter()
+            .flat_map(|o| o.reads.iter().chain(&o.writes))
+            .flat_map(|scope| &scope.owners)
+        {
+            if !task_parts.contains(&owner.part_id) {
+                task_parts.push(owner.part_id.clone());
+            }
+        }
+        let outcomes = Self::delivery_outcomes_in(conn, project, &plan.plan_id).await?;
+        let drafting = plan.state == crate::WorkflowState::Draft
+            && plan.plan_state == crate::PlanState::Active;
+        let approval_missing = if drafting {
+            let ids: Vec<_> = outcomes.iter().map(|o| o.outcome_id.clone()).collect();
+            Self::missing_delivery_requirements(&parts, &ids)
+        } else {
+            Vec::new()
+        };
+        let named = |ids: Vec<PartId>| {
+            ids.into_iter()
+                .map(|id| crate::DeliveryPart {
+                    title: layout
+                        .parts
+                        .iter()
+                        .find(|p| p.id == id)
+                        .map(|p| p.title.clone())
+                        .unwrap_or_default(),
+                    part_id: id,
+                })
+                .collect::<Vec<_>>()
+        };
+        Ok(crate::PlanDelivery {
+            map_revision: layout.map_revision,
+            outcomes,
+            parts: named(parts),
+            task_parts: named(task_parts),
+            tasks,
+            approval_missing,
+        })
+    }
+}

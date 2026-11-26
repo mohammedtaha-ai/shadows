@@ -494,6 +494,23 @@ async fn a_saved_brief_without_elements_still_reads() {
     assert!(saved.get("elements").is_none(), "{saved}");
     let brief = f.core.runs().brief(&attempt.id).await.unwrap();
     assert!(brief.context.elements.is_empty());
+    // A new attempt saves the delivery fields; a brief saved before them still reads.
+    assert!(saved.get("ownership").is_some(), "{saved}");
+    assert!(
+        saved["outcomes"].as_array().is_some_and(|o| !o.is_empty()),
+        "{saved}"
+    );
+    let mut legacy = saved.clone();
+    let object = legacy.as_object_mut().unwrap();
+    object.remove("ownership");
+    object.remove("outcomes");
+    fn decode_as<T: serde::de::DeserializeOwned>(_: &T, value: Value) -> T {
+        serde_json::from_value(value).unwrap()
+    }
+    let old = decode_as(&brief.context, legacy);
+    assert!(old.ownership.is_none());
+    assert!(old.outcomes.is_empty());
+    assert!(brief.context.ownership.is_some());
     f.finish().await;
 }
 

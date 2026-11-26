@@ -258,7 +258,7 @@ B-230, B-232, B-231, B-233, B-234, B-235.
 
 ### B-240 · Expose the same links in plan and task reads
 
-- Status: blocked on B-239
+- Status: done
 - Plan: [Task 4](plans/2026-11-26-delivery-traceability.md#task-4--b-240--expose-the-same-links-in-plan-and-task-reads)
 - Read: AppCore, Plans and Runs context contracts, accepted delivery traceability request.
 - Touch: existing plan/context reads, related tests and OpenAPI listed in Task 4.

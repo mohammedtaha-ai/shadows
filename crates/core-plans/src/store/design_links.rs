@@ -165,3 +165,22 @@ impl super::PlansStore {
             .await
     }
 }
+
+impl Plans {
+    /// The outcomes `plan` serves now with their titles, ordered by outcome id.
+    pub async fn delivery_outcomes_in(
+        conn: &mut SqliteConnection,
+        project: &ProjectId,
+        plan: &crate::PlanId,
+    ) -> Result<Vec<crate::DeliveryOutcome>, StorageError> {
+        let mut outcomes = Vec::new();
+        for id in Self::plan_outcome_ids_in(conn, project, plan).await? {
+            let details = core_design::Design::design_outcome_in(conn, project, &id).await?;
+            outcomes.push(crate::DeliveryOutcome {
+                outcome_id: id,
+                title: details.outcome.content.title,
+            });
+        }
+        Ok(outcomes)
+    }
+}

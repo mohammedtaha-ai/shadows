@@ -636,6 +636,10 @@ async fn both_grants_read_approved_task_context_without_execution_authority() {
         assert_eq!(context["task"]["number"], 1);
         assert!(context["standards"]["base"].as_i64().unwrap() >= 3);
         assert!(context.get("execute").is_none());
+        assert_eq!(context["ownership"]["writes"][0]["path"], "src/t1.rs");
+        assert_eq!(context["outcomes"][0]["title"], "Delivery fixture outcome");
+        let plan = ok(client, "workflow_get", json!({ "workflow_id": workflow })).await;
+        assert_eq!(plan["delivery"]["outcomes"], context["outcomes"]);
         assert!(
             refused(
                 client,

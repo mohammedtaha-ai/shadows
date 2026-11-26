@@ -118,6 +118,7 @@ impl PlansStore {
         }
         let layout = Design::layout_in(tx, &plan.project_id).await?;
         let ownership = crate::task_context::TaskOwnership::resolve(&layout, &task);
+        let outcomes = Plans::delivery_outcomes_in(tx, &plan.project_id, &plan.plan_id).await?;
         let claims = ownership.union();
         let unowned_paths = claims
             .iter()
@@ -164,6 +165,8 @@ impl PlansStore {
                 additions: layout.standards_additions,
             },
             map_revision: layout.map_revision,
+            outcomes,
+            ownership: Some(ownership),
         })
     }
 }

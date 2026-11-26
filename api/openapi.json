@@ -2216,6 +2216,46 @@
         ],
         "type": "string"
       },
+      "DeliveryOutcome": {
+        "description": "An outcome a plan serves, as a read names it.",
+        "properties": {
+          "outcome_id": {
+            "$ref": "#/components/schemas/OutcomeId"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "outcome_id",
+          "title"
+        ],
+        "type": "object"
+      },
+      "DeliveryPart": {
+        "description": "A part a plan or its tasks reach, as a read names it.",
+        "properties": {
+          "part_id": {
+            "$ref": "#/components/schemas/PartId"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "part_id",
+          "title"
+        ],
+        "type": "object"
+      },
+      "DeliveryRequirement": {
+        "description": "What a plan still needs before approval: a part it changes, then a roadmap\noutcome it serves.",
+        "enum": [
+          "part",
+          "outcome"
+        ],
+        "type": "string"
+      },
       "DesignAnchor": {
         "oneOf": [
           {
@@ -6231,6 +6271,17 @@
           "created_at": {
             "type": "string"
           },
+          "delivery": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PlanDelivery",
+                "description": "Filled by the public plan reads only."
+              }
+            ]
+          },
           "frozen_at": {
             "type": [
               "string",
@@ -6356,6 +6407,57 @@
         },
         "required": [
           "command_id"
+        ],
+        "type": "object"
+      },
+      "PlanDelivery": {
+        "description": "The delivery links of the version read: a read projection, never part of\nthe version's content or its approval record.",
+        "properties": {
+          "approval_missing": {
+            "description": "Empty outside an Active plan's Draft.",
+            "items": {
+              "$ref": "#/components/schemas/DeliveryRequirement"
+            },
+            "type": "array"
+          },
+          "map_revision": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "outcomes": {
+            "items": {
+              "$ref": "#/components/schemas/DeliveryOutcome"
+            },
+            "type": "array"
+          },
+          "parts": {
+            "description": "Every effective part: saved links, then the parts tasks write into.",
+            "items": {
+              "$ref": "#/components/schemas/DeliveryPart"
+            },
+            "type": "array"
+          },
+          "task_parts": {
+            "description": "The read and write owners of this version's tasks.",
+            "items": {
+              "$ref": "#/components/schemas/DeliveryPart"
+            },
+            "type": "array"
+          },
+          "tasks": {
+            "items": {
+              "$ref": "#/components/schemas/TaskDelivery"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "map_revision",
+          "outcomes",
+          "parts",
+          "task_parts",
+          "tasks",
+          "approval_missing"
         ],
         "type": "object"
       },
@@ -8235,6 +8337,40 @@
         },
         "type": "object"
       },
+      "ScopeOwner": {
+        "properties": {
+          "part_id": {
+            "$ref": "#/components/schemas/PartId"
+          },
+          "via": {
+            "$ref": "#/components/schemas/OwnedVia"
+          }
+        },
+        "required": [
+          "part_id",
+          "via"
+        ],
+        "type": "object"
+      },
+      "ScopePath": {
+        "description": "One declared scope path and the parts that own it, empty when none does.",
+        "properties": {
+          "owners": {
+            "items": {
+              "$ref": "#/components/schemas/ScopeOwner"
+            },
+            "type": "array"
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "owners"
+        ],
+        "type": "object"
+      },
       "ScreenContent": {
         "additionalProperties": false,
         "properties": {
@@ -9397,6 +9533,24 @@
             "format": "int64",
             "type": "integer"
           },
+          "outcomes": {
+            "description": "The outcomes the plan serves now; absent from briefs saved before.",
+            "items": {
+              "$ref": "#/components/schemas/DeliveryOutcome"
+            },
+            "type": "array"
+          },
+          "ownership": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TaskOwnership",
+                "description": "The task scope per access mode; absent from briefs saved before."
+              }
+            ]
+          },
           "parts": {
             "items": {
               "$ref": "#/components/schemas/TaskPart"
@@ -9550,6 +9704,24 @@
         ],
         "type": "object"
       },
+      "TaskDelivery": {
+        "description": "One task's resolved scope ownership in the version read.",
+        "properties": {
+          "number": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "ownership": {
+            "$ref": "#/components/schemas/TaskOwnership"
+          }
+        },
+        "required": [
+          "number",
+          "ownership"
+        ],
+        "type": "object"
+      },
       "TaskId": {
         "format": "uuid",
         "type": "string"
@@ -9584,6 +9756,28 @@
           "title",
           "done",
           "attempt"
+        ],
+        "type": "object"
+      },
+      "TaskOwnership": {
+        "description": "Which parts own each path a task reads and writes, kept per access mode.",
+        "properties": {
+          "reads": {
+            "items": {
+              "$ref": "#/components/schemas/ScopePath"
+            },
+            "type": "array"
+          },
+          "writes": {
+            "items": {
+              "$ref": "#/components/schemas/ScopePath"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "reads",
+          "writes"
         ],
         "type": "object"
       },
