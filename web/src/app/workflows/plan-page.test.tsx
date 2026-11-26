@@ -480,7 +480,7 @@ describe('delivery links', () => {
     map_revision: 1, outcomes: [], parts: [], task_parts: [], tasks: [], approval_missing: [], ...extra,
   })
 
-  it('a draft missing an outcome links to Roadmap, and the saved link replaces it after a refresh', async () => {
+  it('a draft missing an outcome is not called unblocked, links to Roadmap, and the saved link replaces it after a refresh', async () => {
     let current = planFixture({ delivery: delivery({ approval_missing: ['outcome'] }) })
     const a = (app = await startApp(PAGE, answers({
       plan: () => Response.json(current), plans: [planListing(current)],
@@ -489,6 +489,8 @@ describe('delivery links', () => {
     const link = [...a.container.querySelectorAll('a')].find((l) => l.textContent === 'Link a roadmap outcome')
     expect(link?.getAttribute('href')).toBe('/projects/p1/workspace?view=roadmap')
     expect(a.button('Approve')?.disabled).toBe(false)
+    expect(a.text()).toContain('Before it can be approved:')
+    expect(a.text()).not.toContain('Nothing blocks approval.')
 
     current = planFixture({
       revision: 4,
@@ -504,5 +506,6 @@ describe('delivery links', () => {
     const outcome = [...a.container.querySelectorAll('a')].find((l) => l.textContent === 'People sign in')
     expect(outcome?.getAttribute('href')).toBe('/projects/p1/workspace?view=roadmap&outcome=o1')
     expect(a.text()).not.toContain('Link a roadmap outcome')
+    expect(a.text()).toContain('Nothing blocks approval.')
   })
 })

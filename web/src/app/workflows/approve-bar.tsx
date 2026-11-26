@@ -34,6 +34,9 @@ export function ApproveBar({ plan }: { plan: Plan }) {
     },
   })
 
+  // Core's delivery requirements block approval as surely as the plan's own blockers.
+  const missing = plan.delivery?.approval_missing ?? []
+
   const press = () => {
     if (approve.isPending) return
     // The same revision pressed again after a lost answer is a retry of the
@@ -48,7 +51,7 @@ export function ApproveBar({ plan }: { plan: Plan }) {
       className="flex items-start justify-between gap-4 border-b border-border px-6 py-3"
     >
       <div className="min-w-0 space-y-2 text-xs">
-        {plan.blockers.length === 0 ? (
+        {plan.blockers.length === 0 && missing.length === 0 ? (
           <p className="flex items-center gap-1.5 text-muted-foreground">
             <CircleCheck className="size-3.5 text-success" aria-hidden />
             Nothing blocks approval.
@@ -59,16 +62,18 @@ export function ApproveBar({ plan }: { plan: Plan }) {
               <CircleAlert className="size-3.5 text-destructive-foreground" aria-hidden />
               Before it can be approved:
             </p>
-            <ul className="ml-5 list-disc space-y-0.5 text-foreground">
-              {plan.blockers.map((b) => (
-                <li key={b.message} dir="auto">
-                  {b.message}
-                </li>
-              ))}
-            </ul>
+            {plan.blockers.length > 0 && (
+              <ul className="ml-5 list-disc space-y-0.5 text-foreground">
+                {plan.blockers.map((b) => (
+                  <li key={b.message} dir="auto">
+                    {b.message}
+                  </li>
+                ))}
+              </ul>
+            )}
+            <Requirements missing={missing} projectId={plan.project_id} />
           </div>
         )}
-        <Requirements plan={plan} />
         {approve.error !== null && <Refusal error={approve.error} />}
       </div>
       <Button onClick={press} disabled={approve.isPending} className="shrink-0">
@@ -79,20 +84,19 @@ export function ApproveBar({ plan }: { plan: Plan }) {
 }
 
 /** What Core says a draft still needs, each with the place that supplies it. */
-function Requirements({ plan }: { plan: Plan }) {
-  const missing = plan.delivery?.approval_missing ?? []
+function Requirements({ missing, projectId }: { missing: readonly string[]; projectId: string }) {
   if (missing.length === 0) return null
   return (
     <ul aria-label="Approval requirements" className="ml-5 list-disc space-y-0.5 text-foreground">
       {missing.includes('part') && (
         <li>
-          <Link to="/projects/$projectId/workspace" params={{ projectId: plan.project_id }}
+          <Link to="/projects/$projectId/workspace" params={{ projectId }}
             search={{ view: 'map' }} className="underline">Link a Project Map part</Link>
         </li>
       )}
       {missing.includes('outcome') && (
         <li>
-          <Link to="/projects/$projectId/workspace" params={{ projectId: plan.project_id }}
+          <Link to="/projects/$projectId/workspace" params={{ projectId }}
             search={{ view: 'roadmap' }} className="underline">Link a roadmap outcome</Link>
         </li>
       )}

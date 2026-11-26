@@ -662,10 +662,12 @@ route_entries: "plan-page.tsx, plan-map.tsx remain separate public lazy route mo
 # Toggle reuses the same ReactFlow instance; fixed measured dimensions keep fit
 # controls functional after node replacement. Frames retain invisible handles
 # during the edge-set swap, but expanded links use the boundary child ids.
-# Delivery: the Approve bar lists Plan.delivery.approval_missing, each requirement
-# linking to Roadmap (outcome) or the Project Map (part), while Approve stays
+# Delivery: the Approve bar lists Plan.delivery.approval_missing under "Before it can
+# be approved:" with the plan's own blockers, and says "Nothing blocks approval." only
+# when both are empty; each requirement
+# links to Roadmap (outcome) or the Project Map (part), while Approve stays
 # enabled so Core's refusal is reachable. The header links the version's
 # delivery outcomes (view=roadmap&outcome=) and parts (view=map&part=); the
 # links come from Core's read and refresh with the workflows family
-# (tested by: a draft missing an outcome links to Roadmap, and the saved link
-# replaces it after a refresh).
+# (tested by: a draft missing an outcome is not called unblocked, links to Roadmap,
+# and the saved link replaces it after a refresh).
