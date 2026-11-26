@@ -124,6 +124,20 @@ impl Plans {
             .collect())
     }
 
+    /// The title of `plan`'s latest version, which names the plan to a person.
+    pub(crate) async fn latest_title_in(
+        conn: &mut SqliteConnection,
+        plan: &crate::PlanId,
+    ) -> Result<String, StorageError> {
+        sqlx::query_scalar(
+            "SELECT title FROM workflow WHERE plan_id = ? ORDER BY version DESC LIMIT 1",
+        )
+        .bind(plan.as_str())
+        .fetch_optional(conn)
+        .await?
+        .ok_or(StorageError::NotFound("workflow"))
+    }
+
     /// Whether `plan` is Active with an approved version: such a plan keeps
     /// at least one outcome link once it has one.
     pub(crate) async fn keeps_outcome_link_in(

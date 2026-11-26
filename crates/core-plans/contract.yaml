@@ -965,7 +965,7 @@ agreements:
       An Active plan with a Frozen version that has an outcome link keeps at
       least one: edit_workspace_with notes each such plan an outcome-removal
       op names, applies the whole batch, then refuses with StageBlocked when
-      one is left with none, rolling back the Design revision, the outcome
+      one is left with none, naming the plan by its latest title, rolling back the Design revision, the outcome
       revisions, the event and the links. A move between outcomes in one
       batch passes in either order. A Draft-only plan or a legacy unlinked
       record stays editable.

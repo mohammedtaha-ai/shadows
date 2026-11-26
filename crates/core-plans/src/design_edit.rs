@@ -94,9 +94,11 @@ impl Plans {
                             .await?
                             .is_empty()
                         {
+                            let title = Self::latest_title_in(conn, &plan).await?;
                             return Err(core_design::DesignError::StageBlocked(format!(
-                                "plan {plan} has an approved version and keeps at least one \
-                                 roadmap outcome: link another outcome before removing this one"
+                                "plan \"{title}\" has an approved version and keeps at least \
+                                 one roadmap outcome: link another outcome before removing \
+                                 this one"
                             ))
                             .into());
                         }

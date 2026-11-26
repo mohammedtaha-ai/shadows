@@ -422,7 +422,7 @@ async fn an_approved_plan_keeps_its_last_outcome_and_moves_it_whole() {
     let workspace = core.design().vision(&p).await.unwrap().revision;
     blocked(
         link(&core, &p, "drop-last", vec![remove(&ids[1], &plan.plan_id)]).await,
-        "keeps at least one roadmap outcome",
+        "plan \"Plan\" has an approved version and keeps at least one roadmap outcome",
     );
     assert_eq!(served(&core, &p, &ids).await, before);
     assert_eq!(core.design().vision(&p).await.unwrap().revision, workspace);
