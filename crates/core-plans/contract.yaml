@@ -585,6 +585,14 @@ functions:
       # `NotLatestVersion`, checked after the replay. The version records its
       # writer: a Planner's thread and `operation`, an external grant. A start
       # refused by `workflow_one_draft` answers the plan's Draft.
+      # A Planner's new plan in a thread anchored to an outcome is linked to
+      # that outcome in the same transaction: Design::thread_anchor_in, then
+      # design_outcome_in (a removed outcome refuses the whole start), then
+      # Design::apply_workspace_ops_in with one PlanLinkPut as the Planner and
+      # apply_design_links_in. The recorded DraftStart covers the link's
+      # replay; no second command is derived. A Part anchor, no anchor, or a
+      # new version of an existing plan links nothing
+      # (an_outcome_anchored_draft_links_once_and_a_removed_anchor_rolls_back).
     show_plan: "(&self, ctx: &CommandContext, writer: &Writer, turn: &OperationId, workflow: &WorkflowId, task_number: Option<u32>, place: Place) -> Result<PlanShown, PlansError>"
     thread_plan:
       signature: "(&self, thread: &ThreadId) -> Result<Option<WorkflowId>, StorageError>"

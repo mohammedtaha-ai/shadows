@@ -11,6 +11,8 @@ mod plan;
 use listening::{listening_app, ok, thread_client};
 #[path = "workspace_mcp/approval.rs"]
 mod approval;
+#[path = "workspace_mcp/delivery.rs"]
+mod delivery;
 #[path = "workspace_mcp/roadmap.rs"]
 mod roadmap;
 

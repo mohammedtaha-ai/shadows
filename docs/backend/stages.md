@@ -240,7 +240,7 @@ B-230, B-232, B-231, B-233, B-234, B-235.
 
 ### B-238 · Link a Planner draft from its outcome
 
-- Status: blocked on B-237
+- Status: done
 - Plan: [Task 2](plans/2026-11-26-delivery-traceability.md#task-2--b-238--link-a-planner-draft-from-its-outcome)
 - Read: AppCore, Plans' draft and workspace edit owners, Design's anchor loader.
 - Touch: the draft, workspace edit and anchor paths and the MCP scenario listed in Task 2.

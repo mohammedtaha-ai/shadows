@@ -223,6 +223,9 @@ functions:
     thread_anchor:
       signature: "(&self, thread: &ThreadId) -> Result<Option<DesignAnchor>, DesignError>"
       rule: A removed design item remains a readable reference so Turns can announce its removal.
+    thread_anchor_in:
+      signature: "(conn: &mut SqliteConnection, thread: &ThreadId) -> Result<Option<DesignAnchor>, StorageError>"
+      rule: The one anchor loader, in the caller's transaction; thread_anchor checks the live thread and calls it, and Plans' draft start reads it inside its write.
     planner_approver:
       signature: "private: derives Planner writer, running operation and harness from grant/thread"
     approve_vision_proposal_as_planner:
@@ -392,6 +395,15 @@ functions:
       # write_txn → classify/replay → live project/workspace revision → ordered
       # ops (empty batch refused) → affected element revisions once per batch →
       # immutable design_command_result → append_event → record_command.
+      # The revision check, the user actor, design_command_result and
+      # record_command live here; everything else is apply_workspace_ops_in.
+    apply_workspace_ops_in:
+      signature: "(conn: &mut SqliteConnection, actor: &Actor, project: &ProjectId, ops: Vec<WorkspaceOp>, facts: &BTreeMap<String, Option<String>>) -> Result<DesignChange, DesignError>"
+      # The shared body of every workspace edit: applies the ops, raises the
+      # workspace revision and each changed outcome's, appends
+      # ProjectDesignChanged as `actor`. Writes no design_command_result and
+      # records no command: the caller's own command covers replay (Plans'
+      # outcome-anchored draft start).
     design_part_in:
       signature: "(&self, project: &ProjectId, id: &PartId) -> Result<PartDetails, StorageError>"
       # A read transaction supplies a consistent workspace revision, root-first
