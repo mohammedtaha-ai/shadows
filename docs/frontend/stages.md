@@ -144,7 +144,7 @@ then F-147, then F-148.
 
 ### F-151 · Display related tasks in Roadmap, Map and State
 
-- Status: blocked on F-150
+- Status: done
 - Plan: [Task 7](plans/2026-11-26-delivery-traceability.md#task-7--f-151--display-related-tasks-in-roadmap-map-and-state)
 - Read: State and Design contracts and the accepted delivery traceability request.
 - Touch: State API/options and the three read views and tests listed in Task 7.

@@ -1,20 +1,12 @@
 // One job: show Core's project state (stage, parts, plans, gaps, one part in full) as Core gave it.
 import { useQuery } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { projectStateQuery, type ElementGap, type ElementView, type PartDetail, type PartState, type PlanProgress, type PlanTasks, type TaskLine } from '@/api/project-state'
+import { accessLabel, projectStateQuery, taskStatusLabel, type ElementGap, type ElementView, type PartDetail, type PartState, type PlanProgress, type PlanTasks } from '@/api/project-state'
 import { ErrorLine } from '@/app/error-line'
 import { Panel } from '@/components/ui/panel'
 import { Button } from '@/components/ui/button'
 import { SkeletonContent } from '@/components/ui/skeleton'
 import { StateBadge } from './state-badge'
-
-const ATTEMPT_LABELS = {
-  running: 'Running', committed: 'Committed', failed: 'Failed', stopped: 'Stopped', interrupted: 'Interrupted',
-} as const
-
-function taskStatus(task: TaskLine): string {
-  return task.done ? 'Done' : task.attempt !== null ? ATTEMPT_LABELS[task.attempt] : 'Not started'
-}
 
 const link = 'text-accent-line hover:underline'
 
@@ -104,7 +96,8 @@ function PlanTasksBlock({ projectId, plan }: { projectId: string; plan: PlanTask
               className={link}>
               T{task.number} <span dir="auto">{task.title}</span>
             </Link>
-            <span className="text-muted-foreground">{taskStatus(task)}</span>
+            <span className="text-muted-foreground">{taskStatusLabel(task)}</span>
+            {task.access != null && <span className="text-muted-foreground">{accessLabel(task.access)}</span>}
           </li>
         ))}
       </ul>
@@ -179,6 +172,31 @@ export function StateView({ projectId, part, removed }: { projectId: string; par
       </Panel>
       {data.parts.length === 0 && data.unassigned.length === 0 && (
         <p className="text-sm text-muted-foreground">No parts yet. The map comes from the Planner.</p>
+      )}
+      {data.task_totals !== undefined && (
+        <section aria-label="Task totals" className="space-y-1">
+          <h2 className="text-sm font-medium">Tasks</h2>
+          <p className="text-xs text-muted-foreground">
+            {data.task_totals.done} of {data.task_totals.total} done · {data.task_totals.started} started · {data.task_totals.not_started} not started
+          </p>
+        </section>
+      )}
+      {data.outcomes !== undefined && data.outcomes.length > 0 && (
+        <section aria-label="Outcomes" className="space-y-1">
+          <h2 className="text-sm font-medium">Outcomes with plans</h2>
+          <ul className="space-y-0.5">
+            {data.outcomes.map(outcome => (
+              <li key={outcome.outcome_id} className="text-xs text-muted-foreground">
+                <Link to="/projects/$projectId/workspace" params={{ projectId }}
+                  search={{ view: 'roadmap', outcome: outcome.outcome_id }} dir="auto" className={link}>
+                  {outcome.title}
+                </Link>
+                {' '}{outcome.tasks.done} of {outcome.tasks.total} tasks done
+              </li>
+            ))}
+          </ul>
+          {(data.outcomes_more ?? 0) > 0 && <p className="text-xs text-muted-foreground">{data.outcomes_more} more outcomes</p>}
+        </section>
       )}
       {data.part != null && part !== undefined && (
         <PartDetailSection projectId={projectId} title={partTitle(data.part.part_id)} detail={data.part} removed={removed} />

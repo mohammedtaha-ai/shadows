@@ -182,3 +182,29 @@ it('the_workspace_links_to_the_state', async () => {
   const link = [...a.container.querySelectorAll('a')].find(item => item.textContent === 'State')!
   expect(link.getAttribute('href')!.endsWith('/projects/p1/state')).toBe(true)
 })
+
+it('the_overview_shows_the_unique_task_total_and_the_outcomes_with_roadmap_links', async () => {
+  const a = app = await open('/projects/p1/state', () => stateOf({
+    task_totals: { total: 3, done: 0, started: 1, not_started: 2 },
+    outcomes: [
+      { outcome_id: 'o1', title: 'Sign in', tasks: { total: 2, done: 0, started: 1, not_started: 1 } },
+      { outcome_id: 'o2', title: 'Sign out', tasks: { total: 2, done: 0, started: 1, not_started: 1 } },
+    ],
+    outcomes_more: 4,
+  }))
+  await until(() => a.text().includes('Sign in'))
+  const totals = a.container.querySelector('section[aria-label="Task totals"]')!
+  expect(totals.textContent).toContain('0 of 3 done · 1 started · 2 not started')
+  expect(a.container.querySelector('a[href="/projects/p1/workspace?view=roadmap&outcome=o2"]')).not.toBeNull()
+  expect(a.text()).toContain('4 more outcomes')
+})
+
+it('a_selected_part_in_state_shows_each_tasks_access', async () => {
+  const a = app = await open('/projects/p1/state?part=web', () => stateOf({
+    parts: [part()],
+    part: { part_id: 'web', plans_more: 0, elements: [], plans: [{ plan_id: 'plan1', title: 'Login plan', version: 2, workflow_id: 'w1',
+      tasks: [{ number: 1, title: 'Add form', done: false, attempt: 'running', access: 'read_write' }] }] },
+  }))
+  await until(() => a.text().includes('Add form'))
+  expect(a.text()).toContain('Reads and writes')
+})

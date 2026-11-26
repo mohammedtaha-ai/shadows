@@ -176,3 +176,48 @@ it('outcome selection and project changes isolate local editor state', async () 
   expect(a.text()).not.toContain('تعديل محلي أول')
   expect(a.text()).not.toContain('تعديل محلي ثان')
 })
+
+it('a_selected_outcome_lists_its_approved_and_draft_plans_with_task_status', async () => {
+  let done = false
+  const searches: string[] = []
+  const counts = (d: number) => ({ total: 2, done: d, started: 1 - d, not_started: 1 })
+  const state = () => ({
+    project_id: 'p1', stage: 'plans', map_revision: 1, missing: [], parts: [], parts_more: 0,
+    unassigned: [], unassigned_more: 0, gaps: [], gaps_more: 0,
+    outcome: {
+      outcome_id: 'o1', title: 'Sign in', plans_more: 0, tasks: counts(done ? 1 : 0),
+      plans: [
+        { plan: { plan_id: 'pl1', title: 'Login plan', version: 3, workflow_id: 'w7', draft: null, tasks: counts(done ? 1 : 0) },
+          tasks: [{ number: 2, title: 'Form', done, attempt: done ? 'committed' : 'running', access: 'read_write' },
+            { number: 3, title: 'Wire', done: false, attempt: null }] },
+        { plan: { plan_id: 'pl2', title: 'Next idea', version: null, workflow_id: null, draft: 'w9', tasks: counts(0) }, tasks: [] },
+      ],
+    },
+  })
+  const a = app = await startApp('/projects/p1/workspace?view=roadmap&outcome=o1', {
+    ...answers(),
+    'GET /api/projects/p1/design/outcomes': { revision: 1, items: [outcome], next: null },
+    'GET /api/projects/p1/design/outcomes/o1': { revision: 1, outcome, ancestors: [], parts: [], plans: [] },
+    'GET /api/projects/p1/state': (request: Request) => { searches.push(new URL(request.url).search); return Response.json(state()) },
+  })
+  await until(() => a.text().includes('Login plan'))
+  const section = a.container.querySelector('section[aria-label="Related tasks"]')!
+  expect(section.querySelector('a[href="/projects/p1/workflows/w7/versions/3/tasks/2"]')?.textContent).toContain('T2')
+  expect(section.textContent).toContain('Running')
+  expect(section.textContent).toContain('Reads and writes')
+  const draft = section.querySelector('a[href="/projects/p1/workflows/w9"]')!
+  expect(draft.closest('div')?.textContent).toContain('Draft')
+  expect(draft.closest('div')?.querySelector('ul')).toBeNull()
+  expect(searches[0]).toBe('?outcome_id=o1')
+  await until(() => a.container.querySelector('input[aria-label="Outcome title"]') !== null)
+  const source = a.sources.find(s => s.url.includes('/projects/p1/events'))!
+  done = true
+  await act(async () => {
+    source.caughtUp(0)
+    source.durable(1, 'TaskProgressChanged', null, { project_id: 'p1', workflow_id: 'w7', version: 3, task: 2, attempt_id: null })
+  })
+  await until(() => section.textContent?.includes('Done') === true)
+  expect(section.textContent).toContain('1 of 2 tasks done')
+  expect(a.container.querySelector<HTMLInputElement>('input[aria-label="Outcome title"]')?.value).toBe(outcome.content.title)
+  expect(a.text()).not.toMatch(/achieved|accepted/i)
+})

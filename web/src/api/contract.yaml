@@ -42,7 +42,7 @@ groups:
   createGroup: Create a group using the caller's command id.
   sendToGroup: Append a person message using the caller's command id.
 project_state:
-  projectStateQuery: GET /api/projects/{id}/state, with query part_id only when a part is asked; key projectStateKeys.state(projectId, partId).
+  projectStateQuery: GET /api/projects/{id}/state, with at most one selector, part_id or outcome_id; key projectStateKeys.state(projectId, partId, outcomeId) holds both slots (null when unasked) under the one reads invalidation prefix. taskStatusLabel and accessLabel word a TaskLine's Runs status and ScopeAccess once for every State-backed view (the_state_read_names_one_selector_and_keeps_each_selection_under_its_own_key).
   elementsQuery: GET /api/projects/{id}/elements; key projectStateKeys.elements(projectId).
   elementRevisionsQuery: GET /api/projects/{id}/elements/{element}/revisions; key projectStateKeys.revisions(projectId, elementId), outside `reads` because revisions change only with DesignElementChanged.
   invalidateProjectState: Invalidates projectStateKeys.reads, which holds the state with and without a part and the elements.

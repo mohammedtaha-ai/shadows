@@ -1,7 +1,8 @@
 import { SkeletonContent } from '@/components/ui/skeleton'
 // Bounded navigation through a project's primary containment tree.
 import { Link } from '@tanstack/react-router'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, type UseQueryResult } from '@tanstack/react-query'
+import { accessLabel, projectStateQuery, taskStatusLabel, type ProjectStateView } from '@/api/project-state'
 import { useState } from 'react'
 import { type Part } from '@/api/design'
 import { partQuery, stageQuery, mapProposalsQuery, standardsQuery } from '@/api/design'
@@ -26,6 +27,7 @@ export function PartsView({ projectId, selected }: { projectId: string; selected
   const counts = new Map<string,number>()
   for (const p of pending) counts.set(p.thread_id,(counts.get(p.thread_id) ?? 0)+1)
   const detail = useQuery({ ...partQuery(projectId, selected ?? ''), enabled: selected !== undefined })
+  const tasks = useQuery({ ...projectStateQuery(projectId, selected), enabled: selected !== undefined })
   return <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
     <section className="min-w-0 space-y-3" aria-label="Project parts">
       {!approved && !stage.isPending && !proposals.isPending && stage.error === null && proposals.error === null &&
@@ -62,6 +64,7 @@ export function PartsView({ projectId, selected }: { projectId: string; selected
       {detail.data !== undefined && <Link to="/projects/$projectId/new" params={{ projectId }}
         search={{ anchor: `part:${detail.data.part.id}` }}
         className="inline-flex text-sm text-accent-line hover:underline">Plan from here</Link>}
+      {selected !== undefined && detail.data !== undefined && <PartTasks projectId={projectId} read={tasks} />}
       {detail.data !== undefined && <PartEditor key={selected} projectId={projectId} saved={detail.data} destination={destination} />}
       {selected !== undefined && detail.data !== undefined && <section aria-label="Selected part children" className="space-y-2">
         <h3 className="text-sm font-medium">Children</h3>
@@ -70,6 +73,28 @@ export function PartsView({ projectId, selected }: { projectId: string; selected
       {!creating && selected === undefined && <p className="text-sm text-muted-foreground">Open a part to inspect its design and linked plans.</p>}
     </section>
   </div>
+}
+
+/** The selected part's own tasks, by plan, as State scopes them. */
+function PartTasks({ projectId, read }: { projectId: string; read: UseQueryResult<ProjectStateView> }) {
+  const part = read.data?.part
+  return <section aria-label="Related tasks" className="space-y-2">
+    <h3 className="text-sm font-medium">Related tasks</h3>
+    {read.isPending && <SkeletonContent label="Loading related tasks…" />}
+    {read.error && <ErrorLine error={read.error} />}
+    {part != null && part.plans.length === 0 && <p className="text-xs text-muted-foreground">No plan has tasks in this part yet.</p>}
+    {part?.plans.map(plan => <div key={plan.plan_id} className="space-y-1 text-xs">
+      <Link to="/projects/$projectId/workflows/$workflowId" params={{ projectId, workflowId: plan.workflow_id }} dir="auto" className="text-sm font-medium text-accent-line hover:underline">{plan.title}</Link>
+      <ul className="space-y-0.5">{plan.tasks.map(task => <li key={task.number} className="flex flex-wrap gap-x-2">
+        <Link to="/projects/$projectId/workflows/$workflowId/versions/$version/tasks/$task"
+          params={{ projectId, workflowId: plan.workflow_id, version: String(plan.version), task: String(task.number) }}
+          className="text-accent-line hover:underline">T{task.number} <span dir="auto">{task.title}</span></Link>
+        <span className="text-muted-foreground">{taskStatusLabel(task)}</span>
+        {task.access != null && <span className="text-muted-foreground">{accessLabel(task.access)}</span>}
+      </li>)}</ul>
+    </div>)}
+    {part != null && part.plans_more > 0 && <p className="text-xs text-muted-foreground">{part.plans_more} more plans</p>}
+  </section>
 }
 
 function MapBranch({projectId,selected}: {projectId:string;selected:Part}) {
