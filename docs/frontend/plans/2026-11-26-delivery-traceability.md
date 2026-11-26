@@ -1,7 +1,7 @@
 # Delivery Traceability Web Plan
 
-> **Execution:** Continue the [backend plan](../../backend/plans/2026-11-26-delivery-traceability.md)
-> in its stated order. Each task has one scoped commit.
+> **Execution:** F-152 runs first, on its own. F-150 and F-151 continue the
+> [backend plan](../../backend/plans/2026-11-26-delivery-traceability.md) after B-241. Each task has one scoped commit.
 
 **Spec:** [§18.3 Delivery traceability](../../core/specs/2026-10-03-project-planning-workspace-design.md#delivery-traceability-approved-design-2026-11-26).
 **Fields:** [Accepted shared request](../../shared/requests/2026-11-26-delivery-traceability.md).
@@ -92,15 +92,16 @@ plan version and each task need a path back to Roadmap and its owners.
 - [ ] In State overview, render Core's `task_totals` once and list `outcomes` with Roadmap links.
   The selected-part State detail also shows each task's access label. Keep the same source
   for status in each view, use existing event refresh, and surface the API's remaining counts.
-- [ ] Run the three focused tests, `npx vitest run src/api/project-state.test.ts` and
-  `npm run typecheck`. Expected GREEN. Commit `feat(web): show related delivery progress`.
+- [ ] Run the three focused tests, `npx vitest run src/api/project-state.test.ts`,
+  `npm run typecheck`, `npm run lint`, `npm run build` and
+  `npx vitest run src/codemap.test.ts src/architecture`. Expected GREEN. Commit `feat(web): show related delivery progress`.
 
 ## Task 8 · F-152 · Read real dependency status in the plan graph
 
 **Why:** In testing8 an already committed storage task appears as `Pending v1` beside the plan
 that uses it. A dependency card needs Runs progress for the version displayed on the card.
 
-**Needs:** F-150 and F-151.
+**Needs:** nothing. It reads the existing `planProgressQuery` and runs first, before F-150.
 **Touch:** `web/src/app/workflows/{linked-node.tsx,plan-graph.test.tsx,contract.yaml}`,
 `docs/frontend/stages.md`.
 
@@ -117,6 +118,7 @@ that uses it. A dependency card needs Runs progress for the version displayed on
   shows status unavailable. A finished query with an existing task and no attempt shows
   Not started; a committed attempt with `done: false` shows Committed. Keep the task
   progress invalidation from `TaskProgressChanged`.
-- [ ] Run the graph test and F-150/F-151 tests again. Run `npm run typecheck`,
-  `npm run lint`, `npm run build` and `npx vitest run src/codemap.test.ts src/architecture`.
+- [ ] Run the graph test, `npm run typecheck`, `npm run lint`, `npm run build` and
+  `npx vitest run src/codemap.test.ts src/architecture`. F-151 runs these four checks again
+  for the finished frontend slice.
   Expected GREEN. Commit `fix(web): show execution status on linked task cards`.

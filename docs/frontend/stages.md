@@ -153,9 +153,9 @@ then F-147, then F-148.
 
 ### F-152 · Read real dependency status in the plan graph
 
-- Status: blocked on F-151
+- Status: todo, first; it needs no backend task
 - Plan: [Task 8](plans/2026-11-26-delivery-traceability.md#task-8--f-152--read-real-dependency-status-in-the-plan-graph)
 - Read: the workflows contract's linked node, current progress query and linked-graph test.
 - Touch: linked node, its test, workflows contract and this entry.
-- Needs: F-150 and F-151
+- Needs: the existing plan progress read only
 - Done when: the graph shows the linked exact-version task status from Runs and the frontend checks pass.

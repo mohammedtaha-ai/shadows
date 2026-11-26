@@ -85,9 +85,21 @@ state. The links follow saved relationships and task contracts. Initial project
 setup belongs to project preparation, outside the delivery plan lifecycle.
 
 - **Draft from an outcome.** Roadmap's **Plan from here** opens a Planner
-  conversation anchored to a saved outcome. When it creates a new plan, Plans
-  attaches that outcome in the draft creation transaction. The outcome must
-  still exist in the same project. A failed attachment leaves no new plan.
+  conversation anchored to a saved outcome. When the Planner creates a new plan
+  there, Core reads the anchor and saves the link in the draft creation
+  transaction; the Planner names no outcome. The outcome must still exist in
+  the same project. The link raises the workspace and outcome revisions, so an
+  editor opened before it cannot save its older plan list over the link; the
+  draft's own event tells the views to read again. A replayed draft start
+  answers from its recorded command and links nothing twice. A failed
+  attachment leaves no new plan. The plan shows its outcome by name before
+  approval, where the person corrects a wrong one in the outcome editor.
+- **A version or a new plan.** Before starting a plan, the Planner reads the
+  plans already linked to the outcome. A changed way of reaching the same plan
+  goal is that plan's next version; a feature with acceptance of its own is a
+  new plan, linked to the outcome it serves or to a new outcome the Planner
+  proposes. A plan is never linked to an outcome it does not serve to pass the
+  approval check.
 - **Draft from a regular conversation.** A person or agent can explore and create
   a draft before choosing an outcome. When the person selects an existing
   outcome, Shadows saves the link. The outcome's **Linked plans** list also
@@ -126,6 +138,14 @@ first, then the person selects the outcome before approving the plan. The
 outcome shows the plan's task progress, and each task shows its affected
 parts from the saved scope. The outcome, map and State views use the same
 identities when moving between them.
+
+> **OPEN — outcome acceptance, 2026-11-26:** These links show what work serves an
+> outcome and how far it has run; they do not say the outcome is achieved. §17
+> holds evidence for tasks, and no owner yet decides an outcome's acceptance
+> items. The next slice gives each acceptance item a decision and the evidence
+> behind it (a task report, a check or a test result), gathered by the Planner,
+> and the person approves that the outcome is achieved. Close this when an
+> outcome carries that decision and the Roadmap shows it beside task progress.
 
 ## 18.4 A shared contract
 

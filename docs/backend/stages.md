@@ -244,7 +244,8 @@ B-230, B-232, B-231, B-233, B-234, B-235.
 - Plan: [Task 2](plans/2026-11-26-delivery-traceability.md#task-2--b-238--link-a-planner-draft-from-its-outcome)
 - Read: AppCore, Plans' draft and workspace edit owners, Design's anchor loader.
 - Touch: the draft, workspace edit and anchor paths and the MCP scenario listed in Task 2.
-- Done when: anchored start, replay, stale-anchor rollback and ordinary draft pass.
+- Done when: anchored start links inside the draft transaction and raises the workspace and
+  outcome revisions; replay, stale-anchor rollback, a stale editor save and ordinary draft pass.
 
 ### B-239 · Enforce delivery links at approval
 
@@ -271,11 +272,19 @@ B-230, B-232, B-231, B-233, B-234, B-235.
 - Touch: existing live/version and State projections, adapters, tests and OpenAPI in Task 5.
 - Done when: outcome detail, scoped part tasks and unique live totals pass across State readers.
 
+### B-243 · Tell the Planner when to version and when to plan anew
+
+- Status: blocked on B-238 and B-241
+- Plan: [Task 9](plans/2026-11-26-delivery-traceability.md#task-9--b-243--tell-the-planner-when-to-version-and-when-to-plan-anew)
+- Read: the Planner prompt's plans paragraph and the harness contract's prompt lines.
+- Touch: the Planner prompt, harness contract, `mcp_tools` test and this entry.
+- Done when: the prompt line test passes and `mcp_tools` stays green.
+
 ### B-242 · Verify the real delivery path
 
-- Status: blocked on B-241 and F-152
-- Plan: [Task 9](plans/2026-11-26-delivery-traceability.md#task-9--b-242--verify-the-real-delivery-path)
-- Read: the acceptance in Task 9 and the actual branch revision under test.
+- Status: blocked on B-243, F-151 and F-152
+- Plan: [Task 10](plans/2026-11-26-delivery-traceability.md#task-10--b-242--verify-the-real-delivery-path)
+- Read: the acceptance in Task 10 and the actual branch revision under test.
 - Touch: dated evidence and this entry.
 - Done when: the real linked task and its acceptance can be followed in Roadmap, Map, State,
   Planner and executor context.

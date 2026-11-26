@@ -21,7 +21,7 @@ Approved design at `0da03feb`. Plan prepared on `feature/after-77`.
 
 | AppCore owner | Reuse | Add |
 |---|---|---|
-| Design, `core-design` | `set_thread_anchor`, the anchor loader, `design_outcome_in`, `edit_workspace_in`, `layout_in`, `ProjectLayout::owners` | Transactional anchor read and explicit actor for the existing workspace edit. The existing owner rules resolve paths. |
+| Design, `core-design` | `set_thread_anchor`, the anchor loader, `design_outcome_in`, `edit_workspace_in`, `layout_in`, `ProjectLayout::owners` | Transactional anchor read, and the workspace edit's body callable without recording a command, with the caller's actor. The existing owner rules resolve paths. |
 | Plans, `core-plans` | `start_draft`, `approve_plan_with`, `apply_design_links_in`, `edit_design`, `TaskContext`, `live_versions`, `get_plan_scoped` | Save the anchored association, require it at approval, retain the last link, and expose task ownership and delivery references. |
 | Runs, `core-runs` | `progress`, `TaskProgressChanged` and saved `AttemptBrief.context` | The existing snapshot carries the additive TaskContext fields. Existing Runs APIs and stored attempts continue to answer. |
 | ProjectState, `project-state` | `state`, `facts`, `plan_state`, `detail` and current CodeRecord element facts | Outcome progress and project totals from live versions; part detail filtered by task ownership. |
@@ -99,48 +99,46 @@ where `ScopeOwner { part_id: PartId, via: OwnedVia }`. Use the existing `OwnedVi
 ## Task 2 · B-238 · Link a Planner draft from its outcome
 
 **Why:** Starting at an outcome currently sets a thread anchor. The new plan must appear under
-that result even when nobody remembers to use the checkbox.
+that result even when nobody remembers to use the checkbox, and the Planner names no outcome.
 
 **Touch:** `crates/core-design/src/anchors.rs`, `crates/core-design/src/store/anchors.rs`,
 `crates/core-design/src/store/vision.rs`, `crates/core-design/contract.yaml`,
-`crates/core-plans/src/design_edit.rs`, `crates/core-plans/src/store/draft.rs`,
-`crates/core-plans/contract.yaml`, `crates/core-turns/tests/planning_context.rs`,
+`crates/core-plans/src/store/draft.rs`, `crates/core-plans/contract.yaml`,
 `crates/shadows/tests/workspace_mcp.rs`, `crates/shadows/tests/workspace_mcp/delivery.rs` (new),
 `docs/backend/stages.md`.
 
-**Consumes:** `Writer::Planner { thread, .. }`, `Design::design_outcome_in` and
+**Consumes:** `Writer::Planner { thread, .. }`, `Writer::actor`, `Design::design_outcome_in` and
 `WorkspaceOp::PlanLinkPut`.
 **Produces:** `Design::thread_anchor_in(tx: &mut Tx, thread: &ThreadId) -> Result<Option<DesignAnchor>, StorageError>`
-using one loader, plus Plans' reusable `edit_workspace_with_in` accepting the existing command,
-workspace revision, ops and a verified `Actor`. Keep return type `Result<DesignChange, PlansError>`.
-The helper is callable inside Plans' existing draft and Design-edit transactions.
+using one loader, and `Design::apply_workspace_ops_in(conn, actor: &Actor, project, ops, facts)
+-> Result<DesignChange, DesignError>`: the body of `edit_workspace_in` without its revision
+check against a caller's expectation and without recording a command. `edit_workspace_in`
+keeps its signature, checks `expected_revision`, calls the body, then records its command, so
+person edits behave as today.
 
 - [ ] In `workspace_mcp/delivery.rs`, write
   `an_outcome_anchored_draft_links_once_and_a_removed_anchor_rolls_back`. Use the existing
   `workspace_mcp` Planner fixture to set a real thread anchor and invoke `draft_start` during a
-  turn. Assert the outcome references the exact returned `PlanId`, its workspace revision
-  advances once, and an identical replay still answers the same IDs after re-anchoring. On a
-  second turn select an outcome that is removed before the first draft write; assert a refusal,
-  no new plan and no extra draft or design event. Include a plain Planner turn with no outcome
-  anchor as a control; it can create an unlinked draft.
+  turn. Assert the outcome references the exact returned `PlanId`, the workspace revision and
+  that outcome's revision each advance once, and one `ProjectDesignChanged` names the outcome
+  with the Planner as actor. An identical replay answers the same IDs and changes no revision.
+  An outcome editor save sent with the revision read before the draft is refused as a revision
+  conflict. On a second turn the anchored outcome is removed before the draft; assert a
+  refusal, no new plan and no extra draft or design event. Include a plain Planner turn with
+  no outcome anchor as a control; it creates an unlinked draft.
 - [ ] Run `cargo test -p shadows --test workspace_mcp outcome_anchored_draft`.
   Expected RED at the missing association.
 - [ ] Extract the existing anchor lookup into `thread_anchor_in`; leave standalone reads using
-  that loader. In `PlansStore::start_draft`, after replay classification, only in the **new plan**
-  branch and only for a Planner, read the anchor inside the existing transaction. Validate an
-  outcome anchor with `Design::design_outcome_in` in that project and use its workspace revision.
-  A Part anchor or absent anchor goes through existing draft creation.
-- [ ] Reuse the Plans workspace edit path by extracting its same-transaction body from
-  `edit_workspace_with`. Pass an explicit `Actor` into `Design::edit_workspace_in`. The user
-  wrapper passes its existing user actor; the auto-attachment passes `writer.actor()`. Update
-  the known core-turns fixture caller. Keep Design's single revision and `ProjectDesignChanged`
-  write plus Plans' association mutation in the same transaction as the new draft.
-- [ ] Derive the nested link command identity from the original draft command and
-  `{ plan_id, outcome_id }` with kind `DraftOutcomeAttach`, schema version 1 and the same
-  principal. The outer `DraftStart` fingerprint and replay remain stable. Use the existing
-  edit operation to put the link, then record the outer command. The existing next-version
-  branch keeps the PlanId's current associations. External `draft_ref` behavior stays in its
-  existing grant path.
+  that loader. Split `edit_workspace_in` into the unrecorded body and its recorded wrapper;
+  the event's actor comes from the caller instead of `Actor::user(&ctx.principal_id)`.
+- [ ] In `PlansStore::start_draft`, after the recorded-command replay check, only in the
+  **new plan** branch and only for `Writer::Planner`, read the anchor inside the existing
+  transaction. For an outcome anchor, validate it with `Design::design_outcome_in` in that
+  project, then call `apply_workspace_ops_in` with one `PlanLinkPut` for the new `PlanId` and
+  the writer's actor, then `Plans::apply_design_links_in` with the same op. The outer
+  `DraftStart` command records once, so its replay covers the link and no second command id
+  is derived. A Part anchor or no anchor goes through draft creation as today; a new version
+  of an existing plan keeps the PlanId's current links.
 - [ ] Run `cargo test -p shadows --test workspace_mcp` and
   `cargo test -p core-turns --test planning_context`. Expected GREEN, including current
   workspace edit attribution and navigation tests. Commit `feat(plans): attach outcome-anchored drafts`.
@@ -158,7 +156,7 @@ approves at the person's request. The last link must survive subsequent workspac
 `crates/shadows/tests/workspace_mcp/delivery.rs`, `crates/shadows/tests/design_routes.rs`,
 the explicit fixture families below, and `docs/backend/stages.md`.
 
-**Consumes:** B-237 ownership and B-238's transactional workspace edit.
+**Consumes:** B-237 ownership and B-238's outcome link at draft start.
 **Produces:** `Plans::plan_outcome_ids_in(tx: &mut Tx, project: &ProjectId, plan: &PlanId)
 -> Result<Vec<OutcomeId>, StorageError>` from the current join table, ordered by outcome ID.
 Under the same owner use
@@ -210,7 +208,7 @@ refusal. These files are the candidate scopes, and their existing assertions sti
   `crates/shadows-core/tests/{attempt_briefs,cross_plan_resolution,cross_plan_views,executor_session,phase_dependencies,ready_groups,run_admission,runs_attempts,task_conflicts,task_context,task_contract,task_questions}.rs`;
   `crates/shadows-core/tests/runs_attempts/{checks,contract_check,executor_choice,planner,project_state,rechecks}.rs`.
 - For each edited test target run the corresponding `cargo test -p <owning crate> --test <target>`
-  with the ordinary ignore defaults. A new live execution is Task 9. To find an indirect caller
+  with the ordinary ignore defaults. A new live execution is Task 10. To find an indirect caller
   while implementing, use references to `approve_plan_with` and the route fixture rather than
   copying a permissive seed across the test tree.
 
@@ -307,10 +305,38 @@ limits and projections are in the shared request. Validate a selected outcome th
 
 ## Tasks 6–8 · Web consumers
 
-Continue at F-150, F-151 and F-152 in the
+F-152 needs no backend task and runs first, on its own. Continue at F-150 and F-151 after
+B-241, in the
 [frontend plan](../../frontend/plans/2026-11-26-delivery-traceability.md).
 
-## Task 9 · B-242 · Verify the real delivery path
+## Task 9 · B-243 · Tell the Planner when to version and when to plan anew
+
+**Why:** The Planner is told to continue a plan when one "fits", with no rule for what fits; in
+testing8 `--days` became a plan of its own with no outcome. Once approval requires an outcome, a
+Planner without a rule can also link a plan to an outcome it does not serve only to pass the check.
+
+**Touch:** `crates/core-harness/src/prompt.txt`, `crates/core-harness/contract.yaml`,
+`crates/shadows/tests/mcp_tools.rs`, `docs/backend/stages.md`.
+
+**Needs:** B-238 and B-241, so the anchored detail's linked plans and `project_state` with
+`outcome_id` exist when the rule names them.
+
+- [ ] In `mcp_tools.rs`, write `the_planner_is_told_to_choose_a_version_or_a_new_plan` beside
+  `the_planner_is_told_to_read_the_project_state`, asserting one exact prompt line: before
+  `draft_start`, read the plans of the outcome the work serves (the anchor's linked plans, or
+  `project_state` with its `outcome_id`); a changed way of reaching the same plan goal is that
+  plan's next version; a feature with acceptance of its own is a new plan under the outcome it
+  serves, or under a new outcome proposed with the roadmap flow; never link a plan to an
+  outcome it does not serve to pass approval.
+- [ ] Run `cargo test -p shadows --test mcp_tools the_planner_is_told_to_choose`.
+  Expected RED at the missing line.
+- [ ] Replace "start a new plan only when the person asks for one or none fits" in the plans
+  paragraph with that rule, keeping the rest of the paragraph. Add the rule to the harness
+  contract beside the `project_state` prompt line and name the test.
+- [ ] Run the focused test and `cargo test -p shadows --test mcp_tools`. Expected GREEN.
+  Commit `feat(harness): tell the Planner when to version a plan`.
+
+## Task 10 · B-242 · Verify the real delivery path
 
 **Why:** Use one small live case to verify links persist without the Planner or executor
 composing them, and a marked-done task updates every linked view.
@@ -318,7 +344,7 @@ composing them, and a marked-done task updates every linked view.
 **Touch:** `docs/evidence/2026-11-26-delivery-traceability-live.md` (new) and
 `docs/backend/stages.md`. Use the actual date in the evidence filename if the run is later.
 
-- [ ] After Tasks 1–8, build in place and use the existing Claude Launch configuration and
+- [ ] After Tasks 1–9, build in place and use the existing Claude Launch configuration and
   primary development database. Use an expressly selected disposable project or a new named
   experiment. Put a short outcome, a write part and a read-only dependency in its map.
 - [ ] Start at **Plan from here**, ask for one named task, and verify the saved outcome link
