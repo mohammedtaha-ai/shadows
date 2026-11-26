@@ -105,6 +105,21 @@ describe('ThreadStream', () => {
     expect(heard).toBe(1)
   })
 
+  it('tells its subscribers once for a replayed burst of durable events', () => {
+    const seen: number[] = []
+    const { stream, current } = harness({ onDurable: (event) => seen.push(event.seq) })
+    stream.start()
+    let heard = 0
+    stream.subscribe(() => (heard += 1))
+    for (let seq = 1; seq <= 500; seq += 1) current().durable(seq)
+
+    expect(seen).toHaveLength(500)
+    expect(stream.getState().lastSeq).toBe(500)
+    expect(heard).toBe(0)
+    vi.runOnlyPendingTimers()
+    expect(heard).toBe(1)
+  })
+
   it('a frame after deltas tells its subscribers at once, and the deltas with it', () => {
     const { stream, current } = harness()
     stream.start()
