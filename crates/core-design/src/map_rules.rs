@@ -130,6 +130,42 @@ fn descendant<'a>(parts: &[MapPart<'a>], mut child: &'a str, ancestor: &str) -> 
     false
 }
 
+/// Each key to its part. The first part with a key wins, so a duplicate keeps
+/// the lookup the in-order checks saw before the duplicate is refused.
+fn index<'p, 'a>(parts: &'p [MapPart<'a>]) -> BTreeMap<&'a str, &'p MapPart<'a>> {
+    let mut index = BTreeMap::new();
+    for part in parts {
+        index.entry(part.key).or_insert(part);
+    }
+    index
+}
+
+/// The keys that sit on a containment cycle, found by one walk up the parents
+/// that visits every key once, so a check stays linear in the map's size.
+fn cyclic<'a>(index: &BTreeMap<&'a str, &MapPart<'a>>) -> BTreeSet<&'a str> {
+    let mut done = BTreeSet::new();
+    let mut cyclic = BTreeSet::new();
+    for &start in index.keys() {
+        let mut path: Vec<&str> = Vec::new();
+        let mut visiting = BTreeSet::new();
+        let mut current = Some(start);
+        while let Some(key) = current {
+            if done.contains(key) {
+                break;
+            }
+            if !visiting.insert(key) {
+                let from = path.iter().position(|k| *k == key).unwrap_or(0);
+                cyclic.extend(path[from..].iter().copied());
+                break;
+            }
+            path.push(key);
+            current = index[key].parent.filter(|p| index.contains_key(p));
+        }
+        done.extend(path);
+    }
+    cyclic
+}
+
 impl MapRules {
     pub fn check_shape(
         parts: &[MapPart<'_>],
@@ -146,6 +182,8 @@ impl MapRules {
             .chain(standards.additions.iter().flat_map(|a| &a.content.rules))
             .map(|r| r.id.as_str())
             .collect();
+        let index = index(parts);
+        let cyclic = cyclic(&index);
         for part in parts {
             if !keys.insert(part.key) {
                 return Err(MapRefusal::new(
@@ -166,9 +204,7 @@ impl MapRules {
                 ));
             }
             if let Some(parent) = part.parent
-                && (!parts.iter().any(|p| p.key == parent)
-                    || parent == part.key
-                    || descendant(parts, parent, part.key))
+                && (!index.contains_key(parent) || cyclic.contains(part.key))
             {
                 return Err(MapRefusal::new(
                     "missing_parent",
@@ -206,7 +242,7 @@ impl MapRules {
                 }
             }
         }
-        MapRules::check_places(parts, standards)
+        MapRules::check_places_in(parts, &index, standards)
     }
 }
 
@@ -215,6 +251,14 @@ impl MapRules {
     /// rules of the map, and the layers the standards' catalog asks for.
     pub fn check_places(
         parts: &[MapPart<'_>],
+        standards: &EffectiveStandards,
+    ) -> Result<(), MapRefusal> {
+        MapRules::check_places_in(parts, &index(parts), standards)
+    }
+
+    fn check_places_in<'a>(
+        parts: &[MapPart<'a>],
+        index: &BTreeMap<&'a str, &MapPart<'a>>,
         standards: &EffectiveStandards,
     ) -> Result<(), MapRefusal> {
         let mut folders: Vec<(&str, String)> = Vec::new();
@@ -243,7 +287,7 @@ impl MapRules {
                 ));
             }
             folders.push((part.key, folder.clone()));
-            let Some(parent) = part.parent.and_then(|k| parts.iter().find(|p| p.key == k)) else {
+            let Some(parent) = part.parent.and_then(|k| index.get(k)) else {
                 continue;
             };
             if parent.content.folder.is_empty() {
