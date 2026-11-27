@@ -18,6 +18,17 @@ impl Plans {
     ) -> Result<(), StorageError> {
         self.store.link_plan_part_for_tests(p, plan, part).await
     }
+    /// Links `plan` to `outcome` as a workspace edit would, validated in one write.
+    pub async fn link_plan_outcome_for_test(
+        &self,
+        p: &ProjectId,
+        plan: &PlanId,
+        outcome: &core_design::OutcomeId,
+    ) -> Result<(), StorageError> {
+        self.store
+            .link_plan_outcome_for_tests(p, plan, outcome)
+            .await
+    }
     #[allow(clippy::too_many_arguments)]
     pub async fn start_draft_for_test(
         &self,

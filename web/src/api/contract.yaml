@@ -42,7 +42,7 @@ groups:
   createGroup: Create a group using the caller's command id.
   sendToGroup: Append a person message using the caller's command id.
 project_state:
-  projectStateQuery: GET /api/projects/{id}/state, with query part_id only when a part is asked; key projectStateKeys.state(projectId, partId).
+  projectStateQuery: GET /api/projects/{id}/state, with at most one selector, part_id or outcome_id; key projectStateKeys.state(projectId, partId, outcomeId) holds both slots (null when unasked) under the one reads invalidation prefix. taskStatusLabel and accessLabel word a task's Runs status (done and latest attempt) and ScopeAccess once for every State-backed view and the plan graph's linked cards (the_state_read_names_one_selector_and_keeps_each_selection_under_its_own_key).
   elementsQuery: GET /api/projects/{id}/elements; key projectStateKeys.elements(projectId).
   elementRevisionsQuery: GET /api/projects/{id}/elements/{element}/revisions; key projectStateKeys.revisions(projectId, elementId), outside `reads` because revisions change only with DesignElementChanged.
   invalidateProjectState: Invalidates projectStateKeys.reads, which holds the state with and without a part and the elements.
@@ -226,8 +226,10 @@ agreement_calls:
       number, review_id: string) -> Promise<AgreementVersion>"
 
 grants_and_fs:
-  issueConnection: "(projectIds: string[], commandId: string) -> Promise<IssuedConnection>"
+  issueConnection: "(name: string, projectIds: string[], commandId: string) -> Promise<IssuedConnection>"
+  updateConnectionProjects: "(id: string, expectedRevision: number, projectIds: string[], commandId: string) -> Promise<ExternalConnection>"
   revokeConnection: "(id: string, commandId: string) -> Promise<ExternalConnection>"
+  saveConnectionAnswer: Writes an updated or revoked connection over its cached record.
   listDirs: "(path: string | null) -> Promise<DirectoryListing>; null sends no path query"
   createDir: "(parent: string, name: string) -> Promise<DirectoryEntry>; sends no command_id"
 
@@ -883,3 +885,5 @@ checks_results:
   operations: attemptChecksQuery reads GET /api/attempts/{id}/checks and has no interval; TaskProgressChanged refreshes it (invalidateAttemptReads).
   types: CheckResult, AgentReplyNotice, AgentNotice are generated-schema aliases or their presentation union.
   done: markTaskDone carries optional reason and preserves Core refusal text.
+# workflows.ts re-exports PlanDelivery, the generated delivery block of a Plan read
+# (outcomes, parts, task ownership and approval_missing).

@@ -1,16 +1,17 @@
 //! One job: composing the project's state from its owners' reads.
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 use code_record::{BuildState, ElementState, PlannedPin};
-use core_design::{DesignElement, PartId, ProjectLayout, StageView};
-use core_plans::LiveVersion;
+use core_design::{DesignElement, OutcomeId, PartId, ProjectLayout, StageView};
+use core_plans::{LiveTask, LiveVersion};
 use core_projects::ProjectId;
 use core_runs::TaskProgress;
 
 use crate::model::{
-    ElementGap, ElementView, PartDetail, PartState, PlanProgress, PlanTasks, ProjectStateView,
-    StateCounts, TaskCounts, TaskLine,
+    ElementGap, ElementView, OutcomeDelivery, OutcomePlanProgress, OutcomeProgress, PartDetail,
+    PartState, PlanProgress, PlanTasks, ProjectStateView, ScopeAccess, StateCounts, TaskCounts,
+    TaskLine,
 };
 use crate::{ProjectState, ProjectStateError};
 
@@ -22,6 +23,8 @@ const PLANS_PER_PART: usize = 20;
 const GAPS_MAX: usize = 100;
 /// At most this many plans in a part's detail.
 const DETAIL_PLANS_MAX: usize = 50;
+/// At most this many outcomes in the summary.
+const OUTCOMES_MAX: usize = 100;
 
 /// What every read of the state is composed from, read in one fixed order.
 struct Facts {
@@ -43,6 +46,24 @@ impl ProjectState {
         project: &ProjectId,
         part: Option<&PartId>,
     ) -> Result<ProjectStateView, ProjectStateError> {
+        self.state_for(project, part, None).await
+    }
+
+    /// `state`, with at most one selector answered in full: a part, or an outcome
+    /// with the Active plans that serve it.
+    pub async fn state_for(
+        &self,
+        project: &ProjectId,
+        part: Option<&PartId>,
+        outcome: Option<&OutcomeId>,
+    ) -> Result<ProjectStateView, ProjectStateError> {
+        if part.is_some() && outcome.is_some() {
+            return Err(ProjectStateError::ConflictingSelectors);
+        }
+        let selected = match outcome {
+            Some(id) => Some(self.plans.design_outcome(project, id).await?),
+            None => None,
+        };
         let facts = self.facts(project).await?;
         if let Some(part) = part
             && !facts.layout.parts.iter().any(|p| &p.id == part)
@@ -104,6 +125,14 @@ impl ProjectState {
         let unassigned = unassigned.into_iter().cloned().collect();
         let (gaps, gaps_more) = Self::bounded(Self::gaps(&facts).into_iter(), GAPS_MAX);
         let part = part.map(|part| Self::detail(&facts, part));
+        // Each live task once: a plan is one row whatever it serves.
+        let task_totals = plans.iter().fold(TaskCounts::default(), |sum, plan| {
+            Self::add(sum, plan.tasks)
+        });
+        let summary = Self::outcome_summary(&facts, &plans);
+        let outcomes_more = Self::more(summary.len(), OUTCOMES_MAX);
+        let outcomes = summary.into_iter().take(OUTCOMES_MAX).collect();
+        let outcome = selected.map(|view| Self::outcome_detail(&facts, &plans, view));
         Ok(ProjectStateView {
             project_id: project.clone(),
             stage: facts.stage.stage,
@@ -116,7 +145,114 @@ impl ProjectState {
             gaps,
             gaps_more,
             part,
+            outcomes,
+            outcomes_more,
+            task_totals,
+            outcome,
         })
+    }
+
+    /// Every outcome an Active plan serves, by outcome id, with those plans' live tasks.
+    fn outcome_summary(facts: &Facts, plans: &[PlanProgress]) -> Vec<OutcomeProgress> {
+        let mut by_id: BTreeMap<&str, OutcomeProgress> = BTreeMap::new();
+        for (live, plan) in facts.live.iter().zip(plans) {
+            for outcome in &live.outcomes {
+                let entry =
+                    by_id
+                        .entry(outcome.outcome_id.as_str())
+                        .or_insert_with(|| OutcomeProgress {
+                            outcome_id: outcome.outcome_id.clone(),
+                            title: outcome.title.clone(),
+                            tasks: TaskCounts::default(),
+                        });
+                entry.tasks = Self::add(entry.tasks, plan.tasks);
+            }
+        }
+        by_id.into_values().collect()
+    }
+
+    /// One outcome in full: the Active plans serving it, each with its live task lines.
+    fn outcome_detail(
+        facts: &Facts,
+        plans: &[PlanProgress],
+        view: core_plans::OutcomeView,
+    ) -> OutcomeDelivery {
+        let id = &view.outcome.id;
+        let serving = || {
+            facts
+                .live
+                .iter()
+                .zip(&facts.progress)
+                .zip(plans)
+                .filter(|((live, _), _)| live.outcomes.iter().any(|o| &o.outcome_id == id))
+        };
+        let tasks = serving().fold(TaskCounts::default(), |sum, (_, plan)| {
+            Self::add(sum, plan.tasks)
+        });
+        let (kept, plans_more) = Self::bounded(serving(), DETAIL_PLANS_MAX);
+        let plans = kept
+            .into_iter()
+            .map(|((live, progress), plan)| OutcomePlanProgress {
+                plan: plan.clone(),
+                tasks: live
+                    .live
+                    .as_ref()
+                    .map(|frozen| Self::lines(frozen.tasks.iter(), progress, |_| None))
+                    .unwrap_or_default(),
+            })
+            .collect();
+        OutcomeDelivery {
+            outcome_id: id.clone(),
+            title: view.outcome.content.title,
+            plans,
+            plans_more,
+            tasks,
+        }
+    }
+
+    /// The lines of `tasks` with their Runs progress and, when asked, their access.
+    fn lines<'a>(
+        tasks: impl Iterator<Item = &'a LiveTask>,
+        progress: &[TaskProgress],
+        access: impl Fn(&LiveTask) -> Option<ScopeAccess>,
+    ) -> Vec<TaskLine> {
+        let by_task: HashMap<_, _> = progress.iter().map(|p| (p.task, p)).collect();
+        tasks
+            .map(|task| {
+                let seen = by_task.get(&task.number);
+                TaskLine {
+                    number: task.number,
+                    title: task.title.clone(),
+                    done: seen.is_some_and(|p| p.done),
+                    attempt: seen.and_then(|p| p.state),
+                    access: access(task),
+                }
+            })
+            .collect()
+    }
+
+    /// How `task` reaches `part`, if it does.
+    fn access(task: &LiveTask, part: &PartId) -> Option<ScopeAccess> {
+        let owns = |scopes: &[core_plans::ScopePath]| {
+            scopes
+                .iter()
+                .any(|scope| scope.owners.iter().any(|o| &o.part_id == part))
+        };
+        match (owns(&task.ownership.reads), owns(&task.ownership.writes)) {
+            (true, true) => Some(ScopeAccess::ReadWrite),
+            (false, true) => Some(ScopeAccess::Write),
+            (true, false) => Some(ScopeAccess::Read),
+            (false, false) => None,
+        }
+    }
+
+    fn add(a: TaskCounts, b: TaskCounts) -> TaskCounts {
+        TaskCounts {
+            total: a.total + b.total,
+            done: a.done + b.done,
+            started: a.started + b.started,
+            not_started: a.not_started + b.not_started,
+        }
     }
 
     /// Every element of the project with its state, by element number (at most 500).
@@ -139,7 +275,10 @@ impl ProjectState {
         let stage = self.design.stage(project).await?;
         let layout = self.design.layout(project).await?;
         let elements = self.design.elements(project).await?;
-        let live = self.plans.live_versions(project).await?;
+        let live = self
+            .plans
+            .live_versions_for_layout(project, &layout)
+            .await?;
         let mut progress = Vec::with_capacity(live.len());
         for plan in &live {
             progress.push(match &plan.live {
@@ -233,7 +372,9 @@ impl ProjectState {
         gaps.into_iter().map(|(_, gap)| gap).collect()
     }
 
-    /// One part in full: its plans' live tasks with their progress, and its elements.
+    /// One part in full: the live tasks that read or write it, under their plans, with
+    /// their progress, and its elements. A plan whose task only reads the part is shown
+    /// here, though reads never make it one of the part's plans.
     fn detail(facts: &Facts, part: &PartId) -> PartDetail {
         // Only the plans kept are built in full; the rest are counted.
         let (kept, plans_more) = Self::bounded(
@@ -241,28 +382,21 @@ impl ProjectState {
                 .live
                 .iter()
                 .zip(&facts.progress)
-                .filter(|(live, _)| live.parts.contains(part))
-                .filter_map(|(live, progress)| Some((live, live.live.as_ref()?, progress))),
+                .filter_map(|(live, progress)| Some((live, live.live.as_ref()?, progress)))
+                .filter(|(live, frozen, _)| {
+                    live.parts.contains(part)
+                        || frozen.tasks.iter().any(|t| Self::access(t, part).is_some())
+                }),
             DETAIL_PLANS_MAX,
         );
         let plans = kept
             .into_iter()
             .map(|(live, frozen, progress)| {
-                let by_task: std::collections::HashMap<_, _> =
-                    progress.iter().map(|p| (p.task, p)).collect();
-                let tasks = frozen
+                let touching = frozen
                     .tasks
                     .iter()
-                    .map(|task| {
-                        let seen = by_task.get(&task.number);
-                        TaskLine {
-                            number: task.number,
-                            title: task.title.clone(),
-                            done: seen.is_some_and(|p| p.done),
-                            attempt: seen.and_then(|p| p.state),
-                        }
-                    })
-                    .collect();
+                    .filter(|task| Self::access(task, part).is_some());
+                let tasks = Self::lines(touching, progress, |task| Self::access(task, part));
                 PlanTasks {
                     plan_id: live.plan_id.clone(),
                     title: live.title.clone(),

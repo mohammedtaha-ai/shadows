@@ -18,25 +18,8 @@ impl Homes {
         home: &Path,
         instructions: &str,
     ) -> Result<(), HarnessError> {
-        let target = home.join("CLAUDE.md");
-        let temp = home.join(format!(".instructions-{}.tmp", uuid::Uuid::new_v4()));
-        let result = (|| -> std::io::Result<()> {
-            let mut file = std::fs::OpenOptions::new()
-                .write(true)
-                .create_new(true)
-                .open(&temp)?;
-            file.write_all(instructions.as_bytes())?;
-            file.sync_all()?;
-            drop(file);
-            std::fs::rename(&temp, target)
-        })();
-        if result.is_err() {
-            let _ = std::fs::remove_file(temp);
-            return Err(HarnessError::ProfileInvalid(
-                "cannot write CLAUDE.md".into(),
-            ));
-        }
-        Ok(())
+        Self::replace_file(&home.join("CLAUDE.md"), instructions.as_bytes())
+            .map_err(|_| HarnessError::ProfileInvalid("cannot write CLAUDE.md".into()))
     }
 
     /// The home's settings, refusing what would override the routing Core sets.
@@ -93,23 +76,52 @@ impl Homes {
         }
         value["availableModels"] = models;
         value["model"] = default.into();
-        let temp = home.join(format!(".settings-{}.tmp", uuid::Uuid::new_v4()));
-        let write = (|| -> std::io::Result<()> {
+        let bytes = serde_json::to_vec_pretty(&value).expect("JSON value serializes");
+        Self::replace_file(&home.join("settings.json"), &bytes)
+            .map_err(|_| HarnessError::ProfileInvalid("cannot write settings.json".into()))
+    }
+
+    /// The one way a home file is replaced: written whole under a private temporary name,
+    /// then renamed over the target, so a reader sees the old file or the new one.
+    pub(super) fn replace_file(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
+        let stem = path
+            .file_stem()
+            .map(|s| s.to_string_lossy().trim_start_matches('.').to_owned())
+            .unwrap_or_default();
+        let temp = path.with_file_name(format!(".{stem}-{}.tmp", uuid::Uuid::new_v4()));
+        let result = (|| -> std::io::Result<()> {
             let mut file = std::fs::OpenOptions::new()
                 .write(true)
                 .create_new(true)
                 .open(&temp)?;
-            file.write_all(&serde_json::to_vec_pretty(&value).expect("JSON value serializes"))?;
+            file.write_all(bytes)?;
             file.sync_all()?;
             drop(file);
-            std::fs::rename(&temp, home.join("settings.json"))
+            Self::rename_over(&temp, path)
         })();
-        if write.is_err() {
+        if result.is_err() {
             let _ = std::fs::remove_file(&temp);
-            return Err(HarnessError::ProfileInvalid(
-                "cannot write settings.json".into(),
-            ));
         }
-        Ok(())
+        result
+    }
+
+    /// On Windows another process (an antivirus scan of the file just written, an
+    /// indexer) may hold either file without sharing delete access, and the rename is
+    /// then denied until it lets go; such holds were measured at up to about a second
+    /// under load, so the rename is retried for up to five.
+    fn rename_over(from: &Path, to: &Path) -> std::io::Result<()> {
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        loop {
+            match std::fs::rename(from, to) {
+                Err(e)
+                    if cfg!(windows)
+                        && matches!(e.raw_os_error(), Some(5 | 32))
+                        && std::time::Instant::now() < deadline =>
+                {
+                    std::thread::sleep(std::time::Duration::from_millis(25));
+                }
+                result => return result,
+            }
+        }
     }
 }

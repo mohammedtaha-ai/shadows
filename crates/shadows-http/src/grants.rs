@@ -1,4 +1,4 @@
-//! HTTP translation for external connection issue, list and revocation.
+//! HTTP translation for external connection management.
 
 use axum::Json;
 use axum::extract::{Path, Query, State};
@@ -25,6 +25,7 @@ pub(super) async fn list_grants(
 #[derive(serde::Deserialize, utoipa::ToSchema)]
 pub(super) struct IssueGrant {
     command_id: String,
+    name: Option<String>,
     project_ids: Vec<ProjectId>,
 }
 
@@ -56,13 +57,52 @@ pub(super) async fn issue_grant(
     let issued = s
         .core
         .grants()
-        .issue_external(body.command_id, body.project_ids)
+        .issue_external(body.command_id, body.name, body.project_ids)
         .await?;
     Ok(Json(IssuedGrantBody {
         connection: issued.connection,
         token: issued.token,
         mcp_url: issued.mcp_url,
     }))
+}
+
+#[derive(serde::Deserialize, utoipa::ToSchema)]
+pub(super) struct UpdateGrantProjects {
+    command_id: String,
+    expected_revision: i64,
+    project_ids: Vec<ProjectId>,
+}
+
+#[utoipa::path(
+    patch,
+    path = "/api/external-connections/{id}",
+    tag = "grants",
+    params(("id" = ExternalConnectionId, Path, description = "The external connection")),
+    request_body = UpdateGrantProjects,
+    responses(
+        (status = 200, body = ExternalConnection),
+        (status = 404, body = ErrorBody),
+        (status = 409, body = ErrorBody),
+        (status = 422, body = ErrorBody),
+        (status = 500, body = ErrorBody),
+    )
+)]
+pub(super) async fn update_grant_projects(
+    State(s): State<AppState>,
+    Path(id): Path<ExternalConnectionId>,
+    Json(body): Json<UpdateGrantProjects>,
+) -> Result<Json<ExternalConnection>, Failure> {
+    Ok(Json(
+        s.core
+            .grants()
+            .update_external_projects(
+                body.command_id,
+                &id,
+                body.expected_revision,
+                body.project_ids,
+            )
+            .await?,
+    ))
 }
 
 #[derive(serde::Deserialize, utoipa::IntoParams)]

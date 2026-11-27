@@ -411,7 +411,11 @@ async fn an_external_connection_only_reaches_its_chosen_projects() {
     let issued = app
         .core
         .grants()
-        .issue_external("connect".into(), vec![app.project.clone(), other.clone()])
+        .issue_external(
+            "connect".into(),
+            Some("MCP integration".into()),
+            vec![app.project.clone(), other.clone()],
+        )
         .await
         .unwrap();
     let client = listening::mcp_client(&l.base, issued.token.as_deref().unwrap()).await;
@@ -541,6 +545,35 @@ async fn an_external_connection_only_reaches_its_chosen_projects() {
             .to_string()
             .contains("outside the selected project")
     );
+
+    let path = format!("/api/external-connections/{}", issued.connection.id);
+    let (status, body) = app::call(
+        app,
+        "PATCH",
+        &path,
+        Some(json!({
+            "command_id": "change-scope", "expected_revision": 0, "project_ids": [other, hidden]
+        })),
+    )
+    .await;
+    assert_eq!(status, 200, "{body}");
+    let visible = listening::ok(&client, "project_list", json!({})).await;
+    let ids: Vec<_> = visible
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|project| project["id"].as_str().unwrap())
+        .collect();
+    assert_eq!(ids.len(), 2);
+    assert!(ids.contains(&other.as_str()) && ids.contains(&hidden.as_str()));
+    listening::ok(&client, "workflow_list", json!({ "project_id": hidden })).await;
+    let refused = listening::refused(
+        &client,
+        "workflow_list",
+        json!({ "project_id": app.project }),
+    )
+    .await;
+    assert!(refused.starts_with("GRANT_SCOPE:"), "{refused}");
 
     app.core
         .shut_down(std::time::Duration::from_secs(5), std::future::pending())

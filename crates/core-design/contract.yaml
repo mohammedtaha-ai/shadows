@@ -223,6 +223,9 @@ functions:
     thread_anchor:
       signature: "(&self, thread: &ThreadId) -> Result<Option<DesignAnchor>, DesignError>"
       rule: A removed design item remains a readable reference so Turns can announce its removal.
+    thread_anchor_in:
+      signature: "(conn: &mut SqliteConnection, thread: &ThreadId) -> Result<Option<DesignAnchor>, StorageError>"
+      rule: The one anchor loader, in the caller's transaction; thread_anchor checks the live thread and calls it, and Plans' draft start reads it inside its write.
     planner_approver:
       signature: "private: derives Planner writer, running operation and harness from grant/thread"
     approve_vision_proposal_as_planner:
@@ -243,6 +246,9 @@ functions:
     seed_roadmap_for_tests:
       signature: "test-support only: (&self, project: &ProjectId) -> Result<PartId, DesignError>"
       # Seeds the map if absent, one part with folder "seeded" and roadmap_revision 1; answers the part. Idempotent.
+    seed_delivery_outcome_for_tests:
+      signature: "test-support only: (&self, project: &ProjectId) -> Result<OutcomeId, DesignError>"
+      # After seed_roadmap_for_tests, one named fixture outcome a test plan serves; answers the same outcome when repeated. seed_roadmap_for_tests is unchanged.
     propose_roadmap:
       signature: "(&self, grant: &Grant, args: RoadmapPropose) -> Result<RoadmapProposal, DesignError>"
       # Planner/thread grant plus running turn; map approval and roadmap revision checked in the store.
@@ -392,6 +398,15 @@ functions:
       # write_txn → classify/replay → live project/workspace revision → ordered
       # ops (empty batch refused) → affected element revisions once per batch →
       # immutable design_command_result → append_event → record_command.
+      # The revision check, the user actor, design_command_result and
+      # record_command live here; everything else is apply_workspace_ops_in.
+    apply_workspace_ops_in:
+      signature: "(conn: &mut SqliteConnection, actor: &Actor, project: &ProjectId, ops: Vec<WorkspaceOp>, facts: &BTreeMap<String, Option<String>>) -> Result<DesignChange, DesignError>"
+      # The shared body of every workspace edit: applies the ops, raises the
+      # workspace revision and each changed outcome's, appends
+      # ProjectDesignChanged as `actor`. Writes no design_command_result and
+      # records no command: the caller's own command covers replay (Plans'
+      # outcome-anchored draft start).
     design_part_in:
       signature: "(&self, project: &ProjectId, id: &PartId) -> Result<PartDetails, StorageError>"
       # A read transaction supplies a consistent workspace revision, root-first
@@ -448,6 +463,8 @@ shared_in_transaction:
   revision_in: Owner entry in the caller transaction; parts rules.
   part_in: Owner entry in the caller transaction; parts rules.
   replay_edit_in: Owner entry in the caller transaction; vision rules.
+  apply_workspace_ops_in: "Owner entry in the caller transaction: workspace ops applied as the caller's actor with no recorded command; Plans links an anchored Planner draft to its outcome inside start_draft's write, and edit_workspace_in wraps it with the recorded command."
+  thread_anchor_in: "Owner entry in the caller transaction: the design anchor a Planner thread was opened at; Plans reads it in start_draft's write to link the new plan to that outcome."
   edit_workspace_in: Owner entry in the caller transaction; vision rules.
   require_roadmap_in: "Plans calls it in start_draft, edit_plan (the binding edit included) and approve_plan_with, after the replay lookup: STAGE_BLOCKED while roadmap_revision is 0. Design owns the revision."
   check_agreement_binding_in: "Plans validates exact Agreed versions, declared roles and operation identities inside edit/approval's transaction. Design owns agreement content."

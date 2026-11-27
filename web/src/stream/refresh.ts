@@ -41,6 +41,8 @@ export function classifyRefresh(event: RefreshEvent): RefreshTarget[] {
   }
   if (projectId !== undefined) {
     if (DESIGN_EVENTS.has(event.kind)) targets.push({ kind: 'design', projectId })
+    // A saved outcome or part link changes what a plan read says it serves.
+    if (event.kind === 'ProjectDesignChanged' && !targets.some(t => t.kind === 'workflows')) targets.push({ kind: 'workflows' })
     if (event.kind === 'AgreementChanged') targets.push({ kind: 'agreements', projectId })
     if (REACH_EVENTS.has(event.kind)) targets.push({ kind: 'project-workflows', projectId })
     if (STATE_EVENTS.has(event.kind)) targets.push({ kind: 'project-state', projectId })

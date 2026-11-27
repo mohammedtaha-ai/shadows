@@ -557,7 +557,7 @@ export interface paths {
         delete: operations["revoke_grant"];
         options?: never;
         head?: never;
-        patch?: never;
+        patch: operations["update_grant_projects"];
         trace?: never;
     };
     "/api/fs/dirs": {
@@ -2804,6 +2804,22 @@ export interface components {
         };
         /** @enum {string} */
         DecisionState: "proposed" | "accepted" | "superseded";
+        /** @description An outcome a plan serves, as a read names it. */
+        DeliveryOutcome: {
+            outcome_id: components["schemas"]["OutcomeId"];
+            title: string;
+        };
+        /** @description A part a plan or its tasks reach, as a read names it. */
+        DeliveryPart: {
+            part_id: components["schemas"]["PartId"];
+            title: string;
+        };
+        /**
+         * @description What a plan still needs before approval: a part it changes, then a roadmap
+         *     outcome it serves.
+         * @enum {string}
+         */
+        DeliveryRequirement: "part" | "outcome";
         DesignAnchor: {
             id: components["schemas"]["PartId"];
             /** @enum {string} */
@@ -3108,7 +3124,10 @@ export interface components {
         ExternalConnection: {
             created_at: string;
             id: components["schemas"]["ExternalConnectionId"];
+            name: string | null;
             project_ids: components["schemas"]["ProjectId"][];
+            /** Format: int64 */
+            project_revision: number;
             revoked_at?: string | null;
         };
         /** Format: uuid */
@@ -3316,6 +3335,7 @@ export interface components {
         };
         IssueGrant: {
             command_id: string;
+            name?: string | null;
             project_ids: components["schemas"]["ProjectId"][];
         };
         IssuedGrantBody: {
@@ -3635,12 +3655,33 @@ export interface components {
             intended_result: string;
             title: string;
         };
+        /** @description One outcome in full: the Active plans that serve it with their live tasks. */
+        OutcomeDelivery: {
+            outcome_id: components["schemas"]["OutcomeId"];
+            /** @description At most 50, in the plans' list order. */
+            plans: components["schemas"]["OutcomePlanProgress"][];
+            /** Format: int32 */
+            plans_more: number;
+            tasks: components["schemas"]["TaskCounts"];
+            title: string;
+        };
         /** Format: uuid */
         OutcomeId: string;
         OutcomePage: {
             items: components["schemas"]["Outcome"][];
             next?: null | components["schemas"]["OutcomeId"];
             revision: components["schemas"]["i64"];
+        };
+        /** @description A plan serving an outcome, with its live version's task lines; none for a Draft only. */
+        OutcomePlanProgress: {
+            plan: components["schemas"]["PlanProgress"];
+            tasks: components["schemas"]["TaskLine"][];
+        };
+        /** @description An outcome with the live tasks of the Active plans that serve it. */
+        OutcomeProgress: {
+            outcome_id: components["schemas"]["OutcomeId"];
+            tasks: components["schemas"]["TaskCounts"];
+            title: string;
         };
         OutcomeView: {
             ancestors: components["schemas"]["Outcome"][];
@@ -3828,6 +3869,7 @@ export interface components {
              */
             change_reason?: string | null;
             created_at: string;
+            delivery?: null | components["schemas"]["PlanDelivery"];
             frozen_at?: string | null;
             goal: string;
             id: components["schemas"]["WorkflowId"];
@@ -3854,6 +3896,22 @@ export interface components {
         PlanCommand: {
             /** @description The idempotency key, scoped to the plan. */
             command_id: string;
+        };
+        /**
+         * @description The delivery links of the version read: a read projection, never part of
+         *     the version's content or its approval record.
+         */
+        PlanDelivery: {
+            /** @description Empty outside an Active plan's Draft. */
+            approval_missing: components["schemas"]["DeliveryRequirement"][];
+            /** Format: int64 */
+            map_revision: number;
+            outcomes: components["schemas"]["DeliveryOutcome"][];
+            /** @description Every effective part: saved links, then the parts tasks write into. */
+            parts: components["schemas"]["DeliveryPart"][];
+            /** @description The read and write owners of this version's tasks. */
+            task_parts: components["schemas"]["DeliveryPart"][];
+            tasks: components["schemas"]["TaskDelivery"][];
         };
         /** Format: uuid */
         PlanId: string;
@@ -4063,6 +4121,11 @@ export interface components {
             map_revision: number;
             /** @description What the stage still misses, as Design's stage view names it. */
             missing: string[];
+            outcome?: null | components["schemas"]["OutcomeDelivery"];
+            /** @description The outcomes Active plans serve, by outcome id, at most 100. */
+            outcomes?: components["schemas"]["OutcomeProgress"][];
+            /** Format: int32 */
+            outcomes_more?: number;
             part?: null | components["schemas"]["PartDetail"];
             /** @description In map order, at most 200. */
             parts: components["schemas"]["PartState"][];
@@ -4070,6 +4133,8 @@ export interface components {
             parts_more: number;
             project_id: components["schemas"]["ProjectId"];
             stage: components["schemas"]["Stage"];
+            /** @description Every live task of the project, each counted once. */
+            task_totals?: components["schemas"]["TaskCounts"];
             /** @description Active plans tied to no part, at most 20. */
             unassigned: components["schemas"]["PlanProgress"][];
             /** Format: int32 */
@@ -4379,6 +4444,20 @@ export interface components {
         };
         SavedProviderTest: {
             api_key?: string | null;
+        };
+        /**
+         * @description How a task reaches a part: it reads it, writes it, or both.
+         * @enum {string}
+         */
+        ScopeAccess: "read" | "write" | "read_write";
+        ScopeOwner: {
+            part_id: components["schemas"]["PartId"];
+            via: components["schemas"]["OwnedVia"];
+        };
+        /** @description One declared scope path and the parts that own it, empty when none does. */
+        ScopePath: {
+            owners: components["schemas"]["ScopeOwner"][];
+            path: string;
         };
         ScreenContent: {
             leads_to?: components["schemas"]["ScreenLink"][];
@@ -4713,6 +4792,9 @@ export interface components {
             elements?: components["schemas"]["DesignElement"][];
             /** Format: int64 */
             map_revision: number;
+            /** @description The outcomes the plan serves now; absent from briefs saved before. */
+            outcomes?: components["schemas"]["DeliveryOutcome"][];
+            ownership?: null | components["schemas"]["TaskOwnership"];
             parts: components["schemas"]["TaskPart"][];
             phase?: null | components["schemas"]["Phase"];
             phase_dependencies?: components["schemas"]["PhaseDependency"][];
@@ -4751,15 +4833,27 @@ export interface components {
             /** Format: int32 */
             total: number;
         };
+        /** @description One task's resolved scope ownership in the version read. */
+        TaskDelivery: {
+            /** Format: int32 */
+            number: number;
+            ownership: components["schemas"]["TaskOwnership"];
+        };
         /** Format: uuid */
         TaskId: string;
         /** @description One task: whether it is marked done, and its latest attempt's state. */
         TaskLine: {
+            access?: null | components["schemas"]["ScopeAccess"];
             attempt: null | components["schemas"]["AttemptState"];
             done: boolean;
             /** Format: int32 */
             number: number;
             title: string;
+        };
+        /** @description Which parts own each path a task reads and writes, kept per access mode. */
+        TaskOwnership: {
+            reads: components["schemas"]["ScopePath"][];
+            writes: components["schemas"]["ScopePath"][];
         };
         /** @description A local task number, or a task in another plan's latest version. */
         TaskParent: number | {
@@ -4933,6 +5027,12 @@ export interface components {
             /** Format: int32 */
             line: number;
             name: string;
+        };
+        UpdateGrantProjects: {
+            command_id: string;
+            /** Format: int64 */
+            expected_revision: number;
+            project_ids: components["schemas"]["ProjectId"][];
         };
         /** @description Sets the modes this project allows, per harness. */
         UpdateProject: {
@@ -6971,6 +7071,64 @@ export interface operations {
                 };
             };
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    update_grant_projects: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The external connection */
+                id: components["schemas"]["ExternalConnectionId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateGrantProjects"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExternalConnection"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -9710,6 +9868,8 @@ export interface operations {
             query?: {
                 /** @description One part of the map, answered in full under `part`. */
                 part_id?: components["schemas"]["PartId"];
+                /** @description One outcome, answered in full under `outcome`; never with `part_id`. */
+                outcome_id?: components["schemas"]["OutcomeId"];
             };
             header?: never;
             path: {

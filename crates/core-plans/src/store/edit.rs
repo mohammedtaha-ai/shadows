@@ -235,13 +235,30 @@ impl PlansStore {
                         &workflow,
                     )
                     .await?;
-                    if !crate::Plans::plan_has_part_in(conn, &project, &plan.plan_id).await? {
-                        return Err(core_design::DesignError::StageBlocked(
-                            "plan has no part: link it to a part on the Project map page, \
-                         or start it with parts"
-                                .into(),
-                        )
-                        .into());
+                    let explicit =
+                        crate::Plans::plan_parts_in(conn, &project, &plan.plan_id).await?;
+                    let layout = core_design::Design::layout_in(conn, &project).await?;
+                    let ownership: Vec<_> = plan
+                        .tasks
+                        .iter()
+                        .map(|t| crate::task_context::TaskOwnership::resolve(&layout, &t.content))
+                        .collect();
+                    let parts = crate::Plans::effective_parts(&explicit, &ownership);
+                    let outcomes =
+                        crate::Plans::plan_outcome_ids_in(conn, &project, &plan.plan_id).await?;
+                    if let Some(missing) =
+                        crate::Plans::missing_delivery_requirements(&parts, &outcomes).first()
+                    {
+                        let reason = match missing {
+                            crate::model::DeliveryRequirement::Part => {
+                                "plan has no part: link it to a part on the Project map page, \
+                                 or start it with parts"
+                            }
+                            crate::model::DeliveryRequirement::Outcome => {
+                                "plan has no roadmap outcome: link it on the Roadmap page"
+                            }
+                        };
+                        return Err(core_design::DesignError::StageBlocked(reason.into()).into());
                     }
                     let blockers = plan.blockers;
                     super::bindings::BindingsRows::validate(conn, &project, &plan.bindings).await?;

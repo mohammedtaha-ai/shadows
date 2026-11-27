@@ -684,6 +684,10 @@ impl From<project_state::ProjectStateError> for CoreError {
                 code: ErrorCode::InvalidCommand,
                 message,
             },
+            ProjectStateError::ConflictingSelectors => Self::Refused {
+                code: ErrorCode::InvalidCommand,
+                message: ProjectStateError::ConflictingSelectors.to_string(),
+            },
             ProjectStateError::Design(error) => error.into(),
             ProjectStateError::Plans(error) => error.into(),
             ProjectStateError::Runs(RunsError::Storage(error)) => error.into(),

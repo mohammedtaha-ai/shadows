@@ -140,6 +140,12 @@ impl PlansStore {
                             .await?;
                     }
                     let started = started(conn, &id).await?;
+                    if plan.is_none()
+                        && let Writer::Planner { thread, .. } = &writer
+                    {
+                        link_anchor_outcome(conn, &writer, thread, &project, &started.plan_id)
+                            .await?;
+                    }
                     crate::Plans::link_plan_parts_in(conn, &project, &started.plan_id, &parts)
                         .await?;
                     CommandContext::record_command(
@@ -222,6 +228,40 @@ async fn recorded(
         return Ok(None);
     }
     CommandContext::classify(conn, ctx, "Project", project.as_str()).await
+}
+
+/// A Planner's new plan started from an outcome-anchored thread belongs to
+/// that outcome: the link is a workspace edit by the Planner, inside the
+/// start's own transaction, so the start's recorded command covers its replay.
+/// An anchor whose outcome is gone refuses the start.
+async fn link_anchor_outcome(
+    conn: &mut SqliteConnection,
+    writer: &Writer,
+    thread: &core_threads::ThreadId,
+    project: &ProjectId,
+    plan: &PlanId,
+) -> Result<(), crate::PlansError> {
+    let Some(core_design::DesignAnchor::Outcome(outcome)) =
+        core_design::Design::thread_anchor_in(conn, thread).await?
+    else {
+        return Ok(());
+    };
+    core_design::Design::design_outcome_in(conn, project, &outcome).await?;
+    let ops = vec![core_design::WorkspaceOp::PlanLinkPut {
+        anchor: core_design::DesignAnchor::Outcome(outcome),
+        plan: plan.to_string(),
+    }];
+    let facts = std::collections::BTreeMap::from([(plan.to_string(), None)]);
+    core_design::Design::apply_workspace_ops_in(
+        conn,
+        &writer.actor(),
+        project,
+        ops.clone(),
+        &facts,
+    )
+    .await?;
+    crate::Plans::apply_design_links_in(conn, project, &ops).await?;
+    Ok(())
 }
 
 /// A new Active plan of `project`, for its first version.

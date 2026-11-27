@@ -86,10 +86,20 @@ impl DesignStore {
     ) -> Result<Option<DesignAnchor>, StorageError> {
         let mut tx = self.storage.reader().begin().await?;
         Threads::require_live_in(&mut tx, thread).await?;
+        Design::thread_anchor_in(&mut tx, thread).await
+    }
+}
+
+impl Design {
+    /// The one loader of a thread's anchor, as the caller's transaction sees it.
+    pub async fn thread_anchor_in(
+        conn: &mut sqlx::SqliteConnection,
+        thread: &ThreadId,
+    ) -> Result<Option<DesignAnchor>, StorageError> {
         let row: Option<(String, String)> =
             sqlx::query_as("SELECT kind,item_id FROM design_thread_anchor WHERE thread_id=?")
                 .bind(thread.as_str())
-                .fetch_optional(&mut *tx)
+                .fetch_optional(&mut *conn)
                 .await?;
         Ok(row.map(|(kind, id)| match kind.as_str() {
             "part" => DesignAnchor::Part(PartId::from_recorded(id)),

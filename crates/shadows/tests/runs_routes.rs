@@ -383,8 +383,9 @@ async fn done_route_refuses_without_reason() {
     );
 }
 
-/// The state's counts of the plan's tasks, and T1's line in its part's detail.
-async fn state_of(app: &App, part: &shadows_core::PartId) -> (Value, Value) {
+/// The state's counts of the plan's tasks, and T1's line in its outcome's detail.
+/// A part's detail lists only the tasks whose scopes fall in that part.
+async fn state_of(app: &App) -> (Value, Value) {
     let path = format!("/api/projects/{}/state", app.project);
     let (status, whole) = call(app, "GET", &path, None).await;
     assert_eq!(status, 200, "{whole}");
@@ -402,9 +403,11 @@ async fn state_of(app: &App, part: &shadows_core::PartId) -> (Value, Value) {
         .next()
         .unwrap()["tasks"]
         .clone();
-    let (status, detail) = call(app, "GET", &format!("{path}?part_id={part}"), None).await;
+    let outcome = whole["outcomes"][0]["outcome_id"].as_str().unwrap();
+    let selected = format!("{path}?outcome_id={outcome}");
+    let (status, detail) = call(app, "GET", &selected, None).await;
     assert_eq!(status, 200, "{detail}");
-    let line = detail["part"]["plans"][0]["tasks"][0].clone();
+    let line = detail["outcome"]["plans"][0]["tasks"][0].clone();
     (counts, line)
 }
 
@@ -414,11 +417,11 @@ async fn an_attempt_starting_and_ending_reaches_the_project_stream_and_the_state
     use axum::http::Request;
     use tower::ServiceExt;
     let (app, v1) = runs_app().await;
-    let part = shadows_core::AppCore::design_for_tests(app.storage.clone())
+    shadows_core::AppCore::design_for_tests(app.storage.clone())
         .seed_roadmap_for_tests(&app.project)
         .await
         .unwrap();
-    let (counts, line) = state_of(&app, &part).await;
+    let (counts, line) = state_of(&app).await;
     assert_eq!(
         counts,
         json!({"total": 2, "done": 0, "started": 0, "not_started": 2})
@@ -458,7 +461,7 @@ async fn an_attempt_starting_and_ending_reaches_the_project_stream_and_the_state
         assert_eq!(event["payload"], named);
     }
 
-    let (counts, line) = state_of(&app, &part).await;
+    let (counts, line) = state_of(&app).await;
     // T1 started; T2, which needs it, has not.
     assert_eq!(
         counts,

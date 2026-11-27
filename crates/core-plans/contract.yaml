@@ -38,9 +38,9 @@ source: crates/core-plans/src
 
 
 shapes:
-  LiveVersion: "{ plan_id, title, parts: [PartId], live: Option<LiveFrozen>, draft: Option<WorkflowId> }: an Active plan as live_versions reads it; not served"
+  LiveVersion: "{ plan_id, title, parts: [PartId] effective parts (saved links, then the parts its live tasks write into; a Draft-only plan has its saved links only), outcomes: [DeliveryOutcome] by outcome id, live: Option<LiveFrozen>, draft: Option<WorkflowId> }: an Active plan as live_versions reads it; not served"
   LiveFrozen: "{ workflow_id, version, tasks: [LiveTask] }: the plan's highest Frozen version"
-  LiveTask: "{ number, title, elements: [ElementPin] }: a live task and its contract's element pins"
+  LiveTask: "{ number, title, elements: [ElementPin], ownership: TaskOwnership }: a live task, its contract's element pins and its scope resolved against the layout read with it"
   Phase:
     id: PhaseId
     number: u32
@@ -65,6 +65,8 @@ shapes:
     # decisions: Vec<DecisionRecord>, each pinned revision as Design holds it when the
     # context is built, state included (a frozen pin shows `superseded`); omitted when empty.
     # elements: Vec<DesignElement>, exact pinned revisions in pin order; omitted when empty.
+    # outcomes: Vec<DeliveryOutcome>, the plan's current outcome links (delivery_outcomes_in); omitted when empty.
+    # ownership: Option<TaskOwnership>, the task's reads and writes with their owners; omitted when absent, so a brief saved before it decodes.
     note: Approved task, its resolved contracts, exact plan identity/version, selected layout parts with ownership reasons, unowned paths, effective standards numbers and map revision.
   TaskPart:
     part: LayoutPart
@@ -161,6 +163,7 @@ shapes:
     replayed: bool
   Plan:
     approved_by: "Option<core_grants::ApprovedBy>; provenance of the frozen version"
+    delivery: "Option<PlanDelivery>; the public reads' projection, filled after scoped authorization in the read snapshot; never in PlanContent or approval journals (a_plan_read_carries_its_delivery_links)"
     bindings: Vec<AgreementBinding>
     # Derived latest dependency previews, excluded from canonical PlanContent.
     # MCP omits unreachable incoming previews and redacts outgoing metadata.
@@ -178,6 +181,11 @@ shapes:
     # The version copied from this one; changes after the fact, which is why a
     # replayed approval answers `Approved`, never the plan.
     next: Option<WorkflowId>
+  PlanDelivery: "{ map_revision, outcomes: [DeliveryOutcome], parts: [DeliveryPart] effective parts, task_parts: [DeliveryPart] read/write owners of this version's tasks, tasks: [TaskDelivery { number, ownership }], approval_missing: [DeliveryRequirement] empty outside an Active plan's Draft }"
+  DeliveryOutcome: "{ outcome_id: OutcomeId, title }"
+  DeliveryPart: "{ part_id: PartId, title }"
+  TaskOwnership: "{ reads: [ScopePath], writes: [ScopePath] }; ScopePath { path, owners: [ScopeOwner { part_id, via: OwnedVia }] }"
+  DeliveryRequirement: "part | outcome"
   PlanListing:
     # A plan by its latest version (`id`), ordered by the plan's `created_at`
     # (by `julianday`), then its id.
@@ -459,6 +467,10 @@ functions:
       # Active plans only, or archived ones too when requested.
     live_versions:
       signature: "(&self, project: &ProjectId) -> Result<Vec<LiveVersion>, PlansError>"
+      # Loads Design's layout inside its own read transaction, then the shared loader.
+    live_versions_for_layout:
+      signature: "(&self, project: &ProjectId, layout: &ProjectLayout) -> Result<Vec<LiveVersion>, PlansError>"
+      # The same loader against the layout the caller already read: ProjectState resolves task ownership against the map it shows.
       rule: >
         One reader transaction: every Active plan of the project in list's order (created_at,
         then id), with its parts (plan_parts_in), its live version (the highest Frozen version,
@@ -476,6 +488,9 @@ functions:
     task_context_in:
       signature: "(tx: &mut Tx, project: &ProjectId, workflow: &WorkflowId, task: u32, phase: Option<&PhaseId>) -> Result<TaskContext, PlansError>"
       rule: The one assembly of a task's context as the caller's transaction sees it; task_context calls it after its grant checks, and Runs calls it inside an attempt's admitting write to save that attempt's brief. The version must be Frozen and in the project; it checks no grant and writes nothing.
+    resolve:
+      signature: "TaskOwnership::resolve(layout: &ProjectLayout, task: &TaskContent) -> TaskOwnership"
+      rule: Plans-internal and pure. The one mapping of a task's reads and writes to the layout's owners, kept per access mode; each list keeps input order, holds a repeated path once and keeps every folder and layer owner ProjectLayout::owners returns (empty when none). task_context_in builds its parts and unowned_paths from the read-then-write union and still keeps explicitly tied parts with no path (task_ownership_preserves_access_and_nested_owners).
     task_for:
       signature: "(&self, grant: &Grant, named: Option<&WorkflowId>, number: u32) -> Result<PlanTask, PlansError>"
       # INVALID_COMMAND "T{n} does not exist in this plan" when the number is absent.
@@ -582,6 +597,14 @@ functions:
       # `NotLatestVersion`, checked after the replay. The version records its
       # writer: a Planner's thread and `operation`, an external grant. A start
       # refused by `workflow_one_draft` answers the plan's Draft.
+      # A Planner's new plan in a thread anchored to an outcome is linked to
+      # that outcome in the same transaction: Design::thread_anchor_in, then
+      # design_outcome_in (a removed outcome refuses the whole start), then
+      # Design::apply_workspace_ops_in with one PlanLinkPut as the Planner and
+      # apply_design_links_in. The recorded DraftStart covers the link's
+      # replay; no second command is derived. A Part anchor, no anchor, or a
+      # new version of an existing plan links nothing
+      # (an_outcome_anchored_draft_links_once_and_a_removed_anchor_rolls_back).
     show_plan: "(&self, ctx: &CommandContext, writer: &Writer, turn: &OperationId, workflow: &WorkflowId, task_number: Option<u32>, place: Place) -> Result<PlanShown, PlansError>"
     thread_plan:
       signature: "(&self, thread: &ThreadId) -> Result<Option<WorkflowId>, StorageError>"
@@ -680,9 +703,14 @@ shared_in_transaction:
   execution_plan_in: "(tx, workflow, version) -> Result<ExecutionPlan, PlansError>; Runs' Start preflight snapshot and its admission write, and an addition's write: the version with its linked tasks (version_in), another version number NotFound, and its refusal checked Archived, then NotFrozen, then Superseded (any next version, Draft or Frozen)."
   version_in: "(conn, workflow) -> Result<Plan, PlansError>; Plans' own execution_plan_in, and Runs' executor choice save (its newest-version and task-id checks, in the pre-check read and again in the write): the workflow's version with its linked tasks, read inside the caller's transaction"
   apply_design_links_in: Owner entry in the caller transaction; design links rules.
+  delivery_outcomes_in: "crate-internal: (conn, project, plan) -> Vec<DeliveryOutcome>: plan_outcome_ids_in with Design's outcome titles in the caller snapshot; both public reads and task_context_in use it."
+  plan_outcome_ids_in: "crate-internal: (conn, project, plan) -> Vec<OutcomeId>: the plan's current outcome links, ordered by outcome id, in the caller transaction."
+  latest_title_in: "crate-internal: (conn, plan) -> String; the title of the plan's latest version, which names the plan in edit_design's last-outcome refusal."
+  keeps_outcome_link_in: "crate-internal: (conn, plan) -> bool; whether the plan is Active with a Frozen version, so edit_design keeps at least one of its outcome links."
+  effective_parts: "crate-internal, pure: (explicit: &[PartId], tasks: &[TaskOwnership]) -> Vec<PartId>; saved links then task write owners, each once."
+  missing_delivery_requirements: "crate-internal, pure: (parts, outcomes) -> Vec<DeliveryRequirement>; part then outcome, lowercase wire keys."
   anchor_plans_in: Owner entry in the caller transaction; design links rules.
   outcomes_with_plans_in: "Plans' own roadmap approval write: the outcomes a plan links to, which Design's removal refuses."
-  plan_has_part_in: Owner entry in the caller transaction; design parts rules.
   link_plan_parts_in: Owner entry in the caller transaction; design parts rules.
   part_bindings_in: "Plans reads derived part-plan adoption in its captured part snapshot, preserving historical pins."
   agreement_participants_in: "Plans reads current/historical task adoption in its captured impact review and agreement transaction; Plans owns binding rows."
@@ -919,12 +947,29 @@ agreements:
       Plans asks Design, inside the write's own transaction, whether the roadmap
       is approved. start_draft, edit_plan (the binding edit included) and
       approve_plan_with refuse with StageBlocked before it, after the writer or
-      authority check and the replay lookup; approval further refuses a plan
-      tied to no part (design::plan_has_part_in). start_draft ties its plan to
+      authority check and the replay lookup. Approval then reads, in the same
+      transaction, the plan's effective parts (saved part links, then the parts
+      its tasks write into through TaskOwnership::resolve, effective_parts) and
+      its outcome links (plan_outcome_ids_in); missing_delivery_requirements
+      names a part first ("plan has no part") and then an outcome ("plan has no
+      roadmap outcome: link it on the Roadmap page"), for a person and for the
+      Planner at the person's request alike. Recorded approvals still replay.
+      start_draft ties its plan to
       the given parts through design::link_plan_parts_in. Design owns the
       roadmap and the links.
     holds: true
-    tested_by: [a_plan_cannot_start_before_the_roadmap, edit_and_approve_wait_for_the_roadmap, a_plan_with_no_part_cannot_be_approved, a_recorded_start_still_answers_before_the_roadmap]
+    tested_by: [a_plan_cannot_start_before_the_roadmap, edit_and_approve_wait_for_the_roadmap, a_plan_with_no_part_cannot_be_approved, a_recorded_start_still_answers_before_the_roadmap, an_outcome_anchored_draft_links_once_and_a_removed_anchor_rolls_back]
+  - between: [edit_design, approve_plan_with]
+    rule: >
+      An Active plan with a Frozen version that has an outcome link keeps at
+      least one: edit_workspace_with notes each such plan an outcome-removal
+      op names, applies the whole batch, then refuses with StageBlocked when
+      one is left with none, naming the plan by its latest title, rolling back the Design revision, the outcome
+      revisions, the event and the links. A move between outcomes in one
+      batch passes in either order. A Draft-only plan or a legacy unlinked
+      record stays editable.
+    holds: true
+    tested_by: an_approved_plan_keeps_its_last_outcome_and_moves_it_whole
   - between: [check_design_plan_in, edit_design]
     rule: >
       Plans validates project-qualified plan identities in the workspace transaction.
@@ -1002,6 +1047,8 @@ tests:
       A draft without the link lists the blocker and is refused; once linked and
       approved, T2's task_context resolves T1's findCustomer; T2's own task holds
       no signature, and T1's context has no contracts key.
+  - name: task_ownership_preserves_access_and_nested_owners
+    checks: A nested folder part and a layer on another part both own a shared read/write scope in each list; a repeated read appears once; an unmatched scope has no owner.
   - name: a_task_without_a_contract_serializes_as_before
     checks: No contract key in a legacy task's JSON or its TaskAdd op; it round-trips.
   - name: a_contract_names_files_and_a_symbol_and_round_trips

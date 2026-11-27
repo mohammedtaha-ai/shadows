@@ -187,6 +187,7 @@ pub async fn connect(l: &Listening, projects: &[ProjectId]) -> (ExternalConnecti
         .grants()
         .issue_external(
             format!("connect-{}", uuid::Uuid::new_v4()),
+            None,
             projects.to_vec(),
         )
         .await

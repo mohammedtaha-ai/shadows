@@ -332,3 +332,25 @@ it('a create retry keeps its command and revision after an unrelated refetch', a
   expect(edits[0].expected_revision).toBe(0)
   expect(edits[1]).toEqual(edits[0])
 })
+
+it('a_selected_part_lists_its_own_tasks_with_access_labels', async () => {
+  const searches: string[] = []
+  const saved = {revision:1,part:part('backend'),ancestors:[],plans:[]}
+  const a = app = await startApp('/projects/p1/workspace?view=map&part=backend', {
+    ...answers(),
+    'GET /api/projects/p1/design/parts/backend': saved,
+    'GET /api/projects/p1/state': (request: Request) => { searches.push(new URL(request.url).search); return Response.json({
+      project_id:'p1',stage:'plans',map_revision:1,missing:[],parts:[],parts_more:0,unassigned:[],unassigned_more:0,gaps:[],gaps_more:0,
+      part:{part_id:'backend',elements:[],plans_more:0,plans:[{plan_id:'pl1',title:'Auth plan',version:2,workflow_id:'w3',tasks:[
+        {number:1,title:'Store',done:false,attempt:null,access:'write'},
+        {number:2,title:'Lookup',done:true,attempt:'committed',access:'read'}]}]},
+    }) },
+  })
+  await until(() => a.text().includes('Auth plan'))
+  const section = a.container.querySelector('section[aria-label="Related tasks"]')!
+  expect(section.querySelector('a[href="/projects/p1/workflows/w3/versions/2/tasks/1"]')).not.toBeNull()
+  const rows = [...section.querySelectorAll('li')].map(li => li.textContent)
+  expect(rows[0]).toContain('Not startedWrites')
+  expect(rows[1]).toContain('DoneReads')
+  expect(searches).toEqual(['?part_id=backend'])
+})

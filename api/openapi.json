@@ -2216,6 +2216,46 @@
         ],
         "type": "string"
       },
+      "DeliveryOutcome": {
+        "description": "An outcome a plan serves, as a read names it.",
+        "properties": {
+          "outcome_id": {
+            "$ref": "#/components/schemas/OutcomeId"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "outcome_id",
+          "title"
+        ],
+        "type": "object"
+      },
+      "DeliveryPart": {
+        "description": "A part a plan or its tasks reach, as a read names it.",
+        "properties": {
+          "part_id": {
+            "$ref": "#/components/schemas/PartId"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "part_id",
+          "title"
+        ],
+        "type": "object"
+      },
+      "DeliveryRequirement": {
+        "description": "What a plan still needs before approval: a part it changes, then a roadmap\noutcome it serves.",
+        "enum": [
+          "part",
+          "outcome"
+        ],
+        "type": "string"
+      },
       "DesignAnchor": {
         "oneOf": [
           {
@@ -3439,11 +3479,21 @@
           "id": {
             "$ref": "#/components/schemas/ExternalConnectionId"
           },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "project_ids": {
             "items": {
               "$ref": "#/components/schemas/ProjectId"
             },
             "type": "array"
+          },
+          "project_revision": {
+            "format": "int64",
+            "type": "integer"
           },
           "revoked_at": {
             "type": [
@@ -3454,7 +3504,9 @@
         },
         "required": [
           "id",
+          "name",
           "project_ids",
+          "project_revision",
           "created_at"
         ],
         "type": "object"
@@ -4123,6 +4175,12 @@
         "properties": {
           "command_id": {
             "type": "string"
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "project_ids": {
             "items": {
@@ -5430,6 +5488,40 @@
         ],
         "type": "object"
       },
+      "OutcomeDelivery": {
+        "description": "One outcome in full: the Active plans that serve it with their live tasks.",
+        "properties": {
+          "outcome_id": {
+            "$ref": "#/components/schemas/OutcomeId"
+          },
+          "plans": {
+            "description": "At most 50, in the plans' list order.",
+            "items": {
+              "$ref": "#/components/schemas/OutcomePlanProgress"
+            },
+            "type": "array"
+          },
+          "plans_more": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "tasks": {
+            "$ref": "#/components/schemas/TaskCounts"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "outcome_id",
+          "title",
+          "plans",
+          "plans_more",
+          "tasks"
+        ],
+        "type": "object"
+      },
       "OutcomeId": {
         "format": "uuid",
         "type": "string"
@@ -5459,6 +5551,45 @@
         "required": [
           "revision",
           "items"
+        ],
+        "type": "object"
+      },
+      "OutcomePlanProgress": {
+        "description": "A plan serving an outcome, with its live version's task lines; none for a Draft only.",
+        "properties": {
+          "plan": {
+            "$ref": "#/components/schemas/PlanProgress"
+          },
+          "tasks": {
+            "items": {
+              "$ref": "#/components/schemas/TaskLine"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "plan",
+          "tasks"
+        ],
+        "type": "object"
+      },
+      "OutcomeProgress": {
+        "description": "An outcome with the live tasks of the Active plans that serve it.",
+        "properties": {
+          "outcome_id": {
+            "$ref": "#/components/schemas/OutcomeId"
+          },
+          "tasks": {
+            "$ref": "#/components/schemas/TaskCounts"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "outcome_id",
+          "title",
+          "tasks"
         ],
         "type": "object"
       },
@@ -6213,6 +6344,17 @@
           "created_at": {
             "type": "string"
           },
+          "delivery": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PlanDelivery",
+                "description": "Filled by the public plan reads only."
+              }
+            ]
+          },
           "frozen_at": {
             "type": [
               "string",
@@ -6338,6 +6480,57 @@
         },
         "required": [
           "command_id"
+        ],
+        "type": "object"
+      },
+      "PlanDelivery": {
+        "description": "The delivery links of the version read: a read projection, never part of\nthe version's content or its approval record.",
+        "properties": {
+          "approval_missing": {
+            "description": "Empty outside an Active plan's Draft.",
+            "items": {
+              "$ref": "#/components/schemas/DeliveryRequirement"
+            },
+            "type": "array"
+          },
+          "map_revision": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "outcomes": {
+            "items": {
+              "$ref": "#/components/schemas/DeliveryOutcome"
+            },
+            "type": "array"
+          },
+          "parts": {
+            "description": "Every effective part: saved links, then the parts tasks write into.",
+            "items": {
+              "$ref": "#/components/schemas/DeliveryPart"
+            },
+            "type": "array"
+          },
+          "task_parts": {
+            "description": "The read and write owners of this version's tasks.",
+            "items": {
+              "$ref": "#/components/schemas/DeliveryPart"
+            },
+            "type": "array"
+          },
+          "tasks": {
+            "items": {
+              "$ref": "#/components/schemas/TaskDelivery"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "map_revision",
+          "outcomes",
+          "parts",
+          "task_parts",
+          "tasks",
+          "approval_missing"
         ],
         "type": "object"
       },
@@ -7022,6 +7215,29 @@
             },
             "type": "array"
           },
+          "outcome": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/OutcomeDelivery",
+                "description": "One outcome in full, only when asked with its id."
+              }
+            ]
+          },
+          "outcomes": {
+            "description": "The outcomes Active plans serve, by outcome id, at most 100.",
+            "items": {
+              "$ref": "#/components/schemas/OutcomeProgress"
+            },
+            "type": "array"
+          },
+          "outcomes_more": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
           "part": {
             "oneOf": [
               {
@@ -7050,6 +7266,10 @@
           },
           "stage": {
             "$ref": "#/components/schemas/Stage"
+          },
+          "task_totals": {
+            "$ref": "#/components/schemas/TaskCounts",
+            "description": "Every live task of the project, each counted once."
           },
           "unassigned": {
             "description": "Active plans tied to no part, at most 20.",
@@ -8217,6 +8437,49 @@
         },
         "type": "object"
       },
+      "ScopeAccess": {
+        "description": "How a task reaches a part: it reads it, writes it, or both.",
+        "enum": [
+          "read",
+          "write",
+          "read_write"
+        ],
+        "type": "string"
+      },
+      "ScopeOwner": {
+        "properties": {
+          "part_id": {
+            "$ref": "#/components/schemas/PartId"
+          },
+          "via": {
+            "$ref": "#/components/schemas/OwnedVia"
+          }
+        },
+        "required": [
+          "part_id",
+          "via"
+        ],
+        "type": "object"
+      },
+      "ScopePath": {
+        "description": "One declared scope path and the parts that own it, empty when none does.",
+        "properties": {
+          "owners": {
+            "items": {
+              "$ref": "#/components/schemas/ScopeOwner"
+            },
+            "type": "array"
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "owners"
+        ],
+        "type": "object"
+      },
       "ScreenContent": {
         "additionalProperties": false,
         "properties": {
@@ -9379,6 +9642,24 @@
             "format": "int64",
             "type": "integer"
           },
+          "outcomes": {
+            "description": "The outcomes the plan serves now; absent from briefs saved before.",
+            "items": {
+              "$ref": "#/components/schemas/DeliveryOutcome"
+            },
+            "type": "array"
+          },
+          "ownership": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TaskOwnership",
+                "description": "The task scope per access mode; absent from briefs saved before."
+              }
+            ]
+          },
           "parts": {
             "items": {
               "$ref": "#/components/schemas/TaskPart"
@@ -9532,6 +9813,24 @@
         ],
         "type": "object"
       },
+      "TaskDelivery": {
+        "description": "One task's resolved scope ownership in the version read.",
+        "properties": {
+          "number": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "ownership": {
+            "$ref": "#/components/schemas/TaskOwnership"
+          }
+        },
+        "required": [
+          "number",
+          "ownership"
+        ],
+        "type": "object"
+      },
       "TaskId": {
         "format": "uuid",
         "type": "string"
@@ -9539,6 +9838,17 @@
       "TaskLine": {
         "description": "One task: whether it is marked done, and its latest attempt's state.",
         "properties": {
+          "access": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ScopeAccess",
+                "description": "How the task reaches the part asked in full; absent elsewhere."
+              }
+            ]
+          },
           "attempt": {
             "oneOf": [
               {
@@ -9566,6 +9876,28 @@
           "title",
           "done",
           "attempt"
+        ],
+        "type": "object"
+      },
+      "TaskOwnership": {
+        "description": "Which parts own each path a task reads and writes, kept per access mode.",
+        "properties": {
+          "reads": {
+            "items": {
+              "$ref": "#/components/schemas/ScopePath"
+            },
+            "type": "array"
+          },
+          "writes": {
+            "items": {
+              "$ref": "#/components/schemas/ScopePath"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "reads",
+          "writes"
         ],
         "type": "object"
       },
@@ -10233,6 +10565,29 @@
         "required": [
           "name",
           "line"
+        ],
+        "type": "object"
+      },
+      "UpdateGrantProjects": {
+        "properties": {
+          "command_id": {
+            "type": "string"
+          },
+          "expected_revision": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "project_ids": {
+            "items": {
+              "$ref": "#/components/schemas/ProjectId"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "command_id",
+          "expected_revision",
+          "project_ids"
         ],
         "type": "object"
       },
@@ -13377,6 +13732,85 @@
             "description": ""
           },
           "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "grants"
+        ]
+      },
+      "patch": {
+        "operationId": "update_grant_projects",
+        "parameters": [
+          {
+            "description": "The external connection",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ExternalConnectionId"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateGrantProjects"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExternalConnection"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "422": {
             "content": {
               "application/json": {
                 "schema": {
@@ -17188,6 +17622,15 @@
             "required": false,
             "schema": {
               "$ref": "#/components/schemas/PartId"
+            }
+          },
+          {
+            "description": "One outcome, answered in full under `outcome`; never with `part_id`.",
+            "in": "query",
+            "name": "outcome_id",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/OutcomeId"
             }
           }
         ],

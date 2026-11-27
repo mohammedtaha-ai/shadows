@@ -334,7 +334,10 @@ export class ThreadStream {
 
   #durable(event: DurableEvent): void {
     if (event.seq <= this.#state.lastSeq) return
-    this.#set({ lastSeq: event.seq })
+    // A replay hands over hundreds of events, each in its own task; telling
+    // subscribers of each would draw the whole conversation once per event.
+    this.#state = { ...this.#state, lastSeq: event.seq }
+    this.#notifySoon()
     this.#options.onDurable?.(event)
   }
 

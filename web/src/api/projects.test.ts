@@ -3,7 +3,7 @@ import { expect, it } from 'vitest'
 import { projectKeys, projectsQuery, instructionsQuery, saveProjectAnswer, saveRemovedProjectAnswer, saveInstructionsAnswer } from './projects'
 import type { InstructionsVersion } from './projects'
 import { projectWithModes } from '@/test/contract-fixtures'
-import { type ExternalConnection, connectionsQuery, saveRevokedConnection } from './external-connections'
+import { type ExternalConnection, connectionsQuery, saveConnectionAnswer } from './external-connections'
 it.each(['modes', 'remove', 'instructions', 'revoke'])('%s answers survive a stale in-flight read', async kind => {
   const client = new QueryClient()
   const project = projectWithModes({ 'claude-code': ['auto'] })
@@ -18,7 +18,7 @@ it.each(['modes', 'remove', 'instructions', 'revoke'])('%s answers survive a sta
   if (kind === 'modes') await saveProjectAnswer(client, project, 'allowed_modes')
   if (kind === 'remove') await saveRemovedProjectAnswer(client, project.id)
   if (kind === 'instructions') await saveInstructionsAnswer(client, 'p', instructions)
-  if (kind === 'revoke') await saveRevokedConnection(client, grant)
+  if (kind === 'revoke') await saveConnectionAnswer(client, grant)
   release(old); await pending
   expect(client.getQueryData(key)).toEqual(kind === 'instructions' ? instructions : kind === 'remove' ? [] : kind === 'revoke' ? [grant] : [{ ...oldProject, allowed_modes: project.allowed_modes }])
   client.clear()

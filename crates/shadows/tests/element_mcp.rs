@@ -163,6 +163,21 @@ async fn project_state_tool_answers_the_method() {
         .unwrap();
     assert_eq!(part, serde_json::to_value(&expected).unwrap());
     assert_eq!(part["part"]["elements"][0]["element"]["id"], "E1");
+    let served = ok(
+        &planner,
+        "project_state",
+        json!({"outcome_id": seed.outcome}),
+    )
+    .await;
+    let expected = state
+        .state_for(&l.app.project, None, Some(&seed.outcome))
+        .await
+        .unwrap();
+    assert_eq!(served, serde_json::to_value(&expected).unwrap());
+    let args = json!({"part_id": seed.database, "outcome_id": seed.outcome});
+    let (error, text) = call(&planner, "project_state", args).await;
+    assert!(error);
+    assert!(text.starts_with("INVALID_COMMAND:"), "{text}");
     let (error, text) = call(&planner, "project_state", json!({"part_id": "nope"})).await;
     assert!(error);
     assert_eq!(

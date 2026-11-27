@@ -235,7 +235,7 @@ async fn agreement_draft_replays_exact_result_and_refuses_stale_edit() {
     reader.close().await;
     let connection = core
         .grants()
-        .issue_external("grant".into(), vec![project.clone()])
+        .issue_external("grant".into(), None, vec![project.clone()])
         .await
         .unwrap()
         .connection;

@@ -1,7 +1,7 @@
 //! One job: the project's state as its readers receive it.
 
 use code_record::{BuildState, ElementState};
-use core_design::{DesignElement, ElementKind, PartId, Stage};
+use core_design::{DesignElement, ElementKind, OutcomeId, PartId, Stage};
 use core_plans::{PlanId, WorkflowId};
 use core_projects::ProjectId;
 use core_runs::AttemptState;
@@ -29,6 +29,53 @@ pub struct ProjectStateView {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schema(required = false)]
     pub part: Option<PartDetail>,
+    /// The outcomes Active plans serve, by outcome id, at most 100.
+    #[schema(required = false)]
+    pub outcomes: Vec<OutcomeProgress>,
+    #[schema(required = false)]
+    pub outcomes_more: u32,
+    /// Every live task of the project, each counted once.
+    #[schema(required = false)]
+    pub task_totals: TaskCounts,
+    /// One outcome in full, only when asked with its id.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schema(required = false)]
+    pub outcome: Option<OutcomeDelivery>,
+}
+
+/// An outcome with the live tasks of the Active plans that serve it.
+#[derive(Debug, Clone, PartialEq, Serialize, ToSchema)]
+pub struct OutcomeProgress {
+    pub outcome_id: OutcomeId,
+    pub title: String,
+    pub tasks: TaskCounts,
+}
+
+/// One outcome in full: the Active plans that serve it with their live tasks.
+#[derive(Debug, Clone, PartialEq, Serialize, ToSchema)]
+pub struct OutcomeDelivery {
+    pub outcome_id: OutcomeId,
+    pub title: String,
+    /// At most 50, in the plans' list order.
+    pub plans: Vec<OutcomePlanProgress>,
+    pub plans_more: u32,
+    pub tasks: TaskCounts,
+}
+
+/// A plan serving an outcome, with its live version's task lines; none for a Draft only.
+#[derive(Debug, Clone, PartialEq, Serialize, ToSchema)]
+pub struct OutcomePlanProgress {
+    pub plan: PlanProgress,
+    pub tasks: Vec<TaskLine>,
+}
+
+/// How a task reaches a part: it reads it, writes it, or both.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ScopeAccess {
+    Read,
+    Write,
+    ReadWrite,
 }
 
 /// One part of the map with its plans and its elements counted by state.
@@ -120,6 +167,10 @@ pub struct TaskLine {
     pub done: bool,
     #[schema(required)]
     pub attempt: Option<AttemptState>,
+    /// How the task reaches the part asked in full; absent elsewhere.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schema(required = false)]
+    pub access: Option<ScopeAccess>,
 }
 
 /// An element at its latest revision with its state.

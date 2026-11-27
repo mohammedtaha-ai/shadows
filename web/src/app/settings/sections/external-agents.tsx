@@ -1,12 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
 import { type Attempt, attemptFor } from '@/api/command-id'
+import { ApiError } from '@/api/error'
 import {
   type ExternalConnection, type IssuedConnection, connectionsQuery, issueConnection,
-  revokeConnection, saveRevokedConnection,
+  revokeConnection, saveConnectionAnswer, updateConnectionProjects,
 } from '@/api/external-connections'
 import { type Project, projectsQuery } from '@/api/projects'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { CopyButton } from '../../copy-button'
 import { ErrorLine } from '../../error-line'
 
@@ -14,14 +16,17 @@ export function ExternalAgentsSection() {
   const queryClient = useQueryClient()
   const projects = useQuery(projectsQuery)
   const connections = useQuery(connectionsQuery)
+  const [name, setName] = useState('')
   const [selected, setSelected] = useState<string[]>([])
   const [issued, setIssued] = useState<IssuedConnection>()
   const pending = useRef<Attempt | null>(null)
   const available = projects.data?.filter(project => !project.assistant)
   const projectIds = selected.filter(id => available?.some(project => project.id === id)).sort()
+  const canCreate = name.trim().length > 0 && projectIds.length > 0 && !issued
   const connect = useMutation({
-    mutationFn: ({ projectIds, commandId }: { projectIds: string[]; commandId: string }) =>
-      issueConnection(projectIds, commandId),
+    mutationFn: ({ name, projectIds, commandId }: {
+      name: string; projectIds: string[]; commandId: string
+    }) => issueConnection(name, projectIds, commandId),
     gcTime: 0,
     onSuccess: answer => {
       pending.current = null
@@ -29,45 +34,40 @@ export function ExternalAgentsSection() {
       void queryClient.invalidateQueries(connectionsQuery)
     },
   })
+  const closeSetup = () => {
+    setIssued(undefined)
+    setName('')
+    setSelected([])
+    connect.reset()
+  }
 
   return (
     <div className="space-y-6">
-      <form aria-label="Connect external agent" className="space-y-3" onSubmit={event => {
+      <form aria-label="Create external connection" className="space-y-3" onSubmit={event => {
         event.preventDefault()
-        if (!projectIds.length || connect.isPending) return
-        pending.current = attemptFor(pending.current, { projectIds })
-        connect.mutate({ projectIds, commandId: pending.current.commandId })
+        if (!canCreate || connect.isPending) return
+        const request = { name: name.trim(), projectIds }
+        pending.current = attemptFor(pending.current, request)
+        connect.mutate({ ...request, commandId: pending.current.commandId })
       }}>
         <p className="text-sm text-muted-foreground">
-          Connect Codex or Claude Code over MCP. Each token can access the projects you select.
+          Connect an MCP client. Each connection can access the projects you select.
         </p>
+        <label className="block space-y-1 text-sm font-medium">
+          <span>Connection name</span>
+          <Input type="text" value={name} onChange={event => setName(event.currentTarget.value)}
+            placeholder="e.g. Laptop Codex" disabled={connect.isPending || issued !== undefined} />
+        </label>
         {projects.isError && <ErrorLine error={projects.error} />}
-        <fieldset className="space-y-2" disabled={connect.isPending || issued !== undefined}>
-          <legend className="mb-2 text-sm font-medium">Allowed projects</legend>
-          {projects.isPending && <p role="status" className="text-sm text-muted-foreground">Loading projects…</p>}
-          {available?.length === 0 && <p className="text-sm text-muted-foreground">No projects available.</p>}
-          {available?.map(project => (
-            <label key={project.id} className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={projectIds.includes(project.id)}
-                onChange={event => {
-                  const checked = event.currentTarget.checked
-                  setSelected(value => checked ? [...value, project.id] : value.filter(id => id !== project.id))
-                }} />
-              <span dir="auto">{project.name}</span>
-              <span className="text-xs text-muted-foreground">({project.slug})</span>
-            </label>
-          ))}
-        </fieldset>
-        <Button type="submit" size="sm" disabled={!projectIds.length || connect.isPending || issued !== undefined}>
-          {connect.isPending ? 'Connecting…' : 'Connect'}
+        {projects.isPending && <p role="status" className="text-sm text-muted-foreground">Loading projects…</p>}
+        {available && <ProjectChoices projects={available} selected={selected} onChange={setSelected}
+          disabled={connect.isPending || issued !== undefined} />}
+        <Button type="submit" size="sm" disabled={!canCreate || connect.isPending}>
+          {connect.isPending ? 'Creating…' : 'Create connection'}
         </Button>
         {connect.isError && <ErrorLine error={connect.error} />}
       </form>
-      {issued && <ConnectionSetup issued={issued} close={() => {
-        setIssued(undefined)
-        setSelected([])
-        connect.reset()
-      }} />}
+      {issued && <ConnectionSetup issued={issued} close={closeSetup} />}
       <section aria-label="Connections" className="space-y-2">
         <h3 className="text-sm font-medium">Connections</h3>
         {connections.isPending && <p role="status" className="text-sm text-muted-foreground">Loading connections…</p>}
@@ -75,13 +75,9 @@ export function ExternalAgentsSection() {
         {connections.data?.length === 0 && <p className="text-sm text-muted-foreground">No connections yet.</p>}
         <ul className="divide-y divide-border rounded-md border border-border empty:hidden">
           {connections.data?.map(connection => (
-            <ConnectionRow key={connection.id} connection={connection} projects={available ?? []}
+            <ConnectionRow key={connection.id} connection={connection} projects={available}
               onRevoked={() => {
-                if (issued?.connection.id === connection.id) {
-                  setIssued(undefined)
-                  setSelected([])
-                  connect.reset()
-                }
+                if (issued?.connection.id === connection.id) closeSetup()
               }} />
           ))}
         </ul>
@@ -90,28 +86,62 @@ export function ExternalAgentsSection() {
   )
 }
 
+function ProjectChoices({ projects, selected, onChange, disabled }: {
+  projects: Project[]
+  selected: string[]
+  onChange: (ids: string[]) => void
+  disabled: boolean
+}) {
+  return <fieldset className="space-y-2" disabled={disabled}>
+    <legend className="mb-2 text-sm font-medium">Allowed projects</legend>
+    {projects.length === 0 && <p className="text-sm text-muted-foreground">No projects available.</p>}
+    {projects.map(project => (
+      <label key={project.id} className="flex items-center gap-2 text-sm">
+        <input type="checkbox" checked={selected.includes(project.id)} onChange={event => {
+          onChange(event.currentTarget.checked
+            ? [...selected, project.id]
+            : selected.filter(id => id !== project.id))
+        }} />
+        <span dir="auto">{project.name}</span>
+        <span className="text-xs text-muted-foreground">({project.slug})</span>
+      </label>
+    ))}
+  </fieldset>
+}
+
 function ConnectionSetup({ issued, close }: { issued: IssuedConnection; close: () => void }) {
-  const [cli, setCli] = useState('codex')
-  const id = issued.connection.id.replaceAll('-', '')
-  const name = `shadows-${id}`
-  const variable = `SHADOWS_TOKEN_${id.toUpperCase()}`
+  const [client, setClient] = useState('general')
   return (
     <section aria-label="Connection setup" className="space-y-3 rounded-lg border border-accent-line bg-accent-softer p-3">
       {issued.token ? <>
         <label className="flex items-center gap-2 text-sm">
           Client
-          <select value={cli} onChange={event => setCli(event.currentTarget.value)}
+          <select value={client} onChange={event => setClient(event.currentTarget.value)}
             className="rounded border border-border bg-background px-2 py-1">
+            <option value="general">General setup</option>
             <option value="codex">Codex</option>
             <option value="claude">Claude Code</option>
           </select>
         </label>
-        {cli === 'codex' ? <>
-          <p className="text-xs text-muted-foreground">Set <code>{variable}</code> in the environment that starts Codex, then register the MCP server.</p>
+        {client === 'general' && <>
+          <p className="text-xs text-muted-foreground">
+            Add a server named <code>shadows</code> in your MCP client and select Streamable HTTP.
+            Use the URL below and set <code>Authorization</code> to <code>Bearer &lt;token&gt;</code>.
+          </p>
+          <CopyLine label="MCP URL" value={issued.mcp_url} />
           <CopyLine label="Token" value={issued.token} />
-          <CopyLine label="Codex command" value={`codex mcp add ${name} --url "${issued.mcp_url}" --bearer-token-env-var ${variable}`} />
-        </> : <CopyLine label="Claude Code command"
-          value={`claude mcp add --transport http --scope user ${name} "${issued.mcp_url}" --header "Authorization: Bearer ${issued.token}"`} />}
+        </>}
+        {client === 'codex' && <>
+          <p className="text-xs text-muted-foreground">
+            Set <code>SHADOWS_TOKEN</code> in the environment that starts Codex,
+            then run the registration command.
+          </p>
+          <CopyLine label="Token" value={issued.token} />
+          <CopyLine label="Codex command"
+            value={`codex mcp add shadows --url "${issued.mcp_url}" --bearer-token-env-var SHADOWS_TOKEN`} />
+        </>}
+        {client === 'claude' && <CopyLine label="Claude Code command"
+          value={`claude mcp add --transport http --scope user shadows "${issued.mcp_url}" --header "Authorization: Bearer ${issued.token}"`} />}
         <p className="text-xs text-muted-foreground">Copy the details now. The token is shown once.</p>
       </> : <p className="text-sm text-muted-foreground">
         This connection was already created. Revoke it and connect again if you need a new token.
@@ -133,16 +163,17 @@ function CopyLine({ label, value }: { label: string; value: string }) {
 
 function ConnectionRow({ connection, projects, onRevoked }: {
   connection: ExternalConnection
-  projects: Project[]
+  projects: Project[] | undefined
   onRevoked: () => void
 }) {
   const queryClient = useQueryClient()
+  const [edit, setEdit] = useState<{ revision: number; selected: string[] }>()
   const pending = useRef<Attempt | null>(null)
   const revoke = useMutation({
     mutationFn: (commandId: string) => revokeConnection(connection.id, commandId),
     onSuccess: async revoked => {
       pending.current = null
-      await saveRevokedConnection(queryClient, revoked)
+      await saveConnectionAnswer(queryClient, revoked)
       onRevoked()
     },
   })
@@ -150,19 +181,74 @@ function ConnectionRow({ connection, projects, onRevoked }: {
   return <li className="space-y-1 px-3 py-2">
     <div className="flex items-center gap-3 text-sm">
       <div className="min-w-0 flex-1">
-        <p>Created {connected}</p>
-        <p className="break-all font-mono text-xs text-muted-foreground">shadows-{connection.id.replaceAll('-', '')}</p>
+        <p className="break-words font-medium" dir="auto">{connection.name ?? 'Unnamed connection'}</p>
+        <p className="text-xs text-muted-foreground">Created {connected}</p>
         <p className="break-words text-xs text-muted-foreground">
-          {connection.project_ids.map(id => projects.find(project => project.id === id)?.name ?? `Removed project (${id})`).join(', ')}
+          {connection.project_ids.map(id => projects?.find(project => project.id === id)?.name
+            ?? (projects ? 'Removed project' : id)).join(', ') || 'No projects allowed'}
         </p>
       </div>
       {connection.revoked_at ? <span className="text-xs text-muted-foreground">Revoked</span> :
-        <Button type="button" size="sm" variant="ghost" disabled={revoke.isPending}
-          aria-label={`Revoke connection ${connection.id}`} onClick={() => {
-            pending.current = attemptFor(pending.current, { revoke: connection.id })
-            revoke.mutate(pending.current.commandId)
-          }}>Revoke</Button>}
+        <div className="flex shrink-0 flex-wrap gap-1">
+          <Button type="button" size="sm" variant="ghost" disabled={!projects || !!edit || revoke.isPending}
+            onClick={() => setEdit({ revision: connection.project_revision, selected: connection.project_ids })}>
+            Edit projects
+          </Button>
+          <Button type="button" size="sm" variant="ghost" disabled={!!edit || revoke.isPending}
+            aria-label={`Revoke connection ${connection.id}`} onClick={() => {
+              pending.current = attemptFor(pending.current, { revoke: connection.id })
+              revoke.mutate(pending.current.commandId)
+            }}>Revoke</Button>
+        </div>}
     </div>
     {revoke.isError && <ErrorLine error={revoke.error} />}
+    {edit && projects && !connection.revoked_at &&
+      <ConnectionProjects id={connection.id} initial={edit} projects={projects}
+        close={() => setEdit(undefined)} />}
   </li>
+}
+
+function ConnectionProjects({ id, initial, projects, close }: {
+  id: string
+  initial: { revision: number; selected: string[] }
+  projects: Project[]
+  close: () => void
+}) {
+  const queryClient = useQueryClient()
+  const [selected, setSelected] = useState(initial.selected)
+  const pending = useRef<Attempt | null>(null)
+  const save = useMutation({
+    mutationFn: ({ projectIds, commandId }: { projectIds: string[]; commandId: string }) =>
+      updateConnectionProjects(id, initial.revision, projectIds, commandId),
+    onSuccess: async saved => {
+      await saveConnectionAnswer(queryClient, saved)
+      close()
+    },
+    onError: error => {
+      if (error instanceof ApiError && error.problem.kind === 'daemon' && error.problem.status === 409) {
+        void queryClient.invalidateQueries(connectionsQuery)
+      }
+    },
+  })
+  const stale = save.error instanceof ApiError && save.error.problem.kind === 'daemon'
+    && save.error.problem.code === 'REVISION_CONFLICT'
+
+  return <form aria-label="Edit allowed projects" className="space-y-2 py-2" onSubmit={event => {
+    event.preventDefault()
+    if (save.isPending || stale) return
+    const projectIds = selected.filter(id => projects.some(project => project.id === id)).sort()
+    pending.current = attemptFor(pending.current, { revision: initial.revision, projectIds })
+    save.mutate({ projectIds, commandId: pending.current.commandId })
+  }}>
+    <ProjectChoices projects={projects} selected={selected} onChange={setSelected}
+      disabled={save.isPending || stale} />
+    {save.isError && <ErrorLine error={save.error} />}
+    {stale && <p className="text-xs text-muted-foreground">Close and reopen the editor to use the current projects.</p>}
+    <div className="flex gap-2">
+      <Button type="submit" size="sm" disabled={save.isPending || stale}>
+        {save.isPending ? 'Saving…' : 'Save projects'}
+      </Button>
+      <Button type="button" size="sm" variant="secondary" disabled={save.isPending} onClick={close}>Cancel</Button>
+    </div>
+  </form>
 }

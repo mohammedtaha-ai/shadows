@@ -25,7 +25,26 @@ async fn the_state_route_answers_the_method() {
     assert_eq!(status, 200, "{detail}");
     let expected = state.state(&app.project, Some(&part)).await.unwrap();
     assert_eq!(detail, serde_json::to_value(&expected).unwrap());
-    assert_eq!(detail["part"]["plans"][0]["tasks"][0]["number"], 1);
+    // The tied plan is listed; none of its tasks reaches the seeded folder.
+    assert_eq!(detail["part"]["plans"][0]["tasks"], serde_json::json!([]));
+    let outcome = shadows_core::AppCore::design_for_tests(app.storage.clone())
+        .seed_delivery_outcome_for_tests(&app.project)
+        .await
+        .unwrap();
+    let (status, served) =
+        app::call(&app, "GET", &format!("{path}?outcome_id={outcome}"), None).await;
+    assert_eq!(status, 200, "{served}");
+    let expected = state
+        .state_for(&app.project, None, Some(&outcome))
+        .await
+        .unwrap();
+    assert_eq!(served, serde_json::to_value(&expected).unwrap());
+    assert_eq!(served["outcome"]["plans"][0]["tasks"][0]["number"], 1);
+    assert_eq!(served["task_totals"]["total"], 2);
+    let both = format!("{path}?part_id={part}&outcome_id={outcome}");
+    let (status, refusal) = app::call(&app, "GET", &both, None).await;
+    assert_eq!(status, 422, "{refusal}");
+    assert_eq!(refusal["code"], "INVALID_COMMAND");
     let unknown = uuid::Uuid::new_v4();
     let (status, _) = app::call(&app, "GET", &format!("/api/projects/{unknown}/state"), None).await;
     assert_eq!(status, 404);

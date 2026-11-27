@@ -95,6 +95,57 @@ async fn a_plan_read_lists_its_blockers_and_its_last_edit() {
 }
 
 #[tokio::test]
+async fn a_plan_read_carries_its_delivery_links() {
+    let app = test_app().await;
+    let v1 = approved_v1(&app).await;
+    let plan: Value = get_json(&app, &format!("/api/workflows/{v1}")).await;
+    let delivery = &plan["delivery"];
+    assert_eq!(delivery["outcomes"][0]["title"], "Delivery fixture outcome");
+    assert_eq!(delivery["parts"][0]["title"], "Seeded part");
+    assert_eq!(delivery["approval_missing"], json!([]));
+    let first = &delivery["tasks"][0];
+    assert_eq!(first["number"], 1);
+    assert_eq!(
+        first["ownership"],
+        json!({"reads":[{"path":"docs/t1.md","owners":[]}],
+               "writes":[{"path":"src/t1.rs","owners":[]}]})
+    );
+
+    // A Draft serving no outcome names what approval still needs.
+    let other = create_thread(&app, json!({ "command_id": "t-2", "title": "Other" })).await;
+    let other = ThreadId::from_literal(other["id"].as_str().unwrap());
+    let draft = draft_on(&app, &other, "start-other").await;
+    let plan: Value = get_json(&app, &format!("/api/workflows/{}", draft.workflow_id)).await;
+    let outcome = plan["delivery"]["outcomes"][0]["outcome_id"].clone();
+    let design = app
+        .core
+        .design()
+        .vision(&app.project)
+        .await
+        .unwrap()
+        .revision;
+    let (status, body) = call(
+        &app,
+        "POST",
+        &format!("/api/projects/{}/design/edits", app.project),
+        Some(
+            json!({"command_id":"unlink","expected_revision":design,"ops":[
+            {"kind":"PlanLinkRemove","anchor":{"kind":"Outcome","id":outcome},
+             "plan":draft.plan_id}]}),
+        ),
+    )
+    .await;
+    assert_eq!(status, 200, "{body}");
+    let plan: Value = get_json(&app, &format!("/api/workflows/{}", draft.workflow_id)).await;
+    assert_eq!(plan["delivery"]["approval_missing"], json!(["outcome"]));
+
+    app.core
+        .shut_down(std::time::Duration::from_secs(5), std::future::pending())
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
 async fn approving_a_stale_revision_is_refused_with_the_current_one() {
     let app = test_app().await;
     let v1 = draft(&app).await.workflow_id;
@@ -288,7 +339,7 @@ async fn an_archived_plan_is_read_only_until_unarchived() {
     let connection = app
         .core
         .grants()
-        .issue_external("grant-external".into(), vec![app.project.clone()])
+        .issue_external("grant-external".into(), None, vec![app.project.clone()])
         .await
         .unwrap()
         .connection;

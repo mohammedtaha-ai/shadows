@@ -486,6 +486,7 @@ async fn earlier_rationales_identify_their_owning_plan() {
             .await
             .unwrap();
         plan::edit(&app, &v1.workflow_id, 0, &[plan::add(1)]).await;
+        plan::serve_outcome(&app, &app.project, &v1.plan_id).await;
         plans
             .approve_plan_for_test(
                 &app::ctx(&format!("rationale-approve-{n}"), "PlanApprove"),

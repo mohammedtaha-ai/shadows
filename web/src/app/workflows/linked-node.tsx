@@ -2,6 +2,9 @@
 
 import { Handle, type NodeProps, Position } from '@xyflow/react'
 import { Link } from '@tanstack/react-router'
+import { useQuery } from '@tanstack/react-query'
+import { planProgressQuery, type LinkedTask } from '@/api/workflows'
+import { taskStatusLabel } from '@/api/project-state'
 import type { LinkedNode, MissingNode } from './linked-layout'
 
 export function MissingTaskNodeView({ data }: NodeProps<MissingNode>) {
@@ -17,12 +20,13 @@ export function LinkedNodeView({ data }: NodeProps<LinkedNode>) {
   const { view, foreign } = data
   const number = view.task?.number ?? (view.incoming ? view.link.task :
     typeof view.link.after === 'number' ? view.link.after : view.link.after.task)
+  const status = useLinkedStatus(view, number)
   const content = <>
     {foreign && <p dir="auto" className="h-4 truncate text-[11px] text-faint-foreground">{view.project_name ?? 'Unavailable project'}</p>}
     <p dir="auto" className="h-4 truncate text-[11px] text-accent-line">{view.plan_title ?? 'Unavailable plan'} · T{number}</p>
     <p dir="auto" className="mt-1 truncate text-sm font-medium">{view.task?.title ?? `T${number}`}</p>
     <p dir="auto" className="mt-1 line-clamp-2 h-8 text-xs text-muted-foreground">{view.task?.goal}</p>
-    <p className="mt-1 text-[11px] text-faint-foreground">{view.task?.state ?? view.state ?? 'Unavailable'}{view.version ? ` · v${view.version}` : ''}</p>
+    <p data-task-status className="mt-1 text-[11px] text-faint-foreground">{status}{view.version ? ` · v${view.version}` : ''}</p>
     {view.broken && <p dir="auto" role="note" className="mt-1 line-clamp-3 text-xs text-destructive">{view.broken}</p>}
     <Handle type="target" position={Position.Left} isConnectable={false} className="opacity-0" />
     <Handle type="source" position={Position.Right} isConnectable={false} className="opacity-0" />
@@ -32,4 +36,19 @@ export function LinkedNodeView({ data }: NodeProps<LinkedNode>) {
     params={{ projectId: view.project_id, workflowId: view.workflow_id }}
     aria-label={`Open ${view.plan_title ?? 'related plan'} · T${number}`} className={className}>{content}</Link> :
     <div className={className}>{content}</div>
+}
+
+/** What Runs says of the linked task in the exact version on the card. The plan's task preview
+ * says only what the plan holds, so an approved task never reads as Pending once it is done.
+ * Cards of one version share one progress read. */
+function useLinkedStatus(view: LinkedTask, number: number): string {
+  const approved = view.state === 'Frozen' && !view.broken && view.workflow_id != null && view.version != null
+  const progress = useQuery({ ...planProgressQuery(view.workflow_id ?? '', view.version ?? 0), enabled: approved })
+  if (view.state === 'Draft') return 'Draft'
+  if (!approved) return 'Unavailable'
+  if (progress.isError) return 'Status unavailable'
+  if (progress.data === undefined) return 'Loading status'
+  const row = progress.data.find((r) => r.task === number)
+  if (row === undefined) return 'Status unavailable'
+  return taskStatusLabel({ done: row.done, attempt: row.state })
 }

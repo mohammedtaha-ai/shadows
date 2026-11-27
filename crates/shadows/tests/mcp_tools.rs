@@ -636,6 +636,10 @@ async fn both_grants_read_approved_task_context_without_execution_authority() {
         assert_eq!(context["task"]["number"], 1);
         assert!(context["standards"]["base"].as_i64().unwrap() >= 3);
         assert!(context.get("execute").is_none());
+        assert_eq!(context["ownership"]["writes"][0]["path"], "src/t1.rs");
+        assert_eq!(context["outcomes"][0]["title"], "Delivery fixture outcome");
+        let plan = ok(client, "workflow_get", json!({ "workflow_id": workflow })).await;
+        assert_eq!(plan["delivery"]["outcomes"], context["outcomes"]);
         assert!(
             refused(
                 client,
@@ -1000,6 +1004,26 @@ fn the_planner_is_told_to_read_the_project_state() {
         "what each part holds, which tasks are done, and which tables and screens exist, ",
         "are planned, or have a gap. Pin an existing table or screen by its id; never ",
         "write a second one with the same name."
+    );
+    assert!(prompt.lines().any(|line| line == expected));
+}
+
+#[test]
+fn the_planner_is_told_to_choose_a_version_or_a_new_plan() {
+    let prompt = shadows_core::testing::PROMPT;
+    let expected = concat!(
+        "The project's plans are shared by every conversation. When the person names a plan, ",
+        "find it with workflow_list, read it with workflow_get, and carry it on. Before ",
+        "draft_start, when the outcome the work serves is known, read its plans (the anchor's ",
+        "linked plans, or project_state with its outcome_id); a changed way of reaching the ",
+        "same plan goal is that plan's next version; a feature with acceptance of its own is a ",
+        "new plan under the outcome it serves, or under a new outcome proposed with the roadmap ",
+        "flow; while the outcome is unknown, explore in a draft and ask the person for the link ",
+        "before approval; never link a plan to an outcome it does not serve to pass approval. ",
+        "An archived plan is read only; a person must unarchive it. A new version needs its ",
+        "reason: say what changed the plan, as the person and conversation settled it, not as a ",
+        "summary of the edit. Name the plan version with workflow_id on every call to ",
+        "workflow_get, task_get, plan_edit, and plan_show."
     );
     assert!(prompt.lines().any(|line| line == expected));
 }

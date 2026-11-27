@@ -201,6 +201,7 @@ function Header({ plan, projectId, showPhases, onTogglePhases, recheckOpen, onTo
             changeReason={plan.change_reason}
             projectId={projectId}
           />
+          <DeliveryLinks plan={plan} projectId={projectId} />
           {error !== null && <ErrorLine error={error} />}
         </div>
       </div>
@@ -274,6 +275,34 @@ function Header({ plan, projectId, showPhases, onTogglePhases, recheckOpen, onTo
         </div>
       </div>
     </header>
+  )
+}
+
+/** The outcomes this version serves and the parts it affects, as Core read them; each opens its editor. */
+function DeliveryLinks({ plan, projectId }: { plan: Plan; projectId: string }) {
+  const delivery = plan.delivery
+  if (delivery == null || (delivery.outcomes.length === 0 && delivery.parts.length === 0)) return null
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+      {delivery.outcomes.length > 0 && (
+        <span aria-label="Outcomes served">
+          Serves{' '}
+          {delivery.outcomes.map((o) => (
+            <Link key={o.outcome_id} to="/projects/$projectId/workspace" params={{ projectId }}
+              search={{ view: 'roadmap', outcome: o.outcome_id }} dir="auto" className="mr-1.5 underline">{o.title}</Link>
+          ))}
+        </span>
+      )}
+      {delivery.parts.length > 0 && (
+        <span aria-label="Parts affected">
+          Affects{' '}
+          {delivery.parts.map((part) => (
+            <Link key={part.part_id} to="/projects/$projectId/workspace" params={{ projectId }}
+              search={{ view: 'map', part: part.part_id }} dir="auto" className="mr-1.5 underline">{part.title}</Link>
+          ))}
+        </span>
+      )}
+    </div>
   )
 }
 

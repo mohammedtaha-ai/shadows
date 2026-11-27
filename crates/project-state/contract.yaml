@@ -33,7 +33,11 @@ shapes:
     plans: Plans
     runs: Runs
     code_record: CodeRecord
-  ProjectStateView: "{ project_id, stage, missing, map_revision, parts: [PartState] (map order, at most 200), parts_more, unassigned: [PlanProgress] (at most 20), unassigned_more, gaps: [ElementGap] (at most 100), gaps_more, part?: PartDetail (only when asked) }"
+  ProjectStateView: "{ project_id, stage, missing, map_revision, parts: [PartState] (map order, at most 200), parts_more, unassigned: [PlanProgress] (at most 20), unassigned_more, gaps: [ElementGap] (at most 100), gaps_more, part?: PartDetail (only when asked), outcomes: [OutcomeProgress] (by outcome id, at most 100), outcomes_more, task_totals: TaskCounts (each live task once), outcome?: OutcomeDelivery (only when asked) }"
+  OutcomeProgress: "{ outcome_id, title, tasks: TaskCounts }: the live tasks of the Active plans serving it; a plan serving two outcomes counts in each"
+  OutcomeDelivery: "{ outcome_id, title, plans: [OutcomePlanProgress] (at most 50, in the plans' list order), plans_more, tasks: TaskCounts }"
+  OutcomePlanProgress: "{ plan: PlanProgress, tasks: [TaskLine] }: a Draft-only plan has an empty task list"
+  ScopeAccess: "read | write | read_write"
   PartState: "{ part_id, parent: PartId|null, title, kind: string|null, plans: [PlanProgress] (at most 20), plans_more, elements: StateCounts }"
   PlanProgress: "{ plan_id, title, workflow_id: WorkflowId|null, version: i64|null, draft: WorkflowId|null, tasks: TaskCounts }; named PlanProgress, not PlanState, because Plans' PlanState (Active, Archived) already has that schema name"
   TaskCounts: "{ total, done, started, not_started }: done is marked done; started is not done with an attempt; not_started the rest"
@@ -41,10 +45,11 @@ shapes:
   ElementGap: "{ element_id, kind, name, part_id, state: gap|unchecked, why }"
   PartDetail: "{ part_id, plans: [PlanTasks] (live versions only, at most 50), plans_more, elements: [ElementView] (the part's elements, removed included) }"
   PlanTasks: "{ plan_id, title, workflow_id, version, tasks: [TaskLine] }"
-  TaskLine: "{ number, title, done, attempt: AttemptState|null }: attempt is the latest attempt's state"
+  TaskLine: "{ number, title, done, attempt: AttemptState|null, access?: ScopeAccess }: attempt is the latest attempt's state; access only in a part's detail"
   ElementView: "{ element: DesignElement, state: ElementState }"
   ProjectStateError:
     UnknownPart: "part {id} is not a part of this project; INVALID_COMMAND"
+    ConflictingSelectors: "a part and an outcome asked together; INVALID_COMMAND"
     Design: DesignError
     Plans: PlansError
     Runs: RunsError
@@ -57,14 +62,22 @@ functions:
   reads:
     state:
       signature: "(&self, project: &ProjectId, part: Option<&PartId>) -> Result<ProjectStateView, ProjectStateError>"
+      rule: state_for with no outcome.
+    state_for:
+      signature: "(&self, project: &ProjectId, part: Option<&PartId>, outcome: Option<&OutcomeId>) -> Result<ProjectStateView, ProjectStateError>"
       rule: >
         facts, then: each layout part in map order (at most PARTS_MAX = 200, the rest counted in
         parts_more) lists every live plan tied to it (a plan under each of its parts, at most
         PLANS_PER_PART = 20) and counts its elements by state, removed left out; unassigned lists
         the Active plans tied to no part (at most 20); gaps lists the elements in gap or
         unchecked by their part's map order, then element number (at most GAPS_MAX = 100). With
-        part, that part's live plans with each task's line (at most DETAIL_PLANS_MAX = 50) and
-        its elements; a part not in the layout is UnknownPart.
+        part, the live plans tied to it or with a task reading or writing it (at most
+        DETAIL_PLANS_MAX = 50), each with only the tasks that reach the part and their access,
+        and its elements; a part not in the layout is UnknownPart. Every view carries the
+        outcome summary (OUTCOMES_MAX = 100, counted before the bound) and task_totals, the sum
+        of each Active plan's live task counts once. With outcome, validated first through
+        Plans::design_outcome (a foreign or missing outcome is Design's refusal), the Active
+        plans serving it with their live task lines. Both selectors are ConflictingSelectors.
     elements:
       signature: "(&self, project: &ProjectId) -> Result<Vec<ElementView>, ProjectStateError>"
       rule: facts, then every element at its latest revision with its state, by element number (Design bounds them at 500).
@@ -73,7 +86,7 @@ functions:
       private: true
       rule: >
         In this order and no other: Design::stage, Design::layout, Design::elements,
-        Plans::live_versions, Runs::progress of each live version, then
+        Plans::live_versions_for_layout with that layout, Runs::progress of each live version once, then
         CodeRecord::element_states over the elements and the planned pins (the element pins of
         every live task not marked done).
 
@@ -93,6 +106,8 @@ obligations:
     tested_by: [an_absent_file_is_a_gap_in_the_state, a_newer_revision_is_behind]
   - rule: A part asked in full lists its plans' tasks and its elements; an unknown part is refused.
     tested_by: [a_part_asked_in_full_lists_its_plans_tasks_and_elements, an_unknown_part_is_refused]
+  - rule: Outcome counts use the highest Frozen version; a shared plan's tasks count once in task_totals and once in each outcome; part detail lists only the tasks that read or write it with their access; a Draft-only plan has no work; an unknown outcome and both selectors are refused.
+    tested_by: outcome_progress_counts_each_live_task_once
   - rule: The state is bounded; past a bound the rest is counted.
     tested_by: the_state_is_bounded
   - rule: A running attempt shows its task started with attempt running; after it ends without a commit, attempt failed, still started.

@@ -37,7 +37,8 @@ mod rules;
 mod task_context;
 mod task_contract;
 pub use task_context::{
-    ContextPlan, ContextStandards, PhaseDependency, TaskContext, TaskPart, TaskPath,
+    ContextPlan, ContextStandards, PhaseDependency, ScopeOwner, ScopePath, TaskContext,
+    TaskOwnership, TaskPart, TaskPath,
 };
 pub use task_contract::{
     ContractSource, ContractTarget, ContractUse, ContractValue, ElementAction, ElementPin,
@@ -58,9 +59,10 @@ pub use conversation::{Focus, Place, PlanShown};
 pub use dependencies::{LinkedTask, TaskParent, TaskPreview};
 pub use map::{MapLink, MapPlan, PlanMap};
 pub use model::{
-    AcceptanceItem, Approved, DecisionPin, DraftStarted, EditOutcome, LastEdit, Link, LinkKind,
-    LiveFrozen, LiveTask, LiveVersion, Plan, PlanContent, PlanId, PlanListing, PlanState, PlanTask,
-    PlanVersions, TaskContent, TaskId, VersionLine, WorkflowId, WorkflowState, WrittenBy,
+    AcceptanceItem, Approved, DecisionPin, DeliveryOutcome, DeliveryPart, DeliveryRequirement,
+    DraftStarted, EditOutcome, LastEdit, Link, LinkKind, LiveFrozen, LiveTask, LiveVersion, Plan,
+    PlanContent, PlanDelivery, PlanId, PlanListing, PlanState, PlanTask, PlanVersions, TaskContent,
+    TaskDelivery, TaskId, VersionLine, WorkflowId, WorkflowState, WrittenBy,
 };
 pub use ops::PlanOp;
 pub use rules::Problem;

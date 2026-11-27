@@ -58,6 +58,25 @@ impl Plans {
                             facts.insert(plan.clone(), error);
                         }
                     }
+                    let mut keep = Vec::new();
+                    for op in &ops {
+                        if let WorkspaceOp::PlanLinkRemove {
+                            anchor: core_design::DesignAnchor::Outcome(_),
+                            plan,
+                        } = op
+                            && !keep.contains(plan)
+                            && Self::keeps_outcome_link_in(conn, plan).await?
+                            && !Self::plan_outcome_ids_in(
+                                conn,
+                                &project,
+                                &super::PlanId::from_stored(plan.clone()),
+                            )
+                            .await?
+                            .is_empty()
+                        {
+                            keep.push(plan.clone());
+                        }
+                    }
                     let change = Design::edit_workspace_in(
                         conn,
                         &ctx,
@@ -68,6 +87,22 @@ impl Plans {
                     )
                     .await?;
                     Self::apply_design_links_in(conn, &project, &ops).await?;
+                    // Checked on the whole batch, so a move between outcomes passes.
+                    for plan in &keep {
+                        let plan = super::PlanId::from_stored(plan.clone());
+                        if Self::plan_outcome_ids_in(conn, &project, &plan)
+                            .await?
+                            .is_empty()
+                        {
+                            let title = Self::latest_title_in(conn, &plan).await?;
+                            return Err(core_design::DesignError::StageBlocked(format!(
+                                "plan \"{title}\" has an approved version and keeps at least \
+                                 one roadmap outcome: link another outcome before removing \
+                                 this one"
+                            ))
+                            .into());
+                        }
+                    }
                     Ok(change)
                 })
             })

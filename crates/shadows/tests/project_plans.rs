@@ -160,6 +160,7 @@ async fn a_retried_first_start_answers_its_v1() {
     let writer = planner(&app, &app.thread).await;
     let v1 = first_start(&app, &writer).await;
     edit(&app, &v1.workflow_id, 0, &[add(1)]).await;
+    plan::serve_outcome(&app, &app.project, &v1.plan_id).await;
     shadows_core::AppCore::plans_for_tests(app.storage.clone())
         .approve_plan_for_test(&ctx("approve", "PlanApprove"), &v1.workflow_id, 1)
         .await
@@ -210,6 +211,7 @@ async fn approving_an_external_version_writes_no_entry() {
         .await
         .map_err(shadows_core::CoreError::from)
         .unwrap();
+    plan::serve_outcome(&app, &app.project, &started.plan_id).await;
     let v1 = started.workflow_id;
     shadows_core::AppCore::plans_for_tests(app.storage.clone())
         .edit_plan_for_test(

@@ -600,7 +600,7 @@ async fn a_proposal_names_a_known_item_and_carries_text() {
     let connection = f
         .core
         .grants()
-        .issue_external("external".into(), vec![f.p.clone()])
+        .issue_external("external".into(), None, vec![f.p.clone()])
         .await
         .unwrap()
         .connection;

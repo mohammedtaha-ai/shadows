@@ -122,6 +122,14 @@ async fn new_plan(f: &Fixture, id: &str, parts: &[&PartId]) -> WorkflowId {
             .await
             .unwrap();
     }
+    let outcome = AppCore::design_for_tests(f.storage.clone())
+        .seed_delivery_outcome_for_tests(&f.project)
+        .await
+        .unwrap();
+    plans
+        .link_plan_outcome_for_test(&f.project, &PlanId::from_literal(id), &outcome)
+        .await
+        .unwrap();
     WorkflowId::from_literal(workflow)
 }
 
@@ -332,12 +340,16 @@ async fn a_part_asked_in_full_lists_its_plans_tasks_and_elements() {
     assert_eq!(detail.plans_more, 0);
     let plan = &detail.plans[0];
     assert_eq!((&plan.workflow_id, plan.version), (&workflow, 1));
+    // Only the task that reaches the part: T2 works in the frontend.
     let lines: Vec<_> = plan
         .tasks
         .iter()
-        .map(|t| (t.number, t.done, t.attempt))
+        .map(|t| (t.number, t.done, t.attempt, t.access))
         .collect();
-    assert_eq!(lines, [(1, true, None), (2, false, None)]);
+    assert_eq!(
+        lines,
+        [(1, true, None, Some(shadows_core::ScopeAccess::Write))]
+    );
     assert_eq!(plan.tasks[0].title, "Build E1");
     let ids: Vec<_> = detail
         .elements
@@ -521,4 +533,159 @@ async fn live_versions_name_the_highest_frozen_version_and_skip_drafts() {
         .collect();
     assert_eq!(order, listed);
     f.storage.close().await.unwrap();
+}
+
+/// A task of the shared plan: it writes `writes` and reads `reads`.
+fn scoped(number: u32, reads: &[&str], writes: &[&str]) -> PlanOp {
+    PlanOp::TaskAdd {
+        task: TaskContent {
+            phases: Vec::new(),
+            contract: None,
+            number,
+            title: format!("Shared {number}"),
+            goal: "A usable result".into(),
+            reads: reads.iter().map(|r| r.to_string()).collect(),
+            writes: writes.iter().map(|w| w.to_string()).collect(),
+            acceptance: vec![AcceptanceItem {
+                number: 1,
+                text: "It works".into(),
+            }],
+        },
+    }
+}
+
+#[tokio::test]
+async fn outcome_progress_counts_each_live_task_once() {
+    let f = fixture_with(false, None).await;
+    let (seed, _) = designed(&f).await;
+    // One plan serving two outcomes: T1 writes the database, T2 reads it and writes the web.
+    let workflow = new_plan(&f, "shared", &[]).await;
+    let shared = PlanId::from_literal("shared");
+    AppCore::plans_for_tests(f.storage.clone())
+        .link_plan_outcome_for_test(&f.project, &shared, &seed.outcome)
+        .await
+        .unwrap();
+    let ops = [
+        scoped(1, &[], &["db/**"]),
+        scoped(2, &["db/**"], &["web/**"]),
+    ];
+    edit(&f, "shared-tasks", &workflow, &ops).await;
+    approve(&f, "shared-approve", &workflow).await;
+    let runs = f.core.runs();
+    runs.mark_done("shared-done".into(), &workflow, 1, 1, true, None)
+        .await
+        .unwrap();
+    runs.choose_executor_for_test(&workflow, 2, "claude-code", "fake-large", Some("high"))
+        .await
+        .unwrap();
+    f.hold();
+    let attempt = runs
+        .start("shared-start".into(), &workflow, 1, 2)
+        .await
+        .unwrap();
+    f.release();
+    f.settled(&attempt).await;
+    // A newer Draft of the shared plan, and a plan with only a Draft.
+    sqlx::query(
+        "INSERT INTO workflow (id,plan_id,state,version,revision,title,goal,
+         written_by_thread,previous_version_id,created_at,updated_at)
+         SELECT 'shared-v2',plan_id,'Draft',2,0,'Changed','Changed',
+         written_by_thread,id,created_at,updated_at FROM workflow WHERE id=?",
+    )
+    .bind(workflow.as_str())
+    .execute(f.storage.reader())
+    .await
+    .unwrap();
+    let draft_only = new_plan(&f, "zz-draft", &[&seed.database]).await;
+
+    let state = f.core.project_state();
+    let view = state.state(&f.project, None).await.unwrap();
+    let fixture = AppCore::design_for_tests(f.storage.clone())
+        .seed_delivery_outcome_for_tests(&f.project)
+        .await
+        .unwrap();
+    let counts = |id: &shadows_core::OutcomeId| {
+        let o = view.outcomes.iter().find(|o| &o.outcome_id == id).unwrap();
+        (o.tasks.total, o.tasks.done, o.tasks.started)
+    };
+    assert_eq!(counts(&seed.outcome), (2, 1, 1), "{view:?}");
+    assert_eq!(counts(&fixture), (2, 1, 1), "{view:?}");
+    let ids: Vec<_> = view
+        .outcomes
+        .iter()
+        .map(|o| o.outcome_id.as_str())
+        .collect();
+    let mut sorted = ids.clone();
+    sorted.sort();
+    assert_eq!(ids, sorted);
+    assert_eq!(view.outcomes_more, 0);
+    let totals = view.task_totals;
+    assert_eq!((totals.total, totals.done, totals.started), (2, 1, 1));
+    // Reads add no plan to a part; writes do.
+    let shared_in = |id: &PartId| part(&view, id).plans.iter().any(|p| p.plan_id == shared);
+    assert!(shared_in(&seed.database) && shared_in(&seed.frontend));
+
+    let detail = state.state(&f.project, Some(&seed.database)).await.unwrap();
+    let plan = detail
+        .part
+        .as_ref()
+        .unwrap()
+        .plans
+        .iter()
+        .find(|p| p.plan_id == shared)
+        .unwrap();
+    let lines: Vec<_> = plan
+        .tasks
+        .iter()
+        .map(|t| (t.number, t.done, t.access))
+        .collect();
+    use shadows_core::ScopeAccess::{Read, Write};
+    assert_eq!(lines, [(1, true, Some(Write)), (2, false, Some(Read))]);
+    let web = state.state(&f.project, Some(&seed.frontend)).await.unwrap();
+    let plan = &web.part.as_ref().unwrap().plans[0];
+    let lines: Vec<_> = plan.tasks.iter().map(|t| (t.number, t.access)).collect();
+    assert_eq!(lines, [(2, Some(Write))]);
+    assert!(plan.tasks[0].attempt.is_some());
+
+    let outcome = state
+        .state_for(&f.project, None, Some(&fixture))
+        .await
+        .unwrap()
+        .outcome
+        .unwrap();
+    assert_eq!(outcome.title, "Delivery fixture outcome");
+    assert_eq!((outcome.tasks.total, outcome.tasks.done), (2, 1));
+    let row = outcome
+        .plans
+        .iter()
+        .find(|p| p.plan.plan_id == shared)
+        .unwrap();
+    assert_eq!(row.plan.version, Some(1), "the highest Frozen version");
+    assert_eq!(row.tasks.len(), 2);
+    let drafted = outcome
+        .plans
+        .iter()
+        .find(|p| p.plan.draft.as_ref() == Some(&draft_only))
+        .unwrap();
+    assert!(drafted.plan.workflow_id.is_none() && drafted.tasks.is_empty());
+    assert_eq!(drafted.plan.tasks.done, 0);
+
+    let unknown = shadows_core::OutcomeId::generate();
+    assert!(
+        state
+            .state_for(&f.project, None, Some(&unknown))
+            .await
+            .is_err()
+    );
+    let both = state
+        .state_for(&f.project, Some(&seed.database), Some(&fixture))
+        .await;
+    assert!(
+        matches!(
+            both,
+            Err(shadows_core::ProjectStateError::ConflictingSelectors)
+        ),
+        "{both:?}"
+    );
+    f.finish().await;
 }

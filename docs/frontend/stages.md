@@ -122,3 +122,41 @@ then F-147, then F-148.
 - Done when: `npx vitest run src/app/settings src/app/agents/agent-extensions.test.tsx
   src/app/project-settings/planner-switches.test.tsx` passes, with
   `a library removal refreshes the project's switches`, then the four checks
+
+### F-149 · External connection setup and project edits
+
+- Status: done
+- Plan: [External connection management](../backend/plans/2026-11-26-external-connection-management.md#f-149--edit-permissions-and-show-portable-setup)
+- Read: `web/src/app/settings/contract.yaml` and the accepted external connection management request.
+- Touch: External agents Settings section and its test, the external connections API module
+  and cache test, generated TypeScript schema and their contracts.
+- Needs: B-236
+- Done when: the external connection Settings interaction passes, then the four checks.
+
+### F-150 · Show approval requirements and return links
+
+- Status: done
+- Plan: [Task 6](plans/2026-11-26-delivery-traceability.md#task-6--f-150--show-approval-requirements-and-return-links)
+- Read: the accepted delivery traceability request and the workflow, task and stream contracts.
+- Touch: generated schema, plan and task views and stream refresh paths listed in Task 6.
+- Needs: B-240 and B-241 OpenAPI
+- Done when: the missing association links to its editor and the saved plan/task links refresh.
+
+### F-151 · Display related tasks in Roadmap, Map and State
+
+- Status: done
+- Plan: [Task 7](plans/2026-11-26-delivery-traceability.md#task-7--f-151--display-related-tasks-in-roadmap-map-and-state)
+- Read: State and Design contracts and the accepted delivery traceability request.
+- Touch: State API/options and the three read views and tests listed in Task 7.
+- Needs: B-241 and F-150
+- Done when: selected outcomes and parts open exact tasks with Runs status and State shows the unique total.
+
+### F-152 · Read real dependency status in the plan graph
+
+- Status: done. The tests live in `plan-map.test.tsx`, beside the existing linked-card test;
+  `plan-graph.test.tsx` renders no linked card.
+- Plan: [Task 8](plans/2026-11-26-delivery-traceability.md#task-8--f-152--read-real-dependency-status-in-the-plan-graph)
+- Read: the workflows contract's linked node, current progress query and linked-graph test.
+- Touch: linked node, its test, workflows contract and this entry.
+- Needs: the existing plan progress read only
+- Done when: the graph shows the linked exact-version task status from Runs and the frontend checks pass.

@@ -296,7 +296,7 @@ async fn part_order_is_stable_across_restart() {
     let grant = {
         let issued = core
             .grants()
-            .issue_external("grant".into(), vec![p.clone()])
+            .issue_external("grant".into(), None, vec![p.clone()])
             .await
             .unwrap();
         core.grants()
@@ -352,6 +352,15 @@ async fn part_order_is_stable_across_restart() {
         )
         .await
         .map_err(shadows_core::CoreError::from)
+        .unwrap();
+    let outcome = core
+        .design()
+        .seed_delivery_outcome_for_tests(&p)
+        .await
+        .unwrap();
+    core.plans()
+        .link_plan_outcome_for_test(&p, &start.plan_id, &outcome)
+        .await
         .unwrap();
     core.plans()
         .approve("approve".into(), &start.workflow_id, 1)

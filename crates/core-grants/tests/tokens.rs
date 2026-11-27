@@ -53,7 +53,7 @@ async fn external_connection_replays_without_a_token_and_can_be_revoked() {
     let app = world().await;
     let grants = Grants::new(app.storage.clone(), "http://127.0.0.1:4318/mcp".into());
     let issued = grants
-        .issue_external("global".into(), vec![app.project.clone()])
+        .issue_external("global".into(), None, vec![app.project.clone()])
         .await
         .unwrap();
     let token = issued.token.unwrap();
@@ -67,7 +67,7 @@ async fn external_connection_replays_without_a_token_and_can_be_revoked() {
         .await
         .unwrap();
     let replay = grants
-        .issue_external("global".into(), vec![app.project.clone()])
+        .issue_external("global".into(), None, vec![app.project.clone()])
         .await
         .unwrap();
     assert_eq!(replay.connection, issued.connection);

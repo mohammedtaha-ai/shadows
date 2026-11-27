@@ -243,6 +243,10 @@ pub struct Plan {
     pub last_edit: Option<LastEdit>,
     pub frozen_at: Option<String>,
     pub created_at: String,
+    /// Filled by the public plan reads only.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schema(required = false)]
+    pub delivery: Option<PlanDelivery>,
 }
 
 impl Plan {
@@ -370,7 +374,10 @@ pub struct LiveVersion {
     pub plan_id: PlanId,
     /// The live version's title, else the Draft's.
     pub title: String,
+    /// Its effective parts: saved links, then the parts its live tasks write into.
     pub parts: Vec<core_design::PartId>,
+    /// The outcomes it serves now, ordered by outcome id.
+    pub outcomes: Vec<DeliveryOutcome>,
     /// The highest Frozen version; none while the plan has only a Draft.
     pub live: Option<LiveFrozen>,
     /// The plan's Draft, when it has one: named, never read.
@@ -391,4 +398,53 @@ pub struct LiveTask {
     pub number: u32,
     pub title: String,
     pub elements: Vec<crate::ElementPin>,
+    /// The task scope per access mode against the layout read with it.
+    pub ownership: crate::TaskOwnership,
+}
+
+/// What a plan still needs before approval: a part it changes, then a roadmap
+/// outcome it serves.
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, utoipa::ToSchema,
+)]
+#[serde(rename_all = "lowercase")]
+pub enum DeliveryRequirement {
+    Part,
+    Outcome,
+}
+
+/// An outcome a plan serves, as a read names it.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+pub struct DeliveryOutcome {
+    pub outcome_id: core_design::OutcomeId,
+    pub title: String,
+}
+
+/// A part a plan or its tasks reach, as a read names it.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+pub struct DeliveryPart {
+    pub part_id: core_design::PartId,
+    pub title: String,
+}
+
+/// One task's resolved scope ownership in the version read.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+pub struct TaskDelivery {
+    pub number: u32,
+    pub ownership: crate::task_context::TaskOwnership,
+}
+
+/// The delivery links of the version read: a read projection, never part of
+/// the version's content or its approval record.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+pub struct PlanDelivery {
+    pub map_revision: i64,
+    pub outcomes: Vec<DeliveryOutcome>,
+    /// Every effective part: saved links, then the parts tasks write into.
+    pub parts: Vec<DeliveryPart>,
+    /// The read and write owners of this version's tasks.
+    pub task_parts: Vec<DeliveryPart>,
+    pub tasks: Vec<TaskDelivery>,
+    /// Empty outside an Active plan's Draft.
+    pub approval_missing: Vec<DeliveryRequirement>,
 }

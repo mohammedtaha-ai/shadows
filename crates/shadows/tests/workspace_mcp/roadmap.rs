@@ -137,6 +137,8 @@ async fn the_planner_proposes_and_approves_a_roadmap_after_map_approval() {
         json!({"title":"Plan","goal":"Ship","parts":[parts[0]]}),
     )
     .await;
+    let plan_id = shadows_core::PlanId::from_literal(draft["plan_id"].as_str().unwrap());
+    plan::serve_outcome(&l.app, &p, &plan_id).await;
     let edited = ok(
         &c,
         "plan_edit",

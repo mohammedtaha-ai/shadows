@@ -50,6 +50,8 @@ impl crate::Design {
         }
         Ok(None)
     }
+    /// A person's recorded workspace edit: the revision check, the shared
+    /// body, then the immutable result its replay answers.
     pub async fn edit_workspace_in(
         conn: &mut sqlx::SqliteConnection,
         ctx: &CommandContext,
@@ -58,7 +60,6 @@ impl crate::Design {
         ops: Vec<WorkspaceOp>,
         facts: &std::collections::BTreeMap<String, Option<String>>,
     ) -> Result<DesignChange, crate::DesignError> {
-        let ts = Storage::now();
         let current = super::parts::PartsRows::revision(conn, project).await?;
         if current != expected_revision {
             return Err(StorageError::RevisionConflict {
@@ -67,6 +68,45 @@ impl crate::Design {
             }
             .into());
         }
+        let actor = Actor::user(&ctx.principal_id);
+        let change = Self::apply_workspace_ops_in(conn, &actor, project, ops, facts).await?;
+        let ts = Storage::now();
+        let id = uuid::Uuid::new_v4().to_string();
+        sqlx::query(
+            "INSERT INTO design_command_result (id, project_id, result_json) \
+                     VALUES (?,?,?)",
+        )
+        .bind(&id)
+        .bind(project.as_str())
+        .bind(serde_json::to_string(&change)?)
+        .execute(&mut *conn)
+        .await?;
+        CommandContext::record_command(
+            conn,
+            ctx,
+            "Project",
+            project.as_str(),
+            "DesignChange",
+            &id,
+            &ts,
+        )
+        .await?;
+        Ok(change)
+    }
+
+    /// The body every workspace edit shares: applies `ops`, raises the
+    /// workspace revision and each changed outcome's, and journals
+    /// `ProjectDesignChanged` as `actor`. It records no command: its caller's
+    /// own command covers replay.
+    pub async fn apply_workspace_ops_in(
+        conn: &mut sqlx::SqliteConnection,
+        actor: &Actor,
+        project: &ProjectId,
+        ops: Vec<WorkspaceOp>,
+        facts: &std::collections::BTreeMap<String, Option<String>>,
+    ) -> Result<DesignChange, crate::DesignError> {
+        let ts = Storage::now();
+        let current = super::parts::PartsRows::revision(conn, project).await?;
         if ops.is_empty() {
             return Err(StorageError::Constraint("a design edit needs an operation".into()).into());
         }
@@ -296,17 +336,7 @@ impl crate::Design {
             .await?;
         }
         let change = DesignChange { revision: next };
-        let id = uuid::Uuid::new_v4().to_string();
-        sqlx::query(
-            "INSERT INTO design_command_result (id, project_id, result_json) \
-                     VALUES (?,?,?)",
-        )
-        .bind(&id)
-        .bind(project.as_str())
-        .bind(serde_json::to_string(&change)?)
-        .execute(&mut *conn)
-        .await?;
-        let event = JournalEntry::new("ProjectDesignChanged", Actor::user(&ctx.principal_id))
+        let event = JournalEntry::new("ProjectDesignChanged", actor.clone())
             .with_project(project.as_str())
             .with_payload(serde_json::json!({
                 "project_id": project, "revision": next,
@@ -314,17 +344,7 @@ impl crate::Design {
                 "changed_outcomes": changed_outcomes,
                 "vision_changed": vision_changed
             }));
-        JournalEntry::append_event(conn, event.clone(), &ts).await?;
-        CommandContext::record_command(
-            conn,
-            ctx,
-            "Project",
-            project.as_str(),
-            "DesignChange",
-            &id,
-            &ts,
-        )
-        .await?;
+        JournalEntry::append_event(conn, event, &ts).await?;
         Ok(change)
     }
 }

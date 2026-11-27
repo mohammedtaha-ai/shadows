@@ -15,7 +15,7 @@ async fn agreement_adapter_pairs_preserve_content_and_reach() {
     let connection = w
         .core
         .grants()
-        .issue_external("grant".into(), vec![project.clone()])
+        .issue_external("grant".into(), None, vec![project.clone()])
         .await
         .unwrap()
         .connection;
@@ -148,7 +148,7 @@ async fn plan_adapter_pairs_keep_their_authorization_boundaries() {
     let connection = w
         .core
         .grants()
-        .issue_external("grant".into(), vec![project.clone()])
+        .issue_external("grant".into(), None, vec![project.clone()])
         .await
         .unwrap()
         .connection;

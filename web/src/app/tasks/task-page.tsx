@@ -61,7 +61,7 @@ function TaskView({ projectId, workflowId, version, taskNumber }: {
         ))}
       </div>
       <div role="tabpanel" className="min-h-0 flex-1 overflow-y-auto">
-        {tab === 'Details' && <DetailsTab task={planTask} executor={<ExecutorSettings saved={run.data.executor}
+        {tab === 'Details' && <DetailsTab task={planTask} projectId={projectId} delivery={plan.data.delivery} executor={<ExecutorSettings saved={run.data.executor}
           pending={executor.isPending} error={executor.error} save={executor.mutateAsync} />} />}
         {tab === 'Run' && <RunTab attempt={run.data.latest} />}
         {tab === 'Diff' && <DiffTab attempt={run.data.latest} />}

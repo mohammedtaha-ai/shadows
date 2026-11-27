@@ -268,6 +268,8 @@ async fn the_planner_approves_a_map_without_waivers_and_a_plan() {
         json!({"title":"Plan","goal":"Ship","parts":[part]}),
     )
     .await;
+    let plan_id = shadows_core::PlanId::from_literal(draft["plan_id"].as_str().unwrap());
+    plan::serve_outcome(&l.app, &l.app.project, &plan_id).await;
     let edited = ok(
         &c,
         "plan_edit",

@@ -1,12 +1,20 @@
 # Global external agent connections
 
-Status — approved; built on `main` in PR #71 (`0e281585`). The live terminal and browser acceptance is Mohammed's.
+The initial global connection flow shipped in PR #71 (`0e281585`).
+Named credentials and project edits extend that flow.
 
-An external Codex or Claude Code client connects once from Shadows Settings → External agents. At issue, the person selects one or more live projects. The token grants the existing external MCP capabilities for those projects. Future projects require an explicit grant. The Settings section owns project selection, Connect, setup instructions and Revoke. Project settings drop their External agents section.
+A client that supports MCP over HTTP connects once from Shadows Settings → External agents. At issue, the person names the credential and selects one or more live projects. The token grants the existing external MCP capabilities for those projects. The Settings section owns creation, project edits, setup instructions and Revoke.
 
 ## Scope and alternatives
 
-A global screen could manage separate project tokens, but that would still require setting up each project. Giving every token all projects would remove the issuer's control over access. Use one token per connection, an explicit project allowlist at issue, and an explicit project argument on project operations. Discovery lists only live projects on that token's allowlist. A missing project or a project outside the allowlist is refused. A task, plan, agreement or draft reference must belong to the selected project when the operation requires same-project access. A draft reference is bound to the project where it was prepared.
+Use one token per connection, an explicit project allowlist and an explicit project argument on project operations. Discovery lists only live projects on that token's allowlist. A missing project or a project outside the allowlist is refused. A task, plan, agreement or draft reference must belong to the selected project when the operation requires same-project access. A draft reference is bound to the project where it was prepared.
+
+The person can replace an existing connection's project list, including clearing it.
+The edit keeps the bearer and is guarded by the project revision from when the edit
+opened. Removing a project revokes its scoped grant in the same write. Re-adding it
+creates a fresh scoped grant. Unchanged projects retain their scoped grants. Revoked
+connections cannot be edited. Existing credentials stay valid and display a fallback
+label if they have no name.
 
 ## Authorization and cutover
 
@@ -16,6 +24,10 @@ The upgrade revokes project-scoped external credentials and retains the rows nee
 
 ## Setup and verification
 
-Settings presents a client choice with copyable instructions for Claude Code and Codex. Both connect to the daemon's actual MCP endpoint. Codex reads the token from a named environment variable. The browser releases the issued secret when its setup view closes.
+Settings defaults to manual setup with server name `shadows`, the daemon's MCP HTTP
+endpoint and the bearer credential. Optional Codex and Claude Code selections show
+their registration commands using that same server name. Codex reads the token from
+a named environment variable. The browser releases the issued secret when its setup
+view closes.
 
 Automated checks cover migration of old credentials, token replay and revocation, a single token across two selected projects, denial for an unselected project, wrong and missing project arguments, draft reference isolation, external tool inventory, and Settings issue and revoke. The user owns live terminal and browser acceptance.

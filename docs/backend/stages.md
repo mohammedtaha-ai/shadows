@@ -219,3 +219,72 @@ B-230, B-232, B-231, B-233, B-234, B-235.
     copied into a temp folder and committed with no denial (`6a662f5`).
   - The Planner counted 15 tasks; the plans hold 14.
 - Done when: each finding is fixed, accepted or moved to future.
+
+### B-236 · Named external connections with editable project scope
+
+- Status: done
+- Plan: [External connection management](plans/2026-11-26-external-connection-management.md#b-236--name-credentials-and-replace-their-project-scope)
+- Read: `crates/core-grants/contract.yaml` and the accepted external connection management request.
+- Touch: Grants external connection service and store, Core DB migration 0081 and contract,
+  HTTP grants, router and contract, the generated OpenAPI document, Grants, OpenAPI
+  and MCP integration tests, and Rust test callers of the issue method.
+- Done when: the focused grant scope, migration and OpenAPI checks pass.
+
+### B-237 · Resolve task ownership once
+
+- Status: done
+- Plan: [Task 1](plans/2026-11-26-delivery-traceability.md#task-1--b-237--resolve-task-ownership-once)
+- Read: AppCore's Plans and Design entries, Plans' TaskContext and Design's layout contract.
+- Touch: TaskContext and its store, contract, focused tests, and this entry. Exact paths in Task 1.
+- Done when: the resolver keeps read/write ownership separate and the existing context still passes.
+
+### B-238 · Link a Planner draft from its outcome
+
+- Status: done
+- Plan: [Task 2](plans/2026-11-26-delivery-traceability.md#task-2--b-238--link-a-planner-draft-from-its-outcome)
+- Read: AppCore, Plans' draft and workspace edit owners, Design's anchor loader.
+- Touch: the draft, workspace edit and anchor paths and the MCP scenario listed in Task 2.
+- Done when: anchored start links inside the draft transaction and raises the workspace and
+  outcome revisions; replay, stale-anchor rollback, a stale editor save and ordinary draft pass.
+
+### B-239 · Enforce delivery links at approval
+
+- Status: done
+- Plan: [Task 3](plans/2026-11-26-delivery-traceability.md#task-3--b-239--enforce-delivery-links-at-approval)
+- Read: AppCore, Plans' approval and design-association contracts.
+- Touch: approval, association writes and explicit test fixtures listed in Task 3.
+- Done when: actual person and Planner approvals check delivery links and a last-link move
+  works as one transaction.
+
+### B-240 · Expose the same links in plan and task reads
+
+- Status: done
+- Plan: [Task 4](plans/2026-11-26-delivery-traceability.md#task-4--b-240--expose-the-same-links-in-plan-and-task-reads)
+- Read: AppCore, Plans and Runs context contracts, accepted delivery traceability request.
+- Touch: existing plan/context reads, related tests and OpenAPI listed in Task 4.
+- Done when: HTTP, MCP and the saved brief carry the same same-project links.
+
+### B-241 · Compose roadmap and map progress in ProjectState
+
+- Status: done
+- Plan: [Task 5](plans/2026-11-26-delivery-traceability.md#task-5--b-241--compose-roadmap-and-map-progress-in-projectstate)
+- Read: AppCore, ProjectState, Plans' live version view and Runs' progress.
+- Touch: existing live/version and State projections, adapters, tests and OpenAPI in Task 5.
+- Done when: outcome detail, scoped part tasks and unique live totals pass across State readers.
+
+### B-243 · Tell the Planner when to version and when to plan anew
+
+- Status: done
+- Plan: [Task 9](plans/2026-11-26-delivery-traceability.md#task-9--b-243--tell-the-planner-when-to-version-and-when-to-plan-anew)
+- Read: the Planner prompt's plans paragraph and the harness contract's prompt lines.
+- Touch: the Planner prompt, harness contract, `mcp_tools` test and this entry.
+- Done when: the prompt line test passes and `mcp_tools` stays green.
+
+### B-242 · Verify the real delivery path
+
+- Status: done. [Evidence](../evidence/2026-11-26-delivery-traceability-live.md): five findings.
+- Plan: [Task 10](plans/2026-11-26-delivery-traceability.md#task-10--b-242--verify-the-real-delivery-path)
+- Read: the acceptance in Task 10 and the actual branch revision under test.
+- Touch: dated evidence and this entry.
+- Done when: the real linked task and its acceptance can be followed in Roadmap, Map, State,
+  Planner and executor context.

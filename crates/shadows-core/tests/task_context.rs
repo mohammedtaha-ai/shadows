@@ -59,6 +59,22 @@ async fn task_context_refuses_drafts_then_returns_frozen_content_without_writes(
         "tied parts without paths are retained"
     );
     assert!(context.parts.iter().all(|p| p.paths.is_empty()));
+    let ownership = context.ownership.as_ref().unwrap();
+    assert!(ownership.reads.is_empty());
+    assert_eq!(ownership.writes.len(), 1);
+    assert_eq!(ownership.writes[0].path, "src/result.rs");
+    assert!(ownership.writes[0].owners.is_empty(), "an unmapped path");
+    let fixture_outcome = AppCore::design_for_tests(storage.clone())
+        .seed_delivery_outcome_for_tests(&grant.project_id)
+        .await
+        .unwrap();
+    let outcomes: Vec<_> = context.outcomes.iter().map(|o| &o.outcome_id).collect();
+    assert_eq!(
+        outcomes,
+        [&fixture_outcome],
+        "the plan's outcome is inherited"
+    );
+    assert_eq!(context.outcomes[0].title, "Delivery fixture outcome");
     let after: (i64, i64) = sqlx::query_as(
         "SELECT (SELECT count(*) FROM command_record), (SELECT count(*) FROM durable_event)",
     )

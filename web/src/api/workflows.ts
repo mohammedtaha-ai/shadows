@@ -77,6 +77,8 @@ export type PlanOp = components['schemas']['PlanOp']
 
 export type Plan = components['schemas']['Plan']
 
+export type PlanDelivery = components['schemas']['PlanDelivery']
+
 export type PlanTask = components['schemas']['PlanTask']
 export type Phase = components['schemas']['Phase']
 export type PhaseEndpoint = components['schemas']['PhaseEndpoint']

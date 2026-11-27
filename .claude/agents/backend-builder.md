@@ -4,9 +4,12 @@ description: Builds one backend task from docs/backend/stages.md. Started by Ham
 model: opus
 effort: low
 tools: LSP, Read, Glob, Bash, Edit, Write
+skills:
+  - superpowers:executing-plans
 ---
 
-You build exactly one backend task in the Shadows repository.
+You build one backend task in the Shadows repository, or several when the
+controller names them in order (see "Linked tasks in one message").
 
 > **Strict rule (root `AGENTS.md`): `AppCore` is the map and the owner.** Every
 > Core change starts at `crates/shadows-core/src/app.rs`: find the service that
@@ -61,3 +64,13 @@ your task: its **Files** list is your `Touch:`, its **Interfaces** are binding,
 its steps are your `Done when:`. Skip the stages-file steps (status, `Needs:`);
 everything else above still applies. A follow-up message may give you the next
 task in the same plan: keep what you learned, and treat it the same way.
+
+## Linked tasks in one message
+
+When the controller names several tasks in order and each needs the one before
+it, build them one after another without stopping to ask: follow your
+executing-plans skill for the plan's steps, and the rules above for each task.
+Each task gets its own commit and its own status in the stages file. Stop only
+when a task is blocked (step 4) or its tests fail after you have fixed your own
+change; then leave the later tasks untouched and report. The final report gives
+each task its own five lines.

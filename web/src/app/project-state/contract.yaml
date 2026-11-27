@@ -163,3 +163,5 @@ tests:
   screens-view.test.tsx: "The screens view over the fake daemon."
   tables-view.test.tsx: "The tables view over the fake daemon."
   state-view.test.tsx: "The state view, over the fake daemon and its project stream."
+
+delivery: 'The overview shows Core''s task_totals once (zero shown as zero, absent shown as nothing) and the outcomes Active plans serve, each linking to Roadmap, with outcomes_more as given. A selected part shows each task''s access label. Status wording comes from taskStatusLabel in the API module, shared with Roadmap and Map. Tested by the_overview_shows_the_unique_task_total_and_the_outcomes_with_roadmap_links, a_selected_part_in_state_shows_each_tasks_access.'

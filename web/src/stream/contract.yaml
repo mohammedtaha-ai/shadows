@@ -314,10 +314,13 @@ obligations:
 
   - rule: >
       A delta's text is in getState at once, but subscribers are told after the current task:
-      a burst of deltas handed over in one task is one notice. Any other state change
+      a burst of deltas handed over in one task is one notice. A durable event's lastSeq is
+      kept the same way, so a replay of hundreds of events does not draw the page once per
+      event; its durable listener still hears each event at once. Any other state change
       notifies at once, and carries a pending delta notice with it.
     tested_by:
       - "tells its subscribers once for a burst of deltas, with the text kept at once"
+      - "tells its subscribers once for a replayed burst of durable events"
       - "a frame after deltas tells its subscribers at once, and the deltas with it"
 
   - rule: >
@@ -562,6 +565,11 @@ tests:
       100 deltas in one task: getState holds all 100 characters at once, no subscriber was
       called; after the pending timer, exactly one call.
 
+  - name: tells its subscribers once for a replayed burst of durable events
+    checks: >
+      500 durable events in one task: the durable listener heard all 500, lastSeq is 500, no
+      subscriber was called; after the pending timer, exactly one call.
+
   - name: a frame after deltas tells its subscribers at once, and the deltas with it
     checks: >
       A delta then a turn-end in one task: one call, at the turn-end; no second call after
@@ -768,3 +776,5 @@ recheck_output:
     - the_hook_reads_frames_and_closes_on_end
     - a_finished_frame_refreshes_only_that_batch_and_workflow
     - unmounting_the_hook_closes_the_source
+# ProjectDesignChanged also refreshes the workflows family, so a plan read shows a saved
+# outcome or part link (a_design_change_refetches_the_plan_reads_that_name_its_links).

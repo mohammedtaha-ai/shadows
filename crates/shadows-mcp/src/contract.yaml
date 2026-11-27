@@ -45,8 +45,9 @@ element_tools: >-
   Design::elements or Design::element_revisions for the grant's project.
   Tested by element_mcp and mcp_server::the_tool_list_depends_on_the_grant_kind.
 state_tools: >-
-  Planner only (thread grant policy). project_state { part_id? } calls ProjectState::state for
-  the grant's project and answers its ProjectStateView as JSON. Tested by
+  Planner only (thread grant policy). project_state { part_id?, outcome_id? } calls
+  ProjectState::state_for for the grant's project and answers its ProjectStateView as JSON;
+  both selectors are INVALID_COMMAND, as over HTTP. Tested by
   element_mcp::project_state_tool_answers_the_method and mcp_server::the_tool_list_depends_on_the_grant_kind.
 record_tools: >-
   Planner only (thread grant policy). code_where { topic } calls CodeRecord::code_where for the
