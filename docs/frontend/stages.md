@@ -57,6 +57,7 @@ PRs #59 and #66 have no `F-` task. Two composer fixes in PR #61 have none either
 
 - The light palette and F-114's composer tiles are recorded in `docs/evidence/2026-11-18-visual-acceptance.md`.
   Left to Mohammed: the tiles inside a sent message and the desktop login item (start with Windows).
+- After PR #79 (`6680cfd8`), web `architecture.test.ts` runs near its 60 s limit; no task yet.
 
 ### Before a new task
 

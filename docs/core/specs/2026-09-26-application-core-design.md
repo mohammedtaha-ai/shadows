@@ -7,6 +7,7 @@
 - **Date:** 2026-09-26, rewritten 2026-09-27.
 - **Status:** Designed with Mohammed on 2026-09-26/27. Built; see "Delivered" below.
 - **Builds on:** Milestone 2 (§13), on `main` at `ddcaed5`.
+- **Changed 2026-11-27 (Mohammed; B-248):** the `shadows-index` crate in the diagram below was removed with the name index. Git keeps it.
 
 **Delivered.** Milestone 2.5 built this workspace (`008e54c` to `d51fb8a`); the
 service crates of §14.12 finished in `d7a722cd`. What follows records the rules
