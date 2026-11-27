@@ -62,8 +62,8 @@ fn repository_obeys_the_architecture_ratchet() {
     );
 }
 
-/// Workspace crates every service may use: the foundation and the test doubles.
-const BELOW_EVERY_SERVICE: [&str; 3] = ["core-db", "fake-acp", "fake-codex"];
+/// The foundation, which every service may use. Test doubles are never a production edge.
+const BELOW_EVERY_SERVICE: [&str; 1] = ["core-db"];
 
 /// Each service crate and the workspace crates its production build may depend on, besides
 /// `BELOW_EVERY_SERVICE`. An owner here is one the service calls through AppCore's wiring.

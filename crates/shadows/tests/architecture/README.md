@@ -20,8 +20,8 @@ comparison. No mutation test edits the real product tree.
 ## Checks
 
 - Crate dependencies: `DEPENDENCY_POLICY` in `main.rs` is one row per service crate (and
-  `core-db`) with the workspace crates its production build may depend on; `core-db` and the
-  test doubles (`BELOW_EVERY_SERVICE`) are allowed to every row. One checker reads
+  `core-db`) with the workspace crates its production build may depend on; `core-db`
+  (`BELOW_EVERY_SERVICE`) is allowed to every row; a test double such as `fake-acp` never is. One checker reads
   `cargo metadata --offline --no-deps --format-version 1` once. A dependency is internal when
   its path is a workspace package's manifest directory, so a renamed dependency resolves to its
   package. Normal and build edges are held to the table; dev edges are not. A service crate

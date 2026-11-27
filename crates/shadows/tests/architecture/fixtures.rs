@@ -10,11 +10,13 @@ fn dependency_workspace(manifest_tail: &str) -> tempfile::TempDir {
     put(
         root,
         "Cargo.toml",
-        "[workspace]\nmembers = [\"core-a\", \"core-b\", \"core-c\"]\nresolver = \"2\"\n",
+        "[workspace]\nmembers = [\"core-a\", \"core-b\", \"core-c\", \"fake-acp\"]\n\
+         resolver = \"2\"\n",
     );
     for (name, tail) in [
         ("core-a", manifest_tail),
         ("core-b", ""),
+        ("fake-acp", ""),
         (
             "core-c",
             "[dependencies]\ncore-b = { path = \"../core-b\" }\n",
@@ -63,6 +65,19 @@ fn dependency_policy_holds_production_edges_and_every_held_crate() {
             Vec::<String>::new()
         );
     }
+    let fake = dependency_workspace("[dependencies]\nfake-acp = { path = \"../fake-acp\" }\n");
+    let errors = dependency_violations(fake.path(), policy);
+    assert!(
+        errors
+            .iter()
+            .any(|error| error.starts_with("core-a -> fake-acp ")),
+        "a test fake is never a production dependency: {errors:#?}"
+    );
+    let fake = dependency_workspace("[dev-dependencies]\nfake-acp = { path = \"../fake-acp\" }\n");
+    assert_eq!(
+        dependency_violations(fake.path(), policy),
+        Vec::<String>::new()
+    );
     let errors = dependency_violations(dev.path(), &[("core-a", &[]), ("core-b", &[])]);
     assert!(
         errors.iter().any(|error| error.contains("core-c -> core-b")
