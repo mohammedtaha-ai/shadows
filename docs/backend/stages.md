@@ -104,9 +104,81 @@ this file at `db760593`.
 
 ## Open
 
-B-244 is next: the first half of task 13 of the backend review fixes. B-199 is open, paused: the
-`testing8` run is finished and its findings below remain. The tasks that PRs #75 to #78 delivered
-are in the Shipped table, and their open remainders are in Known and left.
+B-244 is done. B-245 to B-247 build the last three deferred tasks of the backend review fixes
+(16, 14 and 15), one builder each, in parallel: they touch different crates, and the controller
+keeps this file and `docs/core/future.md`. B-199 is open, paused: the `testing8` run is finished
+and its findings below remain. The tasks that PRs #75 to #78 delivered are in the Shipped table,
+and their open remainders are in Known and left.
+
+### B-245 · Index the map's parents once during validation
+
+- Status: todo
+- Plan: [Task 16](plans/2026-11-25-backend-review-fixes.md#16-index-design-map-parents-during-validation).
+- Why: `MapRules::check_shape` calls `descendant` for each part, and `descendant` and
+  `check_places` find each parent by searching the whole list, so a check grows with the square
+  of the map's size.
+- Interfaces: none new. `check_shape` and `check_places` keep their signatures and their refusals:
+  the same rules, messages, input order and stage. A duplicate key keeps today's lookup and
+  diagnostic precedence. Path, waiver and folder rules stay separate.
+- Read: `crates/core-design/src/map_rules.rs` (`descendant`, `check_shape`, `check_places`), the
+  core-design `contract.yaml`, and `a_map_change_into_its_own_descendant_is_refused` in
+  `crates/shadows-core/tests/design_parts/map_proposals.rs`.
+- Touch: `crates/core-design/src/map_rules.rs`, the core-design `contract.yaml` if a rule's
+  wording changes, `crates/shadows-core/tests/design_parts/map_proposals.rs`.
+- Done when:
+  - the parents are indexed once (key → parent), and missing parents and cycles come from one
+    iterative visiting/visited walk over that index; `check_places` uses the same index;
+  - the extended test builds a deeper valid chain, then a move into its own descendant, and sees
+    the refusal and the approved map unchanged; the move-to-top and current-parent cases stay;
+  - `cargo test -p shadows-core --test design_parts` passes; clippy and fmt are clean. A local
+    deep hierarchy compares the time before and after; no timing assertion is committed.
+
+### B-246 · Fold usage rows as SQLite returns them
+
+- Status: todo
+- Plan: [Task 14](plans/2026-11-25-backend-review-fixes.md#14-fold-usage-rows-as-sqlite-returns-them).
+- Why: a usage report loads every row of its period into a `Vec<UsageRow>` before it folds them,
+  so a long period holds them all in memory at once.
+- Interfaces: none public. The store hands rows one at a time from a SQLx row stream; a private
+  accumulator in the report owns `push(row)` and the final sorting. The candidate predicate (kept
+  indexable), the exact half-open period, the historical metadata tie-breaker, the incomplete-cost
+  rule and the checked arithmetic are unchanged. An error partway is returned; a dropped report
+  releases the reader.
+- Read: `crates/core-usage/src/{lib,report}.rs`, `crates/core-usage/src/store/mod.rs`, the
+  core-usage `contract.yaml` and `crates/core-usage/tests/report.rs`.
+- Touch: those three source files and the core-usage `contract.yaml`.
+- Done when:
+  - `reports_keep_exact_endpoints_cache_counts_and_historical_metadata` and
+    `a_partial_cost_group_is_unknown_and_a_refused_write_rolls_back` pass unchanged;
+  - `cargo test -p core-usage --test report` and `cargo test -p shadows-core --test aylul_usage`
+    pass; clippy and fmt are clean;
+  - a one-off comparison (many operations, few groups, a broad period) gives the same output
+    before and after; its peak memory is reported, not committed.
+
+### B-247 · One table for the crate dependency rules
+
+- Status: todo
+- Plan: [Task 15](plans/2026-11-25-backend-review-fixes.md#15-make-architecture-dependency-checks-data-driven).
+  Its small part (the runs and messages tests) shipped in #76.
+- Why: about thirty `*_depends_only_on_*` tests in `crates/shadows/tests/architecture/main.rs`
+  each parse `Cargo.lock` the same way; a new service copies one more.
+- Interfaces: none public. One policy table (each service crate and the production owners it may
+  depend on) and one checker over `cargo metadata --offline --no-deps --format-version 1`, read
+  once. Internal packages are known by their workspace manifest path; renamed dependencies are
+  resolved; normal, build and dev edges are told apart, and only normal and build edges are held
+  to the table. A crate with no row fails, naming it. An edge not in the table fails naming both
+  packages; it is never allowed by itself. The ownership, SQL and constructor scanners stay.
+- Read: `crates/shadows/tests/architecture/main.rs` (every `*_depends_only_on_*` test, and the
+  `Cargo.lock` reading they share), `crates/shadows/tests/architecture/fixtures.rs` and its
+  `README.md`, `crates/shadows-core/src/app.rs` for the owners.
+- Touch: `crates/shadows/tests/architecture/main.rs`, `fixtures.rs`, a new fixture workspace under
+  `crates/shadows/tests/architecture/` if needed, and that folder's `README.md`.
+- Done when:
+  - one table-driven test over the real workspace replaces the separate dependency tests, and
+    allows exactly the edges they allowed today: list both sets in the report;
+  - a tiny Cargo workspace fixture shows a forbidden production edge fails, a dev-only edge
+    passes, and a crate with no policy row fails naming both packages;
+  - `cargo test -p shadows --test architecture` passes; clippy and fmt are clean.
 
 ### B-244 · Bound a call-hierarchy question by one deadline and a root cap
 
