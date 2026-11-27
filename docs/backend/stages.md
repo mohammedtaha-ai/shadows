@@ -106,9 +106,60 @@ this file at `db760593`.
 ## Open
 
 B-244 to B-247 are done: the backend review fixes have no task left, and their plan is in Git
-at `d064e32c`. B-199 is open, paused: the `testing8` run is finished
-and its findings below remain. The tasks that PRs #75 to #78 delivered are in the Shipped table,
-and their open remainders are in Known and left.
+at `d064e32c`. B-248 is next: removing the suspended name index. B-199 is open, paused: the
+`testing8` run is finished and its findings below remain. The tasks that PRs #75 to #78
+delivered are in the Shipped table, and their open remainders are in Known and left.
+
+### B-248 · Remove the suspended name index
+
+- Status: todo
+- Decision: Mohammed, 2026-11-27. The name index was suspended on 2026-11-13 (`code_lsp`
+  answers from the project's language servers instead); production runs with
+  `name_index: false`, and no HTTP route or MCP tool calls `definitions`, `references` or
+  `outline`. Its code, its tree-sitter grammars and its tests go; Git keeps them.
+- Removed:
+  - the `shadows-index` crate, and the `tree-sitter*` entries of the root `Cargo.toml`;
+  - in `codebase`: tag extraction in `scan.rs`, `Codebase::definitions`, `references`,
+    `outline`, the store functions that write or read `code_tag`, `CodebaseConfig::name_index`
+    and the `name_index` flag, and any model type only they use;
+  - `InventoryEntry::has_symbols` (always false today; no web code reads it), so
+    `api/openapi.json` and `web/src/api/schema.d.ts` (`npm run gen:api` in `web/`) change with it;
+  - the `code_tag` table, by a new migration `0082_drop_code_tag.sql`, pinned in
+    `crates/core-db/tests/fixtures/base_migrations.sha384` with the count raised to 82 in
+    `migration_checksums.rs`, and named in the core-db contract;
+  - the tests of the removed code: `the_name_index_is_off_by_default` and the tag assertions in
+    `crates/shadows-core/tests/code_index.rs` (its watching, scanning and activation tests stay,
+    asserting files instead of tags), `crates/codebase/tests/index.rs` if nothing of it remains,
+    and the `shadows-index` tests.
+- Kept: `language_for` and its extension table (a file's language from its extension, for the
+  inventory and the scan) move into `codebase` as a plain table with no grammar; the languages
+  and extensions it knows stay exactly the same. `code_lsp`, the inventory, the file watch and
+  the scan stay.
+- Read: `crates/shadows-core/src/app.rs` (Codebase), the codebase and core-db `contract.yaml`,
+  `crates/codebase/src/{lib,scan,inventory,model}.rs` and `src/store/`,
+  `crates/shadows-index/src/languages.rs`, `crates/shadows/tests/architecture/main.rs`
+  (`DEPENDENCY_POLICY`), `docs/codebase/README.md`.
+- Touch: the files above; `Cargo.toml`, `Cargo.lock`, `crates/codebase/Cargo.toml`; the codebase,
+  core-db and core-grants contracts where they name the index; the tests named above and
+  `crates/codebase/tests/inventory.rs`; `DEPENDENCY_POLICY` (drop `shadows-index` from every
+  row: a row naming a missing crate fails); `api/openapi.json`, `web/src/api/schema.d.ts`;
+  `CLAUDE.md` and `AGENTS.md` (the crate diagram, the crate table, the code-intelligence
+  workspace row); `docs/codebase/README.md` (the code map); `docs/core/future.md` (the name index
+  row goes; the independent code-intelligence package row says its crate was removed on
+  2026-11-27 and a package would start anew); a dated line in
+  `docs/core/specs/2026-09-30-code-index-design.md` and in
+  `docs/backend/specs/2026-11-13-language-servers-design.md` saying the index was removed; this
+  entry.
+- Done when:
+  - no crate, test, contract or current doc names `shadows-index`, `code_tag`, `name_index`,
+    `definitions`/`references`/`outline` of `Codebase`, or `has_symbols` (dated evidence and
+    older specs' history stay as written);
+  - `cargo test -p codebase`, `cargo test -p core-db --test migration_checksums`,
+    `cargo test -p shadows-core --test code_index --test contracts`,
+    `cargo test -p shadows --test architecture --test codemap --test contract_tests --test openapi`
+    pass; clippy with and without `test-support` for the touched crates and `cargo fmt --all
+    --check` are clean; `git diff --exit-code web/src/api` is clean after `npm run gen:api`;
+  - the inventory answers the same `language` for the same files as before.
 
 ### B-245 · Index the map's parents once during validation
 
