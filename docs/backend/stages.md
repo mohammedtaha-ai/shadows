@@ -91,7 +91,7 @@ this file at `db760593`.
 - A Planner's `Read` (Claude) and read-only sandbox (Codex) can read any file the account can, outside the project too; only its instructions keep it in the project. Accepted as is by Mohammed on 2026-11-18.
 - A reviewer's denial of a Codex Git approval is not observed: `ask` routes every approval to Codex's `auto_review`, so a person cannot reject one (`docs/evidence/2026-11-23-codex-commit-recovery-live.md`; `docs/backend/stages.md` at `4d69977d`, B-196).
 - The live check of a Codex conversation in `ask` (two Codex executors commit first time, `testing8`, 2026-11-24) is recorded in `docs/evidence/2026-11-23-testing8-go-python-live.md`; a full executor run on `testing8` is not yet repeated (`docs/backend/stages.md` at `e7b9332`, B-201).
-- The executor menu in a browser has not yet been seen offering `gpt-6.2-sol` (the live catalog test lists it, `docs/backend/stages.md` at `e7b9332`).
+- The executor menu in a browser offers `gpt-6.2-sol` (seen by Mohammed, 2026-11-28).
 - Whether a model switch refused with a 403 (quota out) should skip that one model in the Claude Code catalog probe is open (`docs/backend/stages.md` at `e7b9332`, B-205).
 - Project state keeps element-state facts beside stage and layout, and reads per plan; no measurement asked for the split or the batching (`docs/backend/stages.md` at `e7b9332`, B-223).
 - Whether the provider form says a clipped catalog was clipped is Masada's decision; the field is on the wire (`docs/backend/stages.md` at `e7b9332`, B-227).
@@ -278,7 +278,12 @@ delivered are in the Shipped table, and their open remainders are in Known and l
   end on one data file (Go 8 packages pass, pytest 39 passed). The findings below remain.
 - Findings, not fixed ([evidence](../evidence/2026-11-23-testing8-go-python-live.md)):
   - Codex's sandbox cannot run the WindowsApps `python` alias, so executors report Python checks
-    `not_run` (Shadows' own checks pass them).
+    `not_run` (Shadows' own checks pass them). Accepted as is (Mohammed, 2026-11-28): it is the
+    machine's setup, not Shadows. The alias is Python Install Manager's (or the Store's) app
+    execution alias; the shims in `AppData\Local\Python\bin` come later in PATH. A project with its
+    own venv is not affected: `.venv\Scripts\python.exe` is a plain program inside the project.
+    Shadows does not look for a project's `.venv`; a check uses it only when its command names it.
+    Not yet seen: whether the Planner writes a venv's path into a check when the project has one.
   - Every Codex executor's first `git add` is denied on `index.lock`, then approved: one extra
     round per task. Fixed in PR #76 (`e7b9332`).
   - A Codex start slower than `setup_wait` (20 s) because its model-list refresh timed out fails
