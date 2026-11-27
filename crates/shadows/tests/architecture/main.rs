@@ -62,715 +62,303 @@ fn repository_obeys_the_architecture_ratchet() {
     );
 }
 
-#[test]
-fn database_foundation_depends_on_no_service() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let lock = std::fs::read_to_string(root.join("Cargo.lock")).unwrap();
-    let package = lock
-        .split("[[package]]")
-        .find(|entry| entry.lines().any(|line| line == r#"name = "core-db""#))
-        .expect("core-db is a workspace package");
-    for line in package
-        .lines()
-        .filter(|line| line.trim_start().starts_with('"'))
-    {
-        let name = line.trim().trim_matches(',').trim_matches('"');
-        assert!(
-            !name.starts_with("shadows") && (!scanner::service_crate(name) || name == "core-db"),
-            "foundation must not depend on a service: {name}"
-        );
-    }
-}
+/// Workspace crates every service may use: the foundation and the test doubles.
+const BELOW_EVERY_SERVICE: [&str; 3] = ["core-db", "fake-acp", "fake-codex"];
 
-#[test]
-fn extracted_runtime_depends_only_on_the_foundation() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let lock = std::fs::read_to_string(root.join("Cargo.lock")).unwrap();
-    let package = lock
-        .split("[[package]]")
-        .find(|entry| entry.lines().any(|line| line == r#"name = "core-runtime""#))
-        .expect("core-runtime is a workspace package");
-    for line in package
-        .lines()
-        .filter(|line| line.trim_start().starts_with('"'))
-    {
-        let name = line.trim().trim_matches(',').trim_matches('"');
-        assert!(
-            !name.starts_with("shadows") && (!scanner::service_crate(name) || name == "core-db"),
-            "runtime must not depend on a service or composition: {name}"
-        );
-    }
-}
-
-#[test]
-fn extracted_secrets_depends_only_on_the_foundation() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let lock = std::fs::read_to_string(root.join("Cargo.lock")).unwrap();
-    let package = lock
-        .split("[[package]]")
-        .find(|entry| entry.lines().any(|line| line == r#"name = "core-secrets""#))
-        .expect("core-secrets is a workspace package");
-    for line in package
-        .lines()
-        .filter(|line| line.trim_start().starts_with('"'))
-    {
-        let name = line.trim().trim_matches(',').trim_matches('"');
-        assert!(
-            !name.starts_with("shadows") && (!scanner::service_crate(name) || name == "core-db"),
-            "secrets must not depend on a service or composition: {name}"
-        );
-    }
-}
-
-#[test]
-fn extracted_providers_depends_only_on_declared_lower_owners() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let lock = std::fs::read_to_string(root.join("Cargo.lock")).unwrap();
-    let package = lock
-        .split("[[package]]")
-        .find(|entry| {
-            entry
-                .lines()
-                .any(|line| line == r#"name = "core-providers""#)
-        })
-        .expect("core-providers is a workspace package");
-    for line in package
-        .lines()
-        .filter(|line| line.trim_start().starts_with('"'))
-    {
-        let name = line.trim().trim_matches(',').trim_matches('"');
-        assert!(
-            !name.starts_with("shadows")
-                && (!scanner::service_crate(name) || ["core-db", "core-secrets"].contains(&name)),
-            "providers must depend only on lower owners and infrastructure: {name}"
-        );
-    }
-}
-
-#[test]
-fn extracted_projects_depends_only_on_declared_lower_owners() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let lock = std::fs::read_to_string(root.join("Cargo.lock")).unwrap();
-    let package = lock
-        .split("[[package]]")
-        .find(|entry| {
-            entry
-                .lines()
-                .any(|line| line == r#"name = "core-projects""#)
-        })
-        .expect("core-projects is a workspace package");
-    for line in package
-        .lines()
-        .filter(|line| line.trim_start().starts_with('"'))
-    {
-        let name = line.trim().trim_matches(',').trim_matches('"');
-        assert!(
-            (!name.starts_with("shadows") || name == "shadows-agent")
-                && (!scanner::service_crate(name) || ["core-db", "core-projects"].contains(&name)),
-            "projects must depend only on lower owners and infrastructure: {name}"
-        );
-    }
-}
-
-#[test]
-fn extracted_usage_depends_only_on_the_foundation() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let lock = std::fs::read_to_string(root.join("Cargo.lock")).unwrap();
-    let package = lock
-        .split("[[package]]")
-        .find(|entry| entry.lines().any(|line| line == r#"name = "core-usage""#))
-        .expect("core-usage is a workspace package");
-    for line in package
-        .lines()
-        .filter(|line| line.trim_start().starts_with('"'))
-    {
-        let name = line.trim().trim_matches(',').trim_matches('"');
-        assert!(
-            !name.starts_with("shadows") && (!scanner::service_crate(name) || name == "core-db"),
-            "usage must not depend on a service or composition: {name}"
-        );
-    }
-}
-
-#[test]
-fn extracted_person_depends_only_on_the_foundation() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let lock = std::fs::read_to_string(root.join("Cargo.lock")).unwrap();
-    let package = lock
-        .split("[[package]]")
-        .find(|entry| entry.lines().any(|line| line == r#"name = "core-person""#))
-        .expect("core-person is a workspace package");
-    for line in package
-        .lines()
-        .filter(|line| line.trim_start().starts_with('"'))
-    {
-        let name = line.trim().trim_matches(',').trim_matches('"');
-        assert!(
-            !name.starts_with("shadows") && (!scanner::service_crate(name) || name == "core-db"),
-            "person must not depend on a service or composition: {name}"
-        );
-    }
-}
-
-#[test]
-fn extracted_instructions_depends_only_on_declared_lower_owners() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let lock = std::fs::read_to_string(root.join("Cargo.lock")).unwrap();
-    let package = lock
-        .split("[[package]]")
-        .find(|entry| {
-            entry
-                .lines()
-                .any(|line| line == r#"name = "core-instructions""#)
-        })
-        .expect("core-instructions is a workspace package");
-    for line in package
-        .lines()
-        .filter(|line| line.trim_start().starts_with('"'))
-    {
-        let name = line.trim().trim_matches(',').trim_matches('"');
-        assert!(
-            !name.starts_with("shadows")
-                && (!scanner::service_crate(name) || ["core-db", "core-projects"].contains(&name)),
-            "instructions must depend only on lower owners and infrastructure: {name}"
-        );
-    }
-}
-
-#[test]
-fn extracted_standards_depends_only_on_declared_lower_owners() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let lock = std::fs::read_to_string(root.join("Cargo.lock")).unwrap();
-    let package = lock
-        .split("[[package]]")
-        .find(|entry| {
-            entry
-                .lines()
-                .any(|line| line == r#"name = "core-standards""#)
-        })
-        .expect("core-standards is a workspace package");
-    for line in package
-        .lines()
-        .filter(|line| line.trim_start().starts_with('"'))
-    {
-        let name = line.trim().trim_matches(',').trim_matches('"');
-        assert!(
-            !name.starts_with("shadows")
-                && (!scanner::service_crate(name) || ["core-db", "core-projects"].contains(&name)),
-            "standards must depend only on lower owners and infrastructure: {name}"
-        );
-    }
-}
-
-#[test]
-fn extracted_code_depends_only_on_declared_lower_owners() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let lock = std::fs::read_to_string(root.join("Cargo.lock")).unwrap();
-    let package = lock
-        .split("[[package]]")
-        .find(|entry| entry.lines().any(|line| line == r#"name = "codebase""#))
-        .expect("codebase is a workspace package");
-    for line in package
-        .lines()
-        .filter(|line| line.trim_start().starts_with('"'))
-    {
-        let name = line.trim().trim_matches(',').trim_matches('"');
-        assert!(
-            (!name.starts_with("shadows") || ["shadows-index", "shadows-lsp"].contains(&name))
-                && (!scanner::service_crate(name)
-                    || ["core-db", "core-projects", "codebase"].contains(&name)),
-            "code must depend only on lower owners and infrastructure: {name}"
-        );
-    }
-}
-
-#[test]
-fn code_record_depends_only_on_declared_lower_owners() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let lock = std::fs::read_to_string(root.join("Cargo.lock")).unwrap();
-    let package = lock
-        .split("[[package]]")
-        .find(|entry| entry.lines().any(|line| line == r#"name = "code-record""#))
-        .expect("code-record is a workspace package");
-    // core-operations is a dev-dependency only: the fixtures build the Design they pass in.
-    // code-record itself is a dev-dependency too: its tests enable its own test-support.
-    let owners = [
-        "code-record",
+/// Each service crate and the workspace crates its production build may depend on, besides
+/// `BELOW_EVERY_SERVICE`. An owner here is one the service calls through AppCore's wiring.
+const DEPENDENCY_POLICY: &[(&str, &[&str])] = &[
+    ("core-db", &[]),
+    ("core-runtime", &[]),
+    ("core-secrets", &[]),
+    ("core-usage", &[]),
+    ("core-person", &[]),
+    ("core-providers", &["core-secrets"]),
+    ("core-projects", &["shadows-agent"]),
+    ("core-instructions", &["core-projects"]),
+    ("core-standards", &["core-projects"]),
+    (
         "codebase",
-        "core-db",
-        "core-design",
-        "core-operations",
-        "core-plans",
-        "core-projects",
-    ];
-    for line in package
-        .lines()
-        .filter(|line| line.trim_start().starts_with('"'))
-    {
-        let name = line.trim().trim_matches(',').trim_matches('"');
-        assert!(
-            !name.starts_with("shadows")
-                && (!scanner::service_crate(name) || owners.contains(&name)),
-            "code record must depend only on lower owners and infrastructure: {name}"
-        );
-    }
-}
-
-#[test]
-fn project_state_depends_only_on_declared_lower_owners() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let lock = std::fs::read_to_string(root.join("Cargo.lock")).unwrap();
-    let package = lock
-        .split("[[package]]")
-        .find(|entry| {
-            entry
-                .lines()
-                .any(|line| line == r#"name = "project-state""#)
-        })
-        .expect("project-state is a workspace package");
-    let owners = [
+        &["core-projects", "shadows-index", "shadows-lsp"],
+    ),
+    (
         "code-record",
-        "core-design",
-        "core-plans",
-        "core-projects",
-        "core-runs",
-    ];
-    for line in package
-        .lines()
-        .filter(|line| line.trim_start().starts_with('"'))
-    {
-        let name = line.trim().trim_matches(',').trim_matches('"');
-        assert!(
-            !name.starts_with("shadows")
-                && (!scanner::service_crate(name) || owners.contains(&name)),
-            "project state must depend only on the owners it composes: {name}"
-        );
-    }
-}
-
-#[test]
-fn extracted_agents_depends_only_on_declared_lower_owners() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let lock = std::fs::read_to_string(root.join("Cargo.lock")).unwrap();
-    let package = lock
-        .split("[[package]]")
-        .find(|entry| entry.lines().any(|line| line == r#"name = "core-agents""#))
-        .expect("core-agents is a workspace package");
-    for line in package
-        .lines()
-        .filter(|line| line.trim_start().starts_with('"'))
-    {
-        let name = line.trim().trim_matches(',').trim_matches('"');
-        assert!(
-            !name.starts_with("shadows")
-                && (!scanner::service_crate(name)
-                    || ["core-db", "core-projects", "core-providers", "core-secrets"]
-                        .contains(&name)),
-            "agents must depend only on lower owners and infrastructure: {name}"
-        );
-    }
-}
-
-#[test]
-fn extracted_extensions_depends_only_on_declared_lower_owners() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let lock = std::fs::read_to_string(root.join("Cargo.lock")).unwrap();
-    let package = lock
-        .split("[[package]]")
-        .find(|entry| {
-            entry
-                .lines()
-                .any(|line| line == r#"name = "core-extensions""#)
-        })
-        .expect("core-extensions is a workspace package");
-    for line in package
-        .lines()
-        .filter(|line| line.trim_start().starts_with('"'))
-    {
-        let name = line.trim().trim_matches(',').trim_matches('"');
-        assert!(
-            (!name.starts_with("shadows") || name == "shadows-process")
-                && (!scanner::service_crate(name)
-                    || [
-                        "core-db",
-                        "core-agents",
-                        "core-projects",
-                        "core-providers",
-                        "core-secrets"
-                    ]
-                    .contains(&name)),
-            "extensions must depend only on lower owners and infrastructure: {name}"
-        );
-    }
-}
-
-#[test]
-fn extracted_threads_depends_only_on_declared_lower_owners() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let lock = std::fs::read_to_string(root.join("Cargo.lock")).unwrap();
-    let package = lock
-        .split("[[package]]")
-        .find(|entry| entry.lines().any(|line| line == r#"name = "core-threads""#))
-        .expect("core-threads is a workspace package");
-    for line in package
-        .lines()
-        .filter(|line| line.trim_start().starts_with('"'))
-    {
-        let name = line.trim().trim_matches(',').trim_matches('"');
-        assert!(
-            (!name.starts_with("shadows") || name == "shadows-agent")
-                && (!scanner::service_crate(name)
-                    || [
-                        "core-db",
-                        "core-projects",
-                        "core-agents",
-                        "codebase",
-                        "core-threads"
-                    ]
-                    .contains(&name)),
-            "threads must depend only on lower owners and infrastructure: {name}"
-        );
-    }
-}
-
-#[test]
-fn extracted_grants_depends_only_on_declared_lower_owners() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let lock = std::fs::read_to_string(root.join("Cargo.lock")).unwrap();
-    let package = lock
-        .split("[[package]]")
-        .find(|entry| entry.lines().any(|line| line == r#"name = "core-grants""#))
-        .expect("core-grants is a workspace package");
-    for line in package
-        .lines()
-        .filter(|line| line.trim_start().starts_with('"'))
-    {
-        let name = line.trim().trim_matches(',').trim_matches('"');
-        assert!(
-            (!name.starts_with("shadows") || name == "shadows-agent")
-                && (!scanner::service_crate(name)
-                    || [
-                        "core-db",
-                        "core-projects",
-                        "core-threads",
-                        "codebase",
-                        "core-grants"
-                    ]
-                    .contains(&name)),
-            "grants must depend only on lower owners and infrastructure: {name}"
-        );
-    }
-}
-
-#[test]
-fn extracted_operations_depends_only_on_declared_lower_owners() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let lock = std::fs::read_to_string(root.join("Cargo.lock")).unwrap();
-    let package = lock
-        .split("[[package]]")
-        .find(|entry| {
-            entry
-                .lines()
-                .any(|line| line == r#"name = "core-operations""#)
-        })
-        .expect("core-operations is a workspace package");
-    for line in package
-        .lines()
-        .filter(|line| line.trim_start().starts_with('"'))
-    {
-        let name = line.trim().trim_matches(',').trim_matches('"');
-        assert!(
-            (!name.starts_with("shadows") || name == "shadows-agent")
-                && (!scanner::service_crate(name)
-                    || [
-                        "core-db",
-                        "core-runtime",
-                        "core-threads",
-                        "core-projects",
-                        "core-operations",
-                    ]
-                    .contains(&name)),
-            "operations must depend only on lower owners and infrastructure: {name}"
-        );
-    }
-}
-
-#[test]
-fn extracted_harness_depends_only_on_declared_lower_owners() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let lock = std::fs::read_to_string(root.join("Cargo.lock")).unwrap();
-    let package = lock
-        .split("[[package]]")
-        .find(|entry| entry.lines().any(|line| line == r#"name = "core-harness""#))
-        .expect("core-harness is a workspace package");
-    for line in package
-        .lines()
-        .filter(|line| line.trim_start().starts_with('"'))
-    {
-        let name = line.trim().trim_matches(',').trim_matches('"');
-        assert!(
-            (!name.starts_with("shadows") || ["shadows-agent", "shadows-process"].contains(&name))
-                && (!scanner::service_crate(name)
-                    || [
-                        "core-db",
-                        "core-agents",
-                        "core-extensions",
-                        "core-grants",
-                        "core-instructions",
-                        "core-operations",
-                        "core-person",
-                        "core-providers",
-                        "core-secrets",
-                        "core-standards",
-                        "core-threads",
-                        "core-projects",
-                        "core-harness",
-                    ]
-                    .contains(&name)),
-            "harness must depend only on lower owners and infrastructure: {name}"
-        );
-    }
-}
-
-#[test]
-fn extracted_design_depends_only_on_declared_lower_owners() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let lock = std::fs::read_to_string(root.join("Cargo.lock")).unwrap();
-    let package = lock
-        .split("[[package]]")
-        .find(|entry| entry.lines().any(|line| line == r#"name = "core-design""#))
-        .expect("core-design is a workspace package");
-    for line in package
-        .lines()
-        .filter(|line| line.trim_start().starts_with('"'))
-    {
-        let name = line.trim().trim_matches(',').trim_matches('"');
-        assert!(
-            (!name.starts_with("shadows")
-                || ["shadows-agent", "shadows-process", "shadows-index"].contains(&name))
-                && (!scanner::service_crate(name)
-                    || [
-                        "core-db",
-                        "core-projects",
-                        "core-standards",
-                        "core-threads",
-                        "core-grants",
-                        "core-operations",
-                        "core-harness",
-                        "core-design"
-                    ]
-                    .contains(&name)),
-            "design must depend only on lower owners and infrastructure: {name}"
-        );
-    }
-}
-
-#[test]
-fn extracted_plans_depends_only_on_declared_lower_owners() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let lock = std::fs::read_to_string(root.join("Cargo.lock")).unwrap();
-    let package = lock
-        .split("[[package]]")
-        .find(|entry| entry.lines().any(|line| line == r#"name = "core-plans""#))
-        .expect("core-plans is a workspace package");
-    for line in package
-        .lines()
-        .filter(|line| line.trim_start().starts_with('"'))
-    {
-        let name = line.trim().trim_matches(',').trim_matches('"');
-        assert!(
-            (!name.starts_with("shadows")
-                || ["shadows-agent", "shadows-process", "shadows-index"].contains(&name))
-                && (!scanner::service_crate(name)
-                    || [
-                        "core-db",
-                        "codebase",
-                        "core-design",
-                        "core-grants",
-                        "core-operations",
-                        "core-projects",
-                        "core-threads",
-                        "core-harness",
-                        "core-plans"
-                    ]
-                    .contains(&name)),
-            "plans must depend only on lower owners and infrastructure: {name}"
-        );
-    }
-}
-
-#[test]
-fn extracted_turns_depends_only_on_declared_lower_owners() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let lock = std::fs::read_to_string(root.join("Cargo.lock")).unwrap();
-    let package = lock
-        .split("[[package]]")
-        .find(|entry| entry.lines().any(|line| line == r#"name = "core-turns""#))
-        .expect("core-turns is a workspace package");
-    for line in package
-        .lines()
-        .filter(|line| line.trim_start().starts_with('"'))
-    {
-        let name = line.trim().trim_matches(',').trim_matches('"');
-        assert!(
-            (!name.starts_with("shadows")
-                || ["shadows-agent", "shadows-process", "shadows-index"].contains(&name))
-                && (!scanner::service_crate(name)
-                    || [
-                        "core-db",
-                        "codebase",
-                        "code-record",
-                        "core-design",
-                        "core-grants",
-                        "core-harness",
-                        "core-instructions",
-                        "core-operations",
-                        "core-plans",
-                        "core-projects",
-                        "core-runtime",
-                        "core-standards",
-                        "core-threads",
-                        "core-usage",
-                        "core-turns"
-                    ]
-                    .contains(&name)),
-            "turns must depend only on lower owners and infrastructure: {name}"
-        );
-    }
-}
-
-#[test]
-fn extracted_runs_depends_only_on_declared_lower_owners() {
-    // Runs calls each of these through AppCore's wiring (its contract names the calls).
-    let owners = [
-        "code-record",
-        "codebase",
-        "core-db",
-        "core-grants",
-        "core-harness",
-        "core-operations",
-        "core-plans",
-        "core-projects",
-        "core-threads",
-        "core-turns",
-    ];
-    for name in internal_dependencies("core-runs") {
-        assert!(
-            (!name.starts_with("shadows")
-                || ["shadows-agent", "shadows-process"].contains(&name.as_str()))
-                && (!scanner::service_crate(&name) || owners.contains(&name.as_str())),
-            "runs must depend only on lower owners and infrastructure: {name}"
-        );
-    }
-}
-
-#[test]
-fn extracted_messages_depends_only_on_declared_lower_owners() {
-    let owners = [
-        "codebase",
+        &[
+            "codebase",
+            "core-design",
+            "core-operations",
+            "core-plans",
+            "core-projects",
+        ],
+    ),
+    (
+        "project-state",
+        &[
+            "code-record",
+            "core-design",
+            "core-plans",
+            "core-projects",
+            "core-runs",
+        ],
+    ),
+    (
         "core-agents",
-        "core-db",
-        "core-events",
-        "core-projects",
-        "core-providers",
-        "core-secrets",
+        &["core-projects", "core-providers", "core-secrets"],
+    ),
+    (
+        "core-extensions",
+        &[
+            "core-agents",
+            "core-projects",
+            "core-providers",
+            "core-secrets",
+            "shadows-process",
+        ],
+    ),
+    (
         "core-threads",
+        &["codebase", "core-agents", "core-projects", "shadows-agent"],
+    ),
+    (
+        "core-grants",
+        &["codebase", "core-projects", "core-threads", "shadows-agent"],
+    ),
+    (
+        "core-operations",
+        &[
+            "core-projects",
+            "core-runtime",
+            "core-threads",
+            "shadows-agent",
+        ],
+    ),
+    (
+        "core-harness",
+        &[
+            "core-agents",
+            "core-extensions",
+            "core-grants",
+            "core-instructions",
+            "core-operations",
+            "core-person",
+            "core-projects",
+            "core-providers",
+            "core-secrets",
+            "core-standards",
+            "core-threads",
+            "shadows-agent",
+            "shadows-process",
+        ],
+    ),
+    (
+        "core-design",
+        &[
+            "core-grants",
+            "core-harness",
+            "core-operations",
+            "core-projects",
+            "core-standards",
+            "core-threads",
+            "shadows-agent",
+            "shadows-index",
+            "shadows-process",
+        ],
+    ),
+    (
+        "core-plans",
+        &[
+            "codebase",
+            "core-design",
+            "core-grants",
+            "core-harness",
+            "core-operations",
+            "core-projects",
+            "core-threads",
+            "shadows-agent",
+            "shadows-index",
+            "shadows-process",
+        ],
+    ),
+    (
         "core-turns",
-    ];
-    for name in internal_dependencies("core-messages") {
-        assert!(
-            (!name.starts_with("shadows") || name == "shadows-agent")
-                && (!scanner::service_crate(&name) || owners.contains(&name.as_str())),
-            "messages must depend only on lower owners and infrastructure: {name}"
-        );
-    }
+        &[
+            "code-record",
+            "codebase",
+            "core-design",
+            "core-grants",
+            "core-harness",
+            "core-instructions",
+            "core-operations",
+            "core-plans",
+            "core-projects",
+            "core-runtime",
+            "core-standards",
+            "core-threads",
+            "core-usage",
+            "shadows-agent",
+            "shadows-index",
+            "shadows-process",
+        ],
+    ),
+    (
+        "core-runs",
+        &[
+            "code-record",
+            "codebase",
+            "core-grants",
+            "core-harness",
+            "core-operations",
+            "core-plans",
+            "core-projects",
+            "core-threads",
+            "core-turns",
+            "shadows-agent",
+            "shadows-process",
+        ],
+    ),
+    (
+        "core-messages",
+        &[
+            "codebase",
+            "core-agents",
+            "core-events",
+            "core-projects",
+            "core-providers",
+            "core-secrets",
+            "core-threads",
+            "core-turns",
+            "shadows-agent",
+        ],
+    ),
+    (
+        "core-project-lifecycle",
+        &[
+            "code-record",
+            "codebase",
+            "core-grants",
+            "core-plans",
+            "core-projects",
+            "core-threads",
+            "shadows-agent",
+            "shadows-index",
+            "shadows-process",
+        ],
+    ),
+    (
+        "core-events",
+        &[
+            "core-harness",
+            "core-operations",
+            "core-plans",
+            "core-projects",
+            "core-runtime",
+            "core-threads",
+            "core-turns",
+            "shadows-agent",
+            "shadows-index",
+            "shadows-process",
+        ],
+    ),
+];
+
+type Edge = (String, String, String);
+
+/// Whether a workspace crate must have a row in the dependency policy.
+fn held_to_policy(name: &str) -> bool {
+    name == "core-db" || scanner::service_crate(name)
 }
 
-/// The dependency names `Cargo.lock` lists for workspace package `package`.
-fn internal_dependencies(package: &str) -> Vec<String> {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let lock = std::fs::read_to_string(root.join("Cargo.lock")).unwrap();
-    let header = format!(r#"name = "{package}""#);
-    let entry = lock
-        .split("[[package]]")
-        .find(|entry| entry.lines().any(|line| line == header))
-        .unwrap_or_else(|| panic!("{package} is a workspace package"));
-    entry
-        .lines()
-        .filter(|line| line.trim_start().starts_with('"'))
-        .map(|line| line.trim().trim_matches(',').trim_matches('"').to_string())
-        .collect()
-}
-
-#[test]
-fn extracted_project_lifecycle_depends_only_on_declared_lower_owners() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let lock = std::fs::read_to_string(root.join("Cargo.lock")).unwrap();
-    let package = lock
-        .split("[[package]]")
-        .find(|entry| {
-            entry
-                .lines()
-                .any(|line| line == r#"name = "core-project-lifecycle""#)
+/// The workspace's packages and its internal production edges (normal and build) as
+/// `(from, to, kind)`, read once from `cargo metadata`. A dependency is internal when its path
+/// is a workspace package's manifest directory, so a renamed dependency resolves to the package
+/// it names.
+fn production_edges(root: &Path) -> (BTreeSet<String>, BTreeSet<Edge>) {
+    let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".to_owned());
+    let output = std::process::Command::new(cargo)
+        .args([
+            "metadata",
+            "--offline",
+            "--no-deps",
+            "--format-version",
+            "1",
+        ])
+        .current_dir(root)
+        .output()
+        .expect("cargo metadata runs");
+    assert!(
+        output.status.success(),
+        "cargo metadata: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let metadata: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    let packages = metadata["packages"].as_array().expect("packages");
+    let by_directory: BTreeMap<std::path::PathBuf, String> = packages
+        .iter()
+        .map(|package| {
+            let manifest = Path::new(package["manifest_path"].as_str().unwrap());
+            let name = package["name"].as_str().unwrap().to_owned();
+            (manifest.parent().unwrap().to_path_buf(), name)
         })
-        .expect("core-project-lifecycle is a workspace package");
-    for line in package
-        .lines()
-        .filter(|line| line.trim_start().starts_with('"'))
-    {
-        let name = line.trim().trim_matches(',').trim_matches('"');
-        assert!(
-            (!name.starts_with("shadows")
-                || ["shadows-agent", "shadows-process", "shadows-index"].contains(&name))
-                && (!scanner::service_crate(name)
-                    || [
-                        "core-db",
-                        "codebase",
-                        "code-record",
-                        "core-grants",
-                        "core-plans",
-                        "core-projects",
-                        "core-threads",
-                        "core-project-lifecycle"
-                    ]
-                    .contains(&name)),
-            "project_lifecycle must depend only on lower owners and infrastructure: {name}"
-        );
+        .collect();
+    let mut edges = BTreeSet::new();
+    for package in packages {
+        let from = package["name"].as_str().unwrap();
+        for dependency in package["dependencies"].as_array().unwrap() {
+            let kind = dependency["kind"].as_str().unwrap_or("normal");
+            if kind == "dev" {
+                continue;
+            }
+            let Some(path) = dependency["path"].as_str() else {
+                continue;
+            };
+            if let Some(to) = by_directory.get(Path::new(path)) {
+                edges.insert((from.to_owned(), to.clone(), kind.to_owned()));
+            }
+        }
     }
+    (by_directory.into_values().collect(), edges)
+}
+
+/// Every way the workspace at `root` breaks `policy`: a held crate with no row, an edge from
+/// such a crate, an edge its row does not allow, and a row naming no workspace crate.
+fn dependency_violations(root: &Path, policy: &[(&str, &[&str])]) -> Vec<String> {
+    let (packages, edges) = production_edges(root);
+    let rows: BTreeMap<&str, &[&str]> = policy.iter().copied().collect();
+    let mut errors = Vec::new();
+    for name in packages.iter().filter(|name| held_to_policy(name)) {
+        if !rows.contains_key(name.as_str()) {
+            errors.push(format!("{name} has no dependency policy row"));
+        }
+    }
+    for row in rows.keys().filter(|row| !packages.contains(**row)) {
+        errors.push(format!("policy row {row} names no workspace crate"));
+    }
+    for (from, to, kind) in &edges {
+        match rows.get(from.as_str()) {
+            None if held_to_policy(from) => errors.push(format!(
+                "{from} -> {to} ({kind}): {from} has no dependency policy row"
+            )),
+            Some(allowed)
+                if !allowed.contains(&to.as_str())
+                    && !BELOW_EVERY_SERVICE.contains(&to.as_str()) =>
+            {
+                errors.push(format!(
+                    "{from} -> {to} ({kind}) is not in the dependency policy"
+                ))
+            }
+            _ => {}
+        }
+    }
+    errors
 }
 
 #[test]
-fn extracted_events_depends_only_on_declared_lower_owners() {
+fn service_crates_depend_only_on_the_owners_their_policy_row_names() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let lock = std::fs::read_to_string(root.join("Cargo.lock")).unwrap();
-    let package = lock
-        .split("[[package]]")
-        .find(|entry| entry.lines().any(|line| line == r#"name = "core-events""#))
-        .expect("core-events is a workspace package");
-    for line in package
-        .lines()
-        .filter(|line| line.trim_start().starts_with('"'))
-    {
-        let name = line.trim().trim_matches(',').trim_matches('"');
-        assert!(
-            (!name.starts_with("shadows")
-                || ["shadows-agent", "shadows-process", "shadows-index"].contains(&name))
-                && (!scanner::service_crate(name)
-                    || [
-                        "core-db",
-                        "core-harness",
-                        "core-operations",
-                        "core-plans",
-                        "core-projects",
-                        "core-threads",
-                        "core-turns",
-                        "core-events",
-                        // Below operations; the tests register a runtime instance
-                        // to end a turn.
-                        "core-runtime"
-                    ]
-                    .contains(&name)),
-            "events must depend only on lower owners and infrastructure: {name}"
-        );
-    }
+    let errors = dependency_violations(&root, DEPENDENCY_POLICY);
+    assert!(
+        errors.is_empty(),
+        "dependency policy:\n{}",
+        errors.join("\n")
+    );
 }

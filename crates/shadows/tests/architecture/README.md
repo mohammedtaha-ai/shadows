@@ -19,6 +19,16 @@ comparison. No mutation test edits the real product tree.
 
 ## Checks
 
+- Crate dependencies: `DEPENDENCY_POLICY` in `main.rs` is one row per service crate (and
+  `core-db`) with the workspace crates its production build may depend on; `core-db` and the
+  test doubles (`BELOW_EVERY_SERVICE`) are allowed to every row. One checker reads
+  `cargo metadata --offline --no-deps --format-version 1` once. A dependency is internal when
+  its path is a workspace package's manifest directory, so a renamed dependency resolves to its
+  package. Normal and build edges are held to the table; dev edges are not. A service crate
+  with no row fails, naming it and each of its edges; an edge not in its row fails naming both
+  packages; a row naming no workspace crate fails. A new service adds its row, never a test.
+  A fixture test builds a tiny Cargo workspace to show each refusal.
+
 - Ownership: `impl Storage` methods are indexed by resolved type and defining service; calls use
   imports, renamed imports, reexports, simple type aliases, typed parameters,
   struct fields, local bindings, clone wrappers and declared method returns.
