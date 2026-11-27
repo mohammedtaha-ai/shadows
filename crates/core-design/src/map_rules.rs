@@ -255,6 +255,8 @@ impl MapRules {
 impl MapRules {
     /// The one policy for a part's folder and its layer places: the folder
     /// rules of the map, and the layers the standards' catalog asks for.
+    /// `check_shape` reaches it through its own index; tests call it alone.
+    #[cfg(feature = "test-support")]
     pub fn check_places(
         parts: &[MapPart<'_>],
         standards: &EffectiveStandards,

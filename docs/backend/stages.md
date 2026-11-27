@@ -106,13 +106,13 @@ this file at `db760593`.
 ## Open
 
 B-244 to B-247 are done: the backend review fixes have no task left, and their plan is in Git
-at `d064e32c`. B-248 is next: removing the suspended name index. B-199 is open, paused: the
+at `d064e32c`. B-248 removed the suspended name index. B-199 is open, paused: the
 `testing8` run is finished and its findings below remain. The tasks that PRs #75 to #78
 delivered are in the Shipped table, and their open remainders are in Known and left.
 
 ### B-248 · Remove the suspended name index
 
-- Status: todo
+- Status: done (`32a919bd`, docs `1ccb62f5`)
 - Decision: Mohammed, 2026-11-27. The name index was suspended on 2026-11-13 (`code_lsp`
   answers from the project's language servers instead); production runs with
   `name_index: false`, and no HTTP route or MCP tool calls `definitions`, `references` or
