@@ -5,7 +5,7 @@ mod client;
 
 use std::path::PathBuf;
 
-pub use client::Server;
+pub use client::{Document, Server};
 
 /// How to start one language server: its command and the folder it serves.
 #[derive(Debug, Clone)]

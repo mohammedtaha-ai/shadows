@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use serde_json::{Value, json};
-use shadows_lsp::{Server, ServerSpec};
+use shadows_lsp::{LspError, Server, ServerSpec};
 
 /// After `initialized` it asks the client four requests in turn, as typescript-go
 /// asks `client/registerCapability`, and holds every request of ours until the last
@@ -194,4 +194,41 @@ async fn a_question_dropped_while_held_closes_its_document() {
         .await
         .expect("the second question is answered");
     assert_eq!(seen, json!(["open:one", "close", "open:two"]));
+}
+
+#[tokio::test]
+async fn an_open_past_its_deadline_while_another_holds_the_lock_times_out() {
+    let dir = tempfile::tempdir().unwrap();
+    let held = dir.path().join("held");
+    let server = Server::start(
+        ServerSpec {
+            executable: PathBuf::from("node"),
+            args: vec![
+                "-e".into(),
+                RECORDS_DOCUMENTS.into(),
+                held.to_string_lossy().into_owned(),
+            ],
+            root: dir.path().to_path_buf(),
+            env: std::env::vars().collect(),
+        },
+        Duration::from_secs(20),
+    )
+    .await
+    .expect("the server starts");
+    let file = dir.path().join("a.txt");
+    let soon = || tokio::time::Instant::now() + Duration::from_millis(300);
+    let first = server
+        .open(&file, "plaintext", "one".into(), soon())
+        .await
+        .expect("the first question opens");
+    let second = server.open(&file, "plaintext", "two".into(), soon()).await;
+    let second = second.err();
+    assert!(matches!(second, Some(LspError::Timeout)), "{second:?}");
+    first.close().expect("the first question closes");
+    let again = server
+        .open(&file, "plaintext", "three".into(), soon())
+        .await
+        .expect("the lock is free once the first closes");
+    again.close().unwrap();
+    server.shutdown().await;
 }

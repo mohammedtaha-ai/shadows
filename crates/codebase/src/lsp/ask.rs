@@ -21,6 +21,8 @@ use core_projects::ProjectId;
 const ANSWER_WAIT: Duration = Duration::from_secs(20);
 /// The longest a question waits for a server that is starting.
 const START_WAIT: Duration = Duration::from_secs(20);
+/// The most prepared call-hierarchy roots a question follows up.
+const MAX_ROOTS: usize = 100;
 /// The most items an answer carries.
 const MAX_ITEMS: usize = 100;
 /// The most bytes an answer's result carries.
@@ -111,6 +113,7 @@ impl Codebase {
                     .map_err(|e| Codebase::unavailable(&id, e))
             }
         };
+        let mut roots_left_out = false;
         let result = match (question.operation, position) {
             (LspOperation::DocumentSymbol, _) => {
                 ask(
@@ -132,22 +135,42 @@ impl Codebase {
             }
             (LspOperation::Hover, Some(p)) => ask("textDocument/hover", at(p)).await?,
             (operation @ (LspOperation::IncomingCalls | LspOperation::OutgoingCalls), Some(p)) => {
-                let items = ask("textDocument/prepareCallHierarchy", at(p)).await?;
                 let method = if operation == LspOperation::IncomingCalls {
                     "callHierarchy/incomingCalls"
                 } else {
                     "callHierarchy/outgoingCalls"
                 };
+                // One open document and one deadline for the whole question: a symbol
+                // with many roots costs at most `MAX_ROOTS` follow-ups and one
+                // `ANSWER_WAIT`, and a deadline reached midway is an error, never a
+                // partial answer.
+                let unavailable = |e| Codebase::unavailable(&wanted.id, e);
+                let deadline = tokio::time::Instant::now() + ANSWER_WAIT;
+                let open = running
+                    .open(&full, &language, text.clone(), deadline)
+                    .await
+                    .map_err(unavailable)?;
+                let items = open
+                    .request("textDocument/prepareCallHierarchy", at(p))
+                    .await
+                    .map_err(unavailable)?;
+                let items = items.as_array().cloned().unwrap_or_default();
+                roots_left_out = items.len() > MAX_ROOTS;
                 let mut calls = Vec::new();
-                for item in items.as_array().into_iter().flatten() {
-                    let answer = ask(method, json!({ "item": item })).await?;
+                for item in items.iter().take(MAX_ROOTS) {
+                    let answer = open
+                        .request(method, json!({ "item": item }))
+                        .await
+                        .map_err(unavailable)?;
                     calls.extend(answer.as_array().cloned().unwrap_or_default());
                 }
+                open.close().map_err(unavailable)?;
                 Value::Array(calls)
             }
             _ => return Err(refuse("this operation needs a line and a character")),
         };
         let (result, truncated) = Codebase::bounded(Codebase::located(result, &roots, &rel));
+        let truncated = truncated || roots_left_out;
         Ok(LspAnswer::Answered {
             server: wanted.id,
             result,
@@ -454,7 +477,15 @@ impl Codebase {
                 continue;
             }
             let item = match item {
-                Value::Array(_) | Value::Object(_) => Codebase::located(item, roots, file),
+                Value::Array(_) | Value::Object(_) => {
+                    let end = matches!(key.as_str(), "from" | "to") && item.is_object();
+                    let located = Codebase::located(item, roots, file);
+                    // A call whose other end lies outside the scope is not shown at all.
+                    if end && located.is_null() {
+                        return None;
+                    }
+                    located
+                }
                 other => other,
             };
             out.insert(key, item);

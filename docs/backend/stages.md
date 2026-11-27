@@ -110,7 +110,7 @@ are in the Shipped table, and their open remainders are in Known and left.
 
 ### B-244 · Bound a call-hierarchy question by one deadline and a root cap
 
-- Status: todo
+- Status: done
 - Plan: [Task 13, first bullet](plans/2026-11-25-backend-review-fixes.md#13-bound-hierarchy-expansion-and-share-language-server-readiness-waits).
   Its second bullet, the shared startup wait, shipped in #76.
 - Why: `incomingCalls` and `outgoingCalls` in `Codebase::lsp` ask once per prepared root, each

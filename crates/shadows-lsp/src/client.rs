@@ -256,8 +256,30 @@ impl Server {
         params: Value,
         timeout: Duration,
     ) -> Result<Value, LspError> {
+        let document = self
+            .open(path, language_id, text, Instant::now() + timeout)
+            .await?;
+        let answer = document.request(method, params).await;
+        let closed = document.close();
+        let answer = answer?;
+        closed?;
+        Ok(answer)
+    }
+
+    /// Opens `path` with `text` for several requests that share one `deadline`. The
+    /// question lock is waited for within the deadline; the returned document holds it
+    /// until it is closed or dropped, so one question's requests see one opened text.
+    pub async fn open(
+        &self,
+        path: &Path,
+        language_id: &str,
+        text: String,
+        deadline: Instant,
+    ) -> Result<Document<'_>, LspError> {
         let uri = Self::uri(path)?;
-        let mut versions = self.asking.lock().await;
+        let mut versions = tokio::time::timeout_at(deadline, self.asking.lock())
+            .await
+            .map_err(|_| LspError::Timeout)?;
         let version = versions.entry(path.to_path_buf()).or_insert(0);
         *version += 1;
         self.socket
@@ -272,16 +294,12 @@ impl Server {
             .map_err(|_| self.exited())?;
         // Opened: from here the document is closed however this question ends, even when
         // its caller is dropped mid-request, and before the question lock is released.
-        let mut open = OpenDocument {
-            socket: &self.socket,
+        Ok(Document {
+            server: self,
             uri: Some(uri),
-        };
-        let answer = self.request(method, params, timeout).await;
-        let closed = open.close();
-        drop(versions);
-        let answer = answer?;
-        closed.map_err(|_| self.exited())?;
-        Ok(answer)
+            deadline,
+            _held: versions,
+        })
     }
 
     /// One request with no file opened, such as `workspace/symbol`.
@@ -291,7 +309,17 @@ impl Server {
         params: Value,
         timeout: Duration,
     ) -> Result<Value, LspError> {
-        match tokio::time::timeout(timeout, send_raw(&self.socket, method, params)).await {
+        self.request_until(method, params, Instant::now() + timeout)
+            .await
+    }
+
+    async fn request_until(
+        &self,
+        method: &str,
+        params: Value,
+        deadline: Instant,
+    ) -> Result<Value, LspError> {
+        match tokio::time::timeout_at(deadline, send_raw(&self.socket, method, params)).await {
             Err(_) => Err(LspError::Timeout),
             Ok(Ok(answer)) => Ok(answer),
             Ok(Err(async_lsp::Error::Response(e))) => Err(LspError::Server {
@@ -407,28 +435,46 @@ impl ErrorLines {
     }
 }
 
-/// A document one question opened; it sends `didClose` once, on `close` or when dropped.
-struct OpenDocument<'a> {
-    socket: &'a ServerSocket,
+/// A document one question opened, holding the question lock. It sends `didClose` once,
+/// on `close` or when dropped, and the lock is released only after that: the guard is a
+/// field, and fields drop after `Drop::drop` has run.
+pub struct Document<'a> {
+    server: &'a Server,
     uri: Option<Url>,
+    deadline: Instant,
+    _held: tokio::sync::MutexGuard<'a, HashMap<PathBuf, i32>>,
 }
 
-impl OpenDocument<'_> {
-    fn close(&mut self) -> Result<(), async_lsp::Error> {
+impl Document<'_> {
+    /// One request about the open document, timed out at the question's deadline.
+    pub async fn request(&self, method: &str, params: Value) -> Result<Value, LspError> {
+        self.server
+            .request_until(method, params, self.deadline)
+            .await
+    }
+
+    /// Closes the document and releases the question lock.
+    pub fn close(mut self) -> Result<(), LspError> {
+        self.send_close().map_err(|_| self.server.exited())
+    }
+
+    fn send_close(&mut self) -> Result<(), async_lsp::Error> {
         match self.uri.take() {
-            Some(uri) => self
-                .socket
-                .notify::<DidCloseTextDocument>(DidCloseTextDocumentParams {
-                    text_document: TextDocumentIdentifier { uri },
-                }),
+            Some(uri) => {
+                self.server
+                    .socket
+                    .notify::<DidCloseTextDocument>(DidCloseTextDocumentParams {
+                        text_document: TextDocumentIdentifier { uri },
+                    })
+            }
             None => Ok(()),
         }
     }
 }
 
-impl Drop for OpenDocument<'_> {
+impl Drop for Document<'_> {
     fn drop(&mut self) {
-        let _ = self.close();
+        let _ = self.send_close();
     }
 }
 

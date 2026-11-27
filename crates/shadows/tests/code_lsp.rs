@@ -282,6 +282,142 @@ async fn a_slow_answer_times_out() {
     shut_down(l).await;
 }
 
+/// A language server for call hierarchies. Its arguments: the transcript file, where
+/// each message's method is appended as it arrives, and a mode. `many` prepares 120
+/// roots whose incoming call lies outside every project, except root 100's, which lies
+/// in the opened file; `slow` prepares five roots and answers each follow-up after 8 s.
+const HIERARCHY_SERVER: &str = r#"
+const fs = require('fs');
+const [transcript, mode] = process.argv.slice(2);
+let buffer = Buffer.alloc(0);
+let opened = '';
+const send = (m) => {
+  const body = JSON.stringify(Object.assign({ jsonrpc: '2.0' }, m));
+  process.stdout.write('Content-Length: ' + Buffer.byteLength(body) + '\r\n\r\n' + body);
+};
+const range = { start: { line: 0, character: 0 }, end: { line: 0, character: 1 } };
+const handle = (m) => {
+  if (m.method) fs.appendFileSync(transcript, m.method + '\n');
+  if (m.method === 'initialize') send({ id: m.id, result: { capabilities: {} } });
+  else if (m.method === 'textDocument/didOpen') opened = m.params.textDocument.uri;
+  else if (m.method === 'textDocument/prepareCallHierarchy') {
+    const roots = mode === 'many' ? 120 : 5;
+    const items = [];
+    for (let i = 1; i <= roots; i++) {
+      items.push({ name: 'r' + i, kind: 12, uri: opened, range, selectionRange: range,
+        data: i });
+    }
+    send({ id: m.id, result: items });
+  } else if (m.method === 'callHierarchy/incomingCalls') {
+    const i = m.params.item.data;
+    const uri = i === 100 ? opened : 'file:///nowhere/far/away.calls';
+    const call = [{ from: { name: 'caller' + i, kind: 12, uri, range, selectionRange: range },
+      fromRanges: [range] }];
+    if (mode === 'slow') setTimeout(() => send({ id: m.id, result: call }), 8000);
+    else send({ id: m.id, result: call });
+  } else if (m.id !== undefined) send({ id: m.id, result: null });
+};
+process.stdin.on('data', (chunk) => {
+  buffer = Buffer.concat([buffer, chunk]);
+  for (;;) {
+    const end = buffer.indexOf('\r\n\r\n');
+    if (end < 0) return;
+    const length = Number(/Content-Length: (\d+)/i.exec(buffer.slice(0, end).toString())[1]);
+    if (buffer.length < end + 4 + length) return;
+    const message = JSON.parse(buffer.slice(end + 4, end + 4 + length).toString());
+    buffer = buffer.slice(end + 4 + length);
+    handle(message);
+  }
+});
+"#;
+
+/// A project whose `.calls` files are read by `HIERARCHY_SERVER` in `mode`; returns
+/// the transcript's path and the folder that holds it.
+async fn hierarchy_server(l: &Listening, mode: &str) -> (PathBuf, tempfile::TempDir) {
+    let scripts = tempfile::tempdir().unwrap();
+    let script = scripts.path().join("hierarchy.js");
+    let transcript = scripts.path().join("transcript.txt");
+    std::fs::write(&script, HIERARCHY_SERVER).unwrap();
+    let server = AddedServer {
+        id: "hierarchy".into(),
+        command: "node".into(),
+        args: vec![
+            script.to_string_lossy().into_owned(),
+            transcript.to_string_lossy().into_owned(),
+            mode.into(),
+        ],
+        extensions: vec![".calls".into()],
+    };
+    l.app
+        .core
+        .codebase()
+        .add_server("add-hierarchy".into(), server)
+        .await
+        .unwrap();
+    write(&folder(l).await, "x.calls", "calls\n");
+    start(l).await;
+    (transcript, scripts)
+}
+
+/// How many times the transcript names `method`, once `didClose` is in it.
+async fn heard(transcript: &Path, method: &str) -> usize {
+    for _ in 0..100 {
+        let text = std::fs::read_to_string(transcript).unwrap_or_default();
+        if text.contains("textDocument/didClose") {
+            return text.lines().filter(|line| *line == method).count();
+        }
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+    panic!("the document was never closed");
+}
+
+#[tokio::test]
+async fn a_hierarchy_follows_up_at_most_a_hundred_roots_in_one_open_document() {
+    let l = listening_app().await;
+    let (transcript, _scripts) = hierarchy_server(&l, "many").await;
+    let (_, client) = project_client(&l).await;
+    let args = json!({
+        "operation": "incomingCalls", "file": "x.calls", "line": 1, "character": 1,
+    });
+    let answer = ok(&client, "code_lsp", args).await;
+    assert_eq!(answer["answer"], "answered", "{answer}");
+    assert_eq!(answer["truncated"], true, "{answer}");
+    let result = answer["result"].as_array().unwrap();
+    assert_eq!(result.len(), 1, "{answer}");
+    assert_eq!(result[0]["from"]["name"], "caller100", "{answer}");
+    assert_eq!(result[0]["from"]["path"], "x.calls", "{answer}");
+    assert_eq!(heard(&transcript, "textDocument/didClose").await, 1);
+    assert_eq!(heard(&transcript, "textDocument/didOpen").await, 1);
+    assert_eq!(heard(&transcript, "callHierarchy/incomingCalls").await, 100);
+    shut_down(l).await;
+}
+
+#[tokio::test]
+async fn slow_hierarchy_follow_ups_share_one_deadline() {
+    let l = listening_app().await;
+    let (transcript, _scripts) = hierarchy_server(&l, "slow").await;
+    let (_, client) = project_client(&l).await;
+    let args = json!({
+        "operation": "incomingCalls", "file": "x.calls", "line": 1, "character": 1,
+    });
+    let began = Instant::now();
+    let (is_error, text) = call(&client, "code_lsp", args).await;
+    let took = began.elapsed();
+    assert!(is_error, "{text}");
+    assert!(
+        text.starts_with("LANGUAGE_SERVER_UNAVAILABLE: the language server hierarchy is running")
+            && text.contains("did not answer in time"),
+        "{text}"
+    );
+    // Five roots at 8 s each would take 40 s; one deadline ends near 20 s.
+    assert!(
+        took >= Duration::from_secs(18) && took < Duration::from_secs(25),
+        "{took:?}"
+    );
+    assert_eq!(heard(&transcript, "textDocument/didClose").await, 1);
+    shut_down(l).await;
+}
+
 #[test]
 fn the_removed_code_tools_are_listed_nowhere() {
     for kind in [GrantKind::Thread, GrantKind::Project, GrantKind::Executor] {

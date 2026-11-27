@@ -342,8 +342,12 @@ functions:
       # server reading the file's extension, waited for up to 20 s while it
       # starts; none running is NoServer with its state and, when not installed,
       # its install line. The file's current text goes with the request
-      # (`Server::ask`, 20 s); incomingCalls and outgoingCalls prepare the call
-      # hierarchy first. A server failure (no answer in time, exit, an error) is
+      # (`Server::ask`, 20 s). incomingCalls and outgoingCalls open the document
+      # once (`Server::open`) under one 20 s deadline from the question's start,
+      # over the lock wait, prepareCallHierarchy and every follow-up; at most
+      # `MAX_ROOTS` (100) prepared roots are followed up, a root left out sets
+      # `truncated`, and the deadline reached midway is the timeout error, never a
+      # partial answer. A call whose other end lies outside the scope is dropped. A server failure (no answer in time, exit, an error) is
       # `LanguageServer` (LANGUAGE_SERVER_UNAVAILABLE), its text from `unavailable`.
       # Locations become `{ project, path, line, character }`,
       # one-based; one outside the scope is dropped; 100 items, 32 KiB.
@@ -1001,8 +1005,19 @@ enums:
 
 
 obligations:
-  - rule: A file question (shadows-lsp Server::ask) closes the document it opened however it ends, a caller dropped mid-request included, before its question lock is released.
+  - rule: A file question (shadows-lsp Server::ask, or a Document from Server::open) closes the document it opened however it ends, a caller dropped mid-request included, before its question lock is released.
     tested_by: [a_question_dropped_while_held_closes_its_document]
+  - rule: Server::open waits for the question lock only until its deadline, then answers LspError::Timeout; each Document::request times out at that same deadline.
+    tested_by: [an_open_past_its_deadline_while_another_holds_the_lock_times_out]
+  - rule: >
+      A call-hierarchy question opens its document once and follows up at most 100
+      prepared roots, setting truncated when roots are left out; calls outside the
+      scope are dropped before the 100 visible items are counted.
+    tested_by: [a_hierarchy_follows_up_at_most_a_hundred_roots_in_one_open_document]
+  - rule: >
+      A call-hierarchy question whose follow-ups are slow ends with the timeout error
+      near one 20 s deadline, not one per root, and its document is closed.
+    tested_by: [slow_hierarchy_follow_ups_share_one_deadline]
   - rule: >
       A hold keeps the paths the project's watcher saw change while it lived, git's
       own bookkeeping and a folder modified in place left out.
