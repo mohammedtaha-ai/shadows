@@ -52,11 +52,7 @@ The external inventory (`PROJECT_TOOLS` in Core Grants) grows to the Planner's
 | Propose, design and read | `vision_propose`, `map_propose`, `roadmap_propose`, `decision_propose`, `decision_list`, `design_element_put`, `design_element_delete`, `design_elements`, `project_state`, `code_where`, `project_files`, `project_refresh`, `project_change_note` | Granted |
 | Run tasks | `task_ready`, `task_runs`, `task_start`, `task_start_status`, `task_executor_set`, `executor_catalog`, `task_stop`, `task_done`, `task_amend`, `task_lessons`, `task_diff`, `task_file`, `task_checks`, `project_recheck`, `project_git_init`, `message_agent` | Granted, with the Planner's limits: scopes, checks and the executor's own approvals do not change |
 | Approve | `vision_approve`, `map_approve`, `roadmap_approve`, `plan_approve` | **Never.** The person approves with the button. §24.2 lets the Planner approve at the person's request because the approval links to the person's message in the same conversation; an external agent has no such message, so its approval could not show the person asked |
-| Bound to a conversation | `plan_show`, `person_ask` | Not granted: they draw in a Shadows conversation the external agent does not have |
-
-> **OPEN — the person's question from an external agent.** `person_ask` puts a question card
-> in the Planner's conversation. An external agent asks the person in its own client today.
-> Closes when a slice decides whether Shadows shows such a question too, and where.
+| Bound to a conversation | `plan_show`, `person_ask` | Not granted: they draw in a Shadows conversation the external agent does not have. An external agent asks the person directly in its own client (Mohammed, 2026-11-28) |
 
 ### Where the plan's author is reached
 
