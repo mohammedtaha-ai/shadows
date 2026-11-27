@@ -10,7 +10,7 @@ use shadows_core::{
 };
 use std::path::PathBuf;
 use std::sync::{
-    Arc, Mutex, OnceLock,
+    Arc, Mutex,
     atomic::{AtomicBool, Ordering},
 };
 use std::time::Duration;
@@ -59,19 +59,7 @@ async fn observe(State(audit): State<Arc<Audit>>, request: Request, next: Next) 
 }
 
 fn fixture_executable() -> PathBuf {
-    static BIN: OnceLock<PathBuf> = OnceLock::new();
-    BIN.get_or_init(|| {
-        let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../fake-codex/Cargo.toml");
-        escargot::CargoBuild::new()
-            .manifest_path(manifest)
-            .bin("fake-codex")
-            .features("test-support")
-            .run()
-            .unwrap()
-            .path()
-            .to_owned()
-    })
-    .clone()
+    shadows_core::testing::fake_codex_path()
 }
 
 struct World {
