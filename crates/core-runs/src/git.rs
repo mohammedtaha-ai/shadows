@@ -46,8 +46,9 @@ impl Git {
     /// Runs `git args`, answering its stdout, or its stderr as the error.
     pub(crate) async fn run(&self, args: &[&str]) -> Result<Vec<u8>, String> {
         // The child's environment is built, never inherited: git needs to be
-        // found, to read the person's identity, and never to prompt.
-        let mut vars: Vec<(String, String)> = ["PATH", "HOME"]
+        // found, to read the person's identity, and never to prompt. A ceiling
+        // the person set still bounds how far up git looks for a repository.
+        let mut vars: Vec<(String, String)> = ["PATH", "HOME", "GIT_CEILING_DIRECTORIES"]
             .iter()
             .filter_map(|name| std::env::var(name).ok().map(|v| (name.to_string(), v)))
             .collect();
