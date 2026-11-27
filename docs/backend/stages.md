@@ -60,7 +60,7 @@ A shipped task's entry, and its plan once deleted, are in this file in Git at th
 | #73 | Task contracts checked against the code: file refusals (B-167, B-169), a big listing no longer stalls Shadows (B-168), the code record's first slice (plan `docs/backend/plans/2026-11-19-code-record.md` at `7b7abec`; the `contract` check and the record written with done, B-170 to B-173; acceptance on Sonnet with pyright, B-174; evidence `docs/evidence/2026-11-19-code-record-live.md`), the Report tab's contract row (F-129) | B-167 to B-174; F-129 | `7b7abec` |
 | — | Executor choices accepted by Mohammed in the browser (2026-11-18); the signed-in live tests were not recorded. Its plan is deleted (`docs/backend/plans/2026-11-18-executor-choices.md` at `7029198`) | B-159 | `7029198` |
 | #75 | Project state and the code record: Design's tables and screens pinned by tasks, element states, `project_state` (B-175 to B-181, B-187; evidence `docs/evidence/2026-11-21-code-record-2-live.md` at `4d69977d`); `code_where` and the Planner asking it, and the code record sent with the Planner's context (B-182 to B-186, B-188 to B-193); Codex commit recovery: the Git-write procedure and Start's readiness for an attempted task (plan `docs/backend/plans/2026-11-22-codex-commit-recovery.md` at `4d69977d`; B-194, B-195; B-196 closed 2026-11-23; evidence `docs/evidence/2026-11-22-codex-commit-recovery-live.md` at `4d69977d`); the web's state, diagrams and `code_where` (F-130 to F-136) | B-175 to B-195; F-130 to F-136 | `4d69977d` |
-| #76 | The plan page's project recheck and its live panel (B-206, B-207); the project and thread streams replace the polls (B-208 to B-210); a hold reports only project files (B-197); the Codex 0.171.0 protocol (B-198); a Codex conversation in `ask` commits (B-201); an interrupted recheck runs again (B-202); a slow Codex start names its reason (B-203); Shadows' Codex model list reread (B-204); the Claude Code catalog test passes, no code change (B-205); the backend review fixes (B-211 to B-229; plan `docs/backend/plans/2026-11-25-backend-review-fixes.md`, which keeps its deferred tasks) | B-197, B-198, B-200 to B-229; F-137 to F-144 | `e7b9332` |
+| #76 | The plan page's project recheck and its live panel (B-206, B-207); the project and thread streams replace the polls (B-208 to B-210); a hold reports only project files (B-197); the Codex 0.171.0 protocol (B-198); a Codex conversation in `ask` commits (B-201); an interrupted recheck runs again (B-202); a slow Codex start names its reason (B-203); Shadows' Codex model list reread (B-204); the Claude Code catalog test passes, no code change (B-205); the backend review fixes (B-211 to B-229; plan `docs/backend/plans/2026-11-25-backend-review-fixes.md` at `e7b9332`; its deferred tasks are B-244 to B-247) | B-197, B-198, B-200 to B-229; F-137 to F-144 | `e7b9332` |
 | #77 | The Planner's project switches (§23.9 PR 3c; plan `docs/backend/plans/2026-11-25-planner-project-switches.md` at `3b17985f`; accepted on Claude Code through `shadows serve` and the browser on 2026-11-25, `docs/evidence/2026-11-25-planner-switches-probe.md` at `3b17985f`) | B-230 to B-235; F-145 to F-148 | `3b17985f` |
 | #78 | Named external connections with an editable project scope (plan `docs/backend/plans/2026-11-26-external-connection-management.md` at `261c1abe`); delivery links between a plan, its tasks and its roadmap outcome (§18.3; plan `docs/backend/plans/2026-11-26-delivery-traceability.md` at `261c1abe`; live run `docs/evidence/2026-11-26-delivery-traceability-live.md`) | B-236 to B-243; F-149 to F-152 | `261c1abe` |
 
@@ -101,19 +101,19 @@ this file at `db760593`.
 - State reads each linked outcome whole to show its title; a title-only Design read would be cheaper (B-241).
 - Of the five findings of B-242 (`docs/evidence/2026-11-26-delivery-traceability-live.md`, "Findings"), two were fixed before #78 merged: the Approve bar no longer says "Nothing blocks approval" for a plan missing its links (`40ca34be`), and the last-link refusal names the plan by its title (`7a6e3af2`). Open: the broad scope above, and an outcome linked only to pass the gate (the Planner's prompt asks against it; nothing stops a person). The fifth, a `**` scope shown unmapped, is the design.
 - Outcome acceptance is not recorded by Shadows: no owner decides an outcome's acceptance items ([§18.3 OPEN](../core/specs/2026-10-03-project-planning-workspace-design.md#183-roadmap-outcomes), 2026-11-26; [future](../core/future.md)).
+- The crate dependency table (B-247) holds production and build edges only: a dev-only edge between service crates is no longer checked, where the old `Cargo.lock` tests held it too. A test fake (`fake-acp`, `fake-codex`) is refused as a production edge.
 
 ## Open
 
-B-244 is done. B-245 to B-247 build the last three deferred tasks of the backend review fixes
-(16, 14 and 15), one builder each, in parallel: they touch different crates, and the controller
-keeps this file and `docs/core/future.md`. B-199 is open, paused: the `testing8` run is finished
+B-244 to B-247 are done: the backend review fixes have no task left, and their plan is in Git
+at `d064e32c`. B-199 is open, paused: the `testing8` run is finished
 and its findings below remain. The tasks that PRs #75 to #78 delivered are in the Shipped table,
 and their open remainders are in Known and left.
 
 ### B-245 · Index the map's parents once during validation
 
-- Status: todo
-- Plan: [Task 16](plans/2026-11-25-backend-review-fixes.md#16-index-design-map-parents-during-validation).
+- Status: done
+- Plan: Task 16 of `docs/backend/plans/2026-11-25-backend-review-fixes.md` at `d064e32c`.
 - Why: `MapRules::check_shape` calls `descendant` for each part, and `descendant` and
   `check_places` find each parent by searching the whole list, so a check grows with the square
   of the map's size.
@@ -135,8 +135,8 @@ and their open remainders are in Known and left.
 
 ### B-246 · Fold usage rows as SQLite returns them
 
-- Status: todo
-- Plan: [Task 14](plans/2026-11-25-backend-review-fixes.md#14-fold-usage-rows-as-sqlite-returns-them).
+- Status: done
+- Plan: Task 14 of `docs/backend/plans/2026-11-25-backend-review-fixes.md` at `d064e32c`.
 - Why: a usage report loads every row of its period into a `Vec<UsageRow>` before it folds them,
   so a long period holds them all in memory at once.
 - Interfaces: none public. The store hands rows one at a time from a SQLx row stream; a private
@@ -157,8 +157,8 @@ and their open remainders are in Known and left.
 
 ### B-247 · One table for the crate dependency rules
 
-- Status: todo
-- Plan: [Task 15](plans/2026-11-25-backend-review-fixes.md#15-make-architecture-dependency-checks-data-driven).
+- Status: done
+- Plan: Task 15 of `docs/backend/plans/2026-11-25-backend-review-fixes.md` at `d064e32c`.
   Its small part (the runs and messages tests) shipped in #76.
 - Why: about thirty `*_depends_only_on_*` tests in `crates/shadows/tests/architecture/main.rs`
   each parse `Cargo.lock` the same way; a new service copies one more.
@@ -183,7 +183,7 @@ and their open remainders are in Known and left.
 ### B-244 · Bound a call-hierarchy question by one deadline and a root cap
 
 - Status: done
-- Plan: [Task 13, first bullet](plans/2026-11-25-backend-review-fixes.md#13-bound-hierarchy-expansion-and-share-language-server-readiness-waits).
+- Plan: Task 13, first bullet of `docs/backend/plans/2026-11-25-backend-review-fixes.md` at `d064e32c`.
   Its second bullet, the shared startup wait, shipped in #76.
 - Why: `incomingCalls` and `outgoingCalls` in `Codebase::lsp` ask once per prepared root, each
   through `Server::ask`, which reopens the file, resends its text and starts a fresh 20 s wait. A

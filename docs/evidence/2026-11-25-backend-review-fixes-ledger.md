@@ -1,6 +1,6 @@
 # Backend review fixes: execution ledger
 
-Date: 2026-11-25. The record kept while [the fix plan](../backend/plans/2026-11-25-backend-review-fixes.md) was executed inline (B-211 to B-229, `0dc04e22..e5aa33f2`), for the [backend review](2026-11-25-backend-review.md). Each `Ruling:` is a decision the executor took, with its cost if wrong; each `complete` line names its commits and the tests that ran. Dated fact, not authority.
+Date: 2026-11-25. The record kept while the fix plan (`docs/backend/plans/2026-11-25-backend-review-fixes.md` at `d064e32c`) was executed inline (B-211 to B-229, `0dc04e22..e5aa33f2`), for the [backend review](2026-11-25-backend-review.md). Each `Ruling:` is a decision the executor took, with its cost if wrong; each `complete` line names its commits and the tests that ran. Dated fact, not authority.
 
 ## Ledger
 
