@@ -3,3 +3,13 @@
 # (LNK1180, LNK1318). Linux CI keeps its default linker.
 [target.x86_64-pc-windows-msvc]
 linker = "rust-lld.exe"
+
+# Tests write their throwaway projects, databases and agent homes under the
+# system temp folder. Here they go to target/tmp, which cargo creates for
+# integration tests: on Windows an antivirus exclusion of target/ then covers
+# them, and a crashed test's files go with the build cache, not the system's.
+# `force`, because Windows always sets TMP and TEMP.
+[env]
+TMP = { value = "target/tmp", relative = true, force = true }
+TEMP = { value = "target/tmp", relative = true, force = true }
+TMPDIR = { value = "target/tmp", relative = true, force = true }
