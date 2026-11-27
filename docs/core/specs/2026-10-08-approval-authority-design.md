@@ -119,7 +119,7 @@ plugin runs its own hooks), and the project's `CLAUDE.md`. Shadows never reads
 the person's own Claude settings for them (Mohammed, 2026-11-25). Write, Edit
 and PowerShell are never offered, and Bash stays as item 1 sets it: writing
 code is the executors' (§17). Decided with Mohammed on 2026-10-12. Plan:
-`docs/backend/plans/2026-11-25-planner-project-switches.md`.
+`docs/backend/plans/2026-11-25-planner-project-switches.md` at `3b17985f`.
 
 Each switch is delivered without the settings it rides on, so
 `settingSources: []` and `strictMcpConfig: true` stay and no hook runs

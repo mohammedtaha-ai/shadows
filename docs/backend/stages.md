@@ -20,6 +20,9 @@ the project's state, its diagrams' data and `code_where` with the code record se
 (`docs/backend/stages.md` at `4d69977d`, 2026-11-23). PR #76 (`e7b9332`) is on `main`: the project recheck on the plan page, the
 streams that replace the polls, and the backend review fixes; its tasks are in the Shipped table.
 The Claude Code catalog test passes signed in (Shipped, PR #76).
+PR #77 (`3b17985f`) is on `main`: the Planner's project switches (§23.9 PR 3c), its tasks in the Shipped
+table. PR #78 (`261c1abe`) is on `main`: delivery links between a plan, its tasks and their roadmap
+outcome (§18.3), and named external connections with an editable project scope (B-236).
 
 The Windows `testing7` run is recorded in `docs/evidence/2026-11-22-testing7-go-notes-live.md`
 at `627a0e94`.
@@ -58,6 +61,8 @@ A shipped task's entry, and its plan once deleted, are in this file in Git at th
 | — | Executor choices accepted by Mohammed in the browser (2026-11-18); the signed-in live tests were not recorded. Its plan is deleted (`docs/backend/plans/2026-11-18-executor-choices.md` at `7029198`) | B-159 | `7029198` |
 | #75 | Project state and the code record: Design's tables and screens pinned by tasks, element states, `project_state` (B-175 to B-181, B-187; evidence `docs/evidence/2026-11-21-code-record-2-live.md` at `4d69977d`); `code_where` and the Planner asking it, and the code record sent with the Planner's context (B-182 to B-186, B-188 to B-193); Codex commit recovery: the Git-write procedure and Start's readiness for an attempted task (plan `docs/backend/plans/2026-11-22-codex-commit-recovery.md` at `4d69977d`; B-194, B-195; B-196 closed 2026-11-23; evidence `docs/evidence/2026-11-22-codex-commit-recovery-live.md` at `4d69977d`); the web's state, diagrams and `code_where` (F-130 to F-136) | B-175 to B-195; F-130 to F-136 | `4d69977d` |
 | #76 | The plan page's project recheck and its live panel (B-206, B-207); the project and thread streams replace the polls (B-208 to B-210); a hold reports only project files (B-197); the Codex 0.171.0 protocol (B-198); a Codex conversation in `ask` commits (B-201); an interrupted recheck runs again (B-202); a slow Codex start names its reason (B-203); Shadows' Codex model list reread (B-204); the Claude Code catalog test passes, no code change (B-205); the backend review fixes (B-211 to B-229; plan `docs/backend/plans/2026-11-25-backend-review-fixes.md`, which keeps its deferred tasks) | B-197, B-198, B-200 to B-229; F-137 to F-144 | `e7b9332` |
+| #77 | The Planner's project switches (§23.9 PR 3c; plan `docs/backend/plans/2026-11-25-planner-project-switches.md` at `3b17985f`; accepted on Claude Code through `shadows serve` and the browser on 2026-11-25, `docs/evidence/2026-11-25-planner-switches-probe.md` at `3b17985f`) | B-230 to B-235; F-145 to F-148 | `3b17985f` |
+| #78 | Named external connections with an editable project scope (plan `docs/backend/plans/2026-11-26-external-connection-management.md` at `261c1abe`); delivery links between a plan, its tasks and its roadmap outcome (§18.3; plan `docs/backend/plans/2026-11-26-delivery-traceability.md` at `261c1abe`; live run `docs/evidence/2026-11-26-delivery-traceability-live.md`) | B-236 to B-243; F-149 to F-152 | `261c1abe` |
 
 Replaced or dropped without being built: B-97, B-98, B-119 (by slice 2), B-102, B-110 (with the
 critic), B-112 (by the Planner's judgment), B-115, B-116 (by B-125 and B-126). Their entries are in
@@ -90,113 +95,17 @@ this file at `db760593`.
 - Whether a model switch refused with a 403 (quota out) should skip that one model in the Claude Code catalog probe is open (`docs/backend/stages.md` at `e7b9332`, B-205).
 - Project state keeps element-state facts beside stage and layout, and reads per plan; no measurement asked for the split or the batching (`docs/backend/stages.md` at `e7b9332`, B-223).
 - Whether the provider form says a clipped catalog was clipped is Masada's decision; the field is on the wire (`docs/backend/stages.md` at `e7b9332`, B-227).
+- The Planner's project switches (§23.9 PR 3c) left out, on purpose: a live session picking up a switch change without reopening; `CLAUDE.md` reaching a resumed or forked conversation; a skills folder left by a daemon that stopped with a session open, which stays until that thread opens again (plan `docs/backend/plans/2026-11-25-planner-project-switches.md` at `3b17985f`, Mohammed, 2026-11-25).
+- The automated `planner_switches_live.rs` of B-235 is not written: the container had no `API_KEY_MINIMAX`. The acceptance is the browser run on Claude Code (`docs/evidence/2026-11-25-planner-switches-probe.md` at `3b17985f`).
+- A broad write scope such as `todo/**` does not reach a nested part: the task shows under its root part only, not under a nested part it could write (`docs/evidence/2026-11-26-delivery-traceability-live.md`, finding 3).
+- State reads each linked outcome whole to show its title; a title-only Design read would be cheaper (B-241).
+- The five findings of B-242 (`docs/evidence/2026-11-26-delivery-traceability-live.md`, "Findings") have no recorded fix: the Approve bar that showed "Nothing blocks approval" for a plan the approval then refused, the last-link refusal naming the plan by id, and an outcome linked only to pass the gate (the Planner's prompt asks against it; nothing enforces it). Each stays open until a task names it.
+- Outcome acceptance is not recorded by Shadows: no owner decides an outcome's acceptance items ([§18.3 OPEN](../core/specs/2026-10-03-project-planning-workspace-design.md#183-roadmap-outcomes), 2026-11-26; [future](../core/future.md)).
 
 ## Open
 
 B-199 is open, paused: the `testing8` run is finished and its findings below remain. The tasks
-that PR #75 and PR #76 delivered are in the Shipped table, and their open remainders are in Known and left.
-B-230 to B-235 are the Planner's project switches (§23.9 PR 3c), plan
-`docs/backend/plans/2026-11-25-planner-project-switches.md`; run them one at a time, in the order
-B-230, B-232, B-231, B-233, B-234, B-235.
-
-### B-230 · Extensions: project switches over the library
-
-- Status: done
-- Plan: docs/backend/plans/2026-11-25-planner-project-switches.md#b-230--extensions-project-switches-over-the-library (and "Decisions" 2, 3, 8)
-- Read: `crates/core-extensions/contract.yaml`; `crates/core-projects/contract.yaml`
-  (`require_live_in`); `crates/core-db/contract.yaml` (the migration catalog test);
-  `crates/shadows/tests/architecture/README.md` (literal SQL, table owners)
-- Touch: `crates/core-db/migrations/0080_planner_project_switches.sql`,
-  `crates/core-db/tests/fixtures/base_migrations.sha384`,
-  `crates/core-db/tests/migration_checksums.rs`, `crates/core-db/contract.yaml`,
-  `crates/shadows/tests/architecture/table-owners.txt`,
-  `crates/core-extensions/Cargo.toml`, `crates/core-extensions/contract.yaml`,
-  `crates/core-extensions/src/lib.rs`, `crates/core-extensions/src/model.rs`,
-  `crates/core-extensions/src/mcp.rs`, `crates/core-extensions/src/store/mod.rs`,
-  `crates/core-extensions/tests/library.rs`, this file (Status only)
-- Needs: nothing
-- Done when: `cargo test -p core-extensions`, `cargo test -p core-db --test migration_checksums`,
-  `cargo test -p shadows-core --test storage_contract` and
-  `cargo test -p shadows --test architecture` pass, with the plan's seven new tests in
-  `tests/library.rs` among them.
-
-### B-232 · The agent's session options: plugins and skills
-
-- Status: done
-- Plan: docs/backend/plans/2026-11-25-planner-project-switches.md#b-232--the-agents-session-options-plugins-and-skills
-- Read: `crates/shadows-agent/contract.yaml`
-- Touch: `crates/shadows-agent/contract.yaml`, `crates/shadows-agent/src/connection.rs`,
-  `crates/shadows-agent/src/acp/session.rs`, `crates/shadows-agent/src/acp_tests.rs`,
-  `crates/core-harness/src/assistant.rs`, `crates/core-harness/src/setup.rs` (in these two,
-  only `plugins: vec![], skills: None` added to the three `SessionSetup` literals), this file
-  (Status only)
-- Needs: nothing
-- Done when: `cargo test -p shadows-agent` passes, with `plugins_and_skills_reach_the_options`
-  and `no_plugins_or_skills_sends_neither`, and
-  `cargo check --workspace --all-targets --features fake-acp/test-support` builds.
-
-### B-231 · Projects: the CLAUDE.md switch
-
-- Status: done
-- Plan: docs/backend/plans/2026-11-25-planner-project-switches.md#b-231--projects-the-claudemd-switch
-- Read: `crates/core-projects/contract.yaml`
-- Touch: `crates/core-projects/contract.yaml`, `crates/core-projects/src/lib.rs`,
-  `crates/core-projects/src/store/mod.rs`, `crates/core-projects/tests/project_contract.rs`,
-  this file (Status only)
-- Needs: B-230 (its migration adds the column)
-- Done when: `cargo test -p core-projects` passes, with the plan's three
-  `the_claude_md_switch_*` tests.
-
-### B-233 · Harness: the Planner opens with the project's switches
-
-- Status: done
-- Plan: docs/backend/plans/2026-11-25-planner-project-switches.md#b-233--harness-the-planner-opens-with-the-projects-switches (and "What the person
-  gets", "Decisions" 5 to 8)
-- Read: `crates/core-harness/contract.yaml`; `crates/core-extensions/contract.yaml`
-  (`project_snapshot`); `crates/core-projects/contract.yaml` (`planner_reads_claude_md_in`);
-  `docs/codebase/README.md` (the `core-harness` rows)
-- Touch: `crates/core-harness/contract.yaml`, `crates/core-harness/src/lib.rs`,
-  `crates/core-harness/src/setup.rs`, `crates/core-harness/src/sessions.rs`,
-  `crates/core-harness/src/live.rs`, `crates/core-harness/src/extension_home.rs`,
-  `crates/core-harness/src/planner_skills.rs` (new),
-  `crates/shadows/tests/planner_switches.rs` (new), `docs/codebase/README.md` (one row),
-  this file (Status only)
-- Needs: B-230, B-231, B-232
-- Done when: `cargo test -p shadows --test planner_switches --test planner_mcp --test codemap --test architecture`
-  and `cargo test -p shadows-core --test aylul_session --test aylul_extensions --test executor_session --test codex_session`
-  pass, with the plan's seven `planner_switches` tests.
-
-### B-234 · Routes, and the switch on `Project`
-
-- Status: done (the shared request `docs/shared/requests/2026-11-25-planner-project-switches.md`
-  is `accepted` at `940c91e`).
-- Plan: docs/backend/plans/2026-11-25-planner-project-switches.md#b-234--routes-and-the-switch-on-project
-- Read: `crates/shadows-http/src/contract.yaml`; `crates/core-projects/contract.yaml`; the
-  accepted shared request
-- Touch: `crates/core-projects/contract.yaml`, `crates/core-projects/src/model.rs`,
-  `crates/core-projects/src/store/mod.rs`, `crates/shadows-http/src/contract.yaml`,
-  `crates/shadows-http/src/lib.rs`, `crates/shadows-http/src/planner_switches.rs` (new),
-  `crates/shadows-http/src/aylul_extensions.rs` (only `Toggle`'s two fields `pub(super)`),
-  `crates/shadows/tests/planner_switches.rs`, `crates/shadows/tests/openapi.rs`, `api/openapi.json`, `docs/codebase/README.md`
-  (one row), this file (Status only)
-- Needs: B-230, B-231, B-233; the accepted shared request
-- Done when: `cargo test -p core-projects` and
-  `cargo test -p shadows --test planner_switches --test openapi --test codemap --test architecture`
-  pass, with the plan's three route tests.
-
-### B-235 · Live acceptance on Claude
-
-- Status: done through `shadows serve` and the browser on Claude Code (2026-11-25,
-  [evidence](../evidence/2026-11-25-planner-switches-probe.md#through-shadows)). The automated
-  `planner_switches_live.rs` is not written: this container has no `API_KEY_MINIMAX`.
-- Plan: docs/backend/plans/2026-11-25-planner-project-switches.md#b-235--live-acceptance-on-claude
-- Read: `crates/shadows/tests/fixtures/live.rs`; `docs/evidence/2026-11-25-planner-switches-probe.md`
-- Touch: `crates/shadows/tests/planner_switches_live.rs` (new),
-  `docs/evidence/2026-11-25-planner-switches-probe.md` (a new heading "Through Shadows"),
-  this file (Status only)
-- Needs: B-233
-- Done when: `cargo test -p shadows --test planner_switches_live -- --ignored --test-threads=1`
-  passes here on MiniMax, with its output recorded in the evidence.
+that PRs #75 to #78 delivered are in the Shipped table, and their open remainders are in Known and left.
 
 ### B-199 · Finish the testing8 live run, and the findings it left
 
@@ -220,71 +129,3 @@ B-230, B-232, B-231, B-233, B-234, B-235.
   - The Planner counted 15 tasks; the plans hold 14.
 - Done when: each finding is fixed, accepted or moved to future.
 
-### B-236 · Named external connections with editable project scope
-
-- Status: done
-- Plan: [External connection management](plans/2026-11-26-external-connection-management.md#b-236--name-credentials-and-replace-their-project-scope)
-- Read: `crates/core-grants/contract.yaml` and the accepted external connection management request.
-- Touch: Grants external connection service and store, Core DB migration 0081 and contract,
-  HTTP grants, router and contract, the generated OpenAPI document, Grants, OpenAPI
-  and MCP integration tests, and Rust test callers of the issue method.
-- Done when: the focused grant scope, migration and OpenAPI checks pass.
-
-### B-237 · Resolve task ownership once
-
-- Status: done
-- Plan: [Task 1](plans/2026-11-26-delivery-traceability.md#task-1--b-237--resolve-task-ownership-once)
-- Read: AppCore's Plans and Design entries, Plans' TaskContext and Design's layout contract.
-- Touch: TaskContext and its store, contract, focused tests, and this entry. Exact paths in Task 1.
-- Done when: the resolver keeps read/write ownership separate and the existing context still passes.
-
-### B-238 · Link a Planner draft from its outcome
-
-- Status: done
-- Plan: [Task 2](plans/2026-11-26-delivery-traceability.md#task-2--b-238--link-a-planner-draft-from-its-outcome)
-- Read: AppCore, Plans' draft and workspace edit owners, Design's anchor loader.
-- Touch: the draft, workspace edit and anchor paths and the MCP scenario listed in Task 2.
-- Done when: anchored start links inside the draft transaction and raises the workspace and
-  outcome revisions; replay, stale-anchor rollback, a stale editor save and ordinary draft pass.
-
-### B-239 · Enforce delivery links at approval
-
-- Status: done
-- Plan: [Task 3](plans/2026-11-26-delivery-traceability.md#task-3--b-239--enforce-delivery-links-at-approval)
-- Read: AppCore, Plans' approval and design-association contracts.
-- Touch: approval, association writes and explicit test fixtures listed in Task 3.
-- Done when: actual person and Planner approvals check delivery links and a last-link move
-  works as one transaction.
-
-### B-240 · Expose the same links in plan and task reads
-
-- Status: done
-- Plan: [Task 4](plans/2026-11-26-delivery-traceability.md#task-4--b-240--expose-the-same-links-in-plan-and-task-reads)
-- Read: AppCore, Plans and Runs context contracts, accepted delivery traceability request.
-- Touch: existing plan/context reads, related tests and OpenAPI listed in Task 4.
-- Done when: HTTP, MCP and the saved brief carry the same same-project links.
-
-### B-241 · Compose roadmap and map progress in ProjectState
-
-- Status: done
-- Plan: [Task 5](plans/2026-11-26-delivery-traceability.md#task-5--b-241--compose-roadmap-and-map-progress-in-projectstate)
-- Read: AppCore, ProjectState, Plans' live version view and Runs' progress.
-- Touch: existing live/version and State projections, adapters, tests and OpenAPI in Task 5.
-- Done when: outcome detail, scoped part tasks and unique live totals pass across State readers.
-
-### B-243 · Tell the Planner when to version and when to plan anew
-
-- Status: done
-- Plan: [Task 9](plans/2026-11-26-delivery-traceability.md#task-9--b-243--tell-the-planner-when-to-version-and-when-to-plan-anew)
-- Read: the Planner prompt's plans paragraph and the harness contract's prompt lines.
-- Touch: the Planner prompt, harness contract, `mcp_tools` test and this entry.
-- Done when: the prompt line test passes and `mcp_tools` stays green.
-
-### B-242 · Verify the real delivery path
-
-- Status: done. [Evidence](../evidence/2026-11-26-delivery-traceability-live.md): five findings.
-- Plan: [Task 10](plans/2026-11-26-delivery-traceability.md#task-10--b-242--verify-the-real-delivery-path)
-- Read: the acceptance in Task 10 and the actual branch revision under test.
-- Touch: dated evidence and this entry.
-- Done when: the real linked task and its acceptance can be followed in Roadmap, Map, State,
-  Planner and executor context.

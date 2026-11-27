@@ -35,12 +35,12 @@ design-note, and status narratives.
 | §15 | [`2026-09-30-code-index-design.md`](./2026-09-30-code-index-design.md) |
 | §16 | [`2026-10-01-project-plans-design.md`](./2026-10-01-project-plans-design.md) |
 | §17 | [`2026-10-01-task-contracts-and-evidence-design.md`](./2026-10-01-task-contracts-and-evidence-design.md); §17.12 records future production operations |
-| §18 | [`2026-10-03-project-planning-workspace-design.md`](./2026-10-03-project-planning-workspace-design.md) — Stages 1–2 built; Stage 3 is in [`docs/core/future.md`](../future.md) |
+| §18 | [`2026-10-03-project-planning-workspace-design.md`](./2026-10-03-project-planning-workspace-design.md) — Stages 1–2 built, and §18.3's delivery links (PR #78, `261c1abe`); outcome acceptance and Stage 3 are in [`docs/core/future.md`](../future.md) |
 | §19 | [`2026-10-03-agent-profiles-and-extensions-design.md`](./2026-10-03-agent-profiles-and-extensions-design.md) — draft; Planner and executor profiles not built; AYLUL parts are owned by the AYLUL specs (§19.4, §19.5) |
 | §20 | [`2026-10-05-message-queue-design.md`](./2026-10-05-message-queue-design.md) — the queue and Send now (built) |
 | §21 | [`2026-10-05-slash-menu-design.md`](./2026-10-05-slash-menu-design.md) — the `/` menu (built) |
 | §22 | [`2026-10-05-subagent-cards-design.md`](./2026-10-05-subagent-cards-design.md) — subagent cards and their side panel (built) |
-| §23 | [`2026-10-08-guided-planning-design.md`](./2026-10-08-guided-planning-design.md) — accepted; PRs 0–5 merged; PR 3c (§23.9), the Planner's project switches, is in PR #77 |
+| §23 | [`2026-10-08-guided-planning-design.md`](./2026-10-08-guided-planning-design.md) — accepted; PRs 0–5 merged; PR 3c (§23.9), the Planner's project switches, is merged in PR #77 (`3b17985f`) |
 | §24 | [`2026-10-08-approval-authority-design.md`](./2026-10-08-approval-authority-design.md) — principal and agent; enforced by §23.9 PR 3b (merged) |
 
 ## Maintenance rules

@@ -5,9 +5,11 @@ here and set its status. Task shape: [`AGENTS.md`](./AGENTS.md#a-task-in-stagesm
 
 ## Now
 
-PR #76 (`e7b9332`) is on `main`: the project recheck on the plan page (F-137, F-138) and the screens
-that follow the stream instead of polling (F-139 to F-144). The Planner's project switches (F-145 to F-148, below) are in PR #77. The project's state view, its ER diagram and screen flow,
-and `code_where` in the web (F-130 to F-136) are on `main` in PR #75 (`4d69977d`).
+PR #78 (`261c1abe`) is on `main`: the delivery links on Roadmap, Map, State and the plan graph (F-150 to F-152), and
+named external connections with an editable project scope (F-149). PR #77 (`3b17985f`) is on `main`: the Planner's
+project switches (F-145 to F-148). PR #76 (`e7b9332`): the project recheck on the plan page (F-137, F-138) and the
+screens that follow the stream instead of polling (F-139 to F-144). The project's state view, its ER diagram and screen
+flow, and `code_where` in the web (F-130 to F-136) are on `main` in PR #75 (`4d69977d`).
 
 Every task's checks run from `web/`: the tests it names, then `npm run typecheck`, `npm run lint`,
 `npm run build` and `npx vitest run src/codemap.test.ts src/architecture`.
@@ -43,6 +45,8 @@ A shipped task's entry, and its plan once deleted, are in this file in Git at th
 | #73 | The Report tab shows the `contract` check as Shadows' own (F-129; plan `docs/backend/plans/2026-11-19-code-record.md` at `7b7abec`) | F-129 | `7b7abec` |
 | #75 | The project's state view, its ER diagram and screen flow, pinned elements in plan review and in the attempt brief, `code_where` and its contract inputs and return (the shared requests `docs/shared/requests/2026-11-19-project-state-and-diagrams.md` and `docs/shared/requests/2026-11-19-code-where.md`) | F-130 to F-136 | `4d69977d` |
 | #76 | The project recheck on the plan page and its live terminal panel; the screens follow the project stream instead of polling (B-208 to B-210 in `docs/backend/stages.md` at `e7b9332`) | F-137 to F-144 | `e7b9332` |
+| #77 | The Planner's project switches: the agent form's switch shared, the project's switch calls, the section "What the Planner may use", and a library change reaching the switches (plan `docs/frontend/plans/2026-11-25-planner-project-switches.md` at `3b17985f`; shared request `docs/shared/requests/2026-11-25-planner-project-switches.md`) | F-145 to F-148 | `3b17985f` |
+| #78 | External connections: names and editable project scope (F-149; plan `docs/backend/plans/2026-11-26-external-connection-management.md` at `261c1abe`); related tasks on Roadmap, Map and State, approval requirements and return links, and real dependency status on the plan graph (F-150 to F-152; plan `docs/frontend/plans/2026-11-26-delivery-traceability.md` at `261c1abe`) | F-149 to F-152 | `261c1abe` |
 
 Dropped without being built: F-99 and F-101 (covered by F-102's brief panel and F-116's server list; the rest is in [future](../core/future.md)), F-100 (with B-102), F-104 and F-105 (with the repair plan; slice 6 replanned them as F-121 to F-124). Their entries and plan are at `d997393a`.
 
@@ -59,104 +63,3 @@ PRs #59 and #66 have no `F-` task. Two composer fixes in PR #61 have none either
 Its shared request must be accepted and its backend response must exist. Expand the API hooks,
 routing, event refresh, contracts and code-map paths first. The old mockup's `Built` label is not
 evidence of completion.
-
-## The Planner's project switches
-
-Plan: `docs/frontend/plans/2026-11-25-planner-project-switches.md`. Shared request `docs/shared/requests/2026-11-25-planner-project-switches.md`,
-`accepted` (Hamoud's answer at `77ed3cd`). Backend: B-234 in `docs/backend/stages.md` (the
-routes and `Project.planner_reads_claude_md`). Order: F-145, then F-146 once B-234 is `done`,
-then F-147, then F-148.
-
-### F-145 · The agent form's switch becomes a shared switch
-- Status: done
-- Plan: docs/frontend/plans/2026-11-25-planner-project-switches.md#f-145--the-agent-forms-switch-becomes-a-shared-switch
-- Read: `web/src/app/agents/contract.yaml` (`AgentExtensions`); `docs/frontend/codebase/README.md`
-  (the architecture table's `shared` row); `web/src/app/agents/agent-extensions.tsx`
-  (`ExtensionSwitch`, `AgentExtensions`)
-- Touch: `web/src/app/saving-switch.tsx` (new), `web/src/app/agents/agent-extensions.tsx`,
-  `web/src/app/agents/contract.yaml`, `docs/frontend/codebase/README.md`
-- Needs: none (the request is `accepted`; no backend)
-- Done when: `npx vitest run src/app/agents/agent-extensions.test.tsx src/app/agents/tool-rules.test.tsx
-  src/app/agents/agent-form.test.tsx` passes with no test file changed, then the four checks
-
-### F-146 · The project's switch calls in `web/src/api/`
-- Status: done
-- Plan: docs/frontend/plans/2026-11-25-planner-project-switches.md#f-146--the-projects-switch-calls-in-websrcapi
-- Read: `web/src/api/contract.yaml` (`extensions`, `extension_cache`, the projects functions);
-  the plan's "Core's answers, exactly"; `web/src/api/extensions.ts` (`extensionKeys`,
-  `saveAgentExtensionAnswer`, `writeSaved`); `web/src/api/projects.ts` (`saveProjectAnswer`)
-- Touch: `web/src/api/schema.d.ts` (through `npm run gen:api` only, run first),
-  `web/src/api/extensions.ts`, `web/src/api/projects.ts`, `web/src/api/extensions.test.ts`,
-  `web/src/api/requests.test.ts`, `web/src/api/contract.yaml`, `web/src/test/contract-fixtures.ts`
-- Needs: `docs/shared/requests/2026-11-25-planner-project-switches.md` (accepted); B-234 `done`
-- Done when: `npx vitest run src/api/extensions.test.ts src/api/requests.test.ts
-  src/app/agents/agent-extensions.test.tsx` passes, with the four tests the plan names, then
-  the four checks
-
-### F-147 · The section "What the Planner may use"
-- Status: done
-- Plan: docs/frontend/plans/2026-11-25-planner-project-switches.md#f-147--the-section-what-the-planner-may-use
-- Read: `web/src/app/project-settings/contract.yaml`; `docs/frontend/codebase/README.md`
-  (the `project-settings` row); the plan's "Core's answers, exactly" and decisions 5, 7, 8;
-  `web/src/app/project-settings/project-settings.tsx` (the `ProjectModes` block);
-  `web/src/app/agents/agent-extensions.test.tsx` (`switchOf`, `a failed switch goes back`)
-- Touch: `web/src/app/project-settings/planner-switches.tsx` (new),
-  `web/src/app/project-settings/planner-switches.test.tsx` (new),
-  `web/src/app/project-settings/project-settings.tsx`,
-  `web/src/app/project-settings/contract.yaml`, `web/src/test/fake-daemon.ts`,
-  `docs/frontend/codebase/README.md`
-- Needs: F-145, F-146 (so B-234 `done`)
-- Done when: `npx vitest run src/app/project-settings` passes, with the nine tests the plan
-  names, then the four checks
-
-### F-148 · A library change reaches the project's switches
-- Status: done
-- Plan: docs/frontend/plans/2026-11-25-planner-project-switches.md#f-148--a-library-change-reaches-the-projects-switches
-- Read: `web/src/app/settings/contract.yaml` (the library notes, `extension_refresh_owner`);
-  the three `onSuccess` blocks the plan names in `mcp-form.tsx`, `extension-import.tsx`,
-  `extension-list.tsx`
-- Touch: `web/src/app/settings/mcp-form.tsx`, `web/src/app/settings/extension-import.tsx`,
-  `web/src/app/settings/extension-list.tsx`, `web/src/app/settings/contract.yaml`,
-  `web/src/app/project-settings/planner-switches.test.tsx`
-- Needs: F-146, F-147
-- Done when: `npx vitest run src/app/settings src/app/agents/agent-extensions.test.tsx
-  src/app/project-settings/planner-switches.test.tsx` passes, with
-  `a library removal refreshes the project's switches`, then the four checks
-
-### F-149 · External connection setup and project edits
-
-- Status: done
-- Plan: [External connection management](../backend/plans/2026-11-26-external-connection-management.md#f-149--edit-permissions-and-show-portable-setup)
-- Read: `web/src/app/settings/contract.yaml` and the accepted external connection management request.
-- Touch: External agents Settings section and its test, the external connections API module
-  and cache test, generated TypeScript schema and their contracts.
-- Needs: B-236
-- Done when: the external connection Settings interaction passes, then the four checks.
-
-### F-150 · Show approval requirements and return links
-
-- Status: done
-- Plan: [Task 6](plans/2026-11-26-delivery-traceability.md#task-6--f-150--show-approval-requirements-and-return-links)
-- Read: the accepted delivery traceability request and the workflow, task and stream contracts.
-- Touch: generated schema, plan and task views and stream refresh paths listed in Task 6.
-- Needs: B-240 and B-241 OpenAPI
-- Done when: the missing association links to its editor and the saved plan/task links refresh.
-
-### F-151 · Display related tasks in Roadmap, Map and State
-
-- Status: done
-- Plan: [Task 7](plans/2026-11-26-delivery-traceability.md#task-7--f-151--display-related-tasks-in-roadmap-map-and-state)
-- Read: State and Design contracts and the accepted delivery traceability request.
-- Touch: State API/options and the three read views and tests listed in Task 7.
-- Needs: B-241 and F-150
-- Done when: selected outcomes and parts open exact tasks with Runs status and State shows the unique total.
-
-### F-152 · Read real dependency status in the plan graph
-
-- Status: done. The tests live in `plan-map.test.tsx`, beside the existing linked-card test;
-  `plan-graph.test.tsx` renders no linked card.
-- Plan: [Task 8](plans/2026-11-26-delivery-traceability.md#task-8--f-152--read-real-dependency-status-in-the-plan-graph)
-- Read: the workflows contract's linked node, current progress query and linked-graph test.
-- Touch: linked node, its test, workflows contract and this entry.
-- Needs: the existing plan progress read only
-- Done when: the graph shows the linked exact-version task status from Runs and the frontend checks pass.
