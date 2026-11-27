@@ -99,13 +99,55 @@ this file at `db760593`.
 - The automated `planner_switches_live.rs` of B-235 is not written: the container had no `API_KEY_MINIMAX`. The acceptance is the browser run on Claude Code (`docs/evidence/2026-11-25-planner-switches-probe.md` at `3b17985f`).
 - A broad write scope such as `todo/**` does not reach a nested part: the task shows under its root part only, not under a nested part it could write (`docs/evidence/2026-11-26-delivery-traceability-live.md`, finding 3).
 - State reads each linked outcome whole to show its title; a title-only Design read would be cheaper (B-241).
-- The five findings of B-242 (`docs/evidence/2026-11-26-delivery-traceability-live.md`, "Findings") have no recorded fix: the Approve bar that showed "Nothing blocks approval" for a plan the approval then refused, the last-link refusal naming the plan by id, and an outcome linked only to pass the gate (the Planner's prompt asks against it; nothing enforces it). Each stays open until a task names it.
+- Of the five findings of B-242 (`docs/evidence/2026-11-26-delivery-traceability-live.md`, "Findings"), two were fixed before #78 merged: the Approve bar no longer says "Nothing blocks approval" for a plan missing its links (`40ca34be`), and the last-link refusal names the plan by its title (`7a6e3af2`). Open: the broad scope above, and an outcome linked only to pass the gate (the Planner's prompt asks against it; nothing stops a person). The fifth, a `**` scope shown unmapped, is the design.
 - Outcome acceptance is not recorded by Shadows: no owner decides an outcome's acceptance items ([§18.3 OPEN](../core/specs/2026-10-03-project-planning-workspace-design.md#183-roadmap-outcomes), 2026-11-26; [future](../core/future.md)).
 
 ## Open
 
-B-199 is open, paused: the `testing8` run is finished and its findings below remain. The tasks
-that PRs #75 to #78 delivered are in the Shipped table, and their open remainders are in Known and left.
+B-244 is next: the first half of task 13 of the backend review fixes. B-199 is open, paused: the
+`testing8` run is finished and its findings below remain. The tasks that PRs #75 to #78 delivered
+are in the Shipped table, and their open remainders are in Known and left.
+
+### B-244 · Bound a call-hierarchy question by one deadline and a root cap
+
+- Status: todo
+- Plan: [Task 13, first bullet](plans/2026-11-25-backend-review-fixes.md#13-bound-hierarchy-expansion-and-share-language-server-readiness-waits).
+  Its second bullet, the shared startup wait, shipped in #76.
+- Why: `incomingCalls` and `outgoingCalls` in `Codebase::lsp` ask once per prepared root, each
+  through `Server::ask`, which reopens the file, resends its text and starts a fresh 20 s wait. A
+  symbol with many roots has no bound on requests or on total time.
+- Interfaces:
+  - `shadows-lsp`: `Server::open(&self, path, language_id, text, deadline: Instant) ->
+    Result<Document<'_>, LspError>` waits for the question lock within the deadline
+    (`LspError::Timeout` past it), sends `didOpen` once and returns a document that holds the
+    lock. `Document::request(&self, method, params) -> Result<Value, LspError>` times each
+    request out at the remaining deadline. Dropping the document, or `Document::close`, sends
+    `didClose` once and before the lock is released, as `OpenDocument` does now. `Server::ask`
+    becomes `open`, one `request` and `close`, its behaviour unchanged.
+  - `codebase`: a hierarchy question opens the document once, with one deadline (`ANSWER_WAIT`
+    from the question's start) over the lock wait, `prepareCallHierarchy` and every follow-up. At
+    most `MAX_ROOTS = 100` prepared roots get a follow-up; a root left out sets `truncated`.
+    Locations are scope-filtered (`located`) before `bounded` counts the 100 visible items and
+    32 KiB. A deadline reached during the follow-ups is the existing timeout error, never a
+    partial answer.
+- Read: `crates/codebase/src/lsp/ask.rs` (`lsp`, `located`, `bounded`),
+  `crates/shadows-lsp/src/client.rs` (`Server::ask`, `request`, `OpenDocument`), both crates'
+  `contract.yaml`, `crates/shadows/tests/code_lsp.rs` (`a_slow_answer_times_out` and its Node
+  peer) and `crates/shadows-lsp/tests/requests.rs`
+  (`a_question_dropped_while_held_closes_its_document`).
+- Touch: those two source files, both contracts, `crates/shadows/tests/code_lsp.rs`,
+  `crates/shadows-lsp/tests/requests.rs`, `docs/core/future.md` (drop task 13's first half from
+  "Backend review leftovers") and this entry.
+- Done when:
+  - a Node-peer case in `code_lsp.rs` prepares 120 roots whose calls lie outside the scope,
+    except root 100's: the peer's transcript shows one `didOpen`, one `didClose` and
+    exactly 100 follow-ups, the in-scope call is in the answer, and `truncated` is true;
+  - a Node-peer case whose follow-ups are each slow ends with the timeout error near one
+    `ANSWER_WAIT`, not one per root, and the document is closed;
+  - a `requests.rs` case: while one question holds a document, a second `open` whose deadline
+    passes returns `Timeout`;
+  - `cargo test -p shadows --test code_lsp --test code_scope` and
+    `cargo test -p shadows-lsp --test requests` pass; clippy and fmt are clean.
 
 ### B-199 · Finish the testing8 live run, and the findings it left
 
