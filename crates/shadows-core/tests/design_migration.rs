@@ -102,36 +102,6 @@ async fn migration_24_backfills_preexisting_approved_proposal_views() {
     storage.close().await.unwrap();
 }
 
-/// Runs only on the externally prepared SQLite backup; never on the live DB.
-#[tokio::test]
-#[ignore = "requires SHADOWS_DESIGN_MIGRATION_COPY made through SQLite backup"]
-async fn migrate_prepared_dev_copy_only() {
-    let path = std::path::PathBuf::from(
-        std::env::var("SHADOWS_DESIGN_MIGRATION_COPY").expect("prepared backup path"),
-    );
-    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../.superpowers/sdd/2026-10-03-planning-workspace-stage-1/task-4-runtime")
-        .canonicalize()
-        .unwrap();
-    let copy = path.canonicalize().unwrap();
-    assert!(
-        copy.starts_with(root) && copy.file_name().unwrap() == "dev-copy.sqlite3",
-        "only this plan's disposable copy is permitted"
-    );
-    // Storage's URL uses a regular Windows path, not the verbatim \\?\ prefix.
-    let storage = std::sync::Arc::new(Storage::open(dunce::simplified(&copy)).await.unwrap());
-    assert!(
-        sqlx::query("PRAGMA foreign_key_check")
-            .fetch_all(storage.reader())
-            .await
-            .unwrap()
-            .is_empty()
-    );
-    storage.reader().close().await;
-
-    storage.close().await.unwrap();
-}
-
 async fn old_rows(pool: &sqlx::SqlitePool) -> Vec<Vec<String>> {
     // Text JSON fields are strings here: even their original whitespace must survive.
     let queries = [
