@@ -31,8 +31,10 @@ hear about it, read what went wrong and answer, whatever harness each side
 runs on.
 
 Claude Code sessions can message each other today (the probe, §4), but only
-inside one config directory, through an undocumented pipe, and Codex has no
-counterpart. So agents cannot talk to each other directly across harnesses.
+inside one config directory. Its cross-session messaging is documented since
+Claude Code 2.1.234 on Windows, and each session's pipe accepts only another
+Claude Code session (2026-11-28). Codex has no counterpart outside its desktop
+app. So agents cannot talk to each other directly across harnesses.
 
 The same system serves AYLUL. Mohammed wants a group of AYLUL agents he can
 write to, mentioning one or two of them, as Hermes does with its rooms. And

@@ -59,6 +59,10 @@ the person's message in the same turn, so the person can see it.
 
 Decided with Mohammed on 2026-10-12.
 
+An external agent (`external:<grant>`) never approves: it has no message of the person's to
+link an approval to. It proposes, and the person approves with the button (Mohammed,
+2026-11-28; [external connections](../../backend/specs/2026-11-18-external-agent-connections-design.md#an-external-agent-works-like-the-planner-mohammed-2026-11-28)).
+
 ## 24.3 What must be impossible: the Planner as `human`
 
 The one forgery that matters is an approval recorded with agent = `human`

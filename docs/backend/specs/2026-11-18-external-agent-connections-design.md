@@ -31,3 +31,67 @@ a named environment variable. The browser releases the issued secret when its se
 view closes.
 
 Automated checks cover migration of old credentials, token replay and revocation, a single token across two selected projects, denial for an unselected project, wrong and missing project arguments, draft reference isolation, external tool inventory, and Settings issue and revoke. The user owns live terminal and browser acceptance.
+
+## An external agent works like the Planner (Mohammed, 2026-11-28)
+
+Status: decided in conversation; not built. It replaces "Approval and execution permissions
+remain with their existing principals" above for execution only: approval stays as it is.
+
+An agent connected from outside, such as Claude Code or Codex, can take a project from its
+idea to finished tasks, as the Planner does in a Shadows conversation. Today it cannot: it
+reads the workspace but cannot write the vision, the map or the roadmap, so `draft_start`
+answers `STAGE_BLOCKED: no roadmap approved` (tried on `testing10`, 2026-11-28).
+
+### Its tools
+
+The external inventory (`PROJECT_TOOLS` in Core Grants) grows to the Planner's
+(`THREAD_TOOLS`) except for three groups:
+
+| Group | Tools | For an external agent |
+|---|---|---|
+| Propose, design and read | `vision_propose`, `map_propose`, `roadmap_propose`, `decision_propose`, `decision_list`, `design_element_put`, `design_element_delete`, `design_elements`, `project_state`, `code_where`, `project_files`, `project_refresh`, `project_change_note` | Granted |
+| Run tasks | `task_ready`, `task_runs`, `task_start`, `task_start_status`, `task_executor_set`, `executor_catalog`, `task_stop`, `task_done`, `task_amend`, `task_lessons`, `task_diff`, `task_file`, `task_checks`, `project_recheck`, `project_git_init`, `message_agent` | Granted, with the Planner's limits: scopes, checks and the executor's own approvals do not change |
+| Approve | `vision_approve`, `map_approve`, `roadmap_approve`, `plan_approve` | **Never.** The person approves with the button. §24.2 lets the Planner approve at the person's request because the approval links to the person's message in the same conversation; an external agent has no such message, so its approval could not show the person asked |
+| Bound to a conversation | `plan_show`, `person_ask` | Not granted: they draw in a Shadows conversation the external agent does not have |
+
+> **OPEN — the person's question from an external agent.** `person_ask` puts a question card
+> in the Planner's conversation. An external agent asks the person in its own client today.
+> Closes when a slice decides whether Shadows shows such a question too, and where.
+
+### Where the plan's author is reached
+
+The agent that writes a plan says where it can be told of its tasks. `draft_start` takes an
+optional reach address, kept with the plan's writer; the latest version's address is used:
+
+| Kind | Holds | How Shadows wakes it |
+|---|---|---|
+| The Planner (internal) | its conversation | as today: a new turn over ACP or the Codex app-server Shadows runs |
+| `codex_app_server` | the loopback WebSocket address of the person's own `codex app-server`, its capability token, and the thread id | Shadows connects as a second client, `thread/resume` then `turn/start` on that thread with a short notice naming the attempt. Proved live on 2026-11-28: the person's `codex --remote` screen showed the turn and Codex answered it |
+| none | nothing | the agent waits (below) |
+
+The token is a secret, kept by Core Secrets, never in plan content or logs. Only a loopback
+address is accepted. The person starts that server with
+`codex app-server --listen ws://127.0.0.1:<port> --ws-auth capability-token --ws-token-file <file>`
+and Codex with `codex --remote`. The app-server WebSocket is experimental in Codex 0.171.0.
+
+### Waiting for a task
+
+One method waits until an attempt of the project ends and its checks have run, or until a
+bound time passes, and answers the attempt's report or "nothing yet". Two adapters call it:
+
+- the MCP tool `task_wait`, for any client. The client is busy while it waits, and Codex
+  stops a tool after its `tool_timeout_sec` (about 60 seconds by default), so the bound
+  stays under that;
+- an HTTP route with the connection's bearer, which Claude Code calls from a background
+  command and is woken when it ends, free in the meantime.
+
+Codex Desktop can only wait this way: its conversations accept no turn from another program
+(`codex exec resume` is refused while the app holds the thread, and its
+`send_message_to_thread` exists only inside the app). Claude Code's own cross-session
+`SendMessage` reaches a session from another Claude Code session on the same configuration
+folder, but not from a program that is not one (each session's pipe is authenticated), and
+Claude Code channels are a stdio-only research preview; Shadows uses neither.
+
+> **OPEN — no one waits.** When an attempt of an externally written plan ends and its author
+> is neither woken nor waiting, the result waits unjudged. Closes when a slice decides
+> whether the project's Planner takes over after a bound time, and in which conversation.
