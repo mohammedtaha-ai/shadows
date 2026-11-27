@@ -2,6 +2,7 @@
 
 - **Date:** 2026-09-30
 - **Status:** Designed with Mohammed on 2026-09-30. Built (`codebase`, formerly `core-code`; `shadows-index`).
+- **Removed 2026-11-27 (Mohammed; B-248):** the name index and its `shadows-index` crate are gone. `code_lsp` answers instead. Git keeps the code.
 - **Idea:** `docs/core/vision.md` §2.4, "Where is X?".
 
 An agent asks Shadows where something is, and Shadows answers with the name,

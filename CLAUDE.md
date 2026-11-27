@@ -27,9 +27,9 @@ Where this file and an owner spec disagree, the spec is right and this file is t
 | AYLUL desktop | `apps/desktop/src-tauri/` | The Tauri app ([its instructions](apps/desktop/AGENTS.md)) |
 | AYLUL hook | `apps/desktop/hook/` | The desktop hook |
 | Runtime (deferred) | `runtime/` | Our own agent runtime, which replaces ACP step by step. Core calls it as a library. |
-| Code intelligence (deferred) | `code-intelligence/` | `shadows-index`, which depends on no Shadows crate |
+| Code intelligence (deferred) | `code-intelligence/` | Nothing yet; a code-intelligence package would start anew |
 
-The two deferred workspaces wait for the first new crate of our own runtime (Phase 6), or `shadows-index` published on its own ([docs/core/future.md](docs/core/future.md),
+The two deferred workspaces wait for the first new crate of our own runtime (Phase 6), or a new code-intelligence package ([docs/core/future.md](docs/core/future.md),
 "Housekeeping"). Until then their crates stay in Core's workspace under `crates/`, with one
 build cache.
 
@@ -39,14 +39,13 @@ never reaches into another's source; it depends on it as a library.
 ```text
 shadows ─┬─► shadows-http ─┐                 ┌─► shadows-agent ─────────────► shadows-process
          ├─► shadows-mcp  ─┼─► shadows-core ─┤                                     ▲
-         └────────────────►┘                 └─► codebase ─┬─► shadows-lsp ─────────┘
-                                                           └─► shadows-index
+         └────────────────►┘                 └─► codebase ───► shadows-lsp ─────────┘
 ```
 
 Dependencies point one way. An adapter (`shadows-http`, `shadows-mcp`, the binary)
 depends on `shadows-core` only. `codebase`, the code service, reaches the language
-servers through `shadows-lsp` and the tags through `shadows-index`.
-`shadows-index` depends on no Shadows crate.
+servers through `shadows-lsp`: code intelligence is `codebase` asking the
+project's language servers.
 
 | Crate | Sole owner of |
 |---|---|
@@ -55,9 +54,8 @@ servers through `shadows-lsp` and the tags through `shadows-index`.
 | `shadows-mcp` | Shadows' MCP server at `/mcp` |
 | `shadows-core` | The application. SQLite lives here only, in `db/` and the stores. |
 | `shadows-agent` | The AI subprocess harness (the ACP `Connection`) |
-| `codebase` | The code service: a project's file list, index and language servers |
+| `codebase` | The code service: a project's file list and language servers |
 | `shadows-lsp` | One language server's process and its requests (through `shadows-process`) |
-| `shadows-index` | tree-sitter: a file's text in, its tags out |
 | `shadows-process` | `tokio::process` / `process-wrap` |
 
 ## Code structure
