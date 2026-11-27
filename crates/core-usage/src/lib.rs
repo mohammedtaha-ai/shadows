@@ -33,8 +33,11 @@ impl Usage {
         if from >= to {
             return Err(invalid());
         }
-        let rows = self.store.candidates(from, to).await?;
-        Ok(Self::aggregate(rows, from, to)?)
+        let mut report = report::Accumulator::new(from, to);
+        self.store
+            .for_each_candidate(from, to, |row| report.push(row))
+            .await?;
+        Ok(report.finish())
     }
 
     /// Records one finished invocation's counters inside the caller's write. Its cost is
