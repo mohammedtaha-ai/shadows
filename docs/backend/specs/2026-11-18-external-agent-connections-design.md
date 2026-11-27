@@ -88,6 +88,7 @@ Codex Desktop can only wait this way: its conversations accept no turn from anot
 folder, but not from a program that is not one (each session's pipe is authenticated), and
 Claude Code channels are a stdio-only research preview; Shadows uses neither.
 
-> **OPEN — no one waits.** When an attempt of an externally written plan ends and its author
-> is neither woken nor waiting, the result waits unjudged. Closes when a slice decides
-> whether the project's Planner takes over after a bound time, and in which conversation.
+When an attempt of an externally written plan ends and its author is neither woken nor
+waiting, the result waits unjudged, shown as such in Shadows. No Planner takes over: that
+would spend tokens the person did not ask for and put two writers on one plan. The next
+wait answers at once with every attempt that ended meanwhile (Mohammed, 2026-11-28).
