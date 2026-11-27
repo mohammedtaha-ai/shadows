@@ -62,7 +62,6 @@ async fn fresh_database_migrates_and_applies_the_connection_policy() {
             "code_record_verdict",
             "code_server_added",
             "code_server_off",
-            "code_tag",
             "command_record",
             "context_forget",
             "design_command_result",

@@ -82,7 +82,7 @@ pub mod queue;
 pub mod turn;
 pub use core_db::DatabaseWrites;
 
-/// The `fake-acp` binary, built once per test process. `CARGO_BIN_EXE_*`
+/// The `fake-acp` binary, built once per test run. `CARGO_BIN_EXE_*`
 /// only names binaries of the test's own package, and `fake-acp` is its own
 /// package, so it is located through `escargot`.
 pub fn fake_acp_path() -> std::path::PathBuf {
@@ -97,9 +97,43 @@ pub fn tree_probe_path() -> std::path::PathBuf {
         .clone()
 }
 
+/// The `fake-codex` binary, which stands in for Codex's app server.
+pub fn fake_codex_path() -> std::path::PathBuf {
+    static PATH: std::sync::OnceLock<std::path::PathBuf> = std::sync::OnceLock::new();
+    PATH.get_or_init(|| built("fake-codex", "fake-codex"))
+        .clone()
+}
+
+/// Builds `bin` once per test run. nextest runs every test in a process of
+/// its own, so a cache per process would run cargo, and queue on its lock,
+/// once per test. The first process of a nextest run records the binary's
+/// path in a file named by the run, and the others read it.
+fn built(package: &str, bin: &str) -> std::path::PathBuf {
+    let Ok(run) = std::env::var("NEXTEST_RUN_ID") else {
+        return build(package, bin);
+    };
+    let record = std::env::temp_dir().join(format!("shadows-{bin}-{run}.path"));
+    if let Ok(path) = std::fs::read_to_string(&record) {
+        let path = std::path::PathBuf::from(path);
+        if path.is_file() {
+            return path;
+        }
+    }
+    let path = build(package, bin);
+    // Written aside and renamed, so a reader never sees half a path. Another
+    // process of the run may record it first; both name the same binary.
+    let partial = record.with_extension(format!("{}.tmp", std::process::id()));
+    if std::fs::write(&partial, path.to_string_lossy().as_bytes()).is_ok()
+        && std::fs::rename(&partial, &record).is_err()
+    {
+        let _ = std::fs::remove_file(&partial);
+    }
+    path
+}
+
 /// No `.current_target()`: it passes `--target`, which builds into
 /// `target/<triple>/` and compiles every dependency a second time.
-fn built(package: &str, bin: &str) -> std::path::PathBuf {
+fn build(package: &str, bin: &str) -> std::path::PathBuf {
     escargot::CargoBuild::new()
         .package(package)
         .bin(bin)

@@ -51,10 +51,7 @@ async fn listed_project() -> (Codebase, ProjectId, tempfile::TempDir, tempfile::
         .unwrap()
         .id;
     let code = Codebase::new(storage, projects);
-    let config = CodebaseConfig {
-        name_index: false,
-        ..CodebaseConfig::default()
-    };
+    let config = CodebaseConfig::default();
     code.start(config).await.unwrap();
     code.refresh_inventory(Asker::Person(&project))
         .await

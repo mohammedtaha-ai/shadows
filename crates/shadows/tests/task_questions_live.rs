@@ -458,10 +458,7 @@ fn called(entries: &[ThreadEntry], tool: &str) -> bool {
 /// no worker, and a cold gopls can take longer than a live executor's turn.
 async fn gopls_warm(w: &World) {
     let codebase = w.app().core.codebase();
-    let config = shadows_core::CodebaseConfig {
-        name_index: false,
-        ..shadows_core::CodebaseConfig::default()
-    };
+    let config = shadows_core::CodebaseConfig::default();
     codebase.start(config).await.unwrap();
     let (_, client) = listening::project_client(&w.l).await;
     let question = json!({

@@ -11,11 +11,10 @@ pub(crate) use servers::{AddedRow, ServerChange};
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use shadows_index::{Role, Tag};
 use sqlx::SqliteConnection;
 
 use super::Codebase;
-use super::model::{Hit, Skipped};
+use super::model::Skipped;
 use core_db::{Storage, StorageError};
 use core_projects::{ProjectId, Projects};
 
@@ -32,14 +31,6 @@ pub(super) struct FileRow {
 
 /// A project in a question's scope: its id, slug and folder.
 pub(super) type ScopeRow = (ProjectId, String, Option<String>);
-
-/// The row count past which an answer says `more`.
-const HITS: i64 = 50;
-
-/// How many tags one `INSERT` carries: eight values each.
-const TAG_ROWS: usize = 500;
-
-type HitRow = (String, i64, String, String, Option<String>);
 
 /// Private persistence for the code service.
 pub(super) struct CodeStore {
@@ -98,7 +89,8 @@ impl CodeStore {
     }
 
     /// Whether the index holds a file at `folder_key` or under it; "under" is
-    /// the byte range `key/` up to `key0`, as in `code_outline`.
+    /// the byte range `key/` up to `key0` (`0` follows `/`), exact on every
+    /// platform, where `LIKE` ignores ASCII case.
     pub(super) async fn code_files_under(
         &self,
         project: &ProjectId,
@@ -116,13 +108,11 @@ impl CodeStore {
         .await?)
     }
 
-    /// One write: the file's old tags go, its row is upserted, its new tags
-    /// are inserted.
+    /// One write: the file's row is upserted.
     pub(super) async fn write_code_file(
         &self,
         project: &ProjectId,
         file: FileRow,
-        tags: Vec<Tag>,
     ) -> Result<(), StorageError> {
         let project = project.clone();
         self.storage
@@ -135,11 +125,6 @@ impl CodeStore {
                         Err(StorageError::NotFound(_)) => return Ok(()),
                         Err(error) => return Err(error),
                     }
-                    sqlx::query("DELETE FROM code_tag WHERE project_id = ? AND path_key = ?")
-                        .bind(project.as_str())
-                        .bind(&file.path_key)
-                        .execute(&mut *conn)
-                        .await?;
                     sqlx::query(
                         "INSERT INTO code_file
                        (project_id, path_key, path, size, modified_ms, language, skipped_reason)
@@ -158,36 +143,13 @@ impl CodeStore {
                     .bind(file.skipped)
                     .execute(&mut *conn)
                     .await?;
-                    // Several rows a statement, each statement under SQLite's
-                    // bound-variable limit.
-                    for rows in tags.chunks(TAG_ROWS) {
-                        let mut insert = sqlx::QueryBuilder::new(
-                            "INSERT INTO code_tag
-                           (project_id, path_key, path, name, kind, role, line, signature) ",
-                        );
-                        insert.push_values(rows, |mut row, tag| {
-                            let role = match tag.role {
-                                Role::Definition => "definition",
-                                Role::Reference => "reference",
-                            };
-                            row.push_bind(project.as_str())
-                                .push_bind(&file.path_key)
-                                .push_bind(&file.path)
-                                .push_bind(&tag.name)
-                                .push_bind(&tag.kind)
-                                .push_bind(role)
-                                .push_bind(i64::from(tag.line))
-                                .push_bind(&tag.signature);
-                        });
-                        insert.build().execute(&mut *conn).await?;
-                    }
                     Ok(())
                 })
             })
             .await
     }
 
-    /// One write: a file's tags and its row go.
+    /// One write: a file's row goes.
     pub(super) async fn delete_code_file(
         &self,
         project: &ProjectId,
@@ -197,11 +159,6 @@ impl CodeStore {
         self.storage
             .write_txn(move |conn| {
                 Box::pin(async move {
-                    sqlx::query("DELETE FROM code_tag WHERE project_id = ? AND path_key = ?")
-                        .bind(project.as_str())
-                        .bind(&key)
-                        .execute(&mut *conn)
-                        .await?;
                     sqlx::query("DELETE FROM code_file WHERE project_id = ? AND path_key = ?")
                         .bind(project.as_str())
                         .bind(&key)
@@ -236,98 +193,6 @@ impl CodeStore {
         let mut out = vec![(first.id, first.slug, first.directory)];
         out.extend(rows);
         snapshot.commit().await?;
-        Ok(out)
-    }
-
-    /// Tags named exactly `name` in `role`, in the scope's order, then by
-    /// path, line and kind: at most 51, so a 51st says there are more.
-    pub(super) async fn code_by_name(
-        &self,
-        scope: &[ScopeRow],
-        name: &str,
-        role: &str,
-    ) -> Result<Vec<Hit>, StorageError> {
-        let mut out = Vec::new();
-        for (id, slug, _) in scope {
-            let left = HITS + 1 - out.len() as i64;
-            if left <= 0 {
-                break;
-            }
-            let rows: Vec<HitRow> = sqlx::query_as(
-                "SELECT path, line, kind, name, signature FROM code_tag
-                  WHERE project_id = ? AND name = ? AND role = ?
-                  ORDER BY path, line, kind LIMIT ?",
-            )
-            .bind(id.as_str())
-            .bind(name)
-            .bind(role)
-            .bind(left)
-            .fetch_all(self.storage.reader())
-            .await?;
-            out.extend(rows.into_iter().map(|r| hit(slug, r)));
-        }
-        Ok(out)
-    }
-
-    /// Up to 10 distinct names in `role` containing `text`, case-insensitively
-    /// (SQLite's `LIKE`), by name across the scope: each project's first 10,
-    /// merged.
-    pub(super) async fn code_suggestions(
-        &self,
-        scope: &[ScopeRow],
-        text: &str,
-        role: &str,
-    ) -> Result<Vec<String>, StorageError> {
-        let mut names = std::collections::BTreeSet::new();
-        for (id, _, _) in scope {
-            let found: Vec<String> = sqlx::query_scalar(
-                "SELECT DISTINCT name FROM code_tag
-                  WHERE project_id = ? AND role = ?
-                    AND name LIKE '%' || ? || '%' ESCAPE '\\'
-                  ORDER BY name LIMIT 10",
-            )
-            .bind(id.as_str())
-            .bind(role)
-            .bind(like_escape(text))
-            .fetch_all(self.storage.reader())
-            .await?;
-            names.extend(found);
-        }
-        Ok(names.into_iter().take(10).collect())
-    }
-
-    /// The definitions at `path_key` or under it, every one when it is
-    /// empty; in the scope's order, then by path, line and name; at most 51.
-    /// "Under" is a byte range, `key/` up to `key0` ('0' follows '/'), so it
-    /// is exact on every platform, where `LIKE` ignores ASCII case.
-    pub(super) async fn code_outline(
-        &self,
-        scope: &[ScopeRow],
-        path_key: &str,
-    ) -> Result<Vec<Hit>, StorageError> {
-        let mut out = Vec::new();
-        for (id, slug, _) in scope {
-            let left = HITS + 1 - out.len() as i64;
-            if left <= 0 {
-                break;
-            }
-            let rows: Vec<HitRow> = sqlx::query_as(
-                "SELECT path, line, kind, name, signature FROM code_tag
-                  WHERE project_id = ? AND role = 'definition'
-                    AND (? = '' OR path_key = ?
-                         OR (path_key >= ? || '/' AND path_key < ? || '0'))
-                  ORDER BY path, line, name LIMIT ?",
-            )
-            .bind(id.as_str())
-            .bind(path_key)
-            .bind(path_key)
-            .bind(path_key)
-            .bind(path_key)
-            .bind(left)
-            .fetch_all(self.storage.reader())
-            .await?;
-            out.extend(rows.into_iter().map(|r| hit(slug, r)));
-        }
         Ok(out)
     }
 
@@ -367,10 +232,6 @@ impl Codebase {
         conn: &mut SqliteConnection,
         project: &ProjectId,
     ) -> Result<(), StorageError> {
-        sqlx::query("DELETE FROM code_tag WHERE project_id = ?")
-            .bind(project.as_str())
-            .execute(&mut *conn)
-            .await?;
         sqlx::query("DELETE FROM code_file WHERE project_id = ?")
             .bind(project.as_str())
             .execute(&mut *conn)
@@ -385,28 +246,4 @@ impl Codebase {
             .await?;
         Ok(())
     }
-}
-
-fn hit(slug: &str, (path, line, kind, name, signature): HitRow) -> Hit {
-    Hit {
-        project: slug.to_string(),
-        path,
-        line: line as u32,
-        kind,
-        name,
-        signature,
-        matched_by: None,
-    }
-}
-
-/// `text` with `LIKE`'s `%`, `_` and the escape `\` escaped.
-fn like_escape(text: &str) -> String {
-    let mut out = String::with_capacity(text.len());
-    for c in text.chars() {
-        if matches!(c, '%' | '_' | '\\') {
-            out.push('\\');
-        }
-        out.push(c);
-    }
-    out
 }

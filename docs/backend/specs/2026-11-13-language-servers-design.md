@@ -68,6 +68,7 @@ whichever program runs them.
    project worker stops parsing files for it. It returns only if a later need names it
    (an OPEN entry in [Core future](../../core/future.md), added with this spec).
    The file inventory (`project_files`, `project_refresh`) is a separate job and stays.
+   **2026-11-27 (Mohammed; B-248):** the name index and its `shadows-index` crate were removed. `code_lsp` answers instead. Git keeps the code.
 5. **Activity is a running conversation.** The "Active projects" limit goes. A project
    becomes active when a message is sent in one of its conversations (a new one or one
    continued), and stops (watcher and servers) after a short idle time with no use.

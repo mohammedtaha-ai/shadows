@@ -1,10 +1,10 @@
 //! One job: walking a project's folder into its code index.
 //!
 //! Two functions hold the rules, and every path that indexes goes through
-//! them: `keeps`, the walk's filter, and `index_file`, one file read, parsed
-//! and written. The scan, the watcher's batches and a question's re-check all
-//! call them; a second copy of either would drift, and the index would then
-//! depend on which path saw the change.
+//! them: `keeps`, the walk's filter, and `index_file`, one file read,
+//! checked and written. The scan and the watcher's batches both call them;
+//! a second copy of either would drift, and the index would then depend on
+//! which path saw the change.
 
 use std::collections::{HashMap, HashSet};
 use std::path::{Component, Path, PathBuf};
@@ -12,7 +12,6 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::time::{Instant, UNIX_EPOCH};
 
-use shadows_index::{extract, language_for};
 use tokio::io::AsyncReadExt;
 
 use super::Codebase;
@@ -192,7 +191,7 @@ impl Codebase {
             }
             return Ok(false);
         };
-        let Some(language) = language_for(Path::new(path)) else {
+        let Some(language) = Codebase::language_for(Path::new(path)) else {
             return Ok(false);
         };
         let (size, modified_ms) = Codebase::stamp(&meta);
@@ -229,29 +228,21 @@ impl Codebase {
             file.take(MAX_BYTES + 1).read_to_end(&mut bytes).await?;
             Some(bytes).filter(|b| b.len() as u64 <= MAX_BYTES)
         };
-        let (skipped, tags) = match bytes {
-            None => (Some("too_large"), Vec::new()),
-            Some(b) if b[..b.len().min(BINARY_PROBE)].contains(&0) => (Some("binary"), Vec::new()),
-            Some(b) => match String::from_utf8(b) {
-                Err(_) => (Some("not_utf8"), Vec::new()),
-                // With the name index off the file row is written with no tags.
-                Ok(_) if !self.inner.name_index.load(Ordering::Relaxed) => (None, Vec::new()),
-                Ok(text) => {
-                    let tags =
-                        tokio::task::spawn_blocking(move || extract(language, &text)).await?;
-                    (None, tags)
-                }
-            },
+        let skipped = match bytes {
+            None => Some("too_large"),
+            Some(b) if b[..b.len().min(BINARY_PROBE)].contains(&0) => Some("binary"),
+            Some(b) if std::str::from_utf8(&b).is_err() => Some("not_utf8"),
+            Some(_) => None,
         };
         let row = FileRow {
             path_key: key,
             path: path.to_string(),
             size,
             modified_ms,
-            language: language.name,
+            language,
             skipped,
         };
-        store.write_code_file(project, row, tags).await?;
+        store.write_code_file(project, row).await?;
         Ok(true)
     }
 
@@ -358,38 +349,24 @@ impl Codebase {
     }
 }
 
+/// The languages a file's extension names: the extensions without the dot,
+/// lower case. Adding a language is one row here.
+const LANGUAGES: &[(&str, &[&str])] = &[
+    ("rust", &["rs"]),
+    ("typescript", &["ts", "mts", "cts"]),
+    ("tsx", &["tsx"]),
+    ("javascript", &["js", "mjs", "cjs", "jsx"]),
+];
+
 impl Codebase {
-    /// Of a question's hit files, those whose size or modified time differ
-    /// from their rows, or that are gone or not regular files.
-    /// It stats them and opens none. A folder that is missing answers none:
-    /// its index is kept as it is.
-    pub(super) async fn stale<'a>(
-        &self,
-        project: &ProjectId,
-        dir: &Path,
-        paths: impl IntoIterator<Item = &'a str>,
-    ) -> Vec<String> {
-        if !Codebase::folder_exists(dir).await {
-            return Vec::new();
-        }
-        let mut changed = Vec::new();
-        for path in paths {
-            let stored = self
-                .inner
-                .store
-                .code_file_stamp(project, &Codebase::path_key(path))
-                .await;
-            let on_disk = tokio::fs::symlink_metadata(dir.join(path))
-                .await
-                .ok()
-                .filter(std::fs::Metadata::is_file)
-                .map(|m| Codebase::stamp(&m));
-            match (stored, on_disk) {
-                (Ok(Some((_, size, ms))), Some(now)) if (size, ms) == now => {}
-                _ => changed.push(path.to_string()),
-            }
-        }
-        changed
+    /// The language a path's extension names, or None. The scan writes it on
+    /// a file's row and the inventory answers it.
+    pub(super) fn language_for(path: &Path) -> Option<&'static str> {
+        let ext = path.extension()?.to_str()?.to_ascii_lowercase();
+        LANGUAGES
+            .iter()
+            .find(|(_, extensions)| extensions.contains(&ext.as_str()))
+            .map(|(name, _)| *name)
     }
 }
 
@@ -423,7 +400,7 @@ impl Codebase {
                 .is_some_and(|n| !Codebase::never_walked(n) && !n.starts_with('.')),
             _ => false,
         });
-        visible && language_for(path).is_some()
+        visible && Codebase::language_for(path).is_some()
     }
 
     /// The key a path is stored under: on Windows `Foo.rs` and `foo.rs` are one file.

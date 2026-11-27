@@ -37,6 +37,41 @@ fn names(p: &InventoryPage) -> Vec<String> {
 }
 
 #[tokio::test]
+async fn each_known_extension_keeps_its_language() {
+    let dir = tempfile::tempdir().unwrap();
+    let d = dir.path();
+    let known = [
+        ("a.rs", "rust"),
+        ("b.ts", "typescript"),
+        ("c.mts", "typescript"),
+        ("d.cts", "typescript"),
+        ("e.tsx", "tsx"),
+        ("f.js", "javascript"),
+        ("g.mjs", "javascript"),
+        ("h.cjs", "javascript"),
+        ("i.jsx", "javascript"),
+        ("J.RS", "rust"),
+    ];
+    for (path, _) in known {
+        write(d, path, "");
+    }
+    write(d, "k.py", "");
+    let (_storage, code, project, _db) = project_on(d).await;
+    let page = code
+        .refresh_inventory(Asker::Person(&project))
+        .await
+        .unwrap();
+    let language = |path: &str| {
+        let entry = page.entries.iter().find(|e| e.path == path).unwrap();
+        entry.language.clone()
+    };
+    for (path, name) in known {
+        assert_eq!(language(path).as_deref(), Some(name), "{path}");
+    }
+    assert_eq!(language("k.py"), None);
+}
+
+#[tokio::test]
 async fn inventory_lists_every_file_whatever_its_language() {
     let dir = tempfile::tempdir().unwrap();
     let d = dir.path();
@@ -56,25 +91,18 @@ async fn inventory_lists_every_file_whatever_its_language() {
     assert_eq!(page.generation, 1);
     assert!(page.next.is_none() && page.observed_at.is_some());
     let entry = |path: &str| page.entries.iter().find(|e| e.path == path).cloned();
-    let file = |language: Option<&str>, has_symbols| {
+    let file = |language: Option<&str>| {
         (
             InventoryKind::File,
             language.map(String::from),
             None::<String>,
-            has_symbols,
         )
     };
-    let shape = |e: InventoryEntry| (e.kind, e.language, e.excluded_reason, e.has_symbols);
-    assert_eq!(shape(entry("composer.json").unwrap()), file(None, false));
-    assert_eq!(
-        shape(entry("app/Models/User.php").unwrap()),
-        file(None, false)
-    );
-    assert_eq!(
-        shape(entry("src/lib.rs").unwrap()),
-        file(Some("rust"), true)
-    );
-    assert_eq!(shape(entry(".gitignore").unwrap()), file(None, false));
+    let shape = |e: InventoryEntry| (e.kind, e.language, e.excluded_reason);
+    assert_eq!(shape(entry("composer.json").unwrap()), file(None));
+    assert_eq!(shape(entry("app/Models/User.php").unwrap()), file(None));
+    assert_eq!(shape(entry("src/lib.rs").unwrap()), file(Some("rust")));
+    assert_eq!(shape(entry(".gitignore").unwrap()), file(None));
     assert_eq!(entry("app").unwrap().kind, InventoryKind::Directory);
     let excluded = |path: &str| {
         let e = entry(path).unwrap();

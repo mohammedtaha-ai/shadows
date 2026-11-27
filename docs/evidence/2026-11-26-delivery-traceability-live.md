@@ -2,7 +2,7 @@
 
 Date: 2026-11-26. Shadows at `e8a72ae6` (branch `feature/delivery-traceability`), daemon built in
 place and started from `.claude/run-daemon.cmd`, web on Vite. Answers B-242
-([plan Task 10](../backend/plans/2026-11-26-delivery-traceability.md)). One run.
+(plan Task 10, `docs/backend/plans/2026-11-26-delivery-traceability.md` at `261c1abe`). One run.
 
 ## Setup
 

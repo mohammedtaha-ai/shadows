@@ -6,7 +6,7 @@
   (`web/src/app/project-settings/project-settings.tsx`), as §24.3 of
   `docs/core/specs/2026-10-08-approval-authority-design.md` ("The person may widen the
   Planner's reach, never its hands") and "What the person gets" in the backend plan
-  `docs/backend/plans/2026-11-25-planner-project-switches.md` (B-234) describe it
+  `docs/backend/plans/2026-11-25-planner-project-switches.md` at `3b17985f` (B-234) describe it
 
 ## Need
 
@@ -156,6 +156,6 @@ must change on the backend side.
   Claude-Code-only line for every harness.
 
 Order, as the answer says: F-145 starts now; F-146 to F-148 stay `blocked` on B-234 until its
-routes show in `api/openapi.json`. Plan: `docs/frontend/plans/2026-11-25-planner-project-switches.md`.
+routes show in `api/openapi.json`. Plan: `docs/frontend/plans/2026-11-25-planner-project-switches.md` at `3b17985f`.
 
 ## Ruling

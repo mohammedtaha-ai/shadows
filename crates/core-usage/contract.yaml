@@ -41,7 +41,8 @@ functions:
   usage: Validate a half-open RFC3339 period and aggregate historical measurements.
   record_in: public owner boundary; record one finished invocation's counters in the caller's write, keeping only a trusted cost.
   trusted_cost: private; the one pricing rule.
-  aggregate: private; keep rows exactly inside the period and group them with stable ordering.
+  Accumulator: private; fold rows one at a time as the store reads them, keep those exactly inside the period, then group them with stable ordering.
+  for_each_candidate: private store read; hand each candidate row to the report as SQLite returns it, stopping at the first error.
 
 called_by_other_services:
   record_in: Turns records a terminal AYLUL operation's usage in the write that ends it.

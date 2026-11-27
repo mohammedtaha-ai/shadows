@@ -5,7 +5,9 @@ Status: Runtime independence agreed in conversation; wire/implementation design
 is proposed for review. No replacement product has been implemented. Overtaken for Core's own
 code questions: Core runs the official language servers itself since PR #67
 ([language servers design](../../backend/specs/2026-11-13-language-servers-design.md)); the
-standalone package stays an idea.
+standalone package stays an idea. The name index and its `shadows-index` crate were removed on
+2026-11-27 (Mohammed; B-248): this file's mentions of `shadows-index` below are its history, and a
+standalone package would start anew.
 
 This file owns the standalone service boundary. AYLUL's use of it in the
 explanation journey belongs to AYLUL's later work-profile design. Existing Shadows section 15 continues to

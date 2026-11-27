@@ -1,6 +1,7 @@
 //! SQL for measured usage rows.
 use super::model::{UsageRecord, UsageRow};
 use core_db::{Storage, StorageError};
+use sqlx::sqlite::SqliteRow;
 use sqlx::{Row, SqliteConnection};
 use std::sync::Arc;
 use time::{OffsetDateTime, format_description::well_known::Rfc3339};
@@ -15,46 +16,61 @@ impl UsageStore {
         Self { storage }
     }
 
-    /// The rows recorded within a second of the period, in recorded order. SQLite
-    /// narrows the candidates; the report keeps exact RFC3339 fractional endpoints.
-    pub(super) async fn candidates(
+    /// Hands `each` the rows recorded within a second of the period, in recorded order, one
+    /// at a time as SQLite returns them, so a report never holds its period in memory. SQLite
+    /// narrows the candidates; the report keeps exact RFC3339 fractional endpoints. The first
+    /// error from `each` stops the read and is returned.
+    pub(super) async fn for_each_candidate<F>(
         &self,
         from: OffsetDateTime,
         to: OffsetDateTime,
-    ) -> Result<Vec<UsageRow>, StorageError> {
+        mut each: F,
+    ) -> Result<(), StorageError>
+    where
+        F: FnMut(UsageRow) -> Result<(), StorageError> + Send,
+    {
         let lower = (from.checked_sub(time::Duration::seconds(1)).unwrap_or(from))
             .format(&Rfc3339)
             .map_err(|_| StorageError::Unavailable("usage period".into()))?;
         let upper = (to.checked_add(time::Duration::seconds(1)).unwrap_or(to))
             .format(&Rfc3339)
             .map_err(|_| StorageError::Unavailable("usage period".into()))?;
-        let rows = sqlx::query(
+        let mut refused = None;
+        // Each row maps to `()`, so the collected vector never allocates.
+        let read = sqlx::query(
             "SELECT * FROM aylul_usage
             WHERE julianday(recorded_at)>=julianday(?) AND julianday(recorded_at)<=julianday(?)
             ORDER BY recorded_at,operation_id",
         )
         .bind(lower)
         .bind(upper)
-        .fetch_all(self.storage.reader())
-        .await?;
-        Ok(rows
-            .into_iter()
-            .map(|row| UsageRow {
-                recorded_at: row.get("recorded_at"),
-                operation_id: row.get("operation_id"),
-                provider_slug: row.get("provider_slug"),
-                provider_name: row.get("provider_name"),
-                label: row.get("label"),
-                preset: row.get("preset"),
-                model: row.get("model"),
-                input_tokens: row.get("input_tokens"),
-                output_tokens: row.get("output_tokens"),
-                cached_read_tokens: row.get("cached_read_tokens"),
-                cached_write_tokens: row.get("cached_write_tokens"),
-                cost: row.get("cost"),
-                currency: row.get("currency"),
+        .try_map(|row: SqliteRow| {
+            each(UsageRow {
+                recorded_at: row.try_get("recorded_at")?,
+                operation_id: row.try_get("operation_id")?,
+                provider_slug: row.try_get("provider_slug")?,
+                provider_name: row.try_get("provider_name")?,
+                label: row.try_get("label")?,
+                preset: row.try_get("preset")?,
+                model: row.try_get("model")?,
+                input_tokens: row.try_get("input_tokens")?,
+                output_tokens: row.try_get("output_tokens")?,
+                cached_read_tokens: row.try_get("cached_read_tokens")?,
+                cached_write_tokens: row.try_get("cached_write_tokens")?,
+                cost: row.try_get("cost")?,
+                currency: row.try_get("currency")?,
             })
-            .collect())
+            .map_err(|error| {
+                refused = Some(error);
+                sqlx::Error::RowNotFound
+            })
+        })
+        .fetch_all(self.storage.reader())
+        .await;
+        match refused {
+            Some(error) => Err(error),
+            None => read.map(drop).map_err(Into::into),
+        }
     }
 
     pub(super) async fn insert_in(

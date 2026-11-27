@@ -714,11 +714,33 @@ async fn a_map_change_with_no_parent_moves_to_the_top() {
 #[tokio::test]
 async fn a_map_change_into_its_own_descendant_is_refused() {
     let f = Fixture::new().await;
-    let (backend, database, _) = nested(&f).await;
+    let (backend, database, api) = nested(&f).await;
     let args = change_of("backend", &backend, Some(&database), "backend");
     assert!(f.core.design().propose_map(&f.grant, args).await.is_err());
     let own = change_of("backend", &backend, Some(&backend), "backend");
     assert!(f.core.design().propose_map(&f.grant, own).await.is_err());
+
+    // A deeper valid chain: backend > database > api.
+    let deeper = change_of("api", &api, Some(&database), "backend/database/api");
+    let card = f.core.design().propose_map(&f.grant, deeper).await.unwrap();
+    f.core
+        .design()
+        .approve_map_proposal("deeper".into(), &f.p, &card.id)
+        .await
+        .unwrap();
+    assert!(children(&f, Some(&database)).await.contains(&api));
+    let into_grandchild = change_of("backend", &backend, Some(&api), "backend");
+    assert!(
+        f.core
+            .design()
+            .propose_map(&f.grant, into_grandchild)
+            .await
+            .is_err()
+    );
+    let top = children(&f, None).await;
+    assert!(top.contains(&backend) && !top.contains(&api));
+    assert!(children(&f, Some(&backend)).await.contains(&database));
+    assert!(children(&f, Some(&database)).await.contains(&api));
     f.close().await;
 }
 

@@ -71,7 +71,6 @@ async fn rows(app: &App, sql: &str, project: &ProjectId) -> i64 {
 }
 
 const FILES: &str = "SELECT COUNT(*) FROM code_file WHERE project_id = ? OR project_id = ?";
-const TAGS: &str = "SELECT COUNT(*) FROM code_tag WHERE project_id = ? OR project_id = ?";
 const LINKS: &str =
     "SELECT COUNT(*) FROM project_link WHERE project_id = ? OR linked_project_id = ?";
 
@@ -140,7 +139,6 @@ async fn a_project_without_threads_is_removed_with_its_index_links_and_grants() 
 
     assert_eq!(slugs(&app).await, ["demo", "other"]);
     assert_eq!(rows(&app, FILES, &gone).await, 0);
-    assert_eq!(rows(&app, TAGS, &gone).await, 0);
     assert_eq!(rows(&app, LINKS, &gone).await, 0);
     assert_eq!(rows(&app, FILES, &other).await, 1, "another index stays");
     // The connection's scope for the removed project stops with it.

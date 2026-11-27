@@ -383,10 +383,7 @@ async fn live_an_attempt_missing_a_promised_function_is_returned() {
     .await;
     f.core
         .codebase()
-        .start(CodebaseConfig {
-            name_index: false,
-            ..CodebaseConfig::default()
-        })
+        .start(CodebaseConfig::default())
         .await
         .unwrap();
     f.core.runs().recover().await.unwrap();
@@ -601,10 +598,7 @@ async fn live_a_later_task_removing_a_done_tasks_function_is_told() {
     let planner = prepare_planner(&f).await;
     f.core
         .codebase()
-        .start(CodebaseConfig {
-            name_index: false,
-            ..CodebaseConfig::default()
-        })
+        .start(CodebaseConfig::default())
         .await
         .unwrap();
     f.core.runs().recover().await.unwrap();

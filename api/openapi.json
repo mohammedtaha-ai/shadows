@@ -4013,15 +4013,11 @@
               "null"
             ]
           },
-          "has_symbols": {
-            "description": "The code index holds at least one tag of this file.",
-            "type": "boolean"
-          },
           "kind": {
             "$ref": "#/components/schemas/InventoryKind"
           },
           "language": {
-            "description": "The name `shadows-index` gives the file's extension; null for any other file.",
+            "description": "The language its extension names (`Codebase::language_for`); null for any other file.",
             "type": [
               "string",
               "null"
@@ -4036,8 +4032,7 @@
           "path",
           "kind",
           "language",
-          "excluded_reason",
-          "has_symbols"
+          "excluded_reason"
         ],
         "type": "object"
       },

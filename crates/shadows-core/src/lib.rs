@@ -19,8 +19,7 @@ pub use core_grants::{ApprovalRequest, ApprovedBy, Approver, PlannerApprover, Wr
 pub use app::CoreParts;
 pub use app::{AppCore, StartConfig};
 pub use codebase::{
-    ActiveHold, Answer, Asker, Codebase, CodebaseConfig, Hit, IndexState, ProjectLink,
-    ProjectStatus, Skipped,
+    ActiveHold, Asker, Codebase, CodebaseConfig, IndexState, ProjectLink, ProjectStatus, Skipped,
 };
 // `StorageError`, `StartError` and `DirectoryError` are what `CoreError`
 // carries, which each adapter maps.

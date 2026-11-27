@@ -53,9 +53,6 @@ pub(super) enum Job {
     Scan,
     /// Index these relative paths, or delete their rows, by what is on disk.
     Files(Vec<String>),
-    /// Index these relative paths if they changed, delete the rows of those
-    /// that are gone, then reply.
-    Recheck(Vec<String>, oneshot::Sender<()>),
     /// A scan, which lists the folder again, then reply.
     Refresh(oneshot::Sender<()>),
     /// A language-server question: the changes gathered before it reach the servers
@@ -275,10 +272,6 @@ impl Run {
         match job {
             Job::Scan => self.scan().await,
             Job::Files(paths) => self.files(paths).await,
-            Job::Recheck(paths, reply) => {
-                self.recheck(paths).await;
-                let _ = reply.send(());
-            }
             Job::Refresh(reply) => {
                 self.scan().await;
                 let _ = reply.send(());
@@ -583,16 +576,6 @@ impl Run {
             }
         }
         false
-    }
-
-    /// A question's hits whose files changed: `index_file` for each.
-    async fn recheck(&mut self, paths: Vec<String>) {
-        for path in paths {
-            if self.stopping() {
-                return;
-            }
-            self.index(&path).await;
-        }
     }
 
     /// The worker was told to stop: like a scan, a batch ends after the file

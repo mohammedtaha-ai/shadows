@@ -1,6 +1,90 @@
 use std::path::Path;
 
-use super::{Findings, compare, scanner};
+use super::{Findings, compare, dependency_violations, scanner};
+
+/// A tiny Cargo workspace whose `core-a` has `manifest_tail` appended to its manifest, beside
+/// `core-b` and `core-c`, where `core-c` depends on `core-b`.
+fn dependency_workspace(manifest_tail: &str) -> tempfile::TempDir {
+    let tree = tempfile::tempdir().unwrap();
+    let root = tree.path();
+    put(
+        root,
+        "Cargo.toml",
+        "[workspace]\nmembers = [\"core-a\", \"core-b\", \"core-c\", \"fake-acp\"]\n\
+         resolver = \"2\"\n",
+    );
+    for (name, tail) in [
+        ("core-a", manifest_tail),
+        ("core-b", ""),
+        ("fake-acp", ""),
+        (
+            "core-c",
+            "[dependencies]\ncore-b = { path = \"../core-b\" }\n",
+        ),
+    ] {
+        put(
+            root,
+            &format!("{name}/Cargo.toml"),
+            &format!(
+                "[package]\nname = \"{name}\"\nversion = \"0.1.0\"\nedition = \"2021\"\n{tail}"
+            ),
+        );
+        put(root, &format!("{name}/src/lib.rs"), "");
+    }
+    tree
+}
+
+#[test]
+fn dependency_policy_holds_production_edges_and_every_held_crate() {
+    let policy: &[(&str, &[&str])] = &[("core-a", &[]), ("core-b", &[]), ("core-c", &["core-b"])];
+    let dev = dependency_workspace("[dev-dependencies]\ncore-b = { path = \"../core-b\" }\n");
+    assert_eq!(
+        dependency_violations(dev.path(), policy),
+        Vec::<String>::new()
+    );
+    for tail in [
+        "[dependencies]\ncore-b = { path = \"../core-b\" }\n",
+        "[dependencies]\nrenamed = { package = \"core-b\", path = \"../core-b\" }\n",
+        "[build-dependencies]\ncore-b = { path = \"../core-b\" }\n",
+    ] {
+        let tree = dependency_workspace(tail);
+        let errors = dependency_violations(tree.path(), policy);
+        assert!(
+            errors
+                .iter()
+                .any(|error| error.starts_with("core-a -> core-b ")),
+            "a forbidden production edge fails: {errors:#?}"
+        );
+        let allowed: &[(&str, &[&str])] = &[
+            ("core-a", &["core-b"]),
+            ("core-b", &[]),
+            ("core-c", &["core-b"]),
+        ];
+        assert_eq!(
+            dependency_violations(tree.path(), allowed),
+            Vec::<String>::new()
+        );
+    }
+    let fake = dependency_workspace("[dependencies]\nfake-acp = { path = \"../fake-acp\" }\n");
+    let errors = dependency_violations(fake.path(), policy);
+    assert!(
+        errors
+            .iter()
+            .any(|error| error.starts_with("core-a -> fake-acp ")),
+        "a test fake is never a production dependency: {errors:#?}"
+    );
+    let fake = dependency_workspace("[dev-dependencies]\nfake-acp = { path = \"../fake-acp\" }\n");
+    assert_eq!(
+        dependency_violations(fake.path(), policy),
+        Vec::<String>::new()
+    );
+    let errors = dependency_violations(dev.path(), &[("core-a", &[]), ("core-b", &[])]);
+    assert!(
+        errors.iter().any(|error| error.contains("core-c -> core-b")
+            && error.contains("core-c has no dependency policy row")),
+        "a crate with no row fails naming both packages: {errors:#?}"
+    );
+}
 
 fn put(root: &Path, path: &str, source: &str) {
     let file = root.join(path);
