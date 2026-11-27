@@ -117,9 +117,15 @@ fn inside(inner: &str, outer: &str) -> bool {
     inner.starts_with(&format!("{outer}/"))
 }
 
-fn descendant<'a>(parts: &[MapPart<'a>], mut child: &'a str, ancestor: &str) -> bool {
-    for _ in 0..parts.len() {
-        let Some(parent) = parts.iter().find(|p| p.key == child).and_then(|p| p.parent) else {
+/// Whether `ancestor` sits above `child`. The step bound stops a walk that
+/// would otherwise go round a containment cycle forever.
+fn descendant<'a>(
+    index: &BTreeMap<&str, &MapPart<'a>>,
+    mut child: &'a str,
+    ancestor: &str,
+) -> bool {
+    for _ in 0..index.len() {
+        let Some(parent) = index.get(child).and_then(|p| p.parent) else {
             return false;
         };
         if parent == ancestor {
@@ -309,7 +315,7 @@ impl MapRules {
                 ));
             }
         }
-        MapRules::check_folder_claims(parts, &folders)?;
+        MapRules::check_folder_claims(parts, index, &folders)?;
         MapRules::check_layers(parts, standards)
     }
 }
@@ -318,13 +324,14 @@ impl MapRules {
     /// Two parts cannot claim the same folder or nest outside their containment.
     fn check_folder_claims(
         parts: &[MapPart<'_>],
+        index: &BTreeMap<&str, &MapPart<'_>>,
         folders: &[(&str, String)],
     ) -> Result<(), MapRefusal> {
         for (i, (owner, folder)) in folders.iter().enumerate() {
             for (other, path) in &folders[i + 1..] {
                 if folder == path
-                    || (inside(path, folder) && !descendant(parts, other, owner))
-                    || (inside(folder, path) && !descendant(parts, owner, other))
+                    || (inside(path, folder) && !descendant(index, other, owner))
+                    || (inside(folder, path) && !descendant(index, owner, other))
                 {
                     let name = |key: &str| {
                         parts
