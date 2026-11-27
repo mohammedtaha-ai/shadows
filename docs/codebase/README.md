@@ -43,8 +43,6 @@ What the code keeps true, in rust-analyzer's style. Spec §14.6 owns them.
   status code; the types an adapter serializes derive `utoipa::ToSchema`, which
   describes a shape and names no route.
 - `shadows-core` never imports `axum` or `rmcp`.
-- `shadows-index` knows nothing of SQLite or projects. It depends on no
-  Shadows crate, nor on a database library; spec §15.2 owns this one.
 - `shadows-lsp` knows no project, grant, task or table. It depends on no
   Shadows crate but `shadows-process`; the language servers design owns this one.
 - Another service calls a service's `store` only through a function or method
@@ -415,9 +413,6 @@ pattern to follow, not merely an example.
 | `crates/shadows-agent/src/profile.rs` | the child environment of an isolated Claude Code profile | `crates/shadows-agent/src/profile.rs` |
 | `crates/shadows-agent/src/choices.rs` | reading the harness's offered choices | `crates/shadows-agent/src/choices.rs` |
 | `crates/shadows-agent/src/claude.rs` | the launch spec of the pinned Claude ACP adapter | `crates/shadows-agent/src/claude.rs` |
-| `crates/shadows-index/src/lib.rs` | one file's text turned into its tags | `crates/shadows-index/src/extract.rs` |
-| `crates/shadows-index/src/languages.rs` | the table of languages Shadows indexes | `crates/shadows-index/src/languages.rs` |
-| `crates/shadows-index/src/extract.rs` | one file's text in, its tags out | `crates/shadows-index/src/extract.rs` |
 | `crates/shadows-process/src/lib.rs` | OS process ownership with whole-tree containment | `crates/shadows-process/src/lib.rs` |
 | `crates/shadows-process/src/launch.rs` | child launch configuration | `crates/shadows-process/src/lib.rs` |
 | `crates/shadows-process/src/persistent.rs` | independent process lifetime | `crates/shadows-process/src/lib.rs` |
@@ -557,7 +552,6 @@ file disagrees with either, they are right and this file is the defect.
 | `crates/core-standards/src/standards.yaml` | bundled standards definition | `crates/core-standards/contract.yaml` |
 
 | `crates/codebase/src/lib.rs` | the Codebase service boundary | `crates/codebase/contract.yaml` |
-| `crates/codebase/tests/recheck/` | question refresh race regression | `crates/codebase/tests/recheck/invariants.rs` |
 | `crates/codebase/src/error.rs` | index refusals | `crates/codebase/contract.yaml` |
 | `crates/codebase/src/testing.rs` | gated index inspection | `crates/codebase/contract.yaml` |
 | `crates/codebase/src/inventory.rs` | the paged file inventory of a project's folder | `crates/codebase/contract.yaml` |

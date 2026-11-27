@@ -39,12 +39,7 @@ impl Fixture {
             .await
             .unwrap();
         let code = Codebase::new(storage.clone(), projects);
-        code.start(CodebaseConfig {
-            name_index: false,
-            ..CodebaseConfig::default()
-        })
-        .await
-        .unwrap();
+        code.start(CodebaseConfig::default()).await.unwrap();
         let record = CodeRecord::new(
             storage.clone(),
             code.clone(),

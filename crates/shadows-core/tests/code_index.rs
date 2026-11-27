@@ -1,5 +1,4 @@
-//! The code index follows the files of a project's folder,
-//! and the three questions answer from it.
+//! The code index follows the files of a project's folder.
 
 use std::future::Future;
 use std::sync::Arc;
@@ -7,7 +6,7 @@ use std::time::Duration;
 
 use shadows_agent::claude::ClaudeAdapter;
 use shadows_core::testing::{CommandContext, ProjectDirectory, Storage, acp};
-use shadows_core::{AppCore, Asker, CodebaseConfig, CoreParts, IndexState, ProjectId};
+use shadows_core::{AppCore, CodebaseConfig, CoreParts, IndexState, ProjectId};
 
 /// A core over a temporary database in `db`, with one project whose folder is `dir`.
 async fn core_with_project() -> (
@@ -100,6 +99,11 @@ async fn core_over(storage: Arc<Storage>) -> Arc<AppCore> {
     })
 }
 
+/// The files the project's index holds, the skipped ones not counted.
+async fn files(core: &AppCore, project: &ProjectId) -> u32 {
+    core.codebase().status(project).await.unwrap().files
+}
+
 #[tokio::test]
 async fn indexing_follows_the_files() {
     // fixture: temp db + project on `dir`
@@ -115,31 +119,11 @@ async fn indexing_follows_the_files() {
     w("sub/.gitignore", "gen.rs\n"); // no .git anywhere
     w("sub/gen.rs", "fn hidden_by_nested_ignore() {}\n");
     w("big.rs", &"// x\n".repeat(300_000)); // > 1 MB
-    let me = shadows_core::Asker::Person(&project);
+    w("notes.md", "not code\n"); // no language
 
     core.codebase().scan_for_test(&project).await.unwrap();
-    let a = core
-        .codebase()
-        .definitions(me, None, "alpha")
-        .await
-        .unwrap();
-    assert_eq!((a.hits[0].path.as_str(), a.hits[0].line), ("src/a.rs", 1));
-    assert_eq!(a.hits[0].signature.as_deref(), Some("pub fn alpha() {}"));
-    let r = core.codebase().references(me, None, "alpha").await.unwrap();
-    assert_eq!(r.hits[0].path, "src/b.rs");
-    assert_eq!(r.hits[0].matched_by.as_deref(), Some("name"));
-    for hidden in ["hidden_in_target", "hidden_by_nested_ignore"] {
-        assert!(
-            core.codebase()
-                .definitions(me, None, hidden)
-                .await
-                .unwrap()
-                .hits
-                .is_empty(),
-            "{hidden}"
-        );
-    }
     let s = core.codebase().status(&project).await.unwrap();
+    assert_eq!(s.files, 2, "src/a.rs and src/b.rs only");
     assert!(
         s.skipped
             .iter()
@@ -150,40 +134,15 @@ async fn indexing_follows_the_files() {
     w("src/a.rs", "\n\npub fn alpha() {}\n");
     std::fs::remove_file(dir.path().join("src/b.rs")).unwrap();
     w("src/c.ts", "export function gamma() {}\n");
+    w("src/d.js", "\0binary\n");
     core.codebase().scan_for_test(&project).await.unwrap();
-    assert_eq!(
-        core.codebase()
-            .definitions(me, None, "alpha")
-            .await
-            .unwrap()
-            .hits[0]
-            .line,
-        3
-    );
+    let s = core.codebase().status(&project).await.unwrap();
+    assert_eq!(s.files, 2, "src/a.rs and src/c.ts");
     assert!(
-        core.codebase()
-            .references(me, None, "alpha")
-            .await
-            .unwrap()
-            .hits
-            .is_empty()
+        s.skipped
+            .iter()
+            .any(|k| k.reason == "binary" && k.count == 1)
     );
-    assert_eq!(
-        core.codebase()
-            .definitions(me, None, "gamma")
-            .await
-            .unwrap()
-            .hits
-            .len(),
-        1
-    );
-    let o = core.codebase().outline(me, None, "src").await.unwrap();
-    assert_eq!(
-        o.hits.iter().map(|h| h.name.as_str()).collect::<Vec<_>>(),
-        ["alpha", "gamma"]
-    );
-    let near = core.codebase().definitions(me, None, "amm").await.unwrap();
-    assert!(near.hits.is_empty() && near.suggestions == ["gamma"]);
 
     core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
         .await
@@ -198,34 +157,19 @@ async fn watching_and_the_periodic_scan_keep_the_index_true() {
     let fast = CodebaseConfig {
         rescan_every: Duration::from_millis(400),
         debounce: Duration::from_millis(100),
-        ..CodebaseConfig::default()
     };
     core.codebase().start(fast).await.unwrap();
     core.codebase().touch(&project).await;
-    let me = Asker::Person(&project);
-    let code = core.codebase();
-    let defined = |name: &'static str| async move {
-        !code
-            .definitions(me, None, name)
-            .await
-            .unwrap()
-            .hits
-            .is_empty()
-    };
-    eventually(|| defined("one")).await;
+    eventually(|| async { files(&core, &project).await == 1 }).await;
 
-    // An editor's save: write a temporary file, then rename it over the original.
-    let tmp = dir.path().join("src/.a.rs.tmp");
-    std::fs::write(&tmp, "\nfn one() {}\n").unwrap();
-    std::fs::rename(&tmp, dir.path().join("src/a.rs")).unwrap();
-    // The re-check answers the new line at once, without waiting for the watcher.
-    let a = core.codebase().definitions(me, None, "one").await.unwrap();
-    assert_eq!(a.hits[0].line, 2);
+    // A file the watcher reports.
+    std::fs::write(dir.path().join("src/b.rs"), "fn two() {}\n").unwrap();
+    eventually(|| async { files(&core, &project).await == 2 }).await;
 
     // A file the watcher never reports: the periodic scan finds it.
     core.codebase().pause_watcher_for_test(&project).await;
-    std::fs::write(dir.path().join("src/b.rs"), "fn two() {}\n").unwrap();
-    eventually(|| defined("two")).await;
+    std::fs::write(dir.path().join("src/c.rs"), "fn three() {}\n").unwrap();
+    eventually(|| async { files(&core, &project).await == 3 }).await;
     core.codebase().shut_down_for_test().await;
 
     core.shut_down(std::time::Duration::from_secs(5), std::future::pending())
@@ -344,32 +288,4 @@ async fn a_held_project_outlives_the_idle_time() {
     tokio::time::sleep(Duration::from_secs(3)).await;
     assert!(inactive(&core, &project).await);
     core.codebase().shut_down_for_test().await;
-}
-
-#[tokio::test]
-async fn the_name_index_is_off_by_default() {
-    let db = tempfile::tempdir().unwrap();
-    let core = shadows_core::testing::app(db.path().join("s.sqlite3"))
-        .await
-        .unwrap();
-    let dir = tempfile::tempdir().unwrap();
-    std::fs::write(dir.path().join("lib.rs"), "pub fn answer() {}\n").unwrap();
-    let project = core
-        .projects()
-        .create("c-off".into(), "off", "Off", dir.path().to_str().unwrap())
-        .await
-        .unwrap()
-        .id;
-    core.codebase().scan_for_test(&project).await.unwrap();
-    let status = core.codebase().status(&project).await.unwrap();
-    assert_eq!(status.files, 1, "the file row is written");
-    let found = core
-        .codebase()
-        .definitions(Asker::Person(&project), None, "answer")
-        .await
-        .unwrap();
-    assert!(found.hits.is_empty(), "no tag is extracted");
-    core.shut_down(Duration::from_secs(5), std::future::pending())
-        .await
-        .unwrap();
 }

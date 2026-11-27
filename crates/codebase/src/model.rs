@@ -37,35 +37,6 @@ pub struct Skipped {
     pub count: u32,
 }
 
-/// One tag an answer points at.
-#[derive(Debug, Clone, serde::Serialize, utoipa::ToSchema)]
-pub struct Hit {
-    /// The project's slug.
-    pub project: String,
-    /// Relative to the project's folder, with '/'.
-    pub path: String,
-    pub line: u32,
-    pub kind: String,
-    pub name: String,
-    pub signature: Option<String>,
-    /// `Some("name")` on every `references` hit: matched by name only.
-    pub matched_by: Option<String>,
-}
-
-/// What a question answers.
-#[derive(Debug, Clone, serde::Serialize, utoipa::ToSchema)]
-pub struct Answer {
-    /// At most 50, by project (the asker's first, then its links by slug),
-    /// path and line.
-    pub hits: Vec<Hit>,
-    /// More hits than the 50 answered.
-    pub more: bool,
-    /// Up to 10 names containing the text, only when `hits` is empty.
-    pub suggestions: Vec<String>,
-    /// One per project in the scope.
-    pub status: Vec<ProjectStatus>,
-}
-
 /// How the workers keep the index current.
 #[derive(Debug, Clone, Copy)]
 pub struct CodebaseConfig {
@@ -73,9 +44,6 @@ pub struct CodebaseConfig {
     pub rescan_every: std::time::Duration,
     /// How long no change has to arrive before the gathered paths are indexed.
     pub debounce: std::time::Duration,
-    /// Whether a scan extracts the tree-sitter name index's tags. Off in the app:
-    /// the language servers answer instead; file rows and the inventory stay.
-    pub name_index: bool,
 }
 
 impl Default for CodebaseConfig {
@@ -83,7 +51,6 @@ impl Default for CodebaseConfig {
         Self {
             rescan_every: std::time::Duration::from_secs(60),
             debounce: std::time::Duration::from_millis(500),
-            name_index: true,
         }
     }
 }
@@ -145,14 +112,12 @@ pub struct InventoryEntry {
     /// Relative to the project's folder, with '/'. A folder has no trailing '/'.
     pub path: String,
     pub kind: InventoryKind,
-    /// The name `shadows-index` gives the file's extension; null for any other file.
+    /// The language its extension names (`Codebase::language_for`); null for any other file.
     #[schema(required)]
     pub language: Option<String>,
     /// `dependencies`, `ignored`, `secret` or `link`; null unless `kind` is `excluded`.
     #[schema(required)]
     pub excluded_reason: Option<String>,
-    /// The code index holds at least one tag of this file.
-    pub has_symbols: bool,
 }
 
 /// One page of a project's file list, in path order.

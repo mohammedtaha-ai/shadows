@@ -7,9 +7,7 @@
 # walking a project's folder into `code_file` and `code_inventory`, keeping
 # that copy true while the project is in use, running the language servers its
 # files want and answering `code_lsp` from them, within the scope of projects
-# the asker may read. The name index (`code_tag`, and `definitions`,
-# `references` and `outline` over it) is suspended: its code stays, nothing
-# calls it, and `AppCore::start` sets `CodebaseConfig::name_index` false.
+# the asker may read. A file's language is its extension's, by `language_for`.
 #
 # The index is a copy derived from the files. It carries no CommandId and no
 # journal event, and can be deleted and rebuilt. Paths are stored relative
@@ -18,17 +16,15 @@
 #
 # Two functions hold the indexing rules and every path that indexes goes
 # through them: `keeps` (the walk's filter) and `index_file` (one file read,
-# parsed and written). The scan, the watcher's batches (`files`) and a
-# question's re-check (`recheck`) call the same two.
+# checked and written). The scan and the watcher's batches (`files`) call
+# the same two.
 #
 # Each active project has one worker (`watch.rs`), a tokio task that does its
-# scans, its watcher's batches and its re-checks one after another, so two
-# writes of one file never race. The watcher is the fast path only: notify
-# 8.2.0 can lose changes on Windows without a word (PROBE.md), so a periodic
-# scan runs beside it and every question checks its own hits.
+# scans and its watcher's batches one after another, so two writes of one
+# file never race. The watcher is the fast path only: notify 8.2.0 can lose
+# changes on Windows without a word (PROBE.md), so a periodic scan runs
+# beside it.
 #
-# Trap: `references` matches by name only. Two functions with one name are
-# not told apart, which is why every such hit says `matched_by: name`.
 # Trap: the uses live in memory only; after a restart a project waits for its
 # next use.
 # Trap: before `start` nothing is active — every project answers `Inactive`,
@@ -73,17 +69,12 @@ shapes:
     uses: std::sync::Mutex<Uses>
     # IDLE (10 min) unless a test shortens it.
     idle: std::sync::Mutex<Duration>
-    # `CodebaseConfig::name_index` as `start` set it; true before it.
-    name_index: AtomicBool
   CodeStore:
     # Private to code/. Domain methods do not extend Storage.
     storage: Arc<Storage>
   CodebaseConfig:
     rescan_every: Duration   # default 60 s
     debounce: Duration       # default 500 ms
-    # Whether a scan extracts the name index's tags; default true, false in
-    # `AppCore::start` (the language servers answer instead).
-    name_index: bool
   Asker:
     # HTTP asks as a person, refusals INVALID_COMMAND; MCP under a grant,
     # refusals GRANT_SCOPE. Either names the project the scope starts from.
@@ -109,19 +100,6 @@ shapes:
   Skipped:
     reason: String       # too_large | binary | not_utf8
     count: u32
-  Hit:
-    project: String      # the slug
-    path: String         # relative, '/'
-    line: u32
-    kind: String
-    name: String
-    signature: Option<String>
-    matched_by: Option<String>
-  Answer:
-    hits: Vec<Hit>
-    more: bool
-    suggestions: Vec<String>
-    status: Vec<ProjectStatus>
   ProjectLink:
     project: String      # the slug of the project that reads
     linked: String       # the slug of the project it reads
@@ -172,7 +150,6 @@ shapes:
   Job:
     Scan: unit
     Files: Vec<String>
-    Recheck: "(Vec<String>, oneshot::Sender<()>)"
     Refresh: "oneshot::Sender<()>"   # a scan, then the reply
   Seen:
     # What the watcher's thread passes on.
@@ -235,7 +212,6 @@ shapes:
     kind: InventoryKind
     language: Option<String>         # language_for's name; null for any other file
     excluded_reason: Option<String>  # dependencies | ignored | secret | link; null unless excluded
-    has_symbols: bool                # code_tag holds a tag of this file
   InventoryPage:
     state: InventoryState
     generation: u64                  # 0 before the first listing
@@ -480,41 +456,9 @@ functions:
       # Its `code_scope` row's folder; NotFound quiet, any other failure
       # logged `code.touch_failed`.
   questions:
-    definitions:
-      signature: "(&self, asker: Asker<'_>, only: Option<&str>, name: &str) -> Result<Answer, CodebaseError>"
-      # Exact, case-sensitive name, role definition. With no hit, up to 10
-      # definition names containing the text, case-insensitively.
-    references:
-      signature: "(&self, asker: Asker<'_>, only: Option<&str>, name: &str) -> Result<Answer, CodebaseError>"
-      # As `definitions` with role reference; every hit matched_by "name".
-    outline:
-      signature: "(&self, asker: Asker<'_>, only: Option<&str>, path: &str) -> Result<Answer, CodebaseError>"
-      # `inside` first; the scope; `touch` of the asker's project; the
-      # definitions whose key is the path's or under it, every one for ""
-      # or "."; `recheck`, and the query once more for nonempty hits. No
-      # suggestions.
     status:
       signature: "(&self, project: &ProjectId) -> Result<ProjectStatus, CodebaseError>"
       # `status_of`; it does not touch. NotFound for an unknown project.
-    by_name:
-      signature: "(&self, asker, only, name, role) -> Result<Answer, CodebaseError>"
-      private: true
-      # The scope (its refusals first), `touch` of the asker's project, the
-      # query, `recheck` and the query once more for nonempty hits, then the
-      # suggestions when there is no hit.
-    recheck:
-      signature: "(&self, scope: &[ScopeRow], hits: &[Hit]) -> bool"
-      private: true
-      # Per project with a folder: the distinct paths of the first 50 hits
-      # through `stale`; the changed ones go as one `Job::Recheck` to its
-      # worker, if it has one. Sending and every reply are awaited within
-      # 2 s in all (`code.recheck_timeout` past it). True for nonempty hits:
-      # a worker may have committed between the hit query and the stamp query.
-    answer:
-      signature: "(&self, scope, hits, suggestions) -> Result<Answer, CodebaseError>"
-      private: true
-      # Keeps 50 of at most 51 rows; `more` is the 51st. One status per
-      # project in the scope, in the scope's order.
     status_of:
       signature: "(&self, project: &ScopeRow) -> Result<ProjectStatus, CodebaseError>"
       private: true
@@ -663,13 +607,13 @@ functions:
       # (`names_itself`), else `code.outside_folder` and nothing. Over
       # 1 048 576 bytes: too_large, unread; at most one byte past it is
       # read, so a file grown past it since its stat is too_large. A NUL in
-      # the first 8 KiB: binary. Not UTF-8: not_utf8. Else `extract` on a blocking thread.
+      # the first 8 KiB: binary. Not UTF-8: not_utf8. Else no reason.
       # Then one `write_code_file`. True when it wrote or deleted.
-    stale:
-      signature: "(&self, project: &ProjectId, dir: &Path, paths: impl IntoIterator<Item = &'a str>) -> Vec<String>"
-      # The paths whose `symlink_metadata` stamp differs from their row, or
-      # that are gone, not regular files, or have no row. Opens no file.
-      # None while the folder is missing.
+    language_for:
+      signature: "(path: &Path) -> Option<&'static str>"
+      # The `LANGUAGES` row whose extensions hold the path's, lower-cased:
+      # rust (rs), typescript (ts, mts, cts), tsx (tsx), javascript (js, mjs,
+      # cjs, jsx). The scan and the inventory both answer it.
     keeps:
       signature: "(path: &Path) -> bool"
       # Relative path: no component `target`, `node_modules` or starting
@@ -780,8 +724,7 @@ functions:
     handle:
       signature: "(&mut self, job: Job)"
       private: true
-      # Recheck replies after its files;
-      # Refresh after its scan.
+      # Refresh replies after its scan.
     files:
       signature: "(&mut self, paths: Vec<String>)"
       private: true
@@ -797,11 +740,6 @@ functions:
       # is gone, or is a folder `code_files_under` finds nothing under (a
       # failed read counts as nothing) (`symlink_metadata`). A gone non-code
       # file (a README.md) passes too: the scan is cheap.
-    recheck:
-      signature: "(&mut self, paths: Vec<String>)"
-      private: true
-      # `index_file` for each: it rewrites a changed file and deletes the
-      # rows of a gone one. Ends after the file it is on once `stopping`.
     stopping:
       signature: "(&self) -> bool"
       private: true
@@ -881,15 +819,14 @@ functions:
     code_files_under:
       signature: "(&self, project: &ProjectId, folder_key: &str) -> Result<bool, StorageError>"
       # A row at the key or in the byte range `key/` to `key0`, as
-      # `code_outline`: exact on every platform.
+      # `inventory_page`: exact on every platform.
     write_code_file:
-      signature: "(&self, project: &ProjectId, file: FileRow, tags: Vec<Tag>) -> Result<(), StorageError>"
+      signature: "(&self, project: &ProjectId, file: FileRow) -> Result<(), StorageError>"
       # One write: nothing for a removed project (so a worker finishing a
-      # file after a removal writes no row); else delete the file's tags,
-      # upsert its row, insert its tags, 500 rows a statement.
+      # file after a removal writes no row); else upsert its row.
     delete_code_file:
       signature: "(&self, project: &ProjectId, path_key: &str) -> Result<(), StorageError>"
-      # One write: the tags explicitly, then the row.
+      # One write: the row.
     code_links:
       signature: "(&self, project: &ProjectId) -> Result<Vec<ProjectLink>, StorageError>"
     load_link_in:
@@ -914,7 +851,7 @@ functions:
       # ProjectUnlinked, the caller's ProjectRemoved says it.
     delete_code_index_in:
       signature: "(conn, project: &ProjectId) -> Result<(), StorageError>"
-      # Its tags, its files, then its inventory rows and scan row, inside
+      # Its files, then its inventory rows and scan row, inside
       # the caller's write.
     write_inventory:
       signature: "(&self, project: &ProjectId, rows: Vec<InventoryRow>, incomplete: bool, observed_at: &str) -> Result<(), StorageError>"
@@ -942,29 +879,13 @@ functions:
       # One read snapshot: None without a scan row; else generation,
       # incomplete, observed_at and at most `limit` (path_key, entry) rows
       # at or under the prefix (the byte range `key/` to `key0`) after the
-      # key, ORDER BY path_key; has_symbols is EXISTS over code_tag.
+      # key, ORDER BY path_key.
     code_scope:
       signature: "(&self, home: &ProjectId) -> Result<Vec<ScopeRow>, StorageError>"
       # One read snapshot: Projects::get_in for the home and linked ids.
       # NotFound for a removed home; removed links left out; linked slugs sorted.
-    code_by_name:
-      signature: "(&self, scope: &[ScopeRow], name: &str, role: &str) -> Result<Vec<Hit>, StorageError>"
-      # Per project in the scope's order, by path, line, kind; 51 rows in all.
-    code_suggestions:
-      signature: "(&self, scope: &[ScopeRow], text: &str, role: &str) -> Result<Vec<String>, StorageError>"
-      # LIKE with %, _ and \ escaped; each project's first 10, merged by name.
-    code_outline:
-      signature: "(&self, scope: &[ScopeRow], path_key: &str) -> Result<Vec<Hit>, StorageError>"
-      # Under `path_key` is the byte range `key/` to `key0`, exact on every
-      # platform (`LIKE` would ignore ASCII case).
     code_counts:
       signature: "(&self, project: &ProjectId) -> Result<(u32, Vec<Skipped>), StorageError>"
-    hit:
-      signature: "(slug: &str, row: HitRow) -> Hit"
-      private: true
-    like_escape:
-      signature: "(text: &str) -> String"
-      private: true
 
 
 shared_in_transaction:
@@ -998,9 +919,6 @@ enums:
     values: []
   ProjectId:
     source: core_projects::ProjectId
-    values: []
-  Tag:
-    source: shadows_index::Tag
     values: []
 
 
@@ -1052,11 +970,8 @@ obligations:
       language server <id> is running but did not answer in time (20 s)".
     tested_by: a_slow_answer_times_out
   - rule: >
-      A file whose language has no running server is answered NoServer, never
-      from the name index, which is off in the app (`name_index: false`): a
-      scan writes file rows and the inventory, and no tag.
-    tested_by: the_name_index_is_off_by_default
-    note: also code_lsp_answers_no_server_for_an_unknown_extension.
+      A file whose language has no running server is answered NoServer.
+    tested_by: code_lsp_answers_no_server_for_an_unknown_extension
   - rule: >
       The files choose a project's language servers: while the project is
       active its worker runs each server one of whose extensions its files
@@ -1120,7 +1035,7 @@ obligations:
       changed one (its size or modified time differs), and deletes the rows
       of one that is gone; `target/`, `node_modules/`, hidden entries and
       what a `.gitignore` in the folder names (with no `.git` anywhere) are
-      never indexed; a file over 1 MB is recorded as too_large with no tags.
+      never indexed; a file over 1 MB is recorded as too_large.
     tested_by: indexing_follows_the_files
 
   - rule: >
@@ -1170,23 +1085,6 @@ obligations:
       answered within 10 s.
 
   - rule: >
-      Before a question answers,
-      `definitions`, `references` and `outline` stat the files of their
-      first 50 hits, send the changed or gone ones to the project's worker
-      as `Recheck`, wait at most 2 s, and ask again once for nonempty hits.
-      Hits are reloaded even when no job is needed: a worker can commit
-      between reading the hits and checking their stored stamps. A timeout
-      may still answer rows whose file has not yet been refreshed.
-    tested_by: watching_and_the_periodic_scan_keep_the_index_true
-    note: >
-      A save through rename (write `.a.rs.tmp`, rename it over a.rs) is
-      answered at its new line when the re-check finishes within its budget
-      or the worker has already indexed the save.
-      hits_are_reloaded_when_indexing_finishes_before_the_stamp_check
-      deterministically holds the interleaving where old hits have been read
-      but the renamed file is indexed before stale checks its stamp.
-
-  - rule: >
       A project is active while it is used: a sent message, a code question
       or a live `ActiveHold` gives it a worker, and the sweep stops that worker
       once the project went unused with no hold for the idle time (10 min);
@@ -1204,8 +1102,8 @@ obligations:
       logged and dropped, and the scan runs in the worker.
     tested_by: none
     note: >
-      Structural: `touch` returns `()`. `lsp`, the inventory reads and the
-      suspended name-index questions call it after their own checks succeeded;
+      Structural: `touch` returns `()`. `lsp` and the inventory reads call
+      it after their own checks succeeded;
       a sent message and an attempt take a `hold` instead.
 
   - rule: >
@@ -1219,8 +1117,8 @@ obligations:
     tested_by: the_scope_is_the_project_and_its_links_only
     note: >
       `inside`, the WalkBuilder settings, `symlink_metadata` and
-      `names_itself` are the whole rule. The body asks `outline` for "../"
-      only; a test would also ask for "/x" and "C:/x", and have the
+      `names_itself` are the whole rule. code_lsp_refuses_a_path_outside_the_project
+      asks for "../x.go" and an absolute path; a test would also have the
       watcher report a file under a junction leading out of the folder.
 
   - rule: >
@@ -1237,16 +1135,16 @@ obligations:
 
   - rule: >
       One short transaction per file: `write_code_file` and
-      `delete_code_file` each run one `write_txn` for one file, and
-      `extract` runs before it, on a blocking thread, outside any
-      transaction. The watcher's handler never awaits.
+      `delete_code_file` each run one `write_txn` for one file, and the
+      file is read before it, outside any transaction. The watcher's
+      handler never awaits.
     tested_by: none
     note: >
       Structural: read in `index_file`, the two store methods and `forward`.
 
   - rule: >
       Shutdown stops every worker after the file it is on: `stop` sets the
-      flag that `scan_project`, `files` and `recheck` check between files
+      flag that `scan_project` and `files` check between files
       and wakes the task, and `shut_down` awaits every task, those of
       workers that left the active set included, before
       `AppCore::shut_down` runs §8.5.
@@ -1254,20 +1152,6 @@ obligations:
     note: >
       Both new tests end with `shut_down_for_test`, which returns; none
       stops a worker in the middle of a scan.
-
-  - rule: >
-      An answer carries at most 50 hits, ordered by the scope's order, then
-      path and line; `more` is true when a 51st exists.
-    tested_by: none
-    note: >
-      `indexing_follows_the_files` checks the order of two outline hits
-      only. A test would index 51 definitions of one name.
-
-  - rule: >
-      Suggestions come only when there is no hit, at most 10, in the
-      question's own role, containing the text case-insensitively.
-    tested_by: indexing_follows_the_files
-    note: The body checks "amm" suggests exactly "gamma".
 
   - rule: >
       A question's scope is the asker's project and its direct links, one
@@ -1294,6 +1178,9 @@ obligations:
 
   - rule: Every file of the folder is listed whatever its language, and no content is.
     tested_by: inventory_lists_every_file_whatever_its_language
+
+  - rule: A file's language is its extension's, by `language_for`, for the listing and the scan alike.
+    tested_by: each_known_extension_keeps_its_language
 
   - rule: >
       A folder never walked, an ignored path, a secret name and a link are
@@ -1322,11 +1209,11 @@ obligations:
     note: removing_a_file_removes_its_entry_and_moves_the_generation holds the complete side.
 
 agreements:
-  - between: [scan_project, files, recheck]
+  - between: [scan_project, files]
     must: index a file the same way
     holds: true
     why: >
-      All three call `index_file` for each path, and nothing else writes a
+      Both call `index_file` for each path, and nothing else writes a
       file's rows; `scan_project` deletes the keys its walk did not see
       itself only because the walk, not the disk, decides they left the
       scope.
@@ -1388,26 +1275,18 @@ tests:
     checks: >
       After listing a folder with src/lib.rs, the stored rows are deleted
       by SQL; `servers` still wants rust-analyzer, from the held extensions.
-  - name: hits_are_reloaded_when_indexing_finishes_before_the_stamp_check
-    checks: >
-      Read line 1 hits, replace the file through rename, then index line 2
-      before checking stamps. No file is stale and no worker is running,
-      but recheck still requires the caller to reload its hits, yielding line 2.
   - name: indexing_follows_the_files
     checks: >
-      After one scan: `alpha` is defined at src/a.rs:1 with its signature,
-      referenced from src/b.rs with matched_by "name"; definitions in
-      target/ and in a file a nested .gitignore names are absent; status
-      counts one too_large file. After changing a.rs (line 3), deleting b.rs
-      and adding c.ts: alpha is at line 3, has no reference, gamma has one
-      definition, outline "src" is [alpha, gamma], and "amm" answers no hit
-      with the suggestion ["gamma"].
+      After one scan the status counts two files, src/a.rs and src/b.rs:
+      target/, a file a nested .gitignore names and a .md file are not
+      indexed, and one too_large file is counted. After changing a.rs,
+      deleting b.rs and adding c.ts and a binary d.js: two files, and one
+      binary.
   - name: watching_and_the_periodic_scan_keep_the_index_true
     checks: >
-      With a 400 ms scan and a 100 ms debounce: `one` is found after start;
-      a save through rename is answered at line 2 at once (the re-check);
-      with the worker's `Files` jobs dropped, a new b.rs's `two` is found
-      (the periodic scan).
+      With a 400 ms scan and a 100 ms debounce: a.rs is indexed after start;
+      a new b.rs is indexed (the watcher); with the worker's `Files` jobs
+      dropped, a new c.rs is indexed (the periodic scan).
   - name: a_read_is_not_a_change
     checks: >
       A unit test in watch.rs calls `forward` directly: `Access(Open)` and
@@ -1448,10 +1327,13 @@ tests:
       linked. Over a project grant: code_lsp naming secret is GRANT_SCOPE
       before any server is asked; code_lsp on "../x.rs" is refused "the path
       must be inside the project".
+  - name: each_known_extension_keeps_its_language
+    checks: >
+      rs is rust; ts, mts and cts typescript; tsx tsx; js, mjs, cjs and jsx
+      javascript, in any case (J.RS); k.py has no language.
   - name: inventory_lists_every_file_whatever_its_language
     checks: >
-      PHP, JSON, Rust and dotfiles are listed, src/lib.rs as rust with
-      symbols; .env is excluded secret, vendor (a .gitignore) ignored,
+      PHP, JSON, Rust and dotfiles are listed, src/lib.rs as rust; .env is excluded secret, vendor (a .gitignore) ignored,
       node_modules dependencies, with nothing under them; .git is absent;
       the order is the path order; no SECRET_CANARY in the JSON.
   - name: inventory_pages_in_path_order_and_refuses_a_stale_cursor
@@ -1523,8 +1405,6 @@ tests:
       LANGUAGE_SERVER_UNAVAILABLE "… silent is running but did not answer in time" within 25 s.
   - name: the_removed_code_tools_are_listed_nowhere
     checks: No grant kind lists where_is, who_uses or outline; all three list code_lsp.
-  - name: the_name_index_is_off_by_default
-    checks: Through AppCore::start, a scanned .rs file has its row and no definition.
   - name: switching_a_server_off_lists_it_off
     checks: PUT /api/code/servers/gopls/off true lists gopls off; false lists it not off.
   - name: an_added_server_is_listed_and_removable

@@ -29,7 +29,6 @@ code_record_file :: code_record
 code_record_symbol :: code_record
 code_record_unpromised :: code_record
 code_record_verdict :: code_record
-code_tag :: codebase
 command_record :: db
 design_command_result :: design
 design_decisions :: design

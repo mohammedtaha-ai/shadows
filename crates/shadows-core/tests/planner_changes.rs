@@ -85,7 +85,6 @@ async fn world() -> World {
         .start(CodebaseConfig {
             rescan_every: Duration::from_secs(60),
             debounce: Duration::from_millis(100),
-            name_index: false,
         })
         .await
         .unwrap();

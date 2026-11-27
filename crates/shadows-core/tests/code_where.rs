@@ -788,10 +788,7 @@ async fn a_path_topic_lists_files_not_in_the_record_from_the_file_list() {
         .await;
     f.write("api/auth/one.py", "pass\n");
     f.write("api/auth/two.py", "pass\n");
-    let listing = shadows_core::CodebaseConfig {
-        name_index: false,
-        ..shadows_core::CodebaseConfig::default()
-    };
+    let listing = shadows_core::CodebaseConfig::default();
     f.core.codebase().start(listing).await.unwrap();
     f.core.codebase().touch(&f.project).await;
     let mut answer = f.ask("api/auth").await;
@@ -816,10 +813,7 @@ async fn a_path_topic_lists_files_not_in_the_record_from_the_file_list() {
 /// Asks `topic` until `done` holds of the answer, for up to two minutes while
 /// pyright starts and reads the folder.
 async fn ask_until(f: &Fixture, topic: &str, done: impl Fn(&WhereAnswer) -> bool) -> WhereAnswer {
-    let listing = shadows_core::CodebaseConfig {
-        name_index: false,
-        ..shadows_core::CodebaseConfig::default()
-    };
+    let listing = shadows_core::CodebaseConfig::default();
     f.core.codebase().start(listing).await.unwrap();
     f.core.codebase().touch(&f.project).await;
     let mut answer = f.ask(topic).await;

@@ -10,6 +10,7 @@ status: current
 source: crates/core-db/src
 tool_rules_migration: 0040 installs the Extensions-owned per-agent MCP rules table.
 external_connection_management_migration: 0081 adds a nullable name and a zero-initialized project revision to Grants-owned external connections.
+drop_code_tag_migration: 0082 drops the code_tag table, which only the removed name index wrote and read.
 planning_context_migrations: 0043 installs Design anchors, 0044 Harness context records, 0045 reserved vision identities, 0046 the Harness context forgets, and 0047 the Design part folder and layers.
 
 

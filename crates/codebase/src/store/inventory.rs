@@ -19,7 +19,7 @@ pub(crate) struct InventoryRow {
 /// A stored page: generation, incomplete, observed_at, and `(path_key, entry)` rows.
 pub(crate) type StoredPage = (i64, bool, String, Vec<(String, InventoryEntry)>);
 
-type StoredRow = (String, String, String, Option<String>, bool);
+type StoredRow = (String, String, String, Option<String>);
 
 /// Rows one write transaction of a listing carries at most.
 const BATCH_ROWS: usize = 5_000;
@@ -202,7 +202,7 @@ impl CodeStore {
     /// In one read snapshot: the scan row, or `None` before the first listing,
     /// and at most `limit` rows at `prefix_key` or under it, after
     /// `after_key`, by key. "Under" is the byte range `key/` up to `key0`, as
-    /// in `code_outline`. `language` is left for the caller.
+    /// in `code_files_under`. `language` is left for the caller.
     pub(in super::super) async fn inventory_page(
         &self,
         project: &ProjectId,
@@ -223,9 +223,7 @@ impl CodeStore {
             return Ok(None);
         };
         let rows: Vec<StoredRow> = sqlx::query_as(
-            "SELECT i.path_key, i.path, i.kind, i.excluded_reason,
-                    EXISTS (SELECT 1 FROM code_tag t
-                             WHERE t.project_id = i.project_id AND t.path_key = i.path_key)
+            "SELECT i.path_key, i.path, i.kind, i.excluded_reason
                FROM code_inventory i
               WHERE i.project_id = ?
                 AND (? = '' OR i.path_key = ?
@@ -246,7 +244,7 @@ impl CodeStore {
         snapshot.commit().await?;
         let entries = rows
             .into_iter()
-            .map(|(key, path, kind, excluded_reason, has_symbols)| {
+            .map(|(key, path, kind, excluded_reason)| {
                 let kind = match kind.as_str() {
                     "directory" => InventoryKind::Directory,
                     "file" => InventoryKind::File,
@@ -257,7 +255,6 @@ impl CodeStore {
                     kind,
                     language: None,
                     excluded_reason,
-                    has_symbols,
                 };
                 (key, entry)
             })

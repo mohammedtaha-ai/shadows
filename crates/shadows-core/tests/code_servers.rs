@@ -74,7 +74,6 @@ fn fast() -> CodebaseConfig {
     CodebaseConfig {
         rescan_every: Duration::from_secs(2),
         debounce: Duration::from_millis(200),
-        ..CodebaseConfig::default()
     }
 }
 

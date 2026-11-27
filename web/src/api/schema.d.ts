@@ -3282,10 +3282,8 @@ export interface components {
         InventoryEntry: {
             /** @description `dependencies`, `ignored`, `secret` or `link`; null unless `kind` is `excluded`. */
             excluded_reason: string | null;
-            /** @description The code index holds at least one tag of this file. */
-            has_symbols: boolean;
             kind: components["schemas"]["InventoryKind"];
-            /** @description The name `shadows-index` gives the file's extension; null for any other file. */
+            /** @description The language its extension names (`Codebase::language_for`); null for any other file. */
             language: string | null;
             /** @description Relative to the project's folder, with '/'. A folder has no trailing '/'. */
             path: string;

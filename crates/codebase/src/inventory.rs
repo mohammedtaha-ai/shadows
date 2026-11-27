@@ -10,8 +10,6 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
-use shadows_index::language_for;
-
 use super::Codebase;
 use super::model::{InventoryPage, InventoryQuery, InventoryState};
 use super::scan::Only;
@@ -284,7 +282,7 @@ impl Codebase {
             .map(|(_, mut entry)| {
                 if entry.kind == super::model::InventoryKind::File {
                     entry.language =
-                        language_for(Path::new(&entry.path)).map(|l| l.name.to_string());
+                        Codebase::language_for(Path::new(&entry.path)).map(str::to_string);
                 }
                 entry
             })
