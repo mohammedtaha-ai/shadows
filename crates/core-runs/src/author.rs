@@ -178,10 +178,15 @@ impl Runs {
         }
     }
 
-    /// Whether an attempt of a version `grant` wrote is still pending, or a question to its
-    /// executor still awaits a reply.
+    /// Whether an attempt of a version `grant` wrote is still pending, a question to its
+    /// executor still awaits a reply, or a recheck batch `grant` hears is still running.
     async fn author_pending(&self, grant: &Grant) -> Result<bool, RunsError> {
         let project = grant.project_id.as_str();
+        for batch in self.inner.store.running_rechecks(project).await? {
+            if self.recheck_author(&batch).await?.as_ref() == Some(&grant.id) {
+                return Ok(true);
+            }
+        }
         for workflow in self.inner.store.pending_workflows(project).await? {
             let plan = match self.read_plan(&workflow).await {
                 Ok(plan) => plan,

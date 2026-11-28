@@ -91,6 +91,11 @@ fn task_one(checks: &[Vec<String>]) -> PlanOp {
 /// An approved plan of one task; `external` makes connection A its v1's author, otherwise
 /// the Planner thread wrote it.
 async fn fixture(external: bool, checks: &[Vec<String>]) -> Fixture {
+    fixture_of(external, checks, false).await
+}
+
+/// As `fixture`, with a T2 of no contract after T1 when `two`.
+async fn fixture_of(external: bool, checks: &[Vec<String>], two: bool) -> Fixture {
     let tmp = tempfile::tempdir().unwrap();
     let storage = Arc::new(Storage::open(&tmp.path().join("s.sqlite3")).await.unwrap());
     let root = tmp.path().join("project");
@@ -189,7 +194,11 @@ async fn fixture(external: bool, checks: &[Vec<String>]) -> Fixture {
             None,
             &workflow,
             0,
-            &[task_one(checks)],
+            &if two {
+                vec![task_one(checks), cross_plan::task(2)]
+            } else {
+                vec![task_one(checks)]
+            },
         )
         .await
         .unwrap();
@@ -1019,5 +1028,127 @@ async fn a_wait_holds_while_a_message_awaits_its_reply() {
     .unwrap();
     let free = f.wait(&f.a, &[], 20_000).await;
     assert_eq!(free.outcome, WaitOutcome::NoneRunning, "{free:?}");
+    f.finish().await;
+}
+
+/// `git config --get check.health`, which passes while the project sets it.
+fn health() -> Vec<String> {
+    cmd(&["git", "config", "--get", "check.health"])
+}
+
+impl Fixture {
+    /// T1 committed with its checks passing, its report acknowledged, then marked done.
+    async fn t1_done(&self) {
+        git(&self.root, &["config", "check.health", "ok"]);
+        let (_, grant) = self.begin().await;
+        self.commit_and_report(&grant, 1).await;
+        self.reported().await;
+        sqlx::query("UPDATE run_author_report SET acked_at = '2026-11-28T00:00:00Z'")
+            .execute(self.storage.reader())
+            .await
+            .unwrap();
+        self.core
+            .runs()
+            .mark_done("done-1".into(), &self.workflow, 1, 1, true, None)
+            .await
+            .unwrap();
+    }
+
+    async fn recheck_rows(&self) -> Vec<Report> {
+        let mut reports = self.reports().await;
+        reports.retain(|report| report.kind == "recheck");
+        reports
+    }
+}
+
+#[tokio::test]
+async fn an_asked_recheck_reaches_its_external_asker() {
+    let f = fixture(true, &[health()]).await;
+    f.t1_done().await;
+    git(&f.root, &["config", "--unset", "check.health"]);
+    let id = f
+        .core
+        .runs()
+        .recheck_project_for(&f.b, &f.workflow)
+        .await
+        .unwrap()
+        .recheck_id
+        .expect("a batch");
+    let wait = f.wait(&f.b, &[], 60_000).await;
+    assert_eq!(wait.outcome, WaitOutcome::Ended, "{wait:?}");
+    assert_eq!(wait.reports.len(), 1, "{wait:?}");
+    let report = &wait.reports[0];
+    assert_eq!(report.report_id, format!("recheck:{id}"));
+    assert_eq!(report.kind, "recheck");
+    assert!(report.report.contains("As you asked"), "{}", report.report);
+    assert!(
+        report.report.contains("no longer pass"),
+        "{}",
+        report.report
+    );
+    let rows = f.recheck_rows().await;
+    assert_eq!(rows.len(), 1, "{rows:?}");
+    assert_eq!(rows[0].grant_id, f.b.id.as_str());
+    let (notice, sent): (Option<String>, Option<String>) =
+        sqlx::query_as("SELECT notice_json, notice_sent_at FROM run_rechecks WHERE id = ?")
+            .bind(&id)
+            .fetch_one(f.storage.reader())
+            .await
+            .unwrap();
+    assert!(notice.is_none());
+    assert!(sent.is_some());
+    assert_eq!(f.planner_entries().await, 0);
+    f.finish().await;
+}
+
+#[tokio::test]
+async fn a_failing_automatic_recheck_reaches_the_completing_plans_external_author() {
+    let f = fixture_of(true, &[health()], true).await;
+    f.t1_done().await;
+    git(&f.root, &["config", "--unset", "check.health"]);
+    f.core
+        .runs()
+        .mark_done("done-2".into(), &f.workflow, 1, 2, true, None)
+        .await
+        .unwrap();
+    let wait = f.wait(&f.a, &[], 60_000).await;
+    assert_eq!(wait.outcome, WaitOutcome::Ended, "{wait:?}");
+    assert_eq!(wait.reports.len(), 1, "{wait:?}");
+    let report = &wait.reports[0];
+    assert_eq!(report.kind, "recheck");
+    assert!(
+        report.report.contains("After T2 of version 1"),
+        "{}",
+        report.report
+    );
+    let rows = f.recheck_rows().await;
+    assert_eq!(rows.len(), 1, "{rows:?}");
+    assert_eq!(rows[0].grant_id, f.a.id.as_str());
+    let acked = f.wait(&f.a, &[report.report_id.as_str()], 500).await;
+    assert_eq!(acked.outcome, WaitOutcome::NoneRunning, "{acked:?}");
+    f.finish().await;
+}
+
+#[tokio::test]
+async fn a_wait_holds_while_its_recheck_runs() {
+    let slow = cmd(&["git", "-c", "alias.pause=!sleep 2", "pause"]);
+    let f = fixture(true, std::slice::from_ref(&slow)).await;
+    f.t1_done().await;
+    f.core
+        .runs()
+        .recheck_project_for(&f.a, &f.workflow)
+        .await
+        .unwrap()
+        .recheck_id
+        .expect("a batch");
+    let wait = f.wait(&f.a, &[], 120_000).await;
+    assert_eq!(wait.outcome, WaitOutcome::Ended, "{wait:?}");
+    assert_eq!(wait.reports.len(), 1, "{wait:?}");
+    assert_eq!(wait.reports[0].kind, "recheck");
+    assert!(
+        wait.reports[0].report.contains("passed"),
+        "{}",
+        wait.reports[0].report
+    );
     f.finish().await;
 }

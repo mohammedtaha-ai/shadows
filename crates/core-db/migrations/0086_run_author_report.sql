@@ -14,3 +14,7 @@ CREATE TABLE run_author_report (
 );
 
 CREATE INDEX run_author_report_grant ON run_author_report (grant_id, acked_at);
+
+-- The external agent that asked for a recheck batch (NULL when a Planner, the person or a
+-- done mark began it); its report row goes to that grant.
+ALTER TABLE run_rechecks ADD COLUMN asker_grant_id TEXT;

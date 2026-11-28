@@ -3,12 +3,14 @@ use super::{RunsStore, checks::Finished};
 use crate::checks::CONTRACT_CHECK;
 use crate::{AttemptId, RunsError};
 use core_db::{Actor, JournalEntry, Storage, Tx};
+use core_grants::GrantId;
 use core_plans::{Plan, PlanId, Plans, TaskCheck, TaskContext, WorkflowId};
 use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(sqlx::FromRow)]
 pub(crate) struct Batch {
     pub id: String,
+    pub project_id: String,
     pub cause_workflow_id: String,
     pub cause_version: i64,
     pub cause_task: u32,
@@ -16,6 +18,8 @@ pub(crate) struct Batch {
     pub asked: bool,
     /// The asking Planner's thread; none when the person asked or a mark began it.
     pub asker_thread_id: Option<String>,
+    /// The asking external agent's grant; none unless one asked.
+    pub asker_grant_id: Option<String>,
     pub finished_at: Option<String>,
     pub notice_json: Option<String>,
     pub notice_sent_at: Option<String>,
@@ -55,8 +59,8 @@ pub(crate) struct ResultRow {
 pub(crate) enum RecheckCause {
     /// The done mark of this task, which completed its plan version.
     Mark(u32),
-    /// The person (none) or a Planner's thread asked for it.
-    Asked(Option<core_threads::ThreadId>),
+    /// The person (both none), a Planner's thread or an external agent's grant asked for it.
+    Asked(Option<core_threads::ThreadId>, Option<GrantId>),
 }
 
 /// Journals `kind` (RecheckStarted or RecheckFinished) for batch `id`, identifiers only.
@@ -101,6 +105,7 @@ impl RunsStore {
         plan: Plan,
         plans: Vec<PlanId>,
         asker: Option<core_threads::ThreadId>,
+        asker_grant: Option<GrantId>,
     ) -> Result<(Option<String>, bool), RunsError> {
         const SCOPE: &str = "run.recheck";
         self.storage
@@ -121,7 +126,7 @@ impl RunsStore {
                         conn,
                         &plan,
                         &plans,
-                        RecheckCause::Asked(asker),
+                        RecheckCause::Asked(asker, asker_grant),
                         &command.command_id,
                     )
                     .await?;
@@ -150,9 +155,9 @@ impl RunsStore {
         cause: RecheckCause,
         command: &str,
     ) -> Result<Option<String>, RunsError> {
-        let (cause_task, asked, asker) = match cause {
-            RecheckCause::Mark(task) => (Some(task), false, None),
-            RecheckCause::Asked(asker) => (None, true, asker),
+        let (cause_task, asked, asker, asker_grant) = match cause {
+            RecheckCause::Mark(task) => (Some(task), false, None, None),
+            RecheckCause::Asked(asker, grant) => (None, true, asker, grant),
         };
         let superseded = Self::superseded_in(conn, plans).await?;
         // Every done task of the project, in any plan and version: a done task is in the
@@ -242,8 +247,8 @@ impl RunsStore {
         let (id, now) = (uuid::Uuid::new_v4().to_string(), Storage::now());
         sqlx::query(
             "INSERT INTO run_rechecks (id,project_id,plan_id,cause_workflow_id,cause_version,
-             cause_task,cause_command,created_at,asked,asker_thread_id)
-             VALUES (?,?,?,?,?,?,?,?,?,?)",
+             cause_task,cause_command,created_at,asked,asker_thread_id,asker_grant_id)
+             VALUES (?,?,?,?,?,?,?,?,?,?,?)",
         )
         .bind(&id)
         .bind(plan.project_id.as_str())
@@ -255,6 +260,7 @@ impl RunsStore {
         .bind(&now)
         .bind(asked)
         .bind(asker.as_ref().map(|thread| thread.as_str().to_string()))
+        .bind(asker_grant.as_ref().map(|grant| grant.as_str().to_string()))
         .execute(&mut *conn)
         .await?;
         for (attempt, workflow, version, task, ordinal, check) in pending {
@@ -280,8 +286,9 @@ impl RunsStore {
 
     pub async fn recheck_batch(&self, id: &str) -> Result<Batch, RunsError> {
         Ok(sqlx::query_as(
-            "SELECT id,cause_workflow_id,cause_version,cause_task,asked,asker_thread_id,
-             finished_at,notice_json,notice_sent_at FROM run_rechecks WHERE id=?",
+            "SELECT id,project_id,cause_workflow_id,cause_version,cause_task,asked,
+             asker_thread_id,asker_grant_id,finished_at,notice_json,notice_sent_at
+             FROM run_rechecks WHERE id=?",
         )
         .bind(id)
         .fetch_one(self.storage.reader())
@@ -520,7 +527,7 @@ impl RunsStore {
             .await
     }
 
-    async fn finish_batch_in(
+    pub(super) async fn finish_batch_in(
         conn: &mut Tx,
         id: &str,
         notice: Option<String>,
@@ -559,6 +566,18 @@ impl RunsStore {
                 })
             })
             .await
+    }
+
+    /// The batches of `project` still running.
+    pub async fn running_rechecks(&self, project: &str) -> Result<Vec<Batch>, RunsError> {
+        Ok(sqlx::query_as(
+            "SELECT id,project_id,cause_workflow_id,cause_version,cause_task,asked,
+             asker_thread_id,asker_grant_id,finished_at,notice_json,notice_sent_at
+             FROM run_rechecks WHERE project_id=? AND finished_at IS NULL ORDER BY created_at,id",
+        )
+        .bind(project)
+        .fetch_all(self.storage.reader())
+        .await?)
     }
 
     pub async fn unfinished_rechecks(&self) -> Result<Vec<String>, RunsError> {

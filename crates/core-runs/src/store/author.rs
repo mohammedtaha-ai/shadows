@@ -253,6 +253,33 @@ impl RunsStore {
             .await
     }
 
+    /// Keeps a `recheck` row once and, in the same write, ends batch `batch` with its notice
+    /// settled: the row is the notice. Answers whether this write kept a new row.
+    pub async fn keep_recheck_report(
+        &self,
+        row: AuthorRow,
+        batch: &str,
+    ) -> Result<bool, RunsError> {
+        let (at, batch) = (Storage::now(), batch.to_string());
+        self.storage
+            .write_txn_as(move |conn| {
+                Box::pin(async move {
+                    let kept = Runs::keep_for_author_in(conn, &row, &at).await?;
+                    Self::finish_batch_in(conn, &batch, None).await?;
+                    sqlx::query(
+                        "UPDATE run_rechecks SET notice_sent_at=COALESCE(notice_sent_at,?)
+                         WHERE id=?",
+                    )
+                    .bind(&at)
+                    .bind(&batch)
+                    .execute(&mut *conn)
+                    .await?;
+                    Ok(kept)
+                })
+            })
+            .await
+    }
+
     /// The plans of `project` with an attempt still pending: running, or ended with its
     /// report not yet settled (a committed one's checks not yet run, or an ended one's row
     /// not yet kept) and not continued by a later attempt of its task; or with a question to

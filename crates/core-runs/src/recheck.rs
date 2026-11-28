@@ -3,6 +3,7 @@
 use crate::checks::CONTRACT_CHECK;
 use crate::git::Git;
 use crate::notify::NoticeIntent;
+use crate::store::author::AuthorRow;
 use crate::store::checks::Finished;
 use crate::store::rechecks::{Batch, ResultRow};
 use crate::{
@@ -10,9 +11,18 @@ use crate::{
     RecheckFailure, RecheckNotice, Runs, RunsError,
 };
 use core_db::CommandContext;
-use core_plans::{TaskCheck, WorkflowId};
+use core_grants::GrantId;
+use core_plans::{TaskCheck, WorkflowId, WrittenBy};
 use core_threads::ThreadId;
 use std::collections::BTreeMap;
+
+/// Who hears a recheck batch.
+enum RecheckTo {
+    /// A Planner's thread, through a notice.
+    Planner(Box<crate::notify::Recipient>),
+    /// An external agent, through a `recheck` report row.
+    Author(GrantId),
+}
 
 impl Runs {
     /// Starts a recheck of the project of plan version `workflow`, asked for by the person
@@ -24,6 +34,19 @@ impl Runs {
         command: String,
         workflow: &WorkflowId,
         asker: Option<ThreadId>,
+    ) -> Result<ProjectRecheck, RunsError> {
+        self.ask_project_recheck(command, workflow, asker, None)
+            .await
+    }
+
+    /// The one way a recheck is asked for: by the person (both none), a Planner's thread or
+    /// an external agent's grant, which the batch keeps as its asker.
+    pub(crate) async fn ask_project_recheck(
+        &self,
+        command: String,
+        workflow: &WorkflowId,
+        asker: Option<ThreadId>,
+        asker_grant: Option<GrantId>,
     ) -> Result<ProjectRecheck, RunsError> {
         let plan = self.read_plan(workflow).await?;
         let plans = self
@@ -38,12 +61,13 @@ impl Runs {
         let input = serde_json::json!({
             "workflow": workflow,
             "asker": asker.as_ref().map(|thread| thread.as_str().to_string()),
+            "asker_grant": asker_grant.as_ref().map(|grant| grant.as_str().to_string()),
         });
         let command = CommandContext::user(command, "run.recheck", input);
         let (id, fresh) = self
             .inner
             .store
-            .ask_recheck(command, plan, plans, asker)
+            .ask_recheck(command, plan, plans, asker, asker_grant)
             .await?;
         if let Some(batch) = id.clone().filter(|_| fresh) {
             let runs = self.clone();
@@ -111,6 +135,7 @@ impl Runs {
             tracing::warn!(%id, %error, "runs.recheck_abandon_failed");
         }
         self.live_ended(id);
+        self.inner.author_reports.notify_waiters();
     }
 
     async fn run_recheck(&self, id: &str) -> Result<(), RunsError> {
@@ -277,13 +302,14 @@ impl Runs {
         let notice = if failed.is_empty() && !all_passed {
             None
         } else if let Some(recipient) = recipient {
-            let why = match (batch.asked, &batch.asker_thread_id) {
+            let asker = batch.asker_thread_id.is_some() || batch.asker_grant_id.is_some();
+            let why = match (batch.asked, asker) {
                 (false, _) => format!(
                     "After T{} of version {} was marked done and completed its plan",
                     batch.cause_task, batch.cause_version
                 ),
-                (true, Some(_)) => "As you asked".to_string(),
-                (true, None) => "As the person asked".to_string(),
+                (true, true) => "As you asked".to_string(),
+                (true, false) => "As the person asked".to_string(),
             };
             let body = if all_passed {
                 // A `contract` row that could not run is not a pass; say it was not run.
@@ -310,6 +336,24 @@ impl Runs {
                     lines.join("\n")
                 )
             };
+            let recipient = match recipient {
+                RecheckTo::Planner(recipient) => *recipient,
+                RecheckTo::Author(grant) => {
+                    let row = AuthorRow {
+                        kind: "recheck",
+                        source_id: batch.id.clone(),
+                        attempt: None,
+                        project_id: batch.project_id.clone(),
+                        grant_id: grant.as_str().to_string(),
+                        workflow_id: Some(batch.cause_workflow_id.clone()),
+                        task: None,
+                        body,
+                    };
+                    self.inner.store.keep_recheck_report(row, &batch.id).await?;
+                    self.inner.author_reports.notify_waiters();
+                    return Ok(());
+                }
+            };
             let card = RecheckNotice {
                 plan_id: recipient.plan.plan_id,
                 cause_workflow_id: WorkflowId::from_recorded(batch.cause_workflow_id.clone()),
@@ -331,28 +375,58 @@ impl Runs {
             tracing::warn!(id=%batch.id, "runs.recheck_no_planner");
             None
         };
-        self.inner.store.finish_batch(&batch.id, notice).await
+        self.inner.store.finish_batch(&batch.id, notice).await?;
+        // An author's wait held by this batch now has nothing to wait for.
+        self.inner.author_reports.notify_waiters();
+        Ok(())
     }
 
-    /// Who hears a batch: the asking Planner's thread, else the cause plan's Planner.
-    async fn recheck_recipient(
-        &self,
-        batch: &Batch,
-    ) -> Result<Option<crate::notify::Recipient>, RunsError> {
+    /// The external agent that hears `batch`: its asking grant, else, when no Planner asked,
+    /// the grant that wrote the cause plan version.
+    pub(crate) async fn recheck_author(&self, batch: &Batch) -> Result<Option<GrantId>, RunsError> {
+        if let Some(grant) = &batch.asker_grant_id {
+            return Ok(Some(GrantId::from_recorded(grant.clone())));
+        }
+        if batch.asker_thread_id.is_some() {
+            return Ok(None);
+        }
+        let workflow = WorkflowId::from_recorded(batch.cause_workflow_id.clone());
+        let plan = match self.read_plan(&workflow).await {
+            Ok(plan) => plan,
+            Err(RunsError::NotFound) => return Ok(None),
+            Err(error) => return Err(error),
+        };
+        Ok(match plan.written_by {
+            WrittenBy::External { grant_id } => Some(grant_id),
+            _ => None,
+        })
+    }
+
+    /// Who hears a batch: an external agent (`recheck_author`), else the asking Planner's
+    /// thread, else the cause plan's Planner.
+    async fn recheck_recipient(&self, batch: &Batch) -> Result<Option<RecheckTo>, RunsError> {
+        if let Some(grant) = self.recheck_author(batch).await? {
+            return Ok(Some(RecheckTo::Author(grant)));
+        }
         let workflow = WorkflowId::from_recorded(batch.cause_workflow_id.clone());
         let Some(thread) = &batch.asker_thread_id else {
-            return self.recipient_for(&workflow).await;
+            return Ok(self
+                .recipient_for(&workflow)
+                .await?
+                .map(|r| RecheckTo::Planner(Box::new(r))));
         };
         let thread = ThreadId::from_recorded(thread.clone());
         let plan = self.read_plan(&workflow).await?;
         let invocation = self.last_invocation(&thread).await.ok_or_else(|| {
             RunsError::Unavailable("the Planner has no turn whose settings a notice takes".into())
         })?;
-        Ok(Some(crate::notify::Recipient {
-            plan,
-            thread,
-            invocation,
-        }))
+        Ok(Some(RecheckTo::Planner(Box::new(
+            crate::notify::Recipient {
+                plan,
+                thread,
+                invocation,
+            },
+        ))))
     }
 
     pub(crate) fn recheck_result(row: &ResultRow) -> Result<CheckResult, RunsError> {
