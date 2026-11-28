@@ -56,6 +56,17 @@ it('the_script_sends_540_seconds_and_the_project_and_reads_the_token_from_the_en
   }
 })
 
+it('a_report_with_no_task_is_headed_by_its_kind', () => {
+  const ps = hookSetup({ ...base, client: 'claude', platform: 'windows', directory: win }).script
+  expect(ps).toContain('if ($null -ne $_.task) { "task $($_.task), " }')
+  expect(ps).toContain('($(if')
+  expect(ps).not.toContain('(task $($_.task)')
+  const sh = hookSetup({ ...base, client: 'claude', platform: 'unix', directory: unix }).script
+  expect(sh).toContain('if .task == null then "" else "task \\(.task), " end')
+  expect(sh).toContain('Shadows report \\(.report_id) (')
+  expect(sh).not.toContain('(task \\(.task)')
+})
+
 it('windows_paths_and_the_powershell_run_command', () => {
   const setup = hookSetup({ ...base, client: 'claude', platform: 'windows', directory: win + '\\' })
   expect(setup.scriptPath).toBe('C:\\work\\demo\\.claude\\hooks\\shadows-wait.ps1')

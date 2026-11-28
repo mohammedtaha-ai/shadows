@@ -217,7 +217,7 @@ Rules for every task here:
 
 ### F-157 · A wait report with no task is headed without one
 
-- Status: todo
+- Status: done
 - Plan: the request's "Frontend reply to the amendment"; B-264 to B-267 make a report's
   `task`, `attempt_id` and `workflow_id` nullable (a `recheck` has none) and add the kinds
   `reply` and `recheck`.
