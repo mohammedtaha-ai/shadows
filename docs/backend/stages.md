@@ -478,7 +478,7 @@ before they were built: Shadows never wakes an external agent (Mohammed, 2026-11
 
 ### B-261 · A task run says its result waits for its author
 
-- Status: todo (the shared request is accepted)
+- Status: done
 - Owner: `Runs`.
 - Read: the `TaskRun` view in `crates/core-runs/src/model.rs`; B-257's rows.
 - Interfaces: `TaskRun.author_waiting: bool`, true while the task's latest attempt has a

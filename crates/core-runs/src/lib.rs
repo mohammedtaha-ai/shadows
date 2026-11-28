@@ -195,6 +195,7 @@ impl Runs {
             .into_iter()
             .next();
         let mark = self.inner.store.mark(workflow, version, task).await?;
+        let author_waiting = self.author_waiting(latest.as_ref()).await?;
         Ok(TaskRun {
             task,
             done: mark.as_ref().is_some_and(|m| m.0),
@@ -204,6 +205,7 @@ impl Runs {
             needs: self.needs(&plan, task).await?,
             start: self.start_answer(&plan, task).await?,
             executor: self.inner.store.executor_choice(workflow, task).await?,
+            author_waiting,
         })
     }
 

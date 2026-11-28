@@ -10138,6 +10138,10 @@
       "TaskRun": {
         "description": "A task as the runs see it: marked done or not, its latest attempt, the\ntasks it needs, whether Start may run now, and the model to offer first.",
         "properties": {
+          "author_waiting": {
+            "description": "Whether the latest attempt has a report its external author has not yet acknowledged.",
+            "type": "boolean"
+          },
           "done": {
             "type": "boolean"
           },
@@ -10198,7 +10202,8 @@
           "latest",
           "needs",
           "start",
-          "executor"
+          "executor",
+          "author_waiting"
         ],
         "type": "object"
       },

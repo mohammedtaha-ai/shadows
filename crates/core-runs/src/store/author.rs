@@ -36,7 +36,18 @@ impl RunsStore {
         Ok(found.is_some())
     }
 
-    /// Keeps `report` once and, in the same write, settles what it reports: an ended
+    /// Whether `attempt` has a report its author has not yet acknowledged.
+    pub async fn author_report_open(&self, attempt: &AttemptId) -> Result<bool, RunsError> {
+        let found: Option<i64> = sqlx::query_scalar(
+            "SELECT 1 FROM run_author_report WHERE attempt_id = ? AND acked_at IS NULL LIMIT 1",
+        )
+        .bind(attempt.as_str())
+        .fetch_optional(self.storage.reader())
+        .await?;
+        Ok(found.is_some())
+    }
+
+    /// Keeps `report` once and, in the same write, settles what it reports and journals the task's progress: an ended
     /// attempt's notice is sent, a pending conflict's delivery becomes delivered. Answers whether
     /// this write kept a new row.
     pub async fn keep_author_report(&self, report: NewAuthorReport) -> Result<bool, RunsError> {
@@ -64,6 +75,7 @@ impl RunsStore {
                     .await?
                     .rows_affected()
                         > 0;
+                    let mut changed = kept;
                     if report.kind == "conflict" {
                         let moved = sqlx::query(
                             "UPDATE run_attempts SET conflict_delivery = ?
@@ -74,10 +86,7 @@ impl RunsStore {
                         .execute(&mut *conn)
                         .await?
                         .rows_affected();
-                        if moved > 0 {
-                            super::attempt_progress_in(conn, &report.attempt, Actor::system(), &at)
-                                .await?;
-                        }
+                        changed |= moved > 0;
                     } else {
                         sqlx::query(
                             "UPDATE run_attempts SET notice_sent_at = COALESCE(notice_sent_at, ?)
@@ -87,6 +96,10 @@ impl RunsStore {
                         .bind(report.attempt.as_str())
                         .execute(&mut *conn)
                         .await?;
+                    }
+                    if changed {
+                        super::attempt_progress_in(conn, &report.attempt, Actor::system(), &at)
+                            .await?;
                     }
                     Ok(kept)
                 })
@@ -111,15 +124,20 @@ impl RunsStore {
                     Grants::check_live_in(tx, &grant).await?;
                     let now = Storage::now();
                     for report in &ack {
-                        sqlx::query(
+                        let acked: Option<String> = sqlx::query_scalar(
                             "UPDATE run_author_report SET acked_at = ?
-                             WHERE report_id = ? AND grant_id = ? AND acked_at IS NULL",
+                             WHERE report_id = ? AND grant_id = ? AND acked_at IS NULL
+                             RETURNING attempt_id",
                         )
                         .bind(&now)
                         .bind(report)
                         .bind(grant.id.as_str())
-                        .execute(&mut *tx)
+                        .fetch_optional(&mut *tx)
                         .await?;
+                        if let Some(attempt) = acked {
+                            let attempt = AttemptId::from_recorded(attempt);
+                            super::attempt_progress_in(tx, &attempt, Actor::system(), &now).await?;
+                        }
                     }
                     type Row = (String, String, String, i64, String, String);
                     let rows: Vec<Row> = sqlx::query_as(

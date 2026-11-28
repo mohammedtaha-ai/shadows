@@ -395,6 +395,8 @@ pub struct TaskRun {
     /// The task's saved executor choice, including an inherited choice.
     #[schema(required)]
     pub executor: Option<ExecutorChoice>,
+    /// Whether the latest attempt has a report its external author has not yet acknowledged.
+    pub author_waiting: bool,
 }
 
 /// One task's progress on the plan page: its done mark and the state of

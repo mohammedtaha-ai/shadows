@@ -772,3 +772,61 @@ async fn a_grant_revoked_during_the_wait_is_refused_and_its_report_stays_open() 
     assert!(f.claim_open().await);
     f.finish().await;
 }
+
+impl Fixture {
+    async fn author_waiting(&self) -> bool {
+        let run = self.core.runs().task(&self.workflow, 1, 1).await.unwrap();
+        run.author_waiting
+    }
+
+    /// The TaskProgressChanged payloads journaled at `at`.
+    async fn progress_at(&self, at: &str) -> Vec<serde_json::Value> {
+        let rows: Vec<String> = sqlx::query_scalar(
+            "SELECT payload_json FROM durable_event
+             WHERE kind = 'TaskProgressChanged' AND created_at = ? ORDER BY seq",
+        )
+        .bind(at)
+        .fetch_all(self.storage.reader())
+        .await
+        .unwrap();
+        rows.iter()
+            .map(|p| serde_json::from_str(p).unwrap())
+            .collect()
+    }
+}
+
+#[tokio::test]
+async fn a_task_run_shows_its_result_waiting_for_its_author() {
+    let f = fixture(true, &[]).await;
+    assert!(!f.author_waiting().await);
+    let attempt = f.one_report().await;
+    assert!(f.author_waiting().await);
+    let wait = f.wait(&f.a, &[], 2_000).await;
+    assert_eq!(wait.reports.len(), 1);
+    assert!(f.author_waiting().await, "a claimed report still waits");
+    f.wait(&f.a, &[&format!("{attempt}:ended")], 50).await;
+    assert!(!f.author_waiting().await);
+    f.finish().await;
+}
+
+#[tokio::test]
+async fn saving_and_acknowledging_a_report_journal_the_tasks_progress() {
+    let f = fixture(true, &[]).await;
+    let attempt = f.one_report().await;
+    let report_id = format!("{attempt}:ended");
+    f.wait(&f.a, &[], 2_000).await;
+    f.wait(&f.a, &[&report_id], 50).await;
+    let (created, acked): (String, String) =
+        sqlx::query_as("SELECT created_at, acked_at FROM run_author_report WHERE report_id = ?")
+            .bind(&report_id)
+            .fetch_one(f.storage.reader())
+            .await
+            .unwrap();
+    let expected = json!({
+        "project_id": f.project.as_str(), "workflow_id": f.workflow.as_str(),
+        "version": 1, "task": 1, "attempt_id": attempt.as_str(),
+    });
+    assert_eq!(f.progress_at(&created).await, vec![expected.clone()]);
+    assert_eq!(f.progress_at(&acked).await, vec![expected]);
+    f.finish().await;
+}

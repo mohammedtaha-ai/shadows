@@ -17,6 +17,14 @@ use std::time::Duration;
 const LEASE_SECS: u32 = 120;
 
 impl Runs {
+    /// Whether `latest` has a report its external author has not yet acknowledged.
+    pub(crate) async fn author_waiting(&self, latest: Option<&Attempt>) -> Result<bool, RunsError> {
+        match latest {
+            Some(attempt) => self.inner.store.author_report_open(&attempt.id).await,
+            None => Ok(false),
+        }
+    }
+
     /// The attempt's own version and the grant that wrote it, when an external agent did.
     pub(crate) async fn external_author(
         &self,
