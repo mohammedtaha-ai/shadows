@@ -54,21 +54,14 @@ The external inventory (`PROJECT_TOOLS` in Core Grants) grows to the Planner's
 | Approve | `vision_approve`, `map_approve`, `roadmap_approve`, `plan_approve` | **Never.** The person approves with the button. §24.2 lets the Planner approve at the person's request because the approval links to the person's message in the same conversation; an external agent has no such message, so its approval could not show the person asked |
 | Bound to a conversation | `plan_show`, `person_ask` | Not granted: they draw in a Shadows conversation the external agent does not have. An external agent asks the person directly in its own client (Mohammed, 2026-11-28) |
 
-### Where the plan's author is reached
+### How the plan's author hears of its tasks
 
-The agent that writes a plan says where it can be told of its tasks. `draft_start` takes an
-optional reach address, kept with the plan's writer; the latest version's address is used:
-
-| Kind | Holds | How Shadows wakes it |
-|---|---|---|
-| The Planner (internal) | its conversation | as today: a new turn over ACP or the Codex app-server Shadows runs |
-| `codex_app_server` | the loopback WebSocket address of the person's own `codex app-server`, its capability token, and the thread id | Shadows connects as a second client, `thread/resume` then `turn/start` on that thread with a short notice naming the attempt. Proved live on 2026-11-28: the person's `codex --remote` screen showed the turn and Codex answered it |
-| none | nothing | the agent waits (below) |
-
-The token is a secret, kept by Core Secrets, never in plan content or logs. Only a loopback
-address is accepted. The person starts that server with
-`codex app-server --listen ws://127.0.0.1:<port> --ws-auth capability-token --ws-token-file <file>`
-and Codex with `codex --remote`. The app-server WebSocket is experimental in Codex 0.171.0.
+The Planner hears as today: a new turn in its conversation. An external agent is never woken
+by Shadows: it waits (below), so Shadows keeps no address for it. The external clients are
+Claude Code and the Codex desktop app, which the person opens (Mohammed, 2026-11-28). A second
+client on the person's own `codex app-server` can start a turn in a `codex --remote`
+conversation (proved live on 2026-11-28), but the person does not run Codex that way, so
+Shadows does not build it.
 
 ### Waiting for a task
 
@@ -88,7 +81,6 @@ remember it. Settings → External agents gives each hook ready to register:
 |---|---|---|
 | Claude Code | a `Stop` hook with `asyncRewake`: it runs in the background after each turn and exits with code 2 and the attempt's report, which wakes the session even when it is idle. Optional: a background command does the same | free |
 | Codex, including its desktop app | a `Stop` hook: it answers `{"decision": "block", "reason": "<the attempt's report>"}`, which Codex takes as the next prompt; its `timeout` (600 seconds by default) is raised in the hook's entry | busy, spending no tokens; the person can stop it |
-| Codex with `codex --remote` | none: Shadows starts the turn (above) | free |
 
 Each hook first asks whether the connection has an attempt still running in the project,
 and ends at once when it has none, so a turn with no task running stops as usual.
