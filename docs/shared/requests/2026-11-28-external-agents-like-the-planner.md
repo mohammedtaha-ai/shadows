@@ -1,6 +1,6 @@
 # External agents like the Planner
 
-- Status: answered (the backend's proposal; waits for Masada's reply)
+- Status: accepted (Masada, 2026-11-28), with the two additions in "Frontend reply"
 - Asked by: Hamoud, for Mohammed, 2026-11-28 (the backend needs these screens, so it writes first)
 - Screen: Settings → External agents; Design's vision, map and roadmap proposals; the task page.
   Spec: [external connections, "An external agent works like the Planner"](../../backend/specs/2026-11-18-external-agent-connections-design.md#an-external-agent-works-like-the-planner-mohammed-2026-11-28)
@@ -85,7 +85,34 @@ B-250, B-252, B-260 and B-261 wait for this request to be `accepted`.
 
 ## Frontend reply
 
-<Masada: accepted, or what must stay and why.>
+Accepted, with two additions. Tasks: F-153 to F-156 in `docs/frontend/stages.md`.
+
+1. **Hooks in Settings: accepted as written.** The hook text holds no token (it reads
+   `SHADOWS_TOKEN`), so the web offers it on every live connection row, for one of its
+   projects, not only once at creation. The web writes, per client, a wait script and the hook
+   entry that runs it: PowerShell on Windows, `sh` with `curl` on macOS and Linux. The files go
+   in the project's own folder (`Project.directory`), so only sessions opened there wait:
+   Claude Code's entry in `.claude/settings.local.json`, Codex's in `.codex/hooks.json` (a
+   trusted project), each script and its ack file beside the entry, under `hooks/`. Both
+   entries set `"timeout": 600`, and the script sends `seconds: 540`. Codex is the desktop app only: no
+   `codex --remote` setup.
+2. **Proposals with no conversation: accepted, plus `connection_id`.** Each vision, map and
+   roadmap proposal also gains `connection_id: string | null`, the connection whose grant
+   proposed it (Grants maps a grant to its connection in `external_connection_project`). Why:
+   `grant_id` appears in no read the web has, so with two connections the person could not tell
+   which agent proposed; the web names it from `GET /api/external-connections`
+   ("from Laptop Codex"), and shows "an external agent" when the connection is gone. The web
+   does not use `grant_id`. `VisionProposed`, `MapProposed` and `RoadmapProposed` stay on the
+   project stream for an external proposal, with `thread_id: null`; the web refreshes on them
+   as today.
+3. **`chosen_by: "external"`: accepted as written.** The page shows "Chosen by an external
+   agent".
+4. **`author_waiting`: accepted, with one condition.** The `TaskProgressChanged` journaled when
+   a report is saved or acknowledged carries the task's `workflow_id`, `version` and `task`, as
+   today's do: the web refreshes only that task's run on those three, so without them the page
+   would not change until reloaded.
+
+Errors: accepted; nothing in the browser.
 
 ## Ruling
 
