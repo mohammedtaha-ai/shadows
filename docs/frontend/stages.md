@@ -139,7 +139,7 @@ Rules for every task here:
 
 ### F-154 · Vision, map and roadmap proposals from an external agent, approved on their page
 
-- Status: blocked (needs B-250 with `connection_id`)
+- Status: todo (B-250 is built: `10bf056e`)
 - Plan: this section.
 - Read: `web/src/app/design/contract.yaml`, `web/src/app/conversation/contract.yaml`
   (the proposal cards' agreements); `vision-editor.tsx` (the pending aside), `parts-view.tsx`
@@ -159,7 +159,8 @@ Rules for every task here:
   renders the same body and approval from it; a new `external-proposals.tsx` in
   `app/conversation`, exported from its `index.ts`, lists one kind's external proposals; the
   three design views render it. If the architecture test reports a cycle, stop and report.
-- Touch: `web/src/app/conversation/vision-proposal-card.tsx`, `map-proposal-card.tsx`,
+- Touch: `web/src/api/schema.d.ts` (by `npm run gen:api` only; it also brings B-252's
+  `external` chooser for F-155), `web/src/app/conversation/vision-proposal-card.tsx`, `map-proposal-card.tsx`,
   `roadmap-proposal-card.tsx`, `use-proposal-approval.ts`, new
   `web/src/app/conversation/external-proposals.tsx` and its test,
   `web/src/app/conversation/index.ts`, `web/src/app/conversation/contract.yaml`,
@@ -177,7 +178,7 @@ Rules for every task here:
 
 ### F-155 · The task page says an executor was chosen by an external agent
 
-- Status: blocked (needs B-252)
+- Status: todo (B-252 is built: `2157fcbf`)
 - Plan: this section.
 - Read: `web/src/app/tasks/contract.yaml`; `executor-settings.tsx` (the "Chosen by" line).
 - What it shows: "Chosen by you" for `person`, "the Planner" for `planner`, "an external agent"
