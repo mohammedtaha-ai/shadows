@@ -252,16 +252,28 @@ Not owned, so left out:
 - Read: `crates/core-design/contract.yaml`; `decisions.rs`, `elements.rs` and their stores;
   migrations `0071`, `0077` (both keep the writer as text, so no migration).
 - Interfaces: `decision_propose`, `design_element_put` and `design_element_delete` accept an
-  external grant; its command id is the caller's `command_id` (a new `Option<String>` on their
-  argument types, required for an external grant); `proposed_by` / `written_by` hold the
-  principal `Writer::External` gives. Accepting a decision stays the person's.
-- Touch: `crates/core-design/src/decisions.rs`, `elements.rs`, their argument types and store
-  files, `crates/core-design/contract.yaml`, `crates/shadows-core/tests/design_decisions.rs`,
-  `crates/shadows-core/tests/design_elements.rs`.
+  external grant. Their arguments already require `command_id: String`, so no new field: an
+  external grant's call needs it nonempty, and it is the command id as given. `proposed_by` /
+  `written_by` hold the principal `Writer::External` gives. Accepting a decision stays the
+  person's. The Planner's optional turn provenance comes from the one proposal context
+  (`proposal_context.rs`, `store/proposal_origin.rs`) that B-250's proposals use, not a second
+  copy.
+- Touch: `crates/core-design/src/decisions.rs`, `elements.rs`, `proposal_context.rs`,
+  `crates/core-design/src/store/decisions.rs`, `store/elements.rs`, `store/proposal_origin.rs`,
+  `store/proposals.rs`, `store/map_proposals.rs`, `store/roadmap_proposals.rs`,
+  `crates/core-design/contract.yaml`, `crates/shadows-core/tests/design_decisions.rs`,
+  `crates/shadows-core/tests/design_elements.rs`. The uncommitted hunks in
+  `crates/shadows-core/tests/external_runs.rs` (B-252's test) and
+  `crates/shadows/tests/mcp_server.rs` (B-253's test) are not this task's: leave them
+  uncommitted for B-252 and B-253.
 - Needs: B-250 (it changes `proposal_writer`).
 - Done when: `cargo test -p shadows-core --test design_decisions --test design_elements` pass
   with `an_external_agent_proposes_a_decision_the_person_accepts`,
-  `an_external_agent_puts_and_deletes_an_element`, `an_external_write_needs_its_command_id`.
+  `an_external_agent_puts_and_deletes_an_element` (it also checks that an empty `command_id`
+  is refused), and `cargo test -p shadows --test workspace_mcp --test vision_proposal_ids`
+  still pass (the shared proposal context changed).
+- Started by Codex and stopped at its limit (2026-11-28) with the work uncommitted; finished
+  from that work as it stands, not restarted.
 
 ### B-252 · Runs records an executor chosen by an external agent
 
@@ -289,7 +301,7 @@ Not owned, so left out:
 
 ### B-253 · The external inventory grows to the Planner's, less approval and conversation tools
 
-- Status: blocked (needs B-249 to B-252)
+- Status: todo (after B-251 and B-252)
 - Owner: `Grants` (`crates/core-grants/src/tools.rs`); the MCP adapter only routes.
 - Read: `crates/core-grants/src/tools.rs`, `crates/core-grants/contract.yaml`,
   `crates/shadows-mcp/src/external_tools.rs` (`external_schema`, `take_project`),
