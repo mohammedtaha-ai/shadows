@@ -337,5 +337,6 @@ async fn load(tx: &mut Tx, id: &ExternalConnectionId) -> Result<ExternalConnecti
         project_revision,
         created_at,
         revoked_at,
+        wait_url: String::new(),
     })
 }

@@ -33,6 +33,7 @@ external_connections:
   list: Return authorized project ids for each connection, with no credential material.
   update_external_projects: Replace an active connection's scope at the expected project revision. An empty set is allowed. Removed grants are revoked, unchanged grants retain identity, and newly added projects get fresh grants. Keep the connection and its token. Replay reports its current state.
   authorize: Resolve a connection bearer by hash. Select an active child grant only for a live project on that connection.
+  wait_url: Every ExternalConnection Grants returns names `wait_url`, the `/api/external/task-wait` route on the host of `mcp_url` (its `/mcp` suffix replaced); the store leaves it empty and Grants fills it.
   scope_rule: A project grant exists only as one connection's scope, so `GrantKind::Project` (and `Writer::External`) is the one test for an external connection's project-only reach.
   revoke: Revoke the connection and every child scope in one transaction. Command replay does not append more events.
   cutover: Previously issued project credentials are revoked by migration. Child grants identify writes and cannot authenticate directly.

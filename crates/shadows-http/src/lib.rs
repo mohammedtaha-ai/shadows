@@ -33,6 +33,7 @@ mod code;
 mod code_record;
 mod conversation;
 mod design;
+mod external_wait;
 mod failure;
 mod fs;
 mod grants;
@@ -336,6 +337,7 @@ fn run_routes(table: OpenApiRouter<AppState>) -> OpenApiRouter<AppState> {
         .routes(routes!(runs::file))
         .routes(routes!(grants::list_grants, grants::issue_grant))
         .routes(routes!(grants::update_grant_projects, grants::revoke_grant))
+        .routes(routes!(external_wait::task_wait))
         .routes(routes!(
             instructions::get_instructions,
             instructions::save_instructions

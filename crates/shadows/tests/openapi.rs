@@ -269,6 +269,7 @@ fn the_document_names_every_route() {
             "POST /api/aylul/providers/{slug}/test",
             "POST /api/code/servers",
             "POST /api/external-connections",
+            "POST /api/external/task-wait",
             "POST /api/fs/dirs",
             "POST /api/groups",
             "POST /api/groups/{id}/messages",

@@ -158,6 +158,7 @@ pattern to follow, not merely an example.
 | `crates/shadows-http/src/workflow.rs` | the routes over plan versions | `crates/shadows-http/src/workflow.rs` |
 | `crates/shadows-http/src/runs.rs` | the routes over a task's attempts | `crates/shadows-http/src/contract.yaml` |
 | `crates/shadows-http/src/grants.rs` | the routes over external agents' MCP grants | `crates/shadows-http/src/grants.rs` |
+| `crates/shadows-http/src/external_wait.rs` | an external connection's wait for its reports over HTTP | `crates/shadows-http/src/external_wait.rs` |
 | `crates/shadows-http/src/instructions.rs` | the routes over a project's Planner instructions | `crates/shadows-http/src/instructions.rs` |
 | `crates/shadows-http/src/design.rs` | the routes over a project's design workspace | `crates/shadows-http/src/design.rs` |
 | `crates/shadows-http/src/project_state.rs` | ProjectState service HTTP translation | `crates/shadows-http/src/contract.yaml` |

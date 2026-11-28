@@ -445,7 +445,7 @@ before they were built: Shadows never wakes an external agent (Mohammed, 2026-11
 
 ### B-260 · The wait over HTTP with the connection's bearer, and its address in Settings
 
-- Status: todo
+- Status: done
 - Owner: `Runs` (the method), `Grants` (bearer, project and `wait_url`); `shadows-http`
   translates.
 - Read: `crates/shadows-http/src/grants.rs`, `crates/shadows-mcp/src/auth.rs` (how `/mcp` turns

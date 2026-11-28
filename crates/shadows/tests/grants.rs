@@ -648,3 +648,212 @@ async fn an_approval_needs_a_message_from_the_person_in_its_turn() {
         .await
         .unwrap();
 }
+
+/// A connection on `app.project`: its token and its project grant.
+async fn connection(app: &App, command: &str) -> (String, shadows_core::Grant) {
+    let (status, issued) = post(
+        app,
+        "/api/external-connections",
+        json!({ "command_id": command, "project_ids": [app.project] }),
+    )
+    .await;
+    assert_eq!(status, 200, "{issued}");
+    let token = issued["token"].as_str().unwrap().to_string();
+    let id = (app
+        .core
+        .grants()
+        .authorize_external(&token)
+        .await
+        .unwrap()
+        .unwrap())
+    .id;
+    let grant = app
+        .core
+        .grants()
+        .external_project(&id, &app.project)
+        .await
+        .unwrap();
+    (token, grant)
+}
+
+/// An ended attempt's report kept for `grant`, claimed until `claimed_until` when given.
+async fn keep_report(app: &App, grant: &shadows_core::Grant, claimed_until: Option<&str>) {
+    sqlx::query(
+        "INSERT INTO run_attempts
+           (id, project_id, workflow_id, version, task, number, thread_id, model, state,
+            writes_json, started_at, ended_at, command_id, fingerprint)
+         VALUES ('attempt-1', ?, 'wf-1', 1, 1, 1, ?, 'fake', 'committed', '[]',
+                 '2026-10-05T00:00:00Z', '2026-10-05T00:01:00Z', 'attempt-1', 'f')",
+    )
+    .bind(app.project.as_str())
+    .bind(app.thread.as_str())
+    .execute(app.storage.reader())
+    .await
+    .unwrap();
+    sqlx::query(
+        "INSERT INTO run_author_report
+           (report_id, attempt_id, kind, project_id, grant_id, workflow_id, task, body,
+            created_at, claimed_until)
+         VALUES ('report-1', 'attempt-1', 'ended', ?, ?, 'wf-1', 1, 'Built.',
+                 '2026-10-05T00:01:00Z', ?)",
+    )
+    .bind(app.project.as_str())
+    .bind(grant.id.as_str())
+    .bind(claimed_until)
+    .execute(app.storage.reader())
+    .await
+    .unwrap();
+}
+
+async fn http_wait(app: &App, token: &str, body: Value) -> (u16, Value) {
+    use axum::body::Body;
+    use axum::http::Request;
+    use tower::ServiceExt;
+    let request = Request::builder()
+        .method("POST")
+        .uri("/api/external/task-wait")
+        .header("content-type", "application/json")
+        .header("authorization", format!("Bearer {token}"))
+        .body(Body::from(body.to_string()))
+        .unwrap();
+    let response = app.router.clone().oneshot(request).await.unwrap();
+    let status = response.status().as_u16();
+    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let value = if bytes.is_empty() {
+        Value::Null
+    } else {
+        serde_json::from_slice(&bytes).unwrap()
+    };
+    (status, value)
+}
+
+async fn report_open(app: &App) -> bool {
+    sqlx::query_scalar(
+        "SELECT acked_at IS NULL FROM run_author_report WHERE report_id = 'report-1'",
+    )
+    .fetch_one(app.storage.reader())
+    .await
+    .unwrap()
+}
+
+#[tokio::test]
+async fn the_http_wait_answers_with_the_connections_bearer() {
+    let app = test_app().await;
+    let (token, grant) = connection(&app, "wait-answers").await;
+    keep_report(&app, &grant, None).await;
+    let body = json!({ "project_id": app.project, "seconds": 1 });
+    let (status, wait) = http_wait(&app, &token, body).await;
+    assert_eq!(status, 200, "{wait}");
+    assert_eq!(wait["outcome"], "ended");
+    assert_eq!(wait["reports"][0]["report_id"], "report-1");
+    assert_eq!(wait["reports"][0]["report"], "Built.");
+    app::shut_down_app(app).await;
+}
+
+#[tokio::test]
+async fn the_http_wait_acknowledges_what_it_names() {
+    let app = test_app().await;
+    let (token, grant) = connection(&app, "wait-acks").await;
+    keep_report(&app, &grant, None).await;
+    let first = json!({ "project_id": app.project, "seconds": 1 });
+    let (_, wait) = http_wait(&app, &token, first).await;
+    assert_eq!(wait["reports"][0]["report_id"], "report-1");
+    let body = json!({ "project_id": app.project, "seconds": 1, "ack": ["report-1"] });
+    let (status, wait) = http_wait(&app, &token, body).await;
+    assert_eq!(status, 200, "{wait}");
+    assert_eq!(wait["reports"], json!([]), "{wait}");
+    assert!(!report_open(&app).await);
+    app::shut_down_app(app).await;
+}
+
+#[tokio::test]
+async fn the_http_wait_refuses_a_revoked_bearer() {
+    let app = test_app().await;
+    let (token, grant) = connection(&app, "wait-revoked").await;
+    keep_report(&app, &grant, None).await;
+    let connection = app
+        .core
+        .grants()
+        .authorize_external(&token)
+        .await
+        .unwrap()
+        .unwrap();
+    app.core
+        .grants()
+        .revoke_external("revoke".into(), &connection.id)
+        .await
+        .unwrap();
+    let body = json!({ "project_id": app.project, "seconds": 1 });
+    assert_eq!(http_wait(&app, &token, body.clone()).await.0, 401);
+    assert_eq!(http_wait(&app, "no-such-token", body).await.0, 401);
+    assert!(report_open(&app).await);
+    app::shut_down_app(app).await;
+}
+
+#[tokio::test]
+async fn the_http_wait_refuses_a_connection_revoked_while_it_waits() {
+    let app = test_app().await;
+    let (token, grant) = connection(&app, "wait-revoked-during").await;
+    // A claim held by an earlier answer: the wait sleeps until it lapses, then claims again.
+    let lapse: String = sqlx::query_scalar(
+        "SELECT strftime('%Y-%m-%dT%H:%M:%f', 'now', '+1 seconds') || '000000Z'",
+    )
+    .fetch_one(app.storage.reader())
+    .await
+    .unwrap();
+    keep_report(&app, &grant, Some(&lapse)).await;
+    let connection = app
+        .core
+        .grants()
+        .authorize_external(&token)
+        .await
+        .unwrap()
+        .unwrap();
+    let body = json!({ "project_id": app.project, "seconds": 5 });
+    let waiting = http_wait(&app, &token, body);
+    let revoke = async {
+        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+        app.core
+            .grants()
+            .revoke_external("revoke-during".into(), &connection.id)
+            .await
+            .unwrap();
+    };
+    let ((status, _), ()) = tokio::join!(waiting, revoke);
+    assert_eq!(status, 401);
+    assert!(report_open(&app).await);
+    app::shut_down_app(app).await;
+}
+
+#[tokio::test]
+async fn the_http_wait_refuses_an_unselected_project() {
+    let app = test_app().await;
+    let (other, _) = other_project(&app).await;
+    let (token, _) = connection(&app, "wait-unselected").await;
+    let body = json!({ "project_id": other, "seconds": 1 });
+    let (status, refusal) = http_wait(&app, &token, body).await;
+    assert_eq!(status, 404, "{refusal}");
+    app::shut_down_app(app).await;
+}
+
+#[tokio::test]
+async fn a_connection_names_its_wait_url() {
+    let app = test_app().await;
+    let (status, issued) = post(
+        &app,
+        "/api/external-connections",
+        json!({ "command_id": "wait-url", "project_ids": [app.project] }),
+    )
+    .await;
+    assert_eq!(status, 200, "{issued}");
+    let base = shadows_core::testing::acp::MCP_URL
+        .strip_suffix("/mcp")
+        .unwrap();
+    let url = format!("{base}/api/external/task-wait");
+    assert_eq!(issued["connection"]["wait_url"], url);
+    let listed: Value = get_json(&app, "/api/external-connections").await;
+    assert_eq!(listed[0]["wait_url"], url);
+    app::shut_down_app(app).await;
+}

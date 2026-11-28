@@ -20,6 +20,8 @@ pub struct ExternalConnection {
     pub project_revision: i64,
     pub created_at: String,
     pub revoked_at: Option<String>,
+    /// Where a hook waits for this connection's reports, beside `/mcp`.
+    pub wait_url: String,
 }
 
 pub struct IssuedExternalConnection {
@@ -54,6 +56,7 @@ impl Grants {
         }
         let ctx = CommandContext::user(command_id, "ExternalConnectionIssue", params);
         let (connection, token) = self.store.issue_external(ctx, name, project_ids).await?;
+        let connection = self.addressed(connection);
         Ok(IssuedExternalConnection {
             connection,
             token: token.map(|token| token.as_str().into()),
@@ -62,7 +65,13 @@ impl Grants {
     }
 
     pub async fn list_external(&self) -> Result<Vec<ExternalConnection>, GrantsError> {
-        Ok(self.store.list_external().await?)
+        Ok(self
+            .store
+            .list_external()
+            .await?
+            .into_iter()
+            .map(|connection| self.addressed(connection))
+            .collect())
     }
 
     pub async fn update_external_projects(
@@ -81,10 +90,10 @@ impl Grants {
                 "project_ids": project_ids
             }),
         );
-        Ok(self
-            .store
+        let connection = (self.store)
             .update_external_projects(ctx, id.clone(), expected_revision, project_ids)
-            .await?)
+            .await?;
+        Ok(self.addressed(connection))
     }
 
     pub async fn revoke_external(
@@ -97,14 +106,15 @@ impl Grants {
             "ExternalConnectionRevoke",
             serde_json::json!({ "connection_id": id }),
         );
-        Ok(self.store.revoke_external(ctx, id.clone()).await?)
+        Ok(self.addressed(self.store.revoke_external(ctx, id.clone()).await?))
     }
 
     pub async fn authorize_external(
         &self,
         token: &str,
     ) -> Result<Option<ExternalConnection>, GrantsError> {
-        Ok(self.store.authorize_external(token).await?)
+        Ok((self.store.authorize_external(token).await?)
+            .map(|connection| self.addressed(connection)))
     }
 
     pub async fn external_project(
@@ -121,6 +131,15 @@ impl Grants {
         grants: &[GrantId],
     ) -> Result<HashMap<GrantId, String>, GrantsError> {
         Ok(super::store::GrantsStore::connections_of_in(conn, grants).await?)
+    }
+}
+
+impl Grants {
+    /// The connection with its wait address: the HTTP route on the host that serves `/mcp`.
+    fn addressed(&self, mut connection: ExternalConnection) -> ExternalConnection {
+        let base = self.mcp_url.strip_suffix("/mcp").unwrap_or(&self.mcp_url);
+        connection.wait_url = format!("{base}/api/external/task-wait");
+        connection
     }
 }
 

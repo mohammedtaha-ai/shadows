@@ -1277,6 +1277,61 @@
         ],
         "type": "string"
       },
+      "AuthorReport": {
+        "description": "One report kept for an external author, as a wait answers it.",
+        "properties": {
+          "attempt_id": {
+            "$ref": "#/components/schemas/AttemptId"
+          },
+          "kind": {
+            "description": "`ended` or `conflict`.",
+            "type": "string"
+          },
+          "report": {
+            "type": "string"
+          },
+          "report_id": {
+            "description": "Stable across every answer of this report; the author acknowledges it by this id.",
+            "type": "string"
+          },
+          "task": {
+            "format": "int32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "workflow_id": {
+            "$ref": "#/components/schemas/WorkflowId"
+          }
+        },
+        "required": [
+          "report_id",
+          "attempt_id",
+          "workflow_id",
+          "task",
+          "kind",
+          "report"
+        ],
+        "type": "object"
+      },
+      "AuthorWait": {
+        "description": "An external author's wait: its outcome and the reports it answers, oldest first.",
+        "properties": {
+          "outcome": {
+            "$ref": "#/components/schemas/WaitOutcome"
+          },
+          "reports": {
+            "items": {
+              "$ref": "#/components/schemas/AuthorReport"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "outcome",
+          "reports"
+        ],
+        "type": "object"
+      },
       "BaseStandards": {
         "properties": {
           "parts": {
@@ -3501,6 +3556,10 @@
               "string",
               "null"
             ]
+          },
+          "wait_url": {
+            "description": "Where a hook waits for this connection's reports, beside `/mcp`.",
+            "type": "string"
           }
         },
         "required": [
@@ -3508,7 +3567,8 @@
           "name",
           "project_ids",
           "project_revision",
-          "created_at"
+          "created_at",
+          "wait_url"
         ],
         "type": "object"
       },
@@ -10153,6 +10213,33 @@
         ],
         "type": "object"
       },
+      "TaskWait": {
+        "properties": {
+          "ack": {
+            "description": "The report ids an earlier call handed to its session.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "project_id": {
+            "$ref": "#/components/schemas/ProjectId"
+          },
+          "seconds": {
+            "description": "How long to wait; 300 when absent, at most 540.",
+            "format": "int32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "project_id"
+        ],
+        "type": "object"
+      },
       "TestRefusal": {
         "enum": [
           "key_refused",
@@ -11083,6 +11170,15 @@
           "content"
         ],
         "type": "object"
+      },
+      "WaitOutcome": {
+        "description": "How an external author's wait ended.",
+        "enum": [
+          "ended",
+          "nothing_yet",
+          "none_running"
+        ],
+        "type": "string"
       },
       "WaitingPermission": {
         "properties": {
@@ -13882,6 +13978,66 @@
             "description": ""
           },
           "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "grants"
+        ]
+      }
+    },
+    "/api/external/task-wait": {
+      "post": {
+        "operationId": "task_wait",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TaskWait"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthorWait"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
             "content": {
               "application/json": {
                 "schema": {
