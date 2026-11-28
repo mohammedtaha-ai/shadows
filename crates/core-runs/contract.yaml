@@ -198,7 +198,7 @@ functions:
   brief_for: "(grant) -> AttemptBrief; an Executor grant with a thread and scope, else NotFound; the attempt is executor_attempt of that thread and scope (never one the caller names), then brief's read. MCP task_brief"
   question: "(grant, TaskQuestion) -> TaskAnswer; the attempt is executor_attempt of an Executor grant's thread and scope and must be Running, else NotFound; its saved context (ContextNotRecorded) gives plan; Plans::contract_facts for the attempt's workflow and task (its InvalidCommand is InvalidQuestion); an optional Codebase::lsp with Asker::Grant: Answered is code, NoServer or a LanguageServer failure is code_error (never an empty answer), any other CodebaseError is Code; then Grants::check_live_in in a fresh read and the attempt again Running and the same, after the awaited code work; producer_status per producer from Runs' own mark and attempts; observed_at now; over 64 KiB is QuestionTooLarge. Reads only. MCP task_question"
   capture_in: "private: (tx, attempt, (project, workflow, task), captured_at); Plans::task_context_in for the task (no phase) inside begin_attempt's and continue_attempt's write, after the insert and before commit, then one INSERT into run_attempt_context (capture_context_in); any failure rolls back the attempt, its thread and an addition's release. A replay returns before it, so it captures nothing"
-  run_turn: "private: (attempt, prompt) -> Attempt; open_executor with the attempt's TaskScope, model and effort, reopening the thread whether its session is live, closed or gone (a failure abandons it `session did not open: ...`), the still-Running check, the turn in the harness's executor mode, set_operation, the late Stop, the hold (`hold`), watch. Start and amend both end here"
+  run_turn: "private: (attempt, prompt) -> Attempt; open_executor with the attempt's TaskScope, model and effort, reopening the thread whether its session is live, closed or gone (a failure abandons it `session did not open: ...`; abandon fails the attempt, releases it and, for a follow-up (origin not Start), calls notify, logging runs.notify_failed), the still-Running check, the turn in the harness's executor mode, set_operation, the late Stop, the hold (`hold`), watch. Start and amend both end here"
   hold: "private: (attempt) -> ActiveHold; Codebase::hold_claiming with a claim of Scope::new(the attempt's stored writes).admits; writes that cannot be read or compiled take a plain Codebase::hold, claiming nothing"
   watch: "private: (attempt, thread, operation) follows the turn in the background: it reads the thread's operations after each journal commit, and at least once a second, until the operation has finished_at, then settles the attempt as the transitions say: settle_ended is one write deciding Stopped (reason `contract conflict`) when conflict_json is set, else Failed; a Stop's earlier state is kept. Release follows; a release that fails keeps the scope held and is logged"
   release: "private: (attempt, thread) -> Result; Harness::release_executor first: a session that could not be closed is Unavailable and the scope stays held; then released_at is set. Stop answers its failure; watch, mark_done, run_turn and abandon log it (release_logged)"
@@ -233,7 +233,7 @@ transitions:
   - "person Stop settles Running without a conflict: Stopped with a durable notice obligation"
   - "startup settles Running without a conflict: Interrupted with a durable notice obligation"
   - "Start accepted: Running"
-  - "session fails to open: Failed with reason `session did not open: ...`"
+  - "session fails to open: Failed with reason `session did not open: ...`; a follow-up's failure is reported through notify"
   - "task_report accepted: Committed with the sha and the report"
   - "task_report refused: stays Running"
   - "turn ends with no accepted report: Failed with reason `ended without a commit`"
@@ -457,6 +457,8 @@ obligations:
     tested_by: [live_an_executor_turn_in_another_mode_is_refused]
   - rule: A session that cannot open fails the attempt and frees its scope.
     tested_by: [a_session_that_fails_to_open_fails_the_attempt]
+  - rule: A follow-up (a returned check or an addition) whose session or turn cannot start reports its failure through notify, as a turn's end does; a Start's own failure is answered to its caller only.
+    tested_by: [a_follow_up_that_fails_to_open_reports_to_its_external_author, a_follow_up_that_fails_to_open_tells_the_planner]
   - rule: A turn that ends without an accepted report fails the attempt.
     tested_by: [a_turn_that_ends_without_a_commit_fails_the_attempt]
   - rule: Recovery interrupts running attempts and restarts none.

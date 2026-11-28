@@ -1,7 +1,7 @@
 //! One job: starting an attempt — checks, the record, the session and its
 //! first turn.
 use crate::git::Git;
-use crate::model::AttemptState;
+use crate::model::{AttemptOrigin, AttemptState};
 use crate::scope::Scope;
 use crate::store::NewAttempt;
 use crate::{Attempt, Runs, RunsError};
@@ -284,6 +284,9 @@ impl Runs {
     }
 
     /// The attempt cannot go on: it fails with `reason` and frees its scope.
+    /// A follow-up's end is reported through `notify`, as a turn's end is: a
+    /// returned check has no caller to hear the answer. A Start's caller is
+    /// answered `Failed` itself, so its first attempt reports to no one.
     pub(crate) async fn abandon(
         &self,
         attempt: Attempt,
@@ -294,7 +297,13 @@ impl Runs {
             .finish(&attempt.id, AttemptState::Failed, Some(reason))
             .await?;
         self.release_logged(&attempt.id, &attempt.thread_id).await;
+        let failed = self.inner.store.get(&attempt.id).await?;
+        if failed.origin != AttemptOrigin::Start
+            && let Err(error) = self.notify(&failed).await
+        {
+            tracing::warn!(attempt = %failed.id, %error, "runs.notify_failed");
+        }
         self.pump(&attempt.thread_id).await;
-        self.inner.store.get(&attempt.id).await
+        Ok(failed)
     }
 }

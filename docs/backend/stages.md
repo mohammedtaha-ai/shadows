@@ -516,7 +516,7 @@ Each is fixed at its root by `backend-fixer`, one commit each, with only the tes
   report never settles and B-258's wait never answers `none_running` for that author. Fix it on
   the one path both use: a failed open settles its notice through `notify`, as every other end
   does (the Planner's thread notice, or the external author's row).
-  - Status: todo
+  - Status: done
   - Owner: `Runs`.
   - Touch: `crates/core-runs/src/start.rs`, `crates/core-runs/src/notify.rs` if needed,
     `crates/core-runs/contract.yaml`, `crates/shadows-core/tests/external_author.rs`, and the

@@ -1239,6 +1239,41 @@ async fn return_waits_for_a_turn_on_its_thread() {
     panic!("the return never followed the turn's end");
 }
 
+#[tokio::test]
+async fn a_follow_up_that_fails_to_open_tells_the_planner() {
+    let (f, id, _, _) = candidate(vec![cmd(&["git", "rev-parse", "no-such-ref"])]).await;
+    let planner = prepare_planner(&f).await;
+    // A model that refuses the executor's mode: the follow-up's session cannot open.
+    sqlx::query("UPDATE run_attempts SET model = 'fake-small' WHERE id = ?")
+        .bind(id.as_str())
+        .execute(f.storage.reader())
+        .await
+        .unwrap();
+    f.core.runs().recover().await.unwrap();
+    let mut follow_up = None;
+    for _ in 0..300 {
+        let attempts = f.core.runs().attempts(&f.workflow, 1, 3).await.unwrap();
+        if attempts.len() > 1 {
+            follow_up = Some(attempts[0].clone());
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(25)).await;
+    }
+    let follow_up = follow_up.expect("the failed checks never returned to the executor");
+    assert_eq!(follow_up.origin, core_runs::AttemptOrigin::Checks);
+    wait_notice(&f, &follow_up.id).await;
+    let failed = f.core.runs().attempt(&follow_up.id).await.unwrap();
+    assert_eq!(failed.state, AttemptState::Failed);
+    let queued = f.core.turns().queued(&planner).await.unwrap();
+    assert_eq!(queued.len(), 1, "{queued:?}");
+    assert!(
+        queued[0].prompt.contains("session did not open"),
+        "{}",
+        queued[0].prompt
+    );
+    f.finish().await;
+}
+
 async fn attempt_progress_events(f: &Fixture, id: &AttemptId) -> usize {
     let count: i64 = sqlx::query_scalar(
         "SELECT COUNT(*) FROM durable_event WHERE kind = 'TaskProgressChanged'

@@ -727,6 +727,37 @@ async fn a_wait_after_a_returned_check_answers_none_running_once_acknowledged() 
 }
 
 #[tokio::test]
+async fn a_follow_up_that_fails_to_open_reports_to_its_external_author() {
+    let failing = cmd(&["git", "rev-parse", "no-such-ref"]);
+    let f = fixture(true, std::slice::from_ref(&failing)).await;
+    let (id, grant) = f.begin().await;
+    // A model that refuses the executor's mode: the follow-up's session cannot open.
+    sqlx::query("UPDATE run_attempts SET model = 'fake-small' WHERE id = ?")
+        .bind(id.as_str())
+        .execute(f.storage.reader())
+        .await
+        .unwrap();
+    f.commit_and_report(&grant, 1).await;
+    let follow_up = loop_follow_up(&f).await;
+    f.ended(&follow_up).await;
+    let failed = f.core.runs().attempt(&follow_up).await.unwrap();
+    assert_eq!(failed.state, AttemptState::Failed);
+    let reason = failed.reason.as_deref().unwrap_or_default();
+    assert!(reason.starts_with("session did not open"), "{reason}");
+    let reports = f.reported().await;
+    assert_eq!(reports.len(), 1, "{reports:?}");
+    assert_eq!(reports[0].kind, "ended");
+    assert_eq!(reports[0].attempt_id, follow_up.as_str());
+    let wait = f.wait(&f.a, &[], 20_000).await;
+    assert_eq!(wait.outcome, WaitOutcome::Ended, "{wait:?}");
+    assert_eq!(wait.reports.len(), 1);
+    let report = wait.reports[0].report_id.clone();
+    let next = f.wait(&f.a, &[&report], 20_000).await;
+    assert_eq!(next.outcome, WaitOutcome::NoneRunning, "{next:?}");
+    f.finish().await;
+}
+
+#[tokio::test]
 async fn a_waiting_call_wakes_when_a_claim_lapses() {
     let f = fixture(true, &[]).await;
     f.one_report().await;
