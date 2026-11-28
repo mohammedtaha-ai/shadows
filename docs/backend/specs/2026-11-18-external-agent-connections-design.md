@@ -18,7 +18,7 @@ label if they have no name.
 
 ## Authorization and cutover
 
-Core Grants owns issue, list, bearer validation and revocation. Built: migration `0074_external_connections.sql` creates `external_connection` and `external_connection_project` and revokes every existing project-scoped grant. The connection's `project_list` tool returns its live projects; every other external tool takes a `project_id` argument and refuses `project`. Each allowed project has a scoped grant for attribution and transaction-local checks. The connection token selects one of those grants for each call. Scoped grants generated for a connection carry no usable standalone credential. Revoking a connection revokes all its scoped grants atomically. Existing plan and design services keep their transaction-local authority checks and validate target ownership. Planner and executor grant scopes keep their existing semantics. External connections retain the external tool inventory, with project discovery added. Approval and execution permissions remain with their existing principals.
+Core Grants owns issue, list, bearer validation and revocation. Built: migration `0074_external_connections.sql` creates `external_connection` and `external_connection_project` and revokes every existing project-scoped grant. The connection's `project_list` tool returns its live projects; every other external tool takes a `project_id` argument and refuses `project`. Each allowed project has a scoped grant for attribution and transaction-local checks. The connection token selects one of those grants for each call. Scoped grants generated for a connection carry no usable standalone credential. Revoking a connection revokes all its scoped grants atomically. Existing plan and design services keep their transaction-local authority checks and validate target ownership. Planner and executor grant scopes keep their existing semantics. External connections hold the external tool inventory, with project discovery. Approval remains with its existing principals; an external connection also runs tasks ("An external agent works like the Planner" below).
 
 The upgrade revokes project-scoped external credentials and retains the rows needed for history and authorship. An old token never gains global scope. The global UI lists global connections, and the project-specific issue and list routes are retired in the same cutover. Revoke stops future use and prevents writes still waiting to commit. Grant records contain token hashes. Issue responses display a token once, and command replays omit it.
 
@@ -34,8 +34,8 @@ Automated checks cover migration of old credentials, token replay and revocation
 
 ## An external agent works like the Planner (Mohammed, 2026-11-28)
 
-Status: decided in conversation; not built. It replaces "Approval and execution permissions
-remain with their existing principals" above for execution only: approval stays as it is.
+Status: decided in conversation; built (B-249 to B-261, B-263; F-153 to F-156), its live
+acceptance is B-262. It gives an external connection execution; approval stays as it is.
 
 An agent connected from outside, such as Claude Code or Codex, can take a project from its
 idea to finished tasks, as the Planner does in a Shadows conversation. Today it cannot: it

@@ -1,4 +1,4 @@
-//! Persist Planner roadmap proposals without approving outcomes.
+//! Persist roadmap proposals, a Planner's or an external agent's, without approving outcomes.
 use super::DesignStore;
 use super::proposal_origin::ProposalOrigin;
 use super::roadmap_shape as shape;

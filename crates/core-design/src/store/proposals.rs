@@ -1,4 +1,4 @@
-//! Recording Planner vision proposals.
+//! Recording vision proposals, a Planner's or an external agent's.
 use super::DesignStore;
 use super::proposal_origin::ProposalOrigin;
 use crate::{OperationId, ProjectId, StorageError, VisionContent, VisionField};

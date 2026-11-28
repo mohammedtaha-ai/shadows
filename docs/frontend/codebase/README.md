@@ -1,4 +1,4 @@
-# Frontend code mapdesign `web/src/app/design/contract.yaml` |design `web/src/app/design/contract.yaml` |design `web/src/app/design/contract.yaml` |design `web/src/app/design/contract.yaml` |design `web/src/app/design/contract.yaml` |design `web/src/app/design/contract.yaml` |design `web/src/app/design/contract.yaml` |
+# Frontend code map
 
 **Read this before writing code in `web/`.** It answers one question: *where does my
 new code go?* It names the one job each source file under `web/src` holds, and the

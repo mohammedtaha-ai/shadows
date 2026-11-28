@@ -49,6 +49,7 @@ impl Grants {
         let token = token.trim();
         (scheme.eq_ignore_ascii_case("bearer") && !token.is_empty()).then_some(token)
     }
+
     /// Resolves a bearer by its hash; unknown or revoked tokens return none.
     pub async fn authorize(&self, token: &str) -> Result<Option<Grant>, GrantsError> {
         Ok(self.store.grant_for_token(token).await?)

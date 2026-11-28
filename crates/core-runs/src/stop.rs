@@ -30,10 +30,14 @@ impl Runs {
         }
         let owed = matches!(by, Stopper::Person) && self.inner.store.finish_owed(attempt).await?;
         if !owed {
-            self.inner
-                .store
+            let moved = (self.inner.store)
                 .finish(attempt, AttemptState::Stopped, None)
                 .await?;
+            // An agent's own Stop is answered to that agent, so its notice is settled with
+            // nothing to send, or the author's wait would count the attempt pending.
+            if moved && !matches!(by, Stopper::Person) {
+                self.inner.store.mark_notice_sent(attempt).await?;
+            }
         }
         self.release(attempt, &current.thread_id).await?;
         let now = self.inner.store.get(attempt).await?;

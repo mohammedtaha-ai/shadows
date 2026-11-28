@@ -781,6 +781,25 @@ async fn a_start_that_fails_to_open_does_not_hold_the_wait() {
 }
 
 #[tokio::test]
+async fn an_attempt_its_author_stops_does_not_hold_the_wait() {
+    let f = fixture(true, &[]).await;
+    let (id, _) = f.begin().await;
+    let stopped = f
+        .core
+        .runs()
+        .stop_for(&f.a, "stop-1".into(), &id)
+        .await
+        .unwrap();
+    assert_eq!(stopped.state, AttemptState::Stopped);
+    let began = std::time::Instant::now();
+    let wait = f.wait(&f.a, &[], 3_000).await;
+    assert!(began.elapsed() < Duration::from_secs(2));
+    assert_eq!(wait.outcome, WaitOutcome::NoneRunning, "{wait:?}");
+    assert!(f.reports().await.is_empty());
+    f.finish().await;
+}
+
+#[tokio::test]
 async fn a_waiting_call_wakes_when_a_claim_lapses() {
     let f = fixture(true, &[]).await;
     f.one_report().await;

@@ -9,7 +9,7 @@
 # ThreadsError is translated through CoreError with unchanged responses.
 # CodebaseError converts through CoreError to preserve the MCP scope and storage envelope.
 name: shadows-mcp
-external_connections: The external tool set includes project_list restricted to the credential's selected live projects. Other external calls require project_id and bind a project grant before dispatch. A linked project's slug cannot widen that project scope.
+external_connections: The external tool set includes project_list restricted to the credential's selected live projects. Other external calls require project_id and bind a project grant before dispatch. A linked project's slug cannot widen that project scope. workflow_list, workflow_get, task_start and project_recheck carry external descriptions that name no conversation.
 version: 1
 status: current
 source: crates/shadows-mcp/src
@@ -151,9 +151,13 @@ layout_only: Map records contain no starter files; the stage has no Structure st
 # Runs::conflict_for with the caller's executor grant, answering its TaskConflict; only the
 # executor's grant lists it. Its description tells the executor to stop editing and end its
 # turn, without task_report. task_stop translates { command_id, attempt_id } to Runs::stop_for
-# with the caller's grant and answers the Attempt once its Stop is confirmed; only the Planner's
-# grant lists it, and neither tool is an external agent's. Tested by
+# with the caller's grant and answers the Attempt once its Stop is confirmed; the Planner's and
+# an external connection's grants list it. Tested by
 # task_conflict_routes::only_an_executor_reports_and_only_a_planner_stops.
+# task_wait translates { seconds?, ack? } to Runs::author_wait with the connection's project
+# grant and answers its AuthorWait; seconds defaults to 45 and is held to 50, under the about 60
+# seconds an MCP client allows one call. Only an external connection's grant lists it. Tested by
+# mcp_server::task_wait_is_an_external_tool_bounded_under_a_minute.
 # task_brief translates {} to Runs::brief_for with the caller's executor grant and answers its
 # AttemptBrief, the context saved for its own attempt; only the executor's grant lists it, and
 # the executor's grant does not list task_context. A grant with no attempt is refused and an

@@ -11,7 +11,7 @@ const CHOSEN_BY: Record<ExecutorChoice['chosen_by'], string> = {
   planner: 'the Planner',
   external: 'an external agent',
 }
-const EMPTY:ExecutorInput = { harness: '', model: '', effort: null }
+const EMPTY: ExecutorInput ={ harness: '', model: '', effort: null }
 
 export function ExecutorSettings({ saved, pending, error, save }: {
   saved: ExecutorChoice | null

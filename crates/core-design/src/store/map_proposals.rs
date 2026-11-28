@@ -1,4 +1,4 @@
-//! Persist Planner map proposals without approving parts.
+//! Persist map proposals, a Planner's or an external agent's, without approving parts.
 use super::DesignStore;
 use super::proposal_origin::ProposalOrigin;
 use super::{map_proposal_shape as shape, map_versions as maps};

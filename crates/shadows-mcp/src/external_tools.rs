@@ -46,7 +46,8 @@ const TASK_START: &str = "Start an executor on one task of an approved plan vers
                           selected project. Shadows checks the task again as the Start button \
                           does (an approved version, its needs links done, a git folder, no \
                           overlapping task running) and answers the attempt, or the refusal with \
-                          its code. The executor works on its own; read its end with task_runs.";
+                          its code. The executor works on its own; wait for its end with \
+                          task_wait.";
 const PROJECT_RECHECK: &str = "Rerun the checks of every done task of the selected project, in \
                                the background. Ask for it when you suspect later work broke \
                                earlier tasks. It answers recheck_id (null when no done task has \
