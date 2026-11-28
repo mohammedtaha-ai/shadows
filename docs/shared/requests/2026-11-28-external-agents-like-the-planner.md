@@ -1,0 +1,88 @@
+# External agents like the Planner
+
+- Status: answered (the backend's proposal; waits for Masada's reply)
+- Asked by: Hamoud, for Mohammed, 2026-11-28 (the backend needs these screens, so it writes first)
+- Screen: Settings → External agents; Design's vision, map and roadmap proposals; the task page.
+  Spec: [external connections, "An external agent works like the Planner"](../../backend/specs/2026-11-18-external-agent-connections-design.md#an-external-agent-works-like-the-planner-mohammed-2026-11-28)
+
+## Need
+
+An agent connected from outside (Claude Code, Codex) now proposes the vision, the map and the
+roadmap, writes plans and runs tasks as the Planner does. It never approves: the person
+approves its proposals with the button. It is told when an attempt ends in one of three ways:
+Shadows starts a turn in a `codex --remote` session; the client's own Stop hook waits on an
+HTTP route; or the agent calls the MCP tool `task_wait`. When no one waits, the result waits
+unjudged and Shadows shows it so.
+
+The web needs four things:
+
+1. **Settings → External agents** gives, per connection and per selected project, ready to
+   copy:
+   - the Claude Code `Stop` hook with `asyncRewake` (it runs in the background after each turn);
+   - the Codex `Stop` hook, its `timeout` raised to 600 seconds in its entry;
+   - the `codex --remote` setup: `codex app-server --listen ws://127.0.0.1:<port> --ws-auth
+     capability-token --ws-token-file <file>`, then `codex --remote ws://127.0.0.1:<port>`, and
+     the line telling the agent to pass `reach` to `draft_start` (address, the token file's
+     contents, its thread id).
+   The Settings section owns setup instructions (spec, "Global external agent connections"), so
+   the web writes the hook text; the backend serves the route the hooks call and its address.
+2. **Design proposals with no conversation.** A vision, map or roadmap proposal from an external
+   agent has no thread. It shows where the person approves proposals, marked as from an
+   external agent, with Approve.
+3. **An executor chosen by an external agent.** The task page's "Chosen by" has a third value.
+4. **A result waiting for its author.** A task whose latest attempt ended and whose external
+   author has not been told says so.
+
+## Fields
+
+| Call | Sends | Gets back |
+|---|---|---|
+| `POST /api/external-connections`, `GET /api/external-connections`, `PATCH /api/external-connections/{id}` | as today | each connection gains `wait_url: string`, e.g. `http://127.0.0.1:7420/api/external/task-wait` |
+| `POST /api/external/task-wait` (hooks only, not the browser) | header `Authorization: Bearer <connection token>`; body `{ project_id: string, seconds?: number }` (default 300, held to 540) | `{ outcome: "ended" \| "nothing_yet" \| "none_running", reports: [{ attempt_id, workflow_id, task: number, kind: "ended" \| "conflict", report: string }] }` |
+| `GET /api/projects/{id}/vision-proposals`, `…/map-proposals`, `…/roadmap-proposals` | as today | each proposal's `thread_id` becomes `string \| null`, and it gains `grant_id: string \| null` (set when an external agent proposed it) |
+| the task run (`TaskRun`) | as today | `executor.chosen_by` may be `"external"` beside `"person"` and `"planner"`; new `author_waiting: boolean` |
+
+What a hook does with the route (so the web can write it):
+
+- It calls the route in a loop with the connection's token from the environment
+  (`SHADOWS_TOKEN`, as the Codex registration already uses) and its project's id.
+- `none_running`: no attempt of this connection's plans runs and nothing waits: the hook ends
+  at once (exit 0), so a turn with no task running stops as usual.
+- `nothing_yet`: the bound passed with an attempt still running: call again.
+- `ended`: Claude Code's hook writes the reports to stderr and exits with code 2 (this wakes the
+  session); Codex's hook prints `{"decision": "block", "reason": "<the reports>"}` and exits 0
+  (Codex takes the reason as its next prompt).
+- Each report is answered once: a report a hook, `task_wait` or a woken Codex turn has had is
+  not answered again.
+
+## Errors
+
+| When | The screen shows |
+|---|---|
+| The hook's token is missing or revoked (401) | nothing in the browser; the hook prints the status and exits 0 |
+| The project is no longer on the connection (404) | nothing in the browser; the hook exits 0 |
+| An approve of an external proposal is stale (409, as today) | as today |
+
+## Backend answer
+
+As above; the backend proposes these shapes. Services and contracts:
+
+- `wait_url` and the bearer check: Grants (`crates/core-grants/contract.yaml`), task B-260.
+- The wait: Runs (`crates/core-runs/contract.yaml`), `Runs::author_wait`, served as
+  `POST /api/external/task-wait` (B-260) and the MCP tool `task_wait` (B-259).
+- Proposals with no conversation: Design (`crates/core-design/contract.yaml`), B-250. Approving
+  one writes no conversation entry.
+- `chosen_by: "external"`: Runs, B-252. `author_waiting`: Runs, B-261; the project stream's
+  `TaskProgressChanged` comes when it changes, so no poll is needed.
+- The `codex --remote` setup needs nothing more from the backend: the agent passes the reach in
+  `draft_start` over MCP, and the token is kept by Core Secrets, never returned.
+
+B-250, B-252, B-260 and B-261 wait for this request to be `accepted`.
+
+## Frontend reply
+
+<Masada: accepted, or what must stay and why.>
+
+## Ruling
+
+<The teacher, only when disputed.>
