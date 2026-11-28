@@ -272,7 +272,20 @@ describe('the task page', () => {
     expect(a.text()).toContain('codex')
   })
 
-  it('start_shows_running_while_core_opens_the_session', async () => {
+  it('the_executor_line_names_each_chooser', async () => {
+    let current = taskRun()
+    const a = (app = await startApp(PAGE, answers({ taskRun: () => Response.json(current) })))
+    await until(() => a.text().includes('Chosen by the Planner'))
+    const source = a.sources.find(item => item.url.includes('/api/projects/p1/'))!
+    await act(async () => source.caughtUp(0))
+    for (const [seq, chosen_by, words] of [[1, 'person', 'Chosen by you'], [2, 'external', 'Chosen by an external agent']] as const) {
+      current = taskRun({ executor: { harness: 'claude-code', model: 'fake-large', effort: 'high', chosen_at: 'now', chosen_by } })
+      await act(async () => source.durable(seq, 'TaskExecutorChosen', null, { project_id: 'p1', plan_id: 'plan1', task: 1 }))
+      await until(() => a.text().includes(words))
+    }
+  })
+
+  it('start_shows_running_while_core_opens_the_session',async () => {
     let current = taskRun({ latest: attempt({ state: 'stopped', ended_at: '2026-11-08T10:05:00Z' }) })
     const held: { answer?: () => void } = {}
     const a = (app = await startApp(PAGE, answers({

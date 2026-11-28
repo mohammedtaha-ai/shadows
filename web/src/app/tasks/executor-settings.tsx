@@ -6,7 +6,12 @@ import { Button } from '@/components/ui/button'
 import { ErrorLine } from '../error-line'
 
 const SELECT = 'w-full min-w-0 rounded-md border border-border bg-background px-2 py-1.5 text-foreground'
-const EMPTY: ExecutorInput = { harness: '', model: '', effort: null }
+const CHOSEN_BY: Record<ExecutorChoice['chosen_by'], string> = {
+  person: 'you',
+  planner: 'the Planner',
+  external: 'an external agent',
+}
+const EMPTY:ExecutorInput = { harness: '', model: '', effort: null }
 
 export function ExecutorSettings({ saved, pending, error, save }: {
   saved: ExecutorChoice | null
@@ -35,7 +40,7 @@ export function ExecutorSettings({ saved, pending, error, save }: {
       {saved === null ? <p className="text-xs text-muted-foreground">No executor chosen yet</p> : (
         <p className="break-words text-xs text-muted-foreground">
           Saved: {choices.find(item => item.kind === saved.harness)?.label ?? saved.harness} · {saved.model}
-          {saved.effort === null ? '' : ` · ${saved.effort}`} · Chosen by {saved.chosen_by === 'person' ? 'you' : 'the Planner'}
+          {saved.effort === null ? '' : ` · ${saved.effort}`} · Chosen by {CHOSEN_BY[saved.chosen_by]}
         </p>
       )}
       {harnesses.error && <ErrorLine error={harnesses.error} />}

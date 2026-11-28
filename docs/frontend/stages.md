@@ -186,7 +186,7 @@ Rules for every task here:
 
 ### F-155 · The task page says an executor was chosen by an external agent
 
-- Status: todo (B-252 is built: `2157fcbf`)
+- Status: done
 - Plan: this section.
 - Read: `web/src/app/tasks/contract.yaml`; `executor-settings.tsx` (the "Chosen by" line).
 - What it shows: "Chosen by you" for `person`, "the Planner" for `planner`, "an external agent"
