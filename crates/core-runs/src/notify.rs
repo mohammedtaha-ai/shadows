@@ -14,6 +14,9 @@
 //! state cannot change the replay's fingerprint. A conflict's delivery is
 //! `pending` until an enqueue (or its replay) succeeds, `no_planner` when the
 //! plan has no live Planner conversation.
+//!
+//! A version an external agent wrote gets no thread notice: its report is kept for that
+//! author (`author.rs`), with the body built here.
 use crate::amend::ADDITIONS;
 use crate::checks::CONTRACT_CHECK;
 use crate::model::{Attempt, AttemptNotice, AttemptState, ConflictDelivery, TaskConflict};
@@ -74,8 +77,14 @@ impl Runs {
     /// Queues, on the plan's Planner conversation, the notice that `attempt`
     /// committed or failed, or, for an attempt with a contract conflict, the
     /// conflict's one notice, sent again only while it is pending.
+    /// An attempt of a version an external agent wrote keeps its report for that author
+    /// instead.
     pub(crate) async fn notify(&self, attempt: &Attempt) -> Result<(), RunsError> {
-        match self.inner.store.notice_intent(&attempt.id).await? {
+        let intent = self.inner.store.notice_intent(&attempt.id).await?;
+        if let Some((plan, grant)) = self.external_author(attempt).await? {
+            return (self.keep_for_author(attempt, &plan, &grant, intent.is_some())).await;
+        }
+        match intent {
             None => self.notify_ended(attempt).await,
             Some((ConflictDelivery::Pending, saved)) => self.notify_conflict(attempt, saved).await,
             Some(_) => Ok(()),
@@ -204,7 +213,7 @@ impl Runs {
         })
     }
 
-    fn conflict_body(attempt: &Attempt, title: &str, conflict: &TaskConflict) -> String {
+    pub(crate) fn conflict_body(attempt: &Attempt, title: &str, conflict: &TaskConflict) -> String {
         let evidence = conflict
             .evidence
             .iter()
@@ -233,7 +242,7 @@ impl Runs {
     }
 
     /// The task's title in `plan`, or `T{task}` when it has none.
-    fn title(plan: &Plan, attempt: &Attempt) -> String {
+    pub(crate) fn title(plan: &Plan, attempt: &Attempt) -> String {
         plan.tasks
             .iter()
             .find(|t| t.content.number == attempt.task)
@@ -290,7 +299,25 @@ impl Runs {
             tracing::warn!(attempt = %attempt.id, "runs.notify_no_planner");
             return Ok(None);
         };
-        let title = Self::title(&plan, attempt);
+        let (body, card) = self.ended_notice(attempt, &plan).await?;
+        Ok(Some(NoticeIntent {
+            planner: thread_id,
+            body,
+            model: invocation.requested_model,
+            mode: invocation.requested_mode,
+            effort: invocation.requested_effort,
+            card: serde_json::to_value(&card)?,
+        }))
+    }
+
+    /// The ended notice's body and card from the attempt as it stands now, for the Planner
+    /// and an external author alike.
+    pub(crate) async fn ended_notice(
+        &self,
+        attempt: &Attempt,
+        plan: &Plan,
+    ) -> Result<(String, AttemptNotice), RunsError> {
+        let title = Self::title(plan, attempt);
         let mut card = AttemptNotice {
             left_files: None,
             checks: vec![],
@@ -455,14 +482,7 @@ impl Runs {
                 )
             }
         };
-        Ok(Some(NoticeIntent {
-            planner: thread_id,
-            body: prompt,
-            model: invocation.requested_model,
-            mode: invocation.requested_mode,
-            effort: invocation.requested_effort,
-            card: serde_json::to_value(&card)?,
-        }))
+        Ok((prompt, card))
     }
 
     /// Keeps the executor's answer, cut at 4,000 chars, when no commit

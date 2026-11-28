@@ -17,6 +17,7 @@
 //! reading of a commit.
 
 mod amend;
+mod author;
 mod brief;
 mod checks;
 mod conflict;
@@ -111,6 +112,8 @@ struct Inner {
     /// One lock per executor thread: a question's send, a release and a
     /// return's start never interleave on it.
     messaging: tokio::sync::Mutex<std::collections::HashMap<ThreadId, Arc<tokio::sync::Mutex<()>>>>,
+    /// Fires after each new `run_author_report` row commits, for an external author's wait.
+    author_reports: tokio::sync::Notify,
     /// One lock per project: Shadows runs one check at a time there.
     checking: tokio::sync::Mutex<std::collections::HashMap<ProjectId, Arc<tokio::sync::Mutex<()>>>>,
     /// The running recheck batches' live output, by batch id; never stored.
@@ -157,6 +160,7 @@ impl Runs {
             inner: Arc::new(Inner {
                 messaging: tokio::sync::Mutex::new(std::collections::HashMap::new()),
                 checking: tokio::sync::Mutex::new(std::collections::HashMap::new()),
+                author_reports: tokio::sync::Notify::new(),
                 live_rechecks: recheck_live::LiveRechecks::default(),
                 store: RunsStore::with_storage(storage),
                 plans,

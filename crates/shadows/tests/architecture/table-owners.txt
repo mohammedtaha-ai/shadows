@@ -126,3 +126,4 @@ run_rechecks :: runs
 run_recheck_results :: runs
 run_executor_saves :: runs
 run_task_executors :: runs
+run_author_report :: runs

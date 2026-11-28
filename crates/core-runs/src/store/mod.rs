@@ -4,6 +4,7 @@
 //! `RunsStore` is private to the crate, so its methods are `pub` only to
 //! the service; no other service's write calls into it, and nothing here is
 //! declared under `shared_in_transaction`.
+pub(super) mod author;
 mod brief;
 pub(super) mod checks;
 mod conflict;

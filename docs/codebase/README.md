@@ -213,6 +213,7 @@ pattern to follow, not merely an example.
 | `crates/core-runs/src/store/brief.rs` | saved attempt context SQL | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/conflict.rs` | an executor's contract conflict on its own attempt | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/store/conflict.rs` | attempt conflict SQL | `crates/core-runs/contract.yaml` |
+| `crates/core-runs/src/store/author.rs` | external author reports SQL | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/stop.rs` | stopping an attempt | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/git.rs` | git calls in a project folder | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/init.rs` | giving a project folder its repository | `crates/core-runs/contract.yaml` |
@@ -221,6 +222,7 @@ pattern to follow, not merely an example.
 | `crates/core-runs/src/diff.rs` | reading an attempt's commit | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/watch.rs` | settling an attempt when its turn ends | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/notify.rs` | telling a plan's Planner how an attempt ended | `crates/core-runs/contract.yaml` |
+| `crates/core-runs/src/author.rs` | keeping an attempt's report for its external author | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/recover.rs` | settling attempts at startup | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/checks.rs` | confirming an attempt's task checks | `crates/core-runs/contract.yaml` |
 | `crates/core-runs/src/store/checks.rs` | check results SQL | `crates/core-runs/contract.yaml` |

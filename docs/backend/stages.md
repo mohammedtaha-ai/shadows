@@ -336,7 +336,7 @@ before they were built: Shadows never wakes an external agent (Mohammed, 2026-11
 
 ### B-257 · Runs keeps each attempt's report for its external author
 
-- Status: todo
+- Status: done
 - Owner: `Runs` (`notify.rs`: telling a plan's author how an attempt ended).
 - Read: `crates/core-runs/contract.yaml` (notices), `crates/core-runs/src/notify.rs`
   (`Recipient`, `NoticeIntent`, the conflict notice), `crates/core-runs/src/watch.rs` (a
