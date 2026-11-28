@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { CopyButton } from '../../copy-button'
 import { ErrorLine } from '../../error-line'
+import { type HookClient, type HookPlatform, hookSetup } from './external-hooks'
 
 export function ExternalAgentsSection() {
   const queryClient = useQueryClient()
@@ -168,6 +169,7 @@ function ConnectionRow({ connection, projects, onRevoked }: {
 }) {
   const queryClient = useQueryClient()
   const [edit, setEdit] = useState<{ revision: number; selected: string[] }>()
+  const [hooks, setHooks] = useState(false)
   const pending = useRef<Attempt | null>(null)
   const revoke = useMutation({
     mutationFn: (commandId: string) => revokeConnection(connection.id, commandId),
@@ -190,6 +192,10 @@ function ConnectionRow({ connection, projects, onRevoked }: {
       </div>
       {connection.revoked_at ? <span className="text-xs text-muted-foreground">Revoked</span> :
         <div className="flex shrink-0 flex-wrap gap-1">
+          <Button type="button" size="sm" variant="ghost" aria-expanded={hooks}
+            disabled={!projects || !!edit || revoke.isPending} onClick={() => setHooks(open => !open)}>
+            Wait hooks
+          </Button>
           <Button type="button" size="sm" variant="ghost" disabled={!projects || !!edit || revoke.isPending}
             onClick={() => setEdit({ revision: connection.project_revision, selected: connection.project_ids })}>
             Edit projects
@@ -202,6 +208,8 @@ function ConnectionRow({ connection, projects, onRevoked }: {
         </div>}
     </div>
     {revoke.isError && <ErrorLine error={revoke.error} />}
+    {hooks && projects && !connection.revoked_at &&
+      <WaitHooks connection={connection} projects={projects} />}
     {edit && projects && !connection.revoked_at &&
       <ConnectionProjects id={connection.id} initial={edit} projects={projects}
         close={() => setEdit(undefined)} />}
@@ -251,4 +259,56 @@ function ConnectionProjects({ id, initial, projects, close }: {
       <Button type="button" size="sm" variant="secondary" disabled={save.isPending} onClick={close}>Cancel</Button>
     </div>
   </form>
+}
+
+function WaitHooks({ connection, projects }: { connection: ExternalConnection; projects: Project[] }) {
+  const allowed = connection.project_ids.flatMap(id => projects.find(project => project.id === id) ?? [])
+  const [projectId, setProjectId] = useState(allowed[0]?.id ?? '')
+  const [client, setClient] = useState<HookClient>('claude')
+  const [platform, setPlatform] = useState<HookPlatform>(
+    () => /Windows/i.test(navigator.userAgent) ? 'windows' : 'unix')
+  const project = allowed.find(candidate => candidate.id === projectId)
+  const directory = project?.directory
+  const setup = project && directory
+    ? hookSetup({ client, platform, waitUrl: connection.wait_url, projectId: project.id, directory })
+    : undefined
+  return <section aria-label="Wait hooks" className="space-y-3 rounded-lg border border-accent-line bg-accent-softer p-3">
+    <div className="flex flex-wrap gap-3 text-sm">
+      <label className="flex items-center gap-2">
+        Project
+        <select value={projectId} onChange={event => setProjectId(event.currentTarget.value)}
+          className="rounded border border-border bg-background px-2 py-1">
+          {allowed.map(candidate => <option key={candidate.id} value={candidate.id}>{candidate.name}</option>)}
+        </select>
+      </label>
+      <label className="flex items-center gap-2">
+        Client
+        <select value={client} onChange={event => setClient(event.currentTarget.value as HookClient)}
+          className="rounded border border-border bg-background px-2 py-1">
+          <option value="claude">Claude Code</option>
+          <option value="codex">Codex desktop app</option>
+        </select>
+      </label>
+      <label className="flex items-center gap-2">
+        Platform
+        <select value={platform} onChange={event => setPlatform(event.currentTarget.value as HookPlatform)}
+          className="rounded border border-border bg-background px-2 py-1">
+          <option value="windows">Windows</option>
+          <option value="unix">macOS and Linux</option>
+        </select>
+      </label>
+    </div>
+    {allowed.length === 0 && <p className="text-sm text-muted-foreground">This connection has no projects.</p>}
+    {project && !directory && <p className="text-sm text-muted-foreground">This project has no folder recorded.</p>}
+    {setup && <>
+      <CopyLine label="Wait address" value={connection.wait_url} />
+      <CopyLine label={`Script, save as ${setup.scriptPath}`} value={setup.script} />
+      <CopyLine label={`Hook entry, add to ${setup.entryPath}`} value={setup.entry} />
+      <p className="text-xs text-muted-foreground">
+        The files hold no token. The script reads <code>SHADOWS_TOKEN</code>, this connection's token
+        saved when it was created, from the environment that starts the client.
+        {platform === 'unix' && ' The script needs curl and jq.'}
+      </p>
+    </>}
+  </section>
 }

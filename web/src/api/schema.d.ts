@@ -560,6 +560,22 @@ export interface paths {
         patch: operations["update_grant_projects"];
         trace?: never;
     };
+    "/api/external/task-wait": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["task_wait"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/fs/dirs": {
         parameters: {
             query?: never;
@@ -2520,6 +2536,23 @@ export interface components {
          * @enum {string}
          */
         AttemptState: "running" | "committed" | "stopped" | "interrupted" | "failed";
+        /** @description One report kept for an external author, as a wait answers it. */
+        AuthorReport: {
+            attempt_id: components["schemas"]["AttemptId"];
+            /** @description `ended` or `conflict`. */
+            kind: string;
+            report: string;
+            /** @description Stable across every answer of this report; the author acknowledges it by this id. */
+            report_id: string;
+            /** Format: int32 */
+            task: number;
+            workflow_id: components["schemas"]["WorkflowId"];
+        };
+        /** @description An external author's wait: its outcome and the reports it answers, oldest first. */
+        AuthorWait: {
+            outcome: components["schemas"]["WaitOutcome"];
+            reports: components["schemas"]["AuthorReport"][];
+        };
         BaseStandards: {
             parts: components["schemas"]["PartKind"][];
             rules: components["schemas"]["StandardRule"][];
@@ -3129,6 +3162,8 @@ export interface components {
             /** Format: int64 */
             project_revision: number;
             revoked_at?: string | null;
+            /** @description Where a hook waits for this connection's reports, beside `/mcp`. */
+            wait_url: string;
         };
         /** Format: uuid */
         ExternalConnectionId: string;
@@ -4909,6 +4944,16 @@ export interface components {
         TaskStopped: {
             stopped: boolean;
         };
+        TaskWait: {
+            /** @description The report ids an earlier call handed to its session. */
+            ack?: string[];
+            project_id: components["schemas"]["ProjectId"];
+            /**
+             * Format: int32
+             * @description How long to wait; 300 when absent, at most 540.
+             */
+            seconds?: number | null;
+        };
         /** @enum {string} */
         TestRefusal: "key_refused" | "unreachable" | "unexpected";
         /** @enum {string} */
@@ -5146,6 +5191,11 @@ export interface components {
             /** Format: int64 */
             revision: number;
         };
+        /**
+         * @description How an external author's wait ended.
+         * @enum {string}
+         */
+        WaitOutcome: "ended" | "nothing_yet" | "none_running";
         WaitingPermission: {
             agent: string;
             asked_at: string;
@@ -7133,6 +7183,53 @@ export interface operations {
                 };
             };
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    task_wait: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TaskWait"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthorWait"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

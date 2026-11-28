@@ -26,7 +26,7 @@ external:
 components:
   ExternalAgentsSection:
     signature: "() => JSX.Element"
-    note: Issues a named MCP token for the checked projects. The setup panel defaults to manual HTTP instructions and offers Codex and Claude Code commands with the server name shadows. It retains the token only until dismissed or unmounted. The list shows names, scope and revocation and edits a live connection's projects from the captured revision.
+    note: Issues a named MCP token for the checked projects. The setup panel defaults to manual HTTP instructions and offers Codex and Claude Code commands with the server name shadows. It retains the token only until dismissed or unmounted. The list shows names, scope and revocation and edits a live connection's projects from the captured revision. A live row's Wait hooks panel (project, client, platform) copies the wait address, the Stop-hook script and its settings entry from hookSetup; the text holds no token and a project with no folder shows no hook.
   PluginsSection:
     signature: "() => JSX.Element"
     note: Accessible Plugins/Skills/MCP tools tabs; Add and MCP Edit replace the body without another dialog.

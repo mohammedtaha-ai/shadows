@@ -81,7 +81,7 @@ Rules for every task here:
 
 ### F-153 · Settings → External agents gives each connection's Stop hooks to copy
 
-- Status: todo (B-260 is built: `78be7da0`)
+- Status: done
 - Plan: this section, and the request's "What a hook does with the route".
 - Read: `web/src/app/settings/contract.yaml`; `web/src/app/settings/sections/external-agents.tsx`
   (`ConnectionRow`, `CopyLine`); `web/src/api/external-connections.ts`; `Project.directory` in

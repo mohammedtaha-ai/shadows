@@ -374,6 +374,7 @@ it is that folder's `contract.yaml`.
 | `web/src/app/settings/sections/plugins.tsx` | Extension library navigation | `web/src/app/settings/contract.yaml` |
 | `web/src/app/settings/sections/code.tsx` | Language servers panel | `web/src/app/settings/contract.yaml` |
 | `web/src/app/settings/sections/external-agents.tsx` | External MCP connection settings | `web/src/app/settings/contract.yaml` |
+| `web/src/app/settings/sections/external-hooks.ts` | Stop-hook setup text | `web/src/app/settings/contract.yaml` |
 | `web/src/app/settings/extension-import.tsx` | Daemon folder import form | `web/src/app/settings/contract.yaml` |
 | `web/src/app/settings/extension-list.tsx` | Shared extension removal controls | `web/src/app/settings/contract.yaml` |
 | `web/src/app/agents/agent-extensions.tsx` | Per-agent extension enablement | `web/src/app/agents/contract.yaml` |
