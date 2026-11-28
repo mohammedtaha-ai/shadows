@@ -1677,7 +1677,8 @@
       "Chooser": {
         "enum": [
           "person",
-          "planner"
+          "planner",
+          "external"
         ],
         "type": "string"
       },

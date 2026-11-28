@@ -181,3 +181,36 @@ async fn an_external_grant_reaches_git_init() {
     let result = f.core.runs().init_git(&f.grant).await;
     assert!(matches!(result, Err(RunsError::AlreadyGit)), "{result:?}");
 }
+
+#[tokio::test]
+async fn an_external_agent_sets_a_tasks_executor() {
+    let f = fixture().await;
+    let runs = f.core.runs();
+    let choice = runs
+        .set_executor_for(
+            &f.grant,
+            &f.workflow,
+            1,
+            core_runs::ExecutorInput {
+                harness: "claude-code".into(),
+                model: "fake-large".into(),
+                effort: Some("high".into()),
+            },
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        serde_json::to_value(choice).unwrap()["chosen_by"],
+        "external"
+    );
+    let saved = runs
+        .task(&f.workflow, 1, 1)
+        .await
+        .unwrap()
+        .executor
+        .unwrap();
+    assert_eq!(
+        serde_json::to_value(saved).unwrap()["chosen_by"],
+        "external"
+    );
+}

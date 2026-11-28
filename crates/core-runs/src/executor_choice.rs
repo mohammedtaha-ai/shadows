@@ -1,9 +1,9 @@
 //! Select the executor for the newest version's task.
-use core_db::CommandContext;
-use core_grants::Grant;
+use core_db::{Actor, CommandContext};
+use core_grants::{Grant, GrantKind};
 use core_plans::WorkflowId;
 
-use crate::{ExecutorChoice, ExecutorInput, Runs, RunsError};
+use crate::{Chooser, ExecutorChoice, ExecutorInput, Runs, RunsError};
 
 impl Runs {
     #[cfg(feature = "test-support")]
@@ -52,6 +52,31 @@ impl Runs {
             .await
     }
 
+    /// Who a grant's choice is recorded as: a Planner by its thread, an external
+    /// agent by its project grant.
+    pub(crate) fn chooser_of(grant: &Grant) -> Result<(Chooser, Actor), RunsError> {
+        match grant.kind {
+            GrantKind::Thread => {
+                let thread = grant.thread_id.as_ref().ok_or(RunsError::NotFound)?;
+                Ok((
+                    Chooser::Planner,
+                    Actor {
+                        kind: "Thread".into(),
+                        id: thread.as_str().into(),
+                    },
+                ))
+            }
+            GrantKind::Project => Ok((
+                Chooser::External,
+                Actor {
+                    kind: "Grant".into(),
+                    id: grant.id.to_string(),
+                },
+            )),
+            _ => Err(RunsError::NotFound),
+        }
+    }
+
     pub(crate) async fn save_executor(
         &self,
         command_id: String,
@@ -67,9 +92,9 @@ impl Runs {
         });
         let mut command = CommandContext::user(command_id, kind, params);
         if let Some(grant) = grant {
-            let thread = grant.thread_id.as_ref().ok_or(RunsError::NotFound)?;
-            command.principal_kind = "Thread".into();
-            command.principal_id = thread.as_str().into();
+            let actor = Self::chooser_of(grant)?.1;
+            command.principal_kind = actor.kind;
+            command.principal_id = actor.id;
         }
         let store = &self.inner.store;
         if let Some(saved) = store.replay_executor_save(&command).await? {

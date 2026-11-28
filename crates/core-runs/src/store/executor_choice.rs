@@ -94,10 +94,16 @@ impl RunsStore {
             .fetch_optional(&mut *tx)
             .await?;
             if let Some((harness, model, effort, by, chosen_at)) = row {
-                let chosen_by = if by == "planner" {
-                    Chooser::Planner
-                } else {
-                    Chooser::Person
+                let chosen_by = match by.as_str() {
+                    "person" => Chooser::Person,
+                    "planner" => Chooser::Planner,
+                    "external" => Chooser::External,
+                    other => {
+                        return Err(StorageError::Constraint(format!(
+                            "run_task_executors.chosen_by: {other}"
+                        ))
+                        .into());
+                    }
                 };
                 return Ok(Some(ExecutorChoice {
                     harness,
@@ -165,22 +171,19 @@ impl RunsStore {
                     if target != current {
                         return Err(RunsError::NotFound);
                     }
-                    let (chosen_by, by, actor) = if let Some(grant) = &grant {
+                    let (chosen_by, actor) = if let Some(grant) = &grant {
                         Grants::check_live_in(tx, grant).await?;
                         if grant.project_id != plan.project_id {
                             return Err(RunsError::NotFound);
                         }
-                        let thread = grant.thread_id.as_ref().ok_or(RunsError::NotFound)?;
-                        (
-                            Chooser::Planner,
-                            "planner",
-                            Actor {
-                                kind: "Thread".into(),
-                                id: thread.as_str().into(),
-                            },
-                        )
+                        crate::Runs::chooser_of(grant)?
                     } else {
-                        (Chooser::Person, "person", Actor::user("local"))
+                        (Chooser::Person, Actor::user("local"))
+                    };
+                    let by = match chosen_by {
+                        Chooser::Person => "person",
+                        Chooser::Planner => "planner",
+                        Chooser::External => "external",
                     };
                     let choice = ExecutorChoice {
                         harness: input.harness,

@@ -277,7 +277,7 @@ Not owned, so left out:
 
 ### B-252 · Runs records an executor chosen by an external agent
 
-- Status: todo (the shared request is accepted)
+- Status: done
 - Owner: `Runs`.
 - Read: `crates/core-runs/src/executor_choice.rs` (`save_executor`),
   `crates/core-runs/src/store/executor_choice.rs` (the read maps every value but `planner` to

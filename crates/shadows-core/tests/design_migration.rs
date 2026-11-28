@@ -789,3 +789,84 @@ async fn a_project_past_the_old_structure_step_opens_roadmap() {
     assert_eq!(stage.stage, shadows_core::Stage::Roadmap);
     storage.close().await.unwrap();
 }
+
+#[tokio::test]
+async fn earlier_choices_read_back_unchanged_after_the_migration() {
+    let tmp = tempfile::tempdir().unwrap();
+    let pool = SqlitePoolOptions::new()
+        .max_connections(1)
+        .connect_with(
+            SqliteConnectOptions::new()
+                .filename(tmp.path().join("pre85.sqlite3"))
+                .create_if_missing(true)
+                .foreign_keys(false),
+        )
+        .await
+        .unwrap();
+    let mut old = sqlx::migrate!("../core-db/migrations");
+    old.migrations = Cow::Owned(
+        old.migrations
+            .iter()
+            .filter(|m| m.version <= 84)
+            .cloned()
+            .collect(),
+    );
+    old.run(&pool).await.unwrap();
+    sqlx::raw_sql(
+        "INSERT INTO run_task_executors
+          (task_id,plan_id,harness,model,effort,chosen_by,chosen_at)
+         VALUES ('A','P','claude-code','m1','high','person','t1'),
+                ('B','P','codex','m2',NULL,'planner','t2');",
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    sqlx::migrate!("../core-db/migrations")
+        .run(&pool)
+        .await
+        .unwrap();
+    let rows: Vec<(String, String, String, Option<String>, String, String)> = sqlx::query_as(
+        "SELECT task_id,harness,model,effort,chosen_by,chosen_at
+         FROM run_task_executors ORDER BY task_id",
+    )
+    .fetch_all(&pool)
+    .await
+    .unwrap();
+    assert_eq!(
+        rows,
+        vec![
+            (
+                "A".into(),
+                "claude-code".into(),
+                "m1".into(),
+                Some("high".into()),
+                "person".into(),
+                "t1".into()
+            ),
+            (
+                "B".into(),
+                "codex".into(),
+                "m2".into(),
+                None,
+                "planner".into(),
+                "t2".into()
+            ),
+        ]
+    );
+    sqlx::query(
+        "INSERT INTO run_task_executors
+          (task_id,plan_id,harness,model,effort,chosen_by,chosen_at)
+         VALUES ('C','P','codex','m2',NULL,'external','t3')",
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    let other = sqlx::query(
+        "INSERT INTO run_task_executors
+          (task_id,plan_id,harness,model,effort,chosen_by,chosen_at)
+         VALUES ('D','P','codex','m2',NULL,'robot','t4')",
+    )
+    .execute(&pool)
+    .await;
+    assert!(other.is_err());
+}

@@ -13,6 +13,7 @@ use core_threads::ThreadId;
 pub enum Chooser {
     Person,
     Planner,
+    External,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, utoipa::ToSchema)]
