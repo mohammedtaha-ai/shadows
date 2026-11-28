@@ -1,5 +1,5 @@
 //! The Planner's calls on its project's tasks: its done marks, the group they
-//! name next, and its Start, refused to any grant but a Planner's. No agent
+//! name next, and its Start, refused to executor grants. No agent
 //! runs.
 use super::*;
 
@@ -340,23 +340,14 @@ async fn the_planners_start_needs_a_choice() {
 }
 
 #[tokio::test]
-async fn the_planner_tools_refuse_a_grant_that_is_not_a_planners() {
+async fn the_planner_tools_refuse_an_executor_grant() {
     let f = fixture().await;
-    let project = shadows_core::Grants::issue_project_grant_for_test(
-        &f.storage,
-        &command("project-grant"),
-        &f.project,
-    )
-    .await
-    .unwrap()
-    .grant;
+    let grant = executor_grant(&f);
     let runs = f.core.runs();
-    for grant in [executor_grant(&f), project] {
-        let started = runs.start_for(&grant, &f.workflow, 3).await;
-        assert!(matches!(started, Err(RunsError::NotFound)), "{started:?}");
-        let marked = runs.mark_done_for(&grant, &f.workflow, 1, true, None).await;
-        assert!(matches!(marked, Err(RunsError::NotFound)), "{marked:?}");
-    }
+    let started = runs.start_for(&grant, &f.workflow, 3).await;
+    assert!(matches!(started, Err(RunsError::NotFound)), "{started:?}");
+    let marked = runs.mark_done_for(&grant, &f.workflow, 1, true, None).await;
+    assert!(matches!(marked, Err(RunsError::NotFound)), "{marked:?}");
     assert!(!runs.task(&f.workflow, 1, 1).await.unwrap().done);
     assert!(runs.attempts(&f.workflow, 1, 3).await.unwrap().is_empty());
     f.finish().await;

@@ -1,9 +1,9 @@
 //! One job: stopping an attempt and waiting for its turn's confirmed end,
-//! for the person or for the Planner.
+//! for the person or a project agent.
 use crate::model::AttemptState;
 use crate::{Attempt, AttemptId, Runs, RunsError};
 use core_db::CommandContext;
-use core_grants::Grant;
+use core_grants::{Grant, GrantKind};
 use core_turns::TurnsError;
 
 impl Runs {
@@ -47,7 +47,7 @@ impl Runs {
         Ok(now)
     }
 
-    /// The Planner's Stop of `attempt`, a task of its own project's plan: the
+    /// A project agent's Stop of `attempt`, a task of its own project's plan: the
     /// same confirmed Stop. A replay of `command_id` answers the attempt as
     /// it stands; the same id for another request is a conflict.
     pub async fn stop_for(
@@ -58,11 +58,18 @@ impl Runs {
     ) -> Result<Attempt, RunsError> {
         let current = self.inner.store.get(attempt).await?;
         self.planner_plan(grant, &current.workflow_id).await?;
-        let thread = grant.thread_id.as_ref().ok_or(RunsError::NotFound)?;
+        let (principal_kind, principal_id, stopper) = match grant.kind {
+            GrantKind::Thread => {
+                let thread = grant.thread_id.as_ref().ok_or(RunsError::NotFound)?;
+                ("Thread", thread.to_string(), Stopper::Planner)
+            }
+            GrantKind::Project => ("Grant", grant.id.to_string(), Stopper::External),
+            GrantKind::Executor => return Err(RunsError::NotFound),
+        };
         let command = CommandContext {
             agent: None,
-            principal_kind: "Thread".into(),
-            principal_id: thread.as_str().to_string(),
+            principal_kind: principal_kind.into(),
+            principal_id,
             command_id,
             command_kind: "run.stop".into(),
             command_schema_ver: 1,
@@ -74,7 +81,7 @@ impl Runs {
         if self.inner.store.stop_replayed(&command, attempt).await? {
             return self.inner.store.get(attempt).await;
         }
-        let stopped = self.stop_by(attempt, Stopper::Planner).await?;
+        let stopped = self.stop_by(attempt, stopper).await?;
         self.inner.store.record_stop(command, attempt).await?;
         Ok(stopped)
     }
@@ -83,4 +90,5 @@ impl Runs {
 enum Stopper {
     Person,
     Planner,
+    External,
 }

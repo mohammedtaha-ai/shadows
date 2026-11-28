@@ -171,7 +171,7 @@ Not owned, so left out:
 
 ### B-249 · Runs accepts an external agent's grant on the Planner's task calls
 
-- Status: todo
+- Status: done
 - Owner: `Runs` (`crates/core-runs`), per `AppCore`.
 - Read: `crates/core-runs/contract.yaml`; `crates/core-runs/src/planner.rs` (`planner_plan`,
   `start_status_for`, `start_for`, `recheck_project_for`, `mark_done_for`, `live_for`),
@@ -185,7 +185,8 @@ Not owned, so left out:
   project grant. Executor choice is B-252, not here.
 - Touch: `crates/core-runs/src/planner.rs`, `init.rs`, `stop.rs`, `message.rs` (only if its
   grant check needs it), `crates/core-runs/contract.yaml`, new
-  `crates/shadows-core/tests/external_runs.rs`.
+  `crates/shadows-core/tests/external_runs.rs`, and the executor-grant regression in
+  `crates/shadows-core/tests/runs_attempts/planner.rs`.
 - Needs: nothing.
 - Done when: `cargo test -p shadows-core --test external_runs` passes with
   `an_external_grant_starts_and_marks_a_task_of_its_project` (start answers the attempt;

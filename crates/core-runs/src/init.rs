@@ -1,6 +1,6 @@
 //! One job: giving a project folder its git repository.
 //!
-//! Start refuses a folder that is not a git repository. The Planner may make
+//! Start refuses a folder that is not a git repository. A project agent may make
 //! it one: `git init` and a first commit, in Shadows' name, of the files the
 //! folder already holds. What Codebase's file list classes as a secret or a
 //! dependency is left out of it, through git's local exclude list, and stays
@@ -20,10 +20,10 @@ const PAGE: u16 = 200;
 impl Runs {
     /// Makes the folder of `grant`'s project a git repository with a first
     /// commit of its files, secrets and dependencies left out, and answers
-    /// that commit's full SHA. Only a Planner's grant may; a folder already
+    /// that commit's full SHA. A Planner or external project grant may; a folder already
     /// inside a work tree, its own or a parent's, is refused.
     pub async fn init_git(&self, grant: &Grant) -> Result<String, RunsError> {
-        if grant.kind != GrantKind::Thread {
+        if !matches!(grant.kind, GrantKind::Thread | GrantKind::Project) {
             return Err(RunsError::NotFound);
         }
         let project = self

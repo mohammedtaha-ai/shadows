@@ -1,4 +1,4 @@
-//! One job: the Planner's calls on its project's tasks.
+//! One job: scoped grant calls on a project's tasks.
 //!
 //! The Planner starts a task and marks it done through the same `start` and
 //! `mark_done` the HTTP routes call; only its grant is checked here. After a
@@ -104,13 +104,13 @@ impl Runs {
         self.file(&attempt, path).await
     }
 
-    /// The plan version `workflow`, when `grant` is a Planner's of its project.
+    /// The plan version `workflow` for a Planner or external project grant.
     pub(crate) async fn planner_plan(
         &self,
         grant: &Grant,
         workflow: &WorkflowId,
     ) -> Result<Plan, RunsError> {
-        if grant.kind != GrantKind::Thread {
+        if !matches!(grant.kind, GrantKind::Thread | GrantKind::Project) {
             return Err(RunsError::NotFound);
         }
         let plan = self.read_plan(workflow).await?;
@@ -186,8 +186,11 @@ impl Runs {
     ) -> Result<crate::ProjectRecheck, RunsError> {
         self.planner_plan(grant, workflow).await?;
         let command = format!("planner-recheck-{}", AttemptId::generate());
-        self.recheck_project(command, workflow, grant.thread_id.clone())
-            .await
+        let asker = match grant.kind {
+            GrantKind::Thread => grant.thread_id.clone(),
+            _ => None,
+        };
+        self.recheck_project(command, workflow, asker).await
     }
 
     /// Marks a task for the Planner and answers the group that may start next.
