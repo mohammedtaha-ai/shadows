@@ -52,8 +52,9 @@ const THREAD_TOOLS: [&str; 48] = [
     "project_change_note",
 ];
 
-/// External agents can edit project plans and read reachable project code.
-const PROJECT_TOOLS: [&str; 14] = [
+/// External agents work a project as the Planner does, less the person's
+/// approvals and the tools bound to a person's conversation.
+const PROJECT_TOOLS: [&str; 42] = [
     "agreement_list",
     "agreement_get",
     "agreement_start",
@@ -68,6 +69,34 @@ const PROJECT_TOOLS: [&str; 14] = [
     "plan_edit",
     "code_lsp",
     "workspace_get",
+    "vision_propose",
+    "map_propose",
+    "roadmap_propose",
+    "decision_propose",
+    "decision_list",
+    "design_element_put",
+    "design_element_delete",
+    "design_elements",
+    "project_state",
+    "code_where",
+    "project_files",
+    "project_refresh",
+    "task_ready",
+    "task_runs",
+    "task_start",
+    "task_start_status",
+    "task_executor_set",
+    "executor_catalog",
+    "task_stop",
+    "task_done",
+    "task_amend",
+    "task_lessons",
+    "task_diff",
+    "task_file",
+    "task_checks",
+    "project_recheck",
+    "project_git_init",
+    "message_agent",
 ];
 
 /// An executor reads the brief its attempt was given, asks about its task's

@@ -123,13 +123,11 @@ functions:
     tools_for:
       signature: "(kind: GrantKind) -> &'static [&'static str]"
       # The Planner's (Thread) list holds 48 tools, including task_executor_set and
-      # executor_catalog; only it holds task_runs, project_files, project_recheck,
-      # decision_propose, decision_list (no list holds a decision accept: the person accepts),
-      # design_element_put, design_element_delete, design_elements, project_state, code_where,
-      # project_refresh, project_git_init, task_ready, task_start, task_start_status, task_stop,
-      # task_done,
-      # task_amend and task_lessons, task_diff and task_file. Only the executor's holds
-      # task_conflict. code_lsp is in all three lists;
+      # executor_catalog. The external (Project) list holds 42: the Planner's less the four
+      # *_approve, plan_show, person_ask and project_change_note, plus draft_prepare
+      # (project_list is the MCP adapter's own). Only the Planner's holds the approvals,
+      # plan_show, person_ask and project_change_note; no list holds a decision accept (the
+      # person accepts). Only the executor's holds task_conflict. code_lsp is in all three lists;
       # where_is, who_uses and outline are in none.
     read_in:
       signature: "(conn, principal, agent, request) -> Result<Option<ApprovedBy>, StorageError>"

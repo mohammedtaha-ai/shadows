@@ -41,12 +41,24 @@ const WORKFLOW_LIST: &str = "List the latest version of each plan in the selecte
                              Set archived to include archived plans.";
 const WORKFLOW_GET: &str = "Read a plan version in the selected project, including its goal, \
                             tasks, links, revision, state and approval blockers.";
+// An external agent has no conversation to be told in, so it reads an attempt's end itself.
+const TASK_START: &str = "Start an executor on one task of an approved plan version in the \
+                          selected project. Shadows checks the task again as the Start button \
+                          does (an approved version, its needs links done, a git folder, no \
+                          overlapping task running) and answers the attempt, or the refusal with \
+                          its code. The executor works on its own; read its end with task_runs.";
+const PROJECT_RECHECK: &str = "Rerun the checks of every done task of the selected project, in \
+                               the background. Ask for it when you suspect later work broke \
+                               earlier tasks. It answers recheck_id (null when no done task has \
+                               checks); read each task's checks with task_checks.";
 
 pub(super) fn external_schema(mut tool: Tool) -> Tool {
     if tool.name != PROJECT_LIST {
         match tool.name.as_ref() {
             "workflow_list" => tool.description = Some(WORKFLOW_LIST.into()),
             "workflow_get" => tool.description = Some(WORKFLOW_GET.into()),
+            "task_start" => tool.description = Some(TASK_START.into()),
+            "project_recheck" => tool.description = Some(PROJECT_RECHECK.into()),
             _ => {}
         }
         let schema = Arc::make_mut(&mut tool.input_schema);

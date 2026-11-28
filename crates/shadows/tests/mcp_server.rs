@@ -56,6 +56,53 @@ fn assert_planner_tool_list(tools: &[Value]) {
 }
 
 #[tokio::test]
+async fn the_external_inventory_is_the_planners_less_approval_and_conversation_tools() {
+    use std::collections::BTreeSet;
+
+    let l = listening_app().await;
+    let planner = thread_client(&l, &l.app.thread).await;
+    let (_, external) = project_client(&l).await;
+    let mut expected: BTreeSet<_> = planner
+        .list_all_tools()
+        .await
+        .unwrap()
+        .into_iter()
+        .map(|tool| tool.name.into_owned())
+        .collect();
+    for excluded in [
+        "vision_approve",
+        "map_approve",
+        "roadmap_approve",
+        "plan_approve",
+        "plan_show",
+        "person_ask",
+        "project_change_note",
+    ] {
+        assert!(expected.remove(excluded), "{excluded}");
+    }
+    expected.extend(["draft_prepare".into(), "project_list".into()]);
+    let tools = external.list_all_tools().await.unwrap();
+    let actual: BTreeSet<_> = tools.iter().map(|tool| tool.name.to_string()).collect();
+    assert_eq!(actual, expected);
+    assert_eq!(tools.len(), 43);
+    for tool in tools {
+        if tool.name != "project_list" {
+            assert!(
+                tool.input_schema["required"]
+                    .as_array()
+                    .is_some_and(|keys| keys.contains(&json!("project_id"))),
+                "{}: {:?}",
+                tool.name,
+                tool.input_schema
+            );
+        }
+    }
+    planner.cancel().await.unwrap();
+    external.cancel().await.unwrap();
+    app::shut_down_app(l.app).await;
+}
+
+#[tokio::test]
 async fn a_request_without_a_token_is_401() {
     let l = listening_app().await;
     for bearer in [None, Some("shd_not-a-token")] {
@@ -195,26 +242,9 @@ async fn the_tool_list_depends_on_the_grant_kind() {
     let (_, external) = project_client(&l).await;
     let mut project_tools = names(external.list_all_tools().await.unwrap());
     project_tools.sort();
-    assert_eq!(
-        project_tools,
-        [
-            "agreement_edit",
-            "agreement_get",
-            "agreement_list",
-            "agreement_review",
-            "agreement_start",
-            "code_lsp",
-            "draft_prepare",
-            "draft_start",
-            "plan_edit",
-            "project_list",
-            "task_context",
-            "task_get",
-            "workflow_get",
-            "workflow_list",
-            "workspace_get"
-        ]
-    );
+    // The exact inventory is the_external_inventory_is_the_planners_less_approval_and_conversation_tools.
+    assert_eq!(project_tools.len(), 43);
+    assert!(project_tools.iter().any(|name| name == "draft_prepare"));
     // An external connection selects its project on every call but project_list.
     let tools = external.list_all_tools().await.unwrap();
     for tool in &tools {
@@ -432,7 +462,7 @@ async fn an_external_connection_only_reaches_its_chosen_projects() {
     assert!(
         !tools
             .iter()
-            .any(|tool| tool.name == "plan_approve" || tool.name == "task_start")
+            .any(|tool| tool.name == "plan_approve" || tool.name == "person_ask")
     );
     let visible = listening::ok(&client, "project_list", json!({})).await;
     let visible: Vec<_> = visible
@@ -579,4 +609,154 @@ async fn an_external_connection_only_reaches_its_chosen_projects() {
         .shut_down(std::time::Duration::from_secs(5), std::future::pending())
         .await
         .unwrap();
+}
+
+fn git(root: &std::path::Path, args: &[&str]) {
+    let out = std::process::Command::new("git")
+        .current_dir(root)
+        .args(args)
+        .output()
+        .unwrap();
+    assert!(out.status.success(), "git {args:?}: {out:?}");
+}
+
+fn layers(kind: &str) -> Vec<shadows_core::PartLayer> {
+    shadows_core::Standards::base()
+        .parts
+        .iter()
+        .find(|part| part.name == kind)
+        .unwrap()
+        .layers
+        .iter()
+        .filter(|layer| layer.required)
+        .map(|layer| shadows_core::PartLayer {
+            layer: layer.id.clone(),
+            place: format!("{kind}/{}", layer.id),
+            not_used: None,
+        })
+        .collect()
+}
+
+/// The person approves `proposal` on its project's `kind` page.
+async fn approve(l: &listening::Listening, kind: &str, proposal: &Value) {
+    let path = format!(
+        "/api/projects/{}/{kind}-proposals/{}/approve",
+        l.app.project,
+        proposal["id"].as_str().unwrap()
+    );
+    let command = format!("approve-{}", proposal["id"].as_str().unwrap());
+    let (status, body) = app::call(
+        &l.app,
+        "POST",
+        &path,
+        Some(json!({ "command_id": command })),
+    )
+    .await;
+    assert_eq!(status, 200, "{body}");
+}
+
+#[tokio::test]
+async fn an_external_agent_starts_a_task_over_mcp() {
+    let l = listening::listening_unseeded().await;
+    let project = l.app.core.projects().get(&l.app.project).await.unwrap();
+    let root = std::path::PathBuf::from(project.directory.unwrap());
+    git(&root, &["init", "-q"]);
+    git(&root, &["config", "user.email", "external@example.invalid"]);
+    git(&root, &["config", "user.name", "External"]);
+    git(&root, &["config", "core.autocrlf", "false"]);
+    std::fs::write(root.join(".gitignore"), "*.sqlite3*\n").unwrap();
+    git(&root, &["add", ".gitignore"]);
+    git(&root, &["commit", "-q", "-m", "start"]);
+    let (_, c) = project_client(&l).await;
+
+    for (n, field) in [
+        "purpose",
+        "users",
+        "goals",
+        "boundaries",
+        "technical_direction",
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let card = listening::ok(
+            &c,
+            "vision_propose",
+            json!({"action":"add","field":field,"text":"Project intent",
+                "command_id":format!("vision-{n}")}),
+        )
+        .await;
+        approve(&l, "vision", &card).await;
+    }
+    let parts: Vec<_> = ["backend", "database", "api", "frontend"]
+        .into_iter()
+        .map(|kind| {
+            json!({"key":kind,"content":{"title":kind,"responsibility":kind,"design":"",
+                "kind":kind,"folder":kind,"layers":layers(kind),
+                "serves":["PU1","U1","G1","B1","TD1"]}})
+        })
+        .collect();
+    let map = listening::ok(
+        &c,
+        "map_propose",
+        json!({"action":"first","parts":parts,"command_id":"map"}),
+    )
+    .await;
+    approve(&l, "map", &map).await;
+    let part_ids: Vec<_> = l
+        .app
+        .core
+        .design()
+        .parts(&l.app.project, None, None)
+        .await
+        .unwrap()
+        .items
+        .into_iter()
+        .map(|part| part.id)
+        .collect();
+    let draft = listening::ok(&c, "draft_prepare", json!({})).await;
+    let start = json!({"draft_ref":draft["draft_ref"],"title":"Plan","goal":"Ship",
+        "parts":[part_ids[0]]});
+    let text = listening::refused(&c, "draft_start", start.clone()).await;
+    assert!(text.starts_with("STAGE_BLOCKED:"), "{text}");
+    let roadmap = listening::ok(
+        &c,
+        "roadmap_propose",
+        json!({"action":"first","command_id":"roadmap","outcomes":[{"key":"login",
+            "content":{"title":"Login","intended_result":"People reach their projects",
+                "acceptance":["A wrong password fails"]},
+            "parts":[part_ids[0], part_ids[1]]}]}),
+    )
+    .await;
+    approve(&l, "roadmap", &roadmap).await;
+
+    let started = listening::ok(&c, "draft_start", start).await;
+    let workflow: shadows_core::WorkflowId =
+        serde_json::from_value(started["workflow_id"].clone()).unwrap();
+    let plan_id = shadows_core::PlanId::from_literal(started["plan_id"].as_str().unwrap());
+    plan::serve_outcome(&l.app, &l.app.project, &plan_id).await;
+    let revision = plan::edit(&l.app, &workflow, 0, &[plan::add(1)]).await;
+    let (status, body) = app::call(
+        &l.app,
+        "POST",
+        &format!("/api/workflows/{workflow}/approve"),
+        Some(json!({"command_id":"approve-plan","expected_revision":revision})),
+    )
+    .await;
+    assert_eq!(status, 200, "{body}");
+    l.app
+        .core
+        .runs()
+        .choose_executor_for_test(&workflow, 1, "claude-code", "fake-small", Some("high"))
+        .await
+        .unwrap();
+    let attempt = listening::ok(
+        &c,
+        "task_start",
+        json!({"workflow_id":workflow,"task_number":1}),
+    )
+    .await;
+    assert_eq!(attempt["number"], 1, "{attempt}");
+    c.cancel().await.unwrap();
+    app::shut_down_app(l.app).await;
 }

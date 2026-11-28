@@ -301,7 +301,7 @@ Not owned, so left out:
 
 ### B-253 · The external inventory grows to the Planner's, less approval and conversation tools
 
-- Status: todo (after B-251 and B-252)
+- Status: done
 - Owner: `Grants` (`crates/core-grants/src/tools.rs`); the MCP adapter only routes.
 - Read: `crates/core-grants/src/tools.rs`, `crates/core-grants/contract.yaml`,
   `crates/shadows-mcp/src/external_tools.rs` (`external_schema`, `take_project`),
