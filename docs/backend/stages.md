@@ -532,7 +532,7 @@ Each is fixed at its root by `backend-fixer`, one commit each, with only the tes
   `Grants::bearer(authorization: Option<&str>) -> Option<&str>` (the `Authorization` header's
   value; `Bearer` matched without case, the token trimmed, empty refused), called by both
   adapters, which pass the header's value and keep no parse of their own.
-  - Status: todo
+  - Status: done
   - Owner: `Grants`.
   - Touch: `crates/core-grants/src/lib.rs` (or `external.rs`), `crates/core-grants/contract.yaml`,
     `crates/shadows-mcp/src/auth.rs`, `crates/shadows-http/src/external_wait.rs`,

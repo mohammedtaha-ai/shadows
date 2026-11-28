@@ -41,6 +41,14 @@ impl Grants {
         }
     }
 
+    /// The token of an `Authorization` header's value `Bearer <token>`: the
+    /// scheme's case does not matter (RFC 9110), the token is trimmed, and an
+    /// empty token is none. `/mcp` and the external wait both read it here.
+    pub fn bearer(authorization: Option<&str>) -> Option<&str> {
+        let (scheme, token) = authorization?.split_once(' ')?;
+        let token = token.trim();
+        (scheme.eq_ignore_ascii_case("bearer") && !token.is_empty()).then_some(token)
+    }
     /// Resolves a bearer by its hash; unknown or revoked tokens return none.
     pub async fn authorize(&self, token: &str) -> Result<Option<Grant>, GrantsError> {
         Ok(self.store.grant_for_token(token).await?)
@@ -79,5 +87,19 @@ impl Grants {
     }
     pub async fn prepare_draft(&self, grant: &GrantId) -> Result<String, GrantsError> {
         self.store.prepare_draft(grant).await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Grants;
+
+    #[test]
+    fn a_bearer_header_is_parsed_once() {
+        assert_eq!(Grants::bearer(Some("Bearer x")), Some("x"));
+        assert_eq!(Grants::bearer(Some("bearer  x ")), Some("x"));
+        assert_eq!(Grants::bearer(Some("Basic x")), None);
+        assert_eq!(Grants::bearer(Some("Bearer ")), None);
+        assert_eq!(Grants::bearer(None), None);
     }
 }

@@ -10,7 +10,7 @@ use axum::Json;
 use axum::extract::State;
 use axum::http::{HeaderMap, StatusCode, header};
 use axum::response::{IntoResponse, Response};
-use shadows_core::{AuthorWait, ErrorCode, GrantsError, ProjectId, RunsError};
+use shadows_core::{AuthorWait, ErrorCode, Grants, GrantsError, ProjectId, RunsError};
 
 use super::failure::{ErrorBody, RunFailure};
 use super::{AppState, Failure};
@@ -47,7 +47,10 @@ pub(super) async fn task_wait(
     headers: HeaderMap,
     Json(body): Json<TaskWait>,
 ) -> Response {
-    let Some(token) = bearer(&headers) else {
+    let authorization = headers
+        .get(header::AUTHORIZATION)
+        .and_then(|value| value.to_str().ok());
+    let Some(token) = Grants::bearer(authorization) else {
         return unauthorized();
     };
     let grants = s.core.grants();
@@ -89,13 +92,4 @@ fn unauthorized() -> Response {
         problems: None,
     };
     (StatusCode::UNAUTHORIZED, Json(body)).into_response()
-}
-
-/// The token of an `Authorization: Bearer <token>` header; the scheme's case
-/// does not matter (RFC 9110).
-fn bearer(headers: &HeaderMap) -> Option<&str> {
-    let value = headers.get(header::AUTHORIZATION)?.to_str().ok()?;
-    let (scheme, token) = value.split_once(' ')?;
-    let token = token.trim();
-    (scheme.eq_ignore_ascii_case("bearer") && !token.is_empty()).then_some(token)
 }

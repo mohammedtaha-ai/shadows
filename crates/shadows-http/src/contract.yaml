@@ -14,6 +14,7 @@
 # PersonError converts through CoreError to preserve HTTP refusals.
 # UsageError converts through CoreError to preserve HTTP refusals.
 # ProjectsError converts through CoreError to preserve HTTP refusals.
+# external_wait.rs reads the bearer through `Grants::bearer`; it keeps no parse of its own.
 name: shadows-http
 version: 1
 status: current

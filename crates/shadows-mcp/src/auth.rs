@@ -13,7 +13,7 @@ use axum::http::{StatusCode, header};
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
 
-use shadows_core::{AppCore, ExternalConnection, Grant};
+use shadows_core::{AppCore, ExternalConnection, Grant, Grants};
 
 #[derive(Clone)]
 pub(super) enum Credential {
@@ -26,7 +26,11 @@ pub(super) async fn require_grant(
     mut request: Request,
     next: Next,
 ) -> Response {
-    let Some(token) = bearer(request.headers()) else {
+    let authorization = request
+        .headers()
+        .get(header::AUTHORIZATION)
+        .and_then(|value| value.to_str().ok());
+    let Some(token) = Grants::bearer(authorization) else {
         tracing::info!("mcp.unauthorized");
         return StatusCode::UNAUTHORIZED.into_response();
     };
@@ -55,13 +59,4 @@ pub(super) async fn require_grant(
             StatusCode::SERVICE_UNAVAILABLE.into_response()
         }
     }
-}
-
-/// The token of an `Authorization: Bearer <token>` header; the scheme's case
-/// does not matter (RFC 9110).
-fn bearer(headers: &axum::http::HeaderMap) -> Option<&str> {
-    let value = headers.get(header::AUTHORIZATION)?.to_str().ok()?;
-    let (scheme, token) = value.split_once(' ')?;
-    let token = token.trim();
-    (scheme.eq_ignore_ascii_case("bearer") && !token.is_empty()).then_some(token)
 }
