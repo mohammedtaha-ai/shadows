@@ -462,7 +462,12 @@ before they were built: Shadows never wakes an external agent (Mohammed, 2026-11
 - Touch: new `crates/shadows-http/src/external_wait.rs`, `crates/shadows-http/src/lib.rs`
   (route), `crates/shadows-http/src/contract.yaml`, `crates/core-grants/src/store/external.rs` (its `load()` literal sets `wait_url`),
   `crates/core-grants/src/external.rs` (where `ExternalConnection` lives; Grants fills `wait_url` from `mcp_url`, so `Grants::new` keeps its arguments), `crates/core-grants/contract.yaml`, `api/openapi.json`
-  (regenerated), `crates/shadows/tests/grants.rs`, `docs/codebase/README.md`.
+  (regenerated), `crates/shadows/tests/grants.rs`, `docs/codebase/README.md`,
+  `crates/shadows-core/src/lib.rs` (re-export `AuthorWait`, `AuthorReport` and `WaitOutcome`,
+  so the route names its OpenAPI body), `crates/shadows-http/src/failure/runs.rs` (only if a
+  `RunsError` case needs its status). The adapter does not poll the bearer while it waits: a
+  revocation during the wait is refused by `author_wait`'s own claim check (`GrantInvalid`),
+  which the route answers 401; with no new report the call ends at its bound.
 - Needs: B-258.
 - Done when: `cargo test -p shadows --test grants --test openapi` pass with
   `the_http_wait_answers_with_the_connections_bearer` (an ended attempt's report),
