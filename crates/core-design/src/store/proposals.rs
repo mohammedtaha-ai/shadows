@@ -1,10 +1,11 @@
 //! Recording Planner vision proposals.
 use super::DesignStore;
+use super::proposal_origin::ProposalOrigin;
 use crate::{OperationId, ProjectId, StorageError, VisionContent, VisionField};
 use crate::{ProposalStatus, VisionAction, VisionProposal, VisionPropose};
 use core_db::{CommandContext, JournalEntry, Storage};
 use core_grants::Writer;
-use core_threads::{NewThreadEntry, ThreadEntryKind, Threads};
+use core_threads::ThreadEntryKind;
 
 impl DesignStore {
     pub async fn propose_vision_in(
@@ -12,41 +13,38 @@ impl DesignStore {
         ctx: &CommandContext,
         writer: &Writer,
         project: &ProjectId,
-        turn: &OperationId,
+        turn: Option<&OperationId>,
         args: VisionPropose,
     ) -> Result<VisionProposal, crate::DesignError> {
         let (ctx, writer, project, turn, ts) = (
             ctx.clone(),
             writer.clone(),
             project.clone(),
-            turn.clone(),
+            turn.cloned(),
             Storage::now(),
         );
         self.storage
             .write_txn_as::<_, _, crate::DesignError>(move |conn| {
                 Box::pin(async move {
-                    let Writer::Planner { thread, .. } = &writer else {
-                        return Err(core_grants::GrantsError::GrantScope.into());
-                    };
-                    core_grants::Grants::check_writer(conn, &writer, &project).await?;
-                    if let Some(id) =
-                        CommandContext::classify(conn, &ctx, "Thread", thread.as_str()).await?
-                    {
-                        let entry: String = sqlx::query_scalar(
-                            "SELECT entry_id FROM design_vision_proposal WHERE id=?",
-                        )
-                        .bind(id)
-                        .fetch_one(&mut *conn)
-                        .await?;
-                        let json = Threads::card_in(
-                            conn,
-                            &core_threads::ThreadEntryId::from_recorded(entry),
-                        )
-                        .await?;
-                        return Ok(serde_json::from_str(&json)?);
+                    let origin =
+                        ProposalOrigin::new(conn, &writer, &project, turn.as_ref()).await?;
+                    let (scope, key) = origin.scope();
+                    if let Some(id) = CommandContext::classify(conn, &ctx, scope, key).await? {
+                        let entry = if origin.thread.is_some() {
+                            Some(
+                                sqlx::query_scalar(
+                                    "SELECT entry_id FROM design_vision_proposal WHERE id=?",
+                                )
+                                .bind(&id)
+                                .fetch_one(&mut *conn)
+                                .await?,
+                            )
+                        } else {
+                            None
+                        };
+                        return origin.replay(conn, &id, entry).await;
                     }
-                    core_operations::Operations::require_running_in(conn, thread, turn.as_str())
-                        .await?;
+                    origin.require_running(conn).await?;
                     let content =
                         super::proposal_read::ProposalReadRows::live_vision(conn, &project).await?;
                     let (field, old_text, expected_item_revision) = validate(&args, &content)?;
@@ -113,7 +111,9 @@ impl DesignStore {
                     let p = VisionProposal {
                         approved_by: None,
                         id: uuid::Uuid::new_v4().to_string(),
-                        thread_id: thread.clone(),
+                        thread_id: origin.thread.clone(),
+                        grant_id: origin.grant.clone(),
+                        connection_id: origin.connection.clone(),
                         action: args.action,
                         field,
                         item_id: reserved_id.clone().or(args.item_id),
@@ -144,37 +144,36 @@ impl DesignStore {
                             .or(p.item_id.as_deref())
                             .unwrap_or_default()
                     );
-                    let entry = Threads::append_entry_in(
-                        conn,
-                        thread,
-                        NewThreadEntry {
-                            kind: ThreadEntryKind::VisionProposal,
-                            author: writer.actor(),
-                            body: &body,
-                            refs: &[],
-                            card: Some(&json),
-                            operation_id: Some(turn.as_str()),
-                        },
-                        &ts,
-                    )
-                    .await?;
-                    let (_, additions) =
-                        core_harness::Harness::invocation_standards_in(conn, turn.as_str()).await?;
+                    let entry = origin
+                        .append_card(conn, ThreadEntryKind::VisionProposal, &body, &json, &ts)
+                        .await?;
+                    let additions = match &turn {
+                        Some(turn) => {
+                            core_harness::Harness::invocation_standards_in(conn, turn.as_str())
+                                .await?
+                                .1
+                        }
+                        None => super::map_versions::MapVersionsRows::effective(conn, &project)
+                            .await?
+                            .additions
+                            .map(|version| version.id),
+                    };
                     sqlx::query(
                         "INSERT INTO design_vision_proposal
-                (id,project_id,thread_id,operation_id,entry_id,action,field,
+                (id,project_id,thread_id,operation_id,entry_id,grant_id,action,field,
                  item_id,reserved_item_id,
                  text,old_text,
                  expected_item_revision,status,standards_version,standards_additions_version_id,
-                 created_at,seq) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,'Pending',?,?,
+                 created_at,seq) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,'Pending',?,?,
                    ?, (SELECT COALESCE(MAX(seq),0)+1 FROM design_vision_proposal
                        WHERE project_id=?))",
                     )
                     .bind(&p.id)
                     .bind(project.as_str())
-                    .bind(thread.as_str())
-                    .bind(turn.as_str())
-                    .bind(entry.id.as_str())
+                    .bind(origin.thread.as_ref().map(crate::ThreadId::as_str))
+                    .bind(turn.as_ref().map(OperationId::as_str))
+                    .bind(entry.as_ref().map(core_threads::ThreadEntryId::as_str))
+                    .bind(origin.grant.as_ref().map(core_grants::GrantId::as_str))
                     .bind(json["action"].as_str())
                     .bind(json["field"].as_str())
                     .bind(&p.item_id)
@@ -188,22 +187,11 @@ impl DesignStore {
                     .bind(project.as_str())
                     .execute(&mut *conn)
                     .await?;
-                    let event = core_db::JournalEntry::new("VisionProposed", writer.actor())
-                        .with_project(project.as_str())
-                        .with_thread(thread.as_str())
-                        .with_operation(turn.as_str())
-                        .with_payload(serde_json::json!({"project_id":project,"proposal_id":p.id}));
-                    JournalEntry::append_event(conn, event.clone(), &ts).await?;
-                    CommandContext::record_command(
-                        conn,
-                        &ctx,
-                        "Thread",
-                        thread.as_str(),
-                        "VisionProposal",
-                        &p.id,
-                        &ts,
-                    )
-                    .await?;
+                    let event = origin.event("VisionProposed", &p.id);
+                    JournalEntry::append_event(conn, event, &ts).await?;
+                    origin
+                        .record(conn, &ctx, "VisionProposal", &p.id, &p, &ts)
+                        .await?;
                     Ok(p)
                 })
             })

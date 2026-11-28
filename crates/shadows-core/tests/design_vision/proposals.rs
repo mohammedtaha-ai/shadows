@@ -98,6 +98,7 @@ impl Fixture {
 
 fn add(text: &str) -> VisionPropose {
     VisionPropose {
+        command_id: None,
         action: VisionAction::Add,
         field: Some(VisionField::Goals),
         item_id: None,
@@ -248,6 +249,7 @@ async fn a_new_proposal_cannot_commit_under_a_finished_turn() {
 }
 fn edit(text: &str) -> VisionPropose {
     VisionPropose {
+        command_id: None,
         action: VisionAction::Edit,
         field: None,
         item_id: Some("G1".into()),
@@ -617,7 +619,7 @@ async fn a_proposal_names_a_known_item_and_carries_text() {
             .await
             .map_err(shadows_core::CoreError::from),
         Err(CoreError::Refused {
-            code: shadows_core::ErrorCode::GrantScope,
+            code: shadows_core::ErrorCode::InvalidCommand,
             ..
         })
     ));

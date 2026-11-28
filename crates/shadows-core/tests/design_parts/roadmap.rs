@@ -99,6 +99,7 @@ impl Fixture {
 
     pub(super) fn first(&self) -> RoadmapPropose {
         RoadmapPropose {
+            command_id: None,
             action: RoadmapAction::First,
             outcomes: vec![
                 self.outcome("login", None, &[0, 1]),

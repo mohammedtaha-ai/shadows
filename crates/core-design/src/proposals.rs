@@ -28,7 +28,12 @@ pub struct VisionProposal {
     #[serde(default)]
     pub approved_by: Option<core_grants::ApprovedBy>,
     pub id: String,
-    pub thread_id: ThreadId,
+    #[schema(required = true)]
+    pub thread_id: Option<ThreadId>,
+    #[schema(required = true)]
+    pub grant_id: Option<core_grants::GrantId>,
+    #[schema(required = true)]
+    pub connection_id: Option<String>,
     pub action: VisionAction,
     pub field: VisionField,
     pub item_id: Option<String>,
@@ -42,6 +47,8 @@ pub struct VisionProposal {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VisionPropose {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub command_id: Option<String>,
     pub action: VisionAction,
     pub field: Option<VisionField>,
     pub item_id: Option<String>,
@@ -104,7 +111,7 @@ impl Design {
     pub async fn propose_vision(
         &self,
         grant: &Grant,
-        args: VisionPropose,
+        mut args: VisionPropose,
     ) -> Result<VisionProposal, DesignError> {
         let (writer, op) = self
             .proposal_writer(
@@ -113,9 +120,10 @@ impl Design {
                 "no turn is running for this conversation",
             )
             .await?;
-        let ctx = Self::proposal_command(&writer, &op, "VisionPropose", &args)?;
+        let command_id = args.command_id.take();
+        let ctx = Self::proposal_command(&writer, op.as_ref(), command_id, "VisionPropose", &args)?;
         self.store
-            .propose_vision_in(&ctx, &writer, &grant.project_id, &op, args)
+            .propose_vision_in(&ctx, &writer, &grant.project_id, op.as_ref(), args)
             .await
             .map_err(DesignError::invalid_constraint)
     }
@@ -124,7 +132,7 @@ impl Design {
         &self,
         project: &ProjectId,
     ) -> Result<Vec<VisionProposal>, DesignError> {
-        Ok(self.store.list_vision_proposals(project).await?)
+        self.store.list_vision_proposals(project).await
     }
 
     pub async fn approve_vision_proposal(

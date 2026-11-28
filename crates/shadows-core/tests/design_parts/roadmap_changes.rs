@@ -68,6 +68,7 @@ async fn add_change_and_remove_work_after_the_first_roadmap() {
     assert_eq!(view.parts, vec![f.parts[3].clone()]);
     assert_eq!(view.outcome.revision, login.revision + 1);
     let remove = |outcome: &OutcomeId| RoadmapPropose {
+        command_id: None,
         action: RoadmapAction::Remove,
         outcomes: vec![],
         outcome_id: Some(outcome.clone()),

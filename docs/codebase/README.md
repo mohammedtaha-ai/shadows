@@ -325,6 +325,7 @@ pattern to follow, not merely an example.
 | `crates/core-design/src/store/proposals.rs` | recording vision proposals | `crates/core-design/src/store/proposals.rs` |
 | `crates/core-design/src/store/proposal_read.rs` | reading proposal state | `crates/core-design/src/store/proposal_read.rs` |
 | `crates/core-design/src/store/proposal_approval.rs` | approving vision proposals | `crates/core-design/src/store/proposal_approval.rs` |
+| `crates/core-design/src/store/proposal_origin.rs` | proposal provenance | `crates/core-design/contract.yaml` |
 | `crates/core-design/src/model.rs` | the workspace value shapes | `crates/core-design/src/model.rs` |
 | `crates/core-design/src/agreement.rs` | shared agreement value shapes | `crates/core-design/src/agreement.rs` |
 | `crates/core-design/src/agreement_validation.rs` | offline agreement content validation | `crates/core-design/src/agreement_validation.rs` |

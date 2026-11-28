@@ -2,8 +2,9 @@
 
 use core_db::{CommandContext, newtype_id};
 use core_projects::ProjectId;
+use std::collections::HashMap;
 
-use crate::{Grant, Grants, GrantsError};
+use crate::{Grant, GrantId, Grants, GrantsError};
 
 newtype_id! {
     /// Identity of one external MCP connection.
@@ -112,6 +113,14 @@ impl Grants {
         project: &ProjectId,
     ) -> Result<Grant, GrantsError> {
         self.store.external_project(connection, project).await
+    }
+
+    /// Identifies the connections of the recorded grants in the caller's snapshot.
+    pub async fn connections_of_in(
+        conn: &mut sqlx::SqliteConnection,
+        grants: &[GrantId],
+    ) -> Result<HashMap<GrantId, String>, GrantsError> {
+        Ok(super::store::GrantsStore::connections_of_in(conn, grants).await?)
     }
 }
 

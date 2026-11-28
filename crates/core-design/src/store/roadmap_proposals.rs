@@ -1,11 +1,12 @@
 //! Persist Planner roadmap proposals without approving outcomes.
 use super::DesignStore;
+use super::proposal_origin::ProposalOrigin;
 use super::roadmap_shape as shape;
 use crate::{OperationId, ProjectId, StorageError};
 use crate::{ProposalStatus, RoadmapAction, RoadmapProposal, RoadmapPropose};
 use core_db::{CommandContext, JournalEntry, Storage};
 use core_grants::Writer;
-use core_threads::{NewThreadEntry, ThreadEntryKind, Threads};
+use core_threads::ThreadEntryKind;
 
 impl DesignStore {
     pub async fn propose_roadmap_in(
@@ -13,41 +14,37 @@ impl DesignStore {
         ctx: &CommandContext,
         writer: &Writer,
         p: &ProjectId,
-        turn: &OperationId,
+        turn: Option<&OperationId>,
         mut args: RoadmapPropose,
     ) -> Result<RoadmapProposal, crate::DesignError> {
         let (ctx, writer, p, turn, ts) = (
             ctx.clone(),
             writer.clone(),
             p.clone(),
-            turn.clone(),
+            turn.cloned(),
             Storage::now(),
         );
         self.storage
             .write_txn_as::<_, _, crate::DesignError>(move |conn| {
                 Box::pin(async move {
-                    let Writer::Planner { thread, .. } = &writer else {
-                        return Err(core_grants::GrantsError::GrantScope.into());
-                    };
-                    core_grants::Grants::check_writer(conn, &writer, &p).await?;
-                    if let Some(id) =
-                        CommandContext::classify(conn, &ctx, "Thread", thread.as_str()).await?
-                    {
-                        let entry: String = sqlx::query_scalar(
-                            "SELECT entry_id FROM design_roadmap_proposal WHERE id=?",
-                        )
-                        .bind(id)
-                        .fetch_one(&mut *conn)
-                        .await?;
-                        let json = Threads::card_in(
-                            conn,
-                            &core_threads::ThreadEntryId::from_recorded(entry),
-                        )
-                        .await?;
-                        return Ok(serde_json::from_str(&json)?);
+                    let origin = ProposalOrigin::new(conn, &writer, &p, turn.as_ref()).await?;
+                    let (scope, key) = origin.scope();
+                    if let Some(id) = CommandContext::classify(conn, &ctx, scope, key).await? {
+                        let entry = if origin.thread.is_some() {
+                            Some(
+                                sqlx::query_scalar(
+                                    "SELECT entry_id FROM design_roadmap_proposal WHERE id=?",
+                                )
+                                .bind(&id)
+                                .fetch_one(&mut *conn)
+                                .await?,
+                            )
+                        } else {
+                            None
+                        };
+                        return origin.replay(conn, &id, entry).await;
                     }
-                    core_operations::Operations::require_running_in(conn, thread, turn.as_str())
-                        .await?;
+                    origin.require_running(conn).await?;
                     shape::RoadmapShapeRows::require_map(conn, &p).await?;
                     let revision: i64 = sqlx::query_scalar(
                         "SELECT roadmap_revision FROM design_workspace WHERE project_id=?",
@@ -81,7 +78,9 @@ impl DesignStore {
                     let proposal = RoadmapProposal {
                         approved_by: None,
                         id: uuid::Uuid::new_v4().to_string(),
-                        thread_id: thread.clone(),
+                        thread_id: origin.thread.clone(),
+                        grant_id: origin.grant.clone(),
+                        connection_id: origin.connection.clone(),
                         action: args.action,
                         outcomes: args.outcomes,
                         outcome_id: args.outcome_id,
@@ -92,34 +91,30 @@ impl DesignStore {
                         created_at: ts.clone(),
                     };
                     let card = serde_json::to_value(&proposal)?;
-                    let entry = Threads::append_entry_in(
-                        conn,
-                        thread,
-                        NewThreadEntry {
-                            kind: ThreadEntryKind::RoadmapProposal,
-                            author: writer.actor(),
-                            body: "Roadmap proposal",
-                            refs: &[],
-                            card: Some(&card),
-                            operation_id: Some(turn.as_str()),
-                        },
-                        &ts,
-                    )
-                    .await?;
+                    let entry = origin
+                        .append_card(
+                            conn,
+                            ThreadEntryKind::RoadmapProposal,
+                            "Roadmap proposal",
+                            &card,
+                            &ts,
+                        )
+                        .await?;
                     sqlx::query(
                         "INSERT INTO design_roadmap_proposal
-                     (id,project_id,thread_id,operation_id,entry_id,action,outcome_id,
+                     (id,project_id,thread_id,operation_id,entry_id,grant_id,action,outcome_id,
                       payload_json,roadmap_revision,expected_outcome_json,
                       expected_parts_json,status,created_at,seq)
-                     VALUES (?,?,?,?,?,?,?,?,?,?,?,'Pending',?,
+                     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,'Pending',?,
                       (SELECT COALESCE(MAX(seq),0)+1 FROM design_roadmap_proposal
                        WHERE project_id=?))",
                     )
                     .bind(&proposal.id)
                     .bind(p.as_str())
-                    .bind(thread.as_str())
-                    .bind(turn.as_str())
-                    .bind(entry.id.as_str())
+                    .bind(origin.thread.as_ref().map(crate::ThreadId::as_str))
+                    .bind(turn.as_ref().map(OperationId::as_str))
+                    .bind(entry.as_ref().map(core_threads::ThreadEntryId::as_str))
+                    .bind(origin.grant.as_ref().map(core_grants::GrantId::as_str))
                     .bind(card["action"].as_str())
                     .bind(proposal.outcome_id.as_ref().map(|id| id.as_str()))
                     .bind(serde_json::to_string(&proposal)?)
@@ -130,24 +125,11 @@ impl DesignStore {
                     .bind(p.as_str())
                     .execute(&mut *conn)
                     .await?;
-                    let event = core_db::JournalEntry::new("RoadmapProposed", writer.actor())
-                        .with_project(p.as_str())
-                        .with_thread(thread.as_str())
-                        .with_operation(turn.as_str())
-                        .with_payload(
-                            serde_json::json!({"project_id":p,"proposal_id":proposal.id}),
-                        );
-                    JournalEntry::append_event(conn, event.clone(), &ts).await?;
-                    CommandContext::record_command(
-                        conn,
-                        &ctx,
-                        "Thread",
-                        thread.as_str(),
-                        "RoadmapProposal",
-                        &proposal.id,
-                        &ts,
-                    )
-                    .await?;
+                    let event = origin.event("RoadmapProposed", &proposal.id);
+                    JournalEntry::append_event(conn, event, &ts).await?;
+                    origin
+                        .record(conn, &ctx, "RoadmapProposal", &proposal.id, &proposal, &ts)
+                        .await?;
                     Ok(proposal)
                 })
             })

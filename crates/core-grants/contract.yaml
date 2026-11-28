@@ -260,10 +260,12 @@ shared_in_transaction:
   revoke_external: Private store entry; revokes the connection and every scope grant in one owner write.
   authorize_external: Private store entry; resolves a connection bearer by hash in one owner snapshot.
   external_project: Private store entry; selects the live scope grant of one live project on a live connection.
+  connections_of_in: Private store entry; resolves recorded grants in the caller's snapshot through the Grants service.
   check_live_in: "(tx, grant) -> Result<(), GrantsError>; Runs' store (runs/store/mod.rs task question read, runs/store/conflict.rs conflict write): the grant a request authenticated is rechecked after awaited work inside the caller's read or write; unknown or revoked is GrantInvalid, a stored kind, project, thread or task scope that differs is GrantScope"
 
 
 called_by_other_services:
+  connections_of_in: "Design resolves the owning connection ids of recorded proposal grant ids inside the proposal snapshot. Grants with no connection row are absent from the result."
   issue_thread_grant_in: "Harness (harness/setup.rs Setups::for_opening): a session's opening issues the thread's Planner grant, whose token its MCP setup carries (§13.7, §13.8)"
   issue_executor_grant_in: "Harness (harness/setup.rs Setups::for_executor): an executor session's opening issues its task's grant, whose token its MCP setup carries"
   revoke_thread_grant: "Harness (harness/setup.rs Setups::forget): a session's opening revokes the thread's previous grant, and its closing revokes the one it held (§13.7)"

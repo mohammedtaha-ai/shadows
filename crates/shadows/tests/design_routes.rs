@@ -127,6 +127,7 @@ async fn vision_proposal_routes_list_and_approve() {
         .propose_vision(
             &grant,
             shadows_core::VisionPropose {
+                command_id: None,
                 action: shadows_core::VisionAction::Add,
                 field: Some(shadows_core::VisionField::Goals),
                 item_id: None,

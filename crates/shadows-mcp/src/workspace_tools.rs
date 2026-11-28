@@ -13,6 +13,8 @@ use shadows_core::{Grant, VisionAction, VisionField, VisionPropose};
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 pub(super) struct VisionProposeArgs {
     action: VisionAction,
+    /// Required when proposing from an external project connection.
+    command_id: Option<String>,
     /// add only: the field the new item joins. An edit or a removal is refused with it.
     field: Option<VisionField>,
     /// edit and remove only: the item's id, such as G2. It names its field.
@@ -141,6 +143,7 @@ impl Shadows {
                 .propose_vision(
                     &grant,
                     VisionPropose {
+                        command_id: args.command_id,
                         action: args.action,
                         field: args.field,
                         item_id: args.item_id,

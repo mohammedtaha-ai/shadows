@@ -61,7 +61,7 @@ record_tools: >-
   (mcp_tools::code_where_says_to_ask_before_reading). Tested by
   element_mcp::code_where_tool_answers_the_method and
   mcp_server::the_tool_list_depends_on_the_grant_kind.
-vision_propose_args:'vision_propose names which arguments each action takes: field for an add only, item_id (and text for an edit) for an edit or removal, never field; each argument carries its own description in the schema. Core refuses the wrong shape either way. Tested by mcp_server::the_discover_lifecycle_works_without_a_session.'
+vision_propose_args: 'vision_propose describes the inputs per action. It forwards command_id for external calls; Core validates the action and owns command identity. Tested by mcp_server::the_discover_lifecycle_works_without_a_session.'
 
 layout_only: Map records contain no starter files; the stage has no Structure step or file count, and no HTTP structure-write route exists. Roadmap follows map approval.
 

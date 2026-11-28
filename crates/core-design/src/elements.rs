@@ -19,7 +19,7 @@ impl Design {
         input: ElementInput,
     ) -> Result<DesignElement, DesignError> {
         let (writer, turn) = self
-            .proposal_writer(
+            .planner_proposal_writer(
                 grant,
                 "design_element_put needs a Planner's conversation",
                 "no turn is running for this conversation",
@@ -40,7 +40,7 @@ impl Design {
         input: ElementDelete,
     ) -> Result<DesignElement, DesignError> {
         let (writer, turn) = self
-            .proposal_writer(
+            .planner_proposal_writer(
                 grant,
                 "design_element_delete needs a Planner's conversation",
                 "no turn is running for this conversation",

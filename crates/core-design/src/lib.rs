@@ -123,7 +123,7 @@ impl Design {
         args: VisionPropose,
     ) -> Result<VisionProposal, DesignError> {
         self.store
-            .propose_vision_in(ctx, writer, project, turn, args)
+            .propose_vision_in(ctx, writer, project, Some(turn), args)
             .await
     }
 }

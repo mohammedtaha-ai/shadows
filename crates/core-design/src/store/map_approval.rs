@@ -46,6 +46,10 @@ impl DesignStore {
                         super::proposal_read::ProposalReadRows::live_vision(conn, &p).await?;
                     let proposal =
                         super::map_proposal_read::MapProposalReadRows::load(conn, &p, &id).await?;
+                    super::proposal_origin::ProposalOrigin::check_approver(
+                        proposal.grant_id.as_ref(),
+                        &approver,
+                    )?;
                     if matches!(approver, core_grants::Approver::Planner(_))
                         && proposal.action == MapAction::First
                         && !proposal.waivers.is_empty()
@@ -66,6 +70,7 @@ impl DesignStore {
                     shape::MapProposalShapeRows::complete(&vision)?;
                     let old_parent = proposal.old_parent;
                     let mut args = MapPropose {
+                        command_id: None,
                         action: proposal.action,
                         parts: proposal.parts,
                         part_id: proposal.part_id,

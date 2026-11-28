@@ -14,7 +14,7 @@ impl Design {
         input: DecisionInput,
     ) -> Result<DecisionRecord, DesignError> {
         let (writer, turn) = self
-            .proposal_writer(
+            .planner_proposal_writer(
                 grant,
                 "decision_propose needs a Planner's conversation",
                 "no turn is running for this conversation",

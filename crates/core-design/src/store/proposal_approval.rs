@@ -54,6 +54,10 @@ impl DesignStore {
                         conn, &project, &proposal, &current,
                     )
                     .await?;
+                    super::proposal_origin::ProposalOrigin::check_approver(
+                        p.grant_id.as_ref(),
+                        &approver,
+                    )?;
                     let (revision, number, json, counter_json): (i64, i64, String, String) =
                         sqlx::query_as(
                             "SELECT revision,vision_revision,vision_content,vision_counters
@@ -135,7 +139,7 @@ impl DesignStore {
                         &mut content,
                         &op,
                         new_id.clone(),
-                        Some(&p.thread_id),
+                        p.thread_id.as_ref(),
                     )
                     .map_err(StorageError::Constraint)?;
                     let next = revision.checked_add(1).ok_or_else(|| {

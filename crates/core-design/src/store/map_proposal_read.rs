@@ -1,8 +1,8 @@
 //! Snapshot reads and dependency-based staleness of map cards.
 
 use super::DesignStore;
+use crate::{DesignError, ProjectId, StorageError};
 use crate::{MapAction, MapProposal, ProposalStatus};
-use crate::{ProjectId, StorageError};
 use sqlx::{FromRow, SqliteConnection};
 use std::collections::BTreeMap;
 
@@ -86,10 +86,7 @@ async fn view(
     Ok(proposal)
 }
 impl DesignStore {
-    pub async fn list_map_proposals(
-        &self,
-        p: &ProjectId,
-    ) -> Result<Vec<MapProposal>, StorageError> {
+    pub async fn list_map_proposals(&self, p: &ProjectId) -> Result<Vec<MapProposal>, DesignError> {
         let mut tx = self.storage.reader().begin().await?;
         super::proposal_read::ProposalReadRows::live_vision(&mut tx, p).await?;
         let rows: Vec<Row> = sqlx::query_as(
@@ -104,6 +101,14 @@ impl DesignStore {
         let mut result = Vec::new();
         for row in rows {
             result.push(view(&mut tx, p, row).await?);
+        }
+        let grants: Vec<_> = result.iter().filter_map(|p| p.grant_id.clone()).collect();
+        let connections = core_grants::Grants::connections_of_in(&mut tx, &grants).await?;
+        for proposal in &mut result {
+            proposal.connection_id = proposal
+                .grant_id
+                .as_ref()
+                .and_then(|grant| connections.get(grant).cloned());
         }
         tx.commit().await?;
         Ok(result)

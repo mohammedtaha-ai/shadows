@@ -102,6 +102,7 @@ shapes:
   VisionAction: add | edit | remove
   ProposalStatus: Pending | Approved | Superseded
   VisionPropose:
+    command_id: "Option<String>; required for an external grant, ignored for the Planner"
     action: VisionAction
     field: Option<VisionField>
     item_id: Option<String>
@@ -110,7 +111,9 @@ shapes:
   VisionProposal:
     approved_by: "Option<core_grants::ApprovedBy>; provenance on approved proposals only"
     id: String
-    thread_id: ThreadId
+    thread_id: Option<ThreadId>
+    grant_id: Option<GrantId>
+    connection_id: Option<String>
     action: VisionAction
     field: VisionField
     item_id: Option<String>
@@ -236,8 +239,10 @@ functions:
       # Same provenance; first-map waiver refusal is enforced inside the store.
     propose_map:
       signature: "(&self, grant: &Grant, args: MapPropose) -> Result<MapProposal, DesignError>"
+      # Uses the Planner's pinned standards or the external project's current standards.
     map_proposals:
       signature: "(&self, project: &ProjectId) -> Result<Vec<MapProposal>, DesignError>"
+      # Reads the proposal grant's current connection id in the same snapshot.
     approve_map_proposal:
       signature: "(&self, command_id: String, project: &ProjectId, proposal: &str) -> Result<DesignChange, DesignError>"
       # Rechecks the whole candidate map against the live map; a refusal writes nothing.
@@ -251,7 +256,8 @@ functions:
       # After seed_roadmap_for_tests, one named fixture outcome a test plan serves; answers the same outcome when repeated. seed_roadmap_for_tests is unchanged.
     propose_roadmap:
       signature: "(&self, grant: &Grant, args: RoadmapPropose) -> Result<RoadmapProposal, DesignError>"
-      # Planner/thread grant plus running turn; map approval and roadmap revision checked in the store.
+      # Planner grant with a running turn or external project grant with a command id.
+      # Map approval and roadmap revision are checked in the store.
     roadmap_proposals:
       signature: "(&self, project: &ProjectId) -> Result<Vec<RoadmapProposal>, DesignError>"
     approve_roadmap_proposal_in:
@@ -261,10 +267,11 @@ functions:
       # Same provenance as the map: planner:<harness> with the request entry.
     propose_vision:
       signature: "(&self, grant: &Grant, args: VisionPropose) -> Result<VisionProposal, DesignError>"
-      # Planner/thread grant plus running turn only; writer rechecked in write transaction.
+      # Planner grant with a running turn or external project grant with a command id.
+      # The writer is rechecked in the proposal write.
     vision_proposals:
       signature: "(&self, project: &ProjectId) -> Result<Vec<VisionProposal>, DesignError>"
-      # One read snapshot; seq order; derived per-item staleness.
+      # One read snapshot; seq order; derived per-item staleness and grant connection.
     approve_vision_proposal:
       signature: "(&self, command_id: String, project: &ProjectId, proposal: &str) -> Result<DesignChange, DesignError>"
       # Person only; replay before live project, project-scoped proposal, state and staleness.
@@ -350,9 +357,9 @@ functions:
       # page of top-level parts and outcomes. No MCP tool writes the workspace.
   store:
     propose_map_in:
-      signature: "(&self, ctx: &CommandContext, writer: &Writer, project: &ProjectId, turn: &OperationId, args: MapPropose) -> Result<MapProposal, DesignError>"
+      signature: "(&self, ctx: &CommandContext, writer: &Writer, project: &ProjectId, turn: Option<&OperationId>, args: MapPropose) -> Result<MapProposal, DesignError>"
     list_map_proposals:
-      signature: "(&self, project: &ProjectId) -> Result<Vec<MapProposal>, StorageError>"
+      signature: "(&self, project: &ProjectId) -> Result<Vec<MapProposal>, DesignError>"
     approve_map_proposal_in:
       signature: "(&self, ctx: &CommandContext, project: &ProjectId, proposal: &str, approver: &Approver) -> Result<DesignChange, DesignError>"
     seed_map_for_tests:
@@ -360,15 +367,15 @@ functions:
     seed_roadmap_for_tests:
       signature: "test-support only: (&self, project: &ProjectId) -> Result<PartId, StorageError>"
     propose_roadmap_in:
-      signature: "(&self, ctx: &CommandContext, writer: &Writer, project: &ProjectId, turn: &OperationId, args: RoadmapPropose) -> Result<RoadmapProposal, DesignError>"
+      signature: "(&self, ctx: &CommandContext, writer: &Writer, project: &ProjectId, turn: Option<&OperationId>, args: RoadmapPropose) -> Result<RoadmapProposal, DesignError>"
     list_roadmap_proposals:
-      signature: "(&self, project: &ProjectId) -> Result<Vec<RoadmapProposal>, StorageError>"
+      signature: "(&self, project: &ProjectId) -> Result<Vec<RoadmapProposal>, DesignError>"
     approve_roadmap_in:
       signature: "(conn, ctx: &CommandContext, project: &ProjectId, proposal: &str, approver: &Approver, planned: &BTreeSet<String>) -> Result<DesignChange, DesignError>"
     propose_vision_in:
-      signature: "(&self, ctx: &CommandContext, writer: &Writer, project: &ProjectId, turn: &OperationId, args: VisionPropose) -> Result<VisionProposal, DesignError>"
+      signature: "(&self, ctx: &CommandContext, writer: &Writer, project: &ProjectId, turn: Option<&OperationId>, args: VisionPropose) -> Result<VisionProposal, DesignError>"
     list_vision_proposals:
-      signature: "(&self, project: &ProjectId) -> Result<Vec<VisionProposal>, StorageError>"
+      signature: "(&self, project: &ProjectId) -> Result<Vec<VisionProposal>, DesignError>"
     approve_vision_proposal_in:
       signature: "(&self, ctx: &CommandContext, project: &ProjectId, proposal: &str, approver: &Approver) -> Result<DesignChange, DesignError>"
     project_stage:
@@ -743,7 +750,7 @@ tests:
     checks: Immutable approval result replays without another version or event.
 
   - name: a_proposal_names_a_known_item_and_carries_text
-    checks: Required fields, external grants and absent turn refused.
+    checks: Refuses invalid fields, missing external command ids, and absent Planner turns.
 
 # Transaction-local read methods owned by Design:
 # stage_line_in(conn, project) -> String renders stage_view_in from the same snapshot.
@@ -783,7 +790,7 @@ modules:
   store/map_proposal_read.rs: Snapshot reads
   store/map_proposal_shape.rs: Assemble a proposed map against current parts without
     writing
-  store/map_proposals.rs: Persist Planner map proposals without approving parts
+  store/map_proposals.rs: Persist map proposals
   store/map_versions.rs: Transactional map snapshots
   store/mod.rs: Persistence of the project design workspace
   store/outcome_edit.rs: Transactional mutations of roadmap outcomes
@@ -791,13 +798,14 @@ modules:
   store/part_edit.rs: Transactional mutations of part content, containment
   store/parts.rs: Snapshot reads of project parts with bounded child pages
   store/proposal_approval.rs: Person approval of one vision proposal
+  store/proposal_origin.rs: Proposal provenance
   store/proposal_read.rs: Snapshot reads of vision proposal state
-  store/proposals.rs: Recording Planner vision proposals
+  store/proposals.rs: Recording vision proposals
   store/roadmap_approval.rs: Atomic approval of a roadmap proposal by the person or
     at their request
   store/roadmap_gate.rs: The gates that the roadmap places on hand outcome edits
   store/roadmap_proposal_read.rs: Snapshot reads
-  store/roadmap_proposals.rs: Persist Planner roadmap proposals without approving outcomes
+  store/roadmap_proposals.rs: Persist roadmap proposals
   store/roadmap_seed.rs: Test-support seeds that put a project at the plans stage without
     a conversation
   store/roadmap_shape.rs: Checking a proposed roadmap against its action

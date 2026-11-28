@@ -17,6 +17,7 @@ mod outcomes;
 mod part_edit;
 mod parts;
 mod proposal_approval;
+mod proposal_origin;
 mod proposal_read;
 mod proposals;
 mod roadmap_approval;

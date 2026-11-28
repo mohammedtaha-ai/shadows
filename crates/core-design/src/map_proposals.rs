@@ -32,6 +32,8 @@ pub struct ProposedWaiver {
 
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct MapPropose {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub command_id: Option<String>,
     pub action: MapAction,
     pub parts: Vec<ProposedPart>,
     #[schemars(with = "Option<String>")]
@@ -47,7 +49,12 @@ pub struct MapProposal {
     #[serde(default)]
     pub approved_by: Option<core_grants::ApprovedBy>,
     pub id: String,
-    pub thread_id: ThreadId,
+    #[schema(required = true)]
+    pub thread_id: Option<ThreadId>,
+    #[schema(required = true)]
+    pub grant_id: Option<core_grants::GrantId>,
+    #[schema(required = true)]
+    pub connection_id: Option<String>,
     pub action: MapAction,
     pub parts: Vec<ProposedPart>,
     pub part_id: Option<PartId>,
@@ -95,9 +102,10 @@ impl Design {
             super::map_rules::MapRules::normalise(&mut part.content)
                 .map_err(DesignError::MapRefused)?;
         }
-        let ctx = Self::proposal_command(&writer, &turn, "MapPropose", &args)?;
+        let command_id = args.command_id.take();
+        let ctx = Self::proposal_command(&writer, turn.as_ref(), command_id, "MapPropose", &args)?;
         self.store
-            .propose_map_in(&ctx, &writer, &grant.project_id, &turn, args)
+            .propose_map_in(&ctx, &writer, &grant.project_id, turn.as_ref(), args)
             .await
             .map_err(DesignError::invalid_constraint)
     }
@@ -105,7 +113,7 @@ impl Design {
         &self,
         project: &ProjectId,
     ) -> Result<Vec<MapProposal>, DesignError> {
-        Ok(self.store.list_map_proposals(project).await?)
+        self.store.list_map_proposals(project).await
     }
     pub async fn approve_map_proposal(
         &self,

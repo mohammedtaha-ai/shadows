@@ -1,7 +1,7 @@
 //! Snapshot reads and dependency-based staleness of roadmap cards.
 
 use super::DesignStore;
-use crate::{ProjectId, StorageError};
+use crate::{DesignError, ProjectId, StorageError};
 use crate::{ProposalStatus, RoadmapAction, RoadmapProposal};
 use sqlx::{FromRow, SqliteConnection};
 use std::collections::BTreeMap;
@@ -80,7 +80,7 @@ impl DesignStore {
     pub async fn list_roadmap_proposals(
         &self,
         p: &ProjectId,
-    ) -> Result<Vec<RoadmapProposal>, StorageError> {
+    ) -> Result<Vec<RoadmapProposal>, DesignError> {
         let mut tx = self.storage.reader().begin().await?;
         super::proposal_read::ProposalReadRows::live_vision(&mut tx, p).await?;
         let rows: Vec<Row> = sqlx::query_as(
@@ -94,6 +94,14 @@ impl DesignStore {
         let mut result = Vec::new();
         for row in rows {
             result.push(view(&mut tx, p, row).await?);
+        }
+        let grants: Vec<_> = result.iter().filter_map(|p| p.grant_id.clone()).collect();
+        let connections = core_grants::Grants::connections_of_in(&mut tx, &grants).await?;
+        for proposal in &mut result {
+            proposal.connection_id = proposal
+                .grant_id
+                .as_ref()
+                .and_then(|grant| connections.get(grant).cloned());
         }
         tx.commit().await?;
         Ok(result)

@@ -103,6 +103,56 @@ async fn vision(l: &listening::Listening) {
 }
 
 #[tokio::test]
+async fn the_person_approves_an_external_map_proposal_with_no_entry() {
+    let l = listening::listening_unseeded().await;
+    vision(&l).await;
+    let (_, external) = listening::project_client(&l).await;
+    let grant = l
+        .app
+        .core
+        .grants()
+        .external_project(external.connection(), &l.app.project)
+        .await
+        .unwrap();
+    let parts: Vec<_> = ["backend", "database", "api", "frontend"]
+        .into_iter()
+        .map(|kind| {
+            json!({"key":kind,"content":{"title":kind,"responsibility":"owns this part",
+                "design":"","kind":kind,"serves":["G1"],"folder":kind,
+                "layers":catalog_layers(kind)}})
+        })
+        .collect();
+    let design = l.app.core.design();
+    let proposal = design
+        .propose_map(
+            &grant,
+            serde_json::from_value(json!({
+                "action":"first","parts":parts,"command_id":"external-map",
+            }))
+            .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert!(proposal.thread_id.is_none());
+    design
+        .approve_map_proposal("external-map-approved".into(), &l.app.project, &proposal.id)
+        .await
+        .unwrap();
+    let proposals = design.map_proposals(&l.app.project).await.unwrap();
+    assert_eq!(proposals[0].status, shadows_core::ProposalStatus::Approved);
+    assert_eq!(proposals[0].approved_by.as_ref().unwrap().agent, "human");
+    let entry: Option<String> =
+        sqlx::query_scalar("SELECT entry_id FROM design_map_proposal WHERE id=?")
+            .bind(&proposal.id)
+            .fetch_one(l.app.storage.reader())
+            .await
+            .unwrap();
+    assert!(entry.is_none());
+    external.cancel().await.unwrap();
+    app::shut_down_app(l.app).await;
+}
+
+#[tokio::test]
 async fn outdated_superseded_and_already_approved_cards_are_refused() {
     let l = listening_app().await;
     vision(&l).await;

@@ -17,6 +17,7 @@ fn outcome(key: &str, parent_key: Option<&str>) -> ProposedOutcome {
 
 fn first(outcomes: Vec<ProposedOutcome>) -> RoadmapPropose {
     RoadmapPropose {
+        command_id: None,
         action: RoadmapAction::First,
         outcomes,
         outcome_id: None,

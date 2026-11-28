@@ -67,6 +67,7 @@ impl Fixture {
 }
 fn first() -> MapPropose {
     MapPropose {
+        command_id: None,
         action: MapAction::First,
         part_id: None,
         replaces: None,
@@ -343,6 +344,7 @@ fn addition(name: &str) -> MapPropose {
     let mut content = content(name);
     content.serves = vec!["G1".into()];
     MapPropose {
+        command_id: None,
         action: MapAction::Add,
         parts: vec![ProposedPart {
             key: name.into(),

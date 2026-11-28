@@ -2,11 +2,31 @@
 
 use core_db::{Actor, CommandContext, JournalEntry, Storage, StorageError, Tx};
 use core_projects::{ProjectId, Projects};
+use std::collections::{HashMap, HashSet};
 
 use super::{GrantsStore, find_grant, insert_grant, revoke_in};
 use crate::{ExternalConnection, ExternalConnectionId, Grant, GrantId, GrantsError, Token};
 
 impl GrantsStore {
+    pub(crate) async fn connections_of_in(
+        conn: &mut sqlx::SqliteConnection,
+        grants: &[GrantId],
+    ) -> Result<HashMap<GrantId, String>, StorageError> {
+        let mut connections = HashMap::new();
+        for grant in grants.iter().collect::<HashSet<_>>() {
+            let connection = sqlx::query_scalar(
+                "SELECT connection_id FROM external_connection_project WHERE grant_id=?",
+            )
+            .bind(grant.as_str())
+            .fetch_optional(&mut *conn)
+            .await?;
+            if let Some(connection) = connection {
+                connections.insert(grant.clone(), connection);
+            }
+        }
+        Ok(connections)
+    }
+
     pub(crate) async fn issue_external(
         &self,
         ctx: CommandContext,

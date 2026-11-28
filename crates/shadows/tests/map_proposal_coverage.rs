@@ -44,6 +44,7 @@ async fn a_map_answer_lists_the_unserved_vision_items() {
         .propose_map(
             &grant,
             MapPropose {
+                command_id: None,
                 action: MapAction::Add,
                 parts: vec![ProposedPart {
                     key: "future".into(),

@@ -92,6 +92,72 @@ async fn the_planner_proposes_vision_cards_but_an_external_agent_cannot() {
 }
 
 #[tokio::test]
+async fn an_external_agent_proposes_vision_cards_but_cannot_approve() {
+    let l = listening_app().await;
+    let (_, external) = listening::project_client(&l).await;
+    let grant = l
+        .app
+        .core
+        .grants()
+        .external_project(external.connection(), &l.app.project)
+        .await
+        .unwrap();
+    let design = l.app.core.design();
+    let args = json!({
+        "action": "add",
+        "field": "goals",
+        "text": "Ship",
+        "command_id": "external-vision",
+    });
+    let proposal = design
+        .propose_vision(&grant, serde_json::from_value(args.clone()).unwrap())
+        .await
+        .unwrap();
+    let replay = design
+        .propose_vision(&grant, serde_json::from_value(args).unwrap())
+        .await
+        .unwrap();
+    assert_eq!(replay.id, proposal.id);
+    let card = serde_json::to_value(&proposal).unwrap();
+    assert_eq!(card["status"], "Pending");
+    assert!(
+        card.get("thread_id")
+            .is_some_and(serde_json::Value::is_null)
+    );
+    let listed = design.vision_proposals(&l.app.project).await.unwrap();
+    let listed = serde_json::to_value(&listed[0]).unwrap();
+    assert_eq!(listed["connection_id"], external.connection().as_str());
+    let events = l
+        .app
+        .core
+        .events()
+        .read_project_events_after(shadows_core::testing::EventCursor(0), &l.app.project, 100)
+        .await
+        .unwrap();
+    let event = events
+        .iter()
+        .find(|event| event.kind == "VisionProposed")
+        .unwrap();
+    assert!(event.thread_id.is_none());
+    assert!(
+        design
+            .approve_vision_proposal_as_planner(&grant, &proposal.id)
+            .await
+            .is_err()
+    );
+    let missing = design
+        .propose_vision(
+            &grant,
+            serde_json::from_value(json!({"action":"add","field":"goals","text":"Other"})).unwrap(),
+        )
+        .await
+        .unwrap_err();
+    assert!(missing.to_string().contains("command_id"), "{missing}");
+    external.cancel().await.unwrap();
+    app::shut_down_app(l.app).await;
+}
+
+#[tokio::test]
 async fn a_planner_reads_the_workspace_a_person_wrote() {
     let l = listening::listening_unseeded().await;
     shadows_core::AppCore::design_for_tests(l.app.storage.clone())

@@ -4831,8 +4831,24 @@
               }
             ]
           },
+          "connection_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "created_at": {
             "type": "string"
+          },
+          "grant_id": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/GrantId"
+              }
+            ]
           },
           "id": {
             "type": "string"
@@ -4881,7 +4897,14 @@
             "$ref": "#/components/schemas/ProposalStatus"
           },
           "thread_id": {
-            "$ref": "#/components/schemas/ThreadId"
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ThreadId"
+              }
+            ]
           },
           "unserved": {
             "items": {
@@ -4899,6 +4922,8 @@
         "required": [
           "id",
           "thread_id",
+          "grant_id",
+          "connection_id",
           "action",
           "parts",
           "waivers",
@@ -8290,8 +8315,24 @@
               }
             ]
           },
+          "connection_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "created_at": {
             "type": "string"
+          },
+          "grant_id": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/GrantId"
+              }
+            ]
           },
           "id": {
             "type": "string"
@@ -8340,12 +8381,21 @@
             "$ref": "#/components/schemas/ProposalStatus"
           },
           "thread_id": {
-            "$ref": "#/components/schemas/ThreadId"
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ThreadId"
+              }
+            ]
           }
         },
         "required": [
           "id",
           "thread_id",
+          "grant_id",
+          "connection_id",
           "action",
           "outcomes",
           "status",
@@ -10936,6 +10986,12 @@
               }
             ]
           },
+          "connection_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "created_at": {
             "type": "string"
           },
@@ -10948,6 +11004,16 @@
           },
           "field": {
             "$ref": "#/components/schemas/VisionField"
+          },
+          "grant_id": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/GrantId"
+              }
+            ]
           },
           "id": {
             "type": "string"
@@ -10977,12 +11043,21 @@
             ]
           },
           "thread_id": {
-            "$ref": "#/components/schemas/ThreadId"
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ThreadId"
+              }
+            ]
           }
         },
         "required": [
           "id",
           "thread_id",
+          "grant_id",
+          "connection_id",
           "action",
           "field",
           "status",

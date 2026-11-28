@@ -1,14 +1,15 @@
 //! Snapshot reads of vision proposal state.
 
 use super::DesignStore;
-use crate::{ProjectId, StorageError, VisionContent};
+use crate::{DesignError, ProjectId, StorageError, VisionContent};
 use crate::{ProposalStatus, VisionAction, VisionProposal};
 use sqlx::{FromRow, SqliteConnection};
 
 #[derive(FromRow)]
 struct Row {
     id: String,
-    thread_id: String,
+    thread_id: Option<String>,
+    grant_id: Option<String>,
     action: String,
     field: String,
     item_id: Option<String>,
@@ -36,7 +37,9 @@ impl Row {
             )
             .await?,
             id: self.id,
-            thread_id: crate::ThreadId::from_recorded(self.thread_id),
+            thread_id: self.thread_id.map(crate::ThreadId::from_recorded),
+            grant_id: self.grant_id.map(core_grants::GrantId::from_recorded),
+            connection_id: None,
             action: serde_json::from_value(serde_json::json!(self.action))?,
             field: serde_json::from_value(serde_json::json!(self.field))?,
             item_id: self.item_id,
@@ -83,7 +86,7 @@ impl ProposalReadRows {
         content: &VisionContent,
     ) -> Result<VisionProposal, StorageError> {
         sqlx::query_as::<_, Row>(
-            "SELECT id,thread_id,action,field,item_id,text,old_text,
+            "SELECT id,thread_id,grant_id,action,field,item_id,text,old_text,
         expected_item_revision,status,created_at,approved_principal,approved_agent,
         approved_request_entry FROM design_vision_proposal
         WHERE project_id=? AND id=?",
@@ -102,11 +105,11 @@ impl DesignStore {
     pub async fn list_vision_proposals(
         &self,
         project: &ProjectId,
-    ) -> Result<Vec<VisionProposal>, StorageError> {
+    ) -> Result<Vec<VisionProposal>, DesignError> {
         let mut txn = self.storage.reader().begin().await?;
         let content = ProposalReadRows::live_vision(&mut txn, project).await?;
         let rows = sqlx::query_as::<_, Row>(
-            "SELECT id,thread_id,action,field,item_id,text,old_text,
+            "SELECT id,thread_id,grant_id,action,field,item_id,text,old_text,
             expected_item_revision,status,created_at,approved_principal,approved_agent,
             approved_request_entry FROM design_vision_proposal
             WHERE project_id=? ORDER BY seq",
@@ -117,6 +120,14 @@ impl DesignStore {
         let mut result = Vec::new();
         for row in rows {
             result.push(row.view(&mut txn, &content).await?);
+        }
+        let grants: Vec<_> = result.iter().filter_map(|p| p.grant_id.clone()).collect();
+        let connections = core_grants::Grants::connections_of_in(&mut txn, &grants).await?;
+        for proposal in &mut result {
+            proposal.connection_id = proposal
+                .grant_id
+                .as_ref()
+                .and_then(|grant| connections.get(grant).cloned());
         }
         Ok(result)
     }

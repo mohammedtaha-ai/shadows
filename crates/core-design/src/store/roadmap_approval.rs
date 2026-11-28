@@ -45,6 +45,10 @@ impl DesignStore {
         }
         super::roadmap_shape::RoadmapShapeRows::require_map(conn, p).await?;
         let proposal = read::RoadmapProposalReadRows::load(conn, p, id).await?;
+        super::proposal_origin::ProposalOrigin::check_approver(
+            proposal.grant_id.as_ref(),
+            approver,
+        )?;
         if proposal.status != ProposalStatus::Pending {
             return Err(StorageError::Constraint(
                 "proposal is approved or superseded; ask the Planner to propose again".into(),

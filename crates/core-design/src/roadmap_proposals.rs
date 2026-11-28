@@ -37,6 +37,8 @@ pub struct ProposedOutcome {
 
 #[derive(Debug, Clone, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct RoadmapPropose {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub command_id: Option<String>,
     pub action: RoadmapAction,
     pub outcomes: Vec<ProposedOutcome>,
     #[schemars(with = "Option<String>")]
@@ -49,7 +51,12 @@ pub struct RoadmapProposal {
     #[serde(default)]
     pub approved_by: Option<core_grants::ApprovedBy>,
     pub id: String,
-    pub thread_id: ThreadId,
+    #[schema(required = true)]
+    pub thread_id: Option<ThreadId>,
+    #[schema(required = true)]
+    pub grant_id: Option<core_grants::GrantId>,
+    #[schema(required = true)]
+    pub connection_id: Option<String>,
     pub action: RoadmapAction,
     pub outcomes: Vec<ProposedOutcome>,
     pub outcome_id: Option<OutcomeId>,
@@ -78,9 +85,11 @@ impl Design {
         for outcome in &mut args.outcomes {
             outcome.content.title = outcome.content.title.trim().to_owned();
         }
-        let ctx = Self::proposal_command(&writer, &turn, "RoadmapPropose", &args)?;
+        let command_id = args.command_id.take();
+        let ctx =
+            Self::proposal_command(&writer, turn.as_ref(), command_id, "RoadmapPropose", &args)?;
         self.store
-            .propose_roadmap_in(&ctx, &writer, &grant.project_id, &turn, args)
+            .propose_roadmap_in(&ctx, &writer, &grant.project_id, turn.as_ref(), args)
             .await
             .map_err(DesignError::invalid_constraint)
     }
@@ -89,7 +98,7 @@ impl Design {
         &self,
         project: &ProjectId,
     ) -> Result<Vec<RoadmapProposal>, DesignError> {
-        Ok(self.store.list_roadmap_proposals(project).await?)
+        self.store.list_roadmap_proposals(project).await
     }
 
     /// Approves a roadmap proposal in the caller's transaction. `planned` is

@@ -197,7 +197,7 @@ Not owned, so left out:
 
 ### B-250 · Design keeps vision, map and roadmap proposals from an external agent
 
-- Status: todo (the shared request is accepted)
+- Status: done
 - Owner: `Design` (`crates/core-design`).
 - Read: `crates/core-design/contract.yaml`; `proposal_context.rs` (`proposal_writer`,
   `proposal_command`), `proposals.rs`, `map_proposals.rs`, `roadmap_proposals.rs` and their
@@ -222,13 +222,16 @@ Not owned, so left out:
   `thread_id: null`, so they stay on the project stream. The person approves it through the
   existing project routes; approving it writes no thread entry.
 - Touch: the four files above and their store files; new migration
-  `crates/core-db/migrations/<next>_external_design_proposals.sql` (rebuilds the three proposal
+  `crates/core-db/migrations/0084_external_design_proposals.sql` (rebuilds the three proposal
   tables: `thread_id`, `operation_id`, `entry_id` nullable, `grant_id TEXT NULL REFERENCES
   mcp_grant(id)`, `CHECK ((thread_id IS NULL) <> (grant_id IS NULL))`, rows copied);
   `crates/core-design/contract.yaml`; `crates/core-grants/src/lib.rs` (or `external.rs`) and
   its store for `connections_of_in`, `crates/core-grants/contract.yaml` (its
   `called_by_other_services` line); `crates/shadows/tests/architecture/table-owners.txt` if
   it names columns; `crates/shadows/tests/workspace_mcp.rs`; `api/openapi.json` (regenerated).
+  The proposal context has a persistence module and code-map row. The MCP vision adapter
+  forwards the command id. Existing constructors in Rust tests supply no command id for
+  Planner calls. B-253 registers the external tools.
 - Needs: nothing (the request is accepted).
 - Done when: `cargo test -p shadows --test workspace_mcp --test vision_proposal_ids --test
   map_proposal_coverage --test design_routes` pass, with
@@ -244,7 +247,7 @@ Not owned, so left out:
 
 ### B-251 · Design keeps decisions and design elements from an external agent
 
-- Status: blocked (needs B-250)
+- Status: todo (B-250 is done)
 - Owner: `Design`.
 - Read: `crates/core-design/contract.yaml`; `decisions.rs`, `elements.rs` and their stores;
   migrations `0071`, `0077` (both keep the writer as text, so no migration).

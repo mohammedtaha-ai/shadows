@@ -2,9 +2,24 @@
 use super::Design;
 use crate::{DesignError, Grant, OperationId};
 use core_db::{Anchor, CommandContext};
-use core_grants::Writer;
+use core_grants::{GrantKind, Writer};
 impl Design {
     pub(super) async fn proposal_writer(
+        &self,
+        grant: &Grant,
+        scope_message: &str,
+        running_message: &str,
+    ) -> Result<(Writer, Option<OperationId>), DesignError> {
+        if grant.kind == GrantKind::Project {
+            return Ok((Writer::from_grant(grant, None)?, None));
+        }
+        let (writer, turn) = self
+            .planner_proposal_writer(grant, scope_message, running_message)
+            .await?;
+        Ok((writer, Some(turn)))
+    }
+
+    pub(super) async fn planner_proposal_writer(
         &self,
         grant: &Grant,
         scope_message: &str,
@@ -23,17 +38,27 @@ impl Design {
     }
     pub(super) fn proposal_command(
         writer: &Writer,
-        turn: &OperationId,
+        turn: Option<&OperationId>,
+        command_id: Option<String>,
         kind: &str,
         args: &impl serde::Serialize,
     ) -> Result<CommandContext, DesignError> {
         let fp = CommandContext::fingerprint(kind, &serde_json::to_value(args)?);
         let (principal_kind, principal_id) = writer.principal();
+        let command_id = match turn {
+            Some(turn) => Anchor::derived_id(Anchor::Operation(turn.as_str()), &fp),
+            None => command_id
+                .map(|id| id.trim().to_owned())
+                .filter(|id| !id.is_empty())
+                .ok_or_else(|| {
+                    DesignError::InvalidCommand("an external agent names its command_id".into())
+                })?,
+        };
         Ok(CommandContext {
             agent: None,
             principal_kind: principal_kind.into(),
             principal_id,
-            command_id: Anchor::derived_id(Anchor::Operation(turn.as_str()), &fp),
+            command_id,
             command_kind: kind.into(),
             command_schema_ver: 1,
             request_fingerprint: fp,
