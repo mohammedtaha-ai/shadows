@@ -81,7 +81,7 @@ Rules for every task here:
 
 ### F-153 · Settings → External agents gives each connection's Stop hooks to copy
 
-- Status: blocked (needs B-260: `wait_url` on `ExternalConnection`)
+- Status: todo (B-260 is built: `78be7da0`)
 - Plan: this section, and the request's "What a hook does with the route".
 - Read: `web/src/app/settings/contract.yaml`; `web/src/app/settings/sections/external-agents.tsx`
   (`ConnectionRow`, `CopyLine`); `web/src/api/external-connections.ts`; `Project.directory` in
@@ -118,7 +118,7 @@ Rules for every task here:
     the text to stderr. Codex: print `{"decision":"block","reason":<text>}` to stdout (built by
     `ConvertTo-Json` / `jq -n --arg`). Only then write the reports' ids to the ack file, and
     exit (Claude Code 2, Codex 0).
-- Touch: `web/src/app/settings/sections/external-agents.tsx`, new
+- Touch: `web/src/api/schema.d.ts` (by `npm run gen:api` only), `web/src/app/settings/sections/external-agents.tsx`, new
   `web/src/app/settings/sections/external-hooks.ts`, new
   `web/src/app/settings/sections/external-hooks.test.ts`,
   `web/src/app/settings/sections/external-agents.test.tsx`, `web/src/test/fake-daemon.ts`
