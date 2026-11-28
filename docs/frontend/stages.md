@@ -199,7 +199,7 @@ Rules for every task here:
 
 ### F-156 · A task's result waiting for its external author shows so
 
-- Status: blocked (needs B-261)
+- Status: todo (B-261 is built: `e9853d24`)
 - Plan: this section.
 - Read: `web/src/app/tasks/contract.yaml`; `task-header.tsx`, `use-task-run.ts`;
   `web/src/stream/contract.yaml` (`TaskProgressChanged` refreshes that task's run).
@@ -207,7 +207,7 @@ Rules for every task here:
   waits for its external author" with a muted note "It is judged when the agent that wrote this
   plan waits again." It goes when the field turns false, through the project stream, with no
   poll. No button: Shadows wakes no one.
-- Touch: `web/src/app/tasks/task-header.tsx`, `web/src/app/tasks/task-page.test.tsx`,
+- Touch: `web/src/api/schema.d.ts` (by `npm run gen:api` only), `web/src/app/tasks/task-header.tsx`, `web/src/app/tasks/task-page.test.tsx`,
   `web/src/app/tasks/contract.yaml`, `web/src/test/fake-daemon.ts`.
 - Needs: the request (accepted); B-261 built.
 - Done when: `npx vitest run src/app/tasks src/stream` passes with
