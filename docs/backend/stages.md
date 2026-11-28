@@ -372,7 +372,7 @@ before they were built: Shadows never wakes an external agent (Mohammed, 2026-11
 
 ### B-258 · One wait for an external author, answered until acknowledged
 
-- Status: todo
+- Status: done
 - Owner: `Runs`.
 - Read: B-257's rows and `Notify`; the spec's "Waiting for a task".
 - Interfaces: `Runs::author_wait(&self, grant: &Grant, ack: &[String], bound: Duration) ->

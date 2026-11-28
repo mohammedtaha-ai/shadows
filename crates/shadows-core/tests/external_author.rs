@@ -513,3 +513,262 @@ async fn loop_follow_up(f: &Fixture) -> AttemptId {
     }
     panic!("the failed checks never returned to the executor");
 }
+
+use core_runs::{AuthorWait, RunsError, WaitOutcome};
+
+impl Fixture {
+    async fn wait(&self, grant: &Grant, ack: &[&str], bound_ms: u64) -> AuthorWait {
+        let ack: Vec<String> = ack.iter().map(|s| s.to_string()).collect();
+        self.core
+            .runs()
+            .author_wait(grant, &ack, Duration::from_millis(bound_ms))
+            .await
+            .unwrap()
+    }
+
+    /// Spawns connection A's wait, bound by `bound_ms`.
+    fn spawn_wait(&self, bound_ms: u64) -> tokio::task::JoinHandle<Result<AuthorWait, RunsError>> {
+        let (core, grant) = (self.core.clone(), self.a.clone());
+        tokio::spawn(async move {
+            core.runs()
+                .author_wait(&grant, &[], Duration::from_millis(bound_ms))
+                .await
+        })
+    }
+
+    /// Sets every report's claim to have lapsed long ago, or to lapse in a second.
+    async fn set_claim(&self, lapsed: bool) {
+        let sql = if lapsed {
+            "UPDATE run_author_report SET claimed_until = '2000-01-01T00:00:00.000000000Z'"
+        } else {
+            "UPDATE run_author_report
+             SET claimed_until = strftime('%Y-%m-%dT%H:%M:%f', 'now', '+1 seconds') || '000000Z'"
+        };
+        sqlx::query(sql)
+            .execute(self.storage.reader())
+            .await
+            .unwrap();
+    }
+
+    async fn claim_open(&self) -> bool {
+        sqlx::query_scalar(
+            "SELECT COUNT(*) = 1 FROM run_author_report
+             WHERE claimed_until IS NULL AND acked_at IS NULL",
+        )
+        .fetch_one(self.storage.reader())
+        .await
+        .unwrap()
+    }
+
+    /// A's attempt started on T1, ended at once, and its report kept.
+    async fn one_report(&self) -> AttemptId {
+        let attempt = self
+            .core
+            .runs()
+            .start("s1".into(), &self.workflow, 1, 1)
+            .await
+            .unwrap();
+        self.reported().await;
+        attempt.id
+    }
+}
+
+#[tokio::test]
+async fn a_wait_answers_at_once_with_reports_left_while_no_one_waited() {
+    let f = fixture(true, &[]).await;
+    let attempt = f.one_report().await;
+    let began = std::time::Instant::now();
+    let wait = f.wait(&f.a, &[], 20_000).await;
+    assert!(began.elapsed() < Duration::from_secs(2));
+    assert_eq!(wait.outcome, WaitOutcome::Ended);
+    assert_eq!(wait.reports.len(), 1, "{wait:?}");
+    let report = &wait.reports[0];
+    assert_eq!(report.report_id, format!("{attempt}:ended"));
+    assert_eq!(report.attempt_id, attempt);
+    assert_eq!(report.workflow_id, f.workflow);
+    assert_eq!(report.task, 1);
+    assert_eq!(report.kind, "ended");
+    assert!(report.report.contains("failed: ended without a commit"));
+    f.finish().await;
+}
+
+#[tokio::test]
+async fn a_wait_with_nothing_pending_answers_none_running() {
+    let f = fixture(true, &[]).await;
+    let began = std::time::Instant::now();
+    let wait = f.wait(&f.a, &[], 20_000).await;
+    assert!(began.elapsed() < Duration::from_secs(2));
+    assert_eq!(wait.outcome, WaitOutcome::NoneRunning);
+    assert!(wait.reports.is_empty());
+    f.finish().await;
+}
+
+#[tokio::test]
+async fn a_wait_during_slow_checks_does_not_answer_none_running() {
+    let slow = cmd(&["git", "-c", "alias.pause=!sleep 2", "pause"]);
+    let f = fixture(true, std::slice::from_ref(&slow)).await;
+    let (id, grant) = f.begin().await;
+    f.commit_and_report(&grant, 1).await;
+    for _ in 0..600 {
+        let rows = f.core.runs().check_results(&id).await.unwrap();
+        if rows.first().is_some_and(|r| r.started_at.is_some()) {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(25)).await;
+    }
+    let rows = f.core.runs().check_results(&id).await.unwrap();
+    assert!(rows[0].finished_at.is_none(), "the check ended too soon");
+    let wait = f.wait(&f.a, &[], 120_000).await;
+    assert_eq!(wait.outcome, WaitOutcome::Ended, "{wait:?}");
+    assert!(wait.reports[0].report.contains("c1 passed"));
+    f.finish().await;
+}
+
+#[tokio::test]
+async fn a_wait_ends_when_an_attempt_ends() {
+    let f = fixture(true, &[]).await;
+    let (id, grant) = f.begin().await;
+    let waiting = f.spawn_wait(120_000);
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    assert!(!waiting.is_finished());
+    f.commit_and_report(&grant, 0).await;
+    let wait = waiting.await.unwrap().unwrap();
+    assert_eq!(wait.outcome, WaitOutcome::Ended);
+    assert_eq!(wait.reports[0].attempt_id, id);
+    f.finish().await;
+}
+
+#[tokio::test]
+async fn a_wait_passes_its_bound_with_nothing_yet() {
+    let f = fixture(true, &[]).await;
+    f.begin().await;
+    let began = std::time::Instant::now();
+    let wait = f.wait(&f.a, &[], 500).await;
+    assert!(began.elapsed() >= Duration::from_millis(500));
+    assert_eq!(wait.outcome, WaitOutcome::NothingYet);
+    assert!(wait.reports.is_empty());
+    f.finish().await;
+}
+
+#[tokio::test]
+async fn two_waiters_never_hold_one_report_at_once() {
+    let f = fixture(true, &[]).await;
+    f.one_report().await;
+    let (one, two) = tokio::join!(f.wait(&f.a, &[], 500), f.wait(&f.a, &[], 500));
+    let ended = [&one, &two]
+        .iter()
+        .filter(|w| w.outcome == WaitOutcome::Ended)
+        .count();
+    let nothing = [&one, &two]
+        .iter()
+        .filter(|w| w.outcome == WaitOutcome::NothingYet)
+        .count();
+    assert_eq!((ended, nothing), (1, 1), "{one:?} {two:?}");
+    assert_eq!(one.reports.len() + two.reports.len(), 1);
+    f.finish().await;
+}
+
+#[tokio::test]
+async fn an_unacknowledged_report_is_answered_again_after_its_lease() {
+    let f = fixture(true, &[]).await;
+    f.one_report().await;
+    let first = f.wait(&f.a, &[], 500).await;
+    f.set_claim(true).await;
+    let again = f.wait(&f.a, &[], 500).await;
+    assert_eq!(again.outcome, WaitOutcome::Ended);
+    assert_eq!(again.reports[0].report_id, first.reports[0].report_id);
+    f.finish().await;
+}
+
+#[tokio::test]
+async fn an_acknowledged_report_is_not_answered_again() {
+    let f = fixture(true, &[]).await;
+    f.one_report().await;
+    let first = f.wait(&f.a, &[], 500).await;
+    let id = first.reports[0].report_id.clone();
+    let next = f.wait(&f.a, &[&id], 500).await;
+    assert_eq!(next.outcome, WaitOutcome::NoneRunning);
+    assert!(next.reports.is_empty());
+    f.set_claim(true).await;
+    let later = f.wait(&f.a, &[], 500).await;
+    assert_eq!(later.outcome, WaitOutcome::NoneRunning);
+    assert!(f.reports().await[0].acked);
+    f.finish().await;
+}
+
+#[tokio::test]
+async fn an_ack_for_another_grants_report_is_ignored() {
+    let f = fixture(true, &[]).await;
+    f.one_report().await;
+    let first = f.wait(&f.a, &[], 500).await;
+    let id = first.reports[0].report_id.clone();
+    let other = f.wait(&f.b, &[&id], 500).await;
+    assert_eq!(other.outcome, WaitOutcome::NoneRunning);
+    assert!(!f.reports().await[0].acked);
+    f.finish().await;
+}
+
+#[tokio::test]
+async fn a_wait_after_a_returned_check_answers_none_running_once_acknowledged() {
+    let failing = cmd(&["git", "rev-parse", "no-such-ref"]);
+    let f = fixture(true, std::slice::from_ref(&failing)).await;
+    let (_, grant) = f.begin().await;
+    f.commit_and_report(&grant, 1).await;
+    let follow_up = loop_follow_up(&f).await;
+    f.ended(&follow_up).await;
+    let wait = f.wait(&f.a, &[], 120_000).await;
+    assert_eq!(wait.outcome, WaitOutcome::Ended, "{wait:?}");
+    assert_eq!(wait.reports.len(), 1);
+    assert_eq!(wait.reports[0].attempt_id, follow_up);
+    let id = wait.reports[0].report_id.clone();
+    let next = f.wait(&f.a, &[&id], 120_000).await;
+    assert_eq!(next.outcome, WaitOutcome::NoneRunning, "{next:?}");
+    f.finish().await;
+}
+
+#[tokio::test]
+async fn a_waiting_call_wakes_when_a_claim_lapses() {
+    let f = fixture(true, &[]).await;
+    f.one_report().await;
+    let first = f.wait(&f.a, &[], 500).await;
+    f.set_claim(false).await;
+    let began = std::time::Instant::now();
+    let wait = f.spawn_wait(20_000).await.unwrap().unwrap();
+    let took = began.elapsed();
+    assert!(took >= Duration::from_millis(700), "{took:?}");
+    assert!(took < Duration::from_secs(10), "{took:?}");
+    assert_eq!(wait.outcome, WaitOutcome::Ended);
+    assert_eq!(wait.reports[0].report_id, first.reports[0].report_id);
+    assert_eq!(f.reports().await.len(), 1);
+    f.finish().await;
+}
+
+#[tokio::test]
+async fn a_grant_revoked_during_the_wait_is_refused_and_its_report_stays_open() {
+    let f = fixture(true, &[]).await;
+    let (_, grant) = f.begin().await;
+    let waiting = f.spawn_wait(120_000);
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    let mut a = None;
+    for connection in f.core.grants().list_external().await.unwrap() {
+        let project = f.core.grants().external_project(&connection.id, &f.project);
+        if project.await.unwrap().id == f.a.id {
+            a = Some(connection);
+        }
+    }
+    let a = a.unwrap();
+    f.core
+        .grants()
+        .update_external_projects("remove".into(), &a.id, a.project_revision, vec![])
+        .await
+        .unwrap();
+    f.commit_and_report(&grant, 0).await;
+    let refused = waiting.await.unwrap();
+    assert!(
+        matches!(&refused, Err(RunsError::Grants(e)) if e.to_string() == shadows_core::GrantsError::GrantInvalid.to_string()),
+        "{refused:?}"
+    );
+    f.reported().await;
+    assert!(f.claim_open().await);
+    f.finish().await;
+}

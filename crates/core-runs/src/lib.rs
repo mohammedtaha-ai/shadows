@@ -57,6 +57,7 @@ pub use model::{
     RecoverReport, ReportedCheck, ReportedOutcome, StartAnswer, TaskConflict, TaskLesson,
     TaskProgress, TaskRun,
 };
+pub use model::{AuthorReport, AuthorWait, WaitOutcome};
 pub use model::{Chooser, ExecutorChoice, ExecutorInput, ProjectRecheck};
 pub use model::{LastRecheck, RecheckBegan, RecheckCounts, RecheckOutput, RecheckRow};
 pub use question::{PlannedScope, ProducerStatus, TaskAnswer, TaskQuestion};

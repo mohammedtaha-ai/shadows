@@ -640,3 +640,35 @@ pub struct LessonCommand {
 pub struct RecoverReport {
     pub interrupted: u32,
 }
+
+/// How an external author's wait ended.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, utoipa::ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum WaitOutcome {
+    /// It answers reports.
+    Ended,
+    /// Its bound passed with nothing to answer while work is still pending.
+    NothingYet,
+    /// Nothing of this author's is pending and no report is held for it.
+    NoneRunning,
+}
+
+/// One report kept for an external author, as a wait answers it.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, utoipa::ToSchema)]
+pub struct AuthorReport {
+    /// Stable across every answer of this report; the author acknowledges it by this id.
+    pub report_id: String,
+    pub attempt_id: AttemptId,
+    pub workflow_id: WorkflowId,
+    pub task: u32,
+    /// `ended` or `conflict`.
+    pub kind: String,
+    pub report: String,
+}
+
+/// An external author's wait: its outcome and the reports it answers, oldest first.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, utoipa::ToSchema)]
+pub struct AuthorWait {
+    pub outcome: WaitOutcome,
+    pub reports: Vec<AuthorReport>,
+}
