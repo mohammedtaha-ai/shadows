@@ -20,6 +20,46 @@ struct Fixture {
     tmp: tempfile::TempDir,
 }
 
+#[tokio::test]
+async fn an_external_agent_puts_and_deletes_an_element() {
+    let f = Fixture::new().await;
+    let issued = f
+        .core
+        .grants()
+        .issue_external("element-connection".into(), None, vec![f.project.clone()])
+        .await
+        .unwrap();
+    let grant = f
+        .core
+        .grants()
+        .external_project(&issued.connection.id, &f.project)
+        .await
+        .unwrap();
+    let design = f.core.design();
+    let element = design
+        .put_element_for(&grant, "external-put".into(), f.table("external_table"))
+        .await
+        .unwrap();
+    assert_eq!(element.written_by, grant.id.as_str());
+    let request = ElementDelete {
+        id: element.id,
+        expected_revision: element.revision,
+    };
+    let missing = design
+        .delete_element_for(&grant, String::new(), request.clone())
+        .await
+        .unwrap_err();
+    assert!(missing.to_string().contains("command_id"), "{missing}");
+    let deleted = design
+        .delete_element_for(&grant, "external-delete".into(), request)
+        .await
+        .unwrap();
+    assert!(deleted.deleted);
+    assert_eq!(deleted.revision, 2);
+    assert_eq!(deleted.written_by, grant.id.as_str());
+    f.close().await;
+}
+
 impl Fixture {
     async fn new() -> Self {
         let tmp = tempfile::tempdir().unwrap();
@@ -502,7 +542,7 @@ async fn ids_are_never_reused() {
 }
 
 #[tokio::test]
-async fn only_a_planners_running_turn_writes() {
+async fn an_executor_and_an_idle_planner_cannot_write_elements() {
     let f = Fixture::new().await;
     let mut executor = f.grant.clone();
     executor.kind = GrantKind::Executor;

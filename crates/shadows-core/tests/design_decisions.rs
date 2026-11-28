@@ -128,6 +128,51 @@ fn code(error: DesignError) -> ErrorCode {
 }
 
 #[tokio::test]
+async fn an_external_agent_proposes_a_decision_the_person_accepts() {
+    let f = Fixture::new().await;
+    let issued = f
+        .core
+        .grants()
+        .issue_external("decision-connection".into(), None, vec![f.project.clone()])
+        .await
+        .unwrap();
+    let grant = f
+        .core
+        .grants()
+        .external_project(&issued.connection.id, &f.project)
+        .await
+        .unwrap();
+    let design = f.core.design();
+    let proposal = design
+        .propose_decision(
+            &grant,
+            "external-decision".into(),
+            input("Queries", None, None),
+        )
+        .await
+        .unwrap();
+    assert_eq!(proposal.state, DecisionState::Proposed);
+    let author: String =
+        sqlx::query_scalar("SELECT proposed_by FROM design_decisions WHERE decision_id=?")
+            .bind(&proposal.id)
+            .fetch_one(f.storage.reader())
+            .await
+            .unwrap();
+    assert_eq!(author, grant.id.as_str());
+    assert_eq!(
+        f.count("SELECT COUNT(*) FROM thread_entry WHERE kind='DecisionProposal'")
+            .await,
+        0
+    );
+    let accepted = f
+        .accept("person-accepts", &proposal.id, proposal.version)
+        .await
+        .unwrap();
+    assert_eq!(accepted.state, DecisionState::Accepted);
+    f.close().await;
+}
+
+#[tokio::test]
 async fn the_planner_proposes_and_the_person_accepts() {
     let f = Fixture::new().await;
     let proposed = f.propose("p1", input("Queries", None, None)).await.unwrap();
@@ -213,7 +258,7 @@ async fn a_stale_or_invalid_decision_is_refused() {
 }
 
 #[tokio::test]
-async fn only_a_planner_proposes() {
+async fn an_executor_cannot_propose_or_accept_a_decision() {
     let f = Fixture::new().await;
     let executor = Grant {
         id: GrantId::generate(),

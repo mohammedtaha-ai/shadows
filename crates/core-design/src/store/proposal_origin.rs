@@ -13,7 +13,6 @@ pub(super) struct ProposalOrigin<'a> {
     turn: Option<&'a OperationId>,
     pub(super) thread: Option<ThreadId>,
     pub(super) grant: Option<GrantId>,
-    pub(super) connection: Option<String>,
 }
 
 impl<'a> ProposalOrigin<'a> {
@@ -36,14 +35,9 @@ impl<'a> ProposalOrigin<'a> {
         turn: Option<&'a OperationId>,
     ) -> Result<Self, DesignError> {
         Grants::check_writer(conn, writer, project).await?;
-        let (thread, grant, connection) = match (writer, turn) {
-            (Writer::Planner { thread, .. }, Some(_)) => (Some(thread.clone()), None, None),
-            (Writer::External { grant }, None) => {
-                let connection = Grants::connections_of_in(conn, std::slice::from_ref(grant))
-                    .await?
-                    .remove(grant);
-                (None, Some(grant.clone()), connection)
-            }
+        let (thread, grant) = match (writer, turn) {
+            (Writer::Planner { thread, .. }, Some(_)) => (Some(thread.clone()), None),
+            (Writer::External { grant }, None) => (None, Some(grant.clone())),
             _ => return Err(core_grants::GrantsError::GrantScope.into()),
         };
         Ok(Self {
@@ -52,8 +46,19 @@ impl<'a> ProposalOrigin<'a> {
             turn,
             thread,
             grant,
-            connection,
         })
+    }
+
+    pub(super) async fn connection_id(
+        &self,
+        conn: &mut SqliteConnection,
+    ) -> Result<Option<String>, DesignError> {
+        let Some(grant) = &self.grant else {
+            return Ok(None);
+        };
+        Ok(Grants::connections_of_in(conn, std::slice::from_ref(grant))
+            .await?
+            .remove(grant))
     }
 
     pub(super) fn scope(&self) -> (&'static str, &str) {
@@ -122,9 +127,13 @@ impl<'a> ProposalOrigin<'a> {
     }
 
     pub(super) fn event(&self, kind: &str, proposal: &str) -> JournalEntry {
-        let mut event = JournalEntry::new(kind, self.writer.actor())
-            .with_project(self.project.as_str())
-            .with_payload(serde_json::json!({"project_id":self.project,"proposal_id":proposal}));
+        self.journal(kind)
+            .with_payload(serde_json::json!({"project_id":self.project,"proposal_id":proposal}))
+    }
+
+    pub(super) fn journal(&self, kind: &str) -> JournalEntry {
+        let mut event =
+            JournalEntry::new(kind, self.writer.actor()).with_project(self.project.as_str());
         if let (Some(thread), Some(turn)) = (&self.thread, self.turn) {
             event = event
                 .with_thread(thread.as_str())

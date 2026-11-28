@@ -277,12 +277,13 @@ functions:
       # Person only; replay before live project, project-scoped proposal, state and staleness.
     propose_decision:
       signature: "(&self, grant: &Grant, command_id: String, input: DecisionInput) -> Result<DecisionRecord, DesignError>"
-      # Planner grant plus running turn; replay classified first (Project scope). A new id is
+      # Planner grant with running turn, or external grant with caller command id.
+      # Replay is classified first (Project scope). A new id is
       # D{n}, the next number in the project; a given id needs expected_version equal to its
       # latest version, else DecisionStale. Trimmed lengths: title 1..200, decision and
       # rationale 1..4000, source 0..1000, else InvalidDecision. One write: the revision as
-      # proposed, a DecisionProposal entry on the Planner's thread whose card is the record,
-      # and the DecisionProposed { project_id, decision_id, version } event.
+      # proposed, a DecisionProposal entry for a Planner's turn, and a project event.
+      # The proposal stores the writer's principal id.
     decisions:
       signature: "(&self, project: &ProjectId) -> Result<Vec<DecisionRecord>, DesignError>"
       # Every revision, ordered by the id's number, then version.
@@ -297,10 +298,11 @@ functions:
       # Plans reads a pinned revision inside its edit's write and its task context.
     put_element_for:
       signature: "(&self, grant: &Grant, command_id: String, input: ElementInput) -> Result<DesignElement, DesignError>"
-      # A Planner with a running turn writes an immutable table or screen revision at Plans.
+      # An immutable table or screen revision at Plans. A Planner has a running turn;
+      # an external project grant supplies its command id. Stores the writer's principal id.
     delete_element_for:
       signature: "(&self, grant: &Grant, command_id: String, input: ElementDelete) -> Result<DesignElement, DesignError>"
-      # A Planner with a running turn writes an unreferenced element's terminal revision.
+      # An unreferenced element's terminal revision. Uses the same authority as put.
     elements:
       signature: "(&self, project: &ProjectId) -> Result<Vec<DesignElement>, DesignError>"
       # Latest revisions, including deleted ones, by numeric id in a live project snapshot.
@@ -492,8 +494,8 @@ called_by_other_services:
   thread_anchor: "Turns::planning_context reads the thread's anchor, then vision, parts, outcomes and agreements (pinned versions through agreement) through their public reads."
 
 obligations:
-  - rule: A Planner's running turn writes append-only revisions in the Plans stage.
-    tested_by: [only_a_planners_running_turn_writes, the_planner_writes_a_table_and_a_new_revision_keeps_its_id, a_stale_revision_is_refused, a_deleted_element_takes_no_new_revision, ids_are_never_reused]
+  - rule: A Planner's running turn or an external project grant writes append-only revisions in the Plans stage.
+    tested_by: [an_executor_and_an_idle_planner_cannot_write_elements, an_external_agent_puts_and_deletes_an_element, the_planner_writes_a_table_and_a_new_revision_keeps_its_id, a_stale_revision_is_refused, a_deleted_element_takes_no_new_revision, ids_are_never_reused]
   - rule: An identical command replays its exact revision without a second write or event.
     tested_by: [a_replayed_put_returns_the_first_revision, the_write_journals_design_element_changed]
   - rule: An element belongs to the required kind of part and serves a local roadmap outcome.
@@ -819,7 +821,7 @@ decisions:
   modules: [decisions.rs, store/decisions.rs]
   tables: [design_decisions]
   rule: Decisions are accepted, and superseded, only by the person's card.
-  tested_by: [the_planner_proposes_and_the_person_accepts, a_new_version_supersedes_the_accepted_one, a_stale_or_invalid_decision_is_refused, only_a_planner_proposes, a_decision_replay_returns_the_original_revision, decisions_are_listed_and_accepted_over_http]
+  tested_by: [the_planner_proposes_and_the_person_accepts, an_external_agent_proposes_a_decision_the_person_accepts, a_new_version_supersedes_the_accepted_one, a_stale_or_invalid_decision_is_refused, an_executor_cannot_propose_or_accept_a_decision, a_decision_replay_returns_the_original_revision, decisions_are_listed_and_accepted_over_http]
 
 elements:
   modules: [elements.rs, store/elements.rs]

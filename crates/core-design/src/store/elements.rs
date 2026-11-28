@@ -2,11 +2,11 @@
 use std::collections::HashSet;
 
 use core_db::{CommandContext, JournalEntry, Storage, StorageError};
-use core_grants::{Grants, GrantsError, Writer};
-use core_operations::Operations;
+use core_grants::Writer;
 use core_projects::Projects;
 use sqlx::{FromRow, SqliteConnection};
 
+use super::proposal_origin::ProposalOrigin;
 use super::{DesignStore, outcomes::OutcomesRows};
 use crate::elements::{ElementRules, ElementWrite};
 use crate::{
@@ -50,42 +50,39 @@ impl DesignStore {
         ctx: CommandContext,
         writer: Writer,
         project: ProjectId,
-        turn: OperationId,
+        turn: Option<OperationId>,
         write: ElementWrite,
     ) -> Result<DesignElement, DesignError> {
         self.storage
             .write_txn_as(move |conn| {
                 Box::pin(async move {
-                    let Writer::Planner { thread, .. } = &writer else {
-                        return Err(GrantsError::GrantScope.into());
-                    };
-                    Grants::check_writer(conn, &writer, &project).await?;
+                    let origin =
+                        ProposalOrigin::new(conn, &writer, &project, turn.as_ref()).await?;
                     if let Some(at) =
                         CommandContext::classify(conn, &ctx, "Project", project.as_str()).await?
                     {
                         return recorded(conn, &project, &at).await;
                     }
-                    Operations::require_running_in(conn, thread, turn.as_str()).await?;
+                    origin.require_running(conn).await?;
                     Design::require_roadmap_in(conn, &project).await?;
                     let ts = Storage::now();
                     let element = match write {
                         ElementWrite::Put(input) => {
-                            put_element_in(conn, &project, input, thread.as_str(), &ts).await?
+                            put_element_in(conn, &project, input, &ctx.principal_id, &ts).await?
                         }
                         ElementWrite::Delete(input) => {
-                            delete_element_in(conn, &project, input, thread.as_str(), &ts).await?
+                            delete_element_in(conn, &project, input, &ctx.principal_id, &ts).await?
                         }
                     };
                     insert(conn, &element).await?;
-                    let event = JournalEntry::new("DesignElementChanged", writer.actor())
-                        .with_project(project.as_str())
-                        .with_thread(thread.as_str())
-                        .with_operation(turn.as_str())
-                        .with_payload(serde_json::json!({
-                            "project_id": project,
-                            "element_id": element.id,
-                            "revision": element.revision,
-                        }));
+                    let event =
+                        origin
+                            .journal("DesignElementChanged")
+                            .with_payload(serde_json::json!({
+                                "project_id": project,
+                                "element_id": element.id,
+                                "revision": element.revision,
+                            }));
                     JournalEntry::append_event(conn, event, &ts).await?;
                     CommandContext::record_command(
                         conn,

@@ -1,10 +1,11 @@
 //! Persistence of project decision revisions.
 use super::DesignStore;
+use super::proposal_origin::ProposalOrigin;
 use crate::decisions::DecisionRules;
 use crate::{DecisionInput, DecisionRecord, DecisionState, DesignError, OperationId, ProjectId};
 use core_db::{CommandContext, JournalEntry, Storage, StorageError};
 use core_grants::{ApprovedBy, Approver, Writer};
-use core_threads::{NewThreadEntry, ThreadEntryKind, Threads};
+use core_threads::ThreadEntryKind;
 use sqlx::SqliteConnection;
 
 type Row = (
@@ -25,30 +26,27 @@ impl DesignStore {
         ctx: &CommandContext,
         writer: &Writer,
         project: &ProjectId,
-        turn: &OperationId,
+        turn: Option<&OperationId>,
         input: DecisionInput,
     ) -> Result<DecisionRecord, DesignError> {
         let (ctx, writer, project, turn, ts) = (
             ctx.clone(),
             writer.clone(),
             project.clone(),
-            turn.clone(),
+            turn.cloned(),
             Storage::now(),
         );
         self.storage
             .write_txn_as::<_, _, DesignError>(move |conn| {
                 Box::pin(async move {
-                    let Writer::Planner { thread, .. } = &writer else {
-                        return Err(core_grants::GrantsError::GrantScope.into());
-                    };
-                    core_grants::Grants::check_writer(conn, &writer, &project).await?;
+                    let origin =
+                        ProposalOrigin::new(conn, &writer, &project, turn.as_ref()).await?;
                     if let Some(at) =
                         CommandContext::classify(conn, &ctx, "Project", project.as_str()).await?
                     {
                         return recorded(conn, &project, &at).await;
                     }
-                    core_operations::Operations::require_running_in(conn, thread, turn.as_str())
-                        .await?;
+                    origin.require_running(conn).await?;
                     let input = DecisionRules::normalise(input)?;
                     let (id, version) = match &input.id {
                         Some(id) => {
@@ -89,33 +87,21 @@ impl DesignStore {
                     .bind(&record.decision)
                     .bind(&record.rationale)
                     .bind(&record.source)
-                    .bind(thread.as_str())
+                    .bind(&ctx.principal_id)
                     .bind(&ts)
                     .execute(&mut *conn)
                     .await?;
                     let card = serde_json::to_value(&record)?;
                     let body = format!("Decision {id} v{version}: {}", record.title);
-                    Threads::append_entry_in(
-                        conn,
-                        thread,
-                        NewThreadEntry {
-                            kind: ThreadEntryKind::DecisionProposal,
-                            author: writer.actor(),
-                            body: &body,
-                            refs: &[],
-                            card: Some(&card),
-                            operation_id: Some(turn.as_str()),
-                        },
-                        &ts,
-                    )
-                    .await?;
-                    let event = JournalEntry::new("DecisionProposed", writer.actor())
-                        .with_project(project.as_str())
-                        .with_thread(thread.as_str())
-                        .with_operation(turn.as_str())
-                        .with_payload(serde_json::json!({
-                            "project_id": project, "decision_id": id, "version": version
-                        }));
+                    origin
+                        .append_card(conn, ThreadEntryKind::DecisionProposal, &body, &card, &ts)
+                        .await?;
+                    let event =
+                        origin
+                            .journal("DecisionProposed")
+                            .with_payload(serde_json::json!({
+                                "project_id": project, "decision_id": id, "version": version
+                            }));
                     JournalEntry::append_event(conn, event, &ts).await?;
                     CommandContext::record_command(
                         conn,

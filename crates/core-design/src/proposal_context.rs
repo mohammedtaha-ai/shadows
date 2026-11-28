@@ -1,8 +1,8 @@
-//! Shared identity and authority for Planner proposals.
+//! Shared authority for proposals.
 use super::Design;
 use crate::{DesignError, Grant, OperationId};
 use core_db::{Anchor, CommandContext};
-use core_grants::{GrantKind, Writer};
+use core_grants::Writer;
 impl Design {
     pub(super) async fn proposal_writer(
         &self,
@@ -10,32 +10,29 @@ impl Design {
         scope_message: &str,
         running_message: &str,
     ) -> Result<(Writer, Option<OperationId>), DesignError> {
-        if grant.kind == GrantKind::Project {
-            return Ok((Writer::from_grant(grant, None)?, None));
-        }
-        let (writer, turn) = self
-            .planner_proposal_writer(grant, scope_message, running_message)
-            .await?;
-        Ok((writer, Some(turn)))
-    }
-
-    pub(super) async fn planner_proposal_writer(
-        &self,
-        grant: &Grant,
-        scope_message: &str,
-        running_message: &str,
-    ) -> Result<(Writer, OperationId), DesignError> {
         let writer = Writer::from_grant(grant, Some("thread grant needs its conversation"))?;
-        let Writer::Planner { thread, .. } = &writer else {
-            return Err(DesignError::GrantScope(scope_message.into()));
+        let turn = match &writer {
+            Writer::Planner { thread, .. } => Some(
+                self.operations
+                    .running_for(thread)
+                    .await?
+                    .ok_or_else(|| DesignError::InvalidCommand(running_message.into()))?,
+            ),
+            Writer::External { .. } => None,
+            Writer::Person => return Err(DesignError::GrantScope(scope_message.into())),
         };
-        let turn = self
-            .operations
-            .running_for(thread)
-            .await?
-            .ok_or_else(|| DesignError::InvalidCommand(running_message.into()))?;
         Ok((writer, turn))
     }
+
+    pub(super) fn external_command_id(command_id: Option<String>) -> Result<String, DesignError> {
+        command_id
+            .map(|id| id.trim().to_owned())
+            .filter(|id| !id.is_empty())
+            .ok_or_else(|| {
+                DesignError::InvalidCommand("an external agent names its command_id".into())
+            })
+    }
+
     pub(super) fn proposal_command(
         writer: &Writer,
         turn: Option<&OperationId>,
@@ -47,12 +44,7 @@ impl Design {
         let (principal_kind, principal_id) = writer.principal();
         let command_id = match turn {
             Some(turn) => Anchor::derived_id(Anchor::Operation(turn.as_str()), &fp),
-            None => command_id
-                .map(|id| id.trim().to_owned())
-                .filter(|id| !id.is_empty())
-                .ok_or_else(|| {
-                    DesignError::InvalidCommand("an external agent names its command_id".into())
-                })?,
+            None => Self::external_command_id(command_id)?,
         };
         Ok(CommandContext {
             agent: None,

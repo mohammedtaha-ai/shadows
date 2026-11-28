@@ -11,7 +11,7 @@ use crate::{
 };
 
 impl Design {
-    /// Writes a new element or appends a revision during a Planner's running turn.
+    /// Writes a new element or appends a revision under the project agent's grant.
     pub async fn put_element_for(
         &self,
         grant: &Grant,
@@ -19,7 +19,7 @@ impl Design {
         input: ElementInput,
     ) -> Result<DesignElement, DesignError> {
         let (writer, turn) = self
-            .planner_proposal_writer(
+            .proposal_writer(
                 grant,
                 "design_element_put needs a Planner's conversation",
                 "no turn is running for this conversation",
@@ -32,7 +32,7 @@ impl Design {
             .await
     }
 
-    /// Appends the last revision of an unreferenced element during a Planner's turn.
+    /// Appends the last revision of an unreferenced element under a scoped grant.
     pub async fn delete_element_for(
         &self,
         grant: &Grant,
@@ -40,7 +40,7 @@ impl Design {
         input: ElementDelete,
     ) -> Result<DesignElement, DesignError> {
         let (writer, turn) = self
-            .planner_proposal_writer(
+            .proposal_writer(
                 grant,
                 "design_element_delete needs a Planner's conversation",
                 "no turn is running for this conversation",
@@ -98,6 +98,11 @@ impl ElementWrite {
             Self::Delete(input) => ("ElementDelete", serde_json::to_value(input)?),
         };
         let (principal_kind, principal_id) = writer.principal();
+        let command_id = if matches!(writer, Writer::External { .. }) {
+            Design::external_command_id(Some(command_id))?
+        } else {
+            command_id
+        };
         Ok(CommandContext {
             agent: None,
             principal_kind: principal_kind.into(),

@@ -247,7 +247,7 @@ Not owned, so left out:
 
 ### B-251 · Design keeps decisions and design elements from an external agent
 
-- Status: todo (B-250 is done)
+- Status: done
 - Owner: `Design`.
 - Read: `crates/core-design/contract.yaml`; `decisions.rs`, `elements.rs` and their stores;
   migrations `0071`, `0077` (both keep the writer as text, so no migration).

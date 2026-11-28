@@ -1,12 +1,11 @@
-//! Project decisions: the Planner proposes a revision and only the person
+//! Project decisions: a project agent proposes a revision and only the person
 //! accepts it, which supersedes the id's earlier accepted revision.
 use super::Design;
 use crate::{DecisionInput, DecisionRecord, DesignError, Grant, ProjectId};
 use core_db::CommandContext;
 
 impl Design {
-    /// A Planner's proposed revision, written with its card on the Planner's
-    /// thread and its `DecisionProposed` event.
+    /// A proposed revision with a project event and a card for a Planner's turn.
     pub async fn propose_decision(
         &self,
         grant: &Grant,
@@ -14,12 +13,17 @@ impl Design {
         input: DecisionInput,
     ) -> Result<DecisionRecord, DesignError> {
         let (writer, turn) = self
-            .planner_proposal_writer(
+            .proposal_writer(
                 grant,
                 "decision_propose needs a Planner's conversation",
                 "no turn is running for this conversation",
             )
             .await?;
+        let command_id = if turn.is_none() {
+            Self::external_command_id(Some(command_id))?
+        } else {
+            command_id
+        };
         let (principal_kind, principal_id) = writer.principal();
         let ctx = CommandContext {
             agent: None,
@@ -34,7 +38,7 @@ impl Design {
             ),
         };
         self.store
-            .propose_decision_in(&ctx, &writer, &grant.project_id, &turn, input)
+            .propose_decision_in(&ctx, &writer, &grant.project_id, turn.as_ref(), input)
             .await
     }
 

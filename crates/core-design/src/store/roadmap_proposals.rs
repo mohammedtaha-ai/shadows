@@ -80,7 +80,7 @@ impl DesignStore {
                         id: uuid::Uuid::new_v4().to_string(),
                         thread_id: origin.thread.clone(),
                         grant_id: origin.grant.clone(),
-                        connection_id: origin.connection.clone(),
+                        connection_id: origin.connection_id(conn).await?,
                         action: args.action,
                         outcomes: args.outcomes,
                         outcome_id: args.outcome_id,
