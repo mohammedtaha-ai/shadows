@@ -783,10 +783,12 @@ async fn an_external_task_started() -> (Listening, listening::Client, Value) {
     )
     .await;
     assert_eq!(status, 200, "{body}");
+    // The executor's turn stays open until it is cancelled, so the attempt runs.
+    l.app.core.runs().set_first_prompt_for_tests("hang");
     l.app
         .core
         .runs()
-        .choose_executor_for_test(&workflow, 1, "claude-code", "fake-small", Some("high"))
+        .choose_executor_for_test(&workflow, 1, "claude-code", "fake-large", Some("high"))
         .await
         .unwrap();
     let attempt = listening::ok(
@@ -795,5 +797,6 @@ async fn an_external_task_started() -> (Listening, listening::Client, Value) {
         json!({"workflow_id":workflow,"task_number":1}),
     )
     .await;
+    assert_eq!(attempt["state"], "running", "{attempt}");
     (l, c, attempt)
 }
