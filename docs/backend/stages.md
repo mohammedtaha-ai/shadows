@@ -640,7 +640,10 @@ owner for an external agent. Migration `0086` is not pushed, so B-264 changes it
   `crates/core-turns/contract.yaml`, `crates/shadows-mcp/src/turn_tools.rs`,
   `crates/core-events/src/store.rs`, `crates/core-events/contract.yaml`,
   `crates/core-grants/src/tools.rs`, `crates/core-grants/contract.yaml`,
-  `crates/shadows-core/tests/planner_changes.rs`, `crates/shadows/tests/mcp_server.rs`.
+  `crates/shadows-core/tests/planner_changes.rs`, `crates/shadows/tests/mcp_server.rs`,
+  `crates/core-turns/src/lib.rs` and `crates/shadows-core/src/lib.rs` (re-export
+  `ChangeNoter`, so `shadows-mcp` and the test name it). The external actor is
+  `Actor { kind: "Grant", id: <grant id> }`, as `Runs::chooser_of` records it.
 - Needs: nothing.
 - Done when: `cargo test -p shadows-core --test planner_changes` and
   `cargo test -p shadows --test mcp_server --test project_events` pass, with
