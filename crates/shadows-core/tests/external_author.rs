@@ -758,6 +758,29 @@ async fn a_follow_up_that_fails_to_open_reports_to_its_external_author() {
 }
 
 #[tokio::test]
+async fn a_start_that_fails_to_open_does_not_hold_the_wait() {
+    let f = fixture(true, &[]).await;
+    // A model the adapter refuses to switch to: Start's session cannot open.
+    sqlx::query("UPDATE run_task_executors SET model = 'fake-locked'")
+        .execute(f.storage.reader())
+        .await
+        .unwrap();
+    let attempt = f
+        .core
+        .runs()
+        .start("s1".into(), &f.workflow, 1, 1)
+        .await
+        .unwrap();
+    assert_eq!(attempt.state, AttemptState::Failed);
+    let reason = attempt.reason.as_deref().unwrap_or_default();
+    assert!(reason.starts_with("session did not open"), "{reason}");
+    let wait = f.wait(&f.a, &[], 3_000).await;
+    assert_eq!(wait.outcome, WaitOutcome::NoneRunning, "{wait:?}");
+    assert!(f.reports().await.is_empty());
+    f.finish().await;
+}
+
+#[tokio::test]
 async fn a_waiting_call_wakes_when_a_claim_lapses() {
     let f = fixture(true, &[]).await;
     f.one_report().await;

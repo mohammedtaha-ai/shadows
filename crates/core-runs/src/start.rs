@@ -286,7 +286,8 @@ impl Runs {
     /// The attempt cannot go on: it fails with `reason` and frees its scope.
     /// A follow-up's end is reported through `notify`, as a turn's end is: a
     /// returned check has no caller to hear the answer. A Start's caller is
-    /// answered `Failed` itself, so its first attempt reports to no one.
+    /// answered `Failed` itself, so its notice is settled with nothing to send,
+    /// or an author's wait would count it pending.
     pub(crate) async fn abandon(
         &self,
         attempt: Attempt,
@@ -298,9 +299,12 @@ impl Runs {
             .await?;
         self.release_logged(&attempt.id, &attempt.thread_id).await;
         let failed = self.inner.store.get(&attempt.id).await?;
-        if failed.origin != AttemptOrigin::Start
-            && let Err(error) = self.notify(&failed).await
-        {
+        let told = if failed.origin == AttemptOrigin::Start {
+            self.inner.store.mark_notice_sent(&failed.id).await
+        } else {
+            self.notify(&failed).await
+        };
+        if let Err(error) = told {
             tracing::warn!(attempt = %failed.id, %error, "runs.notify_failed");
         }
         self.pump(&attempt.thread_id).await;
