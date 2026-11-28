@@ -9,6 +9,7 @@
 use crate::model::{Attempt, AuthorWait, WaitOutcome};
 use crate::store::RunsStore;
 use crate::store::author::AuthorRow;
+use crate::store::messages::MessageRecord;
 use crate::{Runs, RunsError};
 use core_db::Tx;
 use core_grants::{Grant, GrantId, GrantKind};
@@ -81,6 +82,37 @@ impl Runs {
         Ok(())
     }
 
+    /// Keeps the answered `message`'s `reply` report for `grant`, once, in the write that
+    /// marks the message delivered.
+    pub(crate) async fn keep_reply_for_author(
+        &self,
+        attempt: &Attempt,
+        plan: &Plan,
+        grant: &GrantId,
+        message: &MessageRecord,
+    ) -> Result<(), RunsError> {
+        let body = Self::reply_body(attempt, &Self::title(plan, attempt), message);
+        let kept = (self.inner.store)
+            .keep_reply_report(
+                AuthorRow {
+                    kind: "reply",
+                    source_id: message.id.clone(),
+                    attempt: Some(attempt.id.clone()),
+                    project_id: attempt.project_id.as_str().to_string(),
+                    grant_id: grant.as_str().to_string(),
+                    workflow_id: Some(attempt.workflow_id.as_str().to_string()),
+                    task: Some(attempt.task),
+                    body,
+                },
+                &message.id,
+            )
+            .await?;
+        if kept {
+            self.inner.author_reports.notify_waiters();
+        }
+        Ok(())
+    }
+
     /// Keeps `row` once, inside `tx`, journaling the task's progress when the row is new and
     /// names a task; answers whether it kept a new row. Every kind is kept through here.
     pub(crate) async fn keep_for_author_in(
@@ -146,7 +178,8 @@ impl Runs {
         }
     }
 
-    /// Whether an attempt of a version `grant` wrote is still pending.
+    /// Whether an attempt of a version `grant` wrote is still pending, or a question to its
+    /// executor still awaits a reply.
     async fn author_pending(&self, grant: &Grant) -> Result<bool, RunsError> {
         let project = grant.project_id.as_str();
         for workflow in self.inner.store.pending_workflows(project).await? {

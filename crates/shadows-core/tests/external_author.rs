@@ -936,3 +936,88 @@ async fn report_ids_name_their_kind_and_source() {
     assert_eq!(reports[0].report_id, format!("conflict:{attempt}"));
     f.finish().await;
 }
+
+impl Fixture {
+    /// A question to the attempt's executor, in `state`, with `reply` when it was answered.
+    async fn ask(&self, attempt: &AttemptId, state: &str, reply: Option<&str>) {
+        let thread = self.core.runs().attempt(attempt).await.unwrap().thread_id;
+        sqlx::query(
+            "INSERT INTO run_agent_messages
+               (id, attempt_id, thread_id, ordinal, message, state, reply, created_at)
+             VALUES ('message-1', ?, ?, 1, 'Why?', ?, ?, '2026-11-28T00:00:00Z')",
+        )
+        .bind(attempt.as_str())
+        .bind(thread.as_str())
+        .bind(state)
+        .bind(reply)
+        .execute(self.storage.reader())
+        .await
+        .unwrap();
+    }
+
+    async fn replies(&self) -> Vec<Report> {
+        let mut reports = self.reports().await;
+        reports.retain(|r| r.kind == "reply");
+        reports
+    }
+}
+
+#[tokio::test]
+async fn an_executors_reply_reaches_its_external_author() {
+    let f = fixture(true, &[]).await;
+    let (id, grant) = f.begin().await;
+    f.commit_and_report(&grant, 0).await;
+    f.reported().await;
+    f.ask(&id, "replied", Some("Because.")).await;
+    f.core.runs().recover().await.unwrap();
+    let mut replies = Vec::new();
+    for _ in 0..400 {
+        replies = f.replies().await;
+        if !replies.is_empty() {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(25)).await;
+    }
+    assert_eq!(replies.len(), 1, "{replies:?}");
+    assert_eq!(replies[0].report_id, "reply:message-1");
+    assert_eq!(replies[0].grant_id, f.a.id.as_str());
+    assert_eq!(
+        replies[0].body,
+        "[Shadows] Reply from task agent · T1 \"Task 1\":\nBecause."
+    );
+    let (state, delivered): (String, bool) = sqlx::query_as(
+        "SELECT state, delivered_at IS NOT NULL FROM run_agent_messages WHERE id = 'message-1'",
+    )
+    .fetch_one(f.storage.reader())
+    .await
+    .unwrap();
+    assert_eq!((state.as_str(), delivered), ("delivered", true));
+    f.core.runs().recover().await.unwrap();
+    tokio::time::sleep(Duration::from_millis(500)).await;
+    assert_eq!(f.replies().await.len(), 1);
+    assert_eq!(f.planner_entries().await, 0);
+    f.finish().await;
+}
+
+#[tokio::test]
+async fn a_wait_holds_while_a_message_awaits_its_reply() {
+    let f = fixture(true, &[]).await;
+    let (id, grant) = f.begin().await;
+    f.commit_and_report(&grant, 0).await;
+    let ended = f.wait(&f.a, &[], 20_000).await;
+    assert_eq!(ended.outcome, WaitOutcome::Ended);
+    let ack = ended.reports[0].report_id.clone();
+    f.ask(&id, "sent", None).await;
+    let held = f.wait(&f.a, &[&ack], 300).await;
+    assert_eq!(held.outcome, WaitOutcome::NothingYet, "{held:?}");
+    sqlx::query(
+        "UPDATE run_agent_messages SET state = 'failed', reason = 'no reply',
+           delivered_at = '2026-11-28T00:00:01Z'",
+    )
+    .execute(f.storage.reader())
+    .await
+    .unwrap();
+    let free = f.wait(&f.a, &[], 20_000).await;
+    assert_eq!(free.outcome, WaitOutcome::NoneRunning, "{free:?}");
+    f.finish().await;
+}

@@ -131,7 +131,7 @@ impl Runs {
                 SendTurn {
                     command_id: format!("message-{}", message.id),
                     prompt: format!(
-                        "The Planner asks you, about task T{}, without changing it:\n{}\n\
+                        "You are asked, about task T{}, without changing it:\n{}\n\
                 Answer in plain words. Change no file and make no commit for this.",
                         attempt.task, message.message
                     ),

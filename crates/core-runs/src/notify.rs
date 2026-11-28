@@ -505,6 +505,27 @@ impl Runs {
         Some(text)
     }
 
+    /// The answered question's notice text, for the Planner and an external author alike.
+    pub(crate) fn reply_body(
+        attempt: &Attempt,
+        title: &str,
+        message: &crate::store::messages::MessageRecord,
+    ) -> String {
+        match &message.reason {
+            Some(reason) => format!(
+                "[Shadows] No reply from task agent · T{}: {reason}",
+                attempt.task
+            ),
+            None => format!(
+                "[Shadows] Reply from task agent · T{} \"{title}\":\n{}",
+                attempt.task,
+                message.reply.as_deref().unwrap_or_default()
+            ),
+        }
+    }
+
+    /// Delivers an answered question: to the Planner as a waiting notice or, for a version an
+    /// external agent wrote, as a `reply` report kept for that author.
     pub(super) async fn notify_reply(
         &self,
         message: &crate::store::messages::MessageRecord,
@@ -517,6 +538,9 @@ impl Runs {
         let saved = match &message.notice_json {
             Some(saved) => saved.clone(),
             None => {
+                if let Some((plan, grant)) = self.external_author(&attempt).await? {
+                    return (self.keep_reply_for_author(&attempt, &plan, &grant, message)).await;
+                }
                 let Some(Recipient {
                     plan,
                     thread,
@@ -538,17 +562,7 @@ impl Runs {
                     reply: message.reply.clone(),
                     reason: message.reason.clone(),
                 };
-                let prompt = match &message.reason {
-                    Some(reason) => format!(
-                        "[Shadows] No reply from task agent · T{}: {reason}",
-                        attempt.task
-                    ),
-                    None => format!(
-                        "[Shadows] Reply from task agent · T{} \"{title}\":\n{}",
-                        attempt.task,
-                        message.reply.as_deref().unwrap_or_default()
-                    ),
-                };
+                let prompt = Self::reply_body(&attempt, &title, message);
 
                 let intent = NoticeIntent {
                     planner: thread,

@@ -226,14 +226,44 @@ impl RunsStore {
             .await
     }
 
+    /// Keeps a `reply` row once and, in the same write, marks message `message` delivered.
+    /// Answers whether this write kept a new row.
+    pub async fn keep_reply_report(
+        &self,
+        row: AuthorRow,
+        message: &str,
+    ) -> Result<bool, RunsError> {
+        let (at, message) = (Storage::now(), message.to_string());
+        self.storage
+            .write_txn_as(move |conn| {
+                Box::pin(async move {
+                    let kept = Runs::keep_for_author_in(conn, &row, &at).await?;
+                    sqlx::query(
+                        "UPDATE run_agent_messages SET delivered_at = COALESCE(delivered_at, ?),
+                         state = CASE WHEN state = 'failed' THEN 'failed' ELSE 'delivered' END
+                         WHERE id = ?",
+                    )
+                    .bind(&at)
+                    .bind(&message)
+                    .execute(&mut *conn)
+                    .await?;
+                    Ok(kept)
+                })
+            })
+            .await
+    }
+
     /// The plans of `project` with an attempt still pending: running, or ended with its
     /// report not yet settled (a committed one's checks not yet run, or an ended one's row
-    /// not yet kept) and not continued by a later attempt of its task.
+    /// not yet kept) and not continued by a later attempt of its task; or with a question to
+    /// an executor that has neither a reply nor a no-reply reason yet.
     pub async fn pending_workflows(&self, project: &str) -> Result<Vec<WorkflowId>, RunsError> {
         let rows: Vec<String> = sqlx::query_scalar(
             "SELECT DISTINCT a.workflow_id FROM run_attempts a
              WHERE a.project_id = ?
                AND (a.state = ?
+                    OR EXISTS (SELECT 1 FROM run_agent_messages m
+                               WHERE m.attempt_id = a.id AND m.state IN ('waiting', 'sent'))
                     OR (a.notice_sent_at IS NULL
                         AND COALESCE(a.conflict_delivery, '') <> ?
                         AND NOT EXISTS (SELECT 1 FROM run_attempts n
