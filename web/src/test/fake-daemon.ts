@@ -274,6 +274,7 @@ export function answers(o: Overrides = {}): Record<string, Answer> {
     'GET /api/projects/p1/vision-proposals': [],
     'GET /api/projects/p1/map-proposals': [],
     'GET /api/projects/p1/roadmap-proposals': [],
+    'GET /api/external-connections': [],
     'GET /api/projects/p1/planner-extensions': { skills: [], mcp: [], plugins: [] },
     'GET /api/projects/p1/code/links': [],
     'GET /api/projects/p1/code/servers': [],

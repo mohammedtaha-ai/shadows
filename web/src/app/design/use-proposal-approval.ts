@@ -6,13 +6,15 @@ import { designKeys, type MapProposal, type RoadmapProposal, type VisionProposal
 type Proposal = VisionProposal | MapProposal | RoadmapProposal
 
 export function useProposalApproval<T extends Proposal>({
-  projectId, proposalId, proposalsQuery, approveProposal, approvedSuffix,
+  projectId, proposalId, proposalsQuery, approveProposal, approvedSuffix, external = false,
 }: {
   projectId: string
   proposalId: string | null
   proposalsQuery: UseQueryOptions<T[], Error, T[], string[]>
   approveProposal: (projectId: string, proposalId: string, commandId: string) => Promise<unknown>
   approvedSuffix?: (live: T) => string
+  // An external proposal has no conversation, so its outdated line names its agent, not the Planner.
+  external?: boolean
 }) {
   const client = useQueryClient()
   const query = useQuery({ ...proposalsQuery, enabled: proposalId !== null })
@@ -31,7 +33,7 @@ export function useProposalApproval<T extends Proposal>({
   const live = query.data?.find(p => p.id === proposalId)
   const status = live?.status === 'Approved' ? `Approved${approvedSuffix?.(live) ?? ''}`
     : live?.status === 'Superseded' ? 'Superseded'
-    : live?.outdated ? 'Outdated — ask the Planner to propose again'
+    : live?.outdated ? (external ? 'Outdated — ask its agent to propose again' : 'Outdated — ask the Planner to propose again')
     : live?.status === 'Pending' ? 'Pending'
     : query.isPending ? 'Loading status…' : 'Status unavailable'
   const submit = () => {

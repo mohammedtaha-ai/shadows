@@ -2623,7 +2623,7 @@ export interface components {
             reason: string | null;
         };
         /** @enum {string} */
-        Chooser: "person" | "planner";
+        Chooser: "person" | "planner" | "external";
         ColumnRef: {
             column: string;
             /** @description The target table's element id. */
@@ -3493,7 +3493,9 @@ export interface components {
         MapProposal: {
             action: components["schemas"]["MapAction"];
             approved_by?: null | components["schemas"]["ApprovedBy"];
+            connection_id: string | null;
             created_at: string;
+            grant_id: null | components["schemas"]["GrantId"];
             id: string;
             old?: null | components["schemas"]["PartContent"];
             old_parent?: null | components["schemas"]["PartId"];
@@ -3501,7 +3503,7 @@ export interface components {
             part_id?: null | components["schemas"]["PartId"];
             parts: components["schemas"]["ProposedPart"][];
             status: components["schemas"]["ProposalStatus"];
-            thread_id: components["schemas"]["ThreadId"];
+            thread_id: null | components["schemas"]["ThreadId"];
             unserved?: string[];
             waivers: components["schemas"]["ProposedWaiver"][];
         };
@@ -4404,7 +4406,9 @@ export interface components {
         RoadmapProposal: {
             action: components["schemas"]["RoadmapAction"];
             approved_by?: null | components["schemas"]["ApprovedBy"];
+            connection_id: string | null;
             created_at: string;
+            grant_id: null | components["schemas"]["GrantId"];
             id: string;
             old?: null | components["schemas"]["OutcomeContent"];
             old_parent?: null | components["schemas"]["OutcomeId"];
@@ -4412,7 +4416,7 @@ export interface components {
             outcomes: components["schemas"]["ProposedOutcome"][];
             outdated: boolean;
             status: components["schemas"]["ProposalStatus"];
-            thread_id: components["schemas"]["ThreadId"];
+            thread_id: null | components["schemas"]["ThreadId"];
         };
         RuleText: {
             id: string;
@@ -5123,17 +5127,19 @@ export interface components {
         VisionProposal: {
             action: components["schemas"]["VisionAction"];
             approved_by?: null | components["schemas"]["ApprovedBy"];
+            connection_id: string | null;
             created_at: string;
             /** Format: int64 */
             expected_item_revision?: number | null;
             field: components["schemas"]["VisionField"];
+            grant_id: null | components["schemas"]["GrantId"];
             id: string;
             item_id?: string | null;
             old_text?: string | null;
             outdated: boolean;
             status: components["schemas"]["ProposalStatus"];
             text?: string | null;
-            thread_id: components["schemas"]["ThreadId"];
+            thread_id: null | components["schemas"]["ThreadId"];
         };
         VisionView: {
             content: components["schemas"]["VisionContent"];

@@ -4,7 +4,7 @@ import { ProposalApproval } from './proposal-approval'
 import type { ThreadEntry } from '@/api/threads'
 import { approveVisionProposal, type VisionProposal } from '@/api/design'
 import { visionProposalsQuery } from '@/api/design'
-import { VISION_FIELDS } from '@/app/design'
+import { VISION_FIELDS } from './vision-fields'
 
 type Snapshot = Pick<VisionProposal, 'id' | 'action' | 'field' | 'item_id' | 'text' | 'old_text'>
 function proposed(entry: ThreadEntry): Snapshot | null {
@@ -17,14 +17,17 @@ function proposed(entry: ThreadEntry): Snapshot | null {
   return c as unknown as Snapshot
 }
 
-export function VisionProposalCard({ entry, projectId }: { entry: ThreadEntry; projectId: string }) {
-  const snapshot = proposed(entry)
+// A card draws a conversation entry's snapshot, or a live external proposal row (no conversation).
+export function VisionProposalCard({ entry, proposal, projectId }: {
+  entry?: ThreadEntry; proposal?: VisionProposal; projectId: string
+}) {
+  const snapshot = proposal ?? (entry ? proposed(entry) : null)
   const approval = useProposalApproval({
     projectId, proposalId: snapshot?.id ?? null,
-    proposalsQuery: visionProposalsQuery(projectId), approveProposal: approveVisionProposal,
+    proposalsQuery: visionProposalsQuery(projectId), approveProposal: approveVisionProposal, external: proposal !== undefined,
     approvedSuffix: live => live.item_id ? ` · ${live.item_id}` : '',
   })
-  if (snapshot === null) return <p dir="auto">{entry.body}</p>
+  if (snapshot === null) return <p dir="auto">{entry?.body}</p>
   const label = {purpose:'purpose',users:'user',goals:'goal',boundaries:'boundary',technical_direction:'technical direction'}[snapshot.field]
   const action = { add: 'Add', edit: 'Edit', remove: 'Remove' }[snapshot.action]
   return <article

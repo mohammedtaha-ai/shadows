@@ -10,6 +10,7 @@ import { threadsQuery } from '@/api/threads'
 import { designKeys } from '@/api/design'
 import { Button } from '@/components/ui/button'
 import { ErrorLine } from '../error-line'
+import { ExternalProposals } from './external-proposals'
 import { VISION_FIELDS, fieldLabel } from './vision-fields'
 function ItemOrigin({projectId,item,titles}: {projectId:string;item:VisionItem;titles:Map<string,string>}) {
   const threadId = item.approved_from
@@ -19,15 +20,16 @@ export function VisionEditor({projectId}: {projectId:string}) {
   const vision = useQuery(visionQuery(projectId))
   const proposals = useQuery(visionProposalsQuery(projectId))
   const threads = useQuery(threadsQuery(projectId))
-  const pending = proposals.data?.filter(p => p.status === 'Pending' && !p.outdated) ?? []
+  const pending = proposals.data?.filter(p => p.thread_id !== null && p.status === 'Pending' && !p.outdated) ?? []
   const counts = new Map<string,number>()
-  for (const p of pending) counts.set(p.thread_id,(counts.get(p.thread_id) ?? 0)+1)
+  for (const p of pending) if (p.thread_id !== null) counts.set(p.thread_id,(counts.get(p.thread_id) ?? 0)+1)
   const titles = new Map(threads.data?.map(t => [t.id,t.title]))
   return <section className="space-y-4">
     {pending.length > 0 && <aside role="status" className="rounded-md border p-3 text-sm">
       {pending.length === 1 ? '1 proposal awaits your approval' : `${pending.length} proposals await your approval`}
       <ul>{[...counts].map(([threadId,count]) => <li key={threadId}><Link to="/projects/$projectId/threads/$threadId" params={{projectId,threadId}}><bdi>{titles.get(threadId) ?? 'a conversation'}</bdi> · {count} pending</Link></li>)}</ul>
     </aside>}
+    <ExternalProposals projectId={projectId} kind="vision" />
     {proposals.error !== null && <ErrorLine error={proposals.error} />}
     {vision.isPending && <SkeletonContent label="Loading vision…" layout="detail" />}
     {vision.error !== null && <ErrorLine error={vision.error} />}

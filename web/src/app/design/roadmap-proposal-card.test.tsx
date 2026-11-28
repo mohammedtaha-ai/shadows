@@ -9,7 +9,7 @@ import {RoadmapProposalCard} from './roadmap-proposal-card'
 
 let app: TestApp | null = null
 afterEach(() => {app?.unmount();app=null})
-const pending = (): RoadmapProposal => ({id:'r1',thread_id:'t1',action:'first',outcome_id:null,old:null,
+const pending = (): RoadmapProposal => ({id:'r1',thread_id:'t1',connection_id:null,grant_id:null,action:'first',outcome_id:null,old:null,
   status:'Pending',outdated:false,created_at:'2026-10-12',
   outcomes:[{key:'login',parent_key:null,parent:null,parts:['part-1'],
     content:{title:'People sign in',intended_result:'A person reaches their projects',

@@ -8,7 +8,7 @@ import type { ThreadEntry } from '@/api/threads'
 import { ErrorLine } from '../error-line'
 import { PlanGraph } from '@/app/workflows'
 import { usePlan } from '@/app/workflows'
-import { ApprovedBy } from './approved-by'
+import { ApprovedBy } from '@/app/design'
 
 /** The plan version an entry refers to, and the task if it names one. */
 function planRefs(entry: ThreadEntry): { workflowId: string | null; taskId: string | null } {

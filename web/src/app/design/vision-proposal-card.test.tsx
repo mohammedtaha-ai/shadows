@@ -9,7 +9,7 @@ import { VisionProposalCard } from './vision-proposal-card'
 
 let app: TestApp | null = null
 afterEach(() => { app?.unmount(); app = null; vi.restoreAllMocks() })
-const pending = (): VisionProposal => ({ id: 'p1', thread_id: 't1', action: 'add', field: 'goals',
+const pending = (): VisionProposal => ({ id: 'p1', thread_id: 't1', connection_id: null, grant_id: null, action: 'add', field: 'goals',
   item_id: null, text: 'Ship', old_text: null, expected_item_revision: null, status: 'Pending',
   outdated: false, created_at: '2026-10-12T00:00:00Z' })
 

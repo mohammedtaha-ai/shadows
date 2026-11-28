@@ -1,4 +1,4 @@
-# Frontend code map
+# Frontend code mapdesign `web/src/app/design/contract.yaml` |design `web/src/app/design/contract.yaml` |design `web/src/app/design/contract.yaml` |design `web/src/app/design/contract.yaml` |design `web/src/app/design/contract.yaml` |design `web/src/app/design/contract.yaml` |design `web/src/app/design/contract.yaml` |
 
 **Read this before writing code in `web/`.** It answers one question: *where does my
 new code go?* It names the one job each source file under `web/src` holds, and the
@@ -224,7 +224,7 @@ it is that folder's `contract.yaml`.
 | `web/src/app/agreements/operations-editor.tsx` | Structured editor for an agreement's operations | `web/src/app/agreements/contract.yaml` |
 | `web/src/app/agreements/party-picker.tsx` | Picks participant identities from a nested tree | `web/src/app/agreements/contract.yaml` |
 | `web/src/app/agreements/index.ts` | Expose app/agreements public capabilities | `web/src/app/agreements/contract.yaml` |
-| `web/src/app/conversation/approved-by.tsx` | Attribution line linking to the approving conversation | `web/src/app/conversation/contract.yaml` |
+| `web/src/app/design/approved-by.tsx` | Attribution line linking to the approving conversation | `web/src/app/design/contract.yaml` |
 | `web/src/app/conversation/bidi.ts` | Text direction for each block of a reply | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/carried-send.ts` | Store the failed first-send handoff | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/cli-picker.tsx` | Chooses the CLI a conversation runs on, showing Core's reason for an unavailable one | `web/src/app/conversation/contract.yaml` |
@@ -239,7 +239,7 @@ it is that folder's `contract.yaml`.
 | `web/src/app/conversation/upload-images.ts` | Upload selected images with replayable commands | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/entry.tsx` | Renders one durable thread entry by its kind | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/focus-chip.tsx` | Chip naming the task a turn points at | `web/src/app/conversation/contract.yaml` |
-| `web/src/app/conversation/map-proposal-card.tsx` | Card for an immutable map proposal, with approval state | `web/src/app/conversation/contract.yaml` |
+| `web/src/app/design/map-proposal-card.tsx` | Card for an immutable map proposal, with approval state | `web/src/app/design/contract.yaml` |
 | `web/src/app/conversation/message-actions.tsx` | Hover actions under one message: copy, fork | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/activity-rows.ts` | Groups tool calls into rows, joins live calls, picks the current task list | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/activity-text.ts` | Words a tool group with its steps | `web/src/app/conversation/contract.yaml` |
@@ -258,8 +258,8 @@ it is that folder's `contract.yaml`.
 | `web/src/app/conversation/plan-side-panel.tsx` | Plan version shown beside the conversation | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/reply-text.tsx` | Renders the Planner's markdown in the reply voice | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/reply.ts` | Transient streamed reply text with its lifetime | `web/src/app/conversation/contract.yaml` |
-| `web/src/app/conversation/proposal-approval.tsx` | Render proposal status, attribution, approval control, errors | `web/src/app/conversation/contract.yaml` |
-| `web/src/app/conversation/roadmap-proposal-card.tsx` | Card for an immutable roadmap proposal, with approval state | `web/src/app/conversation/contract.yaml` |
+| `web/src/app/design/proposal-approval.tsx` | Render proposal status, attribution, approval control, errors | `web/src/app/design/contract.yaml` |
+| `web/src/app/design/roadmap-proposal-card.tsx` | Card for an immutable roadmap proposal, with approval state | `web/src/app/design/contract.yaml` |
 | `web/src/app/conversation/session-commands.ts` | Reads the /model, /effort commands as picker choices | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/slash-filter.ts` | Decides which / menu entries a composer text lists | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/slash-menu.tsx` | Draws the / menu beside the composer | `web/src/app/conversation/contract.yaml` |
@@ -289,9 +289,10 @@ it is that folder's `contract.yaml`.
 | `web/src/app/conversation/use-send.ts` | Deliver the composed message | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/use-stop.ts` | Stop the running turn | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/use-session.ts` | Harness session state the conversation screen reads | `web/src/app/conversation/contract.yaml` |
-| `web/src/app/conversation/use-proposal-approval.ts` | Own the proposal approval lifecycle | `web/src/app/conversation/contract.yaml` |
+| `web/src/app/design/use-proposal-approval.ts` | Own the proposal approval lifecycle | `web/src/app/design/contract.yaml` |
 | `web/src/app/conversation/decision-proposal-card.tsx` | Card for a proposed decision, with Accept | `web/src/app/conversation/contract.yaml` |
-| `web/src/app/conversation/vision-proposal-card.tsx` | Card for a vision proposal, with approval state | `web/src/app/conversation/contract.yaml` |
+| `web/src/app/design/vision-proposal-card.tsx` | Card for a vision proposal, with approval state | `web/src/app/design/contract.yaml` |
+| `web/src/app/design/external-proposals.tsx` | List one kind's pending external proposals as cards, each headed by its connection | `web/src/app/design/contract.yaml` |
 | `web/src/app/conversation/waiting-messages.tsx` | Queued messages waiting to be sent or removed | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/conversation/index.ts` | Declare lazy route surfaces | `web/src/app/conversation/contract.yaml` |
 | `web/src/app/copy-button.tsx` | Button that copies a text to the clipboard | `web/src/app/error-line.tsx` |

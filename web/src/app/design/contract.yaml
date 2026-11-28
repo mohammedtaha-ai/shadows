@@ -27,7 +27,6 @@ loading_details: Pending child-part lists, layer catalogs and referenced names u
 loading: Initial content reads use labelled SkeletonContent regions; placeholder shapes are decorative, motion respects reduced-motion preferences, and cached content stays visible during background reads. Errors and mutation progress keep their own presentation.
 planning_draft_link: Selected part and outcome details link to a new Planner draft with that item as its anchor.
 
-
 # ── shapes ───────────────────────────────────────────────────────────────────
 #
 # Declared here. View and Content types (PartView, PartContent, OutcomeView,
@@ -373,7 +372,55 @@ agreements:
       Both refuse to replace the base while the person has unsaved text. The vision
       editor's rule ignores the base comparison because its edits are item-level.
     tested_by: preserves dirty text on conflict and resets it on project switch
+  - rule: >
+      Vision approval is shown only while live status is Pending, not outdated, and readable.
+      It posts one command, and a retry of an unchanged approval reuses it.
+    tested_by:
+      - "approves the exact proposal and reads its resulting live status"
+      - "uses live %s state instead of the snapshot"
+      - "does not expose approval when live status cannot be read"
+      - "waits for live status before exposing approval"
+      - "shows refusal and reuses the command for an unchanged retry"
 
+  - rule: >
+      Vision edit and remove show the old item beside the proposal, with its id.
+    tested_by: "shows the old item for %s"
+
+  - rule: >
+      Map approval shows its waivers as consent, labels the button to name them, and posts one
+      replayable approval. A refused approval keeps its command, and View contract opens beside
+      the card.
+    tested_by:
+      - "shows waiver consent and posts one replayable approval"
+      - "keeps an unchanged command on refusal and opens a contract beside the card"
+
+  - rule: >
+      Map approval is hidden for every live state except Pending, and hidden when outdated.
+    tested_by: "hides approval for live %s state (outdated %s)"
+    note: "Declared in both map-proposal-card.test.tsx and roadmap-proposal-card.test.tsx."
+
+  - rule: >
+      Roadmap approval shows the outcome tree with the titles of its parts, posts one replayable
+      approval, and hides the button once approved. A change shows the old outcome, and a move
+      says where it goes.
+    tested_by:
+      - "shows the outcome tree with the titles of the parts it references"
+      - "posts one replayable approval and hides the button once approved"
+      - "shows the old outcome beside a change and keeps the command on refusal"
+      - "shows that a change moves its outcome to the top level"
+
+  - rule: >
+      Approval attribution reads "Approved by you" for a person, and for the Planner names the
+      request's conversation with a link to the message.
+    tested_by:
+      - "shows %s attribution with the correct request conversation"
+      - "shows live %s map approval attribution"
+      - "shows live %s roadmap approval attribution"
+      - "shows approval attribution on a frozen plan card"
+
+  - rule: >
+      A link to a requested entry lands on it once history has loaded, and scrolls it into view.
+    tested_by: "lands on the requested entry after conversation history loads"
 
 # ── not_the_caller's ─────────────────────────────────────────────────────────
 
@@ -416,7 +463,11 @@ gaps:
       the array unchanged. A blank line or a trailing newline therefore sends an empty
       acceptance item. PartEditor's contentOp trims its single folder and removes blank
       rules, so the two editors disagree on the same input.
-
+  - at: ApprovedBy
+    gap: >
+      Every `agent` other than 'human' reads as "Approved by the Planner at your request". An
+      approval by another agent kind would be credited to the Planner. The "at your request" wording
+      also shows with no link when `request` is null.
 
 # ── open_questions ───────────────────────────────────────────────────────────
 
@@ -434,7 +485,22 @@ open_questions:
       createRevision. Pressing Create again sends the same request. Does the daemon
       replay that refusal, or evaluate the request again? Answering needs the design
       edit command handling in crates/shadows-core.
+  - >
+      Do vision, map and roadmap approvals refresh their card's status? `onSuccess` invalidates
+      `['projects', projectId, 'design']`. The card reads `visionProposalsQuery` (and its map and
+      roadmap twins). Inspect web/src/api/design.ts for those keys' prefix. The success tests pass,
+      so some other path refetches; find it.
 
+  - >
+      Does a map 'change' proposal's changed part sit at parts[0]? MapProposalCard's changed-fields
+      list compares `old` with `parts[0]`. Inspect the daemon's map proposal builder for the order
+      of
+      parts on a change.
+
+  - >
+      Which agent values can an approval carry? ApprovedBy treats every non-'human' value alike.
+      Inspect
+      approved_by.agent in web/src/api/schema.d.ts and the daemon's approval attribution.
 
 # ── tests ────────────────────────────────────────────────────────────────────
 
@@ -549,9 +615,60 @@ tests:
       A VisionProposed durable event adds the '1 proposal awaits' status and keeps the
       unsaved edit text, with Reload visible because the revision moved.
 
+  # approved-by.test.tsx
+  - name: "shows %s attribution with the correct request conversation"
+    checks: "Human: 'Approved by you', no link. Planner: text and link to t2#entry-7."
+  - name: "lands on the requested entry after conversation history loads"
+    checks: "scrollIntoView called on #entry-3 once the list loads (messages.tsx hash logic)."
+  - name: "shows approval attribution on a frozen plan card"
+    checks: "A frozen plan card shows Planner attribution with the request link."
+
+  # map-proposal-card.test.tsx
+  - name: "shows live %s map approval attribution"
+    checks: "Human: 'Approved by you'. Planner: link to t2#entry-7 (both states)."
+  - name: "shows waiver consent and posts one replayable approval"
+    checks: "Waiver text shows, button labelled with waivers; one POST with command_id; then
+      Approved."
+  - name: "hides approval for live %s state (outdated %s)"
+    checks: "Approve hidden for Superseded, Approved, and outdated Pending.
+      (map-proposal-card.test.tsx)"
+  - name: "keeps an unchanged command on refusal and opens a contract beside the card"
+    checks: "409 keeps the same body on retry; View contract opens the dialog with its header."
+
+  # roadmap-proposal-card.test.tsx
+  - name: "shows the outcome tree with the titles of the parts it references"
+    checks: "Outcome titles, acceptance and a referenced part title appear."
+  - name: "shows live %s roadmap approval attribution"
+    checks: "Human and Planner attribution as for map cards."
+  - name: "posts one replayable approval and hides the button once approved"
+    checks: "One POST with command_id; then Approved and the button is gone."
+  - name: "hides approval for live %s state (outdated %s)"
+    checks: "Approve hidden for Superseded, Approved, outdated Pending.
+      (roadmap-proposal-card.test.tsx)"
+  - name: "shows the old outcome beside a change and keeps the command on refusal"
+    checks: "Change shows the old outcome; 409 keeps the same body on retry."
+  - name: "shows that a change moves its outcome to the top level"
+    checks: "'Moves to the top level' note when the new parent is null."
+
+  # vision-proposal-card.test.tsx
+  - name: "approves the exact proposal and reads its resulting live status"
+    checks: "POST approve with command_id; 'Approved · G1' shows; button gone."
+  - name: "uses live %s state instead of the snapshot"
+    checks: "Live Superseded, Outdated and Approved labels shown; no Approve."
+  - name: "shows the old item for %s"
+    checks: "Edit shows old text in del and the item id; remove shows old text."
+  - name: "shows refusal and reuses the command for an unchanged retry"
+    checks: "422 shows its message; retry sends the same body."
+  - name: "does not expose approval when live status cannot be read"
+    checks: "503 on proposals shows its message and no Approve button."
+  - name: "waits for live status before exposing approval"
+    checks: "Loading status text and no Approve until the proposals answer."
+  - name: "copies the recorded body through the usual message actions"
+    checks: "Copy writes the entry body."
+
 design_cache_identity: "api/design.ts owns design query/page identities and saved standards answers"
 
-feature_entry: "index.ts exposes MapPartDetails, VISION_FIELDS."
+feature_entry: "index.ts exposes MapPartDetails, VISION_FIELDS, the three proposal cards and ApprovedBy."
 
 pagination_owner: "api/design.ts owns useDesignPages and usePartPages; design views import part pagination directly from that owner."
 
@@ -564,3 +681,20 @@ served_list: 'The part form lists only the vision items the part serves, each wi
 principles_not_layout: 'No structure writer, Structure step, file count or starter-file inspection. Layer places follow the stack; map revision comes from Core. The stage chip already renders Core state and has no static step list.'
 
 related_tasks: 'A selected Roadmap outcome reads outcome State (projectStateQuery with outcome_id) and shows Related tasks beside, never inside, the OutcomeEditor: each approved plan with its tasks linked by exact version and number, Runs status and access, the outcome task counts, and a Draft-only plan as a Draft link with no tasks or count. A selected Map part reads part State and lists only its scoped tasks with Reads, Writes or Reads and writes; no part card reads tasks. Task progress is labelled as tasks done and never as the outcome being achieved; acceptance items stay in the editor. Tested by a_selected_outcome_lists_its_approved_and_draft_plans_with_task_status, a_selected_part_lists_its_own_tasks_with_access_labels.'
+
+map_layers: 'Map cards show each part folder and layer places, not-used reasons and grouping-child anchors. A part groups only when it has a kind and a child of that kind, as Core reads it; an untyped part groups nothing. Approval continues to display Core refusals and retain command identity. Tested by the_map_card_shows_each_parts_layers, the_map_card_links_a_grouping_parts_children.'
+
+proposal_approval:
+  owner: "useProposalApproval in use-proposal-approval.ts owns the live proposal read, command attempt, approval mutation and status text for all three cards"
+  signature: "<T extends VisionProposal | MapProposal | RoadmapProposal>({ projectId, proposalId: string | null, proposalsQuery: UseQueryOptions<T[], Error, T[], string[]>, approveProposal, approvedSuffix?: (live: T) => string }) => ProposalApprovalState"
+  result: "projectId, status, approved, approvedBy, canApprove, isPending, queryError, approvalError, submit"
+  rendering: "ProposalApproval in proposal-approval.tsx takes the result, buttonLabel and textClass; renders status, ApprovedBy, Approve, query error and approval error with no wrapper"
+  content: "Each card owns its snapshot parser, title and domain content; vision supplies its live approved item suffix, map supplies its waiver button label"
+  replay: "Unchanged approval retries reuse attemptFor({ projectId, proposalId }); success drops the attempt and invalidates designKeys.all(projectId); refusal keeps the attempt and invalidates that card's proposals query"
+  status: "Approved with the supplied suffix, Superseded, Outdated — ask the Planner to propose again, Pending, Loading status…, Status unavailable, in that order; approval requires readable live Pending without outdated"
+
+external_proposals:
+  owner: external-proposals.tsx
+  list: "ExternalProposals lists one kind's pending, not outdated proposals whose thread_id is null, each headed From <connection name> (connectionsQuery by connection_id; an external agent when not found). Approved and superseded ones are not listed. The design pages render it."
+  cards: "The pending aside counts and links only proposals with a conversation. The vision, map and roadmap cards (VisionProposalCard, MapProposalCard, RoadmapProposalCard, props entry or proposal, projectId) take either entry (a conversation's snapshot) or proposal (the live row) and draw the same body and approval; an external one says Outdated — ask its agent to propose again."
+  tested_by: [an_external_vision_proposal_is_approved_on_the_vision_page, a_retry_of_an_external_approval_reuses_its_command_id, the_pending_aside_links_only_proposals_with_a_conversation, an_external_proposal_names_its_connection, an_external_proposal_of_a_removed_connection_says_an_external_agent, the_roadmap_page_lists_external_roadmap_proposals, an_outdated_external_proposal_asks_its_agent]

@@ -10,7 +10,7 @@ import type { ThreadEntry } from '@/api/threads'
 import { Button } from '@/components/ui/button'
 import { panelVariants } from '@/components/ui/panel'
 import { ErrorLine } from '../error-line'
-import { ApprovedBy } from './approved-by'
+import { ApprovedBy } from '@/app/design'
 
 interface Snapshot { id: string; version: number; title: string; decision: string; rationale: string; source: string }
 

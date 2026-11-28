@@ -139,7 +139,7 @@ Rules for every task here:
 
 ### F-154 · Vision, map and roadmap proposals from an external agent, approved on their page
 
-- Status: todo (B-250 is built: `10bf056e`)
+- Status: done
 - Plan: this section.
 - Read: `web/src/app/design/contract.yaml`, `web/src/app/conversation/contract.yaml`
   (the proposal cards' agreements); `vision-editor.tsx` (the pending aside), `parts-view.tsx`
@@ -155,18 +155,24 @@ Rules for every task here:
   comes from the Planner or an external agent." An outdated external proposal's status reads
   "Outdated — ask its agent to propose again" (the Planner's wording stays for a thread).
   Approved and superseded external proposals are not listed.
-- How: each of the three cards takes either `entry` (as now) or `proposal` (the live row) and
-  renders the same body and approval from it; a new `external-proposals.tsx` in
-  `app/conversation`, exported from its `index.ts`, lists one kind's external proposals; the
-  three design views render it. If the architecture test reports a cycle, stop and report.
+- How: the vision, map and roadmap proposal cards move from `app/conversation` to
+  `app/design`, the module that owns proposals, so the dependency stays one way
+  (`conversation` already imports `design`; `design` never imports `conversation`). Moved, with
+  their tests and their contract agreements: `vision-proposal-card.tsx`,
+  `map-proposal-card.tsx`, `roadmap-proposal-card.tsx`, `use-proposal-approval.ts`,
+  `proposal-approval.tsx`, `approved-by.tsx`. `app/design/index.ts` exports the three cards and
+  `ApprovedBy`; `conversation`'s `entry.tsx`, `plan-card.tsx` and `decision-proposal-card.tsx`
+  import them from `@/app/design`. Each card takes either `entry` (as now) or `proposal` (the
+  live row) and renders the same body and approval from it. A new
+  `app/design/external-proposals.tsx` lists one kind's external proposals; the three design
+  views render it. No line is added to `web/src/architecture.baseline.txt`.
 - Touch: `web/src/api/schema.d.ts` (by `npm run gen:api` only; it also brings B-252's
-  `external` chooser for F-155), `web/src/app/conversation/vision-proposal-card.tsx`, `map-proposal-card.tsx`,
-  `roadmap-proposal-card.tsx`, `use-proposal-approval.ts`, new
-  `web/src/app/conversation/external-proposals.tsx` and its test,
-  `web/src/app/conversation/index.ts`, `web/src/app/conversation/contract.yaml`,
-  `web/src/app/design/vision-editor.tsx`, `parts-view.tsx`, `roadmap-view.tsx`, their tests,
-  `web/src/app/design/contract.yaml`, `web/src/test/fake-daemon.ts`,
-  `docs/frontend/codebase/README.md`.
+  `external` chooser for F-155); in `web/src/app/conversation/`: the six moved files and their
+  tests (removed), `entry.tsx`, `plan-card.tsx`, `decision-proposal-card.tsx` and its test
+  (fixtures only), `index.ts`, `contract.yaml`; in `web/src/app/design/`: the six moved files
+  and their tests, new `external-proposals.tsx` and its test, `index.ts`, `vision-editor.tsx`,
+  `parts-view.tsx`, `roadmap-view.tsx`, their tests, `contract.yaml`;
+  `web/src/test/fake-daemon.ts`, `docs/frontend/codebase/README.md`.
 - Needs: the request (accepted); B-250 built.
 - Done when: `npx vitest run src/app/conversation src/app/design src/architecture` passes
   with `an_external_vision_proposal_is_approved_on_the_vision_page` (posts the existing
@@ -174,7 +180,9 @@ Rules for every task here:
   `an_external_proposal_of_a_removed_connection_says_an_external_agent`,
   `the_pending_aside_links_only_proposals_with_a_conversation`,
   `the_roadmap_page_lists_external_roadmap_proposals`,
-  `an_outdated_external_proposal_asks_its_agent`, and the existing card tests unchanged.
+  `an_outdated_external_proposal_asks_its_agent` (the approval hook's status for an external
+  proposal that turns outdated while shown), and the existing card tests passing from their new
+  place.
 
 ### F-155 · The task page says an executor was chosen by an external agent
 

@@ -5,7 +5,7 @@ import type { ThreadEntry } from '@/api/threads'
 import {approveMapProposal,type MapProposal} from '@/api/design'
 import { mapProposalsQuery, partQuery } from '@/api/design'
 import { useQuery } from '@tanstack/react-query'
-import {MapPartDetails} from '@/app/design'
+import {MapPartDetails} from './map-part-details'
 
 function snapshot(entry:ThreadEntry): MapProposal | null {
   const card = entry.card
@@ -19,13 +19,15 @@ function snapshot(entry:ThreadEntry): MapProposal | null {
   return card as unknown as MapProposal
 }
 
-export function MapProposalCard({entry,projectId}: {entry:ThreadEntry;projectId:string}) {
-  const proposed = snapshot(entry)
+// A card draws a conversation entry's snapshot, or a live external proposal row (no conversation).
+export function MapProposalCard({entry,proposal,projectId}: {
+  entry?:ThreadEntry;proposal?:MapProposal;projectId:string}) {
+  const proposed = proposal ?? (entry ? snapshot(entry) : null)
   const approval = useProposalApproval({
     projectId, proposalId: proposed?.id ?? null,
-    proposalsQuery: mapProposalsQuery(projectId), approveProposal: approveMapProposal,
+    proposalsQuery: mapProposalsQuery(projectId), approveProposal: approveMapProposal, external: proposal !== undefined,
   })
-  if (!proposed) return <p dir="auto">{entry.body}</p>
+  if (!proposed) return <p dir="auto">{entry?.body}</p>
   return <article
     data-map-proposal={proposed.id}
     className={panelVariants({ className: 'space-y-4' })}

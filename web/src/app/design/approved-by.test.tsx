@@ -7,7 +7,7 @@ import { type TestApp, startApp, until } from '@/test/test-app'
 let app: TestApp | null = null
 afterEach(() => { app?.unmount(); app = null; vi.restoreAllMocks() })
 
-const proposal = (agent: string) => ({ id: 'p1', thread_id: 't1', action: 'add' as const,
+const proposal = (agent: string) => ({ id: 'p1', thread_id: 't1', connection_id: null, grant_id: null, action: 'add' as const,
   field: 'goals' as const, item_id: 'G1', text: 'Ship', old_text: null,
   expected_item_revision: null, status: 'Approved' as const, outdated: false, created_at: 'today',
   approved_by: { principal: 'user:local', agent, request: agent === 'human' ? null :

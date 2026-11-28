@@ -21,13 +21,15 @@ function snapshot(entry:ThreadEntry): RoadmapProposal | null {
 
 const titles = {first:'First roadmap',add:'Add outcome',change:'Change outcome',remove:'Remove outcome'}
 
-export function RoadmapProposalCard({entry,projectId}: {entry:ThreadEntry;projectId:string}) {
-  const proposed = snapshot(entry)
+// A card draws a conversation entry's snapshot, or a live external proposal row (no conversation).
+export function RoadmapProposalCard({entry,proposal,projectId}: {
+  entry?:ThreadEntry;proposal?:RoadmapProposal;projectId:string}) {
+  const proposed = proposal ?? (entry ? snapshot(entry) : null)
   const approval = useProposalApproval({
     projectId, proposalId: proposed?.id ?? null,
-    proposalsQuery: roadmapProposalsQuery(projectId), approveProposal: approveRoadmapProposal,
+    proposalsQuery: roadmapProposalsQuery(projectId), approveProposal: approveRoadmapProposal, external: proposal !== undefined,
   })
-  if (!proposed) return <p dir="auto">{entry.body}</p>
+  if (!proposed) return <p dir="auto">{entry?.body}</p>
   return <article
     data-roadmap-proposal={proposed.id}
     className={panelVariants({ className: 'space-y-4' })}

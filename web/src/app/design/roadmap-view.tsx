@@ -8,6 +8,7 @@ import { outcomeQuery } from '@/api/design'
 import { accessLabel, projectStateQuery, taskStatusLabel, type OutcomeDelivery, type ProjectStateView } from '@/api/project-state'
 import { Button } from '@/components/ui/button'
 import { ErrorLine } from '../error-line'
+import { ExternalProposals } from './external-proposals'
 import { OutcomeEditor } from './outcome-editor'
 import { useOutcomePages } from './use-outcome-pages'
 export function RoadmapView({ projectId, selected }: { projectId: string; selected?: string }) {
@@ -20,6 +21,7 @@ export function RoadmapView({ projectId, selected }: { projectId: string; select
       <div className="flex gap-2"><Button size="sm" onClick={() => setCreating(true)}>Create outcome</Button>
         <Button size="sm" variant="secondary" onClick={() => setDestination(null)}>Use roadmap root</Button></div>
       <p className="text-sm text-muted-foreground">Destination: {destination?.content.title ?? 'Roadmap root'}</p>
+      <ExternalProposals projectId={projectId} kind="roadmap" />
       <OutcomeBranch projectId={projectId} choose={setDestination} />
     </section>
     <section className="space-y-4">

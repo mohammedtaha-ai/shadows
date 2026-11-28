@@ -9,7 +9,7 @@ import {MapProposalCard} from './map-proposal-card'
 
 let app: TestApp | null = null
 afterEach(() => {app?.unmount();app=null})
-const pending = (): MapProposal => ({id:'m1',thread_id:'t1',action:'first',part_id:null,old:null,
+const pending = (): MapProposal => ({id:'m1',thread_id:'t1',connection_id:null,grant_id:null,action:'first',part_id:null,old:null,
   status:'Pending',outdated:false,created_at:'2026-10-12',waivers:[{part:'frontend',reason:'Terminal tool'}],
   parts:[{key:'backend',parent_key:null,parent:null,content:{title:'Backend',responsibility:'Logic',design:'',
     kind:'backend',serves:['G1'],folder:'backend',layers:[],

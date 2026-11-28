@@ -9,6 +9,7 @@ import { partQuery, stageQuery, mapProposalsQuery, standardsQuery } from '@/api/
 import { threadsQuery } from '@/api/threads'
 import { Button } from '@/components/ui/button'
 import { ErrorLine } from '../error-line'
+import { ExternalProposals } from './external-proposals'
 import { PartEditor } from './part-editor'
 import { usePartPages } from '@/api/design'
 import { MapPartDetails } from './map-part-details'
@@ -23,21 +24,22 @@ export function PartsView({ projectId, selected }: { projectId: string; selected
   const proposals = useQuery(mapProposalsQuery(projectId))
   const threads = useQuery(threadsQuery(projectId))
   const approved = (stage.data?.map_revision ?? 0) > 0 || proposals.data?.some(p => p.action === 'first' && p.status === 'Approved')
-  const pending = proposals.data?.filter(p => p.status === 'Pending' && !p.outdated) ?? []
+  const pending = proposals.data?.filter(p => p.thread_id !== null && p.status === 'Pending' && !p.outdated) ?? []
   const counts = new Map<string,number>()
-  for (const p of pending) counts.set(p.thread_id,(counts.get(p.thread_id) ?? 0)+1)
+  for (const p of pending) if (p.thread_id !== null) counts.set(p.thread_id,(counts.get(p.thread_id) ?? 0)+1)
   const detail = useQuery({ ...partQuery(projectId, selected ?? ''), enabled: selected !== undefined })
   const tasks = useQuery({ ...projectStateQuery(projectId, selected), enabled: selected !== undefined })
   return <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
     <section className="min-w-0 space-y-3" aria-label="Project parts">
       {!approved && !stage.isPending && !proposals.isPending && stage.error === null && proposals.error === null &&
-        <p>The first map comes from the Planner. Ask for it in a conversation.</p>}
+        <p>The first map comes from the Planner or an external agent. Ask for it in a conversation or from your agent.</p>}
       {pending.length > 0 && <aside role="status" className="rounded border p-3 text-sm">
         {pending.length} map {pending.length === 1 ? 'proposal awaits' : 'proposals await'} your approval
         <ul>{[...counts].map(([threadId,count]) => <li key={threadId}><Link
           to="/projects/$projectId/threads/$threadId" params={{projectId,threadId}}>
           {threads.data?.find(t => t.id === threadId)?.title ?? 'a conversation'} · {count} pending</Link></li>)}</ul>
       </aside>}
+      <ExternalProposals projectId={projectId} kind="map" />
       {(stage.data?.drift?.length ?? 0) > 0 && <aside aria-label="Map drift" className="rounded border p-3">
         <h3>Drift</h3><ul>{stage.data?.drift?.map(d => <li key={d} dir="auto">{d}</li>)}</ul></aside>}
       {stage.data && stage.data.map_revision > 0 && stage.data.missing.length > 0 && <aside role="status" className="rounded border p-3">
