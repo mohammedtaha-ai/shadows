@@ -354,7 +354,7 @@ before they were built: Shadows never wakes an external agent (Mohammed, 2026-11
   it (B-258). A private `tokio::sync::Notify` in Runs fires after each new row commits.
 - Touch: `crates/core-runs/src/notify.rs`, new `crates/core-runs/src/author.rs`, new
   `crates/core-runs/src/store/author.rs`, `crates/core-runs/src/lib.rs` (the `Notify`), new
-  migration `crates/core-db/migrations/0083_run_author_report.sql` (`report_id` primary key,
+  migration `crates/core-db/migrations/0086_run_author_report.sql` (`report_id` primary key,
   `attempt_id`, `kind` (`ended` or `conflict`), `project_id`, `grant_id`, `workflow_id`, `task`,
   `body`, `created_at`, `claimed_until NULL`, `acked_at NULL`),
   `crates/shadows/tests/architecture/table-owners.txt`, `crates/core-runs/contract.yaml`,
@@ -368,7 +368,7 @@ before they were built: Shadows never wakes an external agent (Mohammed, 2026-11
   starts T1; connection B starts a v2 draft; T1's row names A's grant),
   `a_check_returned_to_the_executor_reports_once_its_follow_up_settles` (one `ended` row, for
   the follow-up attempt).
-- Migration numbers: B-257 takes `0083`; B-250 and B-252 take the next free numbers when built.
+- Migration number: `0086` (B-250 took `0084`, B-252 `0085`; `0083` stays unused, since a lower number after applied ones is refused).
 
 ### B-258 · One wait for an external author, answered until acknowledged
 
