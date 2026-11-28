@@ -81,6 +81,18 @@ bound time passes, and answers the attempt's report or "nothing yet". Two adapte
 - an HTTP route with the connection's bearer, which Claude Code calls from a background
   command and is woken when it ends, free in the meantime.
 
+The client's own hooks call the same route, so a wait needs no model turn and no one to
+remember it. Settings → External agents gives each hook ready to register:
+
+| Client | Hook | While it waits |
+|---|---|---|
+| Claude Code | a `Stop` hook with `asyncRewake`: it runs in the background after each turn and exits with code 2 and the attempt's report, which wakes the session even when it is idle. Optional: a background command does the same | free |
+| Codex, including its desktop app | a `Stop` hook: it answers `{"decision": "block", "reason": "<the attempt's report>"}`, which Codex takes as the next prompt; its `timeout` (600 seconds by default) is raised in the hook's entry | busy, spending no tokens; the person can stop it |
+| Codex with `codex --remote` | none: Shadows starts the turn (above) | free |
+
+Each hook first asks whether the connection has an attempt still running in the project,
+and ends at once when it has none, so a turn with no task running stops as usual.
+
 Codex Desktop can only wait this way: its conversations accept no turn from another program
 (`codex exec resume` is refused while the app holds the thread, and its
 `send_message_to_thread` exists only inside the app). Claude Code's own cross-session
