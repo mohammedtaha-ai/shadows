@@ -497,6 +497,50 @@ before they were built: Shadows never wakes an external agent (Mohammed, 2026-11
   (two `TaskProgressChanged` events, each with that task's `workflow_id`, `version` and
   `task`).
 
+### B-263 · Findings left by B-253 to B-261, fixed before the branch review
+
+Each is fixed at its root by `backend-fixer`, one commit each, with only the tests it touches.
+
+- **F1 · Lines over 100 characters.** The line check of `docs/backend/AGENTS.md` rule 5 prints
+  `crates/core-runs/src/store/author.rs:50`, `crates/shadows/tests/mcp_server.rs:249`,
+  `crates/shadows-core/tests/external_author.rs:768`, `crates/shadows-mcp/src/run_tools.rs:575`.
+  - Status: todo
+  - Touch: those four files.
+  - Done when: the line check prints nothing; `cargo fmt --all --check` passes;
+    `cargo test -p shadows --test mcp_server` and
+    `cargo test -p shadows-core --test external_author` pass.
+- **F2 · A follow-up attempt that fails to open reports to no one.** In
+  `crates/core-runs/src/start.rs` (around the `finish(.., AttemptState::Failed, ..)` of a
+  session that does not open) the attempt is marked `Failed` but `notify` is never called: the
+  Planner gets no notice, and for an external plan no `run_author_report` row is kept, so the
+  report never settles and B-258's wait never answers `none_running` for that author. Fix it on
+  the one path both use: a failed open settles its notice through `notify`, as every other end
+  does (the Planner's thread notice, or the external author's row).
+  - Status: todo
+  - Owner: `Runs`.
+  - Touch: `crates/core-runs/src/start.rs`, `crates/core-runs/src/notify.rs` if needed,
+    `crates/core-runs/contract.yaml`, `crates/shadows-core/tests/external_author.rs`, and the
+    Planner-side test file in `crates/shadows-core/tests/` that covers attempt notices.
+  - Done when: `a_follow_up_that_fails_to_open_reports_to_its_external_author` (a returned check
+    whose follow-up cannot open, e.g. a model that refuses its mode: one `ended` row; the next
+    wait answers it, and after its `ack` answers `none_running`) and
+    `a_follow_up_that_fails_to_open_tells_the_planner` (one notice on the Planner's thread)
+    pass, with the existing `external_author` and attempt-notice tests.
+- **F3 · Reading the connection token is written twice.** `bearer()` in
+  `crates/shadows-mcp/src/auth.rs` and in `crates/shadows-http/src/external_wait.rs` are the same
+  rule. Grants owns bearer validation, so it owns the parse: one associated function
+  `Grants::bearer(authorization: Option<&str>) -> Option<&str>` (the `Authorization` header's
+  value; `Bearer` matched without case, the token trimmed, empty refused), called by both
+  adapters, which pass the header's value and keep no parse of their own.
+  - Status: todo
+  - Owner: `Grants`.
+  - Touch: `crates/core-grants/src/lib.rs` (or `external.rs`), `crates/core-grants/contract.yaml`,
+    `crates/shadows-mcp/src/auth.rs`, `crates/shadows-http/src/external_wait.rs`,
+    `crates/shadows-http/src/contract.yaml`, the `shadows-mcp` contract if it names `bearer`.
+  - Done when: `cargo test -p core-grants` passes with `a_bearer_header_is_parsed_once`
+    (`Bearer x`, `bearer  x `, `Basic x`, `Bearer `, none), and
+    `cargo test -p shadows --test mcp_server --test grants` pass.
+
 ### B-262 · Acceptance: an external agent takes a project from idea to done tasks
 
 - Status: blocked (needs B-249 to B-253, B-257 to B-261 and the web side of the request)
