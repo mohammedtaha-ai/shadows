@@ -158,7 +158,9 @@ Rules for every task here:
   records `principal_kind: "Grant"` with its grant id (as `Writer::External` already does).
 - Scopes, checks and the executor's own approvals do not change for an external caller.
 - No Planner takes over an externally written plan, and no notice goes to any thread for it.
-- Live tests follow the live rules at the top of "Now"; a `codex` live test needs Codex signed in.
+- Shadows never wakes an external agent and keeps no address for it; the agent waits
+  (`task_wait`, or its client's Stop hook on the HTTP route). The clients are Claude Code and
+  the Codex desktop app (Mohammed, 2026-11-28).
 
 Not owned, so left out:
 - `project_change_note` records a `ProjectChange` entry in the Planner's thread
@@ -211,7 +213,7 @@ Not owned, so left out:
   `grant_id: Option<GrantId>`. The person approves it through the existing project routes;
   approving it writes no thread entry.
 - Touch: the four files above and their store files; new migration
-  `crates/core-db/migrations/0083_external_design_proposals.sql` (rebuilds the three proposal
+  `crates/core-db/migrations/<next>_external_design_proposals.sql` (rebuilds the three proposal
   tables: `thread_id`, `operation_id`, `entry_id` nullable, `grant_id TEXT NULL REFERENCES
   mcp_grant(id)`, `CHECK ((thread_id IS NULL) <> (grant_id IS NULL))`, rows copied);
   `crates/core-design/contract.yaml`; `crates/shadows/tests/architecture/table-owners.txt` if
@@ -249,17 +251,24 @@ Not owned, so left out:
 - Status: blocked (the shared request: `Chooser` gains `external`)
 - Owner: `Runs`.
 - Read: `crates/core-runs/src/executor_choice.rs` (`save_executor`),
-  `crates/core-runs/src/store/executor_choice.rs`, `model.rs` (`Chooser`).
-- Interfaces: `Chooser::External` (`"external"` on the wire). A project grant's choice records
-  `Actor { kind: "Grant", id: <grant id> }` and `by: "external"`; the project check stays
-  `grant.project_id == plan.project_id`.
-- Touch: `crates/core-runs/src/model.rs`, `executor_choice.rs`, `store/executor_choice.rs`,
-  `crates/core-runs/contract.yaml`, `crates/shadows-core/tests/external_runs.rs`,
+  `crates/core-runs/src/store/executor_choice.rs` (the read maps every value but `planner` to
+  `Person`), `model.rs` (`Chooser`), migration `0073_run_task_executors.sql` (`chosen_by` is
+  `CHECK IN ('person','planner')`).
+- Interfaces: `Chooser::External` (`"external"` on the wire and in the table). A project
+  grant's choice records `Actor { kind: "Grant", id: <grant id> }` and `by: "external"`; the
+  project check stays `grant.project_id == plan.project_id`. The read matches each stored value
+  explicitly (`person`, `planner`, `external`); any other is a storage error, never `Person`.
+- Touch: `crates/core-runs/src/model.rs`, `executor_choice.rs`, `store/executor_choice.rs`, new
+  migration `crates/core-db/migrations/<next>_external_executor_chooser.sql` (rebuilds
+  `run_task_executors` with `CHECK (chosen_by IN ('person','planner','external'))`, rows
+  copied), `crates/core-runs/contract.yaml`, `crates/shadows-core/tests/external_runs.rs`,
   `api/openapi.json` (regenerated).
 - Needs: B-249; the request `accepted`.
-- Done when: `cargo test -p shadows-core --test external_runs` passes with
-  `an_external_agent_sets_a_tasks_executor` (`chosen_by == Chooser::External`), and
-  `UPDATE_OPENAPI=1 cargo test -p shadows --test openapi` changes only `Chooser`.
+- Done when: `cargo test -p shadows-core --test external_runs --test design_migration` pass
+  with `an_external_agent_sets_a_tasks_executor` (saved, then read back as
+  `Chooser::External`), `earlier_choices_read_back_unchanged_after_the_migration` (a `person`
+  and a `planner` row), and `UPDATE_OPENAPI=1 cargo test -p shadows --test openapi` changes
+  only `Chooser`.
 
 ### B-253 · The external inventory grows to the Planner's, less approval and conversation tools
 
@@ -292,138 +301,73 @@ Not owned, so left out:
   approved by the person through the routes; then `draft_start` no longer answers
   `STAGE_BLOCKED`; then `task_start` answers an attempt).
 
-### B-254 · Secrets keeps a plan author's reach token
+B-254, B-255 and B-256 (the author's reach, its token and a Codex app-server wake) were dropped
+before they were built: Shadows never wakes an external agent (Mohammed, 2026-11-28, spec at
+`d3497952`). Their entries are in this file at `18e72f9e`.
 
-- Status: todo
-- Owner: `Secrets` (`crates/core-secrets`).
-- Read: `crates/core-secrets/contract.yaml` (the `mcp/{id}` rules: a value never in the
-  database in clear, a command record or a log).
-- Interfaces: `Secrets::set_reach_token(&self, plan: &str, token: &str) -> Result<(),
-  SecretsError>`, `Secrets::reach_token(&self, plan: &str) -> Result<Option<String>,
-  SecretsError>`, `Secrets::remove_reach_token(&self, plan: &str) -> Result<(), SecretsError>`;
-  kept under `reach/{plan}`, sealed as `mcp/{id}` is; a set replaces.
-- Touch: `crates/core-secrets/src/lib.rs` (or a new `src/reach.rs`), its store,
-  `crates/core-secrets/contract.yaml`, new `crates/core-secrets/tests/reach_token.rs`,
-  `docs/codebase/README.md` if a file is added.
-- Needs: nothing.
-- Done when: `cargo test -p core-secrets --test reach_token` passes with
-  `a_reach_token_round_trips_and_a_set_replaces`, `a_removed_reach_token_reads_none`,
-  `a_reach_token_is_not_stored_in_clear` (the row's bytes do not contain the token).
-
-### B-255 · `draft_start` takes the author's reach and the plan keeps it
-
-- Status: todo
-- Owner: `Plans` (`crates/core-plans`); the token through `Secrets`.
-- Read: `crates/core-plans/contract.yaml`; `scope.rs` (`external_draft`), `lib.rs`
-  (`start_draft`), `model.rs` (`WrittenBy`, `DraftStart`); `app.rs` where `Plans` is built;
-  migration `0012` (`workflow.written_by_*`).
-- Interfaces: `DraftStart.reach: Option<ReachInput>`, `ReachInput::CodexAppServer { address:
-  String, token: String, thread_id: String }` (`kind: "codex_app_server"` in JSON). Accepted
-  only from a project grant; a Planner grant with a reach is `InvalidCommand` ("the Planner is
-  reached in its conversation"). `address` must be `ws://` with a loopback IP literal
-  (`127.0.0.0/8` or `[::1]`) and a port, else `InvalidCommand` ("only a loopback ws:// address
-  is accepted"). `address` and `thread_id` are kept on the new version
-  (`workflow.written_by_reach TEXT NULL`, JSON), the token by `Secrets::set_reach_token(plan_id,
-  …)`; the token enters no stored command params, plan content or log (`ReachInput`'s `Debug`
-  hides it). A version without a reach keeps none.
-  `Plans::author_reach(&self, plan: &PlanId) -> Result<Option<AuthorReach>, PlansError>` reads
-  the latest version's reach: `AuthorReach::CodexAppServer { address, thread_id, token }`, the
-  token from `Secrets::reach_token`; `None` for a Planner's plan or no reach. `Plans::new` gains
-  `secrets: Arc<Secrets>`.
-- Touch: `crates/core-plans/src/model.rs`, `scope.rs`, `lib.rs`, a new
-  `crates/core-plans/src/reach.rs`, its store, `crates/core-plans/Cargo.toml` (`core-secrets`),
-  `crates/core-plans/contract.yaml`, new migration
-  `crates/core-db/migrations/0084_plan_author_reach.sql`, `crates/shadows-core/src/app.rs` (the
-  `Plans::new` calls), `crates/shadows/tests/plan_grants.rs`, `docs/codebase/README.md`,
-  `crates/shadows/tests/architecture/table-owners.txt` if it names columns.
-- Needs: B-254.
-- Done when: `cargo test -p shadows --test plan_grants` passes with
-  `an_external_start_keeps_its_reach_and_the_latest_version_wins` (two versions, two
-  addresses; `author_reach` answers the second, with its token),
-  `a_reach_outside_loopback_is_refused` (`ws://192.168.1.2:4500`, `ws://localhost:4500`,
-  `http://127.0.0.1:4500`), `a_planner_start_with_a_reach_is_refused`,
-  `the_reach_token_is_not_in_plan_content` (`workflow_get` and the stored command params do not
-  contain the token).
-
-### B-256 · A second client wakes a Codex thread on the person's app-server
-
-- Status: todo
-- Owner: `shadows-agent` (the AI subprocess harness; it already speaks the Codex app-server
-  protocol in `src/codex`). Not a Core service: B-257 calls it from `Runs`.
-- Read: `crates/shadows-agent/src/codex/protocol.rs` (`thread/resume`, `turn/start`),
-  `connection.rs` (`Rpc`), `session.rs` (`start_session`: `initialize` and resume),
-  the `shadows-agent` row of `docs/codebase/README.md`, the spec's "Where the plan's author is
-  reached".
-- Interfaces: `pub struct CodexRemote;` with `pub async fn wake(address: &str, token: &str,
-  thread: &str, text: &str, deadline: Duration) -> Result<(), ConnectionError>`: one WebSocket
-  connection carrying the capability token on the upgrade request (as Codex 0.171.0's
-  `--ws-auth capability-token` reads it; the builder records the header in the code map row),
-  then `initialize`, `thread/resume { threadId }`, `turn/start { threadId, input: [text] }`,
-  answered once `turn/start` is accepted, then closed. A refused token, a missing thread or the
-  deadline is a `ConnectionError` naming which. New dependency `tokio-tungstenite`
-  (infrastructure).
-- Touch: new `crates/shadows-agent/src/codex/remote.rs`, `crates/shadows-agent/src/codex.rs`
-  (`mod` and re-export), `crates/shadows-agent/Cargo.toml`, root `Cargo.toml` (workspace
-  dependency), `docs/codebase/README.md`, new `crates/shadows-agent/tests/codex_remote_live.rs`.
-- Needs: nothing.
-- Done when: `cargo test -p shadows-agent --test codex_remote_live -- --ignored` passes signed
-  in to Codex with `live_a_second_client_starts_a_turn_on_a_codex_thread` (the test starts
-  `codex app-server --listen ws://127.0.0.1:<free port> --ws-auth capability-token
-  --ws-token-file <tmp>`, a first client starts a thread, `wake` answers `Ok`, and the first
-  client sees `turn/started` on that thread with the text) and `live_a_wrong_token_is_refused`.
-
-### B-257 · Runs tells an external author how an attempt ended
+### B-257 · Runs keeps each attempt's report for its external author
 
 - Status: todo
 - Owner: `Runs` (`notify.rs`: telling a plan's author how an attempt ended).
 - Read: `crates/core-runs/contract.yaml` (notices), `crates/core-runs/src/notify.rs`
-  (`Recipient`, `NoticeIntent`, the conflict notice), `checks.rs` (where an attempt's checks
-  finish); B-255's `Plans::author_reach`; B-256's `CodexRemote::wake`.
+  (`Recipient`, `NoticeIntent`, the conflict notice), `crates/core-runs/src/watch.rs` (a
+  committed attempt, then its checks), `checks.rs` (where the checks finish).
 - Interfaces: when an attempt of a plan whose latest version is `WrittenBy::External` has ended
   and its checks have run, or its executor reports a conflict, Runs saves one
-  `run_author_notice` row with the body the Planner's notice would carry (one builder of that
-  body for both), in the write that ends the attempt or records the conflict. Then, if
-  `author_reach` is `CodexAppServer`, it calls `CodexRemote::wake` with that body (deadline
-  20 s); `Ok` marks the row told (`told_by = 'wake'`). A failed wake is logged without the token
-  and leaves the row untold. A Planner's plan keeps today's thread notice and writes no row.
-  A private `tokio::sync::Notify` in Runs fires after each new row commits (B-258 waits on it).
+  `run_author_report` row with the body the Planner's notice would carry (one builder of that
+  body for both), in the write that settles the attempt's checks or records the conflict. Its
+  `report_id` is `<attempt_id>:<kind>`, stable across every answer of it. A Planner's plan keeps
+  today's thread notice and writes no row. Shadows sends the row nowhere: the author waits for
+  it (B-258). A private `tokio::sync::Notify` in Runs fires after each new row commits.
 - Touch: `crates/core-runs/src/notify.rs`, new `crates/core-runs/src/author.rs`, new
   `crates/core-runs/src/store/author.rs`, `crates/core-runs/src/lib.rs` (the `Notify`), new
-  migration `crates/core-db/migrations/0085_run_author_notice.sql` (`attempt_id`, `kind`
-  (`ended` or `conflict`), `project_id`, `grant_id`, `workflow_id`, `task`, `body`,
-  `created_at`, `told_at NULL`, `told_by NULL` (`wake` or `wait`); primary key
-  `(attempt_id, kind)`), `crates/shadows/tests/architecture/table-owners.txt`,
-  `crates/core-runs/contract.yaml`, `docs/codebase/README.md`, new
-  `crates/shadows-core/tests/external_author.rs`.
-- Needs: B-249, B-255, B-256.
+  migration `crates/core-db/migrations/0083_run_author_report.sql` (`report_id` primary key,
+  `attempt_id`, `kind` (`ended` or `conflict`), `project_id`, `grant_id`, `workflow_id`, `task`,
+  `body`, `created_at`, `claimed_until NULL`, `acked_at NULL`),
+  `crates/shadows/tests/architecture/table-owners.txt`, `crates/core-runs/contract.yaml`,
+  `docs/codebase/README.md`, new `crates/shadows-core/tests/external_author.rs`.
+- Needs: B-249.
 - Done when: `cargo test -p shadows-core --test external_author` passes with
-  `an_ended_attempt_of_an_external_plan_is_kept_for_its_author` (one untold row, no thread
-  entry), `a_planner_plan_keeps_its_thread_notice` (no row),
-  `a_failed_wake_leaves_the_notice_untold` (a reach to a closed loopback port),
-  `a_repeated_end_keeps_one_notice`.
+  `an_ended_attempt_of_an_external_plan_is_kept_for_its_author` (one open row, no thread
+  entry), `the_report_is_kept_only_after_the_checks_ran` (a slow check: no row while it runs),
+  `a_planner_plan_keeps_its_thread_notice` (no row), `a_repeated_end_keeps_one_report`.
+- Migration numbers: B-257 takes `0083`; B-250 and B-252 take the next free numbers when built.
 
-### B-258 · One wait for an external author
+### B-258 · One wait for an external author, answered until acknowledged
 
 - Status: todo
 - Owner: `Runs`.
 - Read: B-257's rows and `Notify`; the spec's "Waiting for a task".
-- Interfaces: `Runs::author_wait(&self, grant: &Grant, bound: Duration) -> Result<AuthorWait,
-  RunsError>` for a project grant (others `NotFound`). It first claims every untold row of the
-  plans that grant wrote (`told_by = 'wait'`, in one write, so two waiters never get one row)
-  and answers them at once as `Ended`. With none, if no attempt of those plans is running it
-  answers `NoneRunning` at once; else it waits on the `Notify` until a row comes (claimed,
-  `Ended`) or `bound` passes (`NothingYet`). `AuthorWait { outcome: WaitOutcome, reports:
-  Vec<AuthorReport> }`, `WaitOutcome { Ended, NothingYet, NoneRunning }` (snake_case),
-  `AuthorReport { attempt_id, workflow_id, task: u32, kind, report: String }`, oldest first.
+- Interfaces: `Runs::author_wait(&self, grant: &Grant, ack: &[String], bound: Duration) ->
+  Result<AuthorWait, RunsError>` for a project grant (others `NotFound`). In order:
+  1. It marks acknowledged (`acked_at`) the rows in `ack` that belong to plans this grant
+     wrote; others are ignored.
+  2. It claims, in one write, every row of those plans that is open or whose claim has lapsed
+     (`claimed_until = now + 120 s`), so two waiters never hold one row at once, and answers
+     them at once as `Ended`. A claimed row not acknowledged within its lease is answered
+     again by a later wait: a report is never lost to a dropped answer, and its `report_id`
+     lets the author tell a repeat.
+  3. With none, it answers `NoneRunning` at once only when no attempt of those plans is still
+     pending: running, or committed with its checks not yet run (no `ended` row yet).
+  4. Else it waits on the `Notify` until a row comes (claimed, `Ended`) or `bound` passes
+     (`NothingYet`).
+  `AuthorWait { outcome: WaitOutcome, reports: Vec<AuthorReport> }`, `WaitOutcome { Ended,
+  NothingYet, NoneRunning }` (snake_case), `AuthorReport { report_id: String, attempt_id,
+  workflow_id, task: u32, kind, report: String }`, oldest first.
 - Touch: `crates/core-runs/src/author.rs`, `crates/core-runs/src/store/author.rs`,
   `crates/core-runs/src/model.rs`, `crates/core-runs/src/lib.rs` (re-exports),
   `crates/core-runs/contract.yaml`, `crates/shadows-core/tests/external_author.rs`.
 - Needs: B-257.
 - Done when: `cargo test -p shadows-core --test external_author` passes with
-  `a_wait_answers_at_once_with_notices_left_while_no_one_waited`,
-  `a_wait_with_nothing_running_answers_none_running`, `a_wait_ends_when_an_attempt_ends`,
-  `a_wait_passes_its_bound_with_nothing_yet`, `two_waiters_never_get_one_notice_twice`,
-  `a_woken_notice_is_not_answered_again`.
+  `a_wait_answers_at_once_with_reports_left_while_no_one_waited`,
+  `a_wait_with_nothing_pending_answers_none_running`,
+  `a_wait_during_slow_checks_does_not_answer_none_running` (attempt committed, its check still
+  running: the wait holds and answers `Ended` once the check ends),
+  `a_wait_ends_when_an_attempt_ends`, `a_wait_passes_its_bound_with_nothing_yet`,
+  `two_waiters_never_hold_one_report_at_once`,
+  `an_unacknowledged_report_is_answered_again_after_its_lease` (same `report_id`),
+  `an_acknowledged_report_is_not_answered_again`,
+  `an_ack_for_another_grants_report_is_ignored`.
 
 ### B-259 · `task_wait` over MCP
 
@@ -431,9 +375,10 @@ Not owned, so left out:
 - Owner: `Runs` (the method), `Grants` (the inventory); the MCP adapter translates.
 - Read: `crates/shadows-mcp/src/run_tools.rs` (a tool calling `self.core.runs()`),
   `crates/core-grants/src/tools.rs`.
-- Interfaces: tool `task_wait`, args `{ seconds?: u32 }` (default 45; a larger value is held
-  to 50, so Codex's `tool_timeout_sec` of about 60 never cuts it), calls
-  `runs().author_wait(&grant, …)`, answers `AuthorWait`. In `PROJECT_TOOLS` only, never in
+- Interfaces: tool `task_wait`, args `{ seconds?: u32, ack?: string[] }` (`seconds` default
+  45; a larger value is held to 50, so Codex's `tool_timeout_sec` of about 60 never cuts it;
+  `ack` names the `report_id`s it has read), calls `runs().author_wait(&grant, &ack, …)`,
+  answers `AuthorWait`. In `PROJECT_TOOLS` only, never in
   `THREAD_TOOLS`. Its description says it answers at once when nothing runs.
 - Touch: `crates/shadows-mcp/src/run_tools.rs`, `crates/core-grants/src/tools.rs`,
   `crates/core-grants/contract.yaml`, `crates/shadows/tests/mcp_server.rs`.
@@ -452,8 +397,10 @@ Not owned, so left out:
   a bearer into a connection), `Grants::authorize_external`, `Grants::external_project`,
   `crates/shadows-http/contract.yaml`.
 - Interfaces: `POST /api/external/task-wait`, `Authorization: Bearer <connection token>`, body
-  `{ project_id: string, seconds?: u32 }` (default 300; a larger value is held to 540, under
-  Codex's 600 s hook timeout) → `AuthorWait`. A missing or revoked bearer is 401; a project not
+  `{ project_id: string, seconds?: u32, ack?: string[] }` → `AuthorWait`. `seconds` defaults
+  to 300 and is held to 540: a hook makes one call per run, and Codex's hook `timeout` (600 s)
+  covers the whole hook, so one call must end inside it. `seconds: 0` with `ack` only
+  acknowledges and answers what is open at once. A missing or revoked bearer is 401; a project not
   on the connection 404. No browser origin needed. `ExternalConnection` and the issue response
   gain `wait_url: string` (`http://<bound address>/api/external/task-wait`), built by Grants
   beside `mcp_url`.
@@ -464,6 +411,7 @@ Not owned, so left out:
 - Needs: B-258; the request `accepted`.
 - Done when: `cargo test -p shadows --test grants --test openapi` pass with
   `the_http_wait_answers_with_the_connections_bearer` (an ended attempt's report),
+  `the_http_wait_acknowledges_what_it_names` (a second call with that `ack` does not answer it),
   `the_http_wait_refuses_a_revoked_bearer` (401), `the_http_wait_refuses_an_unselected_project`
   (404), `a_connection_names_its_wait_url`.
 
@@ -472,32 +420,29 @@ Not owned, so left out:
 - Status: blocked (the shared request)
 - Owner: `Runs`.
 - Read: the `TaskRun` view in `crates/core-runs/src/model.rs`; B-257's rows.
-- Interfaces: `TaskRun.author_waiting: bool`, true while the task's latest attempt has an
-  untold `run_author_notice` row. A `TaskProgressChanged` is journaled when a row is saved and
-  when it is told, so the project stream refreshes the page.
+- Interfaces: `TaskRun.author_waiting: bool`, true while the task's latest attempt has a
+  `run_author_report` row not yet acknowledged. A `TaskProgressChanged` is journaled when a row
+  is saved and when it is acknowledged, so the project stream refreshes the page.
 - Touch: `crates/core-runs/src/model.rs`, the view's store read, `crates/core-runs/src/author.rs`,
   `crates/core-runs/contract.yaml`, `crates/shadows-core/tests/external_author.rs`,
   `api/openapi.json` (regenerated).
 - Needs: B-258; the request `accepted`.
 - Done when: `cargo test -p shadows-core --test external_author` passes with
-  `a_task_run_shows_its_result_waiting_for_its_author` (true after the end, false after a wait
-  claims it).
+  `a_task_run_shows_its_result_waiting_for_its_author` (true after the end, still true while
+  claimed, false once acknowledged).
 
 ### B-262 · Acceptance: an external agent takes a project from idea to done tasks
 
-- Status: blocked (needs B-249 to B-261 and the web side of the request)
+- Status: blocked (needs B-249 to B-253, B-257 to B-261 and the web side of the request)
 - Owner: the controller with Mohammed; no code.
 - Run, on a fresh `testing` project through `shadows serve` and the browser:
   1. Claude Code connected from Settings with its `asyncRewake` Stop hook: it proposes vision,
      map and roadmap; Mohammed approves each with the button; it writes and starts a plan; the
      hook wakes it with each attempt's report and it judges it.
-  2. Codex with `codex --remote` on `codex app-server --listen ws://127.0.0.1:<port> --ws-auth
-     capability-token --ws-token-file <file>`: its `draft_start` carries the reach; Shadows
-     starts a turn on its screen when an attempt ends. Check that Codex can name its own thread
-     id for the reach; if it cannot, stop and report it for a ruling.
-  3. Codex Desktop with its Stop hook: busy while it waits, answered with the report.
-  4. An attempt that ends with no one waiting shows as waiting for its author; the next wait
+  2. The Codex desktop app with its Stop hook: busy while it waits, answered with the report;
+     an attempt longer than the hook's timeout leaves its report for the next wait.
+  3. An attempt that ends with no one waiting shows as waiting for its author; the next wait
      answers it at once.
-- Done when: `docs/evidence/<date>-external-agents-like-the-planner-live.md` records the four
+- Done when: `docs/evidence/<date>-external-agents-like-the-planner-live.md` records the three
   runs and their findings.
 
