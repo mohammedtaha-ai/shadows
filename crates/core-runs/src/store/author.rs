@@ -238,15 +238,7 @@ impl RunsStore {
             .write_txn_as(move |conn| {
                 Box::pin(async move {
                     let kept = Runs::keep_for_author_in(conn, &row, &at).await?;
-                    sqlx::query(
-                        "UPDATE run_agent_messages SET delivered_at = COALESCE(delivered_at, ?),
-                         state = CASE WHEN state = 'failed' THEN 'failed' ELSE 'delivered' END
-                         WHERE id = ?",
-                    )
-                    .bind(&at)
-                    .bind(&message)
-                    .execute(&mut *conn)
-                    .await?;
+                    Self::message_delivered_in(conn, &message, &at).await?;
                     Ok(kept)
                 })
             })

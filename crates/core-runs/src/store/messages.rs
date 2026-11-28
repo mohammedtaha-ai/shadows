@@ -1,7 +1,7 @@
 //! Ordered plain questions and their durable replies.
 use super::RunsStore;
 use crate::{AgentMessage, AgentMessageId, Attempt, AttemptId, RunsError};
-use core_db::Storage;
+use core_db::{Storage, Tx};
 use core_operations::OperationId;
 use core_plans::WorkflowId;
 use core_threads::ThreadId;
@@ -201,22 +201,31 @@ impl RunsStore {
     }
 
     pub async fn message_delivered(&self, id: &str) -> Result<(), RunsError> {
-        let id = id.to_string();
+        let (id, at) = (id.to_string(), Storage::now());
         self.storage
             .write_txn_as(move |tx| {
-                Box::pin(async move {
-                    sqlx::query(
-                        "UPDATE run_agent_messages SET delivered_at=?,
-                state=CASE WHEN state='failed' THEN 'failed' ELSE 'delivered' END WHERE id=?",
-                    )
-                    .bind(Storage::now())
-                    .bind(id)
-                    .execute(&mut *tx)
-                    .await?;
-                    Ok(())
-                })
+                Box::pin(async move { Self::message_delivered_in(tx, &id, &at).await })
             })
             .await
+    }
+
+    /// Marks message `id` delivered inside `tx`. A failed message stays failed, and a second
+    /// delivery keeps the first `delivered_at`.
+    pub(crate) async fn message_delivered_in(
+        tx: &mut Tx,
+        id: &str,
+        at: &str,
+    ) -> Result<(), RunsError> {
+        sqlx::query(
+            "UPDATE run_agent_messages SET delivered_at = COALESCE(delivered_at, ?),
+             state = CASE WHEN state = 'failed' THEN 'failed' ELSE 'delivered' END
+             WHERE id = ?",
+        )
+        .bind(at)
+        .bind(id)
+        .execute(&mut *tx)
+        .await?;
+        Ok(())
     }
 
     pub async fn pending_for_task(

@@ -661,7 +661,7 @@ Each fixed at its root by `backend-fixer`, one commit each, with only the tests 
   (`crates/core-runs/src/store/messages.rs:203`). Keep one: a transaction-local
   `message_delivered_in(tx, id, at)` in `store/messages.rs` that both the existing
   `message_delivered` and the reply write call.
-  - Status: todo
+  - Status: done
   - Touch: `crates/core-runs/src/store/messages.rs`, `crates/core-runs/src/store/author.rs`,
     `crates/core-runs/contract.yaml` if it names either.
   - Done when: `cargo test -p shadows-core --test external_author --test runs_attempts` pass.

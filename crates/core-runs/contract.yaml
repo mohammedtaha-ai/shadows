@@ -605,7 +605,7 @@ agent_messages:
   prompt: "The executor is asked without naming who asks: You are asked, about task T<n>, without changing it:
 <message>
 Answer in plain words. Change no file and make no commit for this."
-  external_author: "notify_reply routes by the author of the attempt's own version: a Planner gets the waiting notice; an external author gets one reply run_author_report row (source the message id, body the Planner's notice text through reply_body) kept by keep_reply_report in the same write that marks the message delivered, so it never answers Unavailable and recovery sends nothing again. A message of that author's plans in waiting or sent keeps author_wait from answering NoneRunning (pending_workflows)."
+  external_author: "notify_reply routes by the author of the attempt's own version: a Planner gets the waiting notice; an external author gets one reply run_author_report row (source the message id, body the Planner's notice text through reply_body) kept by keep_reply_report in the same write that marks the message delivered (message_delivered_in, the one delivery write message_delivered also runs; a second delivery keeps the first delivered_at), so it never answers Unavailable and recovery sends nothing again. A message of that author's plans in waiting or sent keeps author_wait from answering NoneRunning (pending_workflows)."
   tests_external: shadows-core/tests/external_author.rs (an_executors_reply_reaches_its_external_author, a_wait_holds_while_a_message_awaits_its_reply)
   returns: >
     A failed confirmation's return waits, under the thread's message lock, until no turn runs
