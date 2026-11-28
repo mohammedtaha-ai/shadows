@@ -40,26 +40,31 @@ The web needs four things:
 What a hook does with the route (so the web can write it):
 
 - It makes **one** call per run, with the connection's token from the environment
-  (`SHADOWS_TOKEN`, as the Codex registration already uses), its project's id and `seconds`
+  (`SHADOWS_TOKEN`, as the Codex registration already uses), its project's id, `seconds`
   under its own timeout (Codex's hook `timeout` covers the whole hook, so the hook does not
-  call again inside it).
+  call again inside it), and `ack`: the `report_id`s its previous run handed to the session,
+  read from a small file the hook keeps beside its script. It then empties that file.
 - `none_running`: no attempt of this connection's plans is pending and no report is open: the
   hook ends at once (exit 0), so a turn with no task running stops as usual.
 - `nothing_yet`: the bound passed with an attempt still pending: the hook ends (exit 0, no
   decision). The report stays for the next wait.
-- `ended`: the hook first acknowledges what it got (a second call with `seconds: 0` and
-  `ack: [<each report_id>]`), then Claude Code's hook writes the reports to stderr and exits
-  with code 2 (this wakes the session); Codex's hook prints
-  `{"decision": "block", "reason": "<the reports>"}` and exits 0 (Codex takes the reason as its
-  next prompt).
+- `ended`: Claude Code's hook writes the reports to stderr and exits with code 2 (this wakes
+  the session); Codex's hook prints `{"decision": "block", "reason": "<the reports>"}` and
+  exits 0 (Codex takes the reason as its next prompt). Each report's text carries its
+  `report_id`. Only after it has written them out does the hook save their ids to its file, so
+  its next run acknowledges them. It never acknowledges a report it has not handed over, and
+  there is no acknowledge-only call.
 - A report not acknowledged within two minutes is answered again by a later wait, with the same
-  `report_id`, so a dropped answer never loses it; a repeat is told by its `report_id`.
+  `report_id`, so an answer that never reached the session never loses it; a repeat is told by
+  its `report_id`.
+- A connection revoked, or a project removed from it, while a call waits: the call answers 401
+  and the report stays for that project's next valid wait.
 
 ## Errors
 
 | When | The screen shows |
 |---|---|
-| The hook's token is missing or revoked (401) | nothing in the browser; the hook prints the status and exits 0 |
+| The hook's token is missing or revoked, before or during the wait (401) | nothing in the browser; the hook prints the status and exits 0 |
 | The project is no longer on the connection (404) | nothing in the browser; the hook exits 0 |
 | An approve of an external proposal is stale (409, as today) | as today |
 

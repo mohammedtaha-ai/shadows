@@ -312,10 +312,14 @@ before they were built: Shadows never wakes an external agent (Mohammed, 2026-11
 - Read: `crates/core-runs/contract.yaml` (notices), `crates/core-runs/src/notify.rs`
   (`Recipient`, `NoticeIntent`, the conflict notice), `crates/core-runs/src/watch.rs` (a
   committed attempt, then its checks), `checks.rs` (where the checks finish).
-- Interfaces: when an attempt of a plan whose latest version is `WrittenBy::External` has ended
-  and its checks have run, or its executor reports a conflict, Runs saves one
-  `run_author_report` row with the body the Planner's notice would carry (one builder of that
-  body for both), in the write that settles the attempt's checks or records the conflict. Its
+- Interfaces: when an attempt whose own version (`attempt.workflow_id`) is
+  `WrittenBy::External` has ended and its checks have run, or its executor reports a conflict,
+  Runs saves one `run_author_report` row with the body the Planner's notice would carry (one
+  builder of that body for both), in the write that settles the attempt's checks or records the
+  conflict. The recipient is the grant that wrote the attempt's own version, kept as the row's
+  `grant_id`: a later draft by another connection does not take over a running attempt's report.
+  An attempt whose failed checks are returned to its executor (`continue_attempt`, origin
+  `Checks`) writes no `ended` row; its follow-up attempt writes one when it settles. Its
   `report_id` is `<attempt_id>:<kind>`, stable across every answer of it. A Planner's plan keeps
   today's thread notice and writes no row. Shadows sends the row nowhere: the author waits for
   it (B-258). A private `tokio::sync::Notify` in Runs fires after each new row commits.
@@ -330,7 +334,11 @@ before they were built: Shadows never wakes an external agent (Mohammed, 2026-11
 - Done when: `cargo test -p shadows-core --test external_author` passes with
   `an_ended_attempt_of_an_external_plan_is_kept_for_its_author` (one open row, no thread
   entry), `the_report_is_kept_only_after_the_checks_ran` (a slow check: no row while it runs),
-  `a_planner_plan_keeps_its_thread_notice` (no row), `a_repeated_end_keeps_one_report`.
+  `a_planner_plan_keeps_its_thread_notice` (no row), `a_repeated_end_keeps_one_report`,
+  `the_report_goes_to_the_author_of_the_attempts_own_version` (connection A writes v1 and
+  starts T1; connection B starts a v2 draft; T1's row names A's grant),
+  `a_check_returned_to_the_executor_reports_once_its_follow_up_settles` (one `ended` row, for
+  the follow-up attempt).
 - Migration numbers: B-257 takes `0083`; B-250 and B-252 take the next free numbers when built.
 
 ### B-258 · One wait for an external author, answered until acknowledged
@@ -339,18 +347,27 @@ before they were built: Shadows never wakes an external agent (Mohammed, 2026-11
 - Owner: `Runs`.
 - Read: B-257's rows and `Notify`; the spec's "Waiting for a task".
 - Interfaces: `Runs::author_wait(&self, grant: &Grant, ack: &[String], bound: Duration) ->
-  Result<AuthorWait, RunsError>` for a project grant (others `NotFound`). In order:
-  1. It marks acknowledged (`acked_at`) the rows in `ack` that belong to plans this grant
-     wrote; others are ignored.
-  2. It claims, in one write, every row of those plans that is open or whose claim has lapsed
-     (`claimed_until = now + 120 s`), so two waiters never hold one row at once, and answers
-     them at once as `Ended`. A claimed row not acknowledged within its lease is answered
-     again by a later wait: a report is never lost to a dropped answer, and its `report_id`
-     lets the author tell a repeat.
-  3. With none, it answers `NoneRunning` at once only when no attempt of those plans is still
-     pending: running, or committed with its checks not yet run (no `ended` row yet).
-  4. Else it waits on the `Notify` until a row comes (claimed, `Ended`) or `bound` passes
-     (`NothingYet`).
+  Result<AuthorWait, RunsError>` for a project grant (others `NotFound`). Delivery contract:
+  a report is delivered once its author acknowledges it, and `ack` names only reports the
+  author was shown by an earlier answer (a hook keeps the ids it handed to its session and
+  sends them on its next run; an agent sends those it read on its next `task_wait`). There is
+  no acknowledge-only call. In order:
+  1. In one write that first runs `Grants::check_live_in(tx, grant)`, it marks acknowledged
+     (`acked_at`) the rows in `ack` whose `grant_id` is this grant (others are ignored), then
+     claims every row of this grant that is open or whose claim has lapsed
+     (`claimed_until = now + 120 s`), so two waiters never hold one row at once. Rows claimed
+     are answered at once as `Ended`. A claimed row not acknowledged within its lease is
+     answered again by a later wait, with the same `report_id`: a report is never lost to an
+     answer that did not reach the session, and the author tells a repeat by its id.
+  2. With none, it answers `NoneRunning` at once only when no attempt of the versions this
+     grant wrote is pending and no row of this grant is held by a claim. Pending: running, or
+     committed with its checks not yet run and not returned to its executor (an attempt
+     continued by a follow-up is not pending; the follow-up is, while it runs).
+  3. Else it waits until a new row's `Notify`, the earliest lapse of a claim held on this
+     grant's rows, or `bound`, whichever comes first, then runs step 1 again (with no `ack`);
+     at `bound` with nothing claimed it answers `NothingYet`.
+  A grant revoked during the wait (its connection revoked, or the project removed from it) is
+  refused by the claim's check (`GrantInvalid`), and the rows stay open.
   `AuthorWait { outcome: WaitOutcome, reports: Vec<AuthorReport> }`, `WaitOutcome { Ended,
   NothingYet, NoneRunning }` (snake_case), `AuthorReport { report_id: String, attempt_id,
   workflow_id, task: u32, kind, report: String }`, oldest first.
@@ -367,7 +384,16 @@ before they were built: Shadows never wakes an external agent (Mohammed, 2026-11
   `two_waiters_never_hold_one_report_at_once`,
   `an_unacknowledged_report_is_answered_again_after_its_lease` (same `report_id`),
   `an_acknowledged_report_is_not_answered_again`,
-  `an_ack_for_another_grants_report_is_ignored`.
+  `an_ack_for_another_grants_report_is_ignored`,
+  `a_wait_after_a_returned_check_answers_none_running_once_acknowledged` (a failed check
+  returns T1 to its executor; the follow-up settles; a wait answers its report; the next wait
+  with that `ack` answers `none_running`),
+  `a_waiting_call_wakes_when_a_claim_lapses` (a report claimed by one call and never
+  acknowledged; a second call already waiting answers it once the lease lapses, with no new
+  row),
+  `a_grant_revoked_during_the_wait_is_refused_and_its_report_stays_open` (wait starts; the
+  project is removed from the connection; an attempt ends; the wait is refused and the row is
+  still open).
 
 ### B-259 · `task_wait` over MCP
 
@@ -377,7 +403,7 @@ before they were built: Shadows never wakes an external agent (Mohammed, 2026-11
   `crates/core-grants/src/tools.rs`.
 - Interfaces: tool `task_wait`, args `{ seconds?: u32, ack?: string[] }` (`seconds` default
   45; a larger value is held to 50, so Codex's `tool_timeout_sec` of about 60 never cuts it;
-  `ack` names the `report_id`s it has read), calls `runs().author_wait(&grant, &ack, …)`,
+  `ack` names the `report_id`s an earlier answer showed it), calls `runs().author_wait(&grant, &ack, …)`,
   answers `AuthorWait`. In `PROJECT_TOOLS` only, never in
   `THREAD_TOOLS`. Its description says it answers at once when nothing runs.
 - Touch: `crates/shadows-mcp/src/run_tools.rs`, `crates/core-grants/src/tools.rs`,
@@ -395,24 +421,25 @@ before they were built: Shadows never wakes an external agent (Mohammed, 2026-11
   translates.
 - Read: `crates/shadows-http/src/grants.rs`, `crates/shadows-mcp/src/auth.rs` (how `/mcp` turns
   a bearer into a connection), `Grants::authorize_external`, `Grants::external_project`,
-  `crates/shadows-http/contract.yaml`.
+  `crates/shadows-http/src/contract.yaml`.
 - Interfaces: `POST /api/external/task-wait`, `Authorization: Bearer <connection token>`, body
   `{ project_id: string, seconds?: u32, ack?: string[] }` → `AuthorWait`. `seconds` defaults
   to 300 and is held to 540: a hook makes one call per run, and Codex's hook `timeout` (600 s)
-  covers the whole hook, so one call must end inside it. `seconds: 0` with `ack` only
-  acknowledges and answers what is open at once. A missing or revoked bearer is 401; a project not
-  on the connection 404. No browser origin needed. `ExternalConnection` and the issue response
+  covers the whole hook, so one call must end inside it. `ack` carries the ids an earlier run
+  handed to its session (B-258's delivery contract). A missing or revoked bearer is 401, also
+  when the grant is revoked while the call waits; a project not on the connection 404. No browser origin needed. `ExternalConnection` and the issue response
   gain `wait_url: string` (`http://<bound address>/api/external/task-wait`), built by Grants
   beside `mcp_url`.
 - Touch: new `crates/shadows-http/src/external_wait.rs`, `crates/shadows-http/src/lib.rs`
-  (route), `crates/shadows-http/contract.yaml`, `crates/core-grants/src/model.rs`,
+  (route), `crates/shadows-http/src/contract.yaml`, `crates/core-grants/src/model.rs`,
   `crates/core-grants/src/external.rs`, `crates/core-grants/contract.yaml`, `api/openapi.json`
   (regenerated), `crates/shadows/tests/grants.rs`, `docs/codebase/README.md`.
 - Needs: B-258; the request `accepted`.
 - Done when: `cargo test -p shadows --test grants --test openapi` pass with
   `the_http_wait_answers_with_the_connections_bearer` (an ended attempt's report),
   `the_http_wait_acknowledges_what_it_names` (a second call with that `ack` does not answer it),
-  `the_http_wait_refuses_a_revoked_bearer` (401), `the_http_wait_refuses_an_unselected_project`
+  `the_http_wait_refuses_a_revoked_bearer` (401),
+  `the_http_wait_refuses_a_connection_revoked_while_it_waits` (401; the report stays open), `the_http_wait_refuses_an_unselected_project`
   (404), `a_connection_names_its_wait_url`.
 
 ### B-261 · A task run says its result waits for its author
