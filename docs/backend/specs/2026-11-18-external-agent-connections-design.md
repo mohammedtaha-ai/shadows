@@ -63,6 +63,32 @@ client on the person's own `codex app-server` can start a turn in a `codex --rem
 conversation (proved live on 2026-11-28), but the person does not run Codex that way, so
 Shadows does not build it.
 
+**Every notice goes to its author, the author's own way (Mohammed, 2026-11-28).** Shadows tells
+the two authors apart and treats neither as the other: whatever the Planner is told, an external
+author is told too, through its wait. The rule is one method per notice, routing by author;
+nothing assumes a Planner.
+
+| Notice | Who hears it | Planner | External author |
+|---|---|---|---|
+| An attempt ended, its checks run | the author of the attempt's own version | a turn in its conversation | a report on its wait (`ended`) |
+| An executor's contract conflict | the same | the same | a report (`conflict`) |
+| An executor's reply to `message_agent`, or that it did not reply | the author of the attempt's own version | a turn | a report (`reply`) |
+| A project recheck's result | whoever asked it (`project_recheck`); for the automatic recheck that follows a plan's completion, the author of the plan's version that completed | a turn | a report (`recheck`) |
+
+What the author caused and has not yet heard keeps its wait from answering "nothing runs": an
+attempt not yet reported, a message not yet replied to, a recheck not yet finished.
+
+An executor's `task_question` is answered by Shadows from the contract and the code, never by
+the author, so it has no notice for either. The Planner's end-of-turn question about files it
+changed without a note comes from its turn; an external agent has no turn there, so it has no
+such question.
+
+`project_change_note` is granted to an external agent. Turns already owns the note's rule (a
+reason of 1 to 2000 characters, 1 to 100 paths inside the project), so it keeps it: the
+Planner's note stays an entry in its conversation, and an external agent's note is journaled
+for the project (`ProjectChangeNoted`, under the agent's grant) and reaches the project stream,
+since that agent has no conversation in Shadows. No second rule and no new owner.
+
 ### Waiting for a task
 
 One method waits until an attempt of the project ends and its checks have run, or until a
