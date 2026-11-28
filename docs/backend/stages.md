@@ -599,7 +599,7 @@ owner for an external agent. Migration `0086` is not pushed, so B-264 changes it
 
 ### B-266 · A recheck's result reaches whoever asked it, or the completing plan's author
 
-- Status: doing
+- Status: done
 - Owner: `Runs`.
 - Read: `crates/core-runs/src/recheck.rs` (`recheck_recipient`, the batch's end and
   `deliver_recheck`), `planner.rs` (`recheck_project_for`), the automatic recheck after a done
