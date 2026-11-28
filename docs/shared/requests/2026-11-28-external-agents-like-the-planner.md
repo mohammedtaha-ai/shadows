@@ -114,6 +114,23 @@ Accepted, with two additions. Tasks: F-153 to F-156 in `docs/frontend/stages.md`
 
 Errors: accepted; nothing in the browser.
 
+## Backend amendment (Hamoud, 2026-11-28)
+
+Mohammed's ruling: every notice reaches its author, the author's own way (spec, "Every notice
+goes to its author"). Tasks B-264 to B-267. What changes on the wire:
+
+- A wait's report (`POST /api/external/task-wait`, `task_wait`): `kind` gains `"reply"` (an
+  executor's reply to `message_agent`) and `"recheck"` (a project recheck's result);
+  `attempt_id`, `workflow_id` and `task` become `string | null` / `number | null` (a recheck
+  has none); `report_id` reads `<kind>:<id>`. The hooks print `report` as before and keep
+  `report_id` as an opaque id, so their text does not change.
+- `author_waiting` is unchanged: it counts only an attempt's own report (`ended`, `conflict`).
+- A new project-stream event `ProjectChangeNoted { project_id, paths, reason }`, journaled when
+  an external agent explains files it changed itself (`project_change_note`). The web may show
+  it with the project's activity; nothing requires it.
+
+Masada: reply below whether the web needs anything from these.
+
 ## Ruling
 
 <The teacher, only when disputed.>

@@ -541,6 +541,113 @@ Each is fixed at its root by `backend-fixer`, one commit each, with only the tes
     (`Bearer x`, `bearer  x `, `Basic x`, `Bearer `, none), and
     `cargo test -p shadows --test mcp_server --test grants` pass.
 
+### Every notice to its author, the author's own way (B-264 to B-267)
+
+Spec: "Every notice goes to its author, the author's own way" in
+[external connections](specs/2026-11-18-external-agent-connections-design.md#how-the-plans-author-hears-of-its-tasks)
+(Mohammed, 2026-11-28, `ecbb0185`). Found by the whole-branch review (`3e5a3e5e`): a reply to
+`message_agent` and a recheck's result reach only a Planner, and `project_change_note` had no
+owner for an external agent. Migration `0086` is not pushed, so B-264 changes it in place.
+`task_question` needs nothing: Shadows answers it, no author is told.
+
+### B-264 · An author report carries every notice kind
+
+- Status: todo
+- Owner: `Runs`.
+- Read: `crates/core-runs/src/author.rs`, `store/author.rs`, `model.rs` (`AuthorReport`),
+  `crates/core-db/migrations/0086_run_author_report.sql`, `crates/core-runs/contract.yaml`.
+- Interfaces: `run_author_report` (changed in place in `0086`): `kind IN ('ended','conflict',
+  'reply','recheck')`; new `source_id TEXT NOT NULL` (the attempt id for `ended` and
+  `conflict`, the message id for `reply`, the batch id for `recheck`); `attempt_id`,
+  `workflow_id` and `task` become NULL-able (a `recheck` has no attempt); `report_id` is
+  `<kind>:<source_id>`. `AuthorReport` serializes `attempt_id`, `workflow_id`, `task` as
+  `Option`; `kind` gains `reply` and `recheck`. One private
+  `Runs::keep_for_author_in(tx, row: AuthorRow)` keeps every kind, with B-261's
+  `TaskProgressChanged` only for a row that has a task. `author_waiting` counts only `ended`
+  and `conflict` rows. No behaviour change for `ended` and `conflict` beyond the id format.
+- Touch: `crates/core-db/migrations/0086_run_author_report.sql`, `crates/core-runs/src/author.rs`,
+  `store/author.rs`, `model.rs`, `notify.rs` (the `ended` and `conflict` callers),
+  `crates/core-runs/contract.yaml`, `crates/shadows-core/tests/external_author.rs`,
+  `crates/shadows/tests/grants.rs` (its SQL-made rows), `api/openapi.json` (regenerated).
+- Needs: nothing.
+- Done when: `cargo test -p shadows-core --test external_author` and
+  `cargo test -p shadows --test grants --test openapi --test mcp_server` pass, with
+  `report_ids_name_their_kind_and_source` (`ended:<attempt>`, `conflict:<attempt>`).
+
+### B-265 · An executor's reply reaches the author of the attempt's version
+
+- Status: todo (after B-264)
+- Owner: `Runs`.
+- Read: `crates/core-runs/src/notify.rs` (`notify_reply`), `message.rs` (`message_agent`, the
+  executor prompt, `notify_reply_logged`), `recover.rs` (where undelivered replies retry).
+- Interfaces: `notify_reply` routes by the author of the attempt's own version: a Planner as
+  today; an external author keeps a `reply` row (body: the Planner's prompt text,
+  `[Shadows] Reply from task agent · T<n> "<title>":\n<reply>` or the no-reply line) and marks
+  the message delivered in the same write. It never answers `Unavailable` for an external
+  plan, so recovery stops retrying it. The executor's prompt names no Planner: `You are asked,
+  about task T<n>, without changing it:\n<message>\nAnswer in plain words. Change no file and
+  make no commit for this.` B-258's pending rule also counts a message of that author's
+  plans that has neither a reply nor a no-reply reason yet.
+- Touch: `crates/core-runs/src/notify.rs`, `message.rs`, `author.rs`, `store/author.rs`,
+  `crates/core-runs/contract.yaml`, `crates/shadows-core/tests/external_author.rs`, the test
+  of the executor prompt if one names "The Planner asks you".
+- Needs: B-264.
+- Done when: `cargo test -p shadows-core --test external_author --test runs_attempts` pass,
+  with `an_executors_reply_reaches_its_external_author` (one `reply` row; the message is
+  delivered; a restart's recovery sends nothing again),
+  `a_wait_holds_while_a_message_awaits_its_reply`, and the Planner's existing reply tests.
+
+### B-266 · A recheck's result reaches whoever asked it, or the completing plan's author
+
+- Status: todo (after B-264)
+- Owner: `Runs`.
+- Read: `crates/core-runs/src/recheck.rs` (`recheck_recipient`, the batch's end and
+  `deliver_recheck`), `planner.rs` (`recheck_project_for`), the automatic recheck after a done
+  mark completes a plan, migrations `0070`, `0079`.
+- Interfaces: a batch keeps who asked: `asker_thread_id` (a Planner) or a new
+  `asker_grant_id` (an external agent; `ALTER TABLE run_rechecks ADD COLUMN asker_grant_id
+  TEXT` added to `0086`); `recheck_project_for` sets it from the grant. The recipient is the
+  asker, else the author of the cause plan's version that completed. A Planner hears as today;
+  an external author gets a `recheck` row with the Planner's notice body, saved in the write
+  that ends the batch, and the batch's notice is settled. B-258's pending rule also counts an
+  unfinished batch whose recipient is that grant.
+- Touch: `crates/core-runs/src/recheck.rs`, `planner.rs`, the recheck store file,
+  `author.rs`, `store/author.rs`, `crates/core-db/migrations/0086_run_author_report.sql`,
+  `crates/core-runs/contract.yaml`, `crates/shadows-core/tests/external_author.rs`.
+- Needs: B-264.
+- Done when: `cargo test -p shadows-core --test external_author` passes with
+  `an_asked_recheck_reaches_its_external_asker`,
+  `a_failing_automatic_recheck_reaches_the_completing_plans_external_author` (an external
+  author's done mark completes the plan; a failing check gives one `recheck` row; the next
+  wait answers it), `a_wait_holds_while_its_recheck_runs`; and the existing recheck tests in
+  `cargo test -p shadows-core --test runs_attempts` pass.
+
+### B-267 · An external agent notes its own changes for the project
+
+- Status: todo
+- Owner: `Turns` (it owns the note's rule); `Grants` (the inventory).
+- Read: `crates/core-turns/src/changes.rs` (`note_change`), its store,
+  `crates/shadows-mcp/src/turn_tools.rs` (`project_change_note`),
+  `crates/core-events/src/store.rs` (the project tail's kinds), `crates/core-grants/src/tools.rs`.
+- Interfaces: `Turns::note_change(&self, by: ChangeNoter, paths: Vec<String>, reason: String)`,
+  `ChangeNoter::Planner(ThreadId) | ChangeNoter::External { grant: GrantId, project: ProjectId }`:
+  one validation (reason 1 to 2000 characters, 1 to 100 paths through
+  `Codebase::project_file`). A Planner's note stays a `ProjectChange` thread entry; an external
+  note journals `ProjectChangeNoted { project_id, paths, reason }` with the grant as actor, and
+  the project tail carries that kind. `project_change_note` joins `PROJECT_TOOLS` (the external
+  list grows by one).
+- Touch: `crates/core-turns/src/changes.rs`, `crates/core-turns/src/store/changes.rs`,
+  `crates/core-turns/contract.yaml`, `crates/shadows-mcp/src/turn_tools.rs`,
+  `crates/core-events/src/store.rs`, `crates/core-events/contract.yaml`,
+  `crates/core-grants/src/tools.rs`, `crates/core-grants/contract.yaml`,
+  `crates/shadows-core/tests/planner_changes.rs`, `crates/shadows/tests/mcp_server.rs`.
+- Needs: nothing.
+- Done when: `cargo test -p shadows-core --test planner_changes` and
+  `cargo test -p shadows --test mcp_server --test project_events` pass, with
+  `an_external_agent_notes_a_change_for_the_project` (one `ProjectChangeNoted` on the project
+  tail, actor the grant), `an_external_note_outside_the_project_is_refused`, and the external
+  inventory tests counting one more tool.
+
 ### B-262 · Acceptance: an external agent takes a project from idea to done tasks
 
 - Status: blocked (needs B-249 to B-253, B-257 to B-261 and the web side of the request)
