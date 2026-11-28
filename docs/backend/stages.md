@@ -624,7 +624,7 @@ owner for an external agent. Migration `0086` is not pushed, so B-264 changes it
 
 ### B-267 · An external agent notes its own changes for the project
 
-- Status: todo
+- Status: done
 - Owner: `Turns` (it owns the note's rule); `Grants` (the inventory).
 - Read: `crates/core-turns/src/changes.rs` (`note_change`), its store,
   `crates/shadows-mcp/src/turn_tools.rs` (`project_change_note`),
