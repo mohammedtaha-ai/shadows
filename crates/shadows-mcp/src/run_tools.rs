@@ -134,6 +134,20 @@ struct TaskLessonsArgs {
     plan_should_have_said: String,
 }
 
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+struct TaskWaitArgs {
+    /// How long to wait, in seconds: 45 when left out, at most 50.
+    #[serde(default)]
+    seconds: Option<u32>,
+    /// The report_id of every report an earlier task_wait answered and you have read.
+    #[serde(default)]
+    ack: Vec<String>,
+}
+
+/// Under the about 60 seconds an MCP client allows one tool call.
+const WAIT_LIMIT_SECS: u32 = 50;
+const WAIT_DEFAULT_SECS: u32 = 45;
+
 #[tool_router(router = run_tool_router, vis = "pub(super)")]
 impl Shadows {
     #[tool(description = "List the available executor CLIs, models, and each model's efforts.")]
@@ -551,6 +565,31 @@ impl Shadows {
                     args.task_number,
                     args.stopped_by,
                     args.plan_should_have_said,
+                )
+                .await
+                .map_err(Refusal::from),
+        )
+    }
+
+    #[tool(
+        description = "Wait for the attempts of the plans you wrote: answers ended with the                        reports of attempts that ended (each with its report_id), nothing_yet                        when seconds (default 45, at most 50) passed while work still runs,                        and none_running at once when nothing of yours runs or waits. Pass                        the report_ids you read as ack on the next call, or they are answered                        again."
+    )]
+    async fn task_wait(
+        &self,
+        Extension(grant): Extension<Grant>,
+        Parameters(args): Parameters<TaskWaitArgs>,
+    ) -> CallToolResult {
+        let seconds = args
+            .seconds
+            .unwrap_or(WAIT_DEFAULT_SECS)
+            .min(WAIT_LIMIT_SECS);
+        answer(
+            self.core
+                .runs()
+                .author_wait(
+                    &grant,
+                    &args.ack,
+                    std::time::Duration::from_secs(seconds.into()),
                 )
                 .await
                 .map_err(Refusal::from),

@@ -426,7 +426,7 @@ before they were built: Shadows never wakes an external agent (Mohammed, 2026-11
 
 ### B-259 · `task_wait` over MCP
 
-- Status: todo
+- Status: done
 - Owner: `Runs` (the method), `Grants` (the inventory); the MCP adapter translates.
 - Read: `crates/shadows-mcp/src/run_tools.rs` (a tool calling `self.core.runs()`),
   `crates/core-grants/src/tools.rs`.

@@ -80,11 +80,15 @@ async fn the_external_inventory_is_the_planners_less_approval_and_conversation_t
     ] {
         assert!(expected.remove(excluded), "{excluded}");
     }
-    expected.extend(["draft_prepare".into(), "project_list".into()]);
+    expected.extend([
+        "draft_prepare".into(),
+        "task_wait".into(),
+        "project_list".into(),
+    ]);
     let tools = external.list_all_tools().await.unwrap();
     let actual: BTreeSet<_> = tools.iter().map(|tool| tool.name.to_string()).collect();
     assert_eq!(actual, expected);
-    assert_eq!(tools.len(), 43);
+    assert_eq!(tools.len(), 44);
     for tool in tools {
         if tool.name != "project_list" {
             assert!(
@@ -243,7 +247,7 @@ async fn the_tool_list_depends_on_the_grant_kind() {
     let mut project_tools = names(external.list_all_tools().await.unwrap());
     project_tools.sort();
     // The exact inventory is the_external_inventory_is_the_planners_less_approval_and_conversation_tools.
-    assert_eq!(project_tools.len(), 43);
+    assert_eq!(project_tools.len(), 44);
     assert!(project_tools.iter().any(|name| name == "draft_prepare"));
     // An external connection selects its project on every call but project_list.
     let tools = external.list_all_tools().await.unwrap();
@@ -657,6 +661,40 @@ async fn approve(l: &listening::Listening, kind: &str, proposal: &Value) {
 
 #[tokio::test]
 async fn an_external_agent_starts_a_task_over_mcp() {
+    let (l, c, attempt) = an_external_task_started().await;
+    assert_eq!(attempt["number"], 1, "{attempt}");
+    c.cancel().await.unwrap();
+    app::shut_down_app(l.app).await;
+}
+
+#[tokio::test]
+async fn task_wait_is_an_external_tool_bounded_under_a_minute() {
+    let l = listening_app().await;
+    let planner = thread_client(&l, &l.app.thread).await;
+    let names: Vec<_> = planner
+        .list_all_tools()
+        .await
+        .unwrap()
+        .into_iter()
+        .map(|tool| tool.name.into_owned())
+        .collect();
+    assert!(!names.iter().any(|name| name == "task_wait"));
+    planner.cancel().await.unwrap();
+    app::shut_down_app(l.app).await;
+
+    let (l, c, _) = an_external_task_started().await;
+    let began = std::time::Instant::now();
+    let wait = listening::ok(&c, "task_wait", json!({ "seconds": 120 })).await;
+    let took = began.elapsed();
+    assert_eq!(wait["outcome"], "nothing_yet", "{wait}");
+    assert!(took < std::time::Duration::from_secs(51), "{took:?}");
+    c.cancel().await.unwrap();
+    app::shut_down_app(l.app).await;
+}
+
+/// An external agent writes, and the person approves, a one-task plan, and the
+/// agent starts its task: the attempt it answers is running.
+async fn an_external_task_started() -> (Listening, listening::Client, Value) {
     let l = listening::listening_unseeded().await;
     let project = l.app.core.projects().get(&l.app.project).await.unwrap();
     let root = std::path::PathBuf::from(project.directory.unwrap());
@@ -756,7 +794,5 @@ async fn an_external_agent_starts_a_task_over_mcp() {
         json!({"workflow_id":workflow,"task_number":1}),
     )
     .await;
-    assert_eq!(attempt["number"], 1, "{attempt}");
-    c.cancel().await.unwrap();
-    app::shut_down_app(l.app).await;
+    (l, c, attempt)
 }

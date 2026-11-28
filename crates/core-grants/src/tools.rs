@@ -53,8 +53,9 @@ const THREAD_TOOLS: [&str; 48] = [
 ];
 
 /// External agents work a project as the Planner does, less the person's
-/// approvals and the tools bound to a person's conversation.
-const PROJECT_TOOLS: [&str; 42] = [
+/// approvals and the tools bound to a person's conversation. They alone wait
+/// for their plans' attempts with `task_wait`: the Planner is told in its thread.
+const PROJECT_TOOLS: [&str; 43] = [
     "agreement_list",
     "agreement_get",
     "agreement_start",
@@ -97,6 +98,7 @@ const PROJECT_TOOLS: [&str; 42] = [
     "project_recheck",
     "project_git_init",
     "message_agent",
+    "task_wait",
 ];
 
 /// An executor reads the brief its attempt was given, asks about its task's
