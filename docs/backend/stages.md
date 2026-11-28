@@ -651,6 +651,35 @@ owner for an external agent. Migration `0086` is not pushed, so B-264 changes it
   tail, actor the grant), `an_external_note_outside_the_project_is_refused`, and the external
   inventory tests counting one more tool.
 
+### B-268 · Two findings left by B-265 and B-267
+
+Each fixed at its root by `backend-fixer`, one commit each, with only the tests it touches.
+
+- **G1 · "A message is delivered" is written twice.** B-265's reply write in
+  `crates/core-runs/src/store/author.rs` (the `UPDATE run_agent_messages SET delivered_at =
+  COALESCE(delivered_at, ?)` near line 242) repeats `RunsStore::message_delivered`
+  (`crates/core-runs/src/store/messages.rs:203`). Keep one: a transaction-local
+  `message_delivered_in(tx, id, at)` in `store/messages.rs` that both the existing
+  `message_delivered` and the reply write call.
+  - Status: todo
+  - Touch: `crates/core-runs/src/store/messages.rs`, `crates/core-runs/src/store/author.rs`,
+    `crates/core-runs/contract.yaml` if it names either.
+  - Done when: `cargo test -p shadows-core --test external_author --test runs_attempts` pass.
+- **G2 · An external change note does not recheck its grant.** `Turns::note_change` with
+  `ChangeNoter::External` journals under a grant id it never rechecks, so a connection revoked
+  (or a project removed from it) after the request authenticated can still write a note. Every
+  other external write rechecks inside its write. `ChangeNoter::External` carries the `Grant`
+  (not only its id), and `note_external_change` runs `Grants::check_live_in(tx, &grant)` first
+  in its write; its project is the grant's own `project_id`, so the variant drops its separate
+  `project`.
+  - Status: todo
+  - Touch: `crates/core-turns/src/changes.rs`, `crates/core-turns/src/store/changes.rs`,
+    `crates/core-turns/contract.yaml`, `crates/shadows-mcp/src/turn_tools.rs`,
+    `crates/shadows-core/tests/planner_changes.rs`.
+  - Done when: `cargo test -p shadows-core --test planner_changes` passes with
+    `a_revoked_external_grant_cannot_note_a_change` (revoke the connection, then note: refused,
+    no `ProjectChangeNoted`), and `cargo test -p shadows --test mcp_server` passes.
+
 ### B-262 · Acceptance: an external agent takes a project from idea to done tasks
 
 - Status: blocked (needs B-249 to B-253, B-257 to B-261 and the web side of the request)
