@@ -382,7 +382,8 @@ functions:
     note_change:
       signature: "(&self, by: ChangeNoter, paths: Vec<String>, reason: String) -> Result<(), TurnsError>"
       # project_change_note. ChangeNoter is Planner(ThreadId) or
-      # External { grant: GrantId, project: ProjectId }; one validation for both. Trimmed, the reason is 1 to 2000 characters and
+      # External(Grant), the grant as the request authenticated it, whose
+      # project_id is the note's project; one validation for both. Trimmed, the reason is 1 to 2000 characters and
       # 1 to 100 paths; each is checked as code_lsp's file is
       # (Codebase::project_file: inside the project, by real path when it is on
       # disk), InvalidCommand otherwise; an executor thread is InvalidCommand.
@@ -390,7 +391,10 @@ functions:
       # turn when one runs, card { paths, reason, noted: true }; the running
       # turn's noted set takes the paths. An External note instead journals
       # ProjectChangeNoted { project_id, paths, reason } on its project, actor
-      # Grant/<grant id>, and touches no thread.
+      # Grant/<grant id>, and touches no thread; that write first rechecks the
+      # grant (Grants::check_live_in), so a connection revoked, or the project
+      # removed from it, after the request authenticated is GrantInvalid or
+      # GrantScope (through PlansError) and journals nothing.
     check_changes:
       signature: "(store: &TurnsStore, thread: &ThreadId, operation: &OperationId, hold: &ActiveHold, noted: &Noted)"
       private: true
@@ -635,8 +639,9 @@ functions:
     note_change:
       signature: "(&self, thread: &ThreadId, paths: &[String], reason: &str) -> Result<(), TurnsError>"
     note_external_change:
-      signature: "(&self, grant: &GrantId, project: &ProjectId, paths: &[String], reason: &str) -> Result<(), TurnsError>"
-      # One write: the ProjectChangeNoted event, actor Grant/<grant id>.
+      signature: "(&self, grant: &Grant, paths: &[String], reason: &str) -> Result<(), TurnsError>"
+      # One write: Grants::check_live_in(tx, grant), then the ProjectChangeNoted
+      # event on grant.project_id, actor Grant/<grant id>.
     record_unnoted:
       signature: "(&self, thread: &ThreadId, operation: &OperationId, paths: &[String], settings: NoticeSettings) -> Result<bool, TurnsError>"
       # One write: the ProjectChange entry and the notice through insert_queued_in,

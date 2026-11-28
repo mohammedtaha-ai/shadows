@@ -2,9 +2,9 @@
 //! event, and the Planner's unnoted ones' entry with the notice that asks about them.
 
 use core_db::{Actor, CommandContext, JournalEntry, Storage};
-use core_grants::GrantId;
+use core_grants::{Grant, Grants};
 use core_operations::Operations;
-use core_projects::ProjectId;
+use core_plans::PlansError;
 use core_threads::{NewThreadEntry, ThreadEntryKind, ThreadId, ThreadKind, Threads};
 
 use super::queue::QueuedFields;
@@ -77,30 +77,33 @@ impl super::TurnsStore {
             .await
     }
 
-    /// Records an external agent's note as `ProjectChangeNoted` on the
-    /// project, with its grant as actor.
+    /// Records an external agent's note as `ProjectChangeNoted` on its grant's
+    /// project, with the grant as actor, once the grant is still live in this write.
     pub async fn note_external_change(
         &self,
-        grant: &GrantId,
-        project: &ProjectId,
+        grant: &Grant,
         paths: &[String],
         reason: &str,
     ) -> Result<(), TurnsError> {
         let actor = Actor {
             kind: "Grant".into(),
-            id: grant.to_string(),
+            id: grant.id.to_string(),
         };
         let event = JournalEntry::new("ProjectChangeNoted", actor)
-            .with_project(project.as_str())
+            .with_project(grant.project_id.as_str())
             .with_payload(serde_json::json!({
-                "project_id": project,
+                "project_id": grant.project_id,
                 "paths": paths,
                 "reason": reason,
             }));
+        let grant = grant.clone();
         let ts = Storage::now();
         self.storage
             .write_txn_as(move |conn| {
                 Box::pin(async move {
+                    Grants::check_live_in(conn, &grant)
+                        .await
+                        .map_err(PlansError::from)?;
                     JournalEntry::append_event(conn, event, &ts).await?;
                     Ok::<_, TurnsError>(())
                 })

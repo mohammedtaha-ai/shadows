@@ -672,7 +672,7 @@ Each fixed at its root by `backend-fixer`, one commit each, with only the tests 
   (not only its id), and `note_external_change` runs `Grants::check_live_in(tx, &grant)` first
   in its write; its project is the grant's own `project_id`, so the variant drops its separate
   `project`.
-  - Status: todo
+  - Status: done
   - Touch: `crates/core-turns/src/changes.rs`, `crates/core-turns/src/store/changes.rs`,
     `crates/core-turns/contract.yaml`, `crates/shadows-mcp/src/turn_tools.rs`,
     `crates/shadows-core/tests/planner_changes.rs`.

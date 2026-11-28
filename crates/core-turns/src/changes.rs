@@ -5,16 +5,15 @@ use super::handles::Noted;
 use super::store::TurnsStore;
 use super::{Turns, TurnsError};
 use crate::model::OperationId;
-use core_grants::GrantId;
-use core_projects::ProjectId;
+use core_grants::Grant;
 use core_threads::ThreadId;
 
 /// Who notes a change: the Planner of a thread, or an external agent by its
-/// project grant.
+/// project grant, as the request authenticated it; the note is on that grant's project.
 #[derive(Debug, Clone)]
 pub enum ChangeNoter {
     Planner(ThreadId),
-    External { grant: GrantId, project: ProjectId },
+    External(Grant),
 }
 
 impl Turns {
@@ -42,7 +41,7 @@ impl Turns {
         }
         let project = match &by {
             ChangeNoter::Planner(thread) => self.store.thread_project(thread).await?,
-            ChangeNoter::External { project, .. } => project.clone(),
+            ChangeNoter::External(grant) => grant.project_id.clone(),
         };
         let mut checked = Vec::with_capacity(paths.len());
         for path in &paths {
@@ -57,10 +56,10 @@ impl Turns {
         }
         let thread = match by {
             ChangeNoter::Planner(thread) => thread,
-            ChangeNoter::External { grant, project } => {
+            ChangeNoter::External(grant) => {
                 return self
                     .store
-                    .note_external_change(&grant, &project, &checked, &reason)
+                    .note_external_change(&grant, &checked, &reason)
                     .await;
             }
         };

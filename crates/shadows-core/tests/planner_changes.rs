@@ -10,8 +10,8 @@ use shadows_core::testing::{
     CommandContext, EventCursor, LiveHandles, ProjectDirectory, Storage, acp, create_project,
 };
 use shadows_core::{
-    AppCore, ChangeNoter, CodebaseConfig, CoreParts, GrantId, IndexState, OperationId, ProjectId,
-    SendTurn, ThreadEntry, ThreadEntryKind, ThreadId, Threads,
+    AppCore, ChangeNoter, CodebaseConfig, CoreParts, ExternalConnectionId, Grant, IndexState,
+    OperationId, ProjectId, SendTurn, ThreadEntry, ThreadEntryKind, ThreadId, Threads,
 };
 
 struct World {
@@ -144,6 +144,36 @@ impl World {
         panic!("operation did not settle");
     }
 
+    /// An external connection to the project, and the project grant its
+    /// requests authenticate as.
+    async fn external(&self) -> (ExternalConnectionId, Grant) {
+        let issued = self
+            .core
+            .grants()
+            .issue_external(
+                "x1".into(),
+                Some("Claude Code".into()),
+                vec![self.project.clone()],
+            )
+            .await
+            .unwrap();
+        let id = issued.connection.id;
+        let grant = self
+            .core
+            .grants()
+            .external_project(&id, &self.project)
+            .await
+            .unwrap();
+        (id, grant)
+    }
+
+    async fn noted_events(&self) -> i64 {
+        sqlx::query_scalar("SELECT COUNT(*) FROM durable_event WHERE kind = 'ProjectChangeNoted'")
+            .fetch_one(self.storage.reader())
+            .await
+            .unwrap()
+    }
+
     async fn changes(&self) -> Vec<ThreadEntry> {
         let entries = self.core.threads().entries(&self.thread).await.unwrap();
         entries
@@ -253,14 +283,11 @@ async fn a_turn_with_no_change_sends_nothing() {
 async fn an_external_agent_notes_a_change_for_the_project() {
     let w = world().await;
     std::fs::write(w.dir.join("notes.txt"), "installed gopls\n").unwrap();
-    let grant = GrantId::generate();
+    let (_, grant) = w.external().await;
     w.core
         .turns()
         .note_change(
-            ChangeNoter::External {
-                grant: grant.clone(),
-                project: w.project.clone(),
-            },
+            ChangeNoter::External(grant.clone()),
             vec!["./notes.txt".into()],
             "a record of the install".into(),
         )
@@ -292,7 +319,7 @@ async fn an_external_agent_notes_a_change_for_the_project() {
     .fetch_one(w.storage.reader())
     .await
     .unwrap();
-    assert_eq!(actor, ("Grant".into(), grant.to_string()));
+    assert_eq!(actor, ("Grant".into(), grant.id.to_string()));
     assert!(w.changes().await.is_empty(), "no thread entry");
     w.close().await;
 }
@@ -300,24 +327,49 @@ async fn an_external_agent_notes_a_change_for_the_project() {
 #[tokio::test]
 async fn an_external_note_outside_the_project_is_refused() {
     let w = world().await;
+    let (_, grant) = w.external().await;
     let outside = w
         .core
         .turns()
         .note_change(
-            ChangeNoter::External {
-                grant: GrantId::generate(),
-                project: w.project.clone(),
-            },
+            ChangeNoter::External(grant),
             vec!["../s.sqlite3".into()],
             "no".into(),
         )
         .await;
     assert!(outside.is_err(), "a path outside the project is refused");
-    let events: i64 =
-        sqlx::query_scalar("SELECT COUNT(*) FROM durable_event WHERE kind = 'ProjectChangeNoted'")
-            .fetch_one(w.storage.reader())
-            .await
-            .unwrap();
-    assert_eq!(events, 0);
+    assert_eq!(w.noted_events().await, 0);
+    w.close().await;
+}
+
+#[tokio::test]
+async fn a_revoked_external_grant_cannot_note_a_change() {
+    let w = world().await;
+    std::fs::write(w.dir.join("notes.txt"), "installed gopls\n").unwrap();
+    let (connection, grant) = w.external().await;
+    w.core
+        .grants()
+        .revoke_external("x2".into(), &connection)
+        .await
+        .unwrap();
+    let revoked = w
+        .core
+        .turns()
+        .note_change(
+            ChangeNoter::External(grant),
+            vec!["./notes.txt".into()],
+            "after the revoke".into(),
+        )
+        .await;
+    assert!(
+        matches!(
+            revoked,
+            Err(shadows_core::TurnsError::Plans(
+                shadows_core::PlansError::GrantInvalid
+            ))
+        ),
+        "a revoked grant is refused: {revoked:?}"
+    );
+    assert_eq!(w.noted_events().await, 0);
     w.close().await;
 }

@@ -119,10 +119,7 @@ impl Shadows {
     ) -> CallToolResult {
         let by = match (grant.kind, &grant.thread_id) {
             (GrantKind::Thread, Some(thread)) => ChangeNoter::Planner(thread.clone()),
-            (GrantKind::Project, _) => ChangeNoter::External {
-                grant: grant.id.clone(),
-                project: grant.project_id.clone(),
-            },
+            (GrantKind::Project, _) => ChangeNoter::External(grant.clone()),
             _ => {
                 return answer::<()>(Err(Refusal::scope(
                     "only the Planner or an external agent notes its changes",
