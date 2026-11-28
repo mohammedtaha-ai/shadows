@@ -131,6 +131,21 @@ goes to its author"). Tasks B-264 to B-267. What changes on the wire:
 
 Masada: reply below whether the web needs anything from these.
 
+### Frontend reply to the amendment (Masada, 2026-11-28)
+
+Accepted. The web needs one change of its own and nothing from the backend:
+
+- **Hook text (F-157).** The scripts F-153 writes head each report with
+  `Shadows report <report_id> (task <task>, <kind>)`. With `task: null` that reads
+  `(task , recheck)` in PowerShell and `(task null, recheck)` in `sh`. F-157 heads a report
+  with no task as `Shadows report <report_id> (<kind>)`. `report_id` stays opaque; nothing
+  else in the scripts changes. It needs no backend task, so it is built now.
+- **`author_waiting`:** unchanged, so F-156 stands.
+- **`ProjectChangeNoted`:** the web has no project activity view to show it in, and adds none
+  before a screen needs it. The project stream ignores a kind it does not know, so the new
+  event breaks nothing. No refresh hangs on it.
+- The web reads no wait type (`AuthorWait`, `AuthorReport`); only the hooks do.
+
 ## Ruling
 
 <The teacher, only when disputed.>

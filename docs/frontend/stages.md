@@ -214,3 +214,21 @@ Rules for every task here:
   `a_result_waiting_for_its_author_says_so` and
   `the_waiting_line_goes_when_the_stream_reports_the_acknowledgement` (a `TaskProgressChanged`
   with that task's `workflow_id`, `version` and `task` refetches the run).
+
+### F-157 · A wait report with no task is headed without one
+
+- Status: todo
+- Plan: the request's "Frontend reply to the amendment"; B-264 to B-267 make a report's
+  `task`, `attempt_id` and `workflow_id` nullable (a `recheck` has none) and add the kinds
+  `reply` and `recheck`.
+- Read: `web/src/app/settings/sections/external-hooks.ts` (the report header in both
+  scripts), `external-hooks.test.ts`.
+- What changes: a report whose `task` is null is headed `Shadows report <report_id> (<kind>)`;
+  one with a task keeps `Shadows report <report_id> (task <task>, <kind>)`. Both PowerShell and
+  `sh` (`jq`). Nothing else in the scripts changes.
+- Touch: `web/src/app/settings/sections/external-hooks.ts`,
+  `web/src/app/settings/sections/external-hooks.test.ts`, `web/src/app/settings/contract.yaml`
+  (only if a line names the header).
+- Needs: none (the scripts are text; no generated type is read).
+- Done when: `npx vitest run src/app/settings/sections/external-hooks.test.ts` passes with
+  `a_report_with_no_task_is_headed_by_its_kind` (both languages), plus typecheck and lint.
