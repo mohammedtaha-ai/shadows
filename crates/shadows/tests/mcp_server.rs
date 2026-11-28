@@ -246,7 +246,8 @@ async fn the_tool_list_depends_on_the_grant_kind() {
     let (_, external) = project_client(&l).await;
     let mut project_tools = names(external.list_all_tools().await.unwrap());
     project_tools.sort();
-    // The exact inventory is the_external_inventory_is_the_planners_less_approval_and_conversation_tools.
+    // The exact inventory is held by
+    // the_external_inventory_is_the_planners_less_approval_and_conversation_tools.
     assert_eq!(project_tools.len(), 44);
     assert!(project_tools.iter().any(|name| name == "draft_prepare"));
     // An external connection selects its project on every call but project_list.

@@ -572,7 +572,12 @@ impl Shadows {
     }
 
     #[tool(
-        description = "Wait for the attempts of the plans you wrote: answers ended with the                        reports of attempts that ended (each with its report_id), nothing_yet                        when seconds (default 45, at most 50) passed while work still runs,                        and none_running at once when nothing of yours runs or waits. Pass                        the report_ids you read as ack on the next call, or they are answered                        again."
+        description = "Wait for the attempts of the plans you wrote: answers ended with the \
+                       reports of attempts that ended (each with its report_id), nothing_yet \
+                       when seconds (default 45, at most 50) passed while work still runs, \
+                       and none_running at once when nothing of yours runs or waits. Pass \
+                       the report_ids you read as ack on the next call, or they are answered \
+                       again."
     )]
     async fn task_wait(
         &self,

@@ -764,8 +764,9 @@ async fn a_grant_revoked_during_the_wait_is_refused_and_its_report_stays_open() 
         .unwrap();
     f.commit_and_report(&grant, 0).await;
     let refused = waiting.await.unwrap();
+    let invalid = shadows_core::GrantsError::GrantInvalid.to_string();
     assert!(
-        matches!(&refused, Err(RunsError::Grants(e)) if e.to_string() == shadows_core::GrantsError::GrantInvalid.to_string()),
+        matches!(&refused, Err(RunsError::Grants(e)) if e.to_string() == invalid),
         "{refused:?}"
     );
     f.reported().await;

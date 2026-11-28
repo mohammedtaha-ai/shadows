@@ -47,9 +47,9 @@ impl RunsStore {
         Ok(found.is_some())
     }
 
-    /// Keeps `report` once and, in the same write, settles what it reports and journals the task's progress: an ended
-    /// attempt's notice is sent, a pending conflict's delivery becomes delivered. Answers whether
-    /// this write kept a new row.
+    /// Keeps `report` once and, in the same write, settles what it reports and journals the
+    /// task's progress: an ended attempt's notice is sent, a pending conflict's delivery becomes
+    /// delivered. Answers whether this write kept a new row.
     pub async fn keep_author_report(&self, report: NewAuthorReport) -> Result<bool, RunsError> {
         let at = Storage::now();
         self.storage

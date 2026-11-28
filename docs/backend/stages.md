@@ -504,7 +504,7 @@ Each is fixed at its root by `backend-fixer`, one commit each, with only the tes
 - **F1 · Lines over 100 characters.** The line check of `docs/backend/AGENTS.md` rule 5 prints
   `crates/core-runs/src/store/author.rs:50`, `crates/shadows/tests/mcp_server.rs:249`,
   `crates/shadows-core/tests/external_author.rs:768`, `crates/shadows-mcp/src/run_tools.rs:575`.
-  - Status: todo
+  - Status: done
   - Touch: those four files.
   - Done when: the line check prints nothing; `cargo fmt --all --check` passes;
     `cargo test -p shadows --test mcp_server` and
