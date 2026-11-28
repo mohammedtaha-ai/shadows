@@ -7,8 +7,10 @@
 //! A report is delivered once its author acknowledges it by id on a later wait; an answer
 //! that never reached the session is answered again once its claim lapses.
 use crate::model::{Attempt, AuthorWait, WaitOutcome};
-use crate::store::author::NewAuthorReport;
+use crate::store::RunsStore;
+use crate::store::author::AuthorRow;
 use crate::{Runs, RunsError};
+use core_db::Tx;
 use core_grants::{Grant, GrantId, GrantKind};
 use core_plans::{Plan, WrittenBy};
 use std::time::Duration;
@@ -52,7 +54,7 @@ impl Runs {
         conflict: bool,
     ) -> Result<(), RunsError> {
         let kind = if conflict { "conflict" } else { "ended" };
-        let report_id = NewAuthorReport::report_id(&attempt.id, kind);
+        let report_id = AuthorRow::report_id(kind, attempt.id.as_str());
         let body = if self.inner.store.author_report_kept(&report_id).await? {
             String::new()
         } else if conflict {
@@ -62,13 +64,14 @@ impl Runs {
             self.ended_notice(attempt, plan).await?.0
         };
         let kept = (self.inner.store)
-            .keep_author_report(NewAuthorReport {
-                attempt: attempt.id.clone(),
+            .keep_attempt_report(AuthorRow {
                 kind,
+                source_id: attempt.id.as_str().to_string(),
+                attempt: Some(attempt.id.clone()),
                 project_id: attempt.project_id.as_str().to_string(),
                 grant_id: grant.as_str().to_string(),
-                workflow_id: attempt.workflow_id.as_str().to_string(),
-                task: attempt.task,
+                workflow_id: Some(attempt.workflow_id.as_str().to_string()),
+                task: Some(attempt.task),
                 body,
             })
             .await?;
@@ -76,6 +79,20 @@ impl Runs {
             self.inner.author_reports.notify_waiters();
         }
         Ok(())
+    }
+
+    /// Keeps `row` once, inside `tx`, journaling the task's progress when the row is new and
+    /// names a task; answers whether it kept a new row. Every kind is kept through here.
+    pub(crate) async fn keep_for_author_in(
+        tx: &mut Tx,
+        row: &AuthorRow,
+        at: &str,
+    ) -> Result<bool, RunsError> {
+        let kept = RunsStore::insert_author_row_in(tx, row, at).await?;
+        if let (true, Some(attempt), Some(_)) = (kept, row.attempt.as_ref(), row.task) {
+            RunsStore::author_progress_in(tx, attempt, at).await?;
+        }
+        Ok(kept)
     }
 
     /// Waits, up to `bound`, for reports kept for `grant`'s plans, after acknowledging those

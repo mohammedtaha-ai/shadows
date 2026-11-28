@@ -316,7 +316,7 @@ impl Fixture {
 
     async fn reports(&self) -> Vec<Report> {
         let rows: Vec<(String, String, String, String, String, bool)> = sqlx::query_as(
-            "SELECT report_id, attempt_id, kind, grant_id, body, acked_at IS NOT NULL
+            "SELECT report_id, COALESCE(attempt_id, ''), kind, grant_id, body, acked_at IS NOT NULL
              FROM run_author_report ORDER BY report_id",
         )
         .fetch_all(self.storage.reader())
@@ -386,7 +386,7 @@ async fn an_ended_attempt_of_an_external_plan_is_kept_for_its_author() {
     let reports = f.reported().await;
     assert_eq!(reports.len(), 1, "{reports:?}");
     let report = &reports[0];
-    assert_eq!(report.report_id, format!("{}:ended", attempt.id));
+    assert_eq!(report.report_id, format!("ended:{}", attempt.id));
     assert_eq!(report.attempt_id, attempt.id.as_str());
     assert_eq!(report.kind, "ended");
     assert_eq!(report.grant_id, f.a.id.as_str());
@@ -583,10 +583,10 @@ async fn a_wait_answers_at_once_with_reports_left_while_no_one_waited() {
     assert_eq!(wait.outcome, WaitOutcome::Ended);
     assert_eq!(wait.reports.len(), 1, "{wait:?}");
     let report = &wait.reports[0];
-    assert_eq!(report.report_id, format!("{attempt}:ended"));
-    assert_eq!(report.attempt_id, attempt);
-    assert_eq!(report.workflow_id, f.workflow);
-    assert_eq!(report.task, 1);
+    assert_eq!(report.report_id, format!("ended:{attempt}"));
+    assert_eq!(report.attempt_id, Some(attempt));
+    assert_eq!(report.workflow_id, Some(f.workflow.clone()));
+    assert_eq!(report.task, Some(1));
     assert_eq!(report.kind, "ended");
     assert!(report.report.contains("failed: ended without a commit"));
     f.finish().await;
@@ -634,7 +634,7 @@ async fn a_wait_ends_when_an_attempt_ends() {
     f.commit_and_report(&grant, 0).await;
     let wait = waiting.await.unwrap().unwrap();
     assert_eq!(wait.outcome, WaitOutcome::Ended);
-    assert_eq!(wait.reports[0].attempt_id, id);
+    assert_eq!(wait.reports[0].attempt_id, Some(id));
     f.finish().await;
 }
 
@@ -719,7 +719,7 @@ async fn a_wait_after_a_returned_check_answers_none_running_once_acknowledged() 
     let wait = f.wait(&f.a, &[], 120_000).await;
     assert_eq!(wait.outcome, WaitOutcome::Ended, "{wait:?}");
     assert_eq!(wait.reports.len(), 1);
-    assert_eq!(wait.reports[0].attempt_id, follow_up);
+    assert_eq!(wait.reports[0].attempt_id.as_ref(), Some(&follow_up));
     let id = wait.reports[0].report_id.clone();
     let next = f.wait(&f.a, &[&id], 120_000).await;
     assert_eq!(next.outcome, WaitOutcome::NoneRunning, "{next:?}");
@@ -878,7 +878,7 @@ async fn a_task_run_shows_its_result_waiting_for_its_author() {
     let wait = f.wait(&f.a, &[], 2_000).await;
     assert_eq!(wait.reports.len(), 1);
     assert!(f.author_waiting().await, "a claimed report still waits");
-    f.wait(&f.a, &[&format!("{attempt}:ended")], 50).await;
+    f.wait(&f.a, &[&format!("ended:{attempt}")], 50).await;
     assert!(!f.author_waiting().await);
     f.finish().await;
 }
@@ -887,7 +887,7 @@ async fn a_task_run_shows_its_result_waiting_for_its_author() {
 async fn saving_and_acknowledging_a_report_journal_the_tasks_progress() {
     let f = fixture(true, &[]).await;
     let attempt = f.one_report().await;
-    let report_id = format!("{attempt}:ended");
+    let report_id = format!("ended:{attempt}");
     f.wait(&f.a, &[], 2_000).await;
     f.wait(&f.a, &[&report_id], 50).await;
     let (created, acked): (String, String) =
@@ -902,5 +902,37 @@ async fn saving_and_acknowledging_a_report_journal_the_tasks_progress() {
     });
     assert_eq!(f.progress_at(&created).await, vec![expected.clone()]);
     assert_eq!(f.progress_at(&acked).await, vec![expected]);
+    f.finish().await;
+}
+
+#[tokio::test]
+async fn report_ids_name_their_kind_and_source() {
+    let f = fixture(true, &[]).await;
+    let ended = f.one_report().await;
+    assert_eq!(
+        f.reports().await[0].report_id,
+        format!("ended:{ended}"),
+        "an ended report is named by its attempt"
+    );
+    f.finish().await;
+
+    let f = fixture(true, &[]).await;
+    let (attempt, grant) = f.begin().await;
+    let input = shadows_core::ConflictInput {
+        command_id: "c1".into(),
+        expected: "the backend answers by id".into(),
+        observed: "it has no id".into(),
+        evidence: vec![shadows_core::ConflictEvidence {
+            path: "README.md".into(),
+            line: Some(1),
+            summary: "no id here".into(),
+        }],
+    };
+    f.core.runs().conflict_for(&grant, input).await.unwrap();
+    f.core.runs().recover().await.unwrap();
+    let reports = f.reported().await;
+    assert_eq!(reports.len(), 1, "{reports:?}");
+    assert_eq!(reports[0].kind, "conflict");
+    assert_eq!(reports[0].report_id, format!("conflict:{attempt}"));
     f.finish().await;
 }

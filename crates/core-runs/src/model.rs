@@ -660,10 +660,11 @@ pub enum WaitOutcome {
 pub struct AuthorReport {
     /// Stable across every answer of this report; the author acknowledges it by this id.
     pub report_id: String,
-    pub attempt_id: AttemptId,
-    pub workflow_id: WorkflowId,
-    pub task: u32,
-    /// `ended` or `conflict`.
+    /// The attempt it reports; a recheck's report has none.
+    pub attempt_id: Option<AttemptId>,
+    pub workflow_id: Option<WorkflowId>,
+    pub task: Option<u32>,
+    /// `ended`, `conflict`, `reply` or `recheck`.
     pub kind: String,
     pub report: String,
 }

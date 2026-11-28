@@ -552,7 +552,7 @@ owner for an external agent. Migration `0086` is not pushed, so B-264 changes it
 
 ### B-264 · An author report carries every notice kind
 
-- Status: todo
+- Status: done
 - Owner: `Runs`.
 - Read: `crates/core-runs/src/author.rs`, `store/author.rs`, `model.rs` (`AuthorReport`),
   `crates/core-db/migrations/0086_run_author_report.sql`, `crates/core-runs/contract.yaml`.

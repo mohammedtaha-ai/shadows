@@ -1,31 +1,70 @@
 //! Persistence of the reports kept for a plan's external author.
 use super::RunsStore;
-use crate::RunsError;
 use crate::model::{AttemptId, AttemptState, AuthorReport, ConflictDelivery};
-use core_db::{Actor, Storage};
+use crate::{Runs, RunsError};
+use core_db::{Actor, Storage, Tx};
 use core_grants::{Grant, Grants};
 use core_plans::WorkflowId;
 
-/// One report as first kept: the attempt's end, or its executor's conflict.
-pub(crate) struct NewAuthorReport {
-    pub(crate) attempt: AttemptId,
-    /// `ended` or `conflict`.
+/// One report as first kept, of any kind.
+pub(crate) struct AuthorRow {
+    /// `ended`, `conflict`, `reply` or `recheck`.
     pub(crate) kind: &'static str,
+    /// The attempt for `ended` and `conflict`, the message for `reply`, the batch for `recheck`.
+    pub(crate) source_id: String,
+    pub(crate) attempt: Option<AttemptId>,
     pub(crate) project_id: String,
     pub(crate) grant_id: String,
-    pub(crate) workflow_id: String,
-    pub(crate) task: u32,
+    pub(crate) workflow_id: Option<String>,
+    pub(crate) task: Option<u32>,
     pub(crate) body: String,
 }
 
-impl NewAuthorReport {
+impl AuthorRow {
     /// Stable across every answer of one report.
-    pub(crate) fn report_id(attempt: &AttemptId, kind: &str) -> String {
-        format!("{}:{kind}", attempt.as_str())
+    pub(crate) fn report_id(kind: &str, source_id: &str) -> String {
+        format!("{kind}:{source_id}")
     }
 }
 
 impl RunsStore {
+    /// Inserts `row` unless its report is kept already; answers whether it inserted.
+    pub(crate) async fn insert_author_row_in(
+        tx: &mut Tx,
+        row: &AuthorRow,
+        at: &str,
+    ) -> Result<bool, RunsError> {
+        let inserted = sqlx::query(
+            "INSERT OR IGNORE INTO run_author_report
+               (report_id, kind, source_id, attempt_id, project_id, grant_id, workflow_id,
+                task, body, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        )
+        .bind(AuthorRow::report_id(row.kind, &row.source_id))
+        .bind(row.kind)
+        .bind(&row.source_id)
+        .bind(row.attempt.as_ref().map(AttemptId::as_str))
+        .bind(&row.project_id)
+        .bind(&row.grant_id)
+        .bind(row.workflow_id.as_deref())
+        .bind(row.task.map(i64::from))
+        .bind(&row.body)
+        .bind(at)
+        .execute(&mut *tx)
+        .await?
+        .rows_affected();
+        Ok(inserted > 0)
+    }
+
+    /// Journals TaskProgressChanged for `attempt`.
+    pub(crate) async fn author_progress_in(
+        tx: &mut Tx,
+        attempt: &AttemptId,
+        at: &str,
+    ) -> Result<(), RunsError> {
+        super::attempt_progress_in(tx, attempt, Actor::system(), at).await
+    }
+
     /// Whether report `report_id` is kept already.
     pub async fn author_report_kept(&self, report_id: &str) -> Result<bool, RunsError> {
         let found: Option<i64> =
@@ -36,10 +75,13 @@ impl RunsStore {
         Ok(found.is_some())
     }
 
-    /// Whether `attempt` has a report its author has not yet acknowledged.
+    /// Whether `attempt` has an `ended` or `conflict` report its author has not yet
+    /// acknowledged.
     pub async fn author_report_open(&self, attempt: &AttemptId) -> Result<bool, RunsError> {
         let found: Option<i64> = sqlx::query_scalar(
-            "SELECT 1 FROM run_author_report WHERE attempt_id = ? AND acked_at IS NULL LIMIT 1",
+            "SELECT 1 FROM run_author_report
+             WHERE attempt_id = ? AND kind IN ('ended', 'conflict') AND acked_at IS NULL
+             LIMIT 1",
         )
         .bind(attempt.as_str())
         .fetch_optional(self.storage.reader())
@@ -47,59 +89,40 @@ impl RunsStore {
         Ok(found.is_some())
     }
 
-    /// Keeps `report` once and, in the same write, settles what it reports and journals the
-    /// task's progress: an ended attempt's notice is sent, a pending conflict's delivery becomes
-    /// delivered. Answers whether this write kept a new row.
-    pub async fn keep_author_report(&self, report: NewAuthorReport) -> Result<bool, RunsError> {
+    /// Keeps an attempt's `ended` or `conflict` row once and, in the same write, settles what
+    /// it reports and journals the task's progress: an ended attempt's notice is sent, a
+    /// pending conflict's delivery becomes delivered. Answers whether this write kept a new row.
+    pub async fn keep_attempt_report(&self, row: AuthorRow) -> Result<bool, RunsError> {
         let at = Storage::now();
         self.storage
             .write_txn_as(move |conn| {
                 Box::pin(async move {
-                    let report_id = NewAuthorReport::report_id(&report.attempt, report.kind);
-                    let kept = sqlx::query(
-                        "INSERT OR IGNORE INTO run_author_report
-                           (report_id, attempt_id, kind, project_id, grant_id, workflow_id,
-                            task, body, created_at)
-                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                    )
-                    .bind(&report_id)
-                    .bind(report.attempt.as_str())
-                    .bind(report.kind)
-                    .bind(&report.project_id)
-                    .bind(&report.grant_id)
-                    .bind(&report.workflow_id)
-                    .bind(i64::from(report.task))
-                    .bind(&report.body)
-                    .bind(&at)
-                    .execute(&mut *conn)
-                    .await?
-                    .rows_affected()
-                        > 0;
-                    let mut changed = kept;
-                    if report.kind == "conflict" {
+                    let kept = Runs::keep_for_author_in(conn, &row, &at).await?;
+                    let Some(attempt) = row.attempt.as_ref() else {
+                        return Ok(kept);
+                    };
+                    if row.kind == "conflict" {
                         let moved = sqlx::query(
                             "UPDATE run_attempts SET conflict_delivery = ?
                              WHERE id = ? AND conflict_delivery = 'pending'",
                         )
                         .bind(ConflictDelivery::Delivered.as_str())
-                        .bind(report.attempt.as_str())
+                        .bind(attempt.as_str())
                         .execute(&mut *conn)
                         .await?
                         .rows_affected();
-                        changed |= moved > 0;
+                        if moved > 0 && !kept {
+                            Self::author_progress_in(conn, attempt, &at).await?;
+                        }
                     } else {
                         sqlx::query(
                             "UPDATE run_attempts SET notice_sent_at = COALESCE(notice_sent_at, ?)
                              WHERE id = ?",
                         )
                         .bind(&at)
-                        .bind(report.attempt.as_str())
+                        .bind(attempt.as_str())
                         .execute(&mut *conn)
                         .await?;
-                    }
-                    if changed {
-                        super::attempt_progress_in(conn, &report.attempt, Actor::system(), &at)
-                            .await?;
                     }
                     Ok(kept)
                 })
@@ -124,22 +147,29 @@ impl RunsStore {
                     Grants::check_live_in(tx, &grant).await?;
                     let now = Storage::now();
                     for report in &ack {
-                        let acked: Option<String> = sqlx::query_scalar(
+                        let acked: Option<(Option<String>, Option<i64>)> = sqlx::query_as(
                             "UPDATE run_author_report SET acked_at = ?
                              WHERE report_id = ? AND grant_id = ? AND acked_at IS NULL
-                             RETURNING attempt_id",
+                             RETURNING attempt_id, task",
                         )
                         .bind(&now)
                         .bind(report)
                         .bind(grant.id.as_str())
                         .fetch_optional(&mut *tx)
                         .await?;
-                        if let Some(attempt) = acked {
+                        if let Some((Some(attempt), Some(_))) = acked {
                             let attempt = AttemptId::from_recorded(attempt);
-                            super::attempt_progress_in(tx, &attempt, Actor::system(), &now).await?;
+                            Self::author_progress_in(tx, &attempt, &now).await?;
                         }
                     }
-                    type Row = (String, String, String, i64, String, String);
+                    type Row = (
+                        String,
+                        Option<String>,
+                        Option<String>,
+                        Option<i64>,
+                        String,
+                        String,
+                    );
                     let rows: Vec<Row> = sqlx::query_as(
                         "SELECT report_id, attempt_id, workflow_id, task, kind, body
                          FROM run_author_report
@@ -182,9 +212,9 @@ impl RunsStore {
                         .map(
                             |(report_id, attempt, workflow, task, kind, body)| AuthorReport {
                                 report_id,
-                                attempt_id: AttemptId::from_recorded(attempt),
-                                workflow_id: WorkflowId::from_recorded(workflow),
-                                task: u32::try_from(task).unwrap_or(0),
+                                attempt_id: attempt.map(AttemptId::from_recorded),
+                                workflow_id: workflow.map(WorkflowId::from_recorded),
+                                task: task.and_then(|task| u32::try_from(task).ok()),
                                 kind,
                                 report: body,
                             },

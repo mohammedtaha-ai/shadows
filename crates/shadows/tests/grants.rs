@@ -692,9 +692,9 @@ async fn keep_report(app: &App, grant: &shadows_core::Grant, claimed_until: Opti
     .unwrap();
     sqlx::query(
         "INSERT INTO run_author_report
-           (report_id, attempt_id, kind, project_id, grant_id, workflow_id, task, body,
+           (report_id, kind, source_id, attempt_id, project_id, grant_id, workflow_id, task, body,
             created_at, claimed_until)
-         VALUES ('report-1', 'attempt-1', 'ended', ?, ?, 'wf-1', 1, 'Built.',
+         VALUES ('report-1', 'ended', 'attempt-1', 'attempt-1', ?, ?, 'wf-1', 1, 'Built.',
                  '2026-10-05T00:01:00Z', ?)",
     )
     .bind(app.project.as_str())

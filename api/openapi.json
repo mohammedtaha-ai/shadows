@@ -1281,10 +1281,18 @@
         "description": "One report kept for an external author, as a wait answers it.",
         "properties": {
           "attempt_id": {
-            "$ref": "#/components/schemas/AttemptId"
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AttemptId",
+                "description": "The attempt it reports; a recheck's report has none."
+              }
+            ]
           },
           "kind": {
-            "description": "`ended` or `conflict`.",
+            "description": "`ended`, `conflict`, `reply` or `recheck`.",
             "type": "string"
           },
           "report": {
@@ -1297,17 +1305,24 @@
           "task": {
             "format": "int32",
             "minimum": 0,
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "workflow_id": {
-            "$ref": "#/components/schemas/WorkflowId"
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/WorkflowId"
+              }
+            ]
           }
         },
         "required": [
           "report_id",
-          "attempt_id",
-          "workflow_id",
-          "task",
           "kind",
           "report"
         ],
