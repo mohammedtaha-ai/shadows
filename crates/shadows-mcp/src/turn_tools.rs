@@ -9,7 +9,7 @@ use rmcp::{
     tool, tool_router,
 };
 use serde::Deserialize;
-use shadows_core::{Grant, GrantKind, QuestionOption};
+use shadows_core::{ChangeNoter, Grant, GrantKind, QuestionOption};
 use shadows_core::{Place, PlanShow, WorkflowId};
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
@@ -107,23 +107,32 @@ impl Shadows {
 
     #[tool(
         description = "Say why you changed project files yourself (executors change them through \
-                       commits): the paths, relative to the project, and the reason. It is \
-                       recorded in the conversation. A change you made without it is asked \
-                       about when your turn ends."
+                       commits): the paths, relative to the project, and the reason. The \
+                       Planner's note is recorded in its conversation and a change it made \
+                       without one is asked about when its turn ends; an external agent's \
+                       note is recorded on the project."
     )]
     async fn project_change_note(
         &self,
         Extension(grant): Extension<Grant>,
         Parameters(args): Parameters<ProjectChangeNoteArgs>,
     ) -> CallToolResult {
-        let thread = match (grant.kind, &grant.thread_id) {
-            (GrantKind::Thread, Some(thread)) => thread.clone(),
-            _ => return answer::<()>(Err(Refusal::scope("only the Planner notes its changes"))),
+        let by = match (grant.kind, &grant.thread_id) {
+            (GrantKind::Thread, Some(thread)) => ChangeNoter::Planner(thread.clone()),
+            (GrantKind::Project, _) => ChangeNoter::External {
+                grant: grant.id.clone(),
+                project: grant.project_id.clone(),
+            },
+            _ => {
+                return answer::<()>(Err(Refusal::scope(
+                    "only the Planner or an external agent notes its changes",
+                )));
+            }
         };
         answer(
             self.core
                 .turns()
-                .note_change(&thread, args.paths, args.reason)
+                .note_change(by, args.paths, args.reason)
                 .await
                 .map(|()| serde_json::json!({ "noted": true }))
                 .map_err(Refusal::from),

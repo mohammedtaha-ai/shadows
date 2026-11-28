@@ -1,20 +1,31 @@
-//! One job: the Planner's changes to the project's files — `project_change_note`,
-//! and the end-of-turn check that asks about the changes it did not explain.
+//! One job: an agent's own changes to the project's files — `project_change_note`,
+//! and the end-of-turn check that asks the Planner about the changes it did not explain.
 
 use super::handles::Noted;
 use super::store::TurnsStore;
 use super::{Turns, TurnsError};
 use crate::model::OperationId;
+use core_grants::GrantId;
+use core_projects::ProjectId;
 use core_threads::ThreadId;
 
+/// Who notes a change: the Planner of a thread, or an external agent by its
+/// project grant.
+#[derive(Debug, Clone)]
+pub enum ChangeNoter {
+    Planner(ThreadId),
+    External { grant: GrantId, project: ProjectId },
+}
+
 impl Turns {
-    /// The Planner says why it changed `paths` (1 to 100, each inside the
-    /// project as `code_lsp`'s file is) with `reason` (1 to 2000 characters):
-    /// a `ProjectChange` entry `{ paths, reason, noted: true }` in its thread,
-    /// and the running turn counts them as explained.
+    /// An agent says why it changed `paths` (1 to 100, each inside the
+    /// project as `code_lsp`'s file is) with `reason` (1 to 2000 characters).
+    /// The Planner's note is a `ProjectChange` entry `{ paths, reason, noted: true }`
+    /// in its thread, and the running turn counts them as explained; an external
+    /// agent's is a `ProjectChangeNoted` event on the project, with its grant as actor.
     pub async fn note_change(
         &self,
-        thread: &ThreadId,
+        by: ChangeNoter,
         paths: Vec<String>,
         reason: String,
     ) -> Result<(), TurnsError> {
@@ -29,7 +40,10 @@ impl Turns {
                 "a note names 1 to 100 paths".into(),
             ));
         }
-        let project = self.store.thread_project(thread).await?;
+        let project = match &by {
+            ChangeNoter::Planner(thread) => self.store.thread_project(thread).await?,
+            ChangeNoter::External { project, .. } => project.clone(),
+        };
         let mut checked = Vec::with_capacity(paths.len());
         for path in &paths {
             let path = self
@@ -41,8 +55,17 @@ impl Turns {
                 checked.push(path);
             }
         }
-        self.store.note_change(thread, &checked, &reason).await?;
-        if let Some(noted) = self.handles.noted_for(thread).await
+        let thread = match by {
+            ChangeNoter::Planner(thread) => thread,
+            ChangeNoter::External { grant, project } => {
+                return self
+                    .store
+                    .note_external_change(&grant, &project, &checked, &reason)
+                    .await;
+            }
+        };
+        self.store.note_change(&thread, &checked, &reason).await?;
+        if let Some(noted) = self.handles.noted_for(&thread).await
             && let Ok(mut noted) = noted.lock()
         {
             noted.extend(checked);

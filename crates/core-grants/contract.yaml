@@ -125,10 +125,10 @@ functions:
     tools_for:
       signature: "(kind: GrantKind) -> &'static [&'static str]"
       # The Planner's (Thread) list holds 48 tools, including task_executor_set and
-      # executor_catalog. The external (Project) list holds 43: the Planner's less the four
-      # *_approve, plan_show, person_ask and project_change_note, plus draft_prepare and
+      # executor_catalog. The external (Project) list holds 44: the Planner's less the four
+      # *_approve, plan_show and person_ask, plus draft_prepare and
       # task_wait (only an external author waits for its attempts; project_list is the MCP adapter's own). Only the Planner's holds the approvals,
-      # plan_show, person_ask and project_change_note; no list holds a decision accept (the
+      # plan_show and person_ask; no list holds a decision accept (the
       # person accepts). Only the executor's holds task_conflict. code_lsp is in all three lists;
       # where_is, who_uses and outline are in none.
     read_in:

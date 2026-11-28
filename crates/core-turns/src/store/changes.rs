@@ -1,8 +1,10 @@
-//! One job: the Planner's project changes as stored — a noted change's entry,
-//! and the unnoted ones' entry with the notice that asks about them.
+//! One job: agents' project changes as stored — a noted change's entry or
+//! event, and the Planner's unnoted ones' entry with the notice that asks about them.
 
-use core_db::{Actor, CommandContext, Storage};
+use core_db::{Actor, CommandContext, JournalEntry, Storage};
+use core_grants::GrantId;
 use core_operations::Operations;
+use core_projects::ProjectId;
 use core_threads::{NewThreadEntry, ThreadEntryKind, ThreadId, ThreadKind, Threads};
 
 use super::queue::QueuedFields;
@@ -70,6 +72,37 @@ impl super::TurnsStore {
                     )
                     .await?;
                     Ok(())
+                })
+            })
+            .await
+    }
+
+    /// Records an external agent's note as `ProjectChangeNoted` on the
+    /// project, with its grant as actor.
+    pub async fn note_external_change(
+        &self,
+        grant: &GrantId,
+        project: &ProjectId,
+        paths: &[String],
+        reason: &str,
+    ) -> Result<(), TurnsError> {
+        let actor = Actor {
+            kind: "Grant".into(),
+            id: grant.to_string(),
+        };
+        let event = JournalEntry::new("ProjectChangeNoted", actor)
+            .with_project(project.as_str())
+            .with_payload(serde_json::json!({
+                "project_id": project,
+                "paths": paths,
+                "reason": reason,
+            }));
+        let ts = Storage::now();
+        self.storage
+            .write_txn_as(move |conn| {
+                Box::pin(async move {
+                    JournalEntry::append_event(conn, event, &ts).await?;
+                    Ok::<_, TurnsError>(())
                 })
             })
             .await

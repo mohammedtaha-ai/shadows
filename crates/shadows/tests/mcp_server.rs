@@ -76,7 +76,6 @@ async fn the_external_inventory_is_the_planners_less_approval_and_conversation_t
         "plan_approve",
         "plan_show",
         "person_ask",
-        "project_change_note",
     ] {
         assert!(expected.remove(excluded), "{excluded}");
     }
@@ -88,7 +87,7 @@ async fn the_external_inventory_is_the_planners_less_approval_and_conversation_t
     let tools = external.list_all_tools().await.unwrap();
     let actual: BTreeSet<_> = tools.iter().map(|tool| tool.name.to_string()).collect();
     assert_eq!(actual, expected);
-    assert_eq!(tools.len(), 44);
+    assert_eq!(tools.len(), 45);
     for tool in tools {
         if tool.name != "project_list" {
             assert!(
@@ -248,7 +247,7 @@ async fn the_tool_list_depends_on_the_grant_kind() {
     project_tools.sort();
     // The exact inventory is held by
     // the_external_inventory_is_the_planners_less_approval_and_conversation_tools.
-    assert_eq!(project_tools.len(), 44);
+    assert_eq!(project_tools.len(), 45);
     assert!(project_tools.iter().any(|name| name == "draft_prepare"));
     // An external connection selects its project on every call but project_list.
     let tools = external.list_all_tools().await.unwrap();

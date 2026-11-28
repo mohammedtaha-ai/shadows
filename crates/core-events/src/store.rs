@@ -102,7 +102,7 @@ impl EventsStore {
                                'TaskProgressChanged', 'ThreadRetitled', 'ThreadRemoved',
                                'OperationCompleted', 'OperationFailed',
                                'OperationCancelled', 'OperationInterrupted',
-                               'RecheckStarted', 'RecheckFinished')
+                               'RecheckStarted', 'RecheckFinished', 'ProjectChangeNoted')
               ORDER BY e.seq LIMIT ?",
         )
         .bind(project.as_str())

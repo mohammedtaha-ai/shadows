@@ -1,5 +1,5 @@
-//! The Planner's changes to the project's files: a note records why, and a
-//! change it did not explain is recorded and asked about when its turn settles.
+//! Agents' changes to the project's files: a note records why, and a change the
+//! Planner did not explain is recorded and asked about when its turn settles.
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -7,11 +7,11 @@ use std::time::Duration;
 
 use shadows_agent::policy;
 use shadows_core::testing::{
-    CommandContext, LiveHandles, ProjectDirectory, Storage, acp, create_project,
+    CommandContext, EventCursor, LiveHandles, ProjectDirectory, Storage, acp, create_project,
 };
 use shadows_core::{
-    AppCore, CodebaseConfig, CoreParts, IndexState, OperationId, ProjectId, SendTurn, ThreadEntry,
-    ThreadEntryKind, ThreadId, Threads,
+    AppCore, ChangeNoter, CodebaseConfig, CoreParts, GrantId, IndexState, OperationId, ProjectId,
+    SendTurn, ThreadEntry, ThreadEntryKind, ThreadId, Threads,
 };
 
 struct World {
@@ -168,7 +168,7 @@ async fn a_noted_change_is_recorded_with_its_reason() {
     w.core
         .turns()
         .note_change(
-            &w.thread,
+            ChangeNoter::Planner(w.thread.clone()),
             vec!["./notes.txt".into()],
             "a record of the install".into(),
         )
@@ -177,7 +177,11 @@ async fn a_noted_change_is_recorded_with_its_reason() {
     let outside = w
         .core
         .turns()
-        .note_change(&w.thread, vec!["../s.sqlite3".into()], "no".into())
+        .note_change(
+            ChangeNoter::Planner(w.thread.clone()),
+            vec!["../s.sqlite3".into()],
+            "no".into(),
+        )
         .await;
     assert!(outside.is_err(), "a path outside the project is refused");
     w.settle(&op).await;
@@ -242,5 +246,78 @@ async fn a_turn_with_no_change_sends_nothing() {
     w.settle(&op).await;
     assert!(w.changes().await.is_empty());
     assert!(w.core.turns().queued(&w.thread).await.unwrap().is_empty());
+    w.close().await;
+}
+
+#[tokio::test]
+async fn an_external_agent_notes_a_change_for_the_project() {
+    let w = world().await;
+    std::fs::write(w.dir.join("notes.txt"), "installed gopls\n").unwrap();
+    let grant = GrantId::generate();
+    w.core
+        .turns()
+        .note_change(
+            ChangeNoter::External {
+                grant: grant.clone(),
+                project: w.project.clone(),
+            },
+            vec!["./notes.txt".into()],
+            "a record of the install".into(),
+        )
+        .await
+        .unwrap();
+    let tail = w
+        .core
+        .events()
+        .read_project_events_after(EventCursor(0), &w.project, 1000)
+        .await
+        .unwrap();
+    let noted: Vec<_> = tail
+        .iter()
+        .filter(|e| e.kind == "ProjectChangeNoted")
+        .collect();
+    let [event] = noted.as_slice() else {
+        panic!("one ProjectChangeNoted: {tail:?}");
+    };
+    let payload: serde_json::Value = serde_json::from_str(&event.payload_json).unwrap();
+    assert_eq!(
+        payload,
+        serde_json::json!({
+            "project_id": w.project, "paths": ["notes.txt"], "reason": "a record of the install"
+        })
+    );
+    let actor: (String, String) = sqlx::query_as(
+        "SELECT actor_kind, actor_id FROM durable_event WHERE kind = 'ProjectChangeNoted'",
+    )
+    .fetch_one(w.storage.reader())
+    .await
+    .unwrap();
+    assert_eq!(actor, ("Grant".into(), grant.to_string()));
+    assert!(w.changes().await.is_empty(), "no thread entry");
+    w.close().await;
+}
+
+#[tokio::test]
+async fn an_external_note_outside_the_project_is_refused() {
+    let w = world().await;
+    let outside = w
+        .core
+        .turns()
+        .note_change(
+            ChangeNoter::External {
+                grant: GrantId::generate(),
+                project: w.project.clone(),
+            },
+            vec!["../s.sqlite3".into()],
+            "no".into(),
+        )
+        .await;
+    assert!(outside.is_err(), "a path outside the project is refused");
+    let events: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM durable_event WHERE kind = 'ProjectChangeNoted'")
+            .fetch_one(w.storage.reader())
+            .await
+            .unwrap();
+    assert_eq!(events, 0);
     w.close().await;
 }

@@ -47,6 +47,7 @@ use std::time::Duration;
 
 use shadows_agent::TurnSettings;
 
+pub use changes::ChangeNoter;
 pub use handles::LiveHandles;
 pub use model::{
     Asked, InvocationView, Notice, Operation, OperationId, QuestionId, QuestionOption, Queued,
