@@ -147,7 +147,7 @@ and [§24.2](../core/specs/2026-10-08-approval-authority-design.md) (an external
 approves). Every decision there is Mohammed's (2026-11-28). The tasks are in build order; this
 section is the plan. Shared request:
 [`2026-11-28-external-agents-like-the-planner.md`](../shared/requests/2026-11-28-external-agents-like-the-planner.md);
-a task that changes what the web sees stays `blocked` until it is `accepted`.
+accepted by Masada on 2026-11-28 (`c53ea0df`), with the two additions folded into B-250 and B-261.
 
 Rules for every task here:
 - An external agent is a `GrantKind::Project` grant, the one its connection selects for the
@@ -196,7 +196,7 @@ Not owned, so left out:
 
 ### B-250 · Design keeps vision, map and roadmap proposals from an external agent
 
-- Status: blocked (the shared request: a proposal's `thread_id` becomes nullable on the wire)
+- Status: todo (the shared request is accepted)
 - Owner: `Design` (`crates/core-design`).
 - Read: `crates/core-design/contract.yaml`; `proposal_context.rs` (`proposal_writer`,
   `proposal_command`), `proposals.rs`, `map_proposals.rs`, `roadmap_proposals.rs` and their
@@ -209,23 +209,36 @@ Not owned, so left out:
   gain `command_id: Option<String>`, required for an external grant ("an external agent names
   its command_id"), ignored for the Planner. A proposal row from an external grant has
   `thread_id`, `operation_id` and `entry_id` NULL and a new `grant_id` set; `VisionProposal`,
-  `MapProposal` and `RoadmapProposal` serialize `thread_id: Option<ThreadId>` and
-  `grant_id: Option<GrantId>`. The person approves it through the existing project routes;
-  approving it writes no thread entry.
+  `MapProposal` and `RoadmapProposal` serialize `thread_id: Option<ThreadId>`,
+  `grant_id: Option<GrantId>` and `connection_id: Option<String>`: the external connection
+  whose scope grant proposed it, `None` for a Planner's proposal (Masada's addition, accepted
+  request). Design reads it through a new transaction-local Grants read,
+  `Grants::connections_of_in(<the same connection type as check_live_in>, grants: &[GrantId])
+  -> Result<HashMap<GrantId, String>, GrantsError>` over `external_connection_project`, inside
+  the proposals' list read; a grant whose connection row is gone maps to nothing, so
+  `connection_id` is `None`. `VisionProposed`, `MapProposed` and `RoadmapProposed` are
+  journaled for an external proposal as for the Planner's, with its project and
+  `thread_id: null`, so they stay on the project stream. The person approves it through the
+  existing project routes; approving it writes no thread entry.
 - Touch: the four files above and their store files; new migration
   `crates/core-db/migrations/<next>_external_design_proposals.sql` (rebuilds the three proposal
   tables: `thread_id`, `operation_id`, `entry_id` nullable, `grant_id TEXT NULL REFERENCES
   mcp_grant(id)`, `CHECK ((thread_id IS NULL) <> (grant_id IS NULL))`, rows copied);
-  `crates/core-design/contract.yaml`; `crates/shadows/tests/architecture/table-owners.txt` if
+  `crates/core-design/contract.yaml`; `crates/core-grants/src/lib.rs` (or `external.rs`) and
+  its store for `connections_of_in`, `crates/core-grants/contract.yaml` (its
+  `called_by_other_services` line); `crates/shadows/tests/architecture/table-owners.txt` if
   it names columns; `crates/shadows/tests/workspace_mcp.rs`; `api/openapi.json` (regenerated).
-- Needs: the request `accepted`.
+- Needs: nothing (the request is accepted).
 - Done when: `cargo test -p shadows --test workspace_mcp --test vision_proposal_ids --test
   map_proposal_coverage --test design_routes` pass, with
   `the_planner_proposes_vision_cards_but_an_external_agent_cannot` renamed to
   `an_external_agent_proposes_vision_cards_but_cannot_approve` (propose answers `Pending` with
   `thread_id: null`; `vision_approve` is refused),
   `an_external_proposal_needs_its_command_id`, `an_external_proposal_replays_on_its_command_id`
-  (same id, same proposal), `the_person_approves_an_external_map_proposal_with_no_entry`; and
+  (same id, same proposal), `the_person_approves_an_external_map_proposal_with_no_entry`,
+  `an_external_proposal_names_its_connection` (`connection_id` is the issuing connection's id;
+  a Planner's proposal has `null`), `an_external_proposal_is_on_the_project_stream`
+  (`VisionProposed` reaches the project tail with `thread_id: null`); and
   `cargo test -p shadows-core --test design_migration` passes over the new migration.
 
 ### B-251 · Design keeps decisions and design elements from an external agent
@@ -248,7 +261,7 @@ Not owned, so left out:
 
 ### B-252 · Runs records an executor chosen by an external agent
 
-- Status: blocked (the shared request: `Chooser` gains `external`)
+- Status: todo (the shared request is accepted)
 - Owner: `Runs`.
 - Read: `crates/core-runs/src/executor_choice.rs` (`save_executor`),
   `crates/core-runs/src/store/executor_choice.rs` (the read maps every value but `planner` to
@@ -263,7 +276,7 @@ Not owned, so left out:
   `run_task_executors` with `CHECK (chosen_by IN ('person','planner','external'))`, rows
   copied), `crates/core-runs/contract.yaml`, `crates/shadows-core/tests/external_runs.rs`,
   `api/openapi.json` (regenerated).
-- Needs: B-249; the request `accepted`.
+- Needs: B-249.
 - Done when: `cargo test -p shadows-core --test external_runs --test design_migration` pass
   with `an_external_agent_sets_a_tasks_executor` (saved, then read back as
   `Chooser::External`), `earlier_choices_read_back_unchanged_after_the_migration` (a `person`
@@ -416,7 +429,7 @@ before they were built: Shadows never wakes an external agent (Mohammed, 2026-11
 
 ### B-260 · The wait over HTTP with the connection's bearer, and its address in Settings
 
-- Status: blocked (the shared request)
+- Status: todo (the shared request is accepted)
 - Owner: `Runs` (the method), `Grants` (bearer, project and `wait_url`); `shadows-http`
   translates.
 - Read: `crates/shadows-http/src/grants.rs`, `crates/shadows-mcp/src/auth.rs` (how `/mcp` turns
@@ -434,7 +447,7 @@ before they were built: Shadows never wakes an external agent (Mohammed, 2026-11
   (route), `crates/shadows-http/src/contract.yaml`, `crates/core-grants/src/model.rs`,
   `crates/core-grants/src/external.rs`, `crates/core-grants/contract.yaml`, `api/openapi.json`
   (regenerated), `crates/shadows/tests/grants.rs`, `docs/codebase/README.md`.
-- Needs: B-258; the request `accepted`.
+- Needs: B-258.
 - Done when: `cargo test -p shadows --test grants --test openapi` pass with
   `the_http_wait_answers_with_the_connections_bearer` (an ended attempt's report),
   `the_http_wait_acknowledges_what_it_names` (a second call with that `ack` does not answer it),
@@ -444,19 +457,24 @@ before they were built: Shadows never wakes an external agent (Mohammed, 2026-11
 
 ### B-261 · A task run says its result waits for its author
 
-- Status: blocked (the shared request)
+- Status: todo (the shared request is accepted)
 - Owner: `Runs`.
 - Read: the `TaskRun` view in `crates/core-runs/src/model.rs`; B-257's rows.
 - Interfaces: `TaskRun.author_waiting: bool`, true while the task's latest attempt has a
-  `run_author_report` row not yet acknowledged. A `TaskProgressChanged` is journaled when a row
-  is saved and when it is acknowledged, so the project stream refreshes the page.
+  `run_author_report` row not yet acknowledged. A `TaskProgressChanged` is journaled in the
+  write that saves a row and in the write that acknowledges it, through the existing journal
+  helper for an attempt (`crates/core-runs/src/store/mod.rs`), so it carries the task's
+  `project_id`, `workflow_id`, `version`, `task` and `attempt_id` as today's do: the web
+  refreshes only that task's run on those (Masada's condition, accepted request).
 - Touch: `crates/core-runs/src/model.rs`, the view's store read, `crates/core-runs/src/author.rs`,
   `crates/core-runs/contract.yaml`, `crates/shadows-core/tests/external_author.rs`,
   `api/openapi.json` (regenerated).
-- Needs: B-258; the request `accepted`.
+- Needs: B-258.
 - Done when: `cargo test -p shadows-core --test external_author` passes with
   `a_task_run_shows_its_result_waiting_for_its_author` (true after the end, still true while
-  claimed, false once acknowledged).
+  claimed, false once acknowledged), `saving_and_acknowledging_a_report_journal_the_tasks_progress`
+  (two `TaskProgressChanged` events, each with that task's `workflow_id`, `version` and
+  `task`).
 
 ### B-262 · Acceptance: an external agent takes a project from idea to done tasks
 
