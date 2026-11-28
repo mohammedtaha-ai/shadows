@@ -4930,6 +4930,8 @@ export interface components {
          *     tasks it needs, whether Start may run now, and the model to offer first.
          */
         TaskRun: {
+            /** @description Whether the latest attempt has a report its external author has not yet acknowledged. */
+            author_waiting: boolean;
             done: boolean;
             done_at: string | null;
             done_reason: string | null;

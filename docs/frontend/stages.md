@@ -199,7 +199,7 @@ Rules for every task here:
 
 ### F-156 · A task's result waiting for its external author shows so
 
-- Status: todo (B-261 is built: `e9853d24`)
+- Status: done
 - Plan: this section.
 - Read: `web/src/app/tasks/contract.yaml`; `task-header.tsx`, `use-task-run.ts`;
   `web/src/stream/contract.yaml` (`TaskProgressChanged` refreshes that task's run).

@@ -50,6 +50,12 @@ export function TaskHeader({ projectId, workflowId, planTitle, task, title, run,
           <CircleCheck aria-hidden className="size-3.5" />Done
         </span>}
       </div>
+      {run.author_waiting && (
+        <p className="mt-2 text-xs text-muted-foreground">
+          <span className="font-medium text-foreground">Result waits for its external author</span>
+          {" "}It is judged when the agent that wrote this plan waits again.
+        </p>
+      )}
       {run.needs.length > 0 && (
         <ul aria-label="Needs" className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
           {run.needs.map((need) => (

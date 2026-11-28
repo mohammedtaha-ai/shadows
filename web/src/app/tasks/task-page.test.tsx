@@ -29,7 +29,7 @@ function attempt(extra: Partial<Attempt> = {}): Attempt {
 
 function taskRun(extra: Partial<TaskRun> = {}): TaskRun {
   return {
-    task: 1, done: false, done_at: null, done_reason: null, latest: null, needs: [],
+    task: 1, author_waiting: false, done: false, done_at: null, done_reason: null, latest: null, needs: [],
     start: { allowed: true, code: null, reason: null },
     executor: { harness: 'claude-code', model: 'fake-large', effort: 'high', chosen_at: 'now', chosen_by: 'planner' },
     ...extra,
@@ -485,6 +485,25 @@ describe('the task page', () => {
     await act(async () => source.durable(1, 'TaskProgressChanged', null, { project_id: 'p1', workflow_id: 'w1', version: 1, task: 1, attempt_id: 'a1' }))
     await until(() => !a.text().includes("Waiting for the Planner's judgment"))
     expect(a.text()).toContain('Done')
+  })
+
+  it('a_result_waiting_for_its_author_says_so', async () => {
+    const a = (app = await startApp(PAGE, answers({
+      taskRun: taskRun({ latest: attempt({ state: 'committed', commit: 'abc123' }), author_waiting: true }),
+    })))
+    await until(() => a.text().includes('Result waits for its external author'))
+    expect(a.text()).toContain('It is judged when the agent that wrote this plan waits again.')
+  })
+
+  it('the_waiting_line_goes_when_the_stream_reports_the_acknowledgement', async () => {
+    let current = taskRun({ latest: attempt({ state: 'committed', commit: 'abc123' }), author_waiting: true })
+    const a = (app = await startApp(PAGE, answers({ taskRun: () => Response.json(current) })))
+    await until(() => a.text().includes('Result waits for its external author'))
+    current = { ...current, author_waiting: false }
+    const source = a.sources.find(item => item.url.includes('/api/projects/p1/'))!
+    await act(async () => source.caughtUp(0))
+    await act(async () => source.durable(1, 'TaskProgressChanged', null, { project_id: 'p1', workflow_id: 'w1', version: 1, task: 1, attempt_id: 'a1' }))
+    await until(() => !a.text().includes('Result waits for its external author'))
   })
 
   it('a_task_stopped_on_the_cap_does_not_wait', async () => {

@@ -247,7 +247,7 @@ export function answers(o: Overrides = {}): Record<string, Answer> {
           frozen_at: '2026-09-25T00:00:00Z',
         })),
     'GET /api/workflows/w1/versions/1/tasks/1': o.taskRun ?? {
-      task: 1, done: false, done_at: null, done_reason: null, latest: null, needs: [],
+      task: 1, author_waiting: false, done: false, done_at: null, done_reason: null, latest: null, needs: [],
       start: { allowed: true, code: null, reason: null },
       executor: { harness: 'claude-code', model: 'fake-large', effort: 'high', chosen_at: 'now', chosen_by: 'planner' },
     },
