@@ -576,7 +576,7 @@ owner for an external agent. Migration `0086` is not pushed, so B-264 changes it
 
 ### B-265 · An executor's reply reaches the author of the attempt's version
 
-- Status: todo (after B-264)
+- Status: done
 - Owner: `Runs`.
 - Read: `crates/core-runs/src/notify.rs` (`notify_reply`), `message.rs` (`message_agent`, the
   executor prompt, `notify_reply_logged`), `recover.rs` (where undelivered replies retry).
@@ -599,7 +599,7 @@ owner for an external agent. Migration `0086` is not pushed, so B-264 changes it
 
 ### B-266 · A recheck's result reaches whoever asked it, or the completing plan's author
 
-- Status: todo (after B-264)
+- Status: doing
 - Owner: `Runs`.
 - Read: `crates/core-runs/src/recheck.rs` (`recheck_recipient`, the batch's end and
   `deliver_recheck`), `planner.rs` (`recheck_project_for`), the automatic recheck after a done
